@@ -18,13 +18,13 @@ class PeTTa:
 
     def load_metta_file(self, file_path):
         """Compile a MeTTa file to Prolog."""
-        self.prolog.query(f"load_metta_file('{file_path}')")
+        return list(self.prolog.query(f"load_metta_file('{file_path}')"))
 
     def process_metta_string(self, metta_code):
         """Compile a string of MeTTa code to Prolog."""
         # Note: This assumes process_metta_string is defined in the Prolog code
         # If not, we might need to add it or use load_metta_file with a temp file
-        self.prolog.query(f"process_metta_string('{metta_code}')")
+        return list(self.prolog.query(f"process_metta_string('{metta_code}')"))
 
     def run(self):
         """Execute the run(R) predicates and return results."""
