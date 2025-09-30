@@ -11,6 +11,6 @@ prolog_interop_example :- register_fun(prologfunc),
 main :- current_prolog_flag(argv, Args),
         ( Args = [] -> prolog_interop_example
                      ; Args = [File|_],
-                       load_metta_file(File,default),
-                       findall(R, run(default,R), Results),
+                       load_metta_file(File),
+                       findall(R, run(R), Results),
                        format("~w~n", [Results]) ).
