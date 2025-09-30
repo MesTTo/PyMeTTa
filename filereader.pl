@@ -2,27 +2,28 @@
 :- use_module(library(pcre)).     % re_replace/4
 
 %Read Filename into string S and process it (S holds MeTTa code):
-load_metta_file(Filename) :- read_file_to_string(Filename, S, []),
-                             process_metta_string(S).
+load_metta_file(Filename, RunArg) :- read_file_to_string(Filename, S, []),
+                             process_metta_string(S, RunArg).
 
 %Replace !(EXP) with (= (run) (EXP)):
 re_replace_all(PFrom, PTo, S, Out) :- re_replace(PFrom, PTo, S, S1),
                                       ( S1 \== S -> re_replace_all(PFrom, PTo, S1, Out)
                                                   ; Out = S ).
 
-%Extract function definitions and process each, whereby !(Z) is transformed to (= (run) (Z)):
-process_metta_string(S) :- split_string(S, "\n", "", L0),
-                           findall(C, (member(L,L0), split_string(L,";","",[C|_])), L1),
-                           atomic_list_concat(L1, '\n', CodeWithoutComment),
-                           re_replace_all("(?m)^\\s*!\\s*\\(((?:[^()]|\\((?-1)\\))*)\\)",
-                                          "(= (run) (\\1))", CodeWithoutComment, FunctionizedCode),
-                           string_codes(FunctionizedCode, Codes),
-                           phrase(top_forms(Forms), Codes),
-                           maplist(assert_function, Forms).
+%Extract function definitions and process each, whereby !(Z) is transformed to (= (run ARG) (Z)):
+process_metta_string(S, RunArg) :- split_string(S, "\n", "", L0),
+                                   findall(C, (member(L,L0), split_string(L,";","",[C|_])), L1),
+                                   atomic_list_concat(L1, '\n', CodeWithoutComment),
+                                   atomic_list_concat(['(= (run ', RunArg, ') (\\1))'], Replacement),
+                                   re_replace_all("(?m)^\\s*!\\s*\\(((?:[^()]|\\((?-1)\\))*)\\)",
+                                                  Replacement, CodeWithoutComment, FunctionizedCode),
+                                   string_codes(FunctionizedCode, Codes),
+                                   phrase(top_forms(Forms), Codes),
+                                   maplist(assert_function, Forms).
 
 %Functions stay functions and runaway S-expressions become add-atom calls with result omitted:
 to_function_form(T, T) :- T = [=, [_|_], _], !.
-to_function_form(T, [=, [run], [['add-atom','&self', T], [empty]]]).
+to_function_form(T, [=, [run, default], [['add-atom','&self', T], [empty]]]).
 
 %From a function string: parse, extract first atom as name, register, transform to relation, assert:
 assert_function(FormStr) :- sread(FormStr, Orig),

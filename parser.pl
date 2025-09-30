@@ -5,7 +5,8 @@ sread(S,T) :- atom_string(A,S),
               atom_codes(A,Cs),
               phrase(sexpr(T,[],_), Cs).
 
-%An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, or atoms:
+%An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
+sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.
 sexpr(T,E0,E) --> blanks, "(", blanks, seq(T,E0,E), blanks, ")", blanks, !.
 sexpr(N,E,E)  --> blanks, number(N), blanks, !.
 sexpr(V,E0,E) --> blanks, var_symbol(V,E0,E), blanks, !.
@@ -29,3 +30,11 @@ atom_symbol(A) --> token(Cs), { string_codes("\"", [Q]), ( Cs = [Q|_] -> append(
 
 %A token is a non-empty string without whitespace:
 token(Cs) --> string_without(" \t\r\n()", Cs), { Cs \= [] }.
+
+%Just string literal handling from here-on:
+string_lit(S) --> "\"", string_chars(Cs), "\"", { string_codes(S, Cs) }.
+string_chars([]) --> [].
+string_chars([C|Cs]) --> normal_char(C), !, string_chars(Cs).
+string_chars([C|Cs]) --> escape_char(C), string_chars(Cs).
+normal_char(C) --> [C], { C =\= 0'", C =\= 0'\\ }.
+escape_char(C) --> "\\", [X], { ( X=0'n->C=10 ; X=0't->C=9 ; X=0'r->C=13 ; C=X ) }.
