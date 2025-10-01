@@ -15,8 +15,12 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                        assertz(Term).
 
 %%Remove a function atom:
-'remove-atom'('&self', Term, true) :- Term = [=,[FAtom|_],_],
-                                      unregister_fun(FAtom).
+'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_],
+                                         translate_clause(Term, Cl),
+                                         ( retract(Cl) -> length(Ins, K),
+                                                          unregister_fun(F/K),
+                                                          Removed=true
+                                                        ; Removed=false ).
 
 %Remove all same atoms:
 'remove-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
