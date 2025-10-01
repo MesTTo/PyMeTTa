@@ -25,9 +25,6 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                           ( clause(Term, true)
                                             -> retractall(Term) ).
 
-%Match only a single instance, existential check:
-'match-once'(Space, Pattern, OutPattern, Result) :- once(match(Space, Pattern, OutPattern, Result)).
-
 %Function evaluation matches, where the unification returned true, so it unified:
 match('&self', true, Arg2, Result) :- Result = Arg2.
 
