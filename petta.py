@@ -22,10 +22,10 @@ class PeTTa:
         # Use parameterized query to call process_metta_string with the run_arg
         janus.query_once(f"process_metta_string('{metta_code}', 'A{run_arg}')")
         # Now query for the run results for this specific run_arg
-        results = list(janus.query(f"run('A{run_arg}',R)"))
+        results = list(janus.query(f"crun('A{run_arg}',R)"))
         return [result['R'] for result in results]
 
     def run(self):
         """Execute the run(R) predicates and return results."""
-        results = list(janus.query("run(A,R)"))
+        results = list(janus.query("crun(A,R)"))
         return [result['R'] for result in results]
