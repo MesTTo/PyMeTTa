@@ -61,6 +61,10 @@ translate_expr([H|T], Goals, Out) :-
           translate_expr(X, GsX, Out),
           goals_list_to_conj(GsX, Conj),
           append(GsH, [once(Conj)], Goals)
+        ; HV == hyperpose,                                         %Hyperponse via (hyperpose (E1 ... En))
+          T = [L],
+          build_hyperpose_branches(L, Branches),
+          append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
                                                         append(GsH, [Goal], Goals)
@@ -78,6 +82,9 @@ translate_expr([H|T], Goals, Out) :-
                            append(Inner, Gd, Goals),
                            Out = [HV1|AVs]
           ; append(Inner, [reduce(HV, AVs, Out)], Goals) )).       %Unknown head (var/compound) => runtime dispatch
+
+
+
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
@@ -131,3 +138,9 @@ build_superpose_branches([E|Es], Out, [B|Bs]) :- translate_expr(E, Gs, Val),
                                                  ( Conj == true -> B = (Out = Val)
                                                                  ; B = (Out = Val, Conj) ),
                                                  build_superpose_branches(Es, Out, Bs).
+
+%Build hyperpose branch as a goal list for concurrent_maplist to consume:
+build_hyperpose_branches([], []).
+build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr(E, GsE, Res),
+                                                      goals_list_to_conj(GsE, Goal),
+                                                      build_hyperpose_branches(Es, Bs).
