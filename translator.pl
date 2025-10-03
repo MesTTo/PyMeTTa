@@ -61,6 +61,15 @@ translate_expr([H|T], Goals, Out) :-
           translate_expr(X, GsX, Out),
           goals_list_to_conj(GsX, Conj),
           append(GsH, [once(Conj)], Goals)
+        ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
+                                            TCall =.. [TF, X, Truth],
+                                            U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
+                                            append(GsH, U, Goals)
+        ; HV == 'foldall', T = [AF, [GF], InitS] -> translate_expr(InitS, GsInit, Init),
+                                                    goals_list_to_conj(GsInit, ConjInit),
+                                                    Agg   =.. [AF, X],
+                                                    GCall =.. [GF, X],
+                                                    append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
         ; HV == hyperpose,                                         %Hyperponse via (hyperpose (E1 ... En))
           T = [L],
           build_hyperpose_branches(L, Branches),
