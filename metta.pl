@@ -1,4 +1,4 @@
-:- ensure_loaded([parser, translator, filereader, spaces]).
+:- ensure_loaded([parser, translator, filereader, spaces, morkspaces]).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
@@ -178,7 +178,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test,
+                          'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test, 'mork_add-atom', mork_match,
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
                           'add-atom', 'remove-atom', 'get-atoms', 'match', 'is-var', 'is-expr', 'get-mettatype',
                           'decons', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', 'union', 'intersection', 'subtract',
