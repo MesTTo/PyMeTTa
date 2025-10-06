@@ -34,7 +34,8 @@ match('&self', true, Arg2, Result) :- Result = Arg2.
 
 %Match for pattern:
 match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
-                                                   Term, Result = OutPattern.
+                                                   Term, \+ cyclic_term(OutPattern),
+                                                   copy_term(OutPattern, Result).
 
 %Get all atoms in space, irregard of arity:
 'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
