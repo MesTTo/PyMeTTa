@@ -21,15 +21,20 @@ crun(ARG,OUT) :-
   convert_term(P,OUT).
 
 convert_term(Var, Str) :-
-    var(Var),
+    var(Var), !,
     term_to_atom(Var, VAtom),
     atom_concat('$', VAtom, Str).
 
 convert_term(Atom, Atom) :-
-    atom(Atom).
+    atom(Atom), !.
+
+convert_term(Number, Number) :-
+    number(Number), !.
+
+convert_term([],'()') :- !.
 
 convert_term(List, Str) :-
-    is_list(List),
+    is_list(List), !,
     List = [Head | Tail],
     convert_term(Head, HStr),
     maplist(convert_term, Tail, TStrs),
