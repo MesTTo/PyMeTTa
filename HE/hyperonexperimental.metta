@@ -1,4 +1,4 @@
-!(import! &self hyperonpetta)
+!(import! &self pettamorph)
 
 !(petta compileme.metta)
 !(petta "(= (h $x) (+ $x 40))")

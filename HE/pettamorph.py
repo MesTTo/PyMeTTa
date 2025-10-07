@@ -1,9 +1,13 @@
 from hyperon.ext import register_atoms
 from hyperon import *
 import sys, os
-sys.path.append(os.getcwd())
+orig_cwd = os.getcwd()
+sys.path.append(os.path.abspath(os.path.join(orig_cwd, '..')))
+os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from petta import PeTTa
 peTTa = PeTTa()
+os.chdir(orig_cwd)
+
 
 class PatternOperation(OperationObject):
     def __init__(self, name, op, unwrap=False, rec=False):
