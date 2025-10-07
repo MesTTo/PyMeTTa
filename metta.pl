@@ -1,4 +1,4 @@
-:- ensure_loaded([parser, translator, filereader, spaces, morkspaces]).
+:- ensure_loaded([parser, translator, filereader, morkspaces, spaces]).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
@@ -17,6 +17,7 @@ let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
 '>'(A,B,R)  :- (A>B -> R=true ; R=false).
 '=='(A,B,R) :- (A==B -> R=true ; R=false).
 '='(A,B,R) :-  (A=B -> R=true ; R=false).
+'=?'(A,B,R) :- (\+ \+ A=B -> R=true ; R=false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
 '=@='(A,B,R) :- (A =@= B -> R=true ; R=false).
 '<='(A,B,R) :- (A =< B -> R=true ; R=false).
@@ -41,6 +42,7 @@ empty(_) :- fail.
 'car-atom'([H|_], H).
 'cdr-atom'([_|T], T).
 'decons'([H|T], [H|[T]]).
+cons(H, T, [H|T]).
 memberfast(X, List, true) :- memberchk(X, List), !.
 memberfast(_, _, false).
 excludefast(A, L, R) :- exclude(==(A), L, R).
@@ -145,7 +147,7 @@ subtract(Pred, [E|T], D, R) :- ( member_with_pred(E, D, Pred) -> subtract(Pred, 
 %%% Diagnostics / Testing: %%%
 repr(Term,R) :- format(string(R), '~q', [Term]).
 'println!'(Arg, Out) :- format('~w~n', [Arg]), Out = [].
-'trace!'(In, Content, Out) :- format('~w~n', [In]), Out = Content.
+'trace!'(In, Content, Content) :- format('~w~n', [In]).
 test(A,B,R) :- (A == B -> E = '✅' ; E = '❌'),
                format(string(R), "is ~w, should ~w. ~w ~n", [A, B, E]).
 assertEqual(A,B,_) :- A \== B, format("expected: ~w~nGot: ~w~nTerminating program~n", [B, A]), halt(1).
@@ -178,9 +180,9 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
-                          '<','>','==', '=', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test, assertEqual, 'mork_add-atom', mork_match, mork_exec,
+                          '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
+                          'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test, assertEqual, 'mm2-exec',
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
                           'add-atom', 'remove-atom', 'get-atoms', 'match', 'is-var', 'is-expr', 'get-mettatype',
                           'decons', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', 'union', 'intersection', 'subtract',
-                          'unify', 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', 'concat', 'sread']).
+                          'unify', 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', 'concat', 'sread', cons, reverse]).

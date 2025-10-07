@@ -1,4 +1,8 @@
+:- multifile match/4.
+:- multifile 'add-atom'/3.
+
 :- ensure_loaded([parser]).
+
 
 % list_to_pat(+Tokens:list, -Out:string)
 % Example: list_to_pat([friend,sam,A], Out).
@@ -20,11 +24,6 @@ tok_to_atom(T, A)  :- term_string(T, Str), atom_string(A, Str).
 
 char_type_digit(C) :- char_type(C, digit).
 
-%main :- use_foreign_library('./mylib.so'), mork("upper","test",A),
-%        format(string(R), "result: ~w~n", [A]),
-%               writeln(R).
-
-
 % list_to_sexpr(+List, -SExprString)
 list_to_sexpr(List, S) :-
     sexpr_tokens(List, Ts),
@@ -43,14 +42,6 @@ sexpr_token(X, Tok) :-
     atomic_list_concat(In, ' ', Mid),
     format(atom(Tok), "(~w)", [Mid]).
 sexpr_token(X, Tok) :- term_to_atom(X, Tok).
-
-%mork_query(Pattern, Out) :- sread(Pattern, L),
-%                            list_to_pat(L, MorkPat),
-%                            mork("query", MorkPat, Temp),
-%                            split_string(Temp, "\n", "", Raw),
-%                            exclude(==(""), Raw, Lines),
-%                            maplist(sread, Lines, Out).
-
 
 % mork_query(+Pattern:list, +OutPattern:list(with one var), -Instantiated:list)
 mork_query(Pattern, OutPattern, Instantiation) :-
@@ -73,53 +64,38 @@ instantiate_one(Template0, Value, Instantiated) :-
     V = Value,
     Instantiated = T.
 
-mork_init :- use_foreign_library('./mylib.so'),
-             mork("init","",A),
-             format(string(SA), "init result: ~w ~n", [A]),
-             writeln(SA).
+'add-atom'('&mork', Atom, true) :- !, list_to_sexpr(Atom, S), 
+                                   re_replace("'"/g, "", S, SClean),
+                                   mork("load",SClean,B), !.
+                                   %format(string(SB), "load result: ~w ~n", [B]),
+                                   %writeln(SB).
 
-'mork_add-atom'(Space, Atom, true) :- list_to_sexpr(Atom, S), 
-                                      re_replace("'"/g, "", S, SClean),
-                                      mork("load",SClean,B).
-                                      %format(string(SB), "load result: ~w ~n", [B]),
-                                      %writeln(SB).
+%Match for pattern:
+match('&mork', Pattern, OutPattern, Result) :- !, mork_query(Pattern, OutPattern, Result).
 
-mork_test :- 'mork_add-atom'(Space, [friend,sam,tim], true),
-             'mork_add-atom'(Space, [friend,sam,joe], true),
-             findall(C, mork_query([friend,sam,X], [friend,sam,X], C), Cs),
-             format(string(SC), "query result: ~w ~n", [Cs]), writeln(SC).
-               
-%Add a function atom:
-%'add-atom'('&self', Term, true) :- Term = [=,[FAtom|_],_],
-%                                   register_fun(FAtom),
-%                                   translate_clause(Term, Clause),
-%                                   assertz(Clause), !.
-
-%%Remove a function atom:
-%'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_],
-%                                         translate_clause(Term, Cl),
-%                                         ( retract(Cl) -> length(Ins, K),
-%                                                          unregister_fun(F/K),
-%                                                          Removed=true
-%                                                        ; Removed=false ).
-
+%Execute MM2 calculus
+'mm2-exec'('&mork', Result) :- mork("exec","wu",A), Result=true.
+            
 %Remove all same atoms:
-%'mork_remove-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
+%'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
 %                                          ensure_dynamic_arity(Space, Arity),
 %                                          Term =.. [Space, Rel | Args],
 %                                          ( clause(Term, true)
 %                                            -> retractall(Term) ).
 
-%Function evaluation matches, where the unification returned true, so it unified:
-%match('&self', true, Arg2, Result) :- Result = Arg2.
-
-%Match for pattern:
-mork_match(_Space, Pattern, OutPattern, Result) :- mork_query(Pattern, OutPattern, Result).
-
-mork_exec(_Space, Result) :- mork("exec","wu",A), Result=true.
 
 %Get all atoms in space, irregard of arity:
 %'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
 %                               functor(Head, Space, Arity),
 %                               clause(Head, true),
 %                               Head =.. [Space | Pattern].
+
+mork_init :- use_foreign_library('./mylib.so'),
+             mork("init","",A),
+             format(string(SA), "init result: ~w ~n", [A]),
+             writeln(SA).
+
+mork_test :- 'mork_add-atom'('&mork', [friend,sam,tim], true),
+             'mork_add-atom'('&mork', [friend,sam,joe], true),
+             findall(C, mork_query([friend,sam,X], [friend,sam,X], C), Cs),
+             format(string(SC), "query result: ~w ~n", [Cs]), writeln(SC).
