@@ -8,6 +8,7 @@ class PeTTa:
             # Assume the src directory is in the same directory as this file
             metta_src_path = os.path.join(os.path.dirname(__file__), '..', 'src' , 'main.pl')
         janus.consult(metta_src_path)
+        janus.consult("./petta.pl")
 
     def load_metta_file(self, file_path):
         """Compile a MeTTa file to Prolog and return the results of the run."""
