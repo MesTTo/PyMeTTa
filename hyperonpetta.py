@@ -1,7 +1,7 @@
 from hyperon.ext import register_atoms
 from hyperon import *
-import sys
-sys.path.append('/home/nartech/PeTTa/python')
+import sys, os
+sys.path.append(os.getcwd())
 from petta import PeTTa
 peTTa = PeTTa()
 
