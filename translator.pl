@@ -32,13 +32,16 @@ translate_expr([H|T], Goals, Out) :-
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
         ; HV == if, T = [C, T1, E1] ->
           ( translate_expr(C, Gc, true), goals_list_to_conj(Gc, ConC),
-            translate_expr(T1, Gt, Out), goals_list_to_conj(Gt, ConT),
-            translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE)
+            translate_expr(T1, Gt, Vt), goals_list_to_conj(Gt, ConT)
           -> ( ConC == true
              -> ( ConT == true -> GsH = Goals
-                               ; append(GsH, [ConT], Goals))
-             ; append(GsH, [ConC -> ConT ; ConE], Goals))
-          ; ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals))
+                                ; append(GsH, [ConT], Goals))
+             ; translate_expr(E1, Ge, Ve), goals_list_to_conj(Ge, ConE),
+               ( ConT == true -> Bt = (Vt = Out) ; Vt = Out , Bt = ConT ),
+               ( ConE == true -> Be = (Ve = Out) ; Ve = Out , Be = ConE ),
+               append(GsH, [ConC -> Bt ; Be], Goals))
+          ; translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE),
+            ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals))
           )
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
