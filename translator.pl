@@ -36,13 +36,12 @@ translate_expr([H|T], Goals, Out) :-
           -> ( ConC == true
              -> ( ConT == true -> GsH = Goals
                                 ; append(GsH, [ConT], Goals))
-             ; translate_expr(E1, Ge, Ve), goals_list_to_conj(Ge, ConE),
-               ( ConT == true -> Bt = (Vt = Out) ; Vt = Out , Bt = ConT ),
-               ( ConE == true -> Be = (Ve = Out) ; Ve = Out , Be = ConE ),
-               append(GsH, [ConC -> Bt ; Be], Goals))
-          ; translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE),
-            ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals))
-          )
+              ; translate_expr(E1, Ge, Ve), goals_list_to_conj(Ge, ConE),
+                ( ConT == true -> Bt = (Vt = Out) ; Vt = Out , Bt = ConT ),
+                ( ConE == true -> Be = (Ve = Out) ; Ve = Out , Be = ConE ),
+                append(GsH, [ConC -> Bt ; Be], Goals))
+           ; translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE),
+             ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals)) )
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
