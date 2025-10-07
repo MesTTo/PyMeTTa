@@ -79,7 +79,8 @@ mork_init :- use_foreign_library('./mylib.so'),
              writeln(SA).
 
 'mork_add-atom'(Space, Atom, true) :- list_to_sexpr(Atom, S), 
-                                      mork("load",S,B).
+                                      re_replace("'"/g, "", S, SClean),
+                                      mork("load",SClean,B).
                                       %format(string(SB), "load result: ~w ~n", [B]),
                                       %writeln(SB).
 
@@ -114,6 +115,8 @@ mork_test :- 'mork_add-atom'(Space, [friend,sam,tim], true),
 
 %Match for pattern:
 mork_match(_Space, Pattern, OutPattern, Result) :- mork_query(Pattern, OutPattern, Result).
+
+mork_exec(_Space, Result) :- mork("exec","wu",A), Result=true.
 
 %Get all atoms in space, irregard of arity:
 %'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
