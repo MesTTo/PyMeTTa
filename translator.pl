@@ -30,27 +30,13 @@ translate_expr([H|T], Goals, Out) :-
         ; HV == collapse, T = [E] -> translate_expr(E, GsE, EV),
                                      goals_list_to_conj(GsE, Conj),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
-        ; HV == if, T = [C, T1, E1] ->
-          ( translate_expr(C, Gc, true), goals_list_to_conj(Gc, ConC),
-            translate_expr(T1, Gt, Vt), goals_list_to_conj(Gt, ConT)
-          -> ( ConC == true
-             -> ( ConT == true -> GsH = Goals
-                                ; append(GsH, [ConT], Goals))
-              ; translate_expr(E1, Ge, Ve), goals_list_to_conj(Ge, ConE),
-                ( ConT == true
-                -> Bt = (Vt = Out)
-                 ; ( is_list(Vt)
-                   -> Bt = (Vt = Out, ConT)
-                   ; Vt = Out , Bt = ConT )),
-
-                ( ConE == true
-                -> Be = (Ve = Out)
-                ; ( is_list(Ve)
-                   -> Be = (Ve = Out, ConE)
-                  ; Ve = Out , Be = ConE )),
-                append(GsH, [ConC -> Bt ; Be], Goals))
-           ; translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE),
-             ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals)) )
+        ; HV == if, T = [C, T1, E1] -> translate_expr(C, Gc, Cv),  goals_list_to_conj(Gc, ConC),
+                                       translate_expr(T1, Gt, Tv), goals_list_to_conj(Gt, ConT),
+                                       translate_expr(E1, Ge, Ev), goals_list_to_conj(Ge, ConE),
+                                       ( ConT == true -> BT = (Out = Tv) ; BT = (Out = Tv, ConT) ),
+                                       ( ConE == true -> BE = (Out = Ev) ; BE = (Out = Ev, ConE) ),
+                                       ( ConC == true -> append(GsH, [ (Cv == true -> BT ; BE) ], Goals)
+                                                       ; append(GsH, [ (ConC, (Cv == true -> BT ; BE)) ], Goals) )
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
