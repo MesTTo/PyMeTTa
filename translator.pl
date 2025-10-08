@@ -105,9 +105,6 @@ translate_expr([H|T], Goals, Out) :-
                            Out = [HV1|AVs]
           ; append(Inner, [reduce(HV, AVs, Out)], Goals) )).       %Unknown head (var/compound) => runtime dispatch
 
-
-
-
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
 eval_data_term([F|As], Goals, Val) :- ( atom(F), fun(F) -> translate_expr([F|As], Goals, Val)
