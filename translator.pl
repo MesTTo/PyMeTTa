@@ -30,18 +30,13 @@ translate_expr([H|T], Goals, Out) :-
         ; HV == collapse, T = [E] -> translate_expr(E, GsE, EV),
                                      goals_list_to_conj(GsE, Conj),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
-        ; HV == if, T = [C, T1, E1] ->
-          ( translate_expr(C, Gc, true), goals_list_to_conj(Gc, ConC),
-            translate_expr(T1, Gt, Vt), goals_list_to_conj(Gt, ConT)
-          -> ( ConC == true
-             -> ( ConT == true -> GsH = Goals
-                                ; append(GsH, [ConT], Goals))
-              ; translate_expr(E1, Ge, Ve), goals_list_to_conj(Ge, ConE),
-                ( ConT == true -> Bt = (Vt = Out) ; Vt = Out , Bt = ConT ),
-                ( ConE == true -> Be = (Ve = Out) ; Ve = Out , Be = ConE ),
-                append(GsH, [ConC -> Bt ; Be], Goals))
-           ; translate_expr(E1, Ge, Out), goals_list_to_conj(Ge, ConE),
-             ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals)) )
+        ; HV == if, T = [C, T1, E1] -> translate_expr(C, Gc, Cv),  goals_list_to_conj(Gc, ConC),
+                                       translate_expr(T1, Gt, Tv), goals_list_to_conj(Gt, ConT),
+                                       translate_expr(E1, Ge, Ev), goals_list_to_conj(Ge, ConE),
+                                       ( ConT == true -> BT = (Out = Tv) ; BT = (Out = Tv, ConT) ),
+                                       ( ConE == true -> BE = (Out = Ev) ; BE = (Out = Ev, ConE) ),
+                                       ( ConC == true -> append(GsH, [ (Cv == true -> BT ; BE) ], Goals)
+                                                       ; append(GsH, [ (ConC, (Cv == true -> BT ; BE)) ], Goals) )
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
@@ -62,10 +57,9 @@ translate_expr([H|T], Goals, Out) :-
                                              Goals = [Goal | Inner]
         ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
                                Out = true
-        ; HV == once, T = [X] ->
-          translate_expr(X, GsX, Out),
-          goals_list_to_conj(GsX, Conj),
-          append(GsH, [once(Conj)], Goals)
+        ; HV == once, T = [X] -> translate_expr(X, GsX, Out),
+                                 goals_list_to_conj(GsX, Conj),
+                                 append(GsH, [once(Conj)], Goals)
         ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
                                             TCall =.. [TF, X, Truth],
                                             U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
@@ -96,9 +90,6 @@ translate_expr([H|T], Goals, Out) :-
                            append(Inner, Gd, Goals),
                            Out = [HV1|AVs]
           ; append(Inner, [reduce(HV, AVs, Out)], Goals) )).       %Unknown head (var/compound) => runtime dispatch
-
-
-
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
