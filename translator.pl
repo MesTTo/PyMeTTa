@@ -62,10 +62,9 @@ translate_expr([H|T], Goals, Out) :-
                                              Goals = [Goal | Inner]
         ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
                                Out = true
-        ; HV == once, T = [X] ->
-          translate_expr(X, GsX, Out),
-          goals_list_to_conj(GsX, Conj),
-          append(GsH, [once(Conj)], Goals)
+        ; HV == once, T = [X] -> translate_expr(X, GsX, Out),
+                                 goals_list_to_conj(GsX, Conj),
+                                 append(GsH, [once(Conj)], Goals)
         ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
                                             TCall =.. [TF, X, Truth],
                                             U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
