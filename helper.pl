@@ -1,4 +1,5 @@
 crun(ARG,OUT) :-
+  current_predicate(run/2),
   run(ARG,P),
   convert_term(P,OUT).
 
@@ -22,3 +23,9 @@ convert_term(List, Str) :-
     maplist(convert_term, Tail, TStrs),
     atomic_list_concat([HStr | TStrs], ' ', Content),
     atomic_list_concat(['(', Content, ')'], Str).
+
+process_metta_string_silent(S, RunArg) :-
+    ( current_prolog_flag(argv, Args) -> true ; Args = [] ),
+    append(Args, ['--silent'], Args1),
+    set_prolog_flag(argv,Args1),
+    process_metta_string(S, RunArg).
