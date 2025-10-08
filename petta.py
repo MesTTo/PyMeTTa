@@ -6,9 +6,11 @@ class PeTTa:
     def __init__(self, metta_src_path=None):
         if metta_src_path is None:
             # Assume the src directory is in the same directory as this file
-            metta_src_path = os.path.join(os.path.dirname(__file__), '..', 'src' , 'main.pl')
-        janus.consult(metta_src_path)
-        janus.consult("./helper.pl")
+            metta_src_path = os.path.join(os.path.dirname(__file__))
+        main_path = os.path.join(metta_src_path, '..', 'src' , 'main.pl')
+        helper_path = os.path.join(metta_src_path, 'helper.pl')
+        janus.consult(main_path)
+        janus.consult(helper_path)
 
     def load_metta_file(self, file_path):
         """Compile a MeTTa file to Prolog and return the results of the run."""
