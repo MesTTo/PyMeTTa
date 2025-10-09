@@ -90,7 +90,7 @@ match('&mork', Pattern, OutPattern, Result) :- !, mork_query(Pattern, OutPattern
 %                               clause(Head, true),
 %                               Head =.. [Space | Pattern].
 
-mork_init :- use_foreign_library('./morklib.so'),
+mork_init :- use_foreign_library('./mork_ffi/morklib.so'),
              mork("init","",A),
              format(string(SA), "init result: ~w ~n", [A]),
              writeln(SA).
