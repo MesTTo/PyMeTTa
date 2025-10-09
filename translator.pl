@@ -33,7 +33,11 @@ translate_expr([H|T], Goals, Out) :-
                                                         append(GsH, [Disj], Goals)
         ; HV == collapse, T = [E] -> translate_expr_to_conj(E, Conj, EV),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
-        ; HV == if, T = [Cond, Then, Else] -> translate_if(Cond, Then, Else, GsH, Goals, Out)
+        ; HV == if, T = [Cond, Then, Else] -> ( translate_expr_to_conj(Cond, ConC, true),
+                                                translate_expr_to_conj(Then, ConT, Vt)
+                                                -> handle_if_condition(ConC, ConT, Cond, Then, Else, GsH, Goals, Vt, Out)
+                                                 ; translate_expr_to_conj(Else, ConE, Out),
+                                                   ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals) ))
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
@@ -109,46 +113,19 @@ translate_pattern(X, X) :- atomic(X), !.
 translate_pattern([H|T], [P|Ps]) :- !, translate_pattern(H, P),
                                        translate_pattern(T, Ps).
 
-
-% ------------------------------------------------------------------
-% translate_if(+CondExpr, +ThenExpr, +ElseExpr, +GsH, -Goals, -Out)
-% Translates an "if" expression into Prolog goals and output value.
-% ------------------------------------------------------------------
-translate_if(Cond, Then, Else, GsH, Goals, Out) :-
-    (   translate_expr_to_conj(Cond, ConC, true),
-        translate_expr_to_conj(Then, ConT, Vt)
-    ->  handle_if_condition(ConC, ConT, Cond, Then, Else, GsH, Goals, Vt, Out)
-    ;   % Fallback: condition translation failed (always false)
-        translate_expr_to_conj(Else, ConE, Out),
-        (   ConE == true -> GsH = Goals
-                          ; append(GsH, [ConE], Goals)
-        )
-    ).
-
-% ------------------------------------------------------------------
-% handle_if_condition(+ConC, +ConT, +Cond, +Then, +Else, +GsH, -Goals, +Vt, -Out)
 % Handles cases where condition translation succeeded.
-% ------------------------------------------------------------------
-% ConC true => always true
-handle_if_condition(true, ConT, _, _, _, GsH, Goals, Vt, Out) :-
-    (   ConT == true ->  GsH = Goals, Out = Vt
-                      ;  append(GsH, [ConT], Goals)
-    ), !.
+handle_if_condition(true, ConT, _, _, _, GsH, Goals, Vt, Out) :- ( ConT == true -> GsH = Goals, Out = Vt
+                                                                                 ; append(GsH, [ConT], Goals) ), !.
+handle_if_condition(ConC, ConT, _Cond, _Then, Else, GsH, Goals, Vt, Out) :- translate_expr(Else, Ge, Ve),
+                                                                            goals_list_to_conj(Ge, ConE),
+                                                                            build_branch(ConT, Vt, Out, Bt),
+                                                                            build_branch(ConE, Ve, Out, Be),
+                                                                            append(GsH, [ConC -> Bt ; Be], Goals).
 
-handle_if_condition(ConC, ConT, _Cond, _Then, Else, GsH, Goals, Vt, Out) :-
-    translate_expr(Else, Ge, Ve), goals_list_to_conj(Ge, ConE),
-    build_branch(ConT, Vt, Out, Bt),
-    build_branch(ConE, Ve, Out, Be),
-    append(GsH, [ConC -> Bt ; Be], Goals).
-
-% ------------------------------------------------------------------
-% build_branch(+Con, +Val, +Out, -Goal)
 % Constructs the goal for a single branch of an if-then-else/case.
-% ------------------------------------------------------------------
 build_branch(true, Val, Out, (Out = Val)) :- !.
-build_branch(Con, Val, Out, Goal) :-
-    ( var(Val) -> Val = Out, Goal = Con
-                ; Goal = (Val = Out, Con)).
+build_branch(Con, Val, Out, Goal) :- var(Val) -> Val = Out, Goal = Con
+                                               ; Goal = (Val = Out, Con).
 
 %Translate case expression recursively into nested if:
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal) :- translate_expr_to_conj(VExpr, ConV, VOut),
