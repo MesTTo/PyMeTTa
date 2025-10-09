@@ -20,6 +20,10 @@ reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], Call
                                                         call(Goal)
                                                       ; Out = [F|Args] ).
 
+translate_expr_to_conj(Input, Conj, Out) :-
+    translate_expr(Input, Goals, Out),
+    goals_list_to_conj(Goals, Conj).
+
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H|T], Goals, Out) :-
@@ -27,16 +31,14 @@ translate_expr([H|T], Goals, Out) :-
         ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
                                                         disj_list(Branches, Disj),
                                                         append(GsH, [Disj], Goals)
-        ; HV == collapse, T = [E] -> translate_expr(E, GsE, EV),
-                                     goals_list_to_conj(GsE, Conj),
+        ; HV == collapse, T = [E] -> translate_expr_to_conj(E, Conj, EV),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
         ; HV == if, T = [Cond, Then, Else] -> translate_if(Cond, Then, Else, GsH, Goals, Out)
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
                                                   append(G0, [IfGoal], Goals)
-        ; HV == sealed, T = [Vars, Expr] -> translate_expr(Expr, Ge, Out),
-                                           goals_list_to_conj(Ge, Con),
+        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
                                            Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
         ; HV == let, T = [Pat, Val, In] -> translate_expr(Pat, Gp, P),
                                            translate_expr(Val, Gv, V),
@@ -51,15 +53,13 @@ translate_expr([H|T], Goals, Out) :-
                                              Goals = [Goal | Inner]
         ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
                                Out = true
-        ; HV == once, T = [X] -> translate_expr(X, GsX, Out),
-                                 goals_list_to_conj(GsX, Conj),
+        ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
                                  append(GsH, [once(Conj)], Goals)
         ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
                                             TCall =.. [TF, X, Truth],
                                             U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
                                             append(GsH, U, Goals)
-        ; HV == 'foldall', T = [AF, [GF], InitS] -> translate_expr(InitS, GsInit, Init),
-                                                    goals_list_to_conj(GsInit, ConjInit),
+        ; HV == 'foldall', T = [AF, [GF], InitS] -> translate_expr_to_conj(InitS, ConjInit, Init),
                                                     Agg   =.. [AF, X],
                                                     GCall =.. [GF, X],
                                                     append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
@@ -115,11 +115,11 @@ translate_pattern([H|T], [P|Ps]) :- !, translate_pattern(H, P),
 % Translates an "if" expression into Prolog goals and output value.
 % ------------------------------------------------------------------
 translate_if(Cond, Then, Else, GsH, Goals, Out) :-
-    (   translate_expr(Cond, Gc, true),goals_list_to_conj(Gc, ConC),
-        translate_expr(Then, Gt, Vt)  ,goals_list_to_conj(Gt, ConT)
+    (   translate_expr_to_conj(Cond, ConC, true),
+        translate_expr_to_conj(Then, ConT, Vt)
     ->  handle_if_condition(ConC, ConT, Cond, Then, Else, GsH, Goals, Vt, Out)
     ;   % Fallback: condition translation failed (always false)
-        translate_expr(Else, Ge, Out), goals_list_to_conj(Ge, ConE),
+        translate_expr_to_conj(Else, ConE, Out),
         (   ConE == true -> GsH = Goals
                           ; append(GsH, [ConE], Goals)
         )
@@ -151,8 +151,7 @@ build_branch(Con, Val, Out, Goal) :-
                 ; Goal = (Val = Out, Con)).
 
 %Translate case expression recursively into nested if:
-translate_case([[K,VExpr]|Rs], Kv, Out, Goal) :- translate_expr(VExpr, Gv, VOut),
-                                                 goals_list_to_conj(Gv, ConV),
+translate_case([[K,VExpr]|Rs], Kv, Out, Goal) :- translate_expr_to_conj(VExpr, ConV, VOut),
                                                  build_branch(ConV,VOut,Out,Then),
                                                  (Rs == [] -> Goal = ((Kv = K) -> Then)
                                                             ; translate_case(Rs, Kv, Out, Next),
@@ -170,14 +169,11 @@ disj_list([G|Gs], (G ; R)) :- disj_list(Gs, R).
 
 %Build one disjunct per branch: (Conj, Out = Val):
 build_superpose_branches([], _, []).
-build_superpose_branches([E|Es], Out, [B|Bs]) :- translate_expr(E, Gs, Val),
-                                                 goals_list_to_conj(Gs, Conj),
-                                                 ( Conj == true -> B = (Out = Val)
-                                                                 ; B = (Out = Val, Conj) ),
+build_superpose_branches([E|Es], Out, [B|Bs]) :- translate_expr_to_conj(E, Conj, Val),
+                                                 build_branch(Conj, Val, Out, B),
                                                  build_superpose_branches(Es, Out, Bs).
 
 %Build hyperpose branch as a goal list for concurrent_maplist to consume:
 build_hyperpose_branches([], []).
-build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr(E, GsE, Res),
-                                                      goals_list_to_conj(GsE, Goal),
+build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr_to_conj(E, Goal, Res),
                                                       build_hyperpose_branches(Es, Bs).
