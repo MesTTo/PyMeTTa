@@ -74,7 +74,7 @@ instantiate_one(Template0, Value, Instantiated) :-
 match('&mork', Pattern, OutPattern, Result) :- !, mork_query(Pattern, OutPattern, Result).
 
 %Execute MM2 calculus
-'mm2-exec'('&mork', Result) :- mork("exec","wu",A), Result=true.
+'mm2-exec'('&mork', Steps, Result) :- number_string(Steps, St), mork("exec", St, A), Result=true.
             
 %Remove all same atoms:
 %'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
