@@ -30,7 +30,7 @@ translate_expr([H|T], Goals, Out) :-
         ; HV == collapse, T = [E] -> translate_expr(E, GsE, EV),
                                      goals_list_to_conj(GsE, Conj),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
-        ; HV == if, T = [Cond, Then, Else] -> translate_if(Cond, Then, Else, GsH, Out, Goals)
+        ; HV == if, T = [Cond, Then, Else] -> translate_if(Cond, Then, Else, GsH, Goals, Out)
         ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
