@@ -145,12 +145,24 @@ subtract(Pred, [E|T], D, R) :- ( member_with_pred(E, D, Pred) -> subtract(Pred, 
                                                         'map-nested'(Tail, Mapper, NewTail).
 
 %%% Diagnostics / Testing: %%%
-repr(Term,R) :- format(string(R), '~q', [Term]).
-'println!'(Arg, Out) :- format('~w~n', [Arg]), Out = [].
-'trace!'(In, Content, Content) :- format('~w~n', [In]).
+repr(Term,R) :- swrite(Term, R).
+
+'println!'(Arg, true) :- swrite(Arg, RArg),
+                         format('~w~n', [RArg]).
+
+'trace!'(In, Content, Content) :- swrite(In,R),
+                                  format('~w~n', [R]).
+
 test(A,B,R) :- (A == B -> E = '✅' ; E = '❌'),
-               format(string(R), "is ~w, should ~w. ~w ~n", [A, B, E]).
-assertEqual(A,B,_) :- A \== B, format("expected: ~w~nGot: ~w~nTerminating program~n", [B, A]), halt(1).
+               swrite(A, RA),
+               swrite(B, RB),
+               format(string(R), "is ~w, should ~w. ~w ~n", [RA, RB, E]).
+
+assertEqual(A,B,_) :- A \== B,
+                      swrite(A, RA),
+                      swrite(B,RB),
+                      format("expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
+                      halt(1).
 
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
@@ -183,6 +195,6 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test, assertEqual,
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
-                          'add-atom', 'remove-atom', 'get-atoms', 'match', 'is-var', 'is-expr', 'get-mettatype',
-                          'decons', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', 'union', 'intersection', 'subtract',
-                          'unify', 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', 'concat', 'sread', cons, reverse]).
+                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
+                          decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
+                          unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse]).
