@@ -15,5 +15,6 @@ main :- mork_init,
                      ; Args = [File|_],
                        load_metta_file(File,default),
                        findall(R, run(default,R), Results),
-                       format("~w~n", [Results]) ),
+                       maplist(swrite, Results, Strings),
+                       format("~w~n", [Strings]) ),
         halt.

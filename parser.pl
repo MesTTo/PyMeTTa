@@ -6,7 +6,7 @@ swrite(Term, String) :- phrase(swrite_exp(Term), Codes),
 swrite_exp(Var)   --> { var(Var) }, !, "$", { term_to_atom(Var, A), atom_codes(A, Cs) }, Cs.
 swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_exp(Str)   --> { string(Str) }, !, { string_codes(Str, Cs) }, Cs.
-swrite_exp(Atom)  --> { atom(Atom), \+ number(Atom) }, !, atom(Atom).
+swrite_exp(Atom)  --> { atom(Atom) }, !, atom(Atom).
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
@@ -46,7 +46,5 @@ token(Cs) --> string_without(" \t\r\n()", Cs), { Cs \= [] }.
 %Just string literal handling from here-on:
 string_lit(S) --> "\"", string_chars(Cs), "\"", { string_codes(S, Cs) }.
 string_chars([]) --> [].
-string_chars([C|Cs]) --> normal_char(C), !, string_chars(Cs).
-string_chars([C|Cs]) --> escape_char(C), string_chars(Cs).
-normal_char(C) --> [C], { C =\= 0'", C =\= 0'\\ }.
-escape_char(C) --> "\\", [X], { ( X=0'n->C=10 ; X=0't->C=9 ; X=0'r->C=13 ; C=X ) }.
+string_chars([C|Cs]) --> [C], { C =\= 0'", C =\= 0'\\ }, !, string_chars(Cs).
+string_chars([C|Cs]) --> "\\", [X], { (X=0'n->C=10; X=0't->C=9; X=0'r->C=13; C=X) }, string_chars(Cs).
