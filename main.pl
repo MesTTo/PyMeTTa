@@ -18,3 +18,5 @@ main :- mork_init,
                        maplist(swrite, Results, Strings),
                        format("~w~n", [Strings]) ),
         halt.
+
+:- initialization(main, main).
