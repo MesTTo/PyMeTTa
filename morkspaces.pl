@@ -1,10 +1,19 @@
 :- multifile match/4.
 :- multifile 'add-atom'/3.
+:- multifile 'remove-atom'/3.
+:- multifile 'get-atoms'/2.
 
 %Add an atom to the space:
 'add-atom'('&mork', Atom, true) :- !, swrite(Atom, S),
                                    re_replace("'"/g, "", S, SClean),
                                    mork("add-atoms",SClean,B), !.
+
+%Remove all same atoms:
+%'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
+%                                          ensure_dynamic_arity(Space, Arity),
+%                                          Term =.. [Space, Rel | Args],
+%                                          ( clause(Term, true)
+%                                            -> retractall(Term) ).
 
 %Match for pattern:
 match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
@@ -17,27 +26,22 @@ match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
                                                   P2 = Result,
                                                   OutPattern = O2.
 
+%Get all atoms in space, irregard of arity:
+'get-atoms'('&mork', Pattern) :- mork("get-atoms", "", Temp),
+                                 split_string(Temp, "\n", "", Raw),
+                                 exclude(==(""), Raw, Lines),
+                                 maplist(sread, Lines, Values),
+                                 member(Pattern, Values).
+
 %Execute MM2 calculus
 'mm2-exec'('&mork', Steps, true) :- number_string(Steps, St),
                                     mork("mm2-exec", St, A).
-            
-%Remove all same atoms:
-%'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
-%                                          ensure_dynamic_arity(Space, Arity),
-%                                          Term =.. [Space, Rel | Args],
-%                                          ( clause(Term, true)
-%                                            -> retractall(Term) ).
 
-
-%Get all atoms in space, irregard of arity:
-%'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
-%                               functor(Head, Space, Arity),
-%                               clause(Head, true),
-%                               Head =.. [Space | Pattern].
-
+%Init MORK:
 mork_init :- use_foreign_library('./mork_ffi/morklib.so'),
              writeln("MORK init: done").
 
+%Test MORK:
 mork_test :- 'add-atom'('&mork', [friend,sam,tim], true),
              'add-atom'('&mork', [friend,sam,joe], true),
              findall(C, match('&mork',[friend,sam,X], [friend,sam,X], C), Cs),
