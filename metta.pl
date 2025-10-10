@@ -153,16 +153,16 @@ repr(Term,R) :- swrite(Term, R).
 'trace!'(In, Content, Content) :- swrite(In,R),
                                   format('~w~n', [R]).
 
-test(A,B,R) :- (A == B -> E = '✅' ; E = '❌'),
-               swrite(A, RA),
-               swrite(B, RB),
-               format(string(R), "is ~w, should ~w. ~w ~n", [RA, RB, E]).
+test(A,B,true) :- (A == B -> E = '✅' ; E = '❌'),
+                  swrite(A, RA),
+                  swrite(B, RB),
+                  format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
 
-assertEqual(A,B,_) :- A \== B,
-                      swrite(A, RA),
-                      swrite(B,RB),
-                      format("expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
-                      halt(1).
+assertEqual(A,B,true) :- A \== B,
+                         swrite(A, RA),
+                         swrite(B,RB),
+                         format("expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
+                         halt(1).
 
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
