@@ -6,12 +6,12 @@ prolog_interop_example :- register_fun(prologfunc),
                           assert_function("(= (mettafunc $x) (prologfunc $x))"),
                           listing(mettafunc),
                           mettafunc(30, R),
-                          format("mettafunc(30) = ~w~n", [R]),
-                          mork_test.
+                          format("mettafunc(30) = ~w~n", [R]).
 
 main :- mork_init,
         current_prolog_flag(argv, Args),
-        ( Args = [] -> prolog_interop_example
+        ( Args = [] -> prolog_interop_example,
+                       mork_test
                      ; Args = [File|_],
                        load_metta_file(File,default),
                        findall(R, run(default,R), Results),
