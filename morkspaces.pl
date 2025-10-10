@@ -36,9 +36,7 @@ match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
 %                               Head =.. [Space | Pattern].
 
 mork_init :- use_foreign_library('./mork_ffi/morklib.so'),
-             mork("init","",A),
-             format(string(SA), "MORK init result: ~w ~n", [A]),
-             writeln(SA).
+             writeln("MORK init: done").
 
 mork_test :- 'add-atom'('&mork', [friend,sam,tim], true),
              'add-atom'('&mork', [friend,sam,joe], true),
