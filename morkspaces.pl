@@ -5,15 +5,11 @@
 
 %Add an atom to the space:
 'add-atom'('&mork', Atom, true) :- !, swrite(Atom, S),
-                                   re_replace("'"/g, "", S, SClean),
-                                   mork("add-atoms",SClean,B), !.
+                                      re_replace("'"/g, "", S, SClean),
+                                      mork("add-atoms",SClean,B).
 
 %Remove all same atoms:
-%'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
-%                                          ensure_dynamic_arity(Space, Arity),
-%                                          Term =.. [Space, Rel | Args],
-%                                          ( clause(Term, true)
-%                                            -> retractall(Term) ).
+%'remove-atom'('&mork', [Rel|Args], true) :- !, TODO.
 
 %Match for pattern:
 match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
@@ -27,11 +23,11 @@ match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
                                                   OutPattern = O2.
 
 %Get all atoms in space, irregard of arity:
-'get-atoms'('&mork', Pattern) :- mork("get-atoms", "", Temp),
-                                 split_string(Temp, "\n", "", Raw),
-                                 exclude(==(""), Raw, Lines),
-                                 maplist(sread, Lines, Values),
-                                 member(Pattern, Values).
+'get-atoms'('&mork', Pattern) :- !, mork("get-atoms", "", Temp),
+                                    split_string(Temp, "\n", "", Raw),
+                                    exclude(==(""), Raw, Lines),
+                                    maplist(sread, Lines, Values),
+                                    member(Pattern, Values).
 
 %Execute MM2 calculus
 'mm2-exec'('&mork', Steps, true) :- number_string(Steps, St),
