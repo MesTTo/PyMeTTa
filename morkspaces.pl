@@ -5,8 +5,7 @@
 
 %Add an atom to the space:
 'add-atom'('&mork', Atom, true) :- !, swrite(Atom, S),
-                                      re_replace("'"/g, "", S, SClean),
-                                      mork("add-atoms",SClean,B).
+                                      mork("add-atoms", S, B).
 
 %Remove all same atoms:
 %'remove-atom'('&mork', [Rel|Args], true) :- !, TODO.
