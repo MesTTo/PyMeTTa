@@ -5,10 +5,11 @@
 
 %Add an atom to the space:
 'add-atom'('&mork', Atom, true) :- !, swrite(Atom, S),
-                                      mork("add-atoms", S, B).
+                                      mork("add-atoms", S, _).
 
 %Remove all same atoms:
-%'remove-atom'('&mork', [Rel|Args], true) :- !, TODO.
+'remove-atom'('&mork', A, true) :- !, 'add-atom'('&mork', [exec, 0, [',', A], ['O', [-, A]]], true),
+                                      'mm2-exec'('&mork', 1, true).
 
 %Match for pattern:
 match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
@@ -30,7 +31,7 @@ match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
 
 %Execute MM2 calculus
 'mm2-exec'('&mork', Steps, true) :- number_string(Steps, St),
-                                    mork("mm2-exec", St, A).
+                                    mork("mm2-exec", St, _).
 
 %Init MORK:
 mork_init :- use_foreign_library('./mork_ffi/morklib.so'),

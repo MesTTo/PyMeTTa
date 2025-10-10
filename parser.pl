@@ -3,11 +3,11 @@
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
 swrite(Term, String) :- phrase(swrite_exp(Term), Codes),
                         string_codes(String, Codes).
-swrite_exp(Var)   --> { var(Var) }, !, "$", { term_string(Var,S) }, string(S).
-swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num,C) }, C.
-swrite_exp(Atom)  --> { atomic(Atom) }, !, atom(Atom).
+swrite_exp(Var)   --> { var(Var) }, !, "$", { term_to_atom(Var, A), atom_codes(A, Cs) }, Cs.
+swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
+swrite_exp(Atom)  --> { atom(Atom), \+ number(Atom) }, !, atom(Atom).
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
-swrite_exp(T)     --> { T =.. [F|A] }, "(", atom(F), (A=[] -> [] ; " ", seq(A)), ")".
+swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
 
