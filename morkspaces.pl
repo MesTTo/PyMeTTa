@@ -18,7 +18,8 @@ match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
                                                   OutPattern = O2.
 
 %Execute MM2 calculus
-'mm2-exec'('&mork', Steps, Result) :- number_string(Steps, St), mork("exec", St, A), Result=true.
+'mm2-exec'('&mork', Steps, true) :- number_string(Steps, St),
+                                    mork("exec", St, A).
             
 %Remove all same atoms:
 %'remove-atom'('&mork', [Rel|Args], true) :- length(Args, N), Arity is N + 2,
