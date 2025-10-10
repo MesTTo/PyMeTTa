@@ -1,16 +1,17 @@
 :- use_module(library(dcg/basics)). %blanks/0, number/1, string_without/2
 
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
-swrite(List, SExpr) :- with_output_to(string(S0), write(List)),
-                       re_replace("\\["/g, "(", S0, S1),
-                       re_replace("\\]"/g, ")", S1, S2),
-                       re_replace(","/g, " ", S2, S3),
-                       re_replace("   "/g, " , ", S3, S4),
-                       re_replace("\\(  "/g, "(, ", S4, S5),
-                       re_replace("\s\s\\)"/g, " ,)", S5, S6),
-                       re_replace("_"/g, "$$1", S6, SExpr).
+swrite(Term, String) :- phrase(swrite_exp(Term), Codes),
+                        string_codes(String, Codes).
+swrite_exp(Var)   --> { var(Var) }, !, "$", { term_string(Var,S) }, string(S).
+swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num,C) }, C.
+swrite_exp(Atom)  --> { atomic(Atom) }, !, atom(Atom).
+swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
+swrite_exp(T)     --> { T =.. [F|A] }, "(", atom(F), (A=[] -> [] ; " ", seq(A)), ")".
+seq([X])    --> swrite_exp(X).
+seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
 
-%Read S string or atom, extract codes, and apply DCG:
+%Read S string or atom, extract codes, and apply DCG (parsing):
 sread(S,T) :- atom_string(A,S),
               atom_codes(A,Cs),
               phrase(sexpr(T,[],_), Cs).
