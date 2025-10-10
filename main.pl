@@ -16,3 +16,5 @@ main :- current_prolog_flag(argv, Args),
                        maplist(swrite, Results, Strings),
                        format("~w~n", [Strings]) ),
         halt.
+
+:- initialization(main, main).
