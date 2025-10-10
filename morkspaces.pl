@@ -1,66 +1,6 @@
 :- multifile match/4.
 :- multifile 'add-atom'/3.
 
-:- ensure_loaded([parser]).
-
-
-% list_to_pat(+Tokens:list, -Out:string)
-% Example: list_to_pat([friend,sam,A], Out).
-%          Out = "[3] friend sam $".
-list_to_pat(Toks, Out) :-
-    length(Toks, N),
-    maplist(tok_to_atom, Toks, Norm),              % normalize vars/$n -> '$', numbers -> atoms, etc.
-    atomic_list_concat(Norm, ' ', Mid),
-    format(string(Out), "[~d] ~w", [N, Mid]).
-
-tok_to_atom(T, '$') :- var(T), !.                  % any Prolog var -> '$'
-tok_to_atom(A, '$') :-                             % $1, $2, ... -> '$'
-    atom(A), atom_concat('$', Ds, A), Ds \= '',
-    atom_chars(Ds, Cs), maplist(char_type_digit, Cs), !.
-tok_to_atom(N, A)  :- number(N), !, atom_number(A, N).
-tok_to_atom(S, A)  :- string(S), !, atom_string(A, S).
-tok_to_atom(A, A)  :- atom(A), !.
-tok_to_atom(T, A)  :- term_string(T, Str), atom_string(A, Str).
-
-char_type_digit(C) :- char_type(C, digit).
-
-% list_to_sexpr(+List, -SExprString)
-list_to_sexpr(List, S) :-
-    sexpr_tokens(List, Ts),
-    atomic_list_concat(Ts, ' ', Mid),
-    format(string(S), "(~w)", [Mid]).
-
-sexpr_tokens([], []).
-sexpr_tokens([H|T], [Tok|Ts]) :-
-    sexpr_token(H, Tok),
-    sexpr_tokens(T, Ts).
-
-:- dynamic var_id/2.
-:- dynamic var_counter/1.
-var_counter(0).
-
-get_var_name(Var, Name) :-
-    ( var_id(Var, Name) -> true
-    ; retract(var_counter(N)),
-      N1 is N + 1,
-      assertz(var_counter(N1)),
-      format(atom(Name), '$V~w', [N1]),
-      assertz(var_id(Var, Name))
-    ).
-
-sexpr_token(X, Tok) :-
-    var(X), !,
-    get_var_name(X, Tok).
-
-sexpr_token(X, Tok) :-
-    is_list(X), !,
-    maplist(sexpr_token, X, In),
-    atomic_list_concat(In, ' ', Mid),
-    format(atom(Tok), "(~w)", [Mid]).
-
-sexpr_token(X, Tok) :-
-    term_to_atom(X, Tok).
-
 % mork_query(+Pattern:list, +OutPattern:list(with one var), -Instantiated:list)
 mork_query(Pattern, OutPattern, Instantiation) :-
     % build MORK query pattern from already-parsed list
@@ -84,7 +24,7 @@ instantiate_one(Template0, Value, Instantiated) :-
     V = Value,
     Instantiated = T.
 
-'add-atom'('&mork', Atom, true) :- !, list_to_sexpr(Atom, S), 
+'add-atom'('&mork', Atom, true) :- !, swrite(Atom, S), writeln(S),
                                    re_replace("'"/g, "", S, SClean),
                                    mork("load",SClean,B), !.
                                    %format(string(SB), "load result: ~w ~n", [B]),
