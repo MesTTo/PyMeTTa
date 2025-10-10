@@ -35,28 +35,48 @@ sexpr_tokens([H|T], [Tok|Ts]) :-
     sexpr_token(H, Tok),
     sexpr_tokens(T, Ts).
 
-sexpr_token(X, '$') :- var(X), !.
+:- dynamic var_id/2.
+:- dynamic var_counter/1.
+var_counter(0).
+
+get_var_name(Var, Name) :-
+    ( var_id(Var, Name) -> true
+    ; retract(var_counter(N)),
+      N1 is N + 1,
+      assertz(var_counter(N1)),
+      format(atom(Name), '$V~w', [N1]),
+      assertz(var_id(Var, Name))
+    ).
+
+sexpr_token(X, Tok) :-
+    var(X), !,
+    get_var_name(X, Tok).
+
 sexpr_token(X, Tok) :-
     is_list(X), !,
-    sexpr_tokens(X, In),
+    maplist(sexpr_token, X, In),
     atomic_list_concat(In, ' ', Mid),
     format(atom(Tok), "(~w)", [Mid]).
-sexpr_token(X, Tok) :- term_to_atom(X, Tok).
+
+sexpr_token(X, Tok) :-
+    term_to_atom(X, Tok).
 
 % mork_query(+Pattern:list, +OutPattern:list(with one var), -Instantiated:list)
 mork_query(Pattern, OutPattern, Instantiation) :-
     % build MORK query pattern from already-parsed list
-    list_to_pat(Pattern, MorkPat),
+    %list_to_pat(Pattern, MorkPat),
+    list_to_sexpr(Pattern, MorkPat),
+    writeln(MorkPat).%,
     % run query
-    mork("query", MorkPat, Temp),
-    % split results, drop trailing empty line
-    split_string(Temp, "\n", "", Raw),
-    exclude(==(""), Raw, Lines),
-    % parse each returned value with your s-expr reader
-    maplist(sread, Lines, Values),
-    % instantiate the single var in OutPattern with each value
-    maplist(instantiate_one(OutPattern), Values, Instantiated),
-    member(Instantiation, Instantiated).
+    %mork("query", MorkPat, Temp).
+%    % split results, drop trailing empty line
+%    split_string(Temp, "\n", "", Raw),
+%    exclude(==(""), Raw, Lines),
+%    % parse each returned value with your s-expr reader
+%    maplist(sread, Lines, Values),
+%    % instantiate the single var in OutPattern with each value
+%    maplist(instantiate_one(OutPattern), Values, Instantiated),
+%    member(Instantiation, Instantiated).
 
 instantiate_one(Template0, Value, Instantiated) :-
     copy_term(Template0, T),
