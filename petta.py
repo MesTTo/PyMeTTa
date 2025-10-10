@@ -1,17 +1,27 @@
 import os
 import uuid
+import threading
 import janus_swi as janus
+
+CONSULTED = False
+CONSULT_LOCK = threading.Lock()
 
 class PeTTa:
     def __init__(self, verbose=False, metta_src_path=None):
+        global CONSULTED
         self.cmd = "process_metta_string" if verbose else "process_metta_string_silent"
-        if metta_src_path is None:
-            # Assume the src directory is in the same directory as this file
-            metta_src_path = os.path.join(os.path.dirname(__file__))
-        main_path = os.path.join(metta_src_path, '..', 'src' , 'main.pl')
-        helper_path = os.path.join(metta_src_path, 'helper.pl')
-        janus.consult(main_path)
-        janus.consult(helper_path)
+
+        if not CONSULTED:
+            with CONSULT_LOCK:
+                if not CONSULTED:
+                    if metta_src_path is None:
+                        # Assume the src directory is in the same directory as this file
+                        metta_src_path = os.path.join(os.path.dirname(__file__))
+                    main_path = os.path.join(metta_src_path, '..', 'src' , 'main.pl')
+                    helper_path = os.path.join(metta_src_path, 'helper.pl')
+                    janus.consult(main_path)
+                    janus.consult(helper_path)
+                    CONSULTED = True
 
     def load_metta_file(self, file_path):
         """Compile a MeTTa file to Prolog and return the results of the run."""
