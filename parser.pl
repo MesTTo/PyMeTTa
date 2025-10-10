@@ -5,7 +5,10 @@ swrite(List, SExpr) :- with_output_to(string(S0), write(List)),
                        re_replace("\\["/g, "(", S0, S1),
                        re_replace("\\]"/g, ")", S1, S2),
                        re_replace(","/g, " ", S2, S3),
-                       re_replace("_"/g, "$$1", S3, SExpr).
+                       re_replace("   "/g, " , ", S3, S4),
+                       re_replace("\\(  "/g, "(, ", S4, S5),
+                       re_replace("\s\s\\)"/g, " ,)", S5, S6),
+                       re_replace("_"/g, "$$1", S6, SExpr).
 
 %Read S string or atom, extract codes, and apply DCG:
 sread(S,T) :- atom_string(A,S),
