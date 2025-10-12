@@ -20,9 +20,9 @@ reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], Call
                                                         call(Goal)
                                                       ; Out = [F|Args] ).
 
-translate_expr_to_conj(Input, Conj, Out) :-
-    translate_expr(Input, Goals, Out),
-    goals_list_to_conj(Goals, Conj).
+%Combined expr translation to goals list
+translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
+                                            goals_list_to_conj(Goals, Conj).
 
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
