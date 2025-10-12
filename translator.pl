@@ -43,7 +43,7 @@ translate_expr([H|T], Goals, Out) :-
                                                   append(GsH, Gk, G0),
                                                   append(G0, [IfGoal], Goals)
         ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
-                                           Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
+                                            Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
         ; HV == let, T = [Pat, Val, In] -> translate_expr(Pat, Gp, P),
                                            translate_expr(Val, Gv, V),
                                            translate_expr(In,  Gi, I),
