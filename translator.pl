@@ -10,10 +10,6 @@ goals_list_to_conj([], true)      :- !.
 goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
-%Extract arguments or superpose arguments as list:
-arg_to_list([superpose|T], T) :- !.
-arg_to_list(A, [A]).
-
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
 reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
                                                         Goal =.. [F|CallArgs],
@@ -27,7 +23,7 @@ translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H|T], Goals, Out) :-
-        !, translate_expr(H, GsH, HV),
+        translate_expr(H, GsH, HV),
         ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
                                                         disj_list(Branches, Disj),
                                                         append(GsH, [Disj], Goals)
