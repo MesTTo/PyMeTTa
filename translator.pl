@@ -23,7 +23,7 @@ translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H|T], Goals, Out) :-
-        !, translate_expr(H, GsH, HV),
+        translate_expr(H, GsH, HV),
         ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
                                                         disj_list(Branches, Disj),
                                                         append(GsH, [Disj], Goals)
