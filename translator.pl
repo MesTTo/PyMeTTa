@@ -10,10 +10,6 @@ goals_list_to_conj([], true)      :- !.
 goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
-%Extract arguments or superpose arguments as list:
-arg_to_list([superpose|T], T) :- !.
-arg_to_list(A, [A]).
-
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
 reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
                                                         Goal =.. [F|CallArgs],
