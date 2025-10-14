@@ -150,6 +150,9 @@ repr(Term,R) :- swrite(Term, R).
 'println!'(Arg, true) :- swrite(Arg, RArg),
                          format('~w~n', [RArg]).
 
+'readln!'(Out) :- read_line_to_string(user_input, Str),
+                  sread(Str, Out).
+
 'trace!'(In, Content, Content) :- swrite(In,R),
                                   format('~w~n', [R]).
 
@@ -193,7 +196,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, 'println!', 'trace!', test, assertEqual, 'mm2-exec',
+                          'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual, 'mm2-exec',
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
