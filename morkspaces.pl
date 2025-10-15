@@ -8,8 +8,8 @@
                                       mork("add-atoms", S, _).
 
 %Remove all same atoms:
-'remove-atom'('&mork', A, true) :- !, 'add-atom'('&mork', [exec, 0, [',', A], ['O', [-, A]]], true),
-                                      'mm2-exec'('&mork', 1, true).
+'remove-atom'('&mork', Atom, true) :- !, swrite(Atom, S),
+                                         mork("remove-atoms", S, _).
 
 %Match for pattern:
 match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
