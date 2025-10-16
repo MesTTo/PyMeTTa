@@ -3,10 +3,10 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                        -> true ; dynamic(Space/Arity) ).
 
 %Add a function atom:
-'add-atom'('&self', Term, true) :- Term = [=,[FAtom|_],_],
+'add-atom'('&self', Term, true) :- Term = [=,[FAtom|_],_], !,
                                    register_fun(FAtom),
                                    translate_clause(Term, Clause),
-                                   assertz(Clause), !.
+                                   assertz(Clause).
 
 %Add an atom to the space:
 'add-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
@@ -15,7 +15,7 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                        assertz(Term).
 
 %%Remove a function atom:
-'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_],
+'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_], !,
                                          translate_clause(Term, Cl),
                                          ( retract(Cl) -> length(Ins, K),
                                                           unregister_fun(F/K),
@@ -30,24 +30,19 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                             -> retractall(Term) ).
 
 %Function evaluation matches, where the unification returned true, so it unified:
-match('&self', true, Arg2, Result) :- Result = Arg2.
+match('&self', true, Arg2, Result) :- !, Result = Arg2.
+
+%Match for conjunctive pattern
+match(_, [','], OutPattern, Result) :- !, copy_term(OutPattern, Result).
+match(Space, [','|[Head|Tail]], OutPattern, Result) :- !, append([Space], Head, List),
+                                                          Term =.. List,
+                                                          Term, \+ cyclic_term(OutPattern),
+                                                          match(Space, [','|Tail], OutPattern, Result).
 
 %Match for pattern:
-match(Space, [Rel|PatArgs], OutPattern, Result) :-
-  \+ (Rel == ','),
-  Term =.. [Space, Rel | PatArgs],
-  Term, \+ cyclic_term(OutPattern),
-  copy_term(OutPattern, Result).
-
-match(Space, [','|Args], OutPattern, Result) :-
-    [Head|Tail] = Args,
-    append([Space], Head, List),
-    Term =.. List,
-    Term, \+ cyclic_term(OutPattern),
-    match(Space, [','|Tail], OutPattern, Result).
-
-match(_, [','], OutPattern, Result) :-
-  copy_term(OutPattern, Result).
+match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
+                                                   Term, \+ cyclic_term(OutPattern),
+                                                   copy_term(OutPattern, Result).
 
 %Get all atoms in space, irregard of arity:
 'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
