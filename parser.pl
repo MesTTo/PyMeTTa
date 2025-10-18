@@ -24,15 +24,8 @@ sexpr(N,E,E)  --> blanks, number(N), lookahead_any(" ()\t\n\r"), blanks, !.
 sexpr(V,E0,E) --> blanks, var_symbol(V,E0,E), blanks, !.
 sexpr(A,E,E)  --> blanks, atom_symbol(A), blanks.
 
-lookahead_any(Terms, S, E) :- 
-  string_codes(Terms,SC),
-  S = [Head | _],
-  member(Head,SC),
-  !, S = E.
-
 %Helper for strange atoms that aren't numbers, e.g. 1_2_3:
-rest([C|Cs]) --> [C], { code_type(C,digit) ; C=0'_; C=0'. }, !, rest(Cs).
-rest([]) --> [].
+lookahead_any(Terms, S, E) :- string_codes(Terms,SC), S = [Head | _], member(Head,SC), !, S = E.
 
 %Recursive processing of S-Expressions within S-Expressions:
 seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), blanks, seq(Xs,E1,E2).
