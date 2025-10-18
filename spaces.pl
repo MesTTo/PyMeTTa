@@ -33,7 +33,7 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
 match('&self', true, Arg2, Result) :- !, Result = Arg2.
 
 %Match for conjunctive pattern
-match(_, [','], OutPattern, Result) :- !, copy_term(OutPattern, Result).
+match(_, [','], OutPattern, Result) :- !, Result = OutPattern.
 match(Space, [','|[Head|Tail]], OutPattern, Result) :- !, append([Space], Head, List),
                                                           Term =.. List,
                                                           Term, \+ cyclic_term(OutPattern),
@@ -42,7 +42,7 @@ match(Space, [','|[Head|Tail]], OutPattern, Result) :- !, append([Space], Head, 
 %Match for pattern:
 match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
                                                    Term, \+ cyclic_term(OutPattern),
-                                                   copy_term(OutPattern, Result).
+                                                   Result = OutPattern.
 
 %Get all atoms in space, irregard of arity:
 'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),

@@ -14,7 +14,8 @@ goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
                                                         Goal =.. [F|CallArgs],
                                                         call(Goal)
-                                                      ; Out = [F|Args] ).
+                                                      ; Out = [F|Args],
+                                                        \+ cyclic_term(Out) ).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -70,6 +71,12 @@ translate_expr([H|T], Goals, Out) :-
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
                                                         append(GsH, [Goal], Goals)
+        ; HV == match, T = [Space, Pattern, Body] -> translate_expr(Space,   GsS, S),
+                                                     translate_expr(Pattern, GsP, P),
+                                                     translate_expr(Body,    GsB, Out),
+                                                     append(GsS, GsP, G1),
+                                                     append(G1, [match(S, P, Out, Out)], G2),
+                                                     append(G2, GsB, Goals)
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),        %Known function => direct call
