@@ -20,10 +20,17 @@ sread(S,T) :- atom_string(A,S),
 %An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
 sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.
 sexpr(T,E0,E) --> blanks, "(", blanks, seq(T,E0,E), blanks, ")", blanks, !.
-sexpr(N,E,E)  --> blanks, number(N), ( " " ; { phrase(["("], ["("]) } ; { phrase([")"], [")"]) } ; { phrase(["\t"], ["\t"]) } ; { phrase(["\n"], ["\n"]) } ; { phrase(["\r"], ["\r"]) } ), blanks, !.
+sexpr(V,E,E) --> blanks, ( [0'-], [D], { code_type(D,digit), Prefix = [0'-,D] }
+                         ; [D], { code_type(D,digit), Prefix = [D] }),
+                         rest(Cs), { append(Prefix, Cs, All), ( memberchk(0'_, All) -> atom_codes(V, All)
+                                                                                     ; atom_codes(A, All),
+                                                                                       atom_number(A, V)) }, blanks, !.
 sexpr(V,E0,E) --> blanks, var_symbol(V,E0,E), blanks, !.
 sexpr(A,E,E)  --> blanks, atom_symbol(A), blanks.
 
+%Helper for strange atoms that aren't numbers, e.g. 1_2_3:
+rest([C|Cs]) --> [C], { code_type(C,digit) ; C=0'_; C=0'. }, !, rest(Cs).
+rest([]) --> [].
 
 %Recursive processing of S-Expressions within S-Expressions:
 seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), blanks, seq(Xs,E1,E2).
