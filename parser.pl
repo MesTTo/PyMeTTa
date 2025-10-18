@@ -8,6 +8,7 @@ swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_exp(Str)   --> { string(Str) }, !, { string_codes(Str, Cs) }, Cs.
 swrite_exp(Atom)  --> { atom(Atom) }, !, atom(Atom).
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
+swrite_exp([])    --> !, "()".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
