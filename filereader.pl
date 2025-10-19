@@ -24,6 +24,7 @@ to_function_form(T, [=, [run, default], [['add-atom','&self', T], [empty]]]).
 assert_function(FormStr) :- sread(FormStr, Orig),
                             to_function_form(Orig, Term),
                             Term = [=, [FAtom|_], _BodyExpr],
+                            add_sexp('&self', Term),
                             atom(FAtom),
                             register_fun(FAtom),
                             translate_clause(Term, Clause),

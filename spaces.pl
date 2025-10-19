@@ -2,17 +2,21 @@
 ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                        -> true ; dynamic(Space/Arity) ).
 
+%Since both normal add-attom call and function additions needs to add the S-expression:
+add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
+                               ensure_dynamic_arity(Space, Arity),
+                               Term =.. [Space, Rel | Args],
+                               assertz(Term).
+
 %Add a function atom:
-'add-atom'('&self', Term, true) :- Term = [=,[FAtom|_],_], !,
-                                   register_fun(FAtom),
-                                   translate_clause(Term, Clause),
-                                   assertz(Clause).
+'add-atom'(Space, Term, true) :- Term = [=,[FAtom|_],_], !,
+                                 add_sexp(Space, Term),
+                                 register_fun(FAtom),
+                                 translate_clause(Term, Clause),
+                                 assertz(Clause).
 
 %Add an atom to the space:
-'add-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
-                                       ensure_dynamic_arity(Space, Arity),
-                                       Term =.. [Space, Rel | Args],
-                                       assertz(Term).
+'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
 
 %%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_], !,
@@ -28,9 +32,6 @@ ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
                                           Term =.. [Space, Rel | Args],
                                           ( clause(Term, true)
                                             -> retractall(Term) ).
-
-%Function evaluation matches, where the unification returned true, so it unified:
-match('&self', true, Arg2, Result) :- !, Result = Arg2.
 
 %Match for conjunctive pattern
 match(_, [','], OutPattern, Result) :- !, Result = OutPattern.
