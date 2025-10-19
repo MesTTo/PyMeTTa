@@ -189,6 +189,11 @@ assertEqual(A,B,true) :- A \== B,
                                                 py_call(builtins:Call0, Result, Opts) ).
 
 %%% Registration: %%%
+'import!'('&self', File, true) :- atom_string(File, SFile),
+                                  working_dir(Base),
+                                  atomic_list_concat([Base, '/', SFile, '.metta'], Path),
+                                  load_metta_file(Path, default).
+
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
@@ -197,7 +202,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual,
-                          append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
+                          append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
                           unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse]).
