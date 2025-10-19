@@ -20,6 +20,7 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
 
 %%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_], !,
+                                         retractall(Term),
                                          translate_clause(Term, Cl),
                                          ( retract(Cl) -> length(Ins, K),
                                                           unregister_fun(F/K),
@@ -30,8 +31,7 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
 'remove-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
                                           ensure_dynamic_arity(Space, Arity),
                                           Term =.. [Space, Rel | Args],
-                                          ( clause(Term, true)
-                                            -> retractall(Term) ).
+                                          retractall(Term).
 
 %Match for conjunctive pattern
 match(_, [','], OutPattern, Result) :- !, Result = OutPattern.
