@@ -25,6 +25,23 @@ let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
 min(A,B,R)  :- R is min(A,B).
 max(A,B,R)  :- R is max(A,B).
 exp(Arg,R) :- R is exp(Arg).
+:- use_module(library(clpfd)).
+'#+'(A, B, R) :- R #= A + B.
+'#-'(A, B, R) :- R #= A - B.
+'#*'(A, B, R) :- R #= A * B.
+'#div'(A, B, R) :- R #= A div B.
+'#//'(A, B, R) :- R #= A // B.
+'#mod'(A, B, R) :- R #= A mod B.
+'#min'(A, B, R) :- R #= min(A,B).
+'#max'(A, B, R) :- R #= max(A,B).
+'#<'(A, B, true)  :- A #< B, !.
+'#<'(_, _, false).
+'#>'(A, B, true)  :- A #> B, !.
+'#>'(_, _, false).
+'#='(A, B, true)  :- A #= B, !.
+'#='(_, _, false).
+'#\\='(A, B, true)  :- A #\= B, !.
+'#\\='(_, _, false).
 
 %%% Boolean Logic: %%%
 and(true,  X, X).
@@ -39,6 +56,7 @@ superpose(L,X) :- member(X,L).
 empty(_) :- fail.
 
 %%% Lists / Tuples: %%%
+.(A, B, R) :- R=[A|B].
 'car-atom'([H|_], H).
 'cdr-atom'([_|T], T).
 'decons'([H|T], [H|[T]]).
@@ -201,8 +219,9 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual,
+                          ., 'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual,
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
-                          unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse]).
+                          unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse,
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=']).

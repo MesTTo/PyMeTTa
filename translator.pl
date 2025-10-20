@@ -1,9 +1,23 @@
+%Pattern matching, structural and functional/relational constraints on arguments:
+constrain_args(X, X, []) :- (var(X); atomic(X)), !.
+constrain_args([F, A, B], [A|B], []) :- F == '.', !.
+constrain_args([F|Args], Var, Goals) :- atom(F),
+                                        fun(F), !,
+                                        translate_expr([F|Args], GoalsExpr, Var),
+                                        flatten(GoalsExpr, Goals).
+constrain_args([F|Args], [F|Args1], Goals) :- maplist(constrain_args, Args, Args1, NestedGoalsList),
+                                              flatten(NestedGoalsList, Goals), !.
+
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
-                                               append(Args0, [Out], Args),
+                                               maplist(constrain_args, Args0, Args1, GoalsA),
+                                               append(GoalsA, GoalsPrefix),
+                                               append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
-                                               goals_list_to_conj(GoalsB, BodyConj).
+                                               append(GoalsPrefix, GoalsB, Goals),
+                                               goals_list_to_conj(Goals, BodyConj).
+
 
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.
