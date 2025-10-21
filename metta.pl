@@ -61,8 +61,8 @@ empty(_) :- fail.
 'cdr-atom'([_|T], T).
 'decons'([H|T], [H|[T]]).
 cons(H, T, [H|T]).
-memberfast(X, List, true) :- memberchk(X, List), !.
-memberfast(_, _, false).
+memberfast(X, List, true) :- member(X, List).
+memberfast(_, List, false) :- \+ member(_, List).
 excludefast(A, L, R) :- exclude(==(A), L, R).
 
 %%% Type system: %%%
