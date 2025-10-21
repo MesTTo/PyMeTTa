@@ -29,7 +29,11 @@ to_function_form(T, T) :- T = [=, [_|_], _], !.
 to_function_form(T, [=, [run, default], [['add-atom','&self', T], [empty]]]).
 
 %From a function string: parse, extract first atom as name, register, transform to relation, assert:
-assert_function(FormStr) :- sread(FormStr, Orig),
+assert_function(FormStr) :- ( sread(FormStr, Orig)
+                              -> true
+                              ;  format('Parse error in form: ~w~n', [FormStr]),
+                                 halt(1)
+                            ),
                             to_function_form(Orig, Term),
                             Term = [=, [FAtom|_], _BodyExpr],
                             add_sexp('&self', Term),
