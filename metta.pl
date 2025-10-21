@@ -62,7 +62,7 @@ empty(_) :- fail.
 'decons'([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 memberfast(X, List, true) :- member(X, List).
-memberfast(_, List, false) :- \+ member(_, List).
+memberfast(X, List, false) :- \+ member(X, List).
 excludefast(A, L, R) :- exclude(==(A), L, R).
 
 %%% Type system: %%%
