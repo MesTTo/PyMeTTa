@@ -44,7 +44,7 @@ match(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',', !,
 
 % When the pattern list itself is a variable -> enumerate all atoms
 match(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
-                                                'get-atoms'(Space, Pattern),
+                                                'get-atoms'(Space, PatternVar),
                                                 \+ cyclic_term(OutPattern),
                                                 Pattern = OutPattern,
                                                 Result = OutPattern.
