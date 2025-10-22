@@ -15,14 +15,12 @@ process_metta_string(S, RunArg) :- split_string(S, "\n", "", L0),
                                    string_codes(FunctionizedCode, Codes),
                                    ( phrase(top_forms(Forms), Codes)
                                      -> true
-                                     ;  format('Parse error: invalid or unbalanced top-level form(s).~n', []),
-                                        halt(1)
-                                   ),
+                                      ; format('Parse error: invalid or unbalanced top-level form(s).~n', []),
+                                        halt(1) ),
                                    ( maplist(assert_function, Forms)
                                      -> true
-                                     ;  format('Parse error: failed to process one or more forms.~n', []),
-                                        halt(1)
-                                   ).
+                                      ; format('Parse error: failed to process one or more forms.~n', []),
+                                        halt(1) ).
 
 %Functions stay functions and runaway S-expressions become add-atom calls with result omitted:
 to_function_form(T, T) :- T = [=, [_|_], _], !.
@@ -31,9 +29,8 @@ to_function_form(T, [=, [run, default], [['add-atom','&self', T], [empty]]]).
 %From a function string: parse, extract first atom as name, register, transform to relation, assert:
 assert_function(FormStr) :- ( sread(FormStr, Orig)
                               -> true
-                              ;  format('Parse error in form: ~w~n', [FormStr]),
-                                 halt(1)
-                            ),
+                               ; format('Parse error in form: ~w~n', [FormStr]),
+                                 halt(1) ),
                             to_function_form(Orig, Term),
                             Term = [=, [FAtom|_], _BodyExpr],
                             add_sexp('&self', Term),

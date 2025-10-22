@@ -46,7 +46,6 @@ match(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',', !,
 match(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
                                                 'get-atoms'(Space, PatternVar),
                                                 \+ cyclic_term(OutPattern),
-                                                Pattern = OutPattern,
                                                 Result = OutPattern.
 
 %Match for pattern:
