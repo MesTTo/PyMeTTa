@@ -25,11 +25,11 @@ goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
-                                                        Goal =.. [F|CallArgs],
-                                                        call(Goal)
-                                                      ; Out = [F|Args],
-                                                        \+ cyclic_term(Out) ).
+reduce([F|Args], Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
+                                                         Goal =.. [F|CallArgs],
+                                                         call(Goal)
+                                                       ; Out = [F|Args],
+                                                         \+ cyclic_term(Out) ).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -94,15 +94,9 @@ translate_expr([H|T], Goals, Out) :-
           ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),        %Known function => direct call
                                  Goal =.. [HV|ArgsV],
                                  append(Inner, [Goal], Goals)
-          ; ( number(HV) ; string(HV) ; HV == true ; HV == false ) %Value head, process all tail args
-            -> translate_args(AVs, GsTail, AVs1),
-               append(Inner, GsTail, Inner1),
-               Out = [HV|AVs1],
-               Goals = Inner1
-          ; is_list(HV) -> eval_data_term(HV, Gd, HV1),            %Plain data list: evaluate inner fun-sublists
-                           append(Inner, Gd, Goals),
-                           Out = [HV1|AVs]
-          ; append(Inner, [reduce(HV, AVs, Out)], Goals) )).       %Unknown head (var/compound) => runtime dispatch
+          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs], %Literals (numbers, strings, etc.),
+                                                                  Goals = Inner   %Known non-function atom => data
+          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).      %Unknown head (var/compound) => runtime dispatch
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.

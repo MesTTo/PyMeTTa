@@ -1,5 +1,4 @@
 :- ensure_loaded([parser, translator, filereader, spaces]).
-
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Let bindings: %%%
@@ -220,6 +219,10 @@ call_goals([G|Gs]) :- call(G),
                                   atomic_list_concat([Base, '/', SFile, '.metta'], Path),
                                   load_metta_file(Path, default).
 
+%%% nb-Hashtables %%%
+:- use_module(library(nb_hashtbl)).
+nb_hashtbl_put(Vis, Key, Value, true) :- nb_hashtbl_put(Vis, Key, Value).
+
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
@@ -228,8 +231,9 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           ., 'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual,
-                          append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, 'import!',
+                          foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
                           unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse,
-                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=']).
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
+                          empty_nb_hashtbl, nb_hashtbl_put, nb_hashtbl_get, nb_hashtbl_iter]).
