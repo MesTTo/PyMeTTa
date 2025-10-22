@@ -62,11 +62,11 @@ translate_expr([H|T], Goals, Out) :-
                                            append(GsH, Gp, A), append(A, Gv, B), append(B, Gi, Inner),
                                            Goals = [Goal | Inner]
         ; HV == chain, T = [Eval, Pat, After] -> translate_pattern(Pat, P),
-                                               translate_expr(Eval, Ge, Ev),
-                                               translate_expr(After, Ga, A),
-                                               Goal = let(P, Ev, A, Out),
-                                               append(GsH, Ge, A0), append(A0, Ga, Inner),
-                                               Goals = [Goal | Inner]
+                                                 translate_expr(Eval, Ge, Ev),
+                                                 translate_expr(After, Ga, A),
+                                                 Goal = let(P, Ev, A, Out),
+                                                 append(GsH, Ge, A0), append(A0, Ga, Inner),
+                                                 Goals = [Goal | Inner]
         ; HV == 'let*', T = [Binds, Body] -> translate_bindings(Binds, Gb, Bs),
                                              translate_expr(Body,  Gd, B),
                                              Goal = 'let*'(Bs, B, Out),
