@@ -174,7 +174,7 @@ repr(Term,R) :- swrite(Term, R).
 'trace!'(In, Content, Content) :- swrite(In,R),
                                   format('~w~n', [R]).
 
-test(A,B,true) :- (A == B -> E = '✅' ; E = '❌'),
+test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
