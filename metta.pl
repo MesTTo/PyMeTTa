@@ -7,6 +7,9 @@
 'let*'([[V,Val]|Rs], B, Out) :- V = Val, 'let*'(Rs, B, Out).
 let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
 
+%%% Chain: evaluate first arg, bind to variable (second), then evaluate third
+chain(Eval, Var, After, Out) :- let(Var, Eval, After, Out).
+
 %%% Arithmetic & Comparison: %%%
 '+'(A,B,R)  :- R is A + B.
 '-'(A,B,R)  :- R is A - B.
@@ -225,7 +228,7 @@ register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
 
-:- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
+:- maplist(register_fun, [superpose, empty, let, 'let*', chain, '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           ., 'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual,
                           append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, 'import!',
