@@ -39,11 +39,20 @@ translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H|T], Goals, Out) :-
         translate_expr(H, GsH, HV),
+        %--- Non-determinism ---:
         ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
                                                         disj_list(Branches, Disj),
                                                         append(GsH, [Disj], Goals)
         ; HV == collapse, T = [E] -> translate_expr_to_conj(E, Conj, EV),
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
+        ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
+                               Out = true
+        ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
+                                 append(GsH, [once(Conj)], Goals)
+        ; HV == hyperpose, T = [L],
+          build_hyperpose_branches(L, Branches),
+          append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+        %--- Conditionals ---:
         ; HV == if, T = [Cond, Then, Else] -> ( translate_expr_to_conj(Cond, ConC, true),
                                                 translate_expr_to_conj(Then, ConT, Vt)
                                                 -> handle_if_condition(ConC, ConT, Cond, Then, Else, GsH, Goals, Vt, Out)
@@ -53,29 +62,27 @@ translate_expr([H|T], Goals, Out) :-
                                                   translate_case(PairsExpr, Kv, Out, IfGoal),
                                                   append(GsH, Gk, G0),
                                                   append(G0, [IfGoal], Goals)
-        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
-                                            Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
+        %--- Unification constructs ---:
         ; HV == let, T = [Pat, Val, In] -> translate_expr(Pat, Gp, P),
                                            translate_expr(Val, Gv, V),
                                            translate_expr(In,  Gi, I),
                                            Goal = let(P, V, I, Out),
                                            append(GsH, Gp, A), append(A, Gv, B), append(B, Gi, Inner),
                                            Goals = [Goal | Inner]
+        ; HV == 'let*', T = [Binds, Body] -> translate_bindings(Binds, Gb, Bs),
+                                             translate_expr(Body,  Gd, B),
+                                             Goal = 'let*'(Bs, B, Out),
+                                             append(GsH, Gb, A), append(A, Gd, Inner),
+                                             Goals = [Goal | Inner]
         ; HV == chain, T = [Eval, Pat, After] -> translate_pattern(Pat, P),
                                                  translate_expr(Eval, Ge, Ev),
                                                  translate_expr(After, Ga, A),
                                                  Goal = let(P, Ev, A, Out),
                                                  append(GsH, Ge, A0), append(A0, Ga, Inner),
                                                  Goals = [Goal | Inner]
-        ; HV == 'let*', T = [Binds, Body] -> translate_bindings(Binds, Gb, Bs),
-                                             translate_expr(Body,  Gd, B),
-                                             Goal = 'let*'(Bs, B, Out),
-                                             append(GsH, Gb, A), append(A, Gd, Inner),
-                                             Goals = [Goal | Inner]
-        ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
-                               Out = true
-        ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
-                                 append(GsH, [once(Conj)], Goals)
+        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
+                                    Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
+        %--- Iterating over non-deterministic generators without reification ---:
         ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
                                             TCall =.. [TF, X, Truth],
                                             U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
@@ -84,10 +91,7 @@ translate_expr([H|T], Goals, Out) :-
                                                     Agg   =.. [AF, X],
                                                     GCall =.. [GF, X],
                                                     append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
-        ; HV == hyperpose,                                         %Hyperponse via (hyperpose (E1 ... En))
-          T = [L],
-          build_hyperpose_branches(L, Branches),
-          append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+        %--- Spaces ---:
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
                                                         append(GsH, [Goal], Goals)
@@ -95,14 +99,29 @@ translate_expr([H|T], Goals, Out) :-
                                                      translate_expr(Body, GsB, Out),
                                                      append(G1, [match(S, Pattern, Out, Out)], G2),
                                                      append(G2, GsB, Goals)
+        %--- Manual dispatch options: ---
+        %Force a predicate call to be generated on translation:
+        ; HV == call, T = [CallExpr] -> CallExpr = [F|Args],
+                                        append(GsH, [], Inner),
+                                        append(Args, [Out], CallArgs),
+                                        Goal =.. [F|CallArgs],
+                                        append(Inner, [Goal], Goals)
+        %Force arg to remain data/list on translation:
+        ; HV == quote, T = [Expr] -> append(GsH, [], Inner),
+                                     Out = Expr,
+                                     Goals = Inner
+        %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch:
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
-          ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),        %Known function => direct call
+          %Known function => direct call
+          ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),
                                  Goal =.. [HV|ArgsV],
                                  append(Inner, [Goal], Goals)
-          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs], %Literals (numbers, strings, etc.),
-                                                                  Goals = Inner   %Known non-function atom => data
-          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).      %Unknown head (var/compound) => runtime dispatch
+          %Literals (numbers, strings, etc.), known non-function atom => data:
+          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
+                                                                  Goals = Inner
+          %Unknown head (var/compound) => runtime dispatch
+          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
