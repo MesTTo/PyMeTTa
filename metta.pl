@@ -58,7 +58,6 @@ superpose(L,X) :- member(X,L).
 empty(_) :- fail.
 
 %%% Lists / Tuples: %%%
-.(A, B, R) :- R=[A|B].
 'car-atom'([H|_], H).
 'cdr-atom'([_|T], T).
 'decons'([H|T], [H|[T]]).
@@ -230,7 +229,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', chain, '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          ., 'car-atom', 'cdr-atom', repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual,
+                          'car-atom', 'cdr-atom', repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual,
                           foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
