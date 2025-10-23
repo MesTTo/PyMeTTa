@@ -1,11 +1,13 @@
 :- ensure_loaded([parser, translator, filereader, morkspaces, spaces]).
-
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Let bindings: %%%
 'let*'([], B, B).
 'let*'([[V,Val]|Rs], B, Out) :- V = Val, 'let*'(Rs, B, Out).
 let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
+
+%%% Chain: evaluate first arg, bind to variable (second), then evaluate third
+chain(Eval, Var, After, Out) :- let(Var, Eval, After, Out).
 
 %%% Arithmetic & Comparison: %%%
 '+'(A,B,R)  :- R is A + B.
@@ -25,6 +27,23 @@ let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
 min(A,B,R)  :- R is min(A,B).
 max(A,B,R)  :- R is max(A,B).
 exp(Arg,R) :- R is exp(Arg).
+:- use_module(library(clpfd)).
+'#+'(A, B, R) :- R #= A + B.
+'#-'(A, B, R) :- R #= A - B.
+'#*'(A, B, R) :- R #= A * B.
+'#div'(A, B, R) :- R #= A div B.
+'#//'(A, B, R) :- R #= A // B.
+'#mod'(A, B, R) :- R #= A mod B.
+'#min'(A, B, R) :- R #= min(A,B).
+'#max'(A, B, R) :- R #= max(A,B).
+'#<'(A, B, true)  :- A #< B, !.
+'#<'(_, _, false).
+'#>'(A, B, true)  :- A #> B, !.
+'#>'(_, _, false).
+'#='(A, B, true)  :- A #= B, !.
+'#='(_, _, false).
+'#\\='(A, B, true)  :- A #\= B, !.
+'#\\='(_, _, false).
 
 %%% Boolean Logic: %%%
 and(true,  X, X).
@@ -43,8 +62,8 @@ empty(_) :- fail.
 'cdr-atom'([_|T], T).
 'decons'([H|T], [H|[T]]).
 cons(H, T, [H|T]).
-memberfast(X, List, true) :- memberchk(X, List), !.
-memberfast(_, _, false).
+memberfast(X, List, true) :- member(X, List).
+memberfast(X, List, false) :- \+ member(X, List).
 excludefast(A, L, R) :- exclude(==(A), L, R).
 
 %%% Type system: %%%
@@ -145,7 +164,8 @@ subtract(Pred, [E|T], D, R) :- ( member_with_pred(E, D, Pred) -> subtract(Pred, 
                                                         'map-nested'(Tail, Mapper, NewTail).
 
 %%% Diagnostics / Testing: %%%
-repr(Term,R) :- swrite(Term, R).
+repr(Term, R) :- swrite(Term, R).
+repra(Term, R) :- term_to_atom(Term, R).
 
 'println!'(Arg, true) :- swrite(Arg, RArg),
                          format('~w~n', [RArg]).
@@ -156,7 +176,7 @@ repr(Term,R) :- swrite(Term, R).
 'trace!'(In, Content, Content) :- swrite(In,R),
                                   format('~w~n', [R]).
 
-test(A,B,true) :- (A == B -> E = '✅' ; E = '❌'),
+test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
@@ -188,16 +208,30 @@ assertEqual(A,B,true) :- A \== B,
                                                    ; Call0 =.. [A|Args] ),
                                                 py_call(builtins:Call0, Result, Opts) ).
 
+%%% Eval: %%%
+eval(C, Out) :- translate_expr(C, Goals, Out),
+                call_goals(Goals).
+
+call_goals([]).
+call_goals([G|Gs]) :- call(G), 
+                      call_goals(Gs).
+
 %%% Registration: %%%
+'import!'('&self', File, true) :- atom_string(File, SFile),
+                                  working_dir(Base),
+                                  atomic_list_concat([Base, '/', SFile, '.metta'], Path),
+                                  load_metta_file(Path, default).
+
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
 
-:- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
+:- maplist(register_fun, [superpose, empty, let, 'let*', chain, '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, 'println!', 'readln!', 'trace!', test, assertEqual, 'mm2-exec',
-                          append, length, sort, msort, memberfast, excludefast, list_to_set, maplist,
+                          'car-atom', 'cdr-atom', repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual, 'mm2-exec',
+                          foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
-                          unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse]).
+                          unify, 'py-call', 'get-type', 'get-metatype', '=alpha','=@=', concat, sread, cons, reverse,
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=']).

@@ -8,6 +8,7 @@ swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_exp(Str)   --> { string(Str) }, !, { string_codes(Str, Cs) }, Cs.
 swrite_exp(Atom)  --> { atom(Atom) }, !, atom(Atom).
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
+swrite_exp([])    --> !, "()".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
@@ -20,9 +21,12 @@ sread(S,T) :- atom_string(A,S),
 %An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
 sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.
 sexpr(T,E0,E) --> blanks, "(", blanks, seq(T,E0,E), blanks, ")", blanks, !.
-sexpr(N,E,E)  --> blanks, number(N), blanks, !.
+sexpr(N,E,E)  --> blanks, number(N), lookahead_any(" ()\t\n\r"), blanks, !.
 sexpr(V,E0,E) --> blanks, var_symbol(V,E0,E), blanks, !.
 sexpr(A,E,E)  --> blanks, atom_symbol(A), blanks.
+
+%Helper for strange atoms that aren't numbers, e.g. 1_2_3:
+lookahead_any(Terms, S, E) :- string_codes(Terms,SC), S = [Head | _], member(Head,SC), !, S = E.
 
 %Recursive processing of S-Expressions within S-Expressions:
 seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), blanks, seq(Xs,E1,E2).

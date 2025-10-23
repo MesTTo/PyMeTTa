@@ -1,9 +1,23 @@
+%Pattern matching, structural and functional/relational constraints on arguments:
+constrain_args(X, X, []) :- (var(X); atomic(X)), !.
+constrain_args([F, A, B], [A|B], []) :- F == cons, !.
+constrain_args([F|Args], Var, Goals) :- atom(F),
+                                        fun(F), !,
+                                        translate_expr([F|Args], GoalsExpr, Var),
+                                        flatten(GoalsExpr, Goals).
+constrain_args([F|Args], [F|Args1], Goals) :- maplist(constrain_args, Args, Args1, NestedGoalsList),
+                                              flatten(NestedGoalsList, Goals), !.
+
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
-                                               append(Args0, [Out], Args),
+                                               maplist(constrain_args, Args0, Args1, GoalsA),
+                                               append(GoalsA, GoalsPrefix),
+                                               append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
-                                               goals_list_to_conj(GoalsB, BodyConj).
+                                               append(GoalsPrefix, GoalsB, Goals),
+                                               goals_list_to_conj(Goals, BodyConj).
+
 
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.
@@ -11,10 +25,11 @@ goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce(F, Args, Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
-                                                        Goal =.. [F|CallArgs],
-                                                        call(Goal)
-                                                      ; Out = [F|Args] ).
+reduce([F|Args], Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
+                                                         Goal =.. [F|CallArgs],
+                                                         call(Goal)
+                                                       ; Out = [F|Args],
+                                                         \+ cyclic_term(Out) ).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -46,6 +61,12 @@ translate_expr([H|T], Goals, Out) :-
                                            Goal = let(P, V, I, Out),
                                            append(GsH, Gp, A), append(A, Gv, B), append(B, Gi, Inner),
                                            Goals = [Goal | Inner]
+        ; HV == chain, T = [Eval, Pat, After] -> translate_pattern(Pat, P),
+                                                 translate_expr(Eval, Ge, Ev),
+                                                 translate_expr(After, Ga, A),
+                                                 Goal = let(P, Ev, A, Out),
+                                                 append(GsH, Ge, A0), append(A0, Ga, Inner),
+                                                 Goals = [Goal | Inner]
         ; HV == 'let*', T = [Binds, Body] -> translate_bindings(Binds, Gb, Bs),
                                              translate_expr(Body,  Gd, B),
                                              Goal = 'let*'(Bs, B, Out),
@@ -70,20 +91,18 @@ translate_expr([H|T], Goals, Out) :-
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
                                                         append(GsH, [Goal], Goals)
+        ; HV == match, T = [Space, Pattern, Body] -> translate_expr(Space, G1, S),
+                                                     translate_expr(Body, GsB, Out),
+                                                     append(G1, [match(S, Pattern, Out, Out)], G2),
+                                                     append(G2, GsB, Goals)
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),        %Known function => direct call
                                  Goal =.. [HV|ArgsV],
                                  append(Inner, [Goal], Goals)
-          ; ( number(HV) ; string(HV) ; HV == true ; HV == false ) %Value head, process all tail args
-            -> translate_args(AVs, GsTail, AVs1),
-               append(Inner, GsTail, Inner1),
-               Out = [HV|AVs1],
-               Goals = Inner1
-          ; is_list(HV) -> eval_data_term(HV, Gd, HV1),            %Plain data list: evaluate inner fun-sublists
-                           append(Inner, Gd, Goals),
-                           Out = [HV1|AVs]
-          ; append(Inner, [reduce(HV, AVs, Out)], Goals) )).       %Unknown head (var/compound) => runtime dispatch
+          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs], %Literals (numbers, strings, etc.),
+                                                                  Goals = Inner   %Known non-function atom => data
+          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).      %Unknown head (var/compound) => runtime dispatch
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
