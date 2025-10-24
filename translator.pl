@@ -132,6 +132,10 @@ translate_expr([H|T], Goals, Out) :-
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
+          %Plain data list: evaluate inner fun-sublists
+          ; is_list(HV) -> eval_data_term(HV, Gd, HV1),
+                           append(Inner, Gd, Goals),
+                           Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
 
