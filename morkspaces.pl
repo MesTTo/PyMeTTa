@@ -12,15 +12,13 @@
                                          mork("remove-atoms", S, _).
 
 %Match for pattern:
-match('&mork', Pattern, OutPattern, Result) :- !, swrite(Pattern, MorkPat),
+match('&mork', Pattern, OutPattern, Result) :- !, Pattern_Template = [Pattern, OutPattern],
+                                                  swrite(Pattern_Template, MorkPat),
                                                   mork("match", MorkPat, Temp),
                                                   split_string(Temp, "\n", "", Raw),
                                                   exclude(==(""), Raw, Lines),
                                                   maplist(sread, Lines, Values),
-                                                  member(Result, Values),
-                                                  copy_term(Pattern-OutPattern, P2-O2),
-                                                  P2 = Result,
-                                                  OutPattern = O2.
+                                                  member(Result, Values).
 
 %Get all atoms in space, irregard of arity:
 'get-atoms'('&mork', Pattern) :- !, mork("get-atoms", "", Temp),
