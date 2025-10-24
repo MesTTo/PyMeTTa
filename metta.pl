@@ -1,4 +1,6 @@
-:- ensure_loaded([parser, translator, filereader, morkspaces, spaces]).
+:- current_prolog_flag(argv, Argv),
+   ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, morkspaces, spaces])
+                         ; ensure_loaded([parser, translator, filereader, spaces])).
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Let bindings: %%%

@@ -32,8 +32,12 @@ match('&mork', Pattern, OutPattern, Result) :- !, Pattern_Template = [Pattern, O
                                     mork("mm2-exec", St, _).
 
 %Init MORK:
-mork_init :- use_foreign_library('./mork_ffi/morklib.so'),
-             writeln("MORK init: done").
+:- working_directory(Cwd, Cwd),
+   atomic_list_concat([Cwd, '/mork_ffi/morklib.so'], LibPath),
+   use_foreign_library(LibPath),
+   current_predicate(mork/3)
+   -> writeln("MORK init: done")
+    ; writeln("MORK init: failed").
 
 %Test MORK:
 mork_test :- 'add-atom'('&mork', [friend,sam,tim], true),
