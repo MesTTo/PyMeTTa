@@ -1,4 +1,6 @@
-:- ensure_loaded([parser, translator, filereader, spaces]).
+:- current_prolog_flag(argv, Argv),
+   ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, morkspaces, spaces])
+                         ; ensure_loaded([parser, translator, filereader, spaces])).
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Let bindings: %%%
@@ -229,7 +231,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', chain, '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
-                          'car-atom', 'cdr-atom', repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual,
+                          'car-atom', 'cdr-atom', repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual, 'mm2-exec',
                           foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
