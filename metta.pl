@@ -91,10 +91,9 @@ empty(_) :- fail.
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 'index-atom'(List, Index, Elem) :- nth0(Index, List, Elem).
-memberfast(X, List, true) :- member(X, List).
-memberfast(X, List, false) :- \+ member(X, List).
-excludefast(A, L, R) :- exclude(==(A), L, R).
-concat(List1, List2, Result) :- append(List1, List2, Result).
+'is-member'(X, List, true) :- member(X, List).
+'is-member'(X, List, false) :- \+ member(X, List).
+'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
 %Multisets:
 'subtraction-atom'([], _, []).
@@ -268,7 +267,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
-                          foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
+                          foldl, append, length, sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'decons-atom', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
                           'py-call', 'get-type', 'get-metatype', 'is-function', '=alpha', concat, sread, cons, reverse,
