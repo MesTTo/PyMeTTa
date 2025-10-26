@@ -219,11 +219,10 @@ test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
 
-assertEqual(A, B, true) :- A == B -> true
-                                   ; swrite(A, RA),
-                                     swrite(B, RB),
-                                     format("Expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
-                                     halt(1).
+assert(Goal, true) :- ( call(Goal) -> true
+                                    ; swrite(Goal, RG),
+                                      format("Assertion failed: ~w~n", [RG]),
+                                      halt(1) ).
 
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
@@ -268,7 +267,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
-                          repr, repra, 'println!', 'readln!', 'trace!', test, assertEqual, 'mm2-exec',
+                          repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
                           foldl, append, length, sort, msort, memberfast, excludefast, list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'decons-atom', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,

@@ -122,6 +122,15 @@ translate_expr([H|T], Goals, Out) :-
         ; HV == quote, T = [Expr] -> append(GsH, [], Inner),
                                      Out = Expr,
                                      Goals = Inner
+        ; HV == 'catch', T = [Expr] ->
+          translate_expr(Expr, GsExpr, ExprOut),
+          append(GsH, [], Inner),
+          goals_list_to_conj(GsExpr, Conj),
+          Goal = catch((Conj, Out = ExprOut),
+                       Exception,
+                       (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
+                                                      ;  Out = ['Error', Exception])),
+          append(Inner, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
