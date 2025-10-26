@@ -219,11 +219,11 @@ test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
 
-assertEqual(A,B,true) :- A \== B,
-                         swrite(A, RA),
-                         swrite(B,RB),
-                         format("expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
-                         halt(1).
+assertEqual(A, B, true) :- A == B -> true
+                                   ; swrite(A, RA),
+                                     swrite(B, RB),
+                                     format("Expected: ~w~nGot: ~w~nTerminating program~n", [RB, RA]),
+                                     halt(1).
 
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
