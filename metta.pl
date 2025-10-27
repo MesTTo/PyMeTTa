@@ -127,10 +127,6 @@ get_function_type([F,Arg], T) :- match('&self', [':',F,['->',A,B]], _, _),
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
-
-'is-function'([->, _, _], true) :- !.
-'is-function'(_, false).
-
 'is-var'(A,R) :- (var(A) -> R=true ; R=false).
 'is-expr'(A,R) :- (is_list(A) -> R=true ; R=false).
 
@@ -275,7 +271,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           foldl, append, length, sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'decons-atom', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
-                          'py-call', 'get-type', 'get-metatype', 'is-function', '=alpha', concat, sread, cons, reverse,
+                          'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'abs-math', 'log-math', 'trunc-math', 'ceil-math',
