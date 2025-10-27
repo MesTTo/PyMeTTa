@@ -154,9 +154,18 @@ translate_expr([H0|T0], Goals, Out) :-
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           %Known function => direct call:
-          ( atom(HV), fun(HV) -> append(AVs, [Out], ArgsV),
-                                 Goal =.. [HV|ArgsV],
-                                 append(Inner, [Goal], Goals)
+          ( atom(HV), fun(HV) ->
+              % Check for type definition [:,HV,TypeChain]
+              ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+                -> TypeChain = [->|Xs],
+                   append(ArgTypes, [_OutType], Xs),
+                   translate_args_by_type(T, ArgTypes, GsT2, AVs2),
+                   append(GsH, GsT2, Inner2),
+                   AVsF = AVs2, InnerF = Inner2
+                 ; AVsF = AVs,  InnerF = Inner ),
+              append(AVsF, [Out], ArgsV),
+              Goal =.. [HV|ArgsV],
+              append(InnerF, [Goal], Goals)
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -166,6 +175,13 @@ translate_expr([H0|T0], Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
+
+%Selectively apply translate_args for non-Expression args while Expression args stay as data input:
+translate_args_by_type([], _, [], []) :- !.
+translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :- !, ( T == 'Expression' -> AV = A, GsA = []
+                                                                                   ; translate_expr(A, GsA, AV)),
+                                                              translate_args_by_type(As, Ts, GsRest, AVs),
+                                                              append(GsA, GsRest, GsOut).
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
