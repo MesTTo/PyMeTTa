@@ -86,6 +86,8 @@ empty(_) :- fail.
 'first-from-pair'([A, _], A).
 'second-from-pair'([_, A], A).
 'unique-atom'(A, B) :- list_to_set(A, B).
+'sort-atom'(List, Sorted) :-
+    msort(List, Sorted).
 'car-atom'([H|_], H).
 'cdr-atom'([_|T], T).
 decons([H|T], [H|[T]]).
@@ -274,6 +276,6 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
-                          'pow-math', 'sqrt-math', 'abs-math', 'log-math', 'trunc-math', 'ceil-math',
+                          'pow-math', 'sqrt-math','sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom']).
