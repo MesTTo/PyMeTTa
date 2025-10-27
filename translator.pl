@@ -35,9 +35,28 @@ reduce([F|Args], Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], Cal
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
                                             goals_list_to_conj(Goals, Conj).
 
+%Special stream operation rewrite rules before main translation
+rewrite_streamops(['unique', ['superpose'|Args]],
+                  ['call', ['superpose', ['unique-atom', ['collapse', ['superpose'|Args]]]]]).
+rewrite_streamops(['union', ['superpose'|A], ['superpose'|B]],
+                  ['call', ['superpose', ['union-atom', ['collapse', ['superpose'|A]],
+                                                        ['collapse', ['superpose'|B]]]]]).
+rewrite_streamops(['intersection', ['superpose'|A], ['superpose'|B]],
+                  ['call', ['superpose', ['intersection-atom', ['collapse', ['superpose'|A]],
+                                                               ['collapse', ['superpose'|B]]]]]).
+rewrite_streamops(['subtraction', ['superpose'|A], ['superpose'|B]],
+                  ['call', ['superpose', ['subtraction-atom', ['collapse', ['superpose'|A]],
+                                                              ['collapse', ['superpose'|B]]]]]).
+rewrite_streamops(X, X).
+
+%Guarded stream ops rewrite rule application, successfully avoiding copy_term:
+safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
+                                                                          ; Out = In).
+
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
-translate_expr([H|T], Goals, Out) :-
+translate_expr([H0|T0], Goals, Out) :-
+        safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
         %--- Non-determinism ---:
         ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
