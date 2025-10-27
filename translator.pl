@@ -110,6 +110,7 @@ translate_expr([H0|T0], Goals, Out) :-
                                                     Agg   =.. [AF, X],
                                                     GCall =.. [GF, X],
                                                     append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
+        %--- Higher-order functions with pseudo-lambdas ---:
         ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Init, ConjInit, InitV),
