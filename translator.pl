@@ -110,6 +110,19 @@ translate_expr([H0|T0], Goals, Out) :-
                                                     Agg   =.. [AF, X],
                                                     GCall =.. [GF, X],
                                                     append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
+        ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
+          -> translate_expr_to_conj(List, ConjList, L),
+             translate_expr_to_conj(Init, ConjInit, InitV),
+             translate_expr_to_conj(Body, BodyConj, BodyGoal),
+             append(GsH, [ConjList, ConjInit, foldl([XVar, AccVar, NewAcc]>>(BodyConj, NewAcc is BodyGoal), L, InitV, Out)], Goals)
+        ; HV == 'map-atom', T = [List, XVar, Body]
+              -> translate_expr_to_conj(List, ConjList, L),
+                 translate_expr_to_conj(Body, BodyCallConj, BodyCall),
+                 append(GsH, [ConjList, maplist([XVar, Y]>>(BodyCallConj, Y is BodyCall), L, Out)], Goals)
+        ; HV == 'filter-atom', T = [List, XVar, Cond]
+              -> translate_expr_to_conj(List, ConjList, L),
+                 translate_expr_to_conj(Cond, CondConj, CondGoal),
+                 append(GsH, [ConjList, include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
         %--- Spaces ---:
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
