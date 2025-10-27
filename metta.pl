@@ -244,6 +244,11 @@ assert(Goal, true) :- ( call(Goal) -> true
                                                    ; Call0 =.. [A|Args] ),
                                                 py_call(builtins:Call0, Result, Opts) ).
 
+%%% States: %%%
+'bind!'(A, ['new-state', B], C) :- 'change-state!'(A, B, C).
+'change-state!'(Var, Value, true) :- nb_setval(Var, Value).
+'get-state'(Var, Value) :- nb_getval(Var, Value).
+
 %%% Eval: %%%
 eval(C, Out) :- translate_expr(C, Goals, Out),
                 call_goals(Goals).
@@ -263,7 +268,7 @@ register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
 
-:- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max,
+:- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
