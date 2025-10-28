@@ -183,7 +183,7 @@ translate_expr([H0|T0], Goals, Out) :-
                     Goal =.. [HV|ArgsV],
                     ( OutType == '%Undefined%'
                       -> append(Inner2, [Goal], Goals)
-                       ;   append(Inner2, [Goal, ('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))], Goals) )
+                       ; append(Inner2, [Goal, ('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))], Goals) )
                   ; append(AVs, [Out], ArgsV),
                     Goal =.. [HV|ArgsV],
                     append(Inner, [Goal], Goals) )
