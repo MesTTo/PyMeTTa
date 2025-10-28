@@ -167,7 +167,7 @@ translate_expr([H0|T0], Goals, Out) :-
           Goal = catch((Conj, Out = ExprOut),
                        Exception,
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
-                                                      ;  Out = ['Error', Exception])),
+                                                      ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
