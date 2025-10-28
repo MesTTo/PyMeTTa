@@ -152,6 +152,8 @@ assert(Goal, true) :- ( call(Goal) -> true
                                       format("Assertion failed: ~w~n", [RG]),
                                       halt(1) ).
 
+%%
+
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
@@ -186,6 +188,20 @@ call_goals([]).
 call_goals([G|Gs]) :- call(G), 
                       call_goals(Gs).
 
+%%% Higher-Order Functions: %%%
+'foldl-atom'([], Acc, _Func, Acc).
+'foldl-atom'([H|T], Acc0, Func, Out) :- call(Func, Acc0, H, Acc1),
+                                        'foldl-atom'(T, Acc1, Func, Out).
+
+'map-atom'([], _Func, []).
+'map-atom'([H|T], Func, [R|RT]) :- call(Func, H, R),
+                                   'map-atom'(T, Func, RT).
+
+'filter-atom'([], _Func, []).
+'filter-atom'([H|T], Func, Out) :- ( call(Func, H, true) -> Out = [H|RT]
+                                                          ; Out = RT ),
+                                   'filter-atom'(T, Func, RT).
+
 %%% Registration: %%%
 'import!'('&self', File, true) :- atom_string(File, SFile),
                                   working_dir(Base),
@@ -203,10 +219,10 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
                           foldl, append, length, 'size-atom', sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
-                          decons, 'decons-atom', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
-                          'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
+                          decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math',
-                          'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom']).
+                          'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
+                          'foldl-atom', 'map-atom', 'filter-atom']).
