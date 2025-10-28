@@ -86,8 +86,8 @@ empty(_) :- fail.
 'first-from-pair'([A, _], A).
 'second-from-pair'([_, A], A).
 'unique-atom'(A, B) :- list_to_set(A, B).
-'sort-atom'(List, Sorted) :-
-    msort(List, Sorted).
+'sort-atom'(List, Sorted) :- msort(List, Sorted).
+'size-atom'(List, Size) :- length(List, Size).
 'car-atom'([H|_], H).
 'cdr-atom'([_|T], T).
 decons([H|T], [H|[T]]).
@@ -270,12 +270,12 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
-                          foldl, append, length, sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
+                          foldl, append, length, 'size-atom', sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'decons-atom', 'fold-flat', 'fold-nested', 'map-flat', 'map-nested', union, intersection, subtract,
                           'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
-                          'pow-math', 'sqrt-math','sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
+                          'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom']).
