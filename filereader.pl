@@ -45,7 +45,6 @@ assert_function(FormStr) :- ( sread(FormStr, Orig)
                                       format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m")
                                     ; true )).
 
-
 %Collect characters until all parentheses are balanced (depth 0), accumulating codes:
 grab_until_balanced(D,Acc,Cs) --> [C], { ( C=0'( -> D1 is D+1 ; C=0') -> D1 is D-1 ; D1=D ), Acc1=[C|Acc] },
                                   ( { D1=:=0 } -> { reverse(Acc1,Cs) } ; grab_until_balanced(D1,Acc1,Cs) ).

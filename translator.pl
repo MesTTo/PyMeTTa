@@ -18,7 +18,6 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                append(GoalsPrefix, GoalsB, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
 
-
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.
 goals_list_to_conj([G], G)        :- !.
