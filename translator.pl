@@ -122,14 +122,14 @@ translate_expr([H0|T0], Goals, Out) :-
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Body, BodyCallConj, BodyCall),
              exclude(==(true), [ConjList], CleanConjs),
-              append(GsH, CleanConjs, GsMid),
-              append(GsMid, [maplist([XVar, Y]>>(BodyCallConj, Y is BodyCall), L, Out)], Goals)
+             append(GsH, CleanConjs, GsMid),
+             append(GsMid, [maplist([XVar, Y]>>(BodyCallConj, Y is BodyCall), L, Out)], Goals)
         ; HV == 'filter-atom', T = [List, XVar, Cond]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Cond, CondConj, CondGoal),
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
-                 append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
+             append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
         %--- Spaces ---:
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
