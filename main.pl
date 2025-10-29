@@ -14,7 +14,7 @@ main :- current_prolog_flag(argv, Args),
                            mork_test
         ; Args = [File|_] -> file_directory_name(File, Dir),
                              assertz(working_dir(Dir)),
-                             load_metta_file(File,default) ),
+                             load_metta_file(File) ),
         halt.
 
 :- initialization(main, main).
