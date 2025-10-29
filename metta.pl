@@ -156,9 +156,6 @@ assert(Goal, true) :- ( call(Goal) -> true
                                       halt(1) ).
 
 %%
-%%% Time Operations: %%%
-'current-time'(Time) :- get_time(Time).
-'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
 
 %%% Python bindings: %%%
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
