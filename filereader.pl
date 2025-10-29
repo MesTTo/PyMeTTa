@@ -1,5 +1,6 @@
 :- use_module(library(readutil)). % read_file_to_string/3
 :- use_module(library(pcre)).     % re_replace/4
+:- use_module(library(pairs)).    % pairs_keys_values/3
 
 :- dynamic run_result/1.
 
@@ -21,7 +22,8 @@ process_metta_string(S) :- retractall(run_result(_)),
                            ( maplist(parse_form, Forms, ParsedForms)
                              -> true ; format("Parse error: failed to parse one or more forms.~n", []), halt(1) ),
                            register_functions_first_pass(ParsedForms),
-                           ( maplist(assert_function, Forms, ParsedForms)
+                           pairs_keys_values(FormTermPairs, Forms, ParsedForms),
+                           ( maplist(assert_loaded_form, FormTermPairs)
                              -> true ; format("Parse error: failed to process one or more forms.~n", []), halt(1) ).
 
 %Functions stay functions and runaway S-expressions become add-atom calls with result omitted:
@@ -29,12 +31,7 @@ to_function_form(T, T) :- T = [=, [_|_], _], !.
 to_function_form(T, [=, [run], ['add-atom','&self', T]]).
 
 %From a function string: parse, extract first atom as name, register, transform to relation, assert:
-assert_function(FormStr) :-
-    parse_form(FormStr, Term),
-    register_functions_first_pass([Term]),
-    assert_function(FormStr, Term).
-
-assert_function(FormStr, Term) :-
+assert_loaded_form(FormStr-Term) :-
     Term = [=, [FAtom|W], BodyExpr],
     ( FAtom == run, W == []
       -> ( eval(BodyExpr, Result)
@@ -42,8 +39,6 @@ assert_function(FormStr, Term) :-
               swrite(Result, S), format("~w~n", [S])
             ; format('Evaluation error in run form: ~w~n', [FormStr]), halt(1) )
        ; add_sexp('&self', Term),
-         atom(FAtom),
-         register_fun(FAtom),
          translate_clause(Term, Clause),
          assertz(Clause, Ref),
          ( silent_mode
@@ -64,6 +59,7 @@ register_functions_first_pass([[=, [run], _]|Rest]) :-
     !,
     register_functions_first_pass(Rest).
 register_functions_first_pass([[=, [FAtom|_], _]|Rest]) :-
+    !,
     atom(FAtom),
     register_fun(FAtom),
     register_functions_first_pass(Rest).
