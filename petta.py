@@ -30,7 +30,8 @@ class PeTTa:
 
     def process_metta_string(self, metta_code):
         """Compile a string of MeTTa code to Prolog and return the results of the run."""
-        janus.query_once(f"{self.cmd}('{metta_code}')")
-        # Collect run results accumulated during processing
-        results = list(janus.query("get_results(R)"))
-        return [result['R'] for result in results]
+        query = f"{self.cmd}('{metta_code}', Results)"
+        result = janus.query_once(query)
+        if result is None:
+            return []
+        return result.get('Results', [])

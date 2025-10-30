@@ -13,7 +13,10 @@ main :- current_prolog_flag(argv, Args),
                            mork_test
         ; Args = [File|_] -> file_directory_name(File, Dir),
                              assertz(working_dir(Dir)),
-                             load_metta_file(File) ),
+                             load_metta_file(File,Results),
+                             maplist(swrite,Results,ResultsR),
+                             maplist(format("~w~n"), ResultsR)
+        ),
         halt.
 
 :- initialization(main, main).
