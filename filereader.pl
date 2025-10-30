@@ -11,7 +11,7 @@ process_metta_string(S, Results) :- split_string(S, "\n", "", L0),
                                     string_codes(CodeWithoutComment, Codes),
                                     phrase(top_entities(Entities,1), Codes),
                                     maplist(parse_entity, Entities, ParsedEntities),
-                                    maplist(process_entity_with_error, ParsedEntities, ResultsList),
+                                    maplist(process_entity_with_error, ParsedEntities, ResultsList), !,
                                     append(ResultsList, Results).
 
 %Helper for parsing error handling
@@ -35,7 +35,7 @@ process_entity(parsed(Type, FormStr, Term), []) :- ( Type = function
                                                    -> assert_function_form(FormStr, Term)
                                                    ; Type = expression
                                                    -> 'add-atom'('&self', Term, true) ).
-process_entity(parsed(bang, _, Term), [Result]) :- eval(Term, Result).
+process_entity(parsed(bang, _, Term), [Result]) :- eval([collapse, Term], Result).
 
 %From a function string: parse, extract first atom as name, register, transform to relation, assert:
 assert_function_form(FormStr, Term) :- add_sexp('&self', Term),
@@ -43,18 +43,14 @@ assert_function_form(FormStr, Term) :- add_sexp('&self', Term),
                                        assertz(Clause, Ref),
                                        show_compiled_function(FormStr,Ref).
 
-show_compiled_function(FormStr,Ref) :- ( silent_mode -> true
+show_compiled_function(FormStr,Ref) :- ( current_prolog_flag(argv, Args) -> true ; Args = [] ),
+                                       ( member(Flag, Args), ( Flag == silent ; Flag == '--silent'; Flag == '-s' )
+                                       -> true
                                        ; format("\e[33m-->  metta S-exp  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
                                          clause(Head, Body, Ref),
-                                         ( Body == true
-                                           -> Show = Head
-                                            ; Show = (Head :- Body) ),
+                                         ( Body == true -> Show = Head; Show = (Head :- Body) ),
                                          portray_clause(current_output, Show),
                                          format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
-
-silent_mode :- ( current_prolog_flag(argv, Args) -> true ; Args = [] ),
-               member(Flag, Args),
-               ( Flag == silent ; Flag == '--silent'; Flag == '-s' ), !.
 
 %Collect characters until all parentheses are balanced (depth 0), accumulating codes:
 grab_until_balanced(D,Acc,Cs,LCI,LCO) --> [C], { ( C=0'( -> D1 is D+1 ; C=0') -> D1 is D-1 ; D1=D ), Acc1=[C|Acc] ,
