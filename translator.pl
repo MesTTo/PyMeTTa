@@ -14,6 +14,8 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                append(GoalsA, GoalsPrefix),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
+                                               term_variables(Args,ArgsVars),
+                                               b_setval(argvars,ArgsVars),
                                                translate_expr(BodyExpr, GoalsB, Out),
                                                append(GoalsPrefix, GoalsB, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
@@ -52,6 +54,18 @@ rewrite_streamops(X, X).
 safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
                                                                           ; Out = In).
 
+member_eq(X, [Y|_]) :- X == Y, !.
+member_eq(X, [_|Ys]) :- member_eq(X, Ys).
+
+% ==-based subtract (remove any elements that are identical to something in Ys)
+subtract_eq([], _, []).
+subtract_eq([X|Xs], Ys, Zs) :-
+    (   member_eq(X, Ys)
+    ->  subtract_eq(Xs, Ys, Zs)
+    ;   Zs = [X|Rest],
+        subtract_eq(Xs, Ys, Rest)
+    ).
+
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H0|T0], Goals, Out) :-
@@ -81,12 +95,21 @@ translate_expr([H0|T0], Goals, Out) :-
                                                   append(GsH, Gk, G0),
                                                   append(G0, [IfGoal], Goals)
         %--- Unification constructs ---:
-        ; HV == let, T = [Pat, Val, In] -> translate_expr(Pat, Gp, P),
-                                           translate_expr(Val, Gv, V),
-                                           translate_expr(In,  Gi, I),
-                                           Goal = let(P, V, I, Out),
-                                           append(GsH, Gp, A), append(A, Gv, B), append(B, Gi, Inner),
-                                           Goals = [Goal | Inner]
+        ; HV == let, T = [_, _, _] -> catch(b_getval(argvars,GlobalVars),_,GlobalVars = []),
+                                      term_variables(T,LocalVars),
+                                      subtract_eq(LocalVars,GlobalVars,EnvVars), 
+                                      format("~w~n",[EnvVars]),
+                                      format("~w~n",[T]),
+                                      copy_term(EnvVars,T,EnvVars2,[Pat,Val,In]),
+                                      append(EnvVars2,GlobalVars,GlobalVars2),
+                                      b_setval(argvars,GlobalVars2),
+                                      
+                                      translate_expr(Pat, Gp, Pv),
+                                      constrain_args(Pv, P, Gc),
+                                      translate_expr(Val, Gv, V),
+                                      translate_expr(In,  Gi, Out),
+                                      format("~w~n",[[P,V]]),
+                                      P = V, append(GsH, Gp, A), append(A, Gv, B), append(B, Gi, C), append(C, Gc, Goals)
         ; HV == 'let*', T = [Binds, Body] -> translate_bindings(Binds, Gb, Bs),
                                              translate_expr(Body,  Gd, B),
                                              Goal = 'let*'(Bs, B, Out),
