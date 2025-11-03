@@ -70,6 +70,8 @@ or( false, X, X).
 or( true,  _, true).
 not(true,  false).
 not(false, true).
+xor(false, A, A).
+xor(true, A, B) :- not(A, B).
 
 %%% Nondeterminism: %%%
 superpose(L,X) :- member(X,L).
