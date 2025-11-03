@@ -88,6 +88,7 @@ empty(_) :- fail.
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 'index-atom'(List, Index, Elem) :- nth0(Index, List, Elem).
+member(X, L, _) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
@@ -212,7 +213,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           '<','>','==', '=', '=?', '<=', '>=', and, or, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
-                          foldl, append, length, 'size-atom', sort, msort, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
+                          foldl, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',

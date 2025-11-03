@@ -7,6 +7,7 @@ swrite_exp(Var)   --> { var(Var) }, !, "$", { term_to_atom(Var, A), atom_codes(A
 swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_exp(Str)   --> { string(Str) }, !, { string_codes(Str, Cs) }, Cs.
 swrite_exp(Atom)  --> { atom(Atom) }, !, atom(Atom).
+swrite_exp([H|T]) --> { \+ is_list([H|T]) }, !, "(", atom(cons), " ", swrite_exp(H), " ", swrite_exp(T), ")".
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
 swrite_exp([])    --> !, "()".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
