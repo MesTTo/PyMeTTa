@@ -4,11 +4,6 @@
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
-%%% Let bindings: %%%
-'let*'([], B, B).
-'let*'([[V,Val]|Rs], B, Out) :- V = Val, 'let*'(Rs, B, Out).
-let(V, Val, In, Out) :- 'let*'([[V,Val]], In, Out).
-
 %% Representation conversion: %%
 id(X, X).
 repr(Term, R) :- swrite(Term, R).

@@ -81,19 +81,13 @@ translate_expr([H0|T0], Goals, Out) :-
                                                   append(GsH, Gk, G0),
                                                   append(G0, [IfGoal], Goals)
         %--- Unification constructs ---:
-        ; HV == let, T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
+        ; (HV == let ; HV == chain), T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
                                            constrain_args(Pv, P, Gc),
                                            translate_expr(Val, Gv, V),
                                            translate_expr(In,  Gi, Out),
                                            append([GsH,[(P=V)],Gp,Gv,Gi,Gc], Goals)
         ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
                                              translate_expr(RecLet,  Goals, Out)
-        ; HV == chain, T = [Eval, Pat, After] -> translate_pattern(Pat, P),
-                                                 translate_expr(Eval, Ge, Ev),
-                                                 translate_expr(After, Ga, A),
-                                                 Goal = let(P, Ev, A, Out),
-                                                 append(GsH, Ge, A0), append(A0, Ga, Inner),
-                                                 Goals = [Goal | Inner]
         ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
                                     Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
         %--- Iterating over non-deterministic generators without reification ---:
