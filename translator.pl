@@ -76,10 +76,18 @@ translate_expr([H0|T0], Goals, Out) :-
                                                 -> handle_if_condition(ConC, ConT, Else, GsH, Goals, Vt, Out)
                                                  ; translate_expr_to_conj(Else, ConE, Out),
                                                    ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals) ))
-        ; HV == case, T = [KeyExpr, PairsExpr] -> translate_expr(KeyExpr, Gk, Kv),
-                                                  translate_case(PairsExpr, Kv, Out, IfGoal),
-                                                  append(GsH, Gk, G0),
-                                                  append(G0, [IfGoal], Goals)
+        ; HV == case, T = [KeyExpr, PairsExpr] -> ( has_empty_case(PairsExpr, DefaultExpr, NormalCases)
+                                                  -> translate_expr(KeyExpr, Gk, Kv),
+                                                     goals_list_to_conj(Gk, GkConj),
+                                                     translate_case(NormalCases, Kv, Out, CaseGoal),
+                                                     translate_expr_to_conj(DefaultExpr, ConD, DOut),
+                                                     build_branch(ConD, DOut, Out, DefaultThen),
+                                                     Combined = ( ( GkConj, CaseGoal ) ; DefaultThen ),
+                                                     append(GsH, [Combined], Goals)
+                                                   ; translate_expr(KeyExpr, Gk, Kv),
+                                                     translate_case(PairsExpr, Kv, Out, IfGoal),
+                                                     append(GsH, Gk, G0),
+                                                     append(G0, [IfGoal], Goals) )
         %--- Unification constructs ---:
         ; (HV == let ; HV == chain), T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
                                            constrain_args(Pv, P, Gc),
@@ -240,6 +248,11 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal) :- translate_expr_to_conj(VExpr, C
                                                  (Rs == [] -> Goal = ((Kv = K) -> Then)
                                                             ; translate_case(Rs, Kv, Out, Next),
                                                               Goal = ((Kv = K) -> Then ; Next)).
+
+%Whether the empty case is there, can be extracted:
+has_empty_case(Pairs, DefaultExpr, NormalCases) :- member([Key, DefaultExpr], Pairs),
+                                                   atom(Key),
+                                                   select(['Empty', DefaultExpr], Pairs, NormalCases).
 
 %Translate arguments recursively:
 translate_args([], [], []).
