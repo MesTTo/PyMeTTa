@@ -15,9 +15,10 @@ seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
 
 %Read S string or atom, extract codes, and apply DCG (parsing):
-sread(S,T) :- atom_string(A,S),
-              atom_codes(A,Cs),
-              phrase(sexpr(T,[],_), Cs).
+sread(S, T) :- ( atom_string(A, S),
+                 atom_codes(A, Cs),
+                 phrase(sexpr(T, [], _), Cs)
+               -> true ; format('Parse error in form: ~w~n', [S]), fail ).
 
 %An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
 sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.

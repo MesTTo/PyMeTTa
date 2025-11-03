@@ -3,7 +3,8 @@
 prologfunc(X,Y) :- Y is X+1.
 
 prolog_interop_example :- register_fun(prologfunc),
-                          process_metta_string("(= (mettafunc $x) (prologfunc $x))"),
+                          process_metta_string("(= (mettafunc $x) (prologfunc $x))", _),
+                          listing(mettafunc),
                           mettafunc(30, R),
                           format("mettafunc(30) = ~w~n", [R]).
 
