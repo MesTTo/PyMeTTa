@@ -234,15 +234,15 @@ build_branch(Con, Val, Out, Goal) :- var(Val) -> Val = Out, Goal = Con
                                                ; Goal = (Val = Out, Con).
 
 %Translate case expression recursively into nested if:
-translate_case([[K,VExpr]|Rs], Kv, Out, Goal , KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
-                                                       constrain_args(K, Kc, Gc),
-                                                       build_branch(ConV, VOut, Out, Then),
-                                                       ( Rs == [] -> ( K == 'Empty'
-                                                                     -> Goal = ( \+ (Kv = Kc) -> Then )
-                                                                      ; Goal = (Kv = Kc -> Then) )
-                                                                   ; translate_case(Rs, Kv, Out, Next, KGi),
-                                                                     Goal = ( (Kv = Kc) -> Then ; Next ) ),
-                                                       append([Gc,KGi], KGo).
+translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
+                                                      constrain_args(K, Kc, Gc),
+                                                      build_branch(ConV, VOut, Out, Then),
+                                                      ( Rs == [] -> ( K == 'Empty'
+                                                                    -> Goal = ( \+ (Kv = Kc) -> Then )
+                                                                     ; Goal = (Kv = Kc -> Then) )
+                                                                  ; translate_case(Rs, Kv, Out, Next, KGi),
+                                                                    Goal = ( (Kv = Kc) -> Then ; Next ) ),
+                                                      append([Gc,KGi], KGo).
 
 %Whether the empty case is there, can be extracted:
 has_empty_case(Pairs, DefaultExpr, NormalCases) :- member([Key, DefaultExpr], Pairs),
