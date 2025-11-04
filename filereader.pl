@@ -13,12 +13,12 @@ process_metta_string(S, Results) :- re_replace("(;[^\n]*)"/g, "", S, Clean),
                                     maplist(process_form, ParsedEntities, ResultsList), !,
                                     append(ResultsList, Results).
 
-%First pass to convert MeTTa to Prolog Terms and register functions
+%First pass to convert MeTTa to Prolog Terms and register functions:
 parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
                                            ( Term = [=, [F|_], _], atom(F) -> register_fun(F), T=function ; T=expression ).
 parse_form(bang(S), parsed(bang, S, Term)) :- sread(S, Term).
 
-%Second pass to compile / run / add the Terms
+%Second pass to compile / run / add the Terms:
 process_form(parsed(expression, _, Term), []) :- 'add-atom'('&self', Term, true).
 process_form(parsed(bang, _, Term), [Result]) :- eval([collapse, Term], Result).
 process_form(parsed(function, FormStr, Term), []) :- add_sexp('&self', Term),
@@ -34,11 +34,11 @@ process_form(parsed(function, FormStr, Term), []) :- add_sexp('&self', Term),
                                                           format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
 process_form(In, _) :- format('Failed to process form: ~w~n', [In]), halt(1).
 
-%Like blanks but counts newlines
+%Like blanks but counts newlines:
 newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
 newlines(C, C) --> blanks.
 
-%Collect characters until all parentheses are balanced (depth 0), accumulating codes also count newlines
+%Collect characters until all parentheses are balanced (depth 0), accumulating codes also count newlines:
 grab_until_balanced(D,Acc,Cs,LC0,LC2) --> [C], { ( C=0'( -> D1 is D+1 ; C=0') -> D1 is D-1 ; D1=D ), Acc1=[C|Acc],
                                                  ( C=10 -> LC1 is LC0+1 ; LC1 = LC0) },
                                           ( { D1=:=0 } -> { reverse(Acc1,Cs) , LC2 = LC1 } ; grab_until_balanced(D1,Acc1,Cs,LC1,LC2) ).

@@ -62,7 +62,8 @@ exp(Arg,R) :- R is exp(Arg).
 'isinf-math'(A, Out) :- ( A =:= 1.0Inf ; A =:= -1.0Inf -> Out = true ; Out = false ).
 'min-atom'(List, Out) :- min_list(List, Out).
 'max-atom'(List, Out) :- max_list(List, Out).
-%%% Random Operations: %%%
+
+%%% Random Generators: %%%
 'random-int'(Min, Max, Result) :- random_between(Min, Max, Result).
 'random-float'(Result) :- random(Result).
 
@@ -153,8 +154,7 @@ assert(Goal, true) :- ( call(Goal) -> true
                                       format("Assertion failed: ~w~n", [RG]),
                                       halt(1) ).
 
-%%
-%%% Time Operations: %%%
+%%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
 
