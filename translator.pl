@@ -152,7 +152,7 @@ translate_expr([H0|T0], Goals, Out) :-
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
              append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
-        ; HV == '\\', T = [Args,'->',Body]
+        ; HV == '|->', T = [Args,Body]
           -> uuid(F),
              translate_clause([=,[F|Args],Body],Clause),
              register_fun(F),
