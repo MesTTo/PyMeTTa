@@ -196,16 +196,16 @@ call_goals([G|Gs]) :- call(G),
 
 %%% Higher-Order Functions: %%%
 'foldl-atom'([], Acc, _Func, Acc).
-'foldl-atom'([H|T], Acc0, Func, Out) :- call(Func, Acc0, H, Acc1),
+'foldl-atom'([H|T], Acc0, Func, Out) :- reduce([Func,Acc0,H], Acc1),
                                         'foldl-atom'(T, Acc1, Func, Out).
 
 'map-atom'([], _Func, []).
-'map-atom'([H|T], Func, [R|RT]) :- call(Func, H, R),
+'map-atom'([H|T], Func, [R|RT]) :- reduce([Func,H], R),
                                    'map-atom'(T, Func, RT).
 
 'filter-atom'([], _Func, []).
-'filter-atom'([H|T], Func, Out) :- ( call(Func, H, true) -> Out = [H|RT]
-                                                          ; Out = RT ),
+'filter-atom'([H|T], Func, Out) :- ( reduce([Func,H], true) -> Out = [H|RT]
+                                                             ; Out = RT ),
                                    'filter-atom'(T, Func, RT).
 
 %%% Registration: %%%

@@ -1,3 +1,7 @@
+:- use_module(library(uuid)).
+%Need to add the below so we can check for partial applications
+:- use_module(library(lists)).
+:- use_module(library(apply)).
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 constrain_args([F, A, B], [A|B], []) :- F == cons, !.
@@ -24,11 +28,32 @@ goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce([F|Args], Out) :- ( nonvar(F), atom(F), fun(F) -> append(Args, [Out], CallArgs),
-                                                         Goal =.. [F|CallArgs],
-                                                         call(Goal)
-                                                       ; Out = [F|Args],
-                                                         \+ cyclic_term(Out) ).
+reduce([F|Args], Out) :-
+    ( % --- Case 2: callable predicate ---
+      nonvar(F), atom(F), fun(F)
+    -> length(Args, N),
+       Arity is N + 1,
+       functor(Goal, F, Arity),
+       ( current_predicate(F/Arity) ->
+             append(Args, [Out], CallArgs),
+             Goal =.. [F|CallArgs],
+             ( call(Goal)
+             -> true
+             ;  Out = partial(F, Args)
+             )
+       ; Out = partial(F, Args)
+       )
+
+    % --- Case 1: partial closure ---
+    ; compound(F),
+      F = partial(Base, Bound)
+    -> append(Bound, Args, NewArgs),
+       reduce([Base|NewArgs], Out)
+
+    % --- Case 3: fallback symbolic ---
+    ; Out = [F|Args],
+      \+ cyclic_term(Out)
+    ).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -127,6 +152,13 @@ translate_expr([H0|T0], Goals, Out) :-
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
              append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
+        ; HV == '\\', T = [Args,'->',Body]
+          -> uuid(F),
+             translate_clause([=,[F|Args],Body],Clause),
+             register_fun(F),
+             assertz(Clause),
+             length(Args,NN) , Arity is NN + 1 , assertz(arity(F,Arity)),
+             Out = F
         %--- Spaces ---:
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
@@ -171,20 +203,26 @@ translate_expr([H0|T0], Goals, Out) :-
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           %Known function => direct call:
-          ( atom(HV), fun(HV) % Check for type definition [:,HV,TypeChain]
+          ( atom(HV), fun(HV), is_list(AVs),
+            length(AVs,N), Arity is N + 1 % Check for type definition [:,HV,TypeChain]
             -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                 -> TypeChain = [->|Xs],
-                    append(ArgTypes, [OutType], Xs),
-                    translate_args_by_type(T, ArgTypes, GsT2, AVs2),
-                    append(GsH, GsT2, Inner2),
-                    append(AVs2, [Out], ArgsV),
-                    Goal =.. [HV|ArgsV],
-                    ( OutType == '%Undefined%'
-                      -> append(Inner2, [Goal], Goals)
-                       ; append(Inner2, [Goal, ('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))], Goals) )
-                  ; append(AVs, [Out], ArgsV),
-                    Goal =.. [HV|ArgsV],
-                    append(Inner, [Goal], Goals) )
+                -> TypeChain = [->|Xs],
+                   append(ArgTypes, [OutType], Xs),
+                   translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+                   append(GsH, GsT2, InnerTmp),
+                   ( OutType == '%Undefined%'
+                     -> Extra = []
+                      ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
+                ;  AVsTmp  = AVs,
+                   InnerTmp = Inner,
+                   Extra    = []
+              ),
+              ( (  current_predicate(HV/Arity) ; arity(HV,Arity) )
+                -> append(AVsTmp, [Out], ArgsV),
+                   Goal =.. [HV|ArgsV], 
+                   append(InnerTmp, [Goal|Extra], Goals)
+                ;  append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals)
+              )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
