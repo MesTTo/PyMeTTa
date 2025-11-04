@@ -78,16 +78,23 @@ translate_expr([H0|T0], Goals, Out) :-
                                               build_branch(ConE, Ev, Out, BE),
                                               ( ConC == true -> append(GsH, [ (Cv == true -> BT ; BE) ], Goals)
                                                               ; append(GsH, [ (ConC, (Cv == true -> BT ; BE)) ], Goals) )
-        ; HV == case, T = [KeyExpr, PairsExpr] -> ( has_empty_case(PairsExpr, DefaultExpr, NormalCases)
-                                                  -> translate_expr_to_conj(KeyExpr, GkConj, Kv),
-                                                     translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
-                                                     translate_expr_to_conj(DefaultExpr, ConD, DOut),
-                                                     build_branch(ConD, DOut, Out, DefaultThen),
-                                                     Combined = ( (GkConj, CaseGoal) ; (\+ (GkConj, CaseGoal), DefaultThen) ),
-                                                     append([GsH, KeyGoal, [Combined]], Goals)
-                                                   ; translate_expr(KeyExpr, Gk, Kv),
-                                                     translate_case(PairsExpr, Kv, Out, IfGoal, KeyGoal),
-                                                     append([GsH, Gk, KeyGoal, [IfGoal]], Goals))
+        ; HV == case, T = [KeyExpr, PairsExpr] -> ( select(Found0, PairsExpr, Rest0),
+                                                    subsumes_term(['Empty', _], Found0),
+                                                    Found0 = ['Empty', DefaultExpr],
+                                                    NormalCases = Rest0
+                                                    -> format("PAIRSEXPR ~w ~n", [PairsExpr]),
+                                                        format("~w ~n", [DefaultExpr]),
+                                                        format("~w ~n", [NormalCases]),
+                                                        translate_expr_to_conj(KeyExpr, GkConj, Kv),
+                                                        translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
+                                                        translate_expr_to_conj(DefaultExpr, ConD, DOut),
+                                                        build_branch(ConD, DOut, Out, DefaultThen),
+                                                        Combined = ( (GkConj, CaseGoal) ;
+                                                                     \+ (GkConj, CaseGoal), DefaultThen ),
+                                                        append([GsH, KeyGoal, [Combined]], Goals)
+                                                     ; translate_expr(KeyExpr, Gk, Kv),
+                                                       translate_case(PairsExpr, Kv, Out, IfGoal, KeyGoal),
+                                                       append([GsH, Gk, KeyGoal, [IfGoal]], Goals) )
         %--- Unification constructs ---:
         ; (HV == let ; HV == chain), T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
                                            constrain_args(Pv, P, Gc),
@@ -237,17 +244,10 @@ build_branch(Con, Val, Out, Goal) :- var(Val) -> Val = Out, Goal = Con
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
                                                       constrain_args(K, Kc, Gc),
                                                       build_branch(ConV, VOut, Out, Then),
-                                                      ( Rs == [] -> ( K == 'Empty'
-                                                                    -> Goal = ( \+ (Kv = Kc) -> Then )
-                                                                     ; Goal = (Kv = Kc -> Then) )
+                                                      ( Rs == [] -> Goal = ((Kv = Kc) -> Then)
                                                                   ; translate_case(Rs, Kv, Out, Next, KGi),
-                                                                    Goal = ( (Kv = Kc) -> Then ; Next ) ),
+                                                                    Goal = ((Kv = Kc) -> Then ; Next) ),
                                                       append([Gc,KGi], KGo).
-
-%Whether the empty case is there, can be extracted:
-has_empty_case(Pairs, DefaultExpr, NormalCases) :- member([Key, DefaultExpr], Pairs),
-                                                   atom(Key),
-                                                   select(['Empty', DefaultExpr], Pairs, NormalCases).
 
 %Translate arguments recursively:
 translate_args([], [], []).

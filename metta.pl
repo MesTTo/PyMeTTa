@@ -133,8 +133,10 @@ get_function_type([F,Arg], T) :- match('&self', [':',F,['->',A,B]], _, _),
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
-'is-var'(A,R) :- (var(A) -> R=true ; R=false).
-'is-expr'(A,R) :- (is_list(A) -> R=true ; R=false).
+
+'is-var'(A,R) :- var(A) -> R=true ; R=false.
+'is-expr'(A,R) :- is_list(A) -> R=true ; R=false.
+'is-space'(A,R) :- atom(A), atom_concat('&', _, A) -> R=true ; R=false.
 
 %%% Diagnostics / Testing: %%%
 'println!'(Arg, true) :- swrite(Arg, RArg),
@@ -224,7 +226,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec',
                           foldl, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
-                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'get-mettatype',
+                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
