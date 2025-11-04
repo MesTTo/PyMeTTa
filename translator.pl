@@ -82,16 +82,13 @@ translate_expr([H0|T0], Goals, Out) :-
                                                     subsumes_term(['Empty', _], Found0),
                                                     Found0 = ['Empty', DefaultExpr],
                                                     NormalCases = Rest0
-                                                    -> format("PAIRSEXPR ~w ~n", [PairsExpr]),
-                                                        format("~w ~n", [DefaultExpr]),
-                                                        format("~w ~n", [NormalCases]),
-                                                        translate_expr_to_conj(KeyExpr, GkConj, Kv),
-                                                        translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
-                                                        translate_expr_to_conj(DefaultExpr, ConD, DOut),
-                                                        build_branch(ConD, DOut, Out, DefaultThen),
-                                                        Combined = ( (GkConj, CaseGoal) ;
-                                                                     \+ (GkConj, CaseGoal), DefaultThen ),
-                                                        append([GsH, KeyGoal, [Combined]], Goals)
+                                                    -> translate_expr_to_conj(KeyExpr, GkConj, Kv),
+                                                       translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
+                                                       translate_expr_to_conj(DefaultExpr, ConD, DOut),
+                                                       build_branch(ConD, DOut, Out, DefaultThen),
+                                                       Combined = ( (GkConj, CaseGoal) ;
+                                                                    \+ (GkConj, CaseGoal), DefaultThen ),
+                                                       append([GsH, KeyGoal, [Combined]], Goals)
                                                      ; translate_expr(KeyExpr, Gk, Kv),
                                                        translate_case(PairsExpr, Kv, Out, IfGoal, KeyGoal),
                                                        append([GsH, Gk, KeyGoal, [IfGoal]], Goals) )
