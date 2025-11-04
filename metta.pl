@@ -64,8 +64,8 @@ exp(Arg,R) :- R is exp(Arg).
 'max-atom'(List, Out) :- max_list(List, Out).
 
 %%% Random Generators: %%%
-'random-int'(Min, Max, Result) :- random_between(Min, Max, Result).
-'random-float'(Result) :- random(Result).
+'random-int'('&rng', Min, Max, Result) :- random_between(Min, Max, Result).
+'random-float'('&rng', Min, Max, Result) :- random(R), Result is Min + R * (Max - Min).
 
 %%% Boolean Logic: %%%
 and(true,  X, X).
