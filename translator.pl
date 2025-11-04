@@ -71,11 +71,13 @@ translate_expr([H0|T0], Goals, Out) :-
           build_hyperpose_branches(L, Branches),
           append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
         %--- Conditionals ---:
-        ; HV == if, T = [Cond, Then, Else] -> ( translate_expr_to_conj(Cond, ConC, true),
-                                                translate_expr_to_conj(Then, ConT, Vt)
-                                                -> handle_if_condition(ConC, ConT, Else, GsH, Goals, Vt, Out)
-                                                 ; translate_expr_to_conj(Else, ConE, Out),
-                                                   ( ConE == true -> GsH = Goals ; append(GsH, [ConE], Goals) ))
+        ; HV == if, T = [Cond, Then, Else] -> translate_expr_to_conj(Cond, ConC, Cv),
+                                              translate_expr_to_conj(Then, ConT, Tv),
+                                              translate_expr_to_conj(Else, ConE, Ev),
+                                              build_branch(ConT, Tv, Out, BT),
+                                              build_branch(ConE, Ev, Out, BE),
+                                              ( ConC == true -> append(GsH, [ (Cv == true -> BT ; BE) ], Goals)
+                                                              ; append(GsH, [ (ConC, (Cv == true -> BT ; BE)) ], Goals) )
         ; HV == case, T = [KeyExpr, PairsExpr] -> ( has_empty_case(PairsExpr, DefaultExpr, NormalCases)
                                                   -> translate_expr_to_conj(KeyExpr, GkConj, Kv),
                                                      translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
@@ -225,15 +227,6 @@ translate_pattern(X, X) :- var(X), !.
 translate_pattern(X, X) :- atomic(X), !.
 translate_pattern([H|T], [P|Ps]) :- !, translate_pattern(H, P),
                                        translate_pattern(T, Ps).
-
-% Handles cases where condition translation succeeded.
-handle_if_condition(true, true,  _, Goals, Goals, Out, Out) :- !.
-handle_if_condition(true, ConT,  _, GsH, Goals, Out, Out) :- append(GsH, [ConT], Goals), !.
-handle_if_condition(ConC, ConT, Else, GsH, Goals, Vt, Out) :- translate_expr(Else, Ge, Ve),
-                                                              goals_list_to_conj(Ge, ConE),
-                                                              build_branch(ConT, Vt, Out, Bt),
-                                                              build_branch(ConE, Ve, Out, Be),
-                                                              append(GsH, [ConC -> Bt ; Be], Goals).
 
 % Constructs the goal for a single branch of an if-then-else/case.
 build_branch(true, Val, Out, (Out = Val)) :- !.
