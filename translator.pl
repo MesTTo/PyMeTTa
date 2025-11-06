@@ -62,10 +62,6 @@ rewrite_streamops(X, X).
 safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
                                                                           ; Out = In).
 
-
-memberchk_eq(V, [H|_]) :- V == H, !.
-memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
-
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H0|T0], Goals, Out) :-
@@ -299,3 +295,7 @@ build_superpose_branches([E|Es], Out, [B|Bs]) :- translate_expr_to_conj(E, Conj,
 build_hyperpose_branches([], []).
 build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr_to_conj(E, Goal, Res),
                                                       build_hyperpose_branches(Es, Bs).
+
+%Like membercheck but with direct equality rather than unification
+memberchk_eq(V, [H|_]) :- V == H, !.
+memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
