@@ -42,7 +42,8 @@ match(_, LComma, OutPattern, Result) :- LComma == [','], !,
 match(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',', !,
                                                          append([Space], Head, List),
                                                          Term =.. List,
-                                                         Term, \+ cyclic_term(OutPattern),
+                                                         catch(Term, _, fail),
+                                                         \+ cyclic_term(OutPattern),
                                                          match(Space, [','|Tail], OutPattern, Result).
 
 % When the pattern list itself is a variable -> enumerate all atoms
@@ -53,7 +54,8 @@ match(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
 
 %Match for pattern:
 match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
-                                                   Term, \+ cyclic_term(OutPattern),
+                                                   catch(Term, _, fail),
+                                                   \+ cyclic_term(OutPattern),
                                                    Result = OutPattern.
 
 %Get all atoms in space, irregard of arity:
