@@ -1,2 +1,3 @@
 !(import! &self dummy2)
-!(map-flat (+ 1) (1 2 3))
+(= (p1 $x) (+ 1 $x))
+!(map-flat p1 (1 2 3))
