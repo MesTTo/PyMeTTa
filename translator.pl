@@ -1,7 +1,3 @@
-:- use_module(library(uuid)).
-%Need to add the below so we can check for partial applications
-:- use_module(library(lists)).
-:- use_module(library(apply)).
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 constrain_args([F, A, B], [A|B], []) :- F == cons, !.
@@ -158,8 +154,8 @@ translate_expr([H0|T0], Goals, Out) :-
                                            translate_clause([=, [F|FullArgs], Body], Clause),
                                            register_fun(F),
                                            assertz(Clause),
-                                           length(FullArgs, NN),
-                                           Arity is NN + 1,
+                                           length(FullArgs, N),
+                                           Arity is N + 1,
                                            assertz(arity(F, Arity)),
                                            % emit closure capturing the environment (free vars)
                                            ( FreeVars == [] -> Out = F

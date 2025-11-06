@@ -1,10 +1,22 @@
+%%%%%%%%%% Dependencies %%%%%%%%%%
+
+:- set_prolog_flag(autoload, false).
+:- use_module(library(janus)).
+:- use_module(library(error)).
+:- use_module(library(listing)).
+:- use_module(library(aggregate)).
+:- use_module(library(thread)).
+:- use_module(library(lists)).
+:- use_module(library(yall), except([(/)/3])).
+:- use_module(library(apply)).
+:- use_module(library(apply_macros)).
 :- current_prolog_flag(argv, Argv),
    ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, morkspaces, spaces])
                          ; ensure_loaded([parser, translator, filereader, spaces])).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
-%% Representation conversion: %%
+%%% Representation conversion: %%%
 id(X, X).
 repr(Term, R) :- swrite(Term, R).
 repra(Term, R) :- term_to_atom(Term, R).
