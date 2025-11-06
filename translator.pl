@@ -10,8 +10,14 @@ constrain_args([F|Args], [F|Args1], Goals) :- maplist(constrain_args, Args, Args
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
+                                               nb_setval(current,F),
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
+                                               higher_order_arg_indices(Args1, BodyExpr, HoIdxs),
+                                               ( catch(nb_getval(F, MetaList0), _, MetaList0 = []),
+                                                 MetaList = [fun_meta(Args0, Args1, BodyExpr, GoalsPrefix, HoIdxs)|MetaList0],
+                                                 nb_setval(F, MetaList) ),
+                                               format("~nClause: ~w ~w ~w ~n",[F,Args1,BodyExpr]),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
@@ -229,21 +235,27 @@ translate_expr([H0|T0], Goals, Out) :-
           ( atom(HV), fun(HV), is_list(AVs),
             length(AVs,N), Arity is N + 1 % Check for type definition [:,HV,TypeChain]
             -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                 -> TypeChain = [->|Xs],
-                    append(ArgTypes, [OutType], Xs),
-                    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
-                    append(GsH, GsT2, InnerTmp),
-                    ( OutType == '%Undefined%'
-                      -> Extra = []
-                       ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
-                  ; AVsTmp = AVs,
-                    InnerTmp = Inner,
-                    Extra = [] ),
-               ( (((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2)))
-                 -> append(AVsTmp, [Out], ArgsV),
-                    Goal =.. [HV|ArgsV],
-                    append(InnerTmp, [Goal|Extra], Goals)
-                  ; append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals) )
+                -> TypeChain = [->|Xs],
+                   append(ArgTypes, [OutType], Xs),
+                   translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+                   append(GsH, GsT2, InnerTmp),
+                   ( OutType == '%Undefined%'
+                     -> Extra = []
+                      ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
+                ;  AVsTmp  = AVs,
+                   InnerTmp = Inner,
+                   Extra    = []
+              ),
+              ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
+                -> ( maybe_specialize_call(HV, AVsTmp, Out, InnerTmp, Extra, Goals)
+                     -> true
+                      ; append(AVsTmp, [Out], ArgsV),
+                        Goal =.. [HV|ArgsV],
+                        append(InnerTmp, [Goal|Extra], Goals)
+                   )
+                ;  append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals)
+              )
+           )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -264,6 +276,142 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                                                 ; append(GsA1, [('get-type'(AV, T) ; 'get-metatype'(AV, T))], GsA))),
                                              translate_args_by_type(As, Ts, GsRest, AVs),
                                              append(GsA, GsRest, GsOut).
+
+maybe_specialize_call(HV, AVs, Out, Inner, Extra, Goals) :-
+    current_function(Current),
+    Current \= HV,
+    catch(nb_getval(HV, MetaList0), _, fail),
+    copy_term(MetaList0, MetaList),
+    member(Meta, MetaList),
+    Meta = fun_meta(_, _, _, _, HoIdxs),
+    HoIdxs \= [],
+    sort(HoIdxs, SortedIdxs),
+    args_at_indices(AVs, SortedIdxs, HoArgValues),
+    HoArgValues \= [],
+    maplist(specializable_arg, HoArgValues),
+    bind_specialized_args_meta_list(MetaList, SortedIdxs, HoArgValues),
+    select_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName),
+    remove_indices(AVs, SortedIdxs, RemainingArgs),
+    append(RemainingArgs, [Out], CallArgs),
+    Goal =.. [SpecName|CallArgs],
+    append(Inner, [Goal|Extra], Goals).
+
+select_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
+    ( active_specialization(HV, HoArgValues, SpecName)
+    ; ho_specialization(HV, HoArgValues, SpecName)
+    ; compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName)
+    ), !.
+
+compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
+    uuid(UUID),
+    atomic_list_concat([HV, '$ho$', UUID], SpecName),
+    MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
+    remove_indices(FirstArgsRaw, SortedIdxs, SpecArgsRaw),
+    length(SpecArgsRaw, NN),
+    current_function(PrevCurrent),
+    with_specialization_context(HV, HoArgValues, SpecName,
+        setup_call_cleanup(
+            true,
+            compile_meta_clauses(MetaList, SpecName, SortedIdxs, Clauses),
+            restore_current(PrevCurrent)
+        )
+    ),
+    register_fun(SpecName),
+    Arity is NN + 1,
+    assertz(arity(SpecName, Arity)),
+    maplist(assertz, Clauses),
+    retractall(ho_specialization(HV, HoArgValues, _)),
+    assertz(ho_specialization(HV, HoArgValues, SpecName)).
+
+compile_meta_clauses([], _, _, []).
+compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, SortedIdxs, [Clause|Clauses]) :-
+    remove_indices(ArgsRaw, SortedIdxs, SpecArgsRaw),
+    Input = [=, [SpecName|SpecArgsRaw], BodyExpr],
+    translate_clause(Input, Clause),
+    compile_meta_clauses(Rest, SpecName, SortedIdxs, Clauses).
+
+with_specialization_context(Fun, HoArgs, Spec, Goal) :-
+    replacement_key(Fun, Key),
+    ( catch(nb_getval(Key, Prev), _, Prev = []) ),
+    nb_setval(Key, [spec(HoArgs, Spec)|Prev]),
+    call_cleanup(
+        Goal,
+        ( Prev == []
+          -> nb_delete(Key)
+           ; nb_setval(Key, Prev)
+        )
+    ).
+
+active_specialization(Fun, HoArgs, Spec) :-
+    replacement_key(Fun, Key),
+    catch(nb_getval(Key, Specs), _, fail),
+    memberchk(spec(HoArgs, Spec), Specs).
+
+replacement_key(Fun, Key) :- atomic_list_concat(['ho_replace', Fun], Key).
+
+current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
+
+restore_current(none) :- catch(nb_delete(current), _, true), !.
+restore_current(Value) :- nb_setval(current, Value).
+
+higher_order_arg_indices(Args, BodyExpr, Indices) :-
+    findall(Index,
+            ( nth1(Index, Args, Arg),
+              var(Arg),
+              var_used_as_head(Arg, BodyExpr)
+            ),
+            Raw),
+    sort(Raw, Indices).
+
+var_used_as_head(Var, Expr) :-
+    is_list(Expr),
+    Expr = [Head|Tail],
+    ( Var == Head
+    ; var_used_as_head(Var, Head)
+    ; var_used_in_list(Var, Tail)
+    ).
+
+var_used_in_list(_, []) :- fail.
+var_used_in_list(Var, [H|T]) :-
+    ( var_used_as_head(Var, H)
+    ; var_used_in_list(Var, T)
+    ).
+
+specializable_arg(Arg) :-
+    nonvar(Arg),
+    atom(Arg),
+    fun(Arg).
+
+args_at_indices(Args, Indices, Values) :-
+    maplist(nth1_value(Args), Indices, Values).
+
+nth1_value(Args, Index, Value) :- nth1(Index, Args, Value).
+
+remove_indices(Args, Indices, Remaining) :-
+    sort(Indices, Sorted),
+    remove_indices_sorted(Args, 1, Sorted, Remaining).
+
+remove_indices_sorted([], _, _, []).
+remove_indices_sorted(List, _, [], List).
+remove_indices_sorted([_|T], Pos, [Pos|Rest], Remaining) :-
+    Next is Pos + 1,
+    remove_indices_sorted(T, Next, Rest, Remaining).
+remove_indices_sorted([H|T], Pos, IdxList, [H|Rest]) :-
+    IdxList = [Idx|_],
+    Pos \= Idx,
+    Next is Pos + 1,
+    remove_indices_sorted(T, Next, IdxList, Rest).
+
+bind_specialized_args_meta_list([], _, _).
+bind_specialized_args_meta_list([fun_meta(ArgsRaw, _, _, _, _)|Rest], Idxs, Values) :-
+    bind_specialized_args(ArgsRaw, Idxs, Values),
+    bind_specialized_args_meta_list(Rest, Idxs, Values).
+
+bind_specialized_args(_, [], []).
+bind_specialized_args(Args, [Idx|Idxs], [Val|Vals]) :-
+    nth1(Idx, Args, Arg),
+    Arg = Val,
+    bind_specialized_args(Args, Idxs, Vals).
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
