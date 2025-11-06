@@ -33,7 +33,6 @@ reduce([F|Args], Out) :-
       nonvar(F), atom(F), fun(F)
     -> length(Args, N),
        Arity is N + 1,
-       functor(Goal, F, Arity),
        ( current_predicate(F/Arity) ->
              append(Args, [Out], CallArgs),
              Goal =.. [F|CallArgs],
@@ -76,6 +75,10 @@ rewrite_streamops(X, X).
 %Guarded stream ops rewrite rule application, successfully avoiding copy_term:
 safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
                                                                           ; Out = In).
+
+
+memberchk_eq(V, [H|_]) :- V == H, !.
+memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
 
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
@@ -156,13 +159,21 @@ translate_expr([H0|T0], Goals, Out) :-
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
              append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
-        ; HV == '|->', T = [Args,Body]
-          -> uuid(F),
-             translate_clause([=,[F|Args],Body],Clause),
-             register_fun(F),
-             assertz(Clause),
-             length(Args,NN) , Arity is NN + 1 , assertz(arity(F,Arity)),
-             Out = F
+        ; HV == '|->', T = [Args, Body] -> uuid(F),
+                                           % find free (non-argument) variables in Body
+                                           term_variables(Body, AllVars),
+                                           exclude({Args}/[V]>>memberchk_eq(V, Args), AllVars, FreeVars),
+                                           append(FreeVars, Args, FullArgs),
+                                           % compile clause with all bound + free vars
+                                           translate_clause([=, [F|FullArgs], Body], Clause),
+                                           register_fun(F),
+                                           assertz(Clause),
+                                           length(FullArgs, NN),
+                                           Arity is NN + 1,
+                                           assertz(arity(F, Arity)),
+                                           % emit closure capturing the environment (free vars)
+                                           ( FreeVars == [] -> Out = F
+                                                             ; Out = partial(F, FreeVars) )
         %--- Spaces ---:
         ; ( HV == 'add-atom' ; HV == 'remove-atom' ) -> append(T, [Out], RawArgs),
                                                         Goal =.. [HV|RawArgs],
