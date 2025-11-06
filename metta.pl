@@ -1,5 +1,6 @@
 %%%%%%%%%% Dependencies %%%%%%%%%%
 
+:- autoload(library(uuid)).
 :- set_prolog_flag(autoload, false).
 :- use_module(library(janus)).
 :- use_module(library(error)).
