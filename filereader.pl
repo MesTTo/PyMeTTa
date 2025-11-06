@@ -21,7 +21,7 @@ parse_form(bang(S), parsed(bang, S, Term)) :- sread(S, Term).
 
 %Second pass to compile / run / add the Terms:
 process_form(parsed(expression, _, Term), []) :- 'add-atom'('&self', Term, true).
-process_form(parsed(bang, _, Term), [Result]) :- eval([collapse, Term], Result).
+process_form(parsed(bang, _, Term), Result) :- eval([collapse, Term], Result).
 process_form(parsed(function, FormStr, Term), []) :- add_sexp('&self', Term),
                                                      translate_clause(Term, Clause),
                                                      assertz(Clause, Ref),
