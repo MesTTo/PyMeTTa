@@ -1,10 +1,22 @@
+%%%%%%%%%% Dependencies %%%%%%%%%%
+
+:- set_prolog_flag(autoload, false).
+:- use_module(library(janus)).
+:- use_module(library(error)).
+:- use_module(library(listing)).
+:- use_module(library(aggregate)).
+:- use_module(library(thread)).
+:- use_module(library(lists)).
+:- use_module(library(yall), except([(/)/3])).
+:- use_module(library(apply)).
+:- use_module(library(apply_macros)).
 :- current_prolog_flag(argv, Argv),
    ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, morkspaces, spaces])
                          ; ensure_loaded([parser, translator, filereader, spaces])).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
-%% Representation conversion: %%
+%%% Representation conversion: %%%
 id(X, X).
 repr(Term, R) :- swrite(Term, R).
 repra(Term, R) :- term_to_atom(Term, R).
@@ -198,16 +210,16 @@ call_goals([G|Gs]) :- call(G),
 
 %%% Higher-Order Functions: %%%
 'foldl-atom'([], Acc, _Func, Acc).
-'foldl-atom'([H|T], Acc0, Func, Out) :- call(Func, Acc0, H, Acc1),
+'foldl-atom'([H|T], Acc0, Func, Out) :- reduce([Func,Acc0,H], Acc1),
                                         'foldl-atom'(T, Acc1, Func, Out).
 
 'map-atom'([], _Func, []).
-'map-atom'([H|T], Func, [R|RT]) :- call(Func, H, R),
+'map-atom'([H|T], Func, [R|RT]) :- reduce([Func,H], R),
                                    'map-atom'(T, Func, RT).
 
 'filter-atom'([], _Func, []).
-'filter-atom'([H|T], Func, Out) :- ( call(Func, H, true) -> Out = [H|RT]
-                                                          ; Out = RT ),
+'filter-atom'([H|T], Func, Out) :- ( reduce([Func,H], true) -> Out = [H|RT]
+                                                             ; Out = RT ),
                                    'filter-atom'(T, Func, RT).
 
 %%% Registration: %%%

@@ -9,9 +9,12 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
                                assertz(Term).
 
 %Add a function atom:
-'add-atom'(Space, Term, true) :- Term = [=,[FAtom|_],_], !,
+'add-atom'(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                  add_sexp(Space, Term),
                                  register_fun(FAtom),
+                                 length(W, N),
+                                 Arity is N + 1,
+                                 assertz(arity(FAtom,Arity)),
                                  translate_clause(Term, Clause),
                                  assertz(Clause).
 
