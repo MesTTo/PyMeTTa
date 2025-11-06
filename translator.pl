@@ -28,31 +28,21 @@ goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce([F|Args], Out) :-
-    ( % --- Case 2: callable predicate ---
-      nonvar(F), atom(F), fun(F)
-    -> length(Args, N),
-       Arity is N + 1,
-       ( current_predicate(F/Arity) ->
-             append(Args, [Out], CallArgs),
-             Goal =.. [F|CallArgs],
-             ( call(Goal)
-             -> true
-             ;  Out = partial(F, Args)
-             )
-       ; Out = partial(F, Args)
-       )
-
-    % --- Case 1: partial closure ---
-    ; compound(F),
-      F = partial(Base, Bound)
-    -> append(Bound, Args, NewArgs),
-       reduce([Base|NewArgs], Out)
-
-    % --- Case 3: fallback symbolic ---
-    ; Out = [F|Args],
-      \+ cyclic_term(Out)
-    ).
+reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
+                         -> % --- Case 1: callable predicate ---
+                            length(Args, N),
+                            Arity is N + 1,
+                            ( current_predicate(F/Arity) -> append(Args, [Out], CallArgs),
+                                                            Goal =.. [F|CallArgs],
+                                                            ( call(Goal) -> true
+                                                                          ; Out = partial(F, Args) )
+                                                          ; Out = partial(F, Args) )
+                          ; % --- Case 2: partial closure ---
+                            compound(F), F = partial(Base, Bound) -> append(Bound, Args, NewArgs),
+                                                                     reduce([Base|NewArgs], Out)
+                          ; % --- Case 3: leave unevaluated ---
+                            Out = [F|Args],
+                            \+ cyclic_term(Out).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -221,23 +211,21 @@ translate_expr([H0|T0], Goals, Out) :-
           ( atom(HV), fun(HV), is_list(AVs),
             length(AVs,N), Arity is N + 1 % Check for type definition [:,HV,TypeChain]
             -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                -> TypeChain = [->|Xs],
-                   append(ArgTypes, [OutType], Xs),
-                   translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
-                   append(GsH, GsT2, InnerTmp),
-                   ( OutType == '%Undefined%'
-                     -> Extra = []
-                      ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
-                ;  AVsTmp  = AVs,
-                   InnerTmp = Inner,
-                   Extra    = []
-              ),
-              ( (  current_predicate(HV/Arity) ; arity(HV,Arity) )
-                -> append(AVsTmp, [Out], ArgsV),
-                   Goal =.. [HV|ArgsV], 
-                   append(InnerTmp, [Goal|Extra], Goals)
-                ;  append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals)
-              )
+                 -> TypeChain = [->|Xs],
+                    append(ArgTypes, [OutType], Xs),
+                    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+                    append(GsH, GsT2, InnerTmp),
+                    ( OutType == '%Undefined%'
+                      -> Extra = []
+                       ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
+                  ; AVsTmp = AVs,
+                    InnerTmp = Inner,
+                    Extra = [] ),
+               ( (current_predicate(HV/Arity) ; arity(HV,Arity))
+                 -> append(AVsTmp, [Out], ArgsV),
+                    Goal =.. [HV|ArgsV],
+                    append(InnerTmp, [Goal|Extra], Goals)
+                  ; append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals) )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
