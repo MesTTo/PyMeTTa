@@ -15,20 +15,25 @@ process_metta_string(S, Results) :- re_replace("(;[^\n]*)"/g, "", S, Clean),
 
 %First pass to convert MeTTa to Prolog Terms and register functions:
 parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
-                                           ( Term = [=, [F|W], _], atom(F) -> register_fun(F), length(W,NN) , Arity is NN + 1 , assertz(arity(F,Arity)) , T=function
+                                           ( Term = [=, [F|W], _], atom(F) -> register_fun(F), length(W, N), Arity is N + 1, assertz(arity(F,Arity)), T=function
                                                                             ; T=expression ).
 parse_form(bang(S), parsed(bang, S, Term)) :- sread(S, Term).
 
 %Second pass to compile / run / add the Terms:
 process_form(parsed(expression, _, Term), []) :- 'add-atom'('&self', Term, true).
-process_form(parsed(bang, _, Term), Result) :- eval([collapse, Term], Result).
+process_form(parsed(bang, FormStr, Term), Result) :- translate_expr([collapse, Term], Goals, Result),
+                                                     current_prolog_flag(argv, Args),
+                                                     ( ( memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args) )
+                                                       -> true ; format("\e[33m-->  metta bang  -->~n\e[36m!~w~n\e[33m--> prolog goal  -->\e[35m ~n", [FormStr]),
+                                                                 forall(member(G, Goals), portray_clause((:- G))),
+                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
+                                                     call_goals(Goals).
 process_form(parsed(function, FormStr, Term), []) :- add_sexp('&self', Term),
                                                      translate_clause(Term, Clause),
                                                      assertz(Clause, Ref),
                                                      current_prolog_flag(argv, Args),
                                                      ( ( memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args) )
-                                                       -> true
-                                                        ; format("\e[33m-->  metta S-exp  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
+                                                       -> true ; format("\e[33m-->  metta func   -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
                                                           clause(Head, Body, Ref),
                                                           ( Body == true -> Show = Head; Show = (Head :- Body) ),
                                                           portray_clause(current_output, Show),
