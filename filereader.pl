@@ -34,10 +34,10 @@ process_form(parsed(function, FormStr, Term), []) :- add_sexp('&self', Term),
                                                      current_prolog_flag(argv, Args),
                                                      ( ( memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args) )
                                                        -> true ; format("\e[33m-->  metta func   -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
-                                                          clause(Head, Body, Ref),
-                                                          ( Body == true -> Show = Head; Show = (Head :- Body) ),
-                                                          portray_clause(current_output, Show),
-                                                          format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
+                                                                 clause(Head, Body, Ref),
+                                                                 ( Body == true -> Show = Head; Show = (Head :- Body) ),
+                                                                 portray_clause(current_output, Show),
+                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
 process_form(In, _) :- format('Failed to process form: ~w~n', [In]), halt(1).
 
 %Like blanks but counts newlines:
