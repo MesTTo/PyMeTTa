@@ -2,6 +2,7 @@
 
 :- autoload(library(uuid)).
 :- set_prolog_flag(autoload, false).
+:- use_module(library(random)).
 :- use_module(library(janus)).
 :- use_module(library(error)).
 :- use_module(library(listing)).
