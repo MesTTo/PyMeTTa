@@ -1,4 +1,3 @@
-:- use_module(library(uuid)).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- dynamic ho_specialization/3.
@@ -174,7 +173,7 @@ translate_expr([H0|T0], Goals, Out) :-
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
              append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
-        ; HV == '|->', T = [Args, Body] -> uuid(F),
+        ; HV == '|->', T = [Args, Body] -> next_lambda_name(F),
                                            % find free (non-argument) variables in Body
                                            term_variables(Body, AllVars),
                                            exclude({Args}/[V]>>memberchk_eq(V, Args), AllVars, FreeVars),
@@ -340,8 +339,7 @@ select_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     ), !.
 
 compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
-    uuid(UUID),
-    atomic_list_concat([HV, '$ho$', UUID], SpecName),
+    specialization_name(HV, SpecName),
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
     length(FirstArgsRaw, NN),
     current_function(PrevCurrent),
@@ -386,6 +384,12 @@ active_specialization(Fun, HoArgs, Spec) :-
 replacement_key(Fun, Key) :- atomic_list_concat(['ho_replace', Fun], Key).
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
+
+next_lambda_name(Name) :-
+    ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) ),
+    N is Prev + 1,
+    nb_setval(lambda_counter, N),
+    format(atom(Name), 'lambda_~d', [N]).
 
 restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
@@ -436,6 +440,9 @@ specializable_arg_key(Arg, Key) :-
                         member(Sub, Args),
                         specializable_arg_key(Sub, Key)
     ), !.
+
+specialization_name(Fun, SpecName) :-
+    atomic_list_concat([Fun, '$ho$'], SpecName).
 
 args_at_indices(Args, Indices, Values) :-
     maplist(nth1_value(Args), Indices, Values).
