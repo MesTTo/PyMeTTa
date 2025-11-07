@@ -24,7 +24,7 @@ process_form(parsed(expression, _, Term), []) :- 'add-atom'('&self', Term, true)
 process_form(parsed(bang, FormStr, Term), Result) :- translate_expr([collapse, Term], Goals, Result),
                                                      current_prolog_flag(argv, Args),
                                                      ( ( memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args) )
-                                                       -> true ; format("\e[33m-->  metta bang  -->~n\e[36m!~w~n\e[33m--> prolog goal  -->\e[35m ~n", [FormStr]),
+                                                       -> true ; format("\e[33m-->   metta bang  -->~n\e[36m!~w~n\e[33m-->  prolog goal  -->\e[35m ~n", [FormStr]),
                                                                  forall(member(G, Goals), portray_clause((:- G))),
                                                                  format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
                                                      call_goals(Goals).
