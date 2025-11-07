@@ -283,6 +283,9 @@ function_type_signature(Fun, ArgTypes, OutType) :-
     TypeChain = [->|Xs],
     append(ArgTypes, [OutType], Xs).
 
+out_type_goals(OutType, _, []) :- OutType == '%Undefined%', !.
+out_type_goals(OutType, Out, [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))]).
+
 dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goals) :-
     length(Args, N),
     Arity is N + 1,
@@ -503,9 +506,6 @@ drop_n([_|Rest], N, Result) :- N > 0,
 enough_types(Types, Needed, Prefix) :- Needed >= 0,
                                        length(Prefix, Needed),
                                        append(Prefix, _, Types).
-
-out_type_goals('%Undefined%', _, []) :- !.
-out_type_goals(OutType, Out, [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))]).
 
 %Build A ; B ; C ... from a list:
 disj_list([G], G).
