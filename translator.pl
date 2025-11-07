@@ -5,6 +5,7 @@
 
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
+constrain_args(X, X, []) :- compound(X), X \= [_|_], !.
 constrain_args([F, A, B], [A|B], []) :- F == cons, !.
 constrain_args([F|Args], Var, Goals) :- atom(F),
                                         fun(F), !,
@@ -325,31 +326,29 @@ maybe_specialize_call(HV, AVs, Out, Inner, Extra, Goals) :-
     sort(HoIdxs, SortedIdxs),
     args_at_indices(AVs, SortedIdxs, HoArgValues),
     HoArgValues \= [],
-    maplist(specializable_arg, HoArgValues),
+    maplist(specializable_arg_key, HoArgValues, HoArgKeys),
     bind_specialized_args_meta_list(MetaList, SortedIdxs, HoArgValues),
-    select_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName),
-    remove_indices(AVs, SortedIdxs, RemainingArgs),
-    append(RemainingArgs, [Out], CallArgs),
+    select_specialization(HV, HoArgKeys, MetaList, SpecName),
+    append(AVs, [Out], CallArgs),
     Goal =.. [SpecName|CallArgs],
     append(Inner, [Goal|Extra], Goals).
 
-select_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
-    ( active_specialization(HV, HoArgValues, SpecName)
-    ; ho_specialization(HV, HoArgValues, SpecName)
-    ; compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName)
+select_specialization(HV, HoArgKeys, MetaList, SpecName) :-
+    ( active_specialization(HV, HoArgKeys, SpecName)
+    ; ho_specialization(HV, HoArgKeys, SpecName)
+    ; compile_specialization(HV, HoArgKeys, MetaList, SpecName)
     ), !.
 
-compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
+compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     uuid(UUID),
     atomic_list_concat([HV, '$ho$', UUID], SpecName),
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
-    remove_indices(FirstArgsRaw, SortedIdxs, SpecArgsRaw),
-    length(SpecArgsRaw, NN),
+    length(FirstArgsRaw, NN),
     current_function(PrevCurrent),
-    with_specialization_context(HV, HoArgValues, SpecName,
+    with_specialization_context(HV, HoArgKeys, SpecName,
         setup_call_cleanup(
             true,
-            compile_meta_clauses(MetaList, SpecName, SortedIdxs, Clauses),
+            compile_meta_clauses(MetaList, SpecName, Clauses),
             restore_current(PrevCurrent)
         )
     ),
@@ -358,15 +357,14 @@ compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
     assertz(arity(SpecName, Arity)),
     format("~nClauses: ~w~n",[Clauses]),
     maplist(assertz, Clauses),
-    retractall(ho_specialization(HV, HoArgValues, _)),
-    assertz(ho_specialization(HV, HoArgValues, SpecName)).
+    retractall(ho_specialization(HV, HoArgKeys, _)),
+    assertz(ho_specialization(HV, HoArgKeys, SpecName)).
 
-compile_meta_clauses([], _, _, []).
-compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, SortedIdxs, [Clause|Clauses]) :-
-    remove_indices(ArgsRaw, SortedIdxs, SpecArgsRaw),
-    Input = [=, [SpecName|SpecArgsRaw], BodyExpr],
+compile_meta_clauses([], _, []).
+compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, [Clause|Clauses]) :-
+    Input = [=, [SpecName|ArgsRaw], BodyExpr],
     translate_clause(Input, Clause),
-    compile_meta_clauses(Rest, SpecName, SortedIdxs, Clauses).
+    compile_meta_clauses(Rest, SpecName, Clauses).
 
 with_specialization_context(Fun, HoArgs, Spec, Goal) :-
     replacement_key(Fun, Key),
@@ -395,11 +393,15 @@ restore_current(Value) :- nb_setval(current, Value).
 higher_order_arg_indices(Args, BodyExpr, Indices) :-
     findall(Index,
             ( nth1(Index, Args, Arg),
-              var(Arg),
-              var_used_as_head(Arg, BodyExpr)
+              argument_has_ho_var(Arg, BodyExpr)
             ),
             Raw),
     sort(Raw, Indices).
+
+argument_has_ho_var(Arg, BodyExpr) :-
+    term_variables(Arg, Vars),
+    member(Var, Vars),
+    var_used_as_head(Var, BodyExpr).
 
 var_used_as_head(Var, Expr) :-
     is_list(Expr),
@@ -424,36 +426,56 @@ specializable_arg(Arg) :-
       fun(Base)
     ).
 
+specializable_arg_key(Arg, Key) :-
+    nonvar(Arg),
+    ( specializable_arg(Arg) -> Key = Arg
+    ; Arg = [_|_] -> member(Sub, Arg),
+                     specializable_arg_key(Sub, Key)
+    ; compound(Arg) -> Arg \= [_|_],
+                        Arg =.. [_|Args],
+                        member(Sub, Args),
+                        specializable_arg_key(Sub, Key)
+    ), !.
+
 args_at_indices(Args, Indices, Values) :-
     maplist(nth1_value(Args), Indices, Values).
 
 nth1_value(Args, Index, Value) :- nth1(Index, Args, Value).
 
-remove_indices(Args, Indices, Remaining) :-
-    sort(Indices, Sorted),
-    remove_indices_sorted(Args, 1, Sorted, Remaining).
-
-remove_indices_sorted([], _, _, []).
-remove_indices_sorted(List, _, [], List).
-remove_indices_sorted([_|T], Pos, [Pos|Rest], Remaining) :-
-    Next is Pos + 1,
-    remove_indices_sorted(T, Next, Rest, Remaining).
-remove_indices_sorted([H|T], Pos, IdxList, [H|Rest]) :-
-    IdxList = [Idx|_],
-    Pos \= Idx,
-    Next is Pos + 1,
-    remove_indices_sorted(T, Next, IdxList, Rest).
 
 bind_specialized_args_meta_list([], _, _).
-bind_specialized_args_meta_list([fun_meta(ArgsRaw, _, _, _, _)|Rest], Idxs, Values) :-
-    bind_specialized_args(ArgsRaw, Idxs, Values),
+bind_specialized_args_meta_list([fun_meta(_, ArgsNorm, BodyExpr, _, _)|Rest], Idxs, Values) :-
+    bind_specialized_args(ArgsNorm, BodyExpr, Idxs, Values),
     bind_specialized_args_meta_list(Rest, Idxs, Values).
 
-bind_specialized_args(_, [], []).
-bind_specialized_args(Args, [Idx|Idxs], [Val|Vals]) :-
-    nth1(Idx, Args, Arg),
-    Arg = Val,
-    bind_specialized_args(Args, Idxs, Vals).
+bind_specialized_args(_, _, [], []).
+bind_specialized_args(Args, BodyExpr, [Idx|Idxs], [Val|Vals]) :-
+    nth1(Idx, Args, ArgPattern),
+    bind_function_vars(ArgPattern, Val, BodyExpr),
+    bind_specialized_args(Args, BodyExpr, Idxs, Vals).
+
+bind_function_vars(ArgPattern, ArgValue, BodyExpr) :-
+    term_variables(ArgPattern, Vars),
+    include(ho_var_in_body(BodyExpr), Vars, HoVars),
+    ( HoVars == [] -> true
+    ; copy_term(ArgPattern-Vars, ArgCopy-VarsCopy),
+      ArgCopy = ArgValue,
+      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars)
+    ).
+
+bind_var_from_copy(Vars, VarsCopy, Var) :-
+    lookup_copy_var(Vars, VarsCopy, Var, CopyVar),
+    ( specializable_arg(CopyVar) -> Var = CopyVar
+    ; true ).
+
+lookup_copy_var([Var|_], [Copy|_], Target, Copy) :-
+    Target == Var,
+    !.
+lookup_copy_var([_|Vars], [_|Copies], Target, Copy) :-
+    lookup_copy_var(Vars, Copies, Target, Copy).
+
+ho_var_in_body(BodyExpr, Var) :-
+    var_used_as_head(Var, BodyExpr).
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
