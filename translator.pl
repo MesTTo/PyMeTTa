@@ -10,8 +10,8 @@ constrain_args([F|Args], Var, Goals) :- atom(F),
                                         fun(F), !,
                                         translate_expr([F|Args], GoalsExpr, Var),
                                         flatten(GoalsExpr, Goals).
-constrain_args([F|Args], [F|Args1], Goals) :- maplist(constrain_args, Args, Args1, NestedGoalsList),
-                                              flatten(NestedGoalsList, Goals), !.
+constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
+                                  flatten(NestedGoalsList, Goals), !.
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
