@@ -1,3 +1,8 @@
+:- use_module(library(uuid)).
+:- use_module(library(lists)).
+:- use_module(library(apply)).
+:- dynamic ho_specialization/3.
+
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 constrain_args([F, A, B], [A|B], []) :- F == cons, !.
