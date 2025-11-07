@@ -236,39 +236,23 @@ translate_expr([H0|T0], Goals, Out) :-
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
-          %Known function => direct call:
-          ( atom(HV), fun(HV), is_list(AVs),
-            length(AVs,N), Arity is N + 1 % Check for type definition [:,HV,TypeChain]
-            -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                -> TypeChain = [->|Xs],
-                   append(ArgTypes, [OutType], Xs),
-                   translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+%Known function => direct call:
+          ( atom(HV), fun(HV), is_list(AVs) % Check for type definition [:,HV,TypeChain]
+            -> ( function_type_signature(HV, ArgTypes, OutType)
+                -> translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
                    append(GsH, GsT2, InnerTmp),
-                   ( OutType == '%Undefined%'
-                     -> Extra = []
-                      ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
+                   out_type_goals(OutType, Out, Extra)
                 ;  AVsTmp  = AVs,
                    InnerTmp = Inner,
                    Extra    = []
               ),
-              ( maybe_specialize_call(HV, AVsTmp, Out, InnerTmp, Extra, Goals)
-                -> true
-                 ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
-                     -> append(AVsTmp, [Out], ArgsV),
-                        Goal =.. [HV|ArgsV],
-                        append(InnerTmp, [Goal|Extra], Goals)
-                     ;  Out = partial(HV,AVsTmp),
-                        append(InnerTmp, Extra, Goals)
-                   )
-              )
+              dispatch_fun_call(HV, AVsTmp, Out, InnerTmp, Extra, true, Goals)
           ; ( compound(HV), HV = partial(Base, Bound),
               is_list(AVs)
             -> append(Bound, AVs, CombinedDefault),
                length(Bound, BoundLen),
-               ( catch(match('&self', [':', Base, TypeChain], TypeChain, TypeChain), _, fail)
-                 -> TypeChain = [->|Xs],
-                    append(ArgTypes, [OutType], Xs),
-                    drop_n(ArgTypes, BoundLen, RemainingTypes),
+               ( function_type_signature(Base, ArgTypes, OutType)
+                 -> drop_n(ArgTypes, BoundLen, RemainingTypes),
                     out_type_goals(OutType, Out, ExtraGoals),
                     length(T, NewArgCount),
                     ( enough_types(RemainingTypes, NewArgCount, ArgTypesNew)
@@ -280,17 +264,7 @@ translate_expr([H0|T0], Goals, Out) :-
                  ;  InnerTyped = Inner,
                     CombinedArgs = CombinedDefault,
                     ExtraGoals = [] ),
-               length(CombinedArgs, TotalArgs),
-               Arity is TotalArgs + 1,
-               ( maybe_specialize_call(Base, CombinedArgs, Out, InnerTyped, ExtraGoals, Goals)
-                 -> true
-                  ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
-                      -> append(CombinedArgs, [Out], ArgsV),
-                         Goal =.. [Base|ArgsV],
-                         append(InnerTyped, [Goal|ExtraGoals], Goals)
-                      ;  Out = partial(Base, CombinedArgs),
-                         Goals = InnerTyped )
-               )
+               dispatch_fun_call(Base, CombinedArgs, Out, InnerTyped, ExtraGoals, false, Goals)
               )
            )
           %Literals (numbers, strings, etc.), known non-function atom => data:
@@ -302,6 +276,29 @@ translate_expr([H0|T0], Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
+
+%Retrieve a function's argument and output type signature if available:
+function_type_signature(Fun, ArgTypes, OutType) :-
+    catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail),
+    TypeChain = [->|Xs],
+    append(ArgTypes, [OutType], Xs).
+
+dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goals) :-
+    length(Args, N),
+    Arity is N + 1,
+    ( maybe_specialize_call(Fun, Args, Out, Inner, ExtraGoals, Goals)
+      -> true
+       ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
+           -> append(Args, [Out], CallArgs),
+              Goal =.. [Fun|CallArgs],
+              append(Inner, [Goal|ExtraGoals], Goals)
+           ; Out = partial(Fun, Args),
+             append_partial_goals(IncludeExtraOnPartial, Inner, ExtraGoals, Goals)
+         )
+    ).
+
+append_partial_goals(true, Inner, Extra, Goals) :- append(Inner, Extra, Goals).
+append_partial_goals(false, Inner, _, Inner).
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 translate_args_by_type([], _, [], []) :- !.
