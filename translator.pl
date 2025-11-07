@@ -22,7 +22,6 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                ( catch(nb_getval(F, MetaList0), _, MetaList0 = []),
                                                  MetaList = [fun_meta(Args0, Args1, BodyExpr, GoalsPrefix, HoIdxs)|MetaList0],
                                                  nb_setval(F, MetaList) ),
-                                               format("~nClause: ~w ~w ~w ~n",[F,Args1,BodyExpr]),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
@@ -77,6 +76,7 @@ safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewr
 
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
+translate_expr(X, [], X)          :- compound(X), X \= [_|_], !.
 translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
@@ -251,14 +251,46 @@ translate_expr([H0|T0], Goals, Out) :-
                    InnerTmp = Inner,
                    Extra    = []
               ),
-              ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
-                -> ( maybe_specialize_call(HV, AVsTmp, Out, InnerTmp, Extra, Goals)
-                     -> true
-                      ; append(AVsTmp, [Out], ArgsV),
+              ( maybe_specialize_call(HV, AVsTmp, Out, InnerTmp, Extra, Goals)
+                -> true
+                 ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
+                     -> append(AVsTmp, [Out], ArgsV),
                         Goal =.. [HV|ArgsV],
                         append(InnerTmp, [Goal|Extra], Goals)
+                     ;  Out = partial(HV,AVsTmp),
+                        append(InnerTmp, Extra, Goals)
                    )
-                ;  append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals)
+              )
+          ; ( compound(HV), HV = partial(Base, Bound),
+              is_list(AVs)
+            -> append(Bound, AVs, CombinedDefault),
+               length(Bound, BoundLen),
+               ( catch(match('&self', [':', Base, TypeChain], TypeChain, TypeChain), _, fail)
+                 -> TypeChain = [->|Xs],
+                    append(ArgTypes, [OutType], Xs),
+                    drop_n(ArgTypes, BoundLen, RemainingTypes),
+                    out_type_goals(OutType, Out, ExtraGoals),
+                    length(T, NewArgCount),
+                    ( enough_types(RemainingTypes, NewArgCount, ArgTypesNew)
+                      -> translate_args_by_type(T, ArgTypesNew, GsT2, AVsNew),
+                         append(GsH, GsT2, InnerTyped),
+                         append(Bound, AVsNew, CombinedArgs)
+                      ;  InnerTyped = Inner,
+                         CombinedArgs = CombinedDefault )
+                 ;  InnerTyped = Inner,
+                    CombinedArgs = CombinedDefault,
+                    ExtraGoals = [] ),
+               length(CombinedArgs, TotalArgs),
+               Arity is TotalArgs + 1,
+               ( maybe_specialize_call(Base, CombinedArgs, Out, InnerTyped, ExtraGoals, Goals)
+                 -> true
+                  ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
+                      -> append(CombinedArgs, [Out], ArgsV),
+                         Goal =.. [Base|ArgsV],
+                         append(InnerTyped, [Goal|ExtraGoals], Goals)
+                      ;  Out = partial(Base, CombinedArgs),
+                         Goals = InnerTyped )
+               )
               )
            )
           %Literals (numbers, strings, etc.), known non-function atom => data:
@@ -324,6 +356,7 @@ compile_specialization(HV, HoArgValues, SortedIdxs, MetaList, SpecName) :-
     register_fun(SpecName),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
+    format("~nClauses: ~w~n",[Clauses]),
     maplist(assertz, Clauses),
     retractall(ho_specialization(HV, HoArgValues, _)),
     assertz(ho_specialization(HV, HoArgValues, SpecName)).
@@ -384,8 +417,12 @@ var_used_in_list(Var, [H|T]) :-
 
 specializable_arg(Arg) :-
     nonvar(Arg),
-    atom(Arg),
-    fun(Arg).
+    ( atom(Arg),
+      fun(Arg)
+    ; Arg = partial(Base, _),
+      atom(Base),
+      fun(Base)
+    ).
 
 args_at_indices(Args, Indices, Values) :-
     maplist(nth1_value(Args), Indices, Values).
@@ -459,6 +496,19 @@ translate_args([], [], []).
 translate_args([X|Xs], Goals, [V|Vs]) :- translate_expr(X, G1, V),
                                          translate_args(Xs, G2, Vs),
                                          append(G1, G2, Goals).
+
+drop_n(List, 0, List) :- !.
+drop_n([], _, []) :- !.
+drop_n([_|Rest], N, Result) :- N > 0,
+                               N1 is N - 1,
+                               drop_n(Rest, N1, Result).
+
+enough_types(Types, Needed, Prefix) :- Needed >= 0,
+                                       length(Prefix, Needed),
+                                       append(Prefix, _, Types).
+
+out_type_goals('%Undefined%', _, []) :- !.
+out_type_goals(OutType, Out, [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))]).
 
 %Build A ; B ; C ... from a list:
 disj_list([G], G).
