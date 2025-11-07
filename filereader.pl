@@ -8,9 +8,9 @@ load_metta_file(Filename, Results) :- read_file_to_string(Filename, S, []),
 %Extract function definitions, call invocations, and S-expressions part of &self space:
 process_metta_string(S, Results) :- re_replace("(;[^\n]*)"/g, "", S, Clean),
                                     string_codes(Clean, Codes),
-                                    phrase(top_forms(Entities,1), Codes),
-                                    maplist(parse_form, Entities, ParsedEntities),
-                                    maplist(process_form, ParsedEntities, ResultsList), !,
+                                    phrase(top_forms(Forms, 1), Codes),
+                                    maplist(parse_form, Forms, ParsedForms),
+                                    maplist(process_form, ParsedForms, ResultsList), !,
                                     append(ResultsList, Results).
 
 %First pass to convert MeTTa to Prolog Terms and register functions:
