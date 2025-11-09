@@ -28,17 +28,19 @@ reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
                          -> % --- Case 1: callable predicate ---
                             length(Args, N),
                             Arity is N + 1,
-                            ( current_predicate(F/Arity) -> append(Args, [Out], CallArgs),
+                            ( current_predicate(F/Arity) -> append(Args,[Out],CallArgs),
                                                             Goal =.. [F|CallArgs],
-                                                            ( call(Goal) -> true
-                                                                          ; Out = partial(F, Args) )
-                                                          ; Out = partial(F, Args) )
+                                                            catch(call(Goal),_,fail)
+                                                          ; Out = partial(F,Args) )
                           ; % --- Case 2: partial closure ---
                             compound(F), F = partial(Base, Bound) -> append(Bound, Args, NewArgs),
                                                                      reduce([Base|NewArgs], Out)
                           ; % --- Case 3: leave unevaluated ---
                             Out = [F|Args],
                             \+ cyclic_term(Out).
+
+% Calling reduce from aggregate function foldall needs this argument wrapping
+agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -113,14 +115,12 @@ translate_expr([H0|T0], Goals, Out) :-
         ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
                                     Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
         %--- Iterating over non-deterministic generators without reification ---:
-        ; HV == 'forall', T = [[GF], TF] -> GCall =.. [GF, X],
-                                            TCall =.. [TF, X, Truth],
-                                            U = [( forall(GCall, (TCall, Truth==true)) -> Out=true ; Out=false )],
-                                            append(GsH, U, Goals)
-        ; HV == 'foldall', T = [AF, [GF], InitS] -> translate_expr_to_conj(InitS, ConjInit, Init),
-                                                    Agg   =.. [AF, X],
-                                                    GCall =.. [GF, X],
-                                                    append(GsH, [ConjInit, foldall(Agg, GCall, Init, Out)], Goals)
+        ; HV == 'forall', T = [GF, TF]
+          -> U = [( forall(reduce(GF,X), (reduce([TF, X], Truth), Truth==true)) -> Out=true ; Out=false )],
+             append(GsH, U, Goals)
+        ; HV == 'foldall', T = [AF, GF, InitS]
+          -> translate_expr_to_conj(InitS, ConjInit, Init),
+             append(GsH, [ConjInit, foldall(agg_reduce(AF,X), reduce(GF,X), Init, Out)], Goals)
         %--- Higher-order functions with pseudo-lambdas ---:
         ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
           -> translate_expr_to_conj(List, ConjList, L),
