@@ -229,6 +229,8 @@ import_prolog_function(N, true) :- register_fun(N).
 callPredicate(G, true) :- call(G).
 assertzPredicate(G, true) :- assertz(G).
 assertaPredicate(G, true) :- asserta(G).
+retractPredicate(G, true) :- retract(G), !.
+retractPredicate(_, false).
 
 %%% Registration: %%%
 'import!'('&self', File, true) :- atom_string(File, SFile),
@@ -254,4 +256,4 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time',
-                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate]).
+                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate]).
