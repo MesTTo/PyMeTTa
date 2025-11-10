@@ -234,7 +234,7 @@ translate_expr([H0|T0], Goals, Out) :-
                   ; AVsTmp = AVs,
                     InnerTmp = Inner,
                     Extra = [] ),
-               ( (((current_predicate(HV/Arity) ; arity(HV, Arity)), \+ (current_op(_, _, HV), Arity =< 2)))
+               ( (((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2)))
                  -> append(AVsTmp, [Out], ArgsV),
                     Goal =.. [HV|ArgsV],
                     append(InnerTmp, [Goal|Extra], Goals)
