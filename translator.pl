@@ -28,6 +28,34 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                append(GoalsPrefix, GoalsB, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
 
+silent_mode :-
+    current_prolog_flag(argv, Args),
+    ( memberchk(silent, Args)
+    ; memberchk('--silent', Args)
+    ; memberchk('-s', Args)
+    ), !.
+
+silent_mode :- fail.
+
+term_as_metta_string(Term, String) :-
+    with_output_to(string(String),
+                   write_term(Term, [quoted(true), portray(true)])).
+
+clause_show_term((Head :- Body), Show) :-
+    ( Body == true -> Show = Head ; Show = (Head :- Body) ),
+    !.
+clause_show_term(Head, Head).
+
+maybe_print_compiled_clause(Label, FormTerm, Clause) :-
+    silent_mode,
+    !.
+maybe_print_compiled_clause(Label, FormTerm, Clause) :-
+    term_as_metta_string(FormTerm, FormStr),
+    clause_show_term(Clause, Show),
+    format("\e[33m-->  ~w  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [Label, FormStr]),
+    portray_clause(current_output, Show),
+    format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m").
+
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.
 goals_list_to_conj([G], G)        :- !.
@@ -176,17 +204,16 @@ translate_expr([H0|T0], Goals, Out) :-
         ; HV == '|->', T = [Args, Body] -> next_lambda_name(F),
                                            % find free (non-argument) variables in Body
                                            term_variables(Body, AllVars),
-                                           exclude({Args}/[V]>>memberchk_eq(V, Args), AllVars, FreeVars),
+                                           term_variables(Args, ArgVars),
+                                           exclude({ArgVars}/[V]>>memberchk_eq(V, ArgVars), AllVars, FreeVars),
                                            append(FreeVars, Args, FullArgs),
                                            % compile clause with all bound + free vars
-                                           translate_clause([=, [F|FullArgs], Body], Clause),
-                                           ( silent(true) -> true ; format("\e[33m--> lambda clause -->~n\e[32m", []),
-                                                                    Clause = (CHead :- CBody),
-                                                                    ( CBody == true -> Show = CHead; Show = (CHead :- CBody) ),
-                                                                    portray_clause(current_output, Show),
-                                                                    format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
+                                           LambdaInput = [=, [F|FullArgs], Body],
+                                           translate_clause(LambdaInput, Clause),
                                            register_fun(F),
                                            assertz(Clause),
+                                           format(atom(Label), "metta lambda (~w)", [F]),
+                                           maybe_print_compiled_clause(Label, LambdaInput, Clause),
                                            length(FullArgs, N),
                                            Arity is N + 1,
                                            assertz(arity(F, Arity)),
@@ -346,20 +373,24 @@ compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     with_specialization_context(HV, HoArgKeys, SpecName,
         setup_call_cleanup(
             true,
-            compile_meta_clauses(MetaList, SpecName, Clauses),
+            compile_meta_clauses(MetaList, SpecName, ClauseInfos),
             restore_current(PrevCurrent)
         )
     ),
     register_fun(SpecName),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
-    format("~nClauses: ~w~n",[Clauses]),
-    maplist(assertz, Clauses),
+    maplist(assert_specialization_clause(SpecName), ClauseInfos),
     retractall(ho_specialization(HV, HoArgKeys, _)),
     assertz(ho_specialization(HV, HoArgKeys, SpecName)).
 
+assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
+    assertz(Clause),
+    format(atom(Label), "metta specialization (~w)", [SpecName]),
+    maybe_print_compiled_clause(Label, Input, Clause).
+
 compile_meta_clauses([], _, []).
-compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, [Clause|Clauses]) :-
+compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, [clause_info(Input, Clause)|Clauses]) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
     translate_clause(Input, Clause),
     compile_meta_clauses(Rest, SpecName, Clauses).
