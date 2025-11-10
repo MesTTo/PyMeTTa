@@ -223,6 +223,12 @@ call_goals([G|Gs]) :- call(G),
                                                              ; Out = RT ),
                                    'filter-atom'(T, Func, RT).
 
+%%% Prolog interop: %%%
+'Predicate'([F|Args], Term) :- Term =.. [F|Args].
+callPredicate(G, true) :- call(G).
+assertzPredicate(G, true) :- assertz(G).
+assertaPredicate(G, true) :- asserta(G).
+
 %%% Registration: %%%
 'import!'('&self', File, true) :- atom_string(File, SFile),
                                   working_dir(Base),
@@ -247,4 +253,5 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
-                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', import_prolog_function]).
+                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time',
+                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate]).
