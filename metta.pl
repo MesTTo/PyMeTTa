@@ -224,6 +224,7 @@ call_goals([G|Gs]) :- call(G),
                                    'filter-atom'(T, Func, RT).
 
 %%% Prolog interop: %%%
+import_prolog_function(N, true) :- register_fun(N).
 'Predicate'([F|Args], Term) :- Term =.. [F|Args].
 callPredicate(G, true) :- call(G).
 assertzPredicate(G, true) :- assertz(G).
@@ -236,7 +237,6 @@ assertaPredicate(G, true) :- asserta(G).
                                   load_metta_file(Path,_).
 
 :- dynamic fun/1.
-import_prolog_function(N, true) :- register_fun(N).
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
