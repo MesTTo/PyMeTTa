@@ -116,25 +116,46 @@ translate_expr([H0|T0], Goals, Out) :-
                                     Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
         %--- Iterating over non-deterministic generators without reification ---:
         ; HV == 'forall', T = [GF, TF]
-          -> U = [( forall(reduce(GF,X), (reduce([TF, X], Truth), Truth==true)) -> Out=true ; Out=false )],
-             append(GsH, U, Goals)
+          -> ( is_list(GF) -> GF = [GFH|GFA],
+                              translate_expr(GFH, GsGFH, GFHV),
+                              translate_args(GFA, GsGFA, GFAv),
+                              append(GsGFH, GsGFA, GsGF),
+                              GenList = [GFHV|GFAv]
+                            ; translate_expr(GF, GsGF, GFHV),
+                              GenList = [GFHV] ),
+             translate_expr(TF, GsTF, TFHV),
+             TestList = [TFHV, V],
+             goals_list_to_conj(GsGF, GPre),
+             GenGoal = (GPre, reduce(GenList, V)),
+             append(GsH, GsTF, Tmp0),
+             append(Tmp0, [( forall(GenGoal, ( reduce(TestList, Truth), Truth == true )) -> Out = true ; Out = false )], Goals)
         ; HV == 'foldall', T = [AF, GF, InitS]
           -> translate_expr_to_conj(InitS, ConjInit, Init),
-             append(GsH, [ConjInit, foldall(agg_reduce(AF,X), reduce(GF,X), Init, Out)], Goals)
+             translate_expr(AF, GsAF, AFV),
+             ( is_list(GF) -> GF = [GFH|GFA],
+                              translate_expr(GFH, GsGFH, GFHV),
+                              translate_args(GFA, GsGFA, GFAv),
+                              append(GsGFH, GsGFA, GsGF),
+                              GenList = [GFHV|GFAv]
+                            ; translate_expr(GF, GsGF, GFHV),
+                              GenList = [GFHV] ),
+             append(GsH, GsAF, Tmp1),
+             append(Tmp1, GsGF, Tmp2),
+             append(Tmp2, [ConjInit, foldall(agg_reduce(AFV, V), reduce(GenList, V), Init, Out)], Goals)
         %--- Higher-order functions with pseudo-lambdas ---:
         ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Init, ConjInit, InitV),
-             translate_expr_to_conj(Body, BodyConj, BodyGoal),
+             translate_expr_to_conj(Body, BodyConj, BG),
              exclude(==(true), [ConjList, ConjInit], CleanConjs),
              append(GsH, CleanConjs, GsMid),
-             append(GsMid, [foldl([XVar, AccVar, NewAcc]>>(BodyConj, NewAcc is BodyGoal), L, InitV, Out)], Goals)
+             append(GsMid, [foldl([XVar, AccVar, NewAcc]>>(BodyConj, ( number(BG) -> NewAcc is BG ; NewAcc = BG )), L, InitV, Out)], Goals)
         ; HV == 'map-atom', T = [List, XVar, Body]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Body, BodyCallConj, BodyCall),
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
-             append(GsMid, [maplist([XVar, Y]>>(BodyCallConj, Y is BodyCall), L, Out)], Goals)
+             append(GsMid, [maplist([XVar, Y]>>(BodyCallConj, ( number(BodyCall) -> Y is BodyCall ; Y = BodyCall )), L, Out)], Goals)
         ; HV == 'filter-atom', T = [List, XVar, Cond]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Cond, CondConj, CondGoal),
