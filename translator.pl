@@ -361,11 +361,12 @@ select_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     ), !.
 
 compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
-    specialization_name(HV, SpecName),
+    maplist(term_to_atom,HoArgKeys,Tmp),
+    atomic_list_concat([HV, '_Spec_' | Tmp], SpecName),
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
     length(FirstArgsRaw, NN),
     Arity is NN + 1,
-    ( specialization_predicate_defined(SpecName, Arity)
+    ( ho_specialization(HV, HoArgKeys, SpecName)
       -> true
       ; compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName)
     ),
@@ -472,14 +473,6 @@ specializable_arg_key(Arg, Key) :-
                         member(Sub, Args),
                         specializable_arg_key(Sub, Key)
     ), !.
-
-specialization_name(Fun, SpecName) :-
-    atomic_list_concat([Fun, '$ho$'], SpecName).
-
-specialization_predicate_defined(SpecName, Arity) :-
-    ( current_predicate(SpecName/Arity)
-    ; catch(arity(SpecName, Arity), _, fail)
-    ).
 
 maybe_assert_arity(SpecName, Arity) :-
     ( catch(arity(SpecName, Arity), _, fail) -> true
