@@ -34,21 +34,17 @@ silent_mode :-
     ; memberchk('--silent', Args)
     ; memberchk('-s', Args)
     ), !.
-
 silent_mode :- fail.
 
 term_as_metta_string(Term, String) :-
     with_output_to(string(String),
                    write_term(Term, [quoted(true), portray(true)])).
 
-clause_show_term((Head :- Body), Show) :-
-    ( Body == true -> Show = Head ; Show = (Head :- Body) ),
-    !.
+clause_show_term((Head :- true), Head) :- !.
+clause_show_term((Head :- Body), (Head :- Body)) :- !.
 clause_show_term(Head, Head).
 
-maybe_print_compiled_clause(Label, FormTerm, Clause) :-
-    silent_mode,
-    !.
+maybe_print_compiled_clause(_, _, _) :- silent_mode, !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
     term_as_metta_string(FormTerm, FormStr),
     clause_show_term(Clause, Show),
