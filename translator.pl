@@ -345,7 +345,7 @@ maybe_specialize_call(HV, AVs, Out, Inner, Extra, Goals) :-
     Meta = fun_meta(_, _, _, _, HoIdxs),
     HoIdxs \= [],
     sort(HoIdxs, SortedIdxs),
-    args_at_indices(AVs, SortedIdxs, HoArgValues),
+    maplist({AVs}/[I,V]>>nth1(I, AVs, V), SortedIdxs, HoArgValues),
     HoArgValues \= [],
     maplist(specializable_arg_key, HoArgValues, HoArgKeys),
     bind_specialized_args_meta_list(MetaList, SortedIdxs, HoArgValues),
@@ -440,49 +440,25 @@ argument_has_ho_var(Arg, BodyExpr) :-
     member(Var, Vars),
     var_used_as_head(Var, BodyExpr).
 
-var_used_as_head(Var, Expr) :-
-    is_list(Expr),
-    Expr = [Head|Tail],
-    ( Var == Head
-    ; var_used_as_head(Var, Head)
-    ; var_used_in_list(Var, Tail)
-    ).
-
-var_used_in_list(_, []) :- fail.
-var_used_in_list(Var, [H|T]) :-
-    ( var_used_as_head(Var, H)
-    ; var_used_in_list(Var, T)
-    ).
+var_used_as_head(Var, [Head|_]) :- Var == Head.
+var_used_as_head(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_head(Var,E).
 
 specializable_arg(Arg) :-
     nonvar(Arg),
-    ( atom(Arg),
-      fun(Arg)
-    ; Arg = partial(Base, _),
-      atom(Base),
-      fun(Base)
+    ( atom(Arg), fun(Arg)
+    ; Arg = partial(_, _)
     ).
 
 specializable_arg_key(Arg, Key) :-
     nonvar(Arg),
     ( specializable_arg(Arg) -> Key = Arg
-    ; Arg = [_|_] -> member(Sub, Arg),
-                     specializable_arg_key(Sub, Key)
-    ; compound(Arg) -> Arg \= [_|_],
-                        Arg =.. [_|Args],
-                        member(Sub, Args),
-                        specializable_arg_key(Sub, Key)
+    ; Arg = [_|_] -> member(Sub, Arg), specializable_arg_key(Sub, Key)
+    ; Arg =.. [H|Args] , \+ H == '[|]' -> member(Sub, Args), specializable_arg_key(Sub, Key)
     ), !.
 
 maybe_assert_arity(SpecName, Arity) :-
     ( catch(arity(SpecName, Arity), _, fail) -> true
     ; assertz(arity(SpecName, Arity)) ).
-
-args_at_indices(Args, Indices, Values) :-
-    maplist(nth1_value(Args), Indices, Values).
-
-nth1_value(Args, Index, Value) :- nth1(Index, Args, Value).
-
 
 bind_specialized_args_meta_list([], _, _).
 bind_specialized_args_meta_list([fun_meta(_, ArgsNorm, BodyExpr, _, _)|Rest], Idxs, Values) :-
@@ -497,7 +473,7 @@ bind_specialized_args(Args, BodyExpr, [Idx|Idxs], [Val|Vals]) :-
 
 bind_function_vars(ArgPattern, ArgValue, BodyExpr) :-
     term_variables(ArgPattern, Vars),
-    include(ho_var_in_body(BodyExpr), Vars, HoVars),
+    include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
     ( HoVars == [] -> true
     ; copy_term(ArgPattern-Vars, ArgCopy-VarsCopy),
       ArgCopy = ArgValue,
@@ -506,17 +482,10 @@ bind_function_vars(ArgPattern, ArgValue, BodyExpr) :-
 
 bind_var_from_copy(Vars, VarsCopy, Var) :-
     lookup_copy_var(Vars, VarsCopy, Var, CopyVar),
-    ( specializable_arg(CopyVar) -> Var = CopyVar
-    ; true ).
+    ( specializable_arg(CopyVar) -> Var = CopyVar ; true ).
 
-lookup_copy_var([Var|_], [Copy|_], Target, Copy) :-
-    Target == Var,
-    !.
-lookup_copy_var([_|Vars], [_|Copies], Target, Copy) :-
-    lookup_copy_var(Vars, Copies, Target, Copy).
-
-ho_var_in_body(BodyExpr, Var) :-
-    var_used_as_head(Var, BodyExpr).
+lookup_copy_var([Var|_], [Copy|_], Target, Copy) :- Target == Var, !.
+lookup_copy_var([_|Vars], [_|Copies], Target, Copy) :- lookup_copy_var(Vars, Copies, Target, Copy).
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
