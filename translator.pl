@@ -169,6 +169,11 @@ translate_expr([H0|T0], Goals, Out) :-
                                            append(FreeVars, Args, FullArgs),
                                            % compile clause with all bound + free vars
                                            translate_clause([=, [F|FullArgs], Body], Clause),
+                                           ( silent(true) -> true ; format("\e[33m--> lambda clause -->~n\e[32m", []),
+                                                                    Clause = (CHead :- CBody),
+                                                                    ( CBody == true -> Show = CHead; Show = (CHead :- CBody) ),
+                                                                    portray_clause(current_output, Show),
+                                                                    format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
                                            register_fun(F),
                                            assertz(Clause),
                                            length(FullArgs, N),

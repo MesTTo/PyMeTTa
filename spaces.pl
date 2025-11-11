@@ -16,7 +16,12 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
                                  Arity is N + 1,
                                  assertz(arity(FAtom,Arity)),
                                  translate_clause(Term, Clause),
-                                 assertz(Clause).
+                                 assertz(Clause),
+                                 ( silent(true) -> true ; format("\e[33m--> added clause -->~n\e[32m", []),
+                                                          Clause = (CHead :- CBody),
+                                                          ( CBody == true -> Show = CHead; Show = (CHead :- CBody) ),
+                                                          portray_clause(current_output, Show),
+                                                          format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
 
 %Add an atom to the space:
 'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
