@@ -364,6 +364,17 @@ compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     specialization_name(HV, SpecName),
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
     length(FirstArgsRaw, NN),
+    Arity is NN + 1,
+    ( specialization_predicate_defined(SpecName, Arity)
+      -> true
+      ; compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName)
+    ),
+    register_fun(SpecName),
+    maybe_assert_arity(SpecName, Arity),
+    retractall(ho_specialization(HV, HoArgKeys, _)),
+    assertz(ho_specialization(HV, HoArgKeys, SpecName)).
+
+compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     current_function(PrevCurrent),
     with_specialization_context(HV, HoArgKeys, SpecName,
         setup_call_cleanup(
@@ -372,12 +383,7 @@ compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
             restore_current(PrevCurrent)
         )
     ),
-    register_fun(SpecName),
-    Arity is NN + 1,
-    assertz(arity(SpecName, Arity)),
-    maplist(assert_specialization_clause(SpecName), ClauseInfos),
-    retractall(ho_specialization(HV, HoArgKeys, _)),
-    assertz(ho_specialization(HV, HoArgKeys, SpecName)).
+    maplist(assert_specialization_clause(SpecName), ClauseInfos).
 
 assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     assertz(Clause),
@@ -469,6 +475,15 @@ specializable_arg_key(Arg, Key) :-
 
 specialization_name(Fun, SpecName) :-
     atomic_list_concat([Fun, '$ho$'], SpecName).
+
+specialization_predicate_defined(SpecName, Arity) :-
+    ( current_predicate(SpecName/Arity)
+    ; catch(arity(SpecName, Arity), _, fail)
+    ).
+
+maybe_assert_arity(SpecName, Arity) :-
+    ( catch(arity(SpecName, Arity), _, fail) -> true
+    ; assertz(arity(SpecName, Arity)) ).
 
 args_at_indices(Args, Indices, Values) :-
     maplist(nth1_value(Args), Indices, Values).
