@@ -289,7 +289,6 @@ translate_expr([H0|T0], Goals, Out) :-
                     ExtraGoals = [] ),
                dispatch_fun_call(Base, CombinedArgs, Out, InnerTyped, ExtraGoals, false, Goals)
               )
-           )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -314,7 +313,7 @@ dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goal
     Arity is N + 1,
     ( maybe_specialize_call(Fun, Args, Out, Inner, ExtraGoals, Goals)
       -> true
-       ; ( ((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2))
+       ; ( ( (current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)) , \+ (current_op(_, _, Fun), Arity =< 2))
            -> append(Args, [Out], CallArgs),
               Goal =.. [Fun|CallArgs],
               append(Inner, [Goal|ExtraGoals], Goals)
