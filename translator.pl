@@ -308,9 +308,7 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
 
-    format("BeforeBind ~w~n",[MetaList]),
     bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
-    format("AfterBind ~w~n",[MetaList]),
     
     BindSet = [_|_],
     copy_term(BindSet,BindSetC),
