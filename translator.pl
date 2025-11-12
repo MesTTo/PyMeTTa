@@ -373,7 +373,6 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
 
 compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
-    format("Input: ~w~n",[Input]),
     translate_clause(Input, Clause).
 
 nb_addval(Key,Value,Prev) :-
@@ -383,7 +382,6 @@ nb_addval(Key,Value,Prev) :-
 active_specialization(Fun, Spec) :-
     atomic_list_concat(['ho_replace', Fun], Key),
     catch(nb_getval(Key, Specs), _, fail),
-    format("Active: ~w~n",[[Spec,Specs]]),
     memberchk(Spec, Specs).
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
