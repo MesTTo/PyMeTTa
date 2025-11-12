@@ -19,37 +19,18 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
                                                higher_order_arg_indices(Args1, BodyExpr, HoIdxs),
-                                               ( catch(nb_getval(F, MetaList0), _, MetaList0 = []),
-                                                 MetaList = [fun_meta(Args0, Args1, BodyExpr, GoalsPrefix, HoIdxs)|MetaList0],
-                                                 nb_setval(F, MetaList) ),
+                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr, GoalsPrefix, HoIdxs),_),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
                                                append(GoalsPrefix, GoalsB, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
 
-silent_mode :-
-    current_prolog_flag(argv, Args),
-    ( memberchk(silent, Args)
-    ; memberchk('--silent', Args)
-    ; memberchk('-s', Args)
-    ), !.
-silent_mode :- fail.
-
-term_as_metta_string(Term, String) :-
-    with_output_to(string(String),
-                   write_term(Term, [quoted(true), portray(true)])).
-
-clause_show_term((Head :- true), Head) :- !.
-clause_show_term((Head :- Body), (Head :- Body)) :- !.
-clause_show_term(Head, Head).
-
-maybe_print_compiled_clause(_, _, _) :- silent_mode, !.
+maybe_print_compiled_clause(_, _, _) :- silent(true), !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
-    term_as_metta_string(FormTerm, FormStr),
-    clause_show_term(Clause, Show),
+    swrite(FormTerm, FormStr),
     format("\e[33m-->  ~w  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [Label, FormStr]),
-    portray_clause(current_output, Show),
+    portray_clause(current_output, Clause),
     format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m").
 
 %Conjunction builder, turning goals list to a flat conjunction:
@@ -147,8 +128,8 @@ translate_expr([H0|T0], Goals, Out) :-
                                            append([GsH,[(P=V)],Gp,Gv,Gi,Gc], Goals)
         ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
                                              translate_expr(RecLet,  Goals, Out)
-        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
-                                    Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
+        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Val),
+                                    Goals = [copy_term(Vars,[Con,Val],_,[Ncon,Out]),Ncon]
         %--- Iterating over non-deterministic generators without reification ---:
         ; HV == 'forall', T = [GF, TF]
           -> ( is_list(GF) -> GF = [GFH|GFA],
@@ -204,12 +185,11 @@ translate_expr([H0|T0], Goals, Out) :-
                                            exclude({ArgVars}/[V]>>memberchk_eq(V, ArgVars), AllVars, FreeVars),
                                            append(FreeVars, Args, FullArgs),
                                            % compile clause with all bound + free vars
-                                           LambdaInput = [=, [F|FullArgs], Body],
-                                           translate_clause(LambdaInput, Clause),
+                                           translate_clause([=, [F|FullArgs], Body], Clause),
                                            register_fun(F),
                                            assertz(Clause),
                                            format(atom(Label), "metta lambda (~w)", [F]),
-                                           maybe_print_compiled_clause(Label, LambdaInput, Clause),
+                                           maybe_print_compiled_clause(Label, ['|->', Args, Body], Clause),
                                            length(FullArgs, N),
                                            Arity is N + 1,
                                            assertz(arity(F, Arity)),
@@ -311,8 +291,8 @@ out_type_goals(OutType, Out, [('get-type'(Out, OutType) ; 'get-metatype'(Out, Ou
 dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goals) :-
     length(Args, N),
     Arity is N + 1,
-    ( maybe_specialize_call(Fun, Args, Out, Inner, ExtraGoals, Goals)
-      -> true
+    ( maybe_specialize_call(Fun, Args, Out, Goal)
+      -> append(Inner, [Goal|ExtraGoals], Goals)
        ; ( ( (current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)) , \+ (current_op(_, _, Fun), Arity =< 2))
            -> append(Args, [Out], CallArgs),
               Goal =.. [Fun|CallArgs],
@@ -336,54 +316,56 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                                              translate_args_by_type(As, Ts, GsRest, AVs),
                                              append(GsA, GsRest, GsOut).
 
-maybe_specialize_call(HV, AVs, Out, Inner, Extra, Goals) :-
-    current_function(Current),
-    Current \= HV,
-    catch(nb_getval(HV, MetaList0), _, fail),
-    copy_term(MetaList0, MetaList),
-    member(Meta, MetaList),
-    Meta = fun_meta(_, _, _, _, HoIdxs),
-    HoIdxs \= [],
-    sort(HoIdxs, SortedIdxs),
-    maplist({AVs}/[I,V]>>nth1(I, AVs, V), SortedIdxs, HoArgValues),
-    HoArgValues \= [],
-    maplist(specializable_arg_key, HoArgValues, HoArgKeys),
-    bind_specialized_args_meta_list(MetaList, SortedIdxs, HoArgValues),
-    select_specialization(HV, HoArgKeys, MetaList, SpecName),
+maybe_specialize_call(HV, AVs, Out, Goal) :-
+    \+ current_function(HV), %We are compiling HV don't try to specialize it
+
+    catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
+    copy_term(MetaList0, MetaList),           %Make a copy to specialize
+    format("MetaList ~w~n",[[MetaList]]),
+    member(Meta, MetaList),                   %For each definiton
+
+    format("Meta ~w~n",[[Meta]]),
+    Meta = fun_meta(_, _, _, _, HoIdxs), HoIdxs = [_|_], %At least one def needs to be specializable
+
+    maplist({AVs}/[I,V]>>nth1(I, AVs, V), HoIdxs, HoArgValues), %Get the Args that are used to specialize
+    format("HoArgValues ~w~n",[[HoArgValues]]),
+    maplist(specializable_arg_key, HoArgValues, HoArgKeys), %Get the part of the arg that is used to specialice ex: Arg = (blar f) Key = f
+    format("HoArgKeys ~w~n",[[HoArgKeys]]),
+    format("BeforeBind ~w~n",[[MetaList]]),
+    maplist(bind_specialized_args_meta_list([1,2], AVs),MetaList), %Don't need indexes here but they are more efficent
+    format("AfterBind ~w~n",[[MetaList]]),
+    select_specialization(HV, HoArgKeys, MetaList, SpecName), %Get the Spec
     append(AVs, [Out], CallArgs),
-    Goal =.. [SpecName|CallArgs],
-    append(Inner, [Goal|Extra], Goals).
+    Goal =.. [SpecName|CallArgs].
 
 select_specialization(HV, HoArgKeys, MetaList, SpecName) :-
-    ( active_specialization(HV, HoArgKeys, SpecName)
-    ; ho_specialization(HV, HoArgKeys, SpecName)
-    ; compile_specialization(HV, HoArgKeys, MetaList, SpecName)
+    ( active_specialization(HV, HoArgKeys, SpecName) %Recursive currenlty being specialized
+    ; ho_specialization(HV, HoArgKeys, SpecName)     %Previously specialzed function
+    ; compile_specialization(HV, HoArgKeys, MetaList, SpecName) %Compile new Spec
     ), !.
 
 compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     maplist(term_to_atom,HoArgKeys,Tmp),
-    atomic_list_concat([HV, '_Spec_' | Tmp], SpecName),
+    atomic_list_concat([HV, '_Spec_' | Tmp], SpecName), %Create name
+
+    compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName), %Compile
+
+    register_fun(SpecName), %Register Stuff
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
     length(FirstArgsRaw, NN),
     Arity is NN + 1,
-    ( ho_specialization(HV, HoArgKeys, SpecName)
-      -> true
-      ; compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName)
-    ),
-    register_fun(SpecName),
-    maybe_assert_arity(SpecName, Arity),
-    retractall(ho_specialization(HV, HoArgKeys, _)),
+    assertz(arity(SpecName, Arity)),
     assertz(ho_specialization(HV, HoArgKeys, SpecName)).
 
 compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     current_function(PrevCurrent),
-    with_specialization_context(HV, HoArgKeys, SpecName,
-        setup_call_cleanup(
-            true,
-            compile_meta_clauses(MetaList, SpecName, ClauseInfos),
-            restore_current(PrevCurrent)
-        )
-    ),
+    setup_call_cleanup(
+        (replacement_key(HV, Key), nb_addval(Key,spec(HoArgKeys, SpecName),Prev)), %HoArgKeys is only used here
+
+        maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos),
+
+        (restore_current(PrevCurrent) , ( Prev == [] -> nb_delete(Key)
+                                                      ; nb_setval(Key, Prev)))),
     maplist(assert_specialization_clause(SpecName), ClauseInfos).
 
 assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
@@ -391,23 +373,13 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     format(atom(Label), "metta specialization (~w)", [SpecName]),
     maybe_print_compiled_clause(Label, Input, Clause).
 
-compile_meta_clauses([], _, []).
-compile_meta_clauses([fun_meta(ArgsRaw, _, BodyExpr, _, _)|Rest], SpecName, [clause_info(Input, Clause)|Clauses]) :-
+compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr, _, _), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
-    translate_clause(Input, Clause),
-    compile_meta_clauses(Rest, SpecName, Clauses).
+    translate_clause(Input, Clause).
 
-with_specialization_context(Fun, HoArgs, Spec, Goal) :-
-    replacement_key(Fun, Key),
-    ( catch(nb_getval(Key, Prev), _, Prev = []) ),
-    nb_setval(Key, [spec(HoArgs, Spec)|Prev]),
-    call_cleanup(
-        Goal,
-        ( Prev == []
-          -> nb_delete(Key)
-           ; nb_setval(Key, Prev)
-        )
-    ).
+nb_addval(Key,Value,Prev) :-
+    catch(nb_getval(Key,Prev), _, Prev =[]),
+    nb_setval(Key,[Value|Prev]).
 
 active_specialization(Fun, HoArgs, Spec) :-
     replacement_key(Fun, Key),
@@ -428,10 +400,8 @@ restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
 
 higher_order_arg_indices(Args, BodyExpr, Indices) :-
-    findall(Index,
-            ( nth1(Index, Args, Arg),
-              argument_has_ho_var(Arg, BodyExpr)
-            ),
+    findall(Index, ( nth1(Index, Args, Arg),
+                     argument_has_ho_var(Arg, BodyExpr) ),
             Raw),
     sort(Raw, Indices).
 
@@ -443,40 +413,24 @@ argument_has_ho_var(Arg, BodyExpr) :-
 var_used_as_head(Var, [Head|_]) :- Var == Head.
 var_used_as_head(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_head(Var,E).
 
-specializable_arg(Arg) :-
-    nonvar(Arg),
-    ( atom(Arg), fun(Arg)
-    ; Arg = partial(_, _)
-    ).
+specializable_arg(Arg) :- nonvar(Arg), ( atom(Arg), fun(Arg) ; Arg = partial(_, _)).
 
 specializable_arg_key(Arg, Key) :-
     nonvar(Arg),
     ( specializable_arg(Arg) -> Key = Arg
     ; Arg = [_|_] -> member(Sub, Arg), specializable_arg_key(Sub, Key)
-    ; Arg =.. [H|Args] , \+ H == '[|]' -> member(Sub, Args), specializable_arg_key(Sub, Key)
+    ; Arg = partial(Fun,_) -> specializable_arg_key(Fun, Key)
     ), !.
 
-maybe_assert_arity(SpecName, Arity) :-
-    ( catch(arity(SpecName, Arity), _, fail) -> true
-    ; assertz(arity(SpecName, Arity)) ).
+bind_specialized_args_meta_list(Idxs, Values, fun_meta(_, ArgsNorm, BodyExpr, _, _)) :-
+    maplist(bind_specialized_args(ArgsNorm, BodyExpr), Idxs, Values).
 
-bind_specialized_args_meta_list([], _, _).
-bind_specialized_args_meta_list([fun_meta(_, ArgsNorm, BodyExpr, _, _)|Rest], Idxs, Values) :-
-    bind_specialized_args(ArgsNorm, BodyExpr, Idxs, Values),
-    bind_specialized_args_meta_list(Rest, Idxs, Values).
-
-bind_specialized_args(_, _, [], []).
-bind_specialized_args(Args, BodyExpr, [Idx|Idxs], [Val|Vals]) :-
+bind_specialized_args(Args, BodyExpr, Idx, ArgValue) :-
     nth1(Idx, Args, ArgPattern),
-    bind_function_vars(ArgPattern, Val, BodyExpr),
-    bind_specialized_args(Args, BodyExpr, Idxs, Vals).
-
-bind_function_vars(ArgPattern, ArgValue, BodyExpr) :-
     term_variables(ArgPattern, Vars),
     include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
     ( HoVars == [] -> true
-    ; copy_term(ArgPattern-Vars, ArgCopy-VarsCopy),
-      ArgCopy = ArgValue,
+    ; copy_term(ArgPattern-Vars, ArgValue-VarsCopy),
       maplist(bind_var_from_copy(Vars, VarsCopy), HoVars)
     ).
 
