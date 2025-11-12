@@ -1,24 +1,33 @@
 import os
 import threading
-import janus_swi as janus
+import importlib
 
 CONSULTED = False
 CONSULT_LOCK = threading.Lock()
+janus = None
 
 class PeTTa:
-    def __init__(self, verbose=False, metta_src_path=None):
-        global CONSULTED
+    def __init__(self, verbose=False, petta_path=None):
+        global CONSULTED, janus
         self.verbose = "true" if verbose else "false"
         if not CONSULTED:
             with CONSULT_LOCK:
                 if not CONSULTED:
-                    if metta_src_path is None:
-                        # Assume the src directory is in the same directory as this file
-                        metta_src_path = os.path.join(os.path.dirname(__file__))
-                    main_path = os.path.join(metta_src_path, "..", "src", "main.pl")
-                    helper_path = os.path.join(metta_src_path, "helper.pl")
-                    janus.consult(main_path)
-                    janus.consult(helper_path)
+                    if petta_path is None:
+                        petta_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+                    morklib_file = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
+                    if os.path.exists(morklib_file):
+                        orig_dir = os.getcwd()
+                        os.chdir(petta_path)
+                        janus = importlib.import_module("janus_swi")
+                        os.chdir(orig_dir)
+                        janus.query_once("set_prolog_flag(argv, ['mork'])")
+                    else:
+                        janus = importlib.import_module("janus_swi")
+                    main_file = os.path.join(petta_path, "src", "main.pl")
+                    helper_file = os.path.join(petta_path, "python", "helper.pl")
+                    janus.consult(main_file)
+                    janus.consult(helper_file)
                     CONSULTED = True
 
     def _run_helper(self, helper_name, argument):
