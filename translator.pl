@@ -4,7 +4,6 @@
 
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
-constrain_args(X, X, []) :- compound(X), X \= [_|_], !.
 constrain_args([F, A, B], [A|B], []) :- F == cons, !.
 constrain_args([F|Args], Var, Goals) :- atom(F),
                                         fun(F), !,
@@ -80,7 +79,6 @@ safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewr
 
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
-translate_expr(X, [], X)          :- compound(X), X \= [_|_], !.
 translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
@@ -245,35 +243,19 @@ translate_expr([H0|T0], Goals, Out) :-
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
 %Known function => direct call:
-          ( atom(HV), fun(HV), is_list(AVs) % Check for type definition [:,HV,TypeChain]
-            -> ( function_type_signature(HV, ArgTypes, OutType)
+          ( is_list(AVs), 
+            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs
+            ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs)
+            )
+            -> ( function_type_signature(Fun, ArgTypes, OutType) % Check for type definition [:,HV,TypeChain]
                 -> translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
                    append(GsH, GsT2, InnerTmp),
                    out_type_goals(OutType, Out, Extra)
-                ;  AVsTmp  = AVs,
+                ;  AVsTmp  = AllAVs,
                    InnerTmp = Inner,
                    Extra    = []
               ),
-              dispatch_fun_call(HV, AVsTmp, Out, InnerTmp, Extra, true, Goals)
-          ; ( compound(HV), HV = partial(Base, Bound),
-              is_list(AVs)
-            -> append(Bound, AVs, CombinedDefault),
-               length(Bound, BoundLen),
-               ( function_type_signature(Base, ArgTypes, OutType)
-                 -> drop_n(ArgTypes, BoundLen, RemainingTypes),
-                    out_type_goals(OutType, Out, ExtraGoals),
-                    length(T, NewArgCount),
-                    ( enough_types(RemainingTypes, NewArgCount, ArgTypesNew)
-                      -> translate_args_by_type(T, ArgTypesNew, GsT2, AVsNew),
-                         append(GsH, GsT2, InnerTyped),
-                         append(Bound, AVsNew, CombinedArgs)
-                      ;  InnerTyped = Inner,
-                         CombinedArgs = CombinedDefault )
-                 ;  InnerTyped = Inner,
-                    CombinedArgs = CombinedDefault,
-                    ExtraGoals = [] ),
-               dispatch_fun_call(Base, CombinedArgs, Out, InnerTyped, ExtraGoals, false, Goals)
-              )
+              dispatch_fun_call(Fun, AVsTmp, Out, InnerTmp, Extra, true, Goals)
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -329,7 +311,9 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
 
+    format("BeforeBind ~w~n",[MetaList]),
     bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
+    format("AfterBind ~w~n",[MetaList]),
     
     BindSet = [_|_],
     copy_term(BindSet,BindSetC),
@@ -472,16 +456,6 @@ translate_args([], [], []).
 translate_args([X|Xs], Goals, [V|Vs]) :- translate_expr(X, G1, V),
                                          translate_args(Xs, G2, Vs),
                                          append(G1, G2, Goals).
-
-drop_n(List, 0, List) :- !.
-drop_n([], _, []) :- !.
-drop_n([_|Rest], N, Result) :- N > 0,
-                               N1 is N - 1,
-                               drop_n(Rest, N1, Result).
-
-enough_types(Types, Needed, Prefix) :- Needed >= 0,
-                                       length(Prefix, Needed),
-                                       append(Prefix, _, Types).
 
 %Build A ; B ; C ... from a list:
 disj_list([G], G).
