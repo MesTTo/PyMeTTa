@@ -1,6 +1,6 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
-:- dynamic ho_specialization/3.
+:- dynamic ho_specialization/2.
 
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
@@ -237,7 +237,9 @@ translate_expr([H0|T0], Goals, Out) :-
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
-        ; translate_args(T, GsT, AVs),
+        ; format("T ~w~n", [T]),
+          translate_args(T, GsT, AVs),
+          format("Targs ~w~n", [AVs]),
           append(GsH, GsT, Inner),
 %Known function => direct call:
           ( atom(HV), fun(HV), is_list(AVs) % Check for type definition [:,HV,TypeChain]
@@ -318,6 +320,7 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
 
 maybe_specialize_call(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
+    format("HV,AVs ~w~n",[[HV,AVs]]),
 
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
@@ -332,35 +335,38 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     maplist(specializable_arg_key, HoArgValues, HoArgKeys), %Get the part of the arg that is used to specialice ex: Arg = (blar f) Key = f
     format("HoArgKeys ~w~n",[[HoArgKeys]]),
     format("BeforeBind ~w~n",[[MetaList]]),
-    maplist(bind_specialized_args_meta_list([1,2], AVs),MetaList), %Don't need indexes here but they are more efficent
+    bind_specialized_args_meta_list(AVs,MetaList), %Don't need indexes here but they are more efficent
     format("AfterBind ~w~n",[[MetaList]]),
-    select_specialization(HV, HoArgKeys, MetaList, SpecName), %Get the Spec
-    append(AVs, [Out], CallArgs),
-    Goal =.. [SpecName|CallArgs].
 
-select_specialization(HV, HoArgKeys, MetaList, SpecName) :-
-    ( active_specialization(HV, HoArgKeys, SpecName) %Recursive currenlty being specialized
-    ; ho_specialization(HV, HoArgKeys, SpecName)     %Previously specialzed function
-    ; compile_specialization(HV, HoArgKeys, MetaList, SpecName) %Compile new Spec
-    ), !.
-
-compile_specialization(HV, HoArgKeys, MetaList, SpecName) :-
     maplist(term_to_atom,HoArgKeys,Tmp),
     atomic_list_concat([HV, '_Spec_' | Tmp], SpecName), %Create name
 
-    compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName), %Compile
+    format("SpecName ~w~n", [SpecName]),
+
+    select_specialization(HV, MetaList, SpecName), %Get the Spec
+    append(AVs, [Out], CallArgs),
+    Goal =.. [SpecName|CallArgs].
+
+select_specialization(HV, MetaList, SpecName) :-
+    ( active_specialization(HV, SpecName) %Recursive currenlty being specialized
+    ; ho_specialization(HV, SpecName)     %Previously specialzed function
+    ; compile_specialization(HV, MetaList, SpecName) %Compile new Spec
+    ), !.
+
+compile_specialization(HV, MetaList, SpecName) :-
+    compile_meta_specialization(HV, MetaList, SpecName), %Compile
 
     register_fun(SpecName), %Register Stuff
     MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
     length(FirstArgsRaw, NN),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
-    assertz(ho_specialization(HV, HoArgKeys, SpecName)).
+    assertz(ho_specialization(HV, SpecName)).
 
-compile_meta_specialization(HV, HoArgKeys, MetaList, SpecName) :-
+compile_meta_specialization(HV, MetaList, SpecName) :-
     current_function(PrevCurrent),
     setup_call_cleanup(
-        (replacement_key(HV, Key), nb_addval(Key,spec(HoArgKeys, SpecName),Prev)), %HoArgKeys is only used here
+        (atomic_list_concat(['ho_replace', HV], Key), nb_addval(Key,SpecName,Prev)),
 
         maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos),
 
@@ -375,18 +381,18 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
 
 compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr, _, _), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
+    format("Input: ~w~n",[Input]),
     translate_clause(Input, Clause).
 
 nb_addval(Key,Value,Prev) :-
     catch(nb_getval(Key,Prev), _, Prev =[]),
     nb_setval(Key,[Value|Prev]).
 
-active_specialization(Fun, HoArgs, Spec) :-
-    replacement_key(Fun, Key),
+active_specialization(Fun, Spec) :-
+    atomic_list_concat(['ho_replace', Fun], Key),
     catch(nb_getval(Key, Specs), _, fail),
-    memberchk(spec(HoArgs, Spec), Specs).
-
-replacement_key(Fun, Key) :- atomic_list_concat(['ho_replace', Fun], Key).
+    format("Active: ~w~n",[[Spec,Specs]]),
+    memberchk(Spec, Specs).
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
 
@@ -422,21 +428,24 @@ specializable_arg_key(Arg, Key) :-
     ; Arg = partial(Fun,_) -> specializable_arg_key(Fun, Key)
     ), !.
 
-bind_specialized_args_meta_list(Idxs, Values, fun_meta(_, ArgsNorm, BodyExpr, _, _)) :-
-    maplist(bind_specialized_args(ArgsNorm, BodyExpr), Idxs, Values).
+bind_specialized_args_meta_list(Values, MetaList) :-
+    member(fun_meta(_, ArgsNorm, BodyExpr, _, _),MetaList),
+    maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm).
 
-bind_specialized_args(Args, BodyExpr, Idx, ArgValue) :-
-    nth1(Idx, Args, ArgPattern),
-    term_variables(ArgPattern, Vars),
+bind_specialized_args(BodyExpr, Value, Arg) :-
+    term_variables(Arg, Vars),
     include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
     ( HoVars == [] -> true
-    ; copy_term(ArgPattern-Vars, ArgValue-VarsCopy),
-      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars)
+    ; format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]]),
+      copy_term(Arg-Vars, Value-VarsCopy),
+      format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]]),
+      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars),
+      format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]])
     ).
-
-bind_var_from_copy(Vars, VarsCopy, Var) :-
-    lookup_copy_var(Vars, VarsCopy, Var, CopyVar),
-    ( specializable_arg(CopyVar) -> Var = CopyVar ; true ).
+    
+bind_var_from_copy(Vars, VarsCopy, HoVar) :-
+    lookup_copy_var(Vars, VarsCopy, HoVar, CopyVar),
+    ( specializable_arg(CopyVar) -> HoVar = CopyVar ; true ).
 
 lookup_copy_var([Var|_], [Copy|_], Target, Copy) :- Target == Var, !.
 lookup_copy_var([_|Vars], [_|Copies], Target, Copy) :- lookup_copy_var(Vars, Copies, Target, Copy).
