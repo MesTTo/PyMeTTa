@@ -235,10 +235,12 @@ translate_expr([H0|T0], Goals, Out) :-
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
-        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> format("T~w~n",[T])
-                                                                     , append(T,[Out],CallArgs)
+        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> nb_setval(noreduce,true)
+                                                                     , translate_args(T, GsT, AVs)
+                                                                     , nb_setval(noreduce,false)
+                                                                     , append(AVs,[Out],CallArgs)
                                                                      , Goal =.. [SpecName|CallArgs]
-                                                                     , append(GsH, [Goal], Goals)
+                                                                     , append([GsH, GsT, [Goal]], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
@@ -280,7 +282,9 @@ translate_expr([H0|T0], Goals, Out) :-
                            append(Inner, Gd, Goals),
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
-          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
+          ; catch(nb_getval(noreduce,Val),_,Val=false),
+            (Val -> Out = [HV|AVs], Inner = Goals
+                  ; append(Inner, [reduce([HV|AVs], Out)], Goals)) )).
 
 %Retrieve a function's argument and output type signature if available:
 function_type_signature(Fun, ArgTypes, OutType) :-
@@ -321,34 +325,25 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
 
 maybe_specialize_call(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
-    format("HV,AVs ~w~n",[[HV,AVs]]),
 
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
-    format("MetaList ~w~n",[MetaList]),
 
     bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
-    format("BoundList ~w~n",[MetaList]),
     
     BindSet = [_|_],
     copy_term(BindSet,BindSetC),
     term_variables(BindSetC,Vars),
     maplist(=(var),Vars),
-    
-    format("BindSet ~w~n",[BindSetC]),
     maplist(term_to_atom,BindSetC,BindSetAtom),
     atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName), %Create name
 
-    format("SpecName ~w~n", [SpecName]),
-
-    select_specialization(HV, MetaList, SpecName), %Get the Spec
-    append(AVs, [Out], CallArgs),
-    Goal =.. [SpecName|CallArgs].
-
-select_specialization(HV, MetaList, SpecName) :-
     ( ho_specialization(HV, SpecName)     %Previously specialzed function
     ; compile_specialization(HV, MetaList, SpecName) %Compile new Spec
-    ), !.
+    ), !,
+
+    append(AVs, [Out], CallArgs),
+    Goal =.. [SpecName|CallArgs].
 
 compile_specialization(HV, MetaList, SpecName) :-
     compile_meta_specialization(HV, MetaList, SpecName), %Compile
