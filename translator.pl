@@ -255,7 +255,7 @@ translate_expr([H0|T0], Goals, Out) :-
                    InnerTmp = Inner,
                    Extra    = []
               ),
-              dispatch_fun_call(Fun, AVsTmp, Out, InnerTmp, Extra, true, Goals)
+              dispatch_fun_call(Fun, AVsTmp, Out, InnerTmp, Extra, Goals)
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -277,7 +277,7 @@ function_type_signature(Fun, ArgTypes, OutType) :-
 out_type_goals(OutType, _, []) :- OutType == '%Undefined%', !.
 out_type_goals(OutType, Out, [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))]).
 
-dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goals) :-
+dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, Goals) :-
     length(Args, N),
     Arity is N + 1,
     ( maybe_specialize_call(Fun, Args, Out, Goal)
@@ -287,12 +287,9 @@ dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, IncludeExtraOnPartial, Goal
               Goal =.. [Fun|CallArgs],
               append(Inner, [Goal|ExtraGoals], Goals)
            ; Out = partial(Fun, Args),
-             append_partial_goals(IncludeExtraOnPartial, Inner, ExtraGoals, Goals)
+             append(Inner,ExtraGoals,Goals)
          )
     ).
-
-append_partial_goals(true, Inner, Extra, Goals) :- append(Inner, Extra, Goals).
-append_partial_goals(false, Inner, _, Inner).
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 translate_args_by_type([], _, [], []) :- !.
