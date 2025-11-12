@@ -226,24 +226,28 @@ translate_expr([H0|T0], Goals, Out) :-
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           %Known function => direct call:
-          ( atom(HV), fun(HV), is_list(AVs),
-            length(AVs,N), Arity is N + 1 % Check for type definition [:,HV,TypeChain]
-            -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+          ( is_list(AVs), 
+            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs
+            ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs), IsPartial = true
+            )  % Check for type definition [:,HV,TypeChain]
+            -> ( catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail)
                  -> TypeChain = [->|Xs],
                     append(ArgTypes, [OutType], Xs),
-                    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+                    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
+                    (IsPartial -> append(Bound,AVsTmp0,AVsTmp) ; AVsTmp = AVsTmp0),
                     append(GsH, GsT2, InnerTmp),
                     ( OutType == '%Undefined%'
                       -> Extra = []
                        ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
-                  ; AVsTmp = AVs,
+                  ; AVsTmp = AllAVs,
                     InnerTmp = Inner,
                     Extra = [] ),
-               ( (((current_predicate(HV/Arity) ; catch(arity(HV, Arity),_,fail)), \+ (current_op(_, _, HV), Arity =< 2)))
+               length(AllAVs,N), Arity is N + 1,
+               ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
                  -> append(AVsTmp, [Out], ArgsV),
-                    Goal =.. [HV|ArgsV],
+                    Goal =.. [Fun|ArgsV],
                     append(InnerTmp, [Goal|Extra], Goals)
-                  ; append(InnerTmp, [(Out = partial(HV,AVsTmp))|Extra], Goals) )
+                  ; append(InnerTmp, [(Out = partial(Fun,AVsTmp))|Extra], Goals) )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
