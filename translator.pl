@@ -18,7 +18,7 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                nb_setval(current,F),
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
-                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr, GoalsPrefix),_),
+                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr),_),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
@@ -235,7 +235,10 @@ translate_expr([H0|T0], Goals, Out) :-
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
-        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> append(T,[Out],CallArgs), Goal =.. [SpecName|CallArgs], append(GsH, [Goal], Goals)
+        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> format("T~w~n",[T])
+                                                                     , append(T,[Out],CallArgs)
+                                                                     , Goal =.. [SpecName|CallArgs]
+                                                                     , append(GsH, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
@@ -322,16 +325,18 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
 
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
-    format("MetaList ~w~n",[[MetaList]]),
+    format("MetaList ~w~n",[MetaList]),
 
-    format("BeforeBind ~w~n",[[MetaList]]),
     bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
-    format("AfterBind ~w~n",[[MetaList]]),
+    format("BoundList ~w~n",[MetaList]),
     
     BindSet = [_|_],
+    copy_term(BindSet,BindSetC),
+    term_variables(BindSetC,Vars),
+    maplist(=(var),Vars),
     
-    format("BindSet ~w~n",[BindSet]),
-    maplist(term_to_atom,BindSet,BindSetAtom),
+    format("BindSet ~w~n",[BindSetC]),
+    maplist(term_to_atom,BindSetC,BindSetAtom),
     atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName), %Create name
 
     format("SpecName ~w~n", [SpecName]),
@@ -349,7 +354,7 @@ compile_specialization(HV, MetaList, SpecName) :-
     compile_meta_specialization(HV, MetaList, SpecName), %Compile
 
     register_fun(SpecName), %Register Stuff
-    MetaList = [fun_meta(FirstArgsRaw, _, _, _)|_],
+    MetaList = [fun_meta(FirstArgsRaw, _, _)|_],
     length(FirstArgsRaw, NN),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
@@ -371,7 +376,7 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     format(atom(Label), "metta specialization (~w)", [SpecName]),
     maybe_print_compiled_clause(Label, Input, Clause).
 
-compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr, _), clause_info(Input, Clause)) :-
+compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
     format("Input: ~w~n",[Input]),
     translate_clause(Input, Clause).
@@ -410,12 +415,11 @@ specializable_arg_key(Arg, Key) :-
     ), !.
 
 bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
-    findall(HoBindsTerm,
-            (member(fun_meta(_, ArgsNorm, BodyExpr, _),MetaList)
+    bagof(HoBindsTerm,
+            (member(fun_meta(_, ArgsNorm, BodyExpr),MetaList)
             ,maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm,HoBinds)
             ,flatten(HoBinds,HoBindsFlat), include(nonvar,HoBindsFlat,HoBindsTerm)
             ,HoBindsTerm = [_|_]
-            ,format("HoBinds: ~w~n",[HoBindsTerm])
             ),
             HoBindsTerms), flatten(HoBindsTerms,Tmp), list_to_set(Tmp,HoBindSet).
 
@@ -423,11 +427,8 @@ bind_specialized_args(BodyExpr, Value, Arg, HoVars) :-
     term_variables(Arg, Vars),
     include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
     ( HoVars == [] -> true
-    ; format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]]),
-      copy_term(Arg-Vars, Value-VarsCopy),
-      format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]]),
-      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars),
-      format("Bind: ~w~n",[[Arg-Vars, Value-VarsCopy]])
+    ; copy_term(Arg-Vars, Value-VarsCopy),
+      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars)
     ).
     
 bind_var_from_copy(Vars, VarsCopy, HoVar) :-
@@ -475,9 +476,7 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 
 %Translate arguments recursively:
 translate_args([], [], []).
-translate_args([X|Xs], Goals, [V|Vs]) :- format("X ~w~n", [X]),
-                                         translate_expr(X, G1, V),
-                                         format("TExpr ~w~n", [[X,G1,V]]),
+translate_args([X|Xs], Goals, [V|Vs]) :- translate_expr(X, G1, V),
                                          translate_args(Xs, G2, Vs),
                                          append(G1, G2, Goals).
 
