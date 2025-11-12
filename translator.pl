@@ -17,12 +17,21 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                nb_setval(current,F),
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
-                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr),_),
+                                               nb_addval(F,fun_meta(Args1, BodyExpr),_),
                                                append(Args1, [Out], Args),
-                                               compound_name_arguments(Head, F, Args),
+                                               Head =..  [F|Args],
                                                translate_expr(BodyExpr, GoalsB, Out),
                                                append(GoalsPrefix, GoalsB, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
+
+translate_clause2(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
+                                                nb_setval(current,F),
+                                                nb_addval(F,fun_meta(Args0, BodyExpr),_),
+                                                append(Args0, [Out], Args),
+                                                Head =..  [F|Args],
+                                                translate_expr(BodyExpr, Goals, Out),
+                                                goals_list_to_conj(Goals, BodyConj).
+
 
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
@@ -79,6 +88,7 @@ safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewr
 
 %Turn MeTTa code S-expression into goals list:
 translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
+translate_expr(X, [], X)          :- X = partial(_,_), !. %We do need this as we can reach a partial during function specialization
 translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
@@ -233,12 +243,6 @@ translate_expr([H0|T0], Goals, Out) :-
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
-        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> nb_setval(noreduce,true)
-                                                                     , translate_args(T, GsT, AVs)
-                                                                     , nb_setval(noreduce,false)
-                                                                     , append(AVs,[Out],CallArgs)
-                                                                     , Goal =.. [SpecName|CallArgs]
-                                                                     , append([GsH, GsT, [Goal]], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
@@ -302,6 +306,10 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                                              translate_args_by_type(As, Ts, GsRest, AVs),
                                              append(GsA, GsRest, GsOut).
 
+maybe_specialize_call(HV, AVs, Out, Goal) :- \+ current_function(HV),
+                                             active_specialization(HV, SpecName), !, 
+                                             append(AVs, [Out], CallArgs),
+                                             Goal =.. [SpecName|CallArgs].
 maybe_specialize_call(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
 
@@ -325,11 +333,15 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     Goal =.. [SpecName|CallArgs].
 
 compile_specialization(HV, MetaList, SpecName) :-
+    ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+    -> add_sexp('&self', [':', SpecName, TypeChain])
+    ; true),
+
     compile_meta_specialization(HV, MetaList, SpecName), %Compile
 
     register_fun(SpecName), %Register Stuff
-    MetaList = [fun_meta(FirstArgsRaw, _, _)|_],
-    length(FirstArgsRaw, NN),
+    MetaList = [fun_meta(Args, _)|_],
+    length(Args, NN),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
     assertz(ho_specialization(HV, SpecName)).
@@ -350,9 +362,9 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     format(atom(Label), "metta specialization (~w)", [SpecName]),
     maybe_print_compiled_clause(Label, Input, Clause).
 
-compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr), clause_info(Input, Clause)) :-
-    Input = [=, [SpecName|ArgsRaw], BodyExpr],
-    translate_clause(Input, Clause).
+compile_meta_clauses(SpecName, fun_meta(ArgsNorm, BodyExpr), clause_info(Input, Clause)) :-
+    Input = [=, [SpecName|ArgsNorm], BodyExpr],
+    translate_clause2(Input, Clause).
 
 nb_addval(Key,Value,Prev) :-
     catch(nb_getval(Key,Prev), _, Prev =[]),
@@ -388,7 +400,7 @@ specializable_arg_key(Arg, Key) :-
 
 bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
     bagof(HoBindsTerm,
-            (member(fun_meta(_, ArgsNorm, BodyExpr),MetaList)
+            (member(fun_meta(ArgsNorm, BodyExpr),MetaList)
             ,maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm,HoBinds)
             ,flatten(HoBinds,HoBindsFlat), include(nonvar,HoBindsFlat,HoBindsTerm)
             ,HoBindsTerm = [_|_]
