@@ -18,8 +18,7 @@ translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                nb_setval(current,F),
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
-                                               higher_order_arg_indices(Args1, BodyExpr, HoIdxs),
-                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr, GoalsPrefix, HoIdxs),_),
+                                               nb_addval(F,fun_meta(Args0, Args1, BodyExpr, GoalsPrefix),_),
                                                append(Args1, [Out], Args),
                                                compound_name_arguments(Head, F, Args),
                                                translate_expr(BodyExpr, GoalsB, Out),
@@ -236,10 +235,9 @@ translate_expr([H0|T0], Goals, Out) :-
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
+        ; nonvar(HV), atom(HV), active_specialization(HV, SpecName) -> append(T,[Out],CallArgs), Goal =.. [SpecName|CallArgs], append(GsH, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
-        ; format("T ~w~n", [T]),
-          translate_args(T, GsT, AVs),
-          format("Targs ~w~n", [AVs]),
+        ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
 %Known function => direct call:
           ( atom(HV), fun(HV), is_list(AVs) % Check for type definition [:,HV,TypeChain]
@@ -325,21 +323,16 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
     format("MetaList ~w~n",[[MetaList]]),
-    member(Meta, MetaList),                   %For each definiton
 
-    format("Meta ~w~n",[[Meta]]),
-    Meta = fun_meta(_, _, _, _, HoIdxs), HoIdxs = [_|_], %At least one def needs to be specializable
-
-    maplist({AVs}/[I,V]>>nth1(I, AVs, V), HoIdxs, HoArgValues), %Get the Args that are used to specialize
-    format("HoArgValues ~w~n",[[HoArgValues]]),
-    maplist(specializable_arg_key, HoArgValues, HoArgKeys), %Get the part of the arg that is used to specialice ex: Arg = (blar f) Key = f
-    format("HoArgKeys ~w~n",[[HoArgKeys]]),
     format("BeforeBind ~w~n",[[MetaList]]),
-    bind_specialized_args_meta_list(AVs,MetaList), %Don't need indexes here but they are more efficent
+    bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
     format("AfterBind ~w~n",[[MetaList]]),
-
-    maplist(term_to_atom,HoArgKeys,Tmp),
-    atomic_list_concat([HV, '_Spec_' | Tmp], SpecName), %Create name
+    
+    BindSet = [_|_],
+    
+    format("BindSet ~w~n",[BindSet]),
+    maplist(term_to_atom,BindSet,BindSetAtom),
+    atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName), %Create name
 
     format("SpecName ~w~n", [SpecName]),
 
@@ -348,8 +341,7 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
     Goal =.. [SpecName|CallArgs].
 
 select_specialization(HV, MetaList, SpecName) :-
-    ( active_specialization(HV, SpecName) %Recursive currenlty being specialized
-    ; ho_specialization(HV, SpecName)     %Previously specialzed function
+    ( ho_specialization(HV, SpecName)     %Previously specialzed function
     ; compile_specialization(HV, MetaList, SpecName) %Compile new Spec
     ), !.
 
@@ -357,7 +349,7 @@ compile_specialization(HV, MetaList, SpecName) :-
     compile_meta_specialization(HV, MetaList, SpecName), %Compile
 
     register_fun(SpecName), %Register Stuff
-    MetaList = [fun_meta(FirstArgsRaw, _, _, _, _)|_],
+    MetaList = [fun_meta(FirstArgsRaw, _, _, _)|_],
     length(FirstArgsRaw, NN),
     Arity is NN + 1,
     assertz(arity(SpecName, Arity)),
@@ -379,7 +371,7 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     format(atom(Label), "metta specialization (~w)", [SpecName]),
     maybe_print_compiled_clause(Label, Input, Clause).
 
-compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr, _, _), clause_info(Input, Clause)) :-
+compile_meta_clauses(SpecName, fun_meta(ArgsRaw, _, BodyExpr, _), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsRaw], BodyExpr],
     format("Input: ~w~n",[Input]),
     translate_clause(Input, Clause).
@@ -405,17 +397,6 @@ next_lambda_name(Name) :-
 restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
 
-higher_order_arg_indices(Args, BodyExpr, Indices) :-
-    findall(Index, ( nth1(Index, Args, Arg),
-                     argument_has_ho_var(Arg, BodyExpr) ),
-            Raw),
-    sort(Raw, Indices).
-
-argument_has_ho_var(Arg, BodyExpr) :-
-    term_variables(Arg, Vars),
-    member(Var, Vars),
-    var_used_as_head(Var, BodyExpr).
-
 var_used_as_head(Var, [Head|_]) :- Var == Head.
 var_used_as_head(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_head(Var,E).
 
@@ -428,11 +409,17 @@ specializable_arg_key(Arg, Key) :-
     ; Arg = partial(Fun,_) -> specializable_arg_key(Fun, Key)
     ), !.
 
-bind_specialized_args_meta_list(Values, MetaList) :-
-    member(fun_meta(_, ArgsNorm, BodyExpr, _, _),MetaList),
-    maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm).
+bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
+    findall(HoBindsTerm,
+            (member(fun_meta(_, ArgsNorm, BodyExpr, _),MetaList)
+            ,maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm,HoBinds)
+            ,flatten(HoBinds,HoBindsFlat), include(nonvar,HoBindsFlat,HoBindsTerm)
+            ,HoBindsTerm = [_|_]
+            ,format("HoBinds: ~w~n",[HoBindsTerm])
+            ),
+            HoBindsTerms), flatten(HoBindsTerms,Tmp), list_to_set(Tmp,HoBindSet).
 
-bind_specialized_args(BodyExpr, Value, Arg) :-
+bind_specialized_args(BodyExpr, Value, Arg, HoVars) :-
     term_variables(Arg, Vars),
     include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
     ( HoVars == [] -> true
@@ -488,7 +475,9 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 
 %Translate arguments recursively:
 translate_args([], [], []).
-translate_args([X|Xs], Goals, [V|Vs]) :- translate_expr(X, G1, V),
+translate_args([X|Xs], Goals, [V|Vs]) :- format("X ~w~n", [X]),
+                                         translate_expr(X, G1, V),
+                                         format("TExpr ~w~n", [[X,G1,V]]),
                                          translate_args(Xs, G2, Vs),
                                          append(G1, G2, Goals).
 
