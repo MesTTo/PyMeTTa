@@ -308,58 +308,50 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
         (Prev == true ->  nb_setval(specsucess,Prev) ; true)
         ).
 
-maybe_specialize_call_(HV, AVs, Out, Goal) :- \+ current_function(HV),
-                                             active_specialization(HV, AVs, SpecName), !, 
-                                             append(AVs, [Out], CallArgs),
-                                             Goal =.. [SpecName|CallArgs].
 maybe_specialize_call_(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
 
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
 
-    bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
+    bind_specialized_args_meta_list(AVs,MetaList,BindSet),
     
-    copy_term(BindSet,BindSetC),
-    term_variables(BindSetC,Vars),
-    maplist(=(var),Vars),
-    maplist(term_to_atom,BindSetC,BindSetAtom),
-    atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName), %Create name
+    copy_term(BindSet,BindSetC), term_variables(BindSetC,Vars), %Create name
+    maplist(=(var),Vars), maplist(term_to_atom,BindSetC,BindSetAtom),
+    atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName),
+
+    maplist({HV,AVs,SpecName}/[fun_meta(Args,Body),fun_meta(Args,BodySubst)]>>substitute_nested(HV,AVs,SpecName,Body,BodySubst),MetaList,MetaSubsts),
 
     ( ho_specialization(HV, SpecName)     %Previously specialzed function
-    ; compile_specialization(HV, MetaList, SpecName) %Compile new Spec
+    ; ( register_fun(SpecName), %Register Stuff
+        length(AVs, N),Arity is N + 1,assertz(arity(SpecName, Arity))
+        ( compile_specialization(HV, MetaSubsts, SpecName) %Compile new Spec
+          -> true
+           ; unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail %We failed unregister
+        ))
     ), !,
 
     append(AVs, [Out], CallArgs),
     Goal =.. [SpecName|CallArgs].
 
+substitute_nested(  _,   _,   _,   [],       []) :- !.
+substitute_nested(Old,Args, New, [H|T], [H2|T2]) :-
+    (   is_list(H) -> substitute_nested(Old, Args, New, H, H2)
+                    ; ( H == Old , translate_args(T,_,TT) , \+ \+ Args = TT -> H2 = New ; H2 = H )),
+    substitute_nested(Old, Args, New, T, T2).
+    
 compile_specialization(HV, MetaList, SpecName) :-
     ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
     -> add_sexp('&self', [':', SpecName, TypeChain])
     ; true),
 
-    compile_meta_specialization(HV, MetaList, SpecName), %Compile
-
-
-    register_fun(SpecName), %Register Stuff
-    MetaList = [fun_meta(Args, _)|_],
-    length(Args, NN),
-    Arity is NN + 1,
-    assertz(arity(SpecName, Arity)),
-    assertz(ho_specialization(HV, SpecName)).
-
-compile_meta_specialization(HV, MetaList, SpecName) :-
     current_function(PrevCurrent),
-    setup_call_cleanup(
-        (atomic_list_concat(['ho_replace', HV], Key),
-         catch(nb_getval(Key,Prev), _, Prev = []),
-         maplist({Key,SpecName}/[fun_meta(Args,_)]>>nb_addval(Key,spec(Args,SpecName)),MetaList)),
-
-        (maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos), nb_getval(specsucess,true)),
-
-        (restore_current(PrevCurrent) , ( Prev == [] -> nb_delete(Key)
-                                                      ; nb_setval(Key, Prev)))),
-    maplist(assert_specialization_clause(SpecName), ClauseInfos).
+    call_cleanup(
+        maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos),
+        restore_current(PrevCurrent)),
+    nb_getval(specsucess,true),
+    maplist(assert_specialization_clause(SpecName), ClauseInfos),
+    assertz(ho_specialization(HV, SpecName)).
 
 assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
     assertz(Clause),
@@ -373,25 +365,6 @@ compile_meta_clauses(SpecName, fun_meta(ArgsNorm, BodyExpr), clause_info(Input, 
 nb_addval(Key,Value) :-
     catch(nb_getval(Key,Prev), _, Prev =[]),
     nb_setval(Key,[Value|Prev]).
-
-active_specialization(Fun, Args, Spec) :-
-    atomic_list_concat(['ho_replace', Fun], Key),
-    catch(nb_getval(Key, Specs), _, fail),
-    best_unifiable(spec(Args,_), Specs, spec(_,Spec)).
-
-%% best_unifiable(+X, +List, -Best)
-%%  Best is the element of List that is unifiable with X
-%%  and needs the smallest number of substitutions (Subs).
-%%  Fails if no element is unifiable with X.
-best_unifiable(X, List, Best) :-
-    setof(N-Y,
-          Subs^
-            ( member(Y, List),
-              unifiable(X, Y, Subs),
-              length(Subs, N)
-            ),
-            Sorted),
-    Sorted = [_N-Best| _], !.
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
 
