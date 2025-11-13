@@ -311,6 +311,7 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
 maybe_specialize_call_(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
 
+
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
     copy_term(MetaList0, MetaList),           %Make a copy to specialize
 
@@ -330,6 +331,7 @@ maybe_specialize_call_(HV, AVs, Out, Goal) :-
            ; format("Fail~n"), unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail %We failed unregister
         ))
     ), !,
+
 
     append(AVs, [Out], CallArgs),
     Goal =.. [SpecName|CallArgs].
@@ -379,15 +381,6 @@ restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
 
 bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
-    bagof(HoBindsTerm,
-            (member(fun_meta(ArgsNorm, BodyExpr),MetaList)
-            ,maplist(bind_specialized_args(BodyExpr),Values,ArgsNorm,HoBinds)
-            ,flatten(HoBinds,HoBindsFlat), include(nonvar,HoBindsFlat,HoBindsTerm)
-            ,HoBindsTerm = [_|_]
-            ),
-            HoBindsTerms), flatten(HoBindsTerms,Tmp), list_to_set(Tmp,HoBindSet).
-
-bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
     setof(HoVar,
           ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
               ( member(fun_meta(ArgsNorm, BodyExpr), MetaList),
@@ -398,6 +391,7 @@ bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
               ),
           HoBindSet).
 
+bind_specialized_args(_, Value, _, []) :- var(Value), !.
 bind_specialized_args(BodyExpr, Value, Arg, HoVars) :-
     term_variables(Arg, Vars),
     copy_term(Arg-Vars, Value-VarsCopy),
