@@ -12,10 +12,15 @@ constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsLi
 translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
                                                maplist(constrain_args, Args0, Args1, GoalsA),
                                                append(GoalsA, GoalsPrefix),
-                                               append(Args1, [Out], Args),
-                                               compound_name_arguments(Head, F, Args),
-                                               translate_expr(BodyExpr, GoalsB, Out),
-                                               append(GoalsPrefix, GoalsB, Goals),
+                                               translate_expr(BodyExpr, GoalsBody, ExpOut),
+                                               (  nonvar(ExpOut) , ExpOut = partial(Base,Bound)
+                                               -> current_predicate(Base/Arity), length(Bound, N), M is (Arity - N) - 1,
+                                                  length(ExtraArgs, M), append([Bound,ExtraArgs,[Out]],CallArgs), Goal =.. [Base|CallArgs],
+                                                  append(GoalsBody,[Goal],FinalGoals), append(Args1,ExtraArgs,HeadArgs)
+                                               ; FinalGoals= GoalsBody , HeadArgs = Args1, Out = ExpOut ),
+                                               append(HeadArgs, [Out], FinalArgs),
+                                               Head =.. [F|FinalArgs],
+                                               append(GoalsPrefix, FinalGoals, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
 
 %Conjunction builder, turning goals list to a flat conjunction:
