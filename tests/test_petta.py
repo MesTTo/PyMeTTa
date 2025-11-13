@@ -1,19 +1,15 @@
 import uuid
 
-
 def test_load_metta_file_returns_list(petta_instance, dummy_metta_path):
     results = petta_instance.load_metta_file(str(dummy_metta_path))
     assert isinstance(results, list)
     assert results[1] == '(2 3 4)'
 
-
 def test_process_metta_string_matches_verbose(petta_instance, petta_verbose):
     func_name = f"pytest_identity_{uuid.uuid4().hex}"
     definition = f"(= ({func_name} $x) $x)"
     invocation = f"!({func_name} 42)"
-
     petta_instance.process_metta_string(definition)
-
     results_default = petta_instance.process_metta_string(invocation)
     results_verbose = petta_verbose.process_metta_string(invocation)
     assert results_default == results_verbose
@@ -21,9 +17,7 @@ def test_process_metta_string_matches_verbose(petta_instance, petta_verbose):
 
 def test_var_out(petta_instance):
     metta = "(= (fun ($a x)) ($b x)) !(fun (a x))"
-
     res = petta_instance.process_metta_string(metta)
-
     assert res, "Expected at least one result from MeTTa execution."
     result = res[0]
     tokens = result.strip('()').split()
