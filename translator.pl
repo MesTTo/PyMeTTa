@@ -324,7 +324,7 @@ maybe_specialize_call_(HV, AVs, Out, Goal) :-
 
     ( ho_specialization(HV, SpecName)     %Previously specialzed function
     ; ( register_fun(SpecName), %Register Stuff
-        length(AVs, N),Arity is N + 1,assertz(arity(SpecName, Arity))
+        length(AVs, N),Arity is N + 1,assertz(arity(SpecName, Arity)),
         ( compile_specialization(HV, MetaSubsts, SpecName) %Compile new Spec
           -> true
            ; unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail %We failed unregister
