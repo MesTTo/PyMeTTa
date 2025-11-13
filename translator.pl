@@ -320,24 +320,25 @@ maybe_specialize_call_(HV, AVs, Out, Goal) :-
     maplist(=(var),Vars), maplist(term_to_atom,BindSetC,BindSetAtom),
     atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName),
 
-    maplist({HV,AVs,SpecName}/[fun_meta(Args,Body),fun_meta(Args,BodySubst)]>>substitute_nested(HV,AVs,SpecName,Body,BodySubst),MetaList,MetaSubsts),
+    maplist({HV,SpecName}/[fun_meta(Args,Body),fun_meta(Args,BodySubst)]>>substitute_nested(HV,Args,SpecName,Body,BodySubst),MetaList,MetaSubsts),
 
     ( ho_specialization(HV, SpecName)     %Previously specialzed function
     ; ( register_fun(SpecName), %Register Stuff
         length(AVs, N),Arity is N + 1,assertz(arity(SpecName, Arity)),
         ( compile_specialization(HV, MetaSubsts, SpecName) %Compile new Spec
           -> true
-           ; unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail %We failed unregister
+           ; format("Fail~n"), unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail %We failed unregister
         ))
     ), !,
 
     append(AVs, [Out], CallArgs),
     Goal =.. [SpecName|CallArgs].
 
-substitute_nested(  _,   _,   _,   [],       []) :- !.
+substitute_nested(  _,   _,   _,   Val,       Out) :- (var(Val) -> Out = Val ; Val == [] -> Out = []), !.
 substitute_nested(Old,Args, New, [H|T], [H2|T2]) :-
+    maplist([Arg,ArgClean]>>( nonvar(Arg), Arg = partial(Base, Bound) -> ArgClean = [Base|Bound] ; ArgClean = Arg ), Args, ArgsClean),
     (   is_list(H) -> substitute_nested(Old, Args, New, H, H2)
-                    ; ( H == Old , translate_args(T,_,TT) , \+ \+ Args = TT -> H2 = New ; H2 = H )),
+                    ; ( H == Old , (\+ \+ Args = T ; \+ \+ ArgsClean = T) -> H2 = New ; H2 = H )),
     substitute_nested(Old, Args, New, T, T2).
     
 compile_specialization(HV, MetaList, SpecName) :-
@@ -404,20 +405,22 @@ bind_specialized_args(BodyExpr, Value, Arg, HoVars) :-
 
 bind_specialized_args_([], [], _, []).
 bind_specialized_args_([Var|Vars], [Copy|Copies], BodyExpr, HoVars) :-
-    (   specializable_arg(Copy), var_used_as_ho(Var, BodyExpr)
+    (   specializable_arg(Copy), (var_used_as_head(Var, BodyExpr) ; var_used_as_ho_arg(Var, BodyExpr))
     ->  Var = Copy, HoVars = [Var|RestHoVars]
     ;   HoVars = RestHoVars ),
     bind_specialized_args_(Vars, Copies, BodyExpr, RestHoVars).
 
-var_used_as_ho(Var, [Head|_]) :- Var == Head, nb_setval(specsucess,true), !.
-var_used_as_ho(Var, [Head|Args]) :-
+var_used_as_head(Var, [Head|_]) :- Var == Head, nb_setval(specsucess,true), !.
+var_used_as_head(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_head(Var,E).
+
+var_used_as_ho_arg(Var, [Head|Args]) :-
     specializable_arg(Head),
     member(Arg, Args),
     (   Var == Arg                             % directly as argument
     ;   is_list(Arg),
-        var_used_as_ho(Var, Arg)             % or deeper inside
-    ), !.
-var_used_as_ho(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_ho(Var,E).
+        var_used_as_ho_arg(Var, Arg)             % or deeper inside
+    ).
+var_used_as_ho_arg(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_ho_arg(Var,E).
 
 specializable_arg(Arg) :- nonvar(Arg), ( atom(Arg), fun(Arg) ; Arg = partial(_, _)).
 
