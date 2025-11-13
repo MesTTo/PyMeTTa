@@ -13,25 +13,22 @@ constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsLi
                                   flatten(NestedGoalsList, Goals), !.
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
-translate_clause(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
-                                               nb_setval(current,F),
-                                               maplist(constrain_args, Args0, Args1, GoalsA),
-                                               append(GoalsA, GoalsPrefix),
-                                               nb_addval(F,fun_meta(Args1, BodyExpr),_),
-                                               append(Args1, [Out], Args),
-                                               Head =..  [F|Args],
-                                               translate_expr(BodyExpr, GoalsB, Out),
-                                               append(GoalsPrefix, GoalsB, Goals),
-                                               goals_list_to_conj(Goals, BodyConj).
+translate_clause(Input, (Head :- BodyConj)) :-  translate_clause_(Input, (Head :- BodyConj), true).
 
-translate_clause2(Input, (Head :- BodyConj)) :- Input = [=, [F|Args0], BodyExpr],
-                                                nb_setval(current,F),
-                                                nb_addval(F,fun_meta(Args0, BodyExpr),_),
-                                                append(Args0, [Out], Args),
-                                                Head =..  [F|Args],
-                                                translate_expr(BodyExpr, Goals, Out),
-                                                goals_list_to_conj(Goals, BodyConj).
-
+translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
+    Input = [=, [F|Args0], BodyExpr],
+    setup_call_cleanup(
+        nb_setval(current, F),
+        (   (   ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
+                               ; Args1 = Args0, GoalsPrefix = [] ),
+            nb_addval(F, fun_meta(Args1, BodyExpr), _),
+            append(Args1, [Out], Args),
+            Head =.. [F|Args],
+            translate_expr(BodyExpr, GoalsBody, Out),
+            append(GoalsPrefix, GoalsBody, Goals),
+            goals_list_to_conj(Goals, BodyConj)
+        ),
+        nb_delete(current)).
 
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
@@ -268,9 +265,7 @@ translate_expr([H0|T0], Goals, Out) :-
                            append(Inner, Gd, Goals),
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
-          ; catch(nb_getval(noreduce,Val),_,Val=false),
-            (Val -> Out = [HV|AVs], Inner = Goals
-                  ; append(Inner, [reduce([HV|AVs], Out)], Goals)) )).
+          ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
 
 %Retrieve a function's argument and output type signature if available:
 function_type_signature(Fun, ArgTypes, OutType) :-
@@ -306,11 +301,18 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                                              translate_args_by_type(As, Ts, GsRest, AVs),
                                              append(GsA, GsRest, GsOut).
 
-maybe_specialize_call(HV, AVs, Out, Goal) :- \+ current_function(HV),
+maybe_specialize_call(HV, AVs, Out, Goal) :- 
+    setup_call_cleanup(
+        (catch(nb_getval(specsucess,Prev),_,Prev = []), nb_setval(specsucess,false) ),
+        maybe_specialize_call_(HV, AVs, Out, Goal),
+        (Prev == true ->  nb_setval(specsucess,Prev) ; true)
+        ).
+
+maybe_specialize_call_(HV, AVs, Out, Goal) :- \+ current_function(HV),
                                              active_specialization(HV, SpecName), !, 
                                              append(AVs, [Out], CallArgs),
                                              Goal =.. [SpecName|CallArgs].
-maybe_specialize_call(HV, AVs, Out, Goal) :-
+maybe_specialize_call_(HV, AVs, Out, Goal) :-
     \+ current_function(HV), %We are compiling HV don't try to specialize it
 
     catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
@@ -318,7 +320,6 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
 
     bind_specialized_args_meta_list(AVs,MetaList,BindSet), %Don't need indexes here but they are more efficent
     
-    BindSet = [_|_],
     copy_term(BindSet,BindSetC),
     term_variables(BindSetC,Vars),
     maplist(=(var),Vars),
@@ -339,6 +340,7 @@ compile_specialization(HV, MetaList, SpecName) :-
 
     compile_meta_specialization(HV, MetaList, SpecName), %Compile
 
+
     register_fun(SpecName), %Register Stuff
     MetaList = [fun_meta(Args, _)|_],
     length(Args, NN),
@@ -351,7 +353,7 @@ compile_meta_specialization(HV, MetaList, SpecName) :-
     setup_call_cleanup(
         (atomic_list_concat(['ho_replace', HV], Key), nb_addval(Key,SpecName,Prev)),
 
-        maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos),
+        (maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos), nb_getval(specsucess,true)),
 
         (restore_current(PrevCurrent) , ( Prev == [] -> nb_delete(Key)
                                                       ; nb_setval(Key, Prev)))),
@@ -364,7 +366,7 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :-
 
 compile_meta_clauses(SpecName, fun_meta(ArgsNorm, BodyExpr), clause_info(Input, Clause)) :-
     Input = [=, [SpecName|ArgsNorm], BodyExpr],
-    translate_clause2(Input, Clause).
+    translate_clause_(Input, Clause,false).
 
 nb_addval(Key,Value,Prev) :-
     catch(nb_getval(Key,Prev), _, Prev =[]),
@@ -386,18 +388,6 @@ next_lambda_name(Name) :-
 restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
 
-var_used_as_head(Var, [Head|_]) :- Var == Head.
-var_used_as_head(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_head(Var,E).
-
-specializable_arg(Arg) :- nonvar(Arg), ( atom(Arg), fun(Arg) ; Arg = partial(_, _)).
-
-specializable_arg_key(Arg, Key) :-
-    nonvar(Arg),
-    ( specializable_arg(Arg) -> Key = Arg
-    ; Arg = [_|_] -> member(Sub, Arg), specializable_arg_key(Sub, Key)
-    ; Arg = partial(Fun,_) -> specializable_arg_key(Fun, Key)
-    ), !.
-
 bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
     bagof(HoBindsTerm,
             (member(fun_meta(ArgsNorm, BodyExpr),MetaList)
@@ -407,20 +397,41 @@ bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
             ),
             HoBindsTerms), flatten(HoBindsTerms,Tmp), list_to_set(Tmp,HoBindSet).
 
+bind_specialized_args_meta_list(Values, MetaList, HoBindSet) :-
+    setof(HoVar,
+          ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
+              ( member(fun_meta(ArgsNorm, BodyExpr), MetaList),
+                maplist(bind_specialized_args(BodyExpr), Values, ArgsNorm, HoBinds),
+                member(HoBindsPerArg, HoBinds),
+                member(HoVar, HoBindsPerArg),
+                nonvar(HoVar)
+              ),
+          HoBindSet).
+
 bind_specialized_args(BodyExpr, Value, Arg, HoVars) :-
     term_variables(Arg, Vars),
-    include({BodyExpr}/[Var]>>var_used_as_head(Var,BodyExpr), Vars, HoVars),
-    ( HoVars == [] -> true
-    ; copy_term(Arg-Vars, Value-VarsCopy),
-      maplist(bind_var_from_copy(Vars, VarsCopy), HoVars)
-    ).
-    
-bind_var_from_copy(Vars, VarsCopy, HoVar) :-
-    lookup_copy_var(Vars, VarsCopy, HoVar, CopyVar),
-    ( specializable_arg(CopyVar) -> HoVar = CopyVar ; true ).
+    copy_term(Arg-Vars, Value-VarsCopy),
+    bind_specialized_args_(Vars, VarsCopy, BodyExpr, HoVars).
 
-lookup_copy_var([Var|_], [Copy|_], Target, Copy) :- Target == Var, !.
-lookup_copy_var([_|Vars], [_|Copies], Target, Copy) :- lookup_copy_var(Vars, Copies, Target, Copy).
+bind_specialized_args_([], [], _, []).
+bind_specialized_args_([Var|Vars], [Copy|Copies], BodyExpr, HoVars) :-
+    (   specializable_arg(Copy), var_used_as_ho(Var, BodyExpr)
+    ->  Var = Copy, HoVars = [Var|RestHoVars]
+    ;   HoVars = RestHoVars ),
+    bind_specialized_args_(Vars, Copies, BodyExpr, RestHoVars).
+
+var_used_as_ho(Var, [Head|_]) :- Var == Head, nb_setval(specsucess,true), format("Set SUC ~w~n", [true]), !.
+var_used_as_ho(Var, [Head|Args]) :-
+    specializable_arg(Head),
+    member(Arg, Args),
+    (   Var == Arg                             % directly as argument
+    ;   is_list(Arg),
+        var_used_as_ho(Var, Arg)             % or deeper inside
+    ), !.
+var_used_as_ho(Var, L) :- is_list(L), member(E,L), is_list(E), var_used_as_ho(Var,E).
+
+specializable_arg(Arg) :- nonvar(Arg), ( atom(Arg), fun(Arg) ; Arg = partial(_, _)).
+
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
