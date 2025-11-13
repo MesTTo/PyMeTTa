@@ -22,10 +22,19 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
         (   (   ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
                                ; Args1 = Args0, GoalsPrefix = [] ),
             nb_addval(F, fun_meta(Args1, BodyExpr)),
-            append(Args1, [Out], Args),
-            Head =.. [F|Args],
-            translate_expr(BodyExpr, GoalsBody, Out),
-            append(GoalsPrefix, GoalsBody, Goals),
+
+            translate_expr(BodyExpr, GoalsBody, ExpOut),
+
+            (  nonvar(ExpOut) , ExpOut = partial(Base,Bound)
+            -> current_predicate(Base/Arity), length(Bound, N), M is (Arity - N) - 1, format("M ~w~n", [M]),
+               length(ExtraArgs, M), append([Bound,ExtraArgs,[Out]],CallArgs), Goal =.. [Base|CallArgs],
+               append(GoalsBody,[Goal],GoalsBody1), append(Args1,ExtraArgs,HeadArgs), format("HeadArgs ~w~n", [HeadArgs])
+            ; GoalsBody1 = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
+
+            append(HeadArgs, [Out], FinalArgs),
+            Head =.. [F|FinalArgs],
+
+            append(GoalsPrefix, GoalsBody1, Goals),
             goals_list_to_conj(Goals, BodyConj)
         ),
         nb_delete(current)).
