@@ -21,7 +21,7 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
         nb_setval(current, F),
         (   (   ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
                                ; Args1 = Args0, GoalsPrefix = [] ),
-            nb_addval(F, fun_meta(Args1, BodyExpr), _),
+            nb_addval(F, fun_meta(Args1, BodyExpr)),
             append(Args1, [Out], Args),
             Head =.. [F|Args],
             translate_expr(BodyExpr, GoalsBody, Out),
@@ -309,7 +309,7 @@ maybe_specialize_call(HV, AVs, Out, Goal) :-
         ).
 
 maybe_specialize_call_(HV, AVs, Out, Goal) :- \+ current_function(HV),
-                                             active_specialization(HV, SpecName), !, 
+                                             active_specialization(HV, AVs, SpecName), !, 
                                              append(AVs, [Out], CallArgs),
                                              Goal =.. [SpecName|CallArgs].
 maybe_specialize_call_(HV, AVs, Out, Goal) :-
@@ -351,7 +351,9 @@ compile_specialization(HV, MetaList, SpecName) :-
 compile_meta_specialization(HV, MetaList, SpecName) :-
     current_function(PrevCurrent),
     setup_call_cleanup(
-        (atomic_list_concat(['ho_replace', HV], Key), nb_addval(Key,SpecName,Prev)),
+        (atomic_list_concat(['ho_replace', HV], Key),
+         catch(nb_getval(Key,Prev), _, Prev = []),
+         maplist({Key,SpecName}/[fun_meta(Args,_)]>>nb_addval(Key,spec(Args,SpecName)),MetaList)),
 
         (maplist(compile_meta_clauses(SpecName),MetaList,ClauseInfos), nb_getval(specsucess,true)),
 
@@ -368,14 +370,28 @@ compile_meta_clauses(SpecName, fun_meta(ArgsNorm, BodyExpr), clause_info(Input, 
     Input = [=, [SpecName|ArgsNorm], BodyExpr],
     translate_clause_(Input, Clause,false).
 
-nb_addval(Key,Value,Prev) :-
+nb_addval(Key,Value) :-
     catch(nb_getval(Key,Prev), _, Prev =[]),
     nb_setval(Key,[Value|Prev]).
 
-active_specialization(Fun, Spec) :-
+active_specialization(Fun, Args, Spec) :-
     atomic_list_concat(['ho_replace', Fun], Key),
     catch(nb_getval(Key, Specs), _, fail),
-    memberchk(Spec, Specs).
+    best_unifiable(spec(Args,_), Specs, spec(_,Spec)).
+
+%% best_unifiable(+X, +List, -Best)
+%%  Best is the element of List that is unifiable with X
+%%  and needs the smallest number of substitutions (Subs).
+%%  Fails if no element is unifiable with X.
+best_unifiable(X, List, Best) :-
+    setof(N-Y,
+          Subs^
+            ( member(Y, List),
+              unifiable(X, Y, Subs),
+              length(Subs, N)
+            ),
+            Sorted),
+    Sorted = [_N-Best| _], !.
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
 
@@ -420,7 +436,7 @@ bind_specialized_args_([Var|Vars], [Copy|Copies], BodyExpr, HoVars) :-
     ;   HoVars = RestHoVars ),
     bind_specialized_args_(Vars, Copies, BodyExpr, RestHoVars).
 
-var_used_as_ho(Var, [Head|_]) :- Var == Head, nb_setval(specsucess,true), format("Set SUC ~w~n", [true]), !.
+var_used_as_ho(Var, [Head|_]) :- Var == Head, nb_setval(specsucess,true), !.
 var_used_as_ho(Var, [Head|Args]) :-
     specializable_arg(Head),
     member(Arg, Args),
