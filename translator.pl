@@ -232,9 +232,9 @@ translate_expr([H0|T0], Goals, Out) :-
           append(GsH, GsT, Inner),
           %Known function => direct call:
           ( is_list(AVs), 
-            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs
+            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs, IsPartial = false
             ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs), IsPartial = true
-            )  % Check for type definition [:,HV,TypeChain]
+            ) % Check for type definition [:,HV,TypeChain]
             -> ( catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail)
                  -> TypeChain = [->|Xs],
                     append(ArgTypes, [OutType], Xs),
