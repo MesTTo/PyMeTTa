@@ -252,7 +252,8 @@ translate_expr([H0|T0], Goals, Out) :-
                  -> append(AVsTmp, [Out], ArgsV),
                     Goal =.. [Fun|ArgsV],
                     append(InnerTmp, [Goal|Extra], Goals)
-                  ; append(InnerTmp, [(Out = partial(Fun,AVsTmp))|Extra], Goals) )
+                  ; Out = partial(Fun,AVsTmp),
+                    append(InnerTmp,Extra, Goals) )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
