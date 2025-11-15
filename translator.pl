@@ -252,7 +252,7 @@ translate_expr([H0|T0], Goals, Out) :-
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
-%Known function => direct call:
+          %Known function => direct call:
           ( is_list(AVs), 
             ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs
             ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs)
