@@ -86,6 +86,16 @@ translate_expr([H0|T0], Goals, Out) :-
                                  append(GsH, [once(Conj)], Goals)
         ; HV == hyperpose, T = [L] -> build_hyperpose_branches(L, Branches),
                                       append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+        %--- Sequential execution ---:
+        ; HV == progn, T = Exprs -> translate_args(Exprs, GsList, Outs),
+                                    append(GsH, GsList, Tmp),
+                                    last(Outs, Out),
+                                    Goals = Tmp
+        ; HV == prog1, T = Exprs -> Exprs = [First|Rest],
+                                    translate_expr(First, GsF, Out),
+                                    translate_args(Rest, GsRest, _),
+                                    append(GsH, GsF, Tmp1),
+                                    append(Tmp1, GsRest, Goals)
         %--- Conditionals ---:
         ; HV == if, T = [Cond, Then, Else] -> translate_expr_to_conj(Cond, ConC, Cv),
                                               translate_expr_to_conj(Then, ConT, Tv),
@@ -146,7 +156,7 @@ translate_expr([H0|T0], Goals, Out) :-
              append(GsH, GsAF, Tmp1),
              append(Tmp1, GsGF, Tmp2),
              append(Tmp2, [ConjInit, foldall(agg_reduce(AFV, V), reduce(GenList, V), Init, Out)], Goals)
-        %--- Higher-order functions with pseudo-lambdas ---:
+        %--- Higher-order functions with pseudo-lambdas and lambdas ---:
         ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
           -> translate_expr_to_conj(List, ConjList, L),
              translate_expr_to_conj(Init, ConjInit, InitV),
