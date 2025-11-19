@@ -266,28 +266,27 @@ translate_expr([H0|T0], Goals, Out) :-
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
-          %Known function => direct call:
+          %Known function => constrain typedef and generate direct call:
           ( is_list(AVs), ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs) )
-            -> % Check for type definition [:,HV,TypeChain] and constrain input and output variables:
-               ( catch(match('&self', [':', Fun, TypeChain], TypeChain, [->|Xs]), _, fail),
+            -> ( catch(match('&self', [':', Fun, TypeChain], TypeChain, [->|Xs]), _, fail),
                  append(ArgTypes, [OutType], Xs)
                  -> translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
                     append(GsH, GsT2, InnerTmp),
-                    (OutType == '%Undefined%' -> AddGs = [] ; AddGs = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))])
+                    ( (OutType == '%Undefined%' ; OutType == 'Atom')
+                      -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
                   ; AVsTmp  = AllAVs,
                     InnerTmp = Inner,
-                    AddGs = [] ),
-               % Direct call:
+                    Extra = [] ),
                length(AVsTmp, N),
                Arity is N + 1,
                ( maybe_specialize_call(Fun, AVsTmp, Out, Goal)
-                 -> append(InnerTmp, [Goal|AddGs], Goals)
+                 -> append(InnerTmp, [Goal|Extra], Goals)
                   ; (( (current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)) , \+ (current_op(_, _, Fun), Arity =< 2) )
                      -> append(AVsTmp, [Out], CallAVsTmp),
                         Goal =.. [Fun|CallAVsTmp],
-                        append(InnerTmp, [Goal|AddGs], Goals)
+                        append(InnerTmp, [Goal|Extra], Goals)
                       ; Out = partial(Fun, AVsTmp),
-                        append(InnerTmp,AddGs,Goals) ))
+                        append(InnerTmp,Extra,Goals) ))
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -303,7 +302,7 @@ translate_args_by_type([], _, [], []) :- !.
 translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                       ( T == 'Expression' -> AV = A, GsA = []
                                            ; translate_expr(A, GsA1, AV),
-                                             ( T == '%Undefined%'
+                                             ( (T == '%Undefined%' ; T == 'Atom')
                                                -> GsA = GsA1
                                                 ; append(GsA1, [('get-type'(AV, T) *-> true ; 'get-metatype'(AV, T))], GsA))),
                                              translate_args_by_type(As, Ts, GsRest, AVs),
