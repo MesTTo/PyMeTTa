@@ -124,14 +124,14 @@ member(X, L, _) :- member(X, L).
 'intersection-atom'(A, B, Out) :- intersection(A, B, Out).
 
 %%% Type system: %%%
-get_function_type([F,Arg], T) :- match('&self', [':',F,['->',A,B]], _, _),
-                                 'get-type'(Arg, A),
-                                 T = B.
+get_function_type([F|Args], T) :- nonvar(F), match('&self', [':',F,[->|Ts]], _, _),
+                                 append(As,[T],Ts),
+                                 maplist('get-type',Args,As).
 
-'get-type'(X, T) :- get_type_candidate(X, T) *-> true ; T = '%Undefined%'.
+'get-type'(X, T) :- (get_type_candidate(X, T) *-> true ; T = '%Undefined%' ).
 
 get_type_candidate(X, 'Number')   :- number(X), !.
-get_type_candidate(X, 'Variable') :- var(X), !.
+get_type_candidate(X, '%Undefined%') :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
 get_type_candidate(false, 'Bool') :- !.

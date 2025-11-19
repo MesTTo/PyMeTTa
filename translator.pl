@@ -250,7 +250,7 @@ translate_expr([H0|T0], Goals, Out) :-
                     append(GsH, GsT2, InnerTmp),
                     ( OutType == '%Undefined%'
                       -> Extra = []
-                       ; Extra = [('get-type'(Out, OutType) ; 'get-metatype'(Out, OutType))] )
+                       ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
                   ; AVsTmp = AllAVs,
                     InnerTmp = Inner,
                     Extra = [] ),
@@ -278,7 +278,7 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
                                            ; translate_expr(A, GsA1, AV),
                                              ( T == '%Undefined%'
                                                -> GsA = GsA1
-                                                ; append(GsA1, [('get-type'(AV, T) ; 'get-metatype'(AV, T))], GsA))),
+                                                ; append(GsA1, [('get-type'(AV, T) *-> true ; 'get-metatype'(AV, T))], GsA))),
                                              translate_args_by_type(As, Ts, GsRest, AVs),
                                              append(GsA, GsRest, GsOut).
 
