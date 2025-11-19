@@ -19,7 +19,9 @@ maybe_specialize_call_(HV, AVs, Out, Goal) :- \+ current_function(HV), %We are c
                                                     Arity is N + 1,
                                                     assertz(arity(SpecName, Arity)),
                                                     ( compile_specialization(HV, MetaSubsts, SpecName) %Compile new Spec
-                                                      -> true ; format("Fail unregister~n"), unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail ) ) ), !,
+                                                      -> true ; format("Fail unregister~n"),
+                                                                unregister_fun(SpecName/Arity),
+                                                                retractall(arity(SpecName,Arity)), fail ))), !,
                                               append(AVs, [Out], CallArgs),
                                               Goal =.. [SpecName|CallArgs].
 
@@ -44,9 +46,6 @@ assert_specialization_clause(SpecName, clause_info(Input, Clause)) :- assertz(Cl
 
 compile_meta_clauses(SpecName, fun_meta(ArgsNorm, BodyExpr), clause_info(Input, Clause)) :- Input = [=, [SpecName|ArgsNorm], BodyExpr],
                                                                                             translate_clause_(Input, Clause,false).
-
-nb_addval(Key,Value) :- catch(nb_getval(Key,Prev), _, Prev =[]),
-                        nb_setval(Key,[Value|Prev]).
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
 

@@ -16,7 +16,8 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
                         ( ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
                                              flatten(GoalsA,GoalsPrefix)
                                            ; Args1 = Args0, GoalsPrefix = [] ),
-                          nb_addval(F, fun_meta(Args1, BodyExpr)),
+                          catch(nb_getval(F, Prev), _, Prev = []),
+                          nb_setval(F, [fun_meta(Args1, BodyExpr) | Prev]),
                           translate_expr(BodyExpr, GoalsBody, ExpOut),
                           ( nonvar(ExpOut), ExpOut = partial(Base,Bound)
                             -> current_predicate(Base/Arity),
