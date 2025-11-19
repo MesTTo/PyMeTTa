@@ -89,4 +89,4 @@ var_used_as_ho_arg(Var, L) :- is_list(L),
                               var_used_as_ho_arg(Var,E).
 
 specializable_arg(Arg) :- nonvar(Arg), 
-                          ( atom(Arg), fun(Arg) ; Arg = partial(_, _)).
+                          ( fun(Arg) ; Arg = partial(_, _) ).

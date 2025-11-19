@@ -267,19 +267,27 @@ translate_expr([H0|T0], Goals, Out) :-
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
           %Known function => direct call:
-          ( is_list(AVs), 
-            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs
-            ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs)
-            )
-            -> ( function_type_signature(Fun, ArgTypes, OutType) % Check for type definition [:,HV,TypeChain]
-                -> translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
-                   append(GsH, GsT2, InnerTmp),
-                   out_type_goals(OutType, Out, Extra)
-                ;  AVsTmp  = AllAVs,
-                   InnerTmp = Inner,
-                   Extra    = []
-              ),
-              dispatch_fun_call(Fun, AVsTmp, Out, InnerTmp, Extra, Goals)
+          ( is_list(AVs), ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs) )
+            -> % Check for type definition [:,HV,TypeChain] and constrain input and output variables:
+               ( catch(match('&self', [':', Fun, TypeChain], TypeChain, [->|Xs]), _, fail),
+                 append(ArgTypes, [OutType], Xs)
+                 -> translate_args_by_type(T, ArgTypes, GsT2, AVsTmp),
+                    append(GsH, GsT2, InnerTmp),
+                    (OutType == '%Undefined%' -> AddGs = [] ; AddGs = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))])
+                  ; AVsTmp  = AllAVs,
+                    InnerTmp = Inner,
+                    AddGs = [] ),
+               % Direct call:
+               length(AVsTmp, N),
+               Arity is N + 1,
+               ( maybe_specialize_call(Fun, AVsTmp, Out, Goal)
+                 -> append(InnerTmp, [Goal|AddGs], Goals)
+                  ; (( (current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)) , \+ (current_op(_, _, Fun), Arity =< 2) )
+                     -> append(AVsTmp, [Out], CallAVsTmp),
+                        Goal =.. [Fun|CallAVsTmp],
+                        append(InnerTmp, [Goal|AddGs], Goals)
+                      ; Out = partial(Fun, AVsTmp),
+                        append(InnerTmp,AddGs,Goals) ))
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -289,26 +297,6 @@ translate_expr([H0|T0], Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
-
-%Retrieve a function's argument and output type signature if available:
-function_type_signature(Fun, ArgTypes, OutType) :-
-    catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail),
-    TypeChain = [->|Xs],
-    append(ArgTypes, [OutType], Xs).
-
-out_type_goals(OutType, _, []) :- OutType == '%Undefined%', !.
-out_type_goals(OutType, Out, [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))]).
-
-dispatch_fun_call(Fun, Args, Out, Inner, ExtraGoals, Goals) :- length(Args, N),
-                                                               Arity is N + 1,
-                                                               ( maybe_specialize_call(Fun, Args, Out, Goal)
-                                                                 -> append(Inner, [Goal|ExtraGoals], Goals)
-                                                                  ; (( (current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)) , \+ (current_op(_, _, Fun), Arity =< 2) )
-                                                                     -> append(Args, [Out], CallArgs),
-                                                                        Goal =.. [Fun|CallArgs],
-                                                                        append(Inner, [Goal|ExtraGoals], Goals)
-                                                                      ; Out = partial(Fun, Args),
-                                                                        append(Inner,ExtraGoals,Goals) )).
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 translate_args_by_type([], _, [], []) :- !.
