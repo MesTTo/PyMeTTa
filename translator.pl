@@ -33,10 +33,11 @@ reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
                          -> % --- Case 1: callable predicate ---
                             length(Args, N),
                             Arity is N + 1,
-                            ( current_predicate(F/Arity) -> append(Args,[Out],CallArgs),
-                                                            Goal =.. [F|CallArgs],
-                                                            catch(call(Goal),_,fail)
-                                                          ; Out = partial(F,Args) )
+                            ( current_predicate(F/Arity) , \+ (current_op(_, _, F), Arity =< 2)
+                              -> append(Args,[Out],CallArgs),
+                                 Goal =.. [F|CallArgs],
+                                 catch(call(Goal),_,fail)
+                               ; Out = partial(F,Args) )
                           ; % --- Case 2: partial closure ---
                             compound(F), F = partial(Base, Bound) -> append(Bound, Args, NewArgs),
                                                                      reduce([Base|NewArgs], Out)
