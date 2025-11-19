@@ -128,16 +128,18 @@ get_function_type([F,Arg], T) :- match('&self', [':',F,['->',A,B]], _, _),
                                  'get-type'(Arg, A),
                                  T = B.
 
-'get-type'(X, 'Number')   :- number(X), !.
-'get-type'(X, 'Variable') :- var(X), !.
-'get-type'(X, 'String')   :- string(X), !.
-'get-type'(true, 'Bool')  :- !.
-'get-type'(false, 'Bool') :- !.
-'get-type'(X, T) :- get_function_type(X,T).
-'get-type'(X, T) :- \+ get_function_type(X, _),
-                    is_list(X),
-                    maplist('get-type', X, T).
-'get-type'(X, T) :- match('&self', [':',X,T], T, _).
+'get-type'(X, T) :- get_type_candidate(X, T) *-> true ; T = '%Undefined%'.
+
+get_type_candidate(X, 'Number')   :- number(X), !.
+get_type_candidate(X, 'Variable') :- var(X), !.
+get_type_candidate(X, 'String')   :- string(X), !.
+get_type_candidate(true, 'Bool')  :- !.
+get_type_candidate(false, 'Bool') :- !.
+get_type_candidate(X, T) :- get_function_type(X,T).
+get_type_candidate(X, T) :- \+ get_function_type(X, _),
+                            is_list(X),
+                            maplist('get-type', X, T).
+get_type_candidate(X, T) :- match('&self', [':',X,T], T, _).
 
 'get-metatype'(X, 'Variable') :- var(X), !.
 'get-metatype'(X, 'Grounded') :- number(X), !.
