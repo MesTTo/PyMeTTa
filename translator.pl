@@ -67,7 +67,7 @@ reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
                             Out = [F|Args],
                             \+ cyclic_term(Out).
 
-% Calling reduce from aggregate function foldall needs this argument wrapping
+%Calling reduce from aggregate function foldall needs this argument wrapping
 agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc).
 
 %Combined expr translation to goals list
