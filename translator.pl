@@ -264,7 +264,8 @@ translate_expr([H0|T0], Goals, Out) :-
                   ; AVsTmp = AllAVs,
                     InnerTmp = Inner,
                     Extra = [] ),
-               length(AllAVs,N), Arity is N + 1,
+               length(AllAVs,N),
+               Arity is N + 1,
                ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
                  -> append(AVsTmp, [Out], ArgsV),
                     Goal =.. [Fun|ArgsV],
