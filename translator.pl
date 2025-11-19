@@ -185,7 +185,7 @@ translate_expr([H0|T0], Goals, Out) :-
              exclude(==(true), [ConjList], CleanConjs),
              append(GsH, CleanConjs, GsMid),
              append(GsMid, [include([XVar]>>(CondConj, CondGoal), L, Out)], Goals)
-        ; HV == '|->', T = [Args, Body] -> uuid(F),
+        ; HV == '|->', T = [Args, Body] -> next_lambda_name(F),
                                            % find free (non-argument) variables in Body
                                            term_variables(Body, AllVars),
                                            exclude({Args}/[V]>>memberchk_eq(V, Args), AllVars, FreeVars),
@@ -353,3 +353,9 @@ build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr_to_conj(E, 
 %Like membercheck but with direct equality rather than unification
 memberchk_eq(V, [H|_]) :- V == H, !.
 memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
+
+%Generate readable lambda name:
+next_lambda_name(Name) :- ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) ),
+                          N is Prev + 1,
+                          nb_setval(lambda_counter, N),
+                          format(atom(Name), 'lambda_~d', [N]).
