@@ -8,13 +8,16 @@ maybe_specialize_call_(HV, AVs, Out, Goal) :- \+ current_function(HV), %We are c
                                               catch(nb_getval(HV, MetaList0), _, fail), %Get all the info about HV
                                               copy_term(MetaList0, MetaList),           %Make a copy to specialize
                                               bind_specialized_args_meta_list(AVs,MetaList,BindSet),
-                                              copy_term(BindSet,BindSetC), term_variables(BindSetC,Vars), %Create name
+                                              copy_term(BindSet,BindSetC),
+                                              term_variables(BindSetC,Vars), %Create name
                                               maplist(=(var),Vars), maplist(term_to_atom,BindSetC,BindSetAtom),
                                               atomic_list_concat([HV, '_Spec_' | BindSetAtom], SpecName),
-                                              maplist({HV,SpecName}/[fun_meta(Args,Body),fun_meta(Args,BodySubst)]>>substitute_nested(HV,Args,SpecName,Body,BodySubst),MetaList,MetaSubsts),
+                                              maplist({HV,SpecName}/[fun_meta(Args,Body),fun_meta(Args,BodySubst)]>>substitute_nested(HV,Args,SpecName,Body,BodySubst), MetaList, MetaSubsts),
                                               ( ho_specialization(HV, SpecName)     %Previously specialzed function
                                                 ; ( register_fun(SpecName), %Register Stuff
-                                                    length(AVs, N),Arity is N + 1,assertz(arity(SpecName, Arity)),
+                                                    length(AVs, N),
+                                                    Arity is N + 1,
+                                                    assertz(arity(SpecName, Arity)),
                                                     ( compile_specialization(HV, MetaSubsts, SpecName) %Compile new Spec
                                                       -> true ; format("Fail unregister~n"), unregister_fun(SpecName/Arity),retractall(arity(SpecName,Arity)),fail ) ) ), !,
                                               append(AVs, [Out], CallArgs),
