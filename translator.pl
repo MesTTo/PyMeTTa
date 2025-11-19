@@ -82,6 +82,14 @@ translate_expr([H0|T0], Goals, Out) :-
                                      append(GsH, [findall(EV, Conj, Out)], Goals)
         ; HV == cut, T = [] -> append(GsH, [(!)], Goals),
                                Out = true
+        ; HV == test, T = [Expr, Expected] -> translate_expr_to_conj(Expr, Conj, Val),
+                                              translate_expr(Expected, GsE, ExpVal),
+                                              Goal1 = ( findall(Val, Conj, Results),
+                                                        (Results = [Actual] -> true
+                                                                             ; Actual = Results ) ),
+                                              append(GsH, [Goal1], G1),
+                                              append(G1, GsE, G2),
+                                              append(G2, [test(Actual, ExpVal, Out)], Goals)
         ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
                                  append(GsH, [once(Conj)], Goals)
         ; HV == hyperpose, T = [L] -> build_hyperpose_branches(L, Branches),
