@@ -14,7 +14,7 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
     Input = [=, [F|Args0], BodyExpr],
     setup_call_cleanup( nb_setval(current, F),
                         ( ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
-                            ; Args1 = Args0, GoalsPrefix = [] ),
+                                           ; Args1 = Args0, GoalsPrefix = [] ),
                           nb_addval(F, fun_meta(Args1, BodyExpr)),
                           translate_expr(BodyExpr, GoalsBody, ExpOut),
                           ( nonvar(ExpOut), ExpOut = partial(Base,Bound)
