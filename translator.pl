@@ -9,32 +9,26 @@ constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsLi
                                   flatten(NestedGoalsList, Goals), !.
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
-translate_clause(Input, (Head :- BodyConj)) :-  translate_clause_(Input, (Head :- BodyConj), true).
-
+translate_clause(Input, (Head :- BodyConj)) :- translate_clause_(Input, (Head :- BodyConj), true).
 translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
     Input = [=, [F|Args0], BodyExpr],
-    setup_call_cleanup(
-        nb_setval(current, F),
-        (   (   ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
-                               ; Args1 = Args0, GoalsPrefix = [] ),
-            nb_addval(F, fun_meta(Args1, BodyExpr)),
+    setup_call_cleanup( nb_setval(current, F),
+                        ( ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA), flatten(GoalsA,GoalsPrefix)
+                            ; Args1 = Args0, GoalsPrefix = [] ),
+                          nb_addval(F, fun_meta(Args1, BodyExpr)),
+                          translate_expr(BodyExpr, GoalsBody, ExpOut),
+                          ( nonvar(ExpOut), ExpOut = partial(Base,Bound)
+                            -> current_predicate(Base/Arity), length(Bound, N), M is (Arity - N) - 1, format("M ~w~n", [M]),
+                               length(ExtraArgs, M), append([Bound,ExtraArgs,[Out]],CallArgs), Goal =.. [Base|CallArgs],
+                               append(GoalsBody,[Goal],GoalsBody1), append(Args1,ExtraArgs,HeadArgs), format("HeadArgs ~w~n", [HeadArgs])
+                             ; GoalsBody1 = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
+                          append(HeadArgs, [Out], FinalArgs),
+                          Head =.. [F|FinalArgs],
+                          append(GoalsPrefix, GoalsBody1, Goals),
+                          goals_list_to_conj(Goals, BodyConj) ),
+                        nb_delete(current)).
 
-            translate_expr(BodyExpr, GoalsBody, ExpOut),
-
-            (  nonvar(ExpOut) , ExpOut = partial(Base,Bound)
-            -> current_predicate(Base/Arity), length(Bound, N), M is (Arity - N) - 1, format("M ~w~n", [M]),
-               length(ExtraArgs, M), append([Bound,ExtraArgs,[Out]],CallArgs), Goal =.. [Base|CallArgs],
-               append(GoalsBody,[Goal],GoalsBody1), append(Args1,ExtraArgs,HeadArgs), format("HeadArgs ~w~n", [HeadArgs])
-            ; GoalsBody1 = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
-
-            append(HeadArgs, [Out], FinalArgs),
-            Head =.. [F|FinalArgs],
-
-            append(GoalsPrefix, GoalsBody1, Goals),
-            goals_list_to_conj(Goals, BodyConj)
-        ),
-        nb_delete(current)).
-
+%Print compiled clause:
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
     swrite(FormTerm, FormStr),
