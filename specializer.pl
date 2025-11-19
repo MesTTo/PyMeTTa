@@ -1,3 +1,5 @@
+:- dynamic ho_specialization/2.
+
 maybe_specialize_call(HV, AVs, Out, Goal) :- setup_call_cleanup( (catch(nb_getval(specsucess,Prev),_,Prev = []), nb_setval(specsucess,false) ),
                                                                  maybe_specialize_call_(HV, AVs, Out, Goal),
                                                                  (Prev == true ->  nb_setval(specsucess,Prev) ; true) ).
