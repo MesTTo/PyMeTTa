@@ -369,3 +369,9 @@ build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr_to_conj(E, 
 %Like membercheck but with direct equality rather than unification
 memberchk_eq(V, [H|_]) :- V == H, !.
 memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
+
+%Generate readable lambda name:
+next_lambda_name(Name) :- ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) ),
+                          N is Prev + 1,
+                          nb_setval(lambda_counter, N),
+                          format(atom(Name), 'lambda_~d', [N]).

@@ -50,11 +50,6 @@ nb_addval(Key,Value) :- catch(nb_getval(Key,Prev), _, Prev =[]),
 
 current_function(Current) :- catch(nb_getval(current, Current), _, Current = none).
 
-next_lambda_name(Name) :- ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) ),
-                          N is Prev + 1,
-                          nb_setval(lambda_counter, N),
-                          format(atom(Name), 'lambda_~d', [N]).
-
 restore_current(none) :- catch(nb_delete(current), _, true), !.
 restore_current(Value) :- nb_setval(current, Value).
 
