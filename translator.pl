@@ -260,8 +260,7 @@ translate_expr([H0|T0], Goals, Out) :-
                     (IsPartial -> append(Bound,AVsTmp0,AVsTmp) ; AVsTmp = AVsTmp0),
                     append(GsH, GsT2, InnerTmp),
                     ( (OutType == '%Undefined%' ; OutType == 'Atom')
-                      -> Extra = []
-                       ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
+                      -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
                   ; AVsTmp = AllAVs,
                     InnerTmp = Inner,
                     Extra = [] ),
