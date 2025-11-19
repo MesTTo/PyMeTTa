@@ -165,7 +165,8 @@ get_function_type([F,Arg], T) :- match('&self', [':',F,['->',A,B]], _, _),
 test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
-                  format("is ~w, should ~w. ~w ~n", [RA, RB, E]).
+                  format("is ~w, should ~w. ~w ~n", [RA, RB, E]),
+                  (A =@= B -> true ; halt(1)).
 
 assert(Goal, true) :- ( call(Goal) -> true
                                     ; swrite(Goal, RG),
