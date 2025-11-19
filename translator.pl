@@ -275,7 +275,7 @@ translate_expr([H0|T0], Goals, Out) :-
                     append(GsH, GsT2, InnerTmp),
                     ( (OutType == '%Undefined%' ; OutType == 'Atom')
                       -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
-                  ; AVsTmp  = AllAVs,
+                  ; AVsTmp = AllAVs,
                     InnerTmp = Inner,
                     Extra = [] ),
                length(AVsTmp, N),
