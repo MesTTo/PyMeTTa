@@ -1,9 +1,14 @@
 :- dynamic ho_specialization/2.
 
-%Maybe specializes HV(AVs); if specialization fails, nothing changes and specneeded is restored:
-maybe_specialize_call(HV, AVs, Out, Goal) :- setup_call_cleanup( (catch(nb_getval(specneeded,Prev),_,Prev = []), nb_setval(specneeded,false)),
+%Maybe specializes HV(AVs) if not already ongoing, and if specialization fails, nothing changes and specneeded is restored:
+maybe_specialize_call(HV, _, _, _) :- catch(nb_getval(current_stack, S), _, S = []),
+                                      memberchk(HV, S), !, fail.
+maybe_specialize_call(HV, AVs, Out, Goal) :- catch(nb_getval(current_stack, S0), _, S0 = []),
+                                             S = [HV|S0],
+                                             nb_setval(current_stack, S),
+                                             setup_call_cleanup( (catch(nb_getval(specneeded,Prev),_,Prev = []), nb_setval(specneeded,false)),
                                                                  specialize_call(HV, AVs, Out, Goal),
-                                                                 (Prev == true -> nb_setval(specneeded,Prev)) ).
+                                                                 (catch(nb_getval(current_stack, [_|S1]), _, S1 = []), nb_setval(current_stack, S1), (Prev == true -> nb_setval(specneeded,Prev))) ).
 
 %Specialize a call by creating and translating a specialized version of the MeTTa code:
 specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the function currently being compile:
