@@ -2,7 +2,9 @@
 
 %Maybe specializes HV(AVs) if not already ongoing, and if specialization fails, nothing changes and specneeded is restored:
 maybe_specialize_call(HV, _, _, _) :- catch(nb_getval(stack, S), _, S = []),
-                                      memberchk(HV, S), !, fail.
+                                      aggregate_all(count, member(HV, S), N),
+                                      N >= 2, !, fail.
+
 maybe_specialize_call(HV, AVs, Out, Goal) :- catch(nb_getval(stack, S0), _, S0 = []),
                                              S = [HV|S0],
                                              nb_setval(stack, S),
@@ -49,6 +51,8 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                %6.4 Only proceeed specializing if any recursive call profited from specialization with the specialized function at head position:
                                                nb_getval(specneeded, true),
                                                %6.5 Assert and print each of the created specializations:
+                                               unregister_fun(SpecName/Arity),
+                                               retractall(arity(SpecName,Arity)),
                                                forall(member(clause_info(Input, Clause), ClauseInfos),
                                                ( assertz(Clause),
                                                  format(atom(Label), "metta specialization (~w)", [SpecName]),
