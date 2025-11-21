@@ -63,7 +63,7 @@ specializable_vars(_, Value, _, []) :- var(Value), !.
 specializable_vars(BodyExpr, Value, Arg, HoVars) :-
     term_variables(Arg, Vars),
     copy_term(Arg-Vars, ArgCopy-VarsCopy),
-    ( is_list(Value) -> maplist(bind_if_nonvar, ArgCopy, Value)
+    ( is_list(Value) -> traverse_list(bind_if_nonvar, ArgCopy, Value)
                      ;  Value = ArgCopy),
     eligible_var_pairs(Vars, VarsCopy, BodyExpr, HoVars).
 
