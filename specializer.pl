@@ -59,20 +59,13 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                        Goal =.. [SpecName|CallArgs].
 
 %Extracts clause-head variables and their call-site copies, producing eligible Var–Copy pairs for specialization:
-specializable_vars(_, Value, _, []) :- var(Value), !.
-specializable_vars(BodyExpr, Value, Arg, HoVars) :-
-    term_variables(Arg, Vars),
-    copy_term(Arg-Vars, ArgCopy-VarsCopy),
-    ( is_list(Value) -> traverse_list(bind_if_nonvar, ArgCopy, Value)
-                     ;  Value = ArgCopy),
-    eligible_var_pairs(Vars, VarsCopy, BodyExpr, HoVars).
+specializable_vars(BodyExpr, Value, Arg, HoVars) :- term_variables(Arg, Vars),
+                                                    copy_term(Arg-Vars, ArgCopy-VarsCopy),
+                                                    traverse_list([A,V]>>(nonvar(V) ->  V = A;  true), ArgCopy, Value),
+                                                    eligible_var_pairs(Vars, VarsCopy, BodyExpr, HoVars).
 
-bind_if_nonvar(A, V) :- (nonvar(V) ->  V = A;  true).
-
-traverse_list(_, From, _) :- var(From), !.
-traverse_list(_, [], []) :- !.
-traverse_list(Pred, [F|Fs], [V|Vs]) :- !, traverse_list(Pred, F, V),traverse_list(Pred, Fs, Vs).
-traverse_list(Pred, FromLeaf, IntoLeaf) :- call(Pred, FromLeaf, IntoLeaf).
+traverse_list(Pred, From, Into) :- (is_list(From),is_list(Into) -> maplist(traverse_list(Pred),From,Into)
+                                                                 ; call(Pred, From, Into)).
 
 %Selects and unifies variable–argument pairs that act as higher-order or head operands in the body:
 eligible_var_pairs([], [], _, []).
