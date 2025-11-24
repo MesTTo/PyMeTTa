@@ -236,11 +236,94 @@ assertaPredicate(G, true) :- asserta(G).
 retractPredicate(G, true) :- retract(G), !.
 retractPredicate(_, false).
 
+library(X,Path) :- library_path(Base), atomic_list_concat([Base,'/',X,'.metta'],Path).
+
 %%% Registration: %%%
-'import!'(Space, File, true) :- atom_string(File, SFile),
-                                working_dir(Base),
-                                atomic_list_concat([Base, '/', SFile, '.metta'], Path),
-                                load_metta_file(Path, _, Space).
+'import!'(Space, RelPath, true) :- atom_string(RelPath, SRelPath),
+                                     working_dir(Base),
+                                     atomic_list_concat([Base, '/', SRelPath, '.metta'], Path),
+                                     format("Trying to load rel file ~w~n", [Path]),
+                                     access_file(Path, read), !,
+                                     load_metta_file(Path,_,Space).
+
+'import!'(Space, AbsPath, true) :- atom_string(AbsPath, SAbsPath),
+                                     format("Trying to load abs file ~w~n", [SAbsPath]),
+                                     access_file(SAbsPath, read), !,
+                                     format("Loaded abs file ~w~n", [SAbsPath]),
+                                     load_metta_file(SAbsPath,_,Space).
+
+:- use_module(library(process)).
+:- use_module(library(filesex)).
+:- use_module(library(apply)).
+:- use_module(library(lists)).
+
+%% import_git!(+GitPath) is det.
+%% import_git!(+GitPath, +BaseDir) is det.
+%%
+%% GitPath:  git URL or ssh path, e.g.
+%%   "https://github.com/foo/bar.git"
+%%   "git@github.com:foo/bar.git"
+%%
+%% BaseDir:  where to keep checkouts (default: "./repos")
+%%
+%% Clones repo if not already present, then loads all *.metta
+%% files in the repo root via load_metta_file/2.
+%%
+'import_git!'(GitPath,true) :- 'import_git!'(GitPath, './repos',true).
+
+'import_git!'(GitPath, BaseDir,true) :-
+    format("Importing git repo ~w into ~w~n", [GitPath, BaseDir]),
+    ( exists_directory(BaseDir) -> true ; make_directory_path(BaseDir)),
+    repo_name_from_git(GitPath, Name),
+    directory_file_path(BaseDir, Name, LocalDir),
+    ( exists_directory(LocalDir) -> true ; clone_repo(GitPath, LocalDir)),
+    load_root_metta_files(LocalDir).
+
+%% repo_name_from_git(+GitPath, -Name) is det.
+%% Extract "repo" from ".../repo.git" or "...:repo.git"
+repo_name_from_git(GitPath, Name) :-
+    atom_string(GitPath, S),
+    % split on "/" and ":" to get last segment
+    split_string(S, "/:", "/:", Parts),
+    last(Parts, Last0),
+    % drop trailing ".git" if present
+    ( sub_string(Last0, _, 4, 0, ".git") ->
+        sub_string(Last0, 0, _, 4, Last)
+    ; Last = Last0
+    ),
+    atom_string(Name, Last).
+
+%% clone_repo(+GitPath, +LocalDir) is det.
+clone_repo(GitPath, LocalDir) :-
+    format("Cloning ~w into ~w~n", [GitPath, LocalDir]),
+    process_create(path(git),
+                   ['clone', '--depth', '1', GitPath, LocalDir],
+                   [stdout(pipe(Out)), stderr(pipe(Err))]),
+    read_string(Out, _, OutStr),
+    read_string(Err, _, ErrStr),
+    close(Out), close(Err),
+    ( OutStr \= "" -> format("git stdout:~n~s~n", [OutStr]) ; true ),
+    ( ErrStr \= "" -> format("git stderr:~n~s~n", [ErrStr]) ; true ).
+
+%% load_root_metta_files(+LocalDir) is det.
+load_root_metta_files(LocalDir) :-
+    directory_files(LocalDir, Entries0),
+    exclude(is_dot_entry, Entries0, Entries),
+    include(is_metta_file, Entries, MettaFiles),
+    maplist(load_one_metta(LocalDir), MettaFiles).
+
+is_dot_entry('.').
+is_dot_entry('..').
+
+is_metta_file(File) :-
+    file_name_extension(_, 'metta', File).
+
+load_one_metta(Dir, File) :-
+    directory_file_path(Dir, File, AbsPath),
+    atom_string(AbsPath, SAbsPath),
+    access_file(SAbsPath, read),
+    !,
+    load_metta_file(SAbsPath, _).
 
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
@@ -259,5 +342,5 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
-                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time',
+                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, 'import_git!',
                           import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate]).
