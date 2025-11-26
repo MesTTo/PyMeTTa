@@ -9,7 +9,7 @@ prolog_interop_example :- register_fun(prologfunc),
                           format("mettafunc(30) = ~w~n", [R]).
 
 :- prolog_load_context(directory, Source),
-   string_concat(Source,"/../lib",LibPath),
+   string_concat(Source, "/../lib", LibPath),
    asserta(library_path(LibPath)).
 
 main :- current_prolog_flag(argv, Args),
