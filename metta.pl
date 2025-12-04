@@ -239,17 +239,20 @@ retractPredicate(G, true) :- retract(G), !.
 retractPredicate(_, false).
 
 %%% Library / Import: %%%
-library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X, '.metta'], Path).
 
-'import!'(Space, RelPath, true) :- atom_string(RelPath, SRelPath),
-                                   working_dir(Base),
-                                   atomic_list_concat([Base, '/', SRelPath, '.metta'], Path),
-                                   access_file(Path, read), !,
-                                   load_metta_file(Path, _, Space).
+ensure_metta_ext(Path, PathWithExt) :- ( sub_atom(Path, _, 6, 0, '.metta')
+                                        -> PathWithExt = Path
+                                        ;  atom_concat(Path, '.metta', PathWithExt) ).
 
-'import!'(Space, AbsPath, true) :- atom_string(AbsPath, SAbsPath),
-                                   access_file(SAbsPath, read), !,
-                                   load_metta_file(SAbsPath, _, Space).
+library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path).
+
+'import!'(Space, InputPath, true) :- atom_string(InputPath, SPath),
+                                   (Path = SPath
+                                   ;working_dir(Base)
+                                   ,atomic_list_concat([Base, '/', SPath], Path)),
+                                   ensure_metta_ext(Path, PathWithExt),
+                                   exists_file(PathWithExt), !,
+                                   load_metta_file(PathWithExt, _, Space).
 
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
@@ -268,5 +271,5 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
-                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library,
+                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, exists_file,
                           import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate]).
