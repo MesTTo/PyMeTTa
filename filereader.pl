@@ -10,8 +10,8 @@ load_metta_file(Filename, Results, Space) :- read_file_to_string(Filename, S, []
 
 %Extract function definitions, call invocations, and S-expressions part of &self space:
 process_metta_string(S, Results) :- process_metta_string(S, Results, '&self').
-process_metta_string(S, Results, Space) :- re_replace("(;[^\n]*)"/g, "", S, Clean),
-                                           string_codes(Clean, Codes),
+process_metta_string(S, Results, Space) :- string_codes(S, Cs),
+                                           strip(Cs, 0, Codes),
                                            phrase(top_forms(Forms, 1), Codes),
                                            maplist(parse_form, Forms, ParsedForms),
                                            maplist(process_form(Space), ParsedForms, ResultsList), !,
@@ -45,16 +45,30 @@ newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
 newlines(C, C) --> blanks.
 
 %Collect characters until all parentheses are balanced (depth 0), accumulating codes also count newlines:
-grab_until_balanced(D,Acc,Cs,LC0,LC2) --> [C], { ( C=0'( -> D1 is D+1 ; C=0') -> D1 is D-1 ; D1=D ), Acc1=[C|Acc],
-                                                 ( C=10 -> LC1 is LC0+1 ; LC1 = LC0) },
-                                          ( { D1=:=0 } -> { reverse(Acc1,Cs) , LC2 = LC1 } ; grab_until_balanced(D1,Acc1,Cs,LC1,LC2) ).
+grab_until_balanced(D, Acc, Cs, LC0, LC2, InS) --> [C], { ( C=0'" -> InS1 is 1-InS ; InS1 = InS ),
+                                                                     ( InS = 0 -> ( C=0'( -> D1 is D+1
+                                                                                           ; C=0') -> D1 is D-1
+                                                                                                    ; D1 = D )
+                                                                                ; D1 = D ),
+                                                                     Acc1=[C|Acc],
+                                                                     ( C=10 -> LC1 is LC0+1 ; LC1 = LC0 ) },
+                                                          ( { D1=:=0, InS1=0 } -> { reverse(Acc1,Cs) , LC2 = LC1 }
+                                                                                ; grab_until_balanced(D1,Acc1,Cs,LC1,LC2,InS1) ).
 
 %Read a balanced (...) block if available, turn into string, then continue with rest, ignoring comments:
 top_forms([],_) --> blanks, eos.
 top_forms([Term|Fs], LC0) --> newlines(LC0, LC1),
                               ( "!" -> {Tag = bang} ; {Tag = form} ),
                               ( "(" -> [] ; string_without("\n", Rest), { format("Parse error: expected '(' or '!(', line ~w:~n~s~n", [LC1, Rest]), halt(1) } ),
-                              ( grab_until_balanced(1, [0'(], Cs, LC1, LC2)
+                              ( grab_until_balanced(1, [0'(], Cs, LC1, LC2, 0)
                                 -> { true } ; string_without("\n", Rest), { format("Parse error: missing ')', starting at line ~w:~n~s~n", [LC1, Rest]), halt(1) } ),
                               { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
                               top_forms(Fs, LC2).
+
+%Strip off code that is commented out, while tracking when inside of string:
+strip([], _, []).
+strip([0'"|R], 0, [0'"|O]) :- !, strip(R, 1, O).
+strip([0'"|R], 1, [0'"|O]) :- !, strip(R, 0, O).
+strip([0'\n|R], In, [0'\n|O]) :- !, strip(R, In, O).
+strip([0';|R], 0, Out) :- !, append(_, [0'\n|Rest], R), strip(Rest, 0, Out).
+strip([C|R], In, [C|O]) :- strip(R, In, O).
