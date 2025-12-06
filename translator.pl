@@ -95,6 +95,10 @@ translate_expr([H0|T0], Goals, Out) :-
                                  append(GsH, [once(Conj)], Goals)
         ; HV == hyperpose, T = [L] -> build_hyperpose_branches(L, Branches),
                                       append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+        ; HV == with_mutex, T = [M,X] -> translate_expr_to_conj(X, Conj, Out),
+                                         append(GsH, [with_mutex(M,Conj)], Goals)
+        ; HV == transaction, T = [X] -> translate_expr_to_conj(X, Conj, Out),
+                                        append(GsH, [transaction(Conj)], Goals)
         %--- Sequential execution ---:
         ; HV == progn, T = Exprs -> translate_args(Exprs, GsList, Outs),
                                     append(GsH, GsList, Tmp),
@@ -212,7 +216,7 @@ translate_expr([H0|T0], Goals, Out) :-
                                                                    append(GsH, [Goal], Goals)
         ; HV == match, T = [Space, Pattern, Body] -> translate_expr(Space, G1, S),
                                                      translate_expr(Body, GsB, Out),
-                                                     append(G1, [match(S, Pattern, Body, Body)], G2),
+                                                     append(G1, [match(S, Pattern, Out, Out)], G2),
                                                      append(G2, GsB, Goals)
         %--- Manual dispatch options: ---
         %Generate a predicate call on compilation, translating Args for nesting:
