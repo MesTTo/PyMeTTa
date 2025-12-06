@@ -21,30 +21,30 @@ process_metta_string(S, Results, Space) :- string_codes(S, Cs),
 parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
                                            ( Term = [=, [F|W], _], atom(F) -> register_fun(F), length(W, N), Arity is N + 1, assertz(arity(F,Arity)), T=function
                                                                             ; T=expression ).
-parse_form(bang(S), parsed(bang, S, Term)) :- sread(S, Term).
+parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 
 %Second pass to compile / run / add the Terms:
 process_form(Space, parsed(expression, _, Term), []) :- 'add-atom'(Space, Term, true).
-process_form(_, parsed(bang, FormStr, Term), Result) :- translate_expr([collapse, Term], Goals, Result),
-                                                        ( silent(true) -> true ; format("\e[33m-->   metta bang  -->~n\e[36m!~w~n\e[33m-->  prolog goal  -->\e[35m ~n", [FormStr]),
-                                                                                 forall(member(G, Goals), portray_clause((:- G))),
-                                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
-                                                        call_goals(Goals).
+process_form(_, parsed(runnable, FormStr, Term), Result) :- translate_expr([collapse, Term], Goals, Result),
+                                                            ( silent(true) -> true ; format("\e[33m--> metta runnable  -->~n\e[36m!~w~n\e[33m-->  prolog goal  -->\e[35m ~n", [FormStr]),
+                                                                                     forall(member(G, Goals), portray_clause((:- G))),
+                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
+                                                            call_goals(Goals).
 process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term),
                                                             translate_clause(Term, Clause),
                                                             assertz(Clause, Ref),
-                                                            ( silent(true) -> true ; format("\e[33m-->  metta func   -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
+                                                            ( silent(true) -> true ; format("\e[33m--> metta function -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
                                                                                      clause(Head, Body, Ref),
                                                                                      ( Body == true -> Show = Head; Show = (Head :- Body) ),
                                                                                      portray_clause(current_output, Show),
-                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
+                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
 process_form(_, In, _) :- format('Failed to process form: ~w~n', [In]), halt(1).
 
 %Like blanks but counts newlines:
 newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
 newlines(C, C) --> blanks.
 
-%Collect characters until all parentheses are balanced (depth 0), accumulating codes also count newlines:
+%Collect characters until all parentheses are balanced (depth 0), accumulating codes, and also counting newlines:
 grab_until_balanced(D, Acc, Cs, LC0, LC2, InS) --> [C], { ( C=0'" -> InS1 is 1-InS ; InS1 = InS ),
                                                                      ( InS = 0 -> ( C=0'( -> D1 is D+1
                                                                                            ; C=0') -> D1 is D-1
@@ -58,7 +58,7 @@ grab_until_balanced(D, Acc, Cs, LC0, LC2, InS) --> [C], { ( C=0'" -> InS1 is 1-I
 %Read a balanced (...) block if available, turn into string, then continue with rest, ignoring comments:
 top_forms([],_) --> blanks, eos.
 top_forms([Term|Fs], LC0) --> newlines(LC0, LC1),
-                              ( "!" -> {Tag = bang} ; {Tag = form} ),
+                              ( "!" -> {Tag = runnable} ; {Tag = form} ),
                               ( "(" -> [] ; string_without("\n", Rest), { format("Parse error: expected '(' or '!(', line ~w:~n~s~n", [LC1, Rest]), halt(1) } ),
                               ( grab_until_balanced(1, [0'(], Cs, LC1, LC2, 0)
                                 -> { true } ; string_without("\n", Rest), { format("Parse error: missing ')', starting at line ~w:~n~s~n", [LC1, Rest]), halt(1) } ),
