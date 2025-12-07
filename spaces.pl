@@ -8,6 +8,12 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
                                Term =.. [Space, Rel | Args],
                                assertz(Term).
 
+%Same but for removal:
+remove_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
+                                  ensure_dynamic_arity(Space, Arity),
+                                  Term =.. [Space, Rel | Args],
+                                  retractall(Term).
+
 %Add a function atom:
 'add-atom'(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                  add_sexp(Space, Term),
@@ -28,7 +34,7 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
 
 %%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_], !,
-                                         retractall(Term),
+                                         remove_sexp('&self', Term),
                                          translate_clause(Term, Cl),
                                          ( retract(Cl) -> length(Ins, K),
                                                           unregister_fun(F/K),
@@ -36,10 +42,7 @@ add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
                                                         ; Removed=false ).
 
 %Remove all same atoms:
-'remove-atom'(Space, [Rel|Args], true) :- length(Args, N), Arity is N + 2,
-                                          ensure_dynamic_arity(Space, Arity),
-                                          Term =.. [Space, Rel | Args],
-                                          retractall(Term).
+'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term).
 
 %Match for conjunctive pattern
 match(_, LComma, OutPattern, Result) :- LComma == [','], !,
