@@ -253,7 +253,7 @@ library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path)
                                      py_call(sys:path:append(Dir), _),
                                      py_call(builtins:'__import__'(ModuleName), _)
                                    ; ( Path = SFile
-                                     ; atomic_list_concat([Base, '/', SFile], Path),
+                                     ; atomic_list_concat([Base, '/', SFile], Path)
                                      ),
                                      ensure_metta_ext(Path, PathWithExt),
                                      exists_file(PathWithExt), !,
