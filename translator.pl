@@ -95,6 +95,10 @@ translate_expr([H0|T0], Goals, Out) :-
                                  append(GsH, [once(Conj)], Goals)
         ; HV == hyperpose, T = [L] -> build_hyperpose_branches(L, Branches),
                                       append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+        ; HV == with_mutex, T = [M,X] -> translate_expr_to_conj(X, Conj, Out),
+                                         append(GsH, [with_mutex(M,Conj)], Goals)
+        ; HV == transaction, T = [X] -> translate_expr_to_conj(X, Conj, Out),
+                                        append(GsH, [transaction(Conj)], Goals)
         %--- Sequential execution ---:
         ; HV == progn, T = Exprs -> translate_args(Exprs, GsList, Outs),
                                     append(GsH, GsList, Tmp),
@@ -188,7 +192,8 @@ translate_expr([H0|T0], Goals, Out) :-
         ; HV == '|->', T = [Args, Body] -> next_lambda_name(F),
                                            % find free (non-argument) variables in Body
                                            term_variables(Body, AllVars),
-                                           exclude({Args}/[V]>>memberchk_eq(V, Args), AllVars, FreeVars),
+                                           term_variables(Args, ArgVars),
+                                           exclude({ArgVars}/[V]>>memberchk_eq(V, ArgVars), AllVars, FreeVars),
                                            append(FreeVars, Args, FullArgs),
                                            % compile clause with all bound + free vars
                                            translate_clause([=, [F|FullArgs], Body], Clause),

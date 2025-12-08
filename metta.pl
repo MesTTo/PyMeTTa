@@ -14,7 +14,7 @@
 :- use_module(library(process)).
 :- use_module(library(filesex)).
 :- current_prolog_flag(argv, Argv),
-   ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, morkspaces, spaces])
+   ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, '../mork_ffi/morkspaces', spaces])
                          ; ensure_loaded([parser, translator, filereader, spaces])).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
@@ -239,21 +239,27 @@ retractPredicate(G, true) :- retract(G), !.
 retractPredicate(_, false).
 
 %%% Library / Import: %%%
-
-ensure_metta_ext(Path, PathWithExt) :- ( sub_atom(Path, _, 6, 0, '.metta')
-                                        -> PathWithExt = Path
-                                        ;  atom_concat(Path, '.metta', PathWithExt) ).
+ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
+ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
 library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path).
 
-'import!'(Space, InputPath, true) :- atom_string(InputPath, SPath),
-                                   (Path = SPath
-                                   ;working_dir(Base)
-                                   ,atomic_list_concat([Base, '/', SPath], Path)),
-                                   ensure_metta_ext(Path, PathWithExt),
-                                   exists_file(PathWithExt), !,
-                                   load_metta_file(PathWithExt, _, Space).
+'import!'(Space, File, true) :- atom_string(File, SFile),
+                                working_dir(Base),
+                                ( file_name_extension(ModPath, 'py', SFile)
+                                  -> absolute_file_name(SFile, Path, [relative_to(Base)]),
+                                     file_directory_name(Path, Dir),
+                                     file_base_name(ModPath, ModuleName),
+                                     py_call(sys:path:append(Dir), _),
+                                     py_call(builtins:'__import__'(ModuleName), _)
+                                   ; ( Path = SFile
+                                     ; atomic_list_concat([Base, '/', SFile], Path),
+                                     ),
+                                     ensure_metta_ext(Path, PathWithExt),
+                                     exists_file(PathWithExt), !,
+                                     load_metta_file(PathWithExt, _, Space) ).
 
+%%% Registration: %%%
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 unregister_fun(N/Arity) :- retractall(fun(N)),
