@@ -1,5 +1,10 @@
 %%%%%%%%%% Dependencies %%%%%%%%%%
-
+library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path).
+library(X, Y, Path) :- library_path(Base), atomic_list_concat([Base, '/../', X, '/', Y], Path).
+:- prolog_load_context(directory, Source),
+   directory_file_path(Source, '..', Parent),
+   directory_file_path(Parent, 'lib', LibPath),
+   asserta(library_path(LibPath)).
 :- autoload(library(uuid)).
 :- use_module(library(random)).
 :- use_module(library(janus)).
@@ -16,10 +21,6 @@
 :- current_prolog_flag(argv, Argv),
    ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, '../mork_ffi/morkspaces', spaces])
                          ; ensure_loaded([parser, translator, filereader, spaces])).
-
-:- prolog_load_context(directory, Source),
-   string_concat(Source, "/../lib", LibPath),
-   asserta(library_path(LibPath)).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
@@ -245,9 +246,6 @@ retractPredicate(_, false).
 %%% Library / Import: %%%
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
-
-library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path).
-library(X, Y, Path) :- library_path(Base), atomic_list_concat([Base, '/../', X, '/', Y], Path).
 
 'import!'(Space, File, true) :- atom_string(File, SFile),
                                 working_dir(Base),
