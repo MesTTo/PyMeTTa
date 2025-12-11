@@ -243,6 +243,7 @@ ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
 library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path).
+library(X, Y, Path) :- library_path(Base), atomic_list_concat([Base, '/../', X, '/', Y], Path).
 
 'import!'(Space, File, true) :- atom_string(File, SFile),
                                 working_dir(Base),
@@ -252,9 +253,7 @@ library(X, Path) :- library_path(Base), atomic_list_concat([Base, '/', X], Path)
                                      file_base_name(ModPath, ModuleName),
                                      py_call(sys:path:append(Dir), _),
                                      py_call(builtins:'__import__'(ModuleName), _)
-                                   ; ( Path = SFile
-                                     ; atomic_list_concat([Base, '/', SFile], Path)
-                                     ),
+                                   ; ( Path = SFile ; atomic_list_concat([Base, '/', SFile], Path) ),
                                      ensure_metta_ext(Path, PathWithExt),
                                      exists_file(PathWithExt), !,
                                      load_metta_file(PathWithExt, _, Space) ).
