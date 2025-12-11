@@ -159,7 +159,10 @@ translate_expr([H0|T0], Goals, Out) :-
         ; HV == 'foldall', T = [AF, GF, InitS]
           -> translate_expr_to_conj(InitS, ConjInit, Init),
              translate_expr(AF, GsAF, AFV),
-             ( is_list(GF) -> GF = [GFH|GFA],
+             ( GF = [M|_], M==match -> LambdaGF = ['|->', [], GF],
+                                       translate_expr(LambdaGF, GsGF, GFHV),
+                                       GenList = [GFHV]
+             ; is_list(GF) -> GF = [GFH|GFA],
                               translate_expr(GFH, GsGFH, GFHV),
                               translate_args(GFA, GsGFA, GFAv),
                               append(GsGFH, GsGFA, GsGF),
