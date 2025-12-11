@@ -17,6 +17,10 @@
    ( member(mork, Argv) -> ensure_loaded([parser, translator, filereader, '../mork_ffi/morkspaces', spaces])
                          ; ensure_loaded([parser, translator, filereader, spaces])).
 
+:- prolog_load_context(directory, Source),
+   string_concat(Source, "/../lib", LibPath),
+   asserta(library_path(LibPath)).
+
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Representation conversion: %%%
