@@ -108,6 +108,7 @@ empty(_) :- fail.
 'cons-atom'(H, T, [H|T]).
 'decons-atom'([H|T], [H|[T]]).
 'first-from-pair'([A, _], A).
+first([A, _], A).
 'second-from-pair'([_, A], A).
 'unique-atom'(A, B) :- list_to_set(A, B).
 'sort-atom'(List, Sorted) :- msort(List, Sorted).
@@ -270,7 +271,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec', atom_concat, atom_chars, copy_term, term_hash,
-                          foldl, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
+                          foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
