@@ -110,6 +110,11 @@ translate_expr([H0|T0], Goals, Out) :-
                                     append(GsH, GsF, Tmp1),
                                     append(Tmp1, GsRest, Goals)
         %--- Conditionals ---:
+        ; HV == if, T = [Cond, Then] -> translate_expr_to_conj(Cond, ConC, Cv),
+                                        translate_expr_to_conj(Then, ConT, Tv),
+                                        build_branch(ConT, Tv, Out, BT),
+                                        ( ConC == true -> append(GsH, [ ( Cv == true -> BT ) ], Goals)
+                                                        ; append(GsH, [ ( ConC, ( Cv == true -> BT ) ) ], Goals) )
         ; HV == if, T = [Cond, Then, Else] -> translate_expr_to_conj(Cond, ConC, Cv),
                                               translate_expr_to_conj(Then, ConT, Tv),
                                               translate_expr_to_conj(Else, ConE, Ev),
