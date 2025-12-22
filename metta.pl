@@ -261,6 +261,8 @@ ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWith
                                      exists_file(PathWithExt), !,
                                      load_metta_file(PathWithExt, _, Space) ).
 
+set_hook(H,true) :- nb_setval(hook, H).
+
 %%% Registration: %%%
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
@@ -274,7 +276,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
-                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','set_hook',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',

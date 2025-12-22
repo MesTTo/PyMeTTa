@@ -29,7 +29,7 @@ goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
+reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F) 
                          -> % --- Case 1: callable predicate ---
                             length(Args, N),
                             Arity is N + 1,
@@ -226,6 +226,17 @@ translate_expr([H0|T0], Goals, Out) :-
                                                      translate_expr(Body, GsB, Out),
                                                      append(G1, [match(S, Pattern, Out, Out)], G2),
                                                      append(G2, GsB, Goals)
+        %--- Hooks ---:
+        ; catch(nb_getval(hook, Hook),_,fail), Hook == HV -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+                                                -> TypeChain = [->|Xs],
+                                                   append(ArgTypes, [_], Xs),
+                                                   translate_args_by_type(T, ArgTypes, GsT, T1)
+                                                ;  translate_args(T, GsT, T1)),
+                                               append(T1,[[Gs,Out]],Args),
+                                               HookCall =.. [HV|Args],
+                                               call(HookCall),
+                                               maplist(=..,GsE,Gs),
+                                               append([GsH,GsT,GsE],Goals)
         %--- Manual dispatch options: ---
         %Generate a predicate call on compilation, translating Args for nesting:
         ; HV == call,  T = [Expr] -> Expr = [F|Args],
@@ -257,6 +268,7 @@ translate_expr([H0|T0], Goals, Out) :-
                        Exception,
                        (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
+
           append(Inner, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
