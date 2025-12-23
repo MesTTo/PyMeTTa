@@ -75,8 +75,19 @@ translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
 translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
+        %--- Translator rules ---:
+        ( translator_rule(HV) -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+                                   -> TypeChain = [->|Xs],
+                                      append(ArgTypes, [_], Xs),
+                                      translate_args_by_type(T, ArgTypes, GsT, T1)
+                                    ; translate_args(T, GsT, T1) ),
+                                 append(T1,[Gs],Args),
+                                 HookCall =.. [HV|Args],
+                                 call(HookCall),
+                                 translate_expr(Gs, GsE, Out),
+                                 append([GsH,GsT,GsE],Goals)
         %--- Non-determinism ---:
-        ( HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
+        ; HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
                                                         disj_list(Branches, Disj),
                                                         append(GsH, [Disj], Goals)
         ; HV == collapse, T = [E] -> translate_expr_to_conj(E, Conj, EV),
@@ -226,17 +237,6 @@ translate_expr([H0|T0], Goals, Out) :-
                                                      translate_expr(Body, GsB, Out),
                                                      append(G1, [match(S, Pattern, Out, Out)], G2),
                                                      append(G2, GsB, Goals)
-        %--- Translator rules ---:
-        ; translator_rule(HV) -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                                   -> TypeChain = [->|Xs],
-                                      append(ArgTypes, [_], Xs),
-                                      translate_args_by_type(T, ArgTypes, GsT, T1)
-                                    ; translate_args(T, GsT, T1) ),
-                                 append(T1,[Gs],Args),
-                                 HookCall =.. [HV|Args],
-                                 call(HookCall),
-                                 translate_expr(Gs, GsE, Out),
-                                 append([GsH,GsT,GsE],Goals)
         %--- Predicate to compiled goal ---:
         ; HV == translatePredicate, T = [Expr] -> Expr = [S|Args],
                                                   translate_args(Args, GsArgs, ArgsOut),
