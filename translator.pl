@@ -232,10 +232,10 @@ translate_expr([H0|T0], Goals, Out) :-
                                       append(ArgTypes, [_], Xs),
                                       translate_args_by_type(T, ArgTypes, GsT, T1)
                                     ; translate_args(T, GsT, T1) ),
-                                 append(T1,[[Gs,Out]],Args),
+                                 append(T1,[Gs],Args),
                                  HookCall =.. [HV|Args],
                                  call(HookCall),
-                                 maplist(=..,GsE,Gs),
+                                 translate_expr(Gs, GsE, Out),
                                  append([GsH,GsT,GsE],Goals)
         %--- Manual dispatch options: ---
         %Generate a predicate call on compilation, translating Args for nesting:
