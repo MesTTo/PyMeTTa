@@ -239,10 +239,10 @@ translate_expr([H0|T0], Goals, Out) :-
                                  append([GsH,GsT,GsE],Goals)
         %--- Predicate to compiled goal ---:
         ; HV == translatePredicate, T = [Expr] -> Expr = [S|Args],
-                                                translate_args(Args, GsArgs, ArgsOut),
-                                                Goal =.. [S|ArgsOut],
-                                                append(GsH, GsArgs, Inner),
-                                                append(Inner, [Goal], Goals)
+                                                  translate_args(Args, GsArgs, ArgsOut),
+                                                  Goal =.. [S|ArgsOut],
+                                                  append(GsH, GsArgs, Inner),
+                                                  append(Inner, [Goal], Goals)
         %--- Manual dispatch options: ---
         %Generate a predicate call on compilation, translating Args for nesting:
         ; HV == call,  T = [Expr] -> Expr = [F|Args],
