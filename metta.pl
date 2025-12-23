@@ -260,8 +260,11 @@ ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWith
                                      ensure_metta_ext(Path, PathWithExt),
                                      exists_file(PathWithExt), !,
                                      load_metta_file(PathWithExt, _, Space) ).
+:- dynamic translator_rule/1.
+'add-translator-rule!'(HV, true) :- ( translator_rule(HV) -> true
+                                          ; assertz(translator_rule(HV)) ).
 
-set_hook(H,true) :- nb_setval(hook, H).
+'remove-translator-rule!'(HV, true) :- retractall(translator_rule(HV)).
 
 %%% Registration: %%%
 :- dynamic fun/1.
@@ -282,4 +285,5 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, exists_file,
-                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate]).
+                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
+                          'add-translator-rule!', 'remove-translator-rule!']).

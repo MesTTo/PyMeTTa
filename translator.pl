@@ -226,17 +226,17 @@ translate_expr([H0|T0], Goals, Out) :-
                                                      translate_expr(Body, GsB, Out),
                                                      append(G1, [match(S, Pattern, Out, Out)], G2),
                                                      append(G2, GsB, Goals)
-        %--- Hooks ---:
-        ; catch(nb_getval(hook, Hook),_,fail), Hook == HV -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                                                               -> TypeChain = [->|Xs],
-                                                                  append(ArgTypes, [_], Xs),
-                                                                  translate_args_by_type(T, ArgTypes, GsT, T1)
-                                                                ; translate_args(T, GsT, T1) ),
-                                                             append(T1,[[Gs,Out]],Args),
-                                                             HookCall =.. [HV|Args],
-                                                             call(HookCall),
-                                                             maplist(=..,GsE,Gs),
-                                                             append([GsH,GsT,GsE],Goals)
+        %--- Translator rules ---:
+        ; translator_rule(HV) -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+                                   -> TypeChain = [->|Xs],
+                                      append(ArgTypes, [_], Xs),
+                                      translate_args_by_type(T, ArgTypes, GsT, T1)
+                                    ; translate_args(T, GsT, T1) ),
+                                 append(T1,[[Gs,Out]],Args),
+                                 HookCall =.. [HV|Args],
+                                 call(HookCall),
+                                 maplist(=..,GsE,Gs),
+                                 append([GsH,GsT,GsE],Goals)
         %--- Manual dispatch options: ---
         %Generate a predicate call on compilation, translating Args for nesting:
         ; HV == call,  T = [Expr] -> Expr = [F|Args],
