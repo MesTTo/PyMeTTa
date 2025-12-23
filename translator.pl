@@ -252,12 +252,13 @@ translate_expr([H0|T0], Goals, Out) :-
                                      Goal =.. [F|CallArgs],
                                      append(Inner, [Goal], Goals)
         %Produce a dynamic dispatch, translating Args for nesting:
-        ; HV == reduce, T = [Expr] -> Expr = [F|Args],
-                                      translate_args(Args, GsArgs, ArgsOut),
-                                      append(GsH, GsArgs, Inner),
-                                      ExprOut = [F|ArgsOut],
-                                      Goal = reduce(ExprOut, Out),
-                                      append(Inner, [Goal], Goals)
+        ; HV == reduce, T = [Expr] -> ( var(Expr) -> translate_expr(Expr, GsH, ExprOut),
+                                                     Goals = [reduce(ExprOut, Out)|GsH]
+                                                   ; Expr = [F|Args],
+                                                     translate_args(Args, GsArgs, ArgsOut),
+                                                     append(GsH, GsArgs, Inner),
+                                                     ExprOut = [F|ArgsOut],
+                                                     append(Inner, [reduce(ExprOut, Out)], Goals) )
         %Invoke translator to evaluate MeTTa code as data/list:
         ; HV == eval, T = [Arg] -> append(GsH, [], Inner),
                                    Goal = eval(Arg, Out),
