@@ -1,17 +1,9 @@
-%Arity expander for JIT-indexing-efficient representation of space entries:
-ensure_dynamic_arity(Space,Arity) :- ( current_predicate(Space/Arity)
-                                       -> true ; dynamic(Space/Arity) ).
-
 %Since both normal add-attom call and function additions needs to add the S-expression:
-add_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
-                               ensure_dynamic_arity(Space, Arity),
-                               Term =.. [Space, Rel | Args],
+add_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                assertz(Term).
 
 %Same but for removal:
-remove_sexp(Space, [Rel|Args]) :- length(Args, N), Arity is N + 2,
-                                  ensure_dynamic_arity(Space, Arity),
-                                  Term =.. [Space, Rel | Args],
+remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                   retractall(Term).
 
 %Add a function atom:
