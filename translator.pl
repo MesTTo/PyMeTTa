@@ -294,15 +294,14 @@ translate_expr([H0|T0], Goals, Out) :-
                 AVsTmp = AllAVs,
                 InnerTmp = Inner,
                 Extra = [],
-               length(AVsTmp, N),
-               Arity is N + 1,
-               ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
-                 -> append(AVsTmp, [Out], ArgsV),
-                    Goal =.. [Fun|ArgsV],
-                    append(InnerTmp, [Goal|Extra], Goals)
-                  ; Out = partial(Fun,AVsTmp),
-                    append(InnerTmp,Extra, Goals) )
-               )
+                length(AVsTmp, N),
+                Arity is N + 1,
+                ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
+                  -> append(AVsTmp, [Out], ArgsV),
+                     Goal =.. [Fun|ArgsV],
+                     append(InnerTmp, [Goal|Extra], Goals)
+                   ; Out = partial(Fun,AVsTmp),
+                     append(InnerTmp,Extra, Goals) ) )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
