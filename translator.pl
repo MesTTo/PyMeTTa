@@ -284,17 +284,16 @@ translate_expr([H0|T0], Goals, Out) :-
             ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs, IsPartial = false
             ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
-            -> ( catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail)
-                 -> TypeChain = [->|Xs],
-                    append(ArgTypes, [OutType], Xs),
-                    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
-                    (IsPartial -> append(Bound,AVsTmp0,AVsTmp) ; AVsTmp = AVsTmp0),
-                    append(GsH, GsT2, InnerTmp),
-                    ( (OutType == '%Undefined%' ; OutType == 'Atom')
-                      -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] )
-                  ; AVsTmp = AllAVs,
-                    InnerTmp = Inner,
-                    Extra = [] ),
+            -> findall(TypeChain, catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail), TypeChains),
+               ( TypeChains \= []
+                 -> maplist({Fun,T,GsH,IsPartial,Bound,Out}/[TypeChain,BranchGoal]>>(
+                            typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal)), TypeChains, Branches),
+                    disj_list(Branches, Disj),
+                    Goals = [Disj]
+              ; % no types: your existing untyped fallback
+                AVsTmp = AllAVs,
+                InnerTmp = Inner,
+                Extra = [],
                length(AVsTmp, N),
                Arity is N + 1,
                ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
@@ -303,6 +302,7 @@ translate_expr([H0|T0], Goals, Out) :-
                     append(InnerTmp, [Goal|Extra], Goals)
                   ; Out = partial(Fun,AVsTmp),
                     append(InnerTmp,Extra, Goals) )
+               )
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -312,6 +312,25 @@ translate_expr([H0|T0], Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
+
+%Type function call generation, returns function call plus typechecks for input and output:
+typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal) :-
+    TypeChain = [->|Xs],
+    append(ArgTypes, [OutType], Xs),
+    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
+    ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
+    append(GsH, GsT2, InnerTmp),
+    ( (OutType == '%Undefined%' ; OutType == 'Atom')
+       -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] ),
+    length(AVsTmp, N),
+    Arity is N + 1,
+    ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
+      -> append(AVsTmp, [Out], ArgsV),
+         Goal =.. [Fun|ArgsV],
+         append(InnerTmp, [Goal|Extra], GoalsList)
+       ; Out = partial(Fun, AVsTmp),
+         append(InnerTmp, Extra, GoalsList) ),
+    goals_list_to_conj(GoalsList, BranchGoal).
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 translate_args_by_type([], _, [], []) :- !.
