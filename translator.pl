@@ -290,18 +290,7 @@ translate_expr([H0|T0], Goals, Out) :-
                             typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal)), TypeChains, Branches),
                     disj_list(Branches, Disj),
                     Goals = [Disj]
-              ; % no types: your existing untyped fallback
-                AVsTmp = AllAVs,
-                InnerTmp = Inner,
-                Extra = [],
-                length(AVsTmp, N),
-                Arity is N + 1,
-                ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
-                  -> append(AVsTmp, [Out], ArgsV),
-                     Goal =.. [Fun|ArgsV],
-                     append(InnerTmp, [Goal|Extra], Goals)
-                   ; Out = partial(Fun,AVsTmp),
-                     append(InnerTmp,Extra, Goals) ) )
+              ; build_call_or_partial(Fun, AllAVs, Out, Inner, [], Goals))
           %Literals (numbers, strings, etc.), known non-function atom => data:
           ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
@@ -312,6 +301,17 @@ translate_expr([H0|T0], Goals, Out) :-
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
 
+%Generate actual function call or partial if arity not complete:
+build_call_or_partial(Fun, AVs, Out, Inner, Extra, Goals) :- length(AVs, N),
+                                                             Arity is N + 1,
+                                                             ( ( ( current_predicate(Fun/Arity) ; catch(arity(Fun, Arity), _, fail) ),
+                                                                   \+ ( current_op(_, _, Fun), Arity =< 2 ) )
+                                                               -> append(AVs, [Out], Args),
+                                                                  Goal =.. [Fun|Args],
+                                                                  append(Inner, [Goal|Extra], Goals)
+                                                                ; Out = partial(Fun, AVs),
+                                                                  append(Inner, Extra, Goals) ).
+
 %Type function call generation, returns function call plus typechecks for input and output:
 typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal) :-
     TypeChain = [->|Xs],
@@ -321,15 +321,9 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     append(GsH, GsT2, InnerTmp),
     ( (OutType == '%Undefined%' ; OutType == 'Atom')
        -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] ),
-    length(AVsTmp, N),
-    Arity is N + 1,
-    ( (((current_predicate(Fun/Arity) ; catch(arity(Fun, Arity),_,fail)), \+ (current_op(_, _, Fun), Arity =< 2)))
-      -> append(AVsTmp, [Out], ArgsV),
-         Goal =.. [Fun|ArgsV],
-         append(InnerTmp, [Goal|Extra], GoalsList)
-       ; Out = partial(Fun, AVsTmp),
-         append(InnerTmp, Extra, GoalsList) ),
+    build_call_or_partial(Fun, AVsTmp, Out, InnerTmp, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
+
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 translate_args_by_type([], _, [], []) :- !.
