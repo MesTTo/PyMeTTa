@@ -9,13 +9,13 @@ constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsLi
                                   flatten(NestedGoalsList, Goals), !.
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
-translate_clause(Input, (Head :- BodyConj)) :- translate_clause_(Input, (Head :- BodyConj), true).
-translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
+translate_clause(Input, (Head :- BodyConj)) :- translate_clause(Input, (Head :- BodyConj), true).
+translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                Input = [=, [F|Args0], BodyExpr],
                                                b_setval(current, F),
                                                ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
-                                                                flatten(GoalsA,GoalsPrefix)
-                                                              ; Args1 = Args0, GoalsPrefix = [] ),
+                                                                  flatten(GoalsA,GoalsPrefix)
+                                                                ; Args1 = Args0, GoalsPrefix = [] ),
                                                catch(nb_getval(F, Prev), _, Prev = []),
                                                nb_setval(F, [fun_meta(Args1, BodyExpr) | Prev]),
                                                translate_expr(BodyExpr, GoalsBody, ExpOut),

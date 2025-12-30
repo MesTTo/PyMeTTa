@@ -35,7 +35,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                %5.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
                                                b_setval(current, SpecName),
                                                maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
-                                                       ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause_(Input,Clause,false) ), MetaList, ClauseInfos),
+                                                       ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause(Input,Clause,false) ), MetaList, ClauseInfos),
                                                %5.4 Only proceeed specializing if this or any recursive call profited from specialization with the specialized function at head position:
                                                nb_getval(specneeded, true),
                                                %5.5 Assert and print each of the created specializations:
