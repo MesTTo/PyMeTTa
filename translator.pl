@@ -27,13 +27,13 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                   length(ExtraArgs, M),
                                                   append([Bound,ExtraArgs,[Out]],CallArgs),
                                                   Goal =.. [Base|CallArgs],
-                                                  append(GoalsBody,[Goal],GoalsBody1),
+                                                  append(GoalsBody,[Goal],FinalGoals),
                                                   append(Args1,ExtraArgs,HeadArgs),
                                                   format("HeadArgs ~w~n", [HeadArgs])
-                                                ; GoalsBody1 = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
+                                                ; FinalGoals = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
                                                append(HeadArgs, [Out], FinalArgs),
                                                Head =.. [F|FinalArgs],
-                                               append(GoalsPrefix, GoalsBody1, Goals),
+                                               append(GoalsPrefix, FinalGoals, Goals),
                                                goals_list_to_conj(Goals, BodyConj).
 
 %Print compiled clause:
