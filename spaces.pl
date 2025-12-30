@@ -21,13 +21,15 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
 
 %%Remove a function atom:
-'remove-atom'('&self', Term, Removed) :- Term = [=,[F|Ins],_], !,
+'remove-atom'('&self', Term, Removed) :- Term = [=,[F|_],_], !,
                                          remove_sexp('&self', Term),
-                                         once(translate_clause(Term, Cl)),
-                                         ( retract(Cl) -> length(Ins, K),
-                                                          unregister_fun(F/K),
-                                                          Removed=true
-                                                        ; Removed=false ).
+                                         once(translate_clause(Term, (Head :- Body))),
+                                         ( clause(Head, Body, Ref)
+                                           -> erase(Ref),
+                                              ( \+ ( current_predicate(F/A), functor(H2, F, A), clause(H2, _, _) )
+                                                -> retractall(fun(F)) ; true ),
+                                              Removed = true
+                                            ; Removed = false ).
 
 %Remove all same atoms:
 'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term).
