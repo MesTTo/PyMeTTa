@@ -71,7 +71,7 @@ safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewr
                                                                           ; Out = In).
 
 %Turn MeTTa code S-expression into goals list:
-translate_expr(X, [], X)          :- (var(X) ; atomic(X)), !.
+translate_expr(X, [], X)          :- ((var(X) ; atomic(X)) ; X = partial(_,_)), !.
 translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
@@ -155,8 +155,8 @@ translate_expr([H0|T0], Goals, Out) :-
                                                            append([GsH,[(P=V)],Gp,Gv,Gi,Gc], Goals)
         ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
                                              translate_expr(RecLet,  Goals, Out)
-        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Out),
-                                            Goals = [copy_term(Vars,Con,_,Ncon),Ncon]
+        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Val),
+                                            Goals = [copy_term(Vars,[Con,Val],_,[Ncon,Out]),Ncon]
         %--- Iterating over non-deterministic generators without reification ---:
         ; HV == 'forall', T = [GF, TF]
           -> ( is_list(GF) -> GF = [GFH|GFA],
