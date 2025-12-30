@@ -30,7 +30,7 @@ translate_clause_(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                   append(GoalsBody,[Goal],FinalGoals),
                                                   append(Args1,ExtraArgs,HeadArgs),
                                                   format("HeadArgs ~w~n", [HeadArgs])
-                                                ; FinalGoals = GoalsBody , HeadArgs = Args1, Out = ExpOut ),
+                                                ; FinalGoals= GoalsBody , HeadArgs = Args1, Out = ExpOut ),
                                                append(HeadArgs, [Out], FinalArgs),
                                                Head =.. [F|FinalArgs],
                                                append(GoalsPrefix, FinalGoals, Goals),
