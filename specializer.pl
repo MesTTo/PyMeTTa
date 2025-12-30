@@ -33,10 +33,9 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
                                                  -> add_sexp('&self', [':', SpecName, TypeChain]) ; true ),
                                                %5.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
-                                               catch(nb_getval(PrevCurrent, PrevCurrent), _, PrevCurrent = none),
-                                               call_cleanup( maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
-                                                                     ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause_(Input,Clause,false) ), MetaList, ClauseInfos),
-                                                             ( PrevCurrent == none -> catch(nb_delete(current), _, true) ; nb_setval(current, PrevCurrent) )),
+                                               b_setval(current, SpecName),
+                                               maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
+                                                       ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause_(Input,Clause,false) ), MetaList, ClauseInfos),
                                                %5.4 Only proceeed specializing if this or any recursive call profited from specialization with the specialized function at head position:
                                                nb_getval(specneeded, true),
                                                %5.5 Assert and print each of the created specializations:
