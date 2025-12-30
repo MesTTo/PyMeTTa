@@ -15,11 +15,7 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                  assertz(arity(FAtom,Arity)),
                                  once(translate_clause(Term, Clause)),
                                  assertz(Clause),
-                                 ( silent(true) -> true ; format("\e[33m--> added clause -->~n\e[32m", []),
-                                                          Clause = (CHead :- CBody),
-                                                          ( CBody == true -> Show = CHead; Show = (CHead :- CBody) ),
-                                                          portray_clause(current_output, Show),
-                                                          format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
+                                 maybe_print_compiled_clause("added function", Term, Clause).
 
 %Add an atom to the space:
 'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
