@@ -30,8 +30,8 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                              Arity is N + 1,
                                              assertz(arity(SpecName, Arity)),
                                              ( %5.2. Re-use the type definition of the parent function for the specialization:
-                                               ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
-                                                 -> add_sexp('&self', [':', SpecName, TypeChain]) ; true ),
+                                               findall(TypeChain, catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail), TypeChains),
+                                               forall(member(TypeChain, TypeChains), add_sexp('&self', [':', SpecName, TypeChain])),
                                                %5.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
                                                b_setval(current, SpecName),
                                                maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
@@ -40,7 +40,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                nb_getval(specneeded, true),
                                                %5.5 Assert and print each of the created specializations:
                                                forall(member(clause_info(Input, Clause), ClauseInfos),
-                                               ( assertz(Clause),
+                                               ( asserta(Clause),
                                                  format(atom(Label), "metta specialization (~w)", [SpecName]),
                                                  maybe_print_compiled_clause(Label, Input, Clause) ))
                                                %5.6 Ok specialized, but if we did not succeed ensure the specialization is retracted:
