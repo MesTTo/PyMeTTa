@@ -91,14 +91,12 @@ exp(Arg,R) :- R is exp(Arg).
 'random-float'('&rng', Min, Max, Result) :- random(R), Result is Min + R * (Max - Min).
 
 %%% Boolean Logic: %%%
-and(true,  X, X).
-and(false, _, false).
-or( false, X, X).
-or( true,  _, true).
-not(true,  false).
-not(false, true).
-xor(false, A, A).
-xor(true, A, B) :- not(A, B).
+bool(true).
+bool(false).
+and(A,B,C) :- bool(A), bool(B), ( A == true  -> C = B ; A == false -> C = false ).
+or(A,B,C) :- bool(A), bool(B), ( A == true  -> C = true ; A == false -> C = B ).
+not(A,B) :- bool(A), ( A == true -> B = false ; A == false -> B = true ).
+xor(A,B,C) :- bool(A), bool(B), ( A == B -> C = false ; C = true ).
 
 %%% Nondeterminism: %%%
 superpose(L,X) :- member(X,L).
