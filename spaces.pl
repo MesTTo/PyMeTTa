@@ -16,6 +16,7 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                  once(translate_clause(Term, Clause)),
                                  assertz(Clause, Ref),
                                  assertz(translated_from(Ref, Term)),
+                                 invalidate_specializations(FAtom),
                                  maybe_print_compiled_clause("added function", Term, Clause).
 
 %Add an atom to the space:
@@ -24,9 +25,11 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 %%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|_],_], !,
                                          remove_sexp('&self', Term),
+                                         catch(nb_delete(F), _, true),
                                          findall(Ref, translated_from(Ref, Term), Refs),
                                          forall(member(Ref, Refs), erase(Ref)),
                                          retractall(translated_from(_, Term)),
+                                         invalidate_specializations(F),
                                          ( \+ ( current_predicate(F/A), functor(H2, F, A), clause(H2, _, _) )
                                            -> retractall(fun(F)) ; true ),
                                          ( Refs = [] -> Removed = false ; Removed = true ).

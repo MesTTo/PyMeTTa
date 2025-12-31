@@ -40,13 +40,15 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                nb_getval(specneeded, true),
                                                %5.5 Assert and print each of the created specializations:
                                                forall(member(clause_info(Input, Clause), ClauseInfos),
-                                               ( asserta(Clause),
+                                               ( asserta(Clause, Ref),
+                                                 assertz(translated_from(Ref, Input)),
                                                  add_sexp('&self', Input),
                                                  format(atom(Label), "metta specialization (~w)", [SpecName]),
                                                  maybe_print_compiled_clause(Label, Input, Clause) ))
                                                %5.6 Ok specialized, but if we did not succeed ensure the specialization is retracted:
                                                -> true ; format("Not specialized ~w~n", [SpecName/Arity]),
-                                                         unregister_fun(SpecName/Arity),
+                                                         retractall(fun(SpecName)),
+                                                         abolish(SpecName, Arity),
                                                          retractall(arity(SpecName,Arity)),
                                                          retractall(ho_specialization(HV, SpecName)), fail ))), !,
                                        %6. Generate call to the specialized function:
@@ -86,3 +88,20 @@ var_use_check(Mode, Var, L) :- is_list(L),
 %Tests whether an argument represents a specializable function or partial application:
 specializable_arg(Arg) :- nonvar(Arg), 
                           ( fun(Arg) ; Arg = partial(_, _) ).
+
+%Forget function symbol:
+forget_symbol(Name) :- retractall('&self'(=, [Name|_], _)),
+                       retractall('&self'(:, Name, _)),
+                       findall(Ref, ( current_predicate(Name/A), functor(H, Name, A), clause(H, _, Ref) ), Refs),
+                       forall(member(R, Refs), erase(R)),
+                       retractall(arity(Name,_)),
+                       retractall(fun(Name)),
+                       catch(nb_delete(Name), _, true),
+                       retractall(ho_specialization(Name,_)).
+
+%Invalidate all specializations:
+invalidate_specializations(F) :-
+    findall(Spec, ho_specialization(F, Spec), Specs),
+    forall(member(S, Specs), invalidate_specializations(S)),
+    forall(member(S, Specs), forget_symbol(S)),
+    retractall(ho_specialization(F,_)).
