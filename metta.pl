@@ -93,10 +93,12 @@ exp(Arg,R) :- R is exp(Arg).
 %%% Boolean Logic: %%%
 bool(true).
 bool(false).
-and(A,B,C) :- bool(A), bool(B), ( A == true  -> C = B ; A == false -> C = false ).
-or(A,B,C) :- bool(A), bool(B), ( A == true  -> C = true ; A == false -> C = B ).
+and(A,B,C) :- bool(A), bool(B), ( A == true -> C = B ; A == false -> C = false ).
+or(A,B,C) :- bool(A), bool(B), ( A == true -> C = true ; A == false -> C = B ).
 not(A,B) :- bool(A), ( A == true -> B = false ; A == false -> B = true ).
 xor(A,B,C) :- bool(A), bool(B), ( A == B -> C = false ; C = true ).
+implies(A,B,C) :- bool(A), bool(B), ( A == true -> ( B == true  -> C = true ; B == false -> C = false )
+                                                 ; A == false -> C = true ).
 
 %%% Nondeterminism: %%%
 superpose(L,X) :- member(X,L).
@@ -271,7 +273,7 @@ unregister_fun(N/Arity) :- retractall(fun(N)),
                            abolish(N, Arity).
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
-                          '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, not, sqrt, exp, log, cos, sin,
+                          '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
                           repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec', atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
