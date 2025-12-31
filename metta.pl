@@ -269,8 +269,6 @@ ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWith
 %%% Registration: %%%
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
-unregister_fun(N/Arity) :- retractall(fun(N)),
-                           abolish(N, Arity).
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
