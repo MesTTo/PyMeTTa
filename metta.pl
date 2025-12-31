@@ -118,7 +118,7 @@ first([A, _], A).
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 'index-atom'(List, Index, Elem) :- nth0(Index, List, Elem).
-member(X, L, _) :- member(X, L).
+member(X, L, true) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
