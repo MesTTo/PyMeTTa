@@ -41,6 +41,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                                %5.5 Assert and print each of the created specializations:
                                                forall(member(clause_info(Input, Clause), ClauseInfos),
                                                ( asserta(Clause),
+                                                 add_sexp('&self', Input),
                                                  format(atom(Label), "metta specialization (~w)", [SpecName]),
                                                  maybe_print_compiled_clause(Label, Input, Clause) ))
                                                %5.6 Ok specialized, but if we did not succeed ensure the specialization is retracted:
