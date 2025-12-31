@@ -26,7 +26,6 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
 
 %%Remove a function atom:
-%%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|_],_], !,
                                          remove_sexp('&self', Term),
                                          findall(Ref, translated_from(Ref, Term), Refs),
