@@ -14,7 +14,8 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                  Arity is N + 1,
                                  assertz(arity(FAtom,Arity)),
                                  once(translate_clause(Term, Clause)),
-                                 assertz(Clause),
+                                 assertz(Clause, Ref),
+                                 assertz(translated_from(Ref, Term)),
                                  maybe_print_compiled_clause("added function", Term, Clause).
 
 %Add an atom to the space:
@@ -23,13 +24,12 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 %%Remove a function atom:
 'remove-atom'('&self', Term, Removed) :- Term = [=,[F|_],_], !,
                                          remove_sexp('&self', Term),
-                                         once(translate_clause(Term, (Head :- Body))),
-                                         ( clause(Head, Body, Ref)
-                                           -> erase(Ref),
-                                              ( \+ ( current_predicate(F/A), functor(H2, F, A), clause(H2, _, _) )
-                                                -> retractall(fun(F)) ; true ),
-                                              Removed = true
-                                            ; Removed = false ).
+                                         findall(Ref, translated_from(Ref, Term), Refs),
+                                         forall(member(Ref, Refs), erase(Ref)),
+                                         retractall(translated_from(_, Term)),
+                                         ( \+ ( current_predicate(F/A), functor(H2, F, A), clause(H2, _, _) )
+                                           -> retractall(fun(F)) ; true ),
+                                         ( Refs = [] -> Removed = false ; Removed = true ).
 
 %Remove all same atoms:
 'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term).
