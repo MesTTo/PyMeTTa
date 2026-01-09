@@ -17,7 +17,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1.  Skip specialization when HV is the f
                                        catch(nb_getval(HV, MetaList0), _, fail),
                                        copy_term(MetaList0, MetaList),
                                        %3. Copy all clause variables eligible for specialization across all meta-clauses:
-                                       setof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
+                                       bagof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
                                                     ( member(fun_meta(ArgsNorm, BodyExpr), MetaList),
                                                       maplist(specializable_vars(BodyExpr), AVs, ArgsNorm, HoBinds),
                                                       member(HoBindsPerArg, HoBinds),
