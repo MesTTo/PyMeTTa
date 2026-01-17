@@ -67,17 +67,19 @@ translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
                                             goals_list_to_conj(Goals, Conj).
 
 %Special stream operation rewrite rules before main translation
-rewrite_streamops(['unique', ['superpose'|Args]],
-                  ['call', ['superpose', ['unique-atom', ['collapse', ['superpose'|Args]]]]]).
-rewrite_streamops(['union', ['superpose'|A], ['superpose'|B]],
-                  ['call', ['superpose', ['union-atom', ['collapse', ['superpose'|A]],
-                                                        ['collapse', ['superpose'|B]]]]]).
-rewrite_streamops(['intersection', ['superpose'|A], ['superpose'|B]],
-                  ['call', ['superpose', ['intersection-atom', ['collapse', ['superpose'|A]],
-                                                               ['collapse', ['superpose'|B]]]]]).
-rewrite_streamops(['subtraction', ['superpose'|A], ['superpose'|B]],
-                  ['call', ['superpose', ['subtraction-atom', ['collapse', ['superpose'|A]],
-                                                              ['collapse', ['superpose'|B]]]]]).
+rewrite_streamops(['trace!', Arg1, Arg2],
+                  [progn, ['println!', Arg1], Arg2]).
+rewrite_streamops([unique, [superpose|Args]],
+                  [call, [superpose, ['unique-atom', [collapse, [superpose|Args]]]]]).
+rewrite_streamops([union, [superpose|A], [superpose|B]],
+                  [call, [superpose, ['union-atom', [collapse, [superpose|A]],
+                                                    [collapse, [superpose|B]]]]]).
+rewrite_streamops([intersection, [superpose|A], [superpose|B]],
+                  [call, [superpose, ['intersection-atom', [collapse, [superpose|A]],
+                                                           [collapse, [superpose|B]]]]]).
+rewrite_streamops([subtraction, [superpose|A], [superpose|B]],
+                  [call, [superpose, ['subtraction-atom', [collapse, [superpose|A]],
+                                                          [collapse, [superpose|B]]]]]).
 rewrite_streamops(X, X).
 
 %Guarded stream ops rewrite rule application, successfully avoiding copy_term:

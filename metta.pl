@@ -169,9 +169,6 @@ get_type_candidate(X, T) :- match('&self', [':',X,T], T, _).
 'readln!'(Out) :- read_line_to_string(user_input, Str),
                   sread(Str, Out).
 
-'trace!'(In, Content, Content) :- swrite(In,R),
-                                  format('~w~n', [R]).
-
 test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
@@ -273,7 +270,7 @@ register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom',
-                          repr, repra, 'println!', 'readln!', 'trace!', test, assert, 'mm2-exec', atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, 'println!', 'readln!', test, assert, 'mm2-exec', atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
