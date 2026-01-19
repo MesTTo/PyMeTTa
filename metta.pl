@@ -28,7 +28,7 @@ library(X, Y, Path) :- library_path(Base), atomic_list_concat([Base, '/../', X, 
 id(X, X).
 repr(Term, R) :- swrite(Term, R).
 repra(Term, R) :- term_to_atom(Term, R).
-parse(R, Term) :- sread(R, Term).
+parse(Str, R) :- sread(Str, R).
 
 %%% Arithmetic & Comparison: %%%
 '+'(A,B,R)  :- R is A + B.
