@@ -134,8 +134,8 @@ member(X, L, true) :- member(X, L).
 
 %%% Type system: %%%
 get_function_type([F|Args], T) :- nonvar(F), match('&self', [':',F,[->|Ts]], _, _),
-                                 append(As,[T],Ts),
-                                 maplist('get-type',Args,As).
+                                  append(As,[T],Ts),
+                                  maplist('get-type',Args,As).
 
 'get-type'(X, T) :- (get_type_candidate(X, T) *-> true ; T = '%Undefined%' ).
 
