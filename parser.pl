@@ -5,7 +5,7 @@ swrite(Term, String) :- phrase(swrite_exp(Term), Codes),
                         string_codes(String, Codes).
 swrite_exp(Var)   --> { var(Var) }, !, "$", { term_to_atom(Var, A), atom_codes(A, Cs) }, Cs.
 swrite_exp(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
-swrite_exp(Str)   --> { string(Str) }, !, { string_codes(Str, Cs) }, Cs.
+swrite_exp(Str)   --> { string(Str) }, !, "\"", { string_codes(Str, Cs), escape_quotes(Cs, Es) }, Es, "\"".
 swrite_exp(Atom)  --> { atom(Atom) }, !, atom(Atom).
 swrite_exp([H|T]) --> { \+ is_list([H|T]) }, !, "(", atom(cons), " ", swrite_exp(H), " ", swrite_exp(T), ")".
 swrite_exp([H|T]) --> !, "(", seq([H|T]), ")".
@@ -13,6 +13,9 @@ swrite_exp([])    --> !, "()".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
+escape_quotes([], []).
+escape_quotes([0'"|T], [0'\\,0'"|R]) :- !, escape_quotes(T, R).
+escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 
 %Read S string or atom, extract codes, and apply DCG (parsing):
 sread(S, T) :- ( atom_string(A, S),
