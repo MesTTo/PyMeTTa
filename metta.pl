@@ -137,6 +137,7 @@ get_function_type([F|Args], T) :- nonvar(F), match('&self', [':',F,[->|Ts]], _, 
                                   append(As,[T],Ts),
                                   maplist('get-type',Args,As).
 
+:- dynamic 'get-type'/2.
 'get-type'(X, T) :- (get_type_candidate(X, T) *-> true ; T = '%Undefined%' ).
 
 get_type_candidate(X, 'Number')   :- number(X), !.
@@ -149,7 +150,6 @@ get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
 get_type_candidate(X, T) :- match('&self', [':',X,T], T, _).
-
 'get-metatype'(X, 'Variable') :- var(X), !.
 'get-metatype'(X, 'Grounded') :- number(X), !.
 'get-metatype'(X, 'Grounded') :- string(X), !.
@@ -258,9 +258,10 @@ ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWith
                                      ensure_metta_ext(Path, PathWithExt),
                                      exists_file(PathWithExt), !,
                                      load_metta_file(PathWithExt, _, Space) ).
+
 :- dynamic translator_rule/1.
-'add-translator-rule!'(HV, true) :- ( translator_rule(HV) -> true
-                                          ; assertz(translator_rule(HV)) ).
+'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
+                                      -> true ; assertz(translator_rule(HV)) ).
 
 'remove-translator-rule!'(HV, true) :- retractall(translator_rule(HV)).
 
