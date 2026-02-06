@@ -1,6 +1,11 @@
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
-constrain_args([F, A, B], [A|B], []) :- F == cons, !.
+constrain_args([F, A, B], Out, Goals) :- nonvar(F),
+                                         F == cons,
+                                         constrain_args(A, A1, G1),
+                                         constrain_args(B, B1, G2),
+                                         Out = [A1|B1],
+                                         append(G1, G2, Goals), !.
 constrain_args([F|Args], Var, Goals) :- atom(F),
                                         fun(F), !,
                                         translate_expr([F|Args], GoalsExpr, Var),
