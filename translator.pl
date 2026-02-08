@@ -170,10 +170,9 @@ translate_expr([H0|T0], Goals, Out) :-
                                                        append([GsH, Gk, KeyGoal, [IfGoal]], Goals) )
         %--- Unification constructs ---:
         ; (HV == let ; HV == chain), T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
-                                                           constrain_args(Pv, P, Gc),
                                                            translate_expr(Val, Gv, V),
                                                            translate_expr(In,  Gi, Out),
-                                                           append([GsH,[(P=V)],Gp,Gv,Gi,Gc], Goals)
+                                                           append([GsH,[(Pv=V)],Gp,Gv,Gi], Goals)
         ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
                                              translate_expr(RecLet,  Goals, Out)
         ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Val),
