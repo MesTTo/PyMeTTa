@@ -267,6 +267,7 @@ ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWith
 %%% Registration: %%%
 :- dynamic fun/1.
 register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
+argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, Arg).
 
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
@@ -282,4 +283,4 @@ register_fun(N) :- (fun(N) -> true ; assertz(fun(N))).
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, exists_file,
                           import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
-                          'add-translator-rule!', 'remove-translator-rule!']).
+                          'add-translator-rule!', 'remove-translator-rule!', argv]).
