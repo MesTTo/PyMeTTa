@@ -246,7 +246,8 @@ retractPredicate(_, false).
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
-'import!'(Space, File, true) :- atom_string(File, SFile),
+'import!'(Space, File, true) :- catch(importer_helper(Space, File), _, fail).
+importer_helper(Space, File) :- atom_string(File, SFile),
                                 working_dir(Base),
                                 ( file_name_extension(ModPath, 'py', SFile)
                                   -> absolute_file_name(SFile, Path, [relative_to(Base)]),
