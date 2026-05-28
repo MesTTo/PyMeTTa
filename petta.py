@@ -31,8 +31,14 @@ class PeTTa:
                     CONSULTED = True
 
     def _run_helper(self, helper_name, argument):
-        query = f"run_metta_helper({self.verbose},{helper_name},'{argument}', Results)"
-        result = janus.query_once(query)
+        result = janus.query_once(
+            "run_metta_helper(Verbose, HelperName, Argument, Results)",
+            {
+                "Verbose": "true" if self.verbose else "false",
+                "HelperName": helper_name,
+                "Argument": argument,
+            },
+        )
         if result is None:
             return []
         return result.get("Results", [])
