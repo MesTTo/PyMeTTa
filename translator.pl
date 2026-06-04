@@ -75,6 +75,8 @@ rewrite_streamops(['trace!', Arg1, Arg2],
                   [progn, ['println!', Arg1], Arg2]).
 rewrite_streamops([unique, Arg],
                   [call, [superpose, ['unique-atom', [collapse, Arg]]]]).
+rewrite_streamops(['alpha-unique', Arg],
+                  [call, [superpose, ['alpha-unique-atom', [collapse, Arg]]]]).
 rewrite_streamops([union, [superpose|A], [superpose|B]],
                   [call, [superpose, ['union-atom', [collapse, [superpose|A]],
                                                     [collapse, [superpose|B]]]]]).
