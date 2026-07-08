@@ -224,10 +224,14 @@ assert(Goal, true) :- ( call(Goal) -> true
                                         ( sub_atom(A, 0, 1, _, '.')         % ".method"
                                           -> sub_atom(A, 1, _, 0, Fun),
                                              Args = [Obj|Rest],
-                                             ( Rest == []
-                                               -> compound_name_arguments(Meth, Fun, [])
-                                                ; Meth =.. [Fun|Rest] ),
-                                             py_call(Obj:Meth, Result, Opts)
+                                             ( py_is_object(Obj)            % on a Python object reference
+                                               -> ( Rest == []
+                                                    -> compound_name_arguments(Meth, Fun, [])
+                                                     ; Meth =.. [Fun|Rest] ),
+                                                  py_call(Obj:Meth, Result, Opts)
+                                                ; py_call(builtins:type(Obj), Ty), % on a converted value (str, int, ...)
+                                                  Call =.. [Fun, Obj|Rest],
+                                                  py_call(Ty:Call, Result, Opts) )
                                            ; atomic_list_concat([M,F], '.', A) % "mod.fun"
                                              -> ( Args == []
                                                   -> compound_name_arguments(Call0, F, [])
