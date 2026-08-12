@@ -92,14 +92,18 @@ def test_val_keeps_containers_whole_via_boxing():
     assert from_wire(wire).value is data
 
 
-def test_objects_cross_unboxed():
+def test_every_object_crosses_boxed():
+    # Uniformly boxed: which types janus rewrites is janus's decision, so no
+    # object crosses bare, and unboxing is every consumer's first move.
     class Thing:
         pass
 
     thing = Thing()
     wire = val(thing).to_wire()
-    assert wire == ["o", thing]
+    assert wire[0] == "o" and isinstance(wire[1], Box) and wire[1].value is thing
     assert from_wire(wire).value is thing
+    already = val(thing)
+    assert val(already.value).to_wire()[1].value is thing
 
 
 def test_object_equality_is_identity():

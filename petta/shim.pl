@@ -457,6 +457,70 @@ petta_py_goal_term(["e", [F | ArgsAndOut]], ["e", [["s", "call"], ["e", [F|Args]
     append(Args, [Out], ArgsAndOut), !.
 petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 
+%%%%%%%%%% Foreign spaces %%%%%%%%%%
+%
+% A space whose atoms live in a Python provider: a database, a dataframe, an
+% API. The engine's hooks route match, add, remove and get-atoms here; the
+% provider enumerates candidate atoms for a pattern, and unification against
+% the pattern happens in Prolog, so the provider may over-approximate freely
+% and soundness stays the engine's. Registration is dynamic, from Python.
+
+:- multifile metta_foreign_space/1.
+:- multifile metta_foreign_match/2.
+:- multifile metta_foreign_add/2.
+:- multifile metta_foreign_remove/3.
+:- multifile metta_foreign_atoms/2.
+
+:- dynamic petta_py_foreign/1.
+
+metta_foreign_space(Space) :- petta_py_foreign(Space).
+
+metta_foreign_match(Space, Pattern) :-
+    petta_py_encode(Pattern, W),
+    atom_string(Space, SpaceStr),
+    py_iter(petta_ops:foreign_match(SpaceStr, W), CW),
+    petta_py_decode_shared(CW, Candidate, _),
+    Pattern = Candidate.
+
+metta_foreign_atoms(Space, Atom) :-
+    atom_string(Space, SpaceStr),
+    py_iter(petta_ops:foreign_atoms(SpaceStr), CW),
+    petta_py_decode_shared(CW, Atom, _).
+
+metta_foreign_add(Space, Term) :-
+    petta_py_encode(Term, W),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_add(SpaceStr, W), _).
+
+metta_foreign_remove(Space, Term, Removed) :-
+    petta_py_encode(Term, W),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_remove(SpaceStr, W), R0),
+    petta_py_bool(R0, Removed).
+
+petta_py_register_foreign(Space0) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    ( petta_py_foreign(Space) -> true ; assertz(petta_py_foreign(Space)) ).
+
+petta_py_unregister_foreign(Space0) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    retractall(petta_py_foreign(Space)).
+
+%%%%%%%%%% Protocol types for host objects %%%%%%%%%%
+%
+% The engine asks py_object_extra_type/2 for names beyond an object's own
+% classes; the answer comes from the Python-side protocol registry, so a
+% library teaches typing without touching Prolog.
+
+:- multifile py_object_type_names/2.
+
+%Values cross the boundary boxed so janus cannot rewrite them; the names
+%are computed on the held value, in Python, and cross as plain text: the
+%classes off the method resolution order, then every satisfied protocol.
+py_object_type_names(X, Names) :-
+    py_is_object(X),
+    py_call(petta_ops:type_names(X), Names).
+
 %%%%%%%%%% The running space %%%%%%%%%%
 %
 % (context-space) answers the space whose module the current goal runs in, so

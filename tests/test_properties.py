@@ -18,11 +18,17 @@ from petta.atoms import from_wire  # noqa: E402
 
 # Names PeTTa's tokeniser reads back whole: no whitespace, parens, quotes,
 # and not starting with the characters that mean something else at the front.
+# true and false are excluded alongside True and False: the engine holds its
+# booleans as those very atoms, so the symbol spelling and the boolean are one
+# term there, and a round trip canonicalizes to the boolean; pinned below.
 _name = st.text(
     alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"),
     min_size=1,
     max_size=12,
-).filter(lambda s: s[0] not in "$&-<>=+*?0123456789" and s not in ("True", "False"))
+).filter(
+    lambda s: s[0] not in "$&-<>=+*?0123456789"
+    and s not in ("True", "False", "true", "false")
+)
 
 _numbers = st.one_of(
     st.integers(min_value=-(2**62), max_value=2**62),
@@ -126,3 +132,19 @@ def test_unify_is_sound(atom):
 @pytest.fixture(scope="module")
 def metta_session(metta):
     return metta
+
+
+def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
+    """Engine identification, pinned: the symbol true IS the boolean atom, so
+    a Sym('true') crossing the boundary comes back as the boolean, exactly as
+    a lowercase true in source reads as one."""
+    from petta import Gnd, Sym, parse
+    from petta.atoms import from_wire
+
+    rt = metta_session.runtime
+    row = rt.once(
+        "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
+        W=Sym("true").to_wire(),
+    )
+    assert from_wire(row["W2"]) == Gnd(True)
+    assert parse("true") == Gnd(True)

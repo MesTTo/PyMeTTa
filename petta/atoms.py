@@ -39,6 +39,7 @@ __all__ = [
     "variables",
     "is_ground",
     "register_object_repr",
+    "register_object_repr_protocol",
 ]
 
 # A symbol prints bare only when PeTTa's tokeniser would read it back whole:
@@ -70,20 +71,17 @@ def _is_primitive(value: Any) -> bool:
     return isinstance(value, (str, int, float, bool))
 
 
-# Types janus would convert on the way in rather than keep as a reference.
-# A dict becomes a Prolog dict, a tuple a compound, bytes a code list, None a
-# janus @none, so an opaque container has to be boxed to stay one object.
-_CONVERTED_BY_JANUS = (list, tuple, dict, set, frozenset, bytes, bytearray, type(None))
-
-
 class Box:
     """Holds one Python value so it crosses the boundary by reference.
 
-    janus rewrites lists, tuples, dicts, sets, bytes and None into Prolog
-    terms, which unmakes an opaque value on the way in. A class instance
-    always crosses as an object reference, so wrapping the value in one is
-    what keeps it whole. Unboxing happens on decode, so a caller never sees
-    the box unless the value surfaces inside the engine itself.
+    janus rewrites more than containers on the way in: lists, tuples, dicts,
+    sets, bytes and None become Prolog terms, and anything speaking the
+    sequence protocol, a NumPy array included, explodes into a list of
+    element objects. Which types convert is janus's decision, not ours, so
+    every opaque value crosses boxed, uniformly, and every consuming surface
+    unboxes: from_wire, raw operation arguments and results, and the
+    engine's typing through py_object_unwrap/2. A caller never sees a box;
+    it exists only on the wire and inside the engine.
     """
 
     __slots__ = ("value",)
@@ -95,10 +93,13 @@ class Box:
         return f"Box({self.value!r})"
 
 
-# type -> callable(value) -> str, consulted by Gnd.__str__ for object values.
-# pettorch registers a tensor formatter here so a stored tensor prints its
-# shape and dtype rather than an address.
+# type -> callable(value) -> str, consulted by Gnd.__str__ for object values,
+# so a stored tensor prints its shape and dtype rather than an address.
 _OBJECT_REPRS: dict[type, Callable[[Any], str]] = {}
+
+# (predicate, formatter) pairs for protocols rather than classes, so one
+# registration covers every library speaking a protocol such as DLPack.
+_PROTOCOL_REPRS: list[tuple[Callable[[Any], bool], Callable[[Any], str]]] = []
 
 
 def register_object_repr(kind: type, fn: Callable[[Any], str]) -> None:
@@ -106,11 +107,25 @@ def register_object_repr(kind: type, fn: Callable[[Any], str]) -> None:
     _OBJECT_REPRS[kind] = fn
 
 
+def register_object_repr_protocol(
+    predicate: Callable[[Any], bool], fn: Callable[[Any], str]
+) -> None:
+    """Teach grounded values satisfying a predicate how to print."""
+    _PROTOCOL_REPRS.append((predicate, fn))
+
+
 def _object_str(value: Any) -> str:
     for kind in type(value).__mro__:
         fn = _OBJECT_REPRS.get(kind)
         if fn is not None:
             return fn(value)
+    for predicate, fn in _PROTOCOL_REPRS:
+        try:
+            if predicate(value):
+                return fn(value)
+        except Exception:
+            # Printing must never take a session down with it.
+            continue
     return f"<{type(value).__name__}>"
 
 
@@ -326,11 +341,9 @@ class Gnd(Atom):
             return ["g", _encodable(v)]
         if isinstance(v, (int, float)):
             return ["n", v]
-        if isinstance(v, _CONVERTED_BY_JANUS):
-            # janus would rewrite these into Prolog terms; boxing keeps the
-            # value one opaque object with its identity.
-            return ["o", Box(v)]
-        return ["o", v]
+        if isinstance(v, Box):
+            return ["o", v]
+        return ["o", Box(v)]
 
     @property
     def metatype(self) -> str:
