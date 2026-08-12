@@ -122,6 +122,7 @@ from .atoms import (  # noqa: E402
     is_ground,
     parse,
     register_object_repr,
+    register_object_repr_protocol,
     sym,
     unify,
     val,
@@ -129,9 +130,19 @@ from .atoms import (  # noqa: E402
     variables,
 )
 from .derivation import Builtin, Derivation, Fact, Step  # noqa: E402
-from .errors import DECLINE, Decline, EngineError, MettaSyntaxError, PettaError  # noqa: E402
+from .errors import (  # noqa: E402
+    DECLINE,
+    CompileError,
+    Decline,
+    EngineError,
+    MettaSyntaxError,
+    PettaError,
+)
 from .results import Row, Rows  # noqa: E402
 from .space import MeTTa  # noqa: E402
+from . import arrays, convert, foreign, integrate  # noqa: E402
+from .define import Defined  # noqa: E402
+from .foreign import SpaceProvider  # noqa: E402
 
 __version__ = "0.2.0"
 
@@ -171,7 +182,16 @@ __all__ = [
     "PettaError",
     "EngineError",
     "MettaSyntaxError",
+    "CompileError",
     "Decline",
     "DECLINE",
+    # the general integration surface
+    "integrate",
+    "convert",
+    "arrays",
+    "foreign",
+    "SpaceProvider",
+    "Defined",
+    "register_object_repr_protocol",
     "__version__",
 ]

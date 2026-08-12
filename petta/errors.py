@@ -8,7 +8,14 @@ Open Obligations:
 
 from __future__ import annotations
 
-__all__ = ["PettaError", "MettaSyntaxError", "EngineError", "Decline", "DECLINE"]
+__all__ = [
+    "PettaError",
+    "MettaSyntaxError",
+    "EngineError",
+    "CompileError",
+    "Decline",
+    "DECLINE",
+]
 
 
 class PettaError(Exception):
@@ -25,6 +32,21 @@ class EngineError(PettaError):
     The original janus exception rides along as __cause__, so nothing is
     hidden; the message here is the engine's, trimmed of janus framing.
     """
+
+
+class CompileError(PettaError):
+    """A Python construct the define compiler refuses, with the reason.
+
+    Refusals are the contract: every one names the construct, the line, and
+    what to write instead, so the message teaches the subset rather than
+    hiding it. Never a silent fallback.
+    """
+
+    def __init__(self, message: str, *, construct: str | None = None, line: int | None = None):
+        where = f" (line {line})" if line is not None else ""
+        super().__init__(f"{message}{where}")
+        self.construct = construct
+        self.line = line
 
 
 class Decline(Exception):

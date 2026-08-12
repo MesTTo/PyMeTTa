@@ -304,6 +304,62 @@ class MeTTa:
             )
         return f"nothing here is headed by {name}, and no function has that name"
 
+    # ------------------------------------------------------------ definitions
+
+    def define(self, fn: Callable):
+        """Compile a Python function into MeTTa equations, decorator-style.
+
+        Written for whoever is fluent in Python rather than s-expressions:
+        the body is read as syntax and lowered deterministically, refusals
+        name the construct, the line and what to write instead, and the
+        original stays reachable as .py, a twin the equations can be checked
+        against on any ground input.
+
+            @m.define
+            def fact(n):
+                if n == 0:
+                    return 1
+                return n * fact(n - 1)
+
+            m.run("!(fact 5)")          # [[120]]
+            fact.py(5)                  # 120, ordinary Python
+
+        A generator compiles to nondeterminism (each yield one answer), a
+        lambda to the engine's own |->, a comprehension to map-atom and
+        filter-atom, and match(Pattern(x, y), template) to a match against
+        the running space, lowercase free names in the pattern binding as
+        variables.
+        """
+        from .define import Defined, compile_function
+
+        params, body, twin = compile_function(fn, known=self.is_function)
+        name = fn.__name__
+        head = Expr([Sym(name), *(Var(p) for p in params)])
+        self.add(Expr([Sym("="), head, body]))
+        return Defined(name, params, body, twin, self)
+
+    # ---------------------------------------------------------- integrations
+
+    def integrate(self, target: Any) -> str:
+        """Install a library integration; see petta.integrate."""
+        from . import integrate as _integrate
+
+        return _integrate.integrate(self, target)
+
+    def register_space(self, name: str, provider: Any) -> Any:
+        """A space answered by Python: matches, adds and removals route to
+        the provider, so a table, a dataframe or a service is matchable the
+        way stored atoms are. See petta.foreign.SpaceProvider."""
+        from .foreign import register_provider
+
+        register_provider(self._rt, name, provider)
+        return provider
+
+    def unregister_space(self, name: str) -> None:
+        from .foreign import unregister_provider
+
+        unregister_provider(self._rt, name)
+
     # ------------------------------------------------------------ interop
 
     @property
