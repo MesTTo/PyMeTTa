@@ -178,7 +178,27 @@ member_alpha(X, [_|T]) :- member_alpha(X, T).
                                                             ; 'intersection-atom'(T, B, Out) ).
 
 %%% Type system: %%%
-get_function_type([F|Args], T) :- nonvar(F), match('&self', [':',F,[->|Ts]], _, _),
+
+%The space whose ':' declarations are in scope. A space's compiled clauses live
+%in a module named after it, and space_module/2 is '&self' -> user and the
+%identity otherwise, so inverting it recovers the space with no extra state to
+%keep.
+%
+%Without this, get-type consulted '&self' literally, and a declaration made in
+%any other space was invisible to it. That is not an edge case: every space
+%PyPeTTa creates is a named one, so `(: a A)` written there answered
+%'%Undefined%' no matter what.
+current_metta_space(Space) :- current_metta_module(Module),
+                              ( Module == user -> Space = '&self' ; Space = Module ).
+
+%A ':' declaration in scope here: this space's, and &self's, since &self is the
+%shared space. That is the rule fun_here/1 already applies to functions.
+type_declaration(X, T) :- current_metta_space(Space),
+                          (   match(Space, [':', X, T], T, _)
+                          ;   Space \== '&self',
+                              match('&self', [':', X, T], T, _) ).
+
+get_function_type([F|Args], T) :- nonvar(F), type_declaration(F, [->|Ts]),
                                   append(As,[T],Ts),
                                   maplist('get-type',Args,As).
 
@@ -193,7 +213,7 @@ get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
-get_type_candidate(X, T) :- match('&self', [':',X,T], T, _).
+get_type_candidate(X, T) :- type_declaration(X, T).
 'get-metatype'(X, 'Variable') :- var(X), !.
 'get-metatype'(X, 'Grounded') :- number(X), !.
 'get-metatype'(X, 'Grounded') :- string(X), !.
@@ -273,6 +293,19 @@ call_goals([]).
 call_goals([G|Gs]) :- call(G), 
                       call_goals(Gs).
 
+%As call_goals/1, but in a named module, so a form run against a space reaches
+%that space's own equations. call/1 resolves in the module its clause was
+%compiled in, which is why the module has to be named rather than inherited.
+%The space's module is in force while the goals run, not only while they were
+%compiled. Anything consulting the current space at call time needs it: get-type
+%does, so without this a `(: a A)` written in a named space was invisible to
+%`!(get-type a)` even though the two ran in the same space.
+call_goals_in(Module, Goals) :- with_metta_module(Module, call_goals_in_(Module, Goals)).
+
+call_goals_in_(_, []).
+call_goals_in_(Module, [G|Gs]) :- call(Module:G),
+                                  call_goals_in_(Module, Gs).
+
 %%% Higher-Order Functions: %%%
 'foldl-atom'([], Acc, _Func, Acc).
 'foldl-atom'([H|T], Acc0, Func, Out) :- reduce([Func,Acc0,H], Acc1),
@@ -290,6 +323,17 @@ call_goals([G|Gs]) :- call(G),
 %%% Prolog interop: %%%
 argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number(A, N) -> Arg = N ; Arg = A ).
 import_prolog_function(N, true) :- register_fun(N).
+
+%A Prolog library loaded from MeTTa belongs to the process, not to a space. Its
+%predicates are builtins once loaded, register_fun/1 reads their arity out of
+%user, and every space has to be able to call them. SWI loads a file into the
+%module the load runs in, and under per-space equations a runnable form runs in
+%its space's module, so a library imported inside a named space would define
+%itself where register_fun/1 cannot see it: the arities never register and every
+%call to it compiles to a partial application instead. In &self the load module
+%already is user, so this states that behaviour rather than adding a rule.
+consult_global(File) :- user:consult(File).
+use_module_global(File) :- user:use_module(File).
 'Predicate'([F|Args], Term) :- Term =.. [F|Args].
 callPredicate(G, true) :- call(G).
 assertzPredicate(G, true) :- assertz(G).
@@ -327,6 +371,35 @@ register_fun(N) :- fun(N), !.
 register_fun(N) :- assertz(fun(N)),
                    forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
                           (arity(N, Arity) -> true ; assertz(arity(N, Arity)))).
+
+%The module whose equations are in scope while a term is compiled or run. The
+%default is user, so nothing changes for a program that only ever uses &self.
+current_metta_module(Module) :-
+    ( nb_current('$petta_module', M) -> Module = M ; Module = user ).
+
+with_metta_module(Module, Goal) :-
+    current_metta_module(Previous),
+    setup_call_cleanup(b_setval('$petta_module', Module),
+                       Goal,
+                       b_setval('$petta_module', Previous)).
+
+%Whether a symbol is callable from where we are: a function this module defines,
+%one &self defines, since &self is the shared space, or a builtin, which is a
+%function nobody claimed a module for. Anything else is data here, which is what
+%keeps one space's equations out of another's compilation.
+fun_here(F) :- current_metta_module(Module),
+               (   fun_in(Module, F) -> true
+               ;   fun_in(user, F) -> true
+               ;   fun(F), \+ fun_in(_, F) ).
+
+%Register a function and record which module its clauses live in. fun/1 stays
+%global because the translator consults it at compile time to decide whether a
+%head is a call or data, and that decision has to hold wherever the term is
+%compiled; fun_in/2 says where the clauses actually are, so a caller can ask
+%whether *this* space defines a symbol rather than whether any space does.
+:- dynamic fun_in/2.
+register_fun_in(Module, N) :- register_fun(N),
+                              ( fun_in(Module, N) -> true ; assertz(fun_in(Module, N)) ).
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',

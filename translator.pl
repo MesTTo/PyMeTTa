@@ -7,7 +7,7 @@ constrain_args([F, A, B], Out, Goals) :- nonvar(F),
                                          Out = [A1|B1],
                                          append(G1, G2, Goals), !.
 constrain_args([F|Args], Var, Goals) :- atom(F),
-                                        fun(F), !,
+                                        fun_here(F), !,
                                         translate_expr([F|Args], GoalsExpr, Var),
                                         flatten(GoalsExpr, Goals).
 constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
@@ -67,14 +67,22 @@ throw_function_overapplication(Fun, ActualInputArity) :-
     sort(InputArities, KnownInputArities),
     throw(error(domain_error(function_input_arities(Fun, KnownInputArities), ActualInputArity), none)).
 
-% Runtime dispatcher: call F if it's a registered fun/1, else keep as list:
-reduce([F|Args], Out) :- nonvar(F), atom(F), fun(F)
+% Runtime dispatcher: call F if it's a registered fun/1, else keep as list.
+%
+% Resolution follows the current space's module, because that is where the
+% space's equations were compiled. Looking in the calling module instead found
+% nothing for them, so a function defined in a named space and reached through
+% reduce/2 came back as a partial application instead of running: `(map-atom
+% (1 2 3) double)` answered `((partial double (1)) ...)`. A builtin still
+% resolves, through the module's own inheritance from user.
+reduce([F|Args], Out) :- nonvar(F), atom(F), fun_here(F)
                          -> % --- Case 1: callable predicate ---
                             length(Args, N),
                             Arity is N + 1,
-                            ( current_predicate(F/Arity) , \+ (current_op(_, _, F), Arity =< 2)
+                            current_metta_module(Module),
+                            ( current_predicate(Module:F/Arity) , \+ (current_op(_, _, F), Arity =< 2)
                               -> resolve_memoization(F, Args, Out, Goal),
-                                 catch(call(Goal), _, fail)
+                                 catch(call(Module:Goal), _, fail)
                             ; incomplete_application_kind(F, Arity, partial)
                               -> Out = partial(F,Args)
                             ; throw_function_overapplication(F, N) )
@@ -120,7 +128,7 @@ translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
         %--- Translator rules ---:
-        ( nonvar(HV), translator_rule(HV) -> ( catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail)
+        ( nonvar(HV), translator_rule(HV) -> ( catch(type_declaration(HV, TypeChain), _, fail)
                                                -> TypeChain = [->|Xs],
                                                   append(ArgTypes, [_], Xs),
                                                   translate_args_by_type(T, ArgTypes, GsT, T1)
@@ -334,10 +342,10 @@ translate_expr([H0|T0], Goals, Out) :-
           append(GsH, GsT, Inner),
           %Known function => direct call:
           ( is_list(AVs), 
-            ( atom(HV), fun(HV), Fun = HV, AllAVs = AVs, IsPartial = false
+            ( atom(HV), fun_here(HV), Fun = HV, AllAVs = AVs, IsPartial = false
             ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
-            -> findall(TypeChain, catch(match('&self', [':', Fun, TypeChain], TypeChain, TypeChain), _, fail), TypeChains),
+            -> findall(TypeChain, catch(type_declaration(Fun, TypeChain), _, fail), TypeChains),
                list_to_set(TypeChains, UniqueTypeChains),
                ( UniqueTypeChains \= []
                  -> length(AllAVs, InputArity),
@@ -350,7 +358,7 @@ translate_expr([H0|T0], Goals, Out) :-
                          Goals = [Disj] )
               ; build_call_or_partial(Fun, AllAVs, Out, Inner, [], Goals))
           %Literals (numbers, strings, etc.), known non-function atom => data:
-          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun(HV) ) -> Out = [HV|AVs],
+          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun_here(HV) ) -> Out = [HV|AVs],
                                                                   Goals = Inner
           %Plain data list: evaluate inner fun-sublists
           ; is_list(HV) -> eval_data_term(HV, Gd, HV1),
@@ -398,7 +406,7 @@ translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
 
 %Handle data list:
 eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
-eval_data_term([F|As], Goals, Val) :- ( atom(F), fun(F) -> translate_expr([F|As], Goals, Val)
+eval_data_term([F|As], Goals, Val) :- ( atom(F), fun_here(F) -> translate_expr([F|As], Goals, Val)
                                                          ; eval_data_list([F|As], Goals, Val) ).
 
 %Handle data list entry:
@@ -469,7 +477,7 @@ next_lambda_name(Name) :- ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) 
 
 declared_output_type(F, OutType) :- atom(F),
 									nonvar(OutType),
-									catch(match('&self', [':', F, TypeChain], TypeChain, TypeChain), _, fail),
+									catch(type_declaration(F, TypeChain), _, fail),
 									TypeChain = [->|Types],
 									append(_, [DeclaredOutType], Types),
 									DeclaredOutType == OutType.

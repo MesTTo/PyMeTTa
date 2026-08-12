@@ -47,7 +47,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses s
                                              assertz(ho_specialization(HV, SpecName)),
                                              assertz(arity(SpecName, Arity)),
                                              ( %4.2. Re-use the type definition of the parent function for the specialization:
-                                               findall(TypeChain, catch(match('&self', [':', HV, TypeChain], TypeChain, TypeChain), _, fail), TypeChains),
+                                               findall(TypeChain, catch(type_declaration(HV, TypeChain), _, fail), TypeChains),
                                                forall(member(TypeChain, TypeChains), add_sexp('&self', [':', SpecName, TypeChain])),
                                                %4.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
                                                maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>

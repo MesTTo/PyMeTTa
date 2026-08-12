@@ -6,15 +6,42 @@ add_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                   retractall(Term).
 
+%Which module a space's compiled clauses live in. &self keeps using the default
+%module, so every existing program compiles and runs exactly as before; any other
+%named space gets its own, which is what makes two spaces able to define the same
+%function without answering from each other's equations. A goal unresolved in a
+%module falls back to user, so builtins and library functions still reach.
+space_module('&self', user) :- !.
+space_module(Space, Space).
+
+%Whether any module still holds a clause for a function. `user` is always
+%checked, because a function read from a file is compiled by process_form/3
+%rather than by add-atom/3 and so has no fun_in/2 record of its own.
+function_still_defined(F) :- ( fun_in(Module, F) ; Module = user ),
+                             current_predicate(Module:F/Arity),
+                             functor(Head, F, Arity),
+                             clause(Module:Head, _, _),
+                             !.
+
+%Whether this module itself holds a clause for a function. Inherited clauses
+%do not count: clause/3 sees user's clauses through module inheritance, and
+%counting those would keep a module's claim alive on another space's strength.
+module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
+                                   functor(Head, F, Arity),
+                                   clause(Module:Head, _, Ref),
+                                   clause_property(Ref, module(Module)),
+                                   !.
+
 %Add a function atom:
 'add-atom'(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                  add_sexp(Space, Term),
-                                 register_fun(FAtom),
+                                 space_module(Space, Module),
+                                 register_fun_in(Module, FAtom),
                                  length(W, N),
                                  Arity is N + 1,
                                  assertz(arity(FAtom,Arity)),
-                                 once(translate_clause(Term, Clause)),
-                                 assertz(Clause, Ref),
+                                 once(with_metta_module(Module, translate_clause(Term, Clause))),
+                                 assertz(Module:Clause, Ref),
                                  assertz(translated_from(Ref, Term)),
                                  metta_on_function_changed(FAtom),
                                  invalidate_specializations(FAtom),
@@ -35,8 +62,12 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                        retractall(translated_from(_, Term)),
                                        metta_on_function_changed(F),
                                        invalidate_specializations(F),
-                                       ( \+ ( current_predicate(F/A), functor(H2, F, A), clause(H2, _, _) )
-                                         -> retractall(fun(F)), metta_on_function_removed(F)
+                                       space_module(Space, Module),
+                                       ( module_owns_function(Module, F) -> true
+                                                                          ; retractall(fun_in(Module, F)) ),
+                                       ( \+ function_still_defined(F)
+                                         -> retractall(fun(F)), retractall(fun_in(_, F)),
+                                            metta_on_function_removed(F)
                                          ; true ),
                                        ( Refs = [] -> Removed = false ; Removed = true ).
 
