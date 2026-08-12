@@ -220,13 +220,24 @@ get_type_candidate(X, T) :- type_declaration(X, T).
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
 %MeTTa's own types are nondeterministic. This is what lets a declared
 %(-> Tensor Tensor Tensor) hold for values the host created.
-py_object_type(X, T) :- py_call(builtins:type(X), Class),
-                        py_call(builtins:getattr(Class, '__mro__'), MRO),
-                        py_call(builtins:list(MRO), Classes),
-                        member(C, Classes),
-                        py_call(builtins:getattr(C, '__name__'), Name),
-                        ( atom(Name) -> T = Name ; atom_string(T, Name) ),
-                        T \== object.
+%A bridge that knows how to read the object answers with every type name at
+%once, protocols included, as plain text the boundary cannot damage; without
+%one, the class walk below runs, plus any engine-side extra types:
+py_object_type(X, T) :- ( catch(py_object_type_names(X, Names), _, fail )
+                          -> member(N, Names),
+                             ( atom(N) -> T = N ; atom_string(T, N) )
+                        ; py_object_class_type(X, T) ).
+
+py_object_class_type(X, T) :- py_call(builtins:type(X), Class),
+                              py_call(builtins:getattr(Class, '__mro__'), MRO),
+                              py_call(builtins:list(MRO), Classes),
+                              member(C, Classes),
+                              py_call(builtins:getattr(C, '__name__'), Name),
+                              ( atom(Name) -> T = Name ; atom_string(T, Name) ),
+                              T \== object.
+%A protocol the object satisfies may name a type too, through the extension
+%point, so (-> DLTensor ...) holds for every array library at once:
+py_object_class_type(X, T) :- py_object_extra_type(X, T).
 
 'get-metatype'(X, 'Variable') :- var(X), !.
 'get-metatype'(X, 'Grounded') :- number(X), !.

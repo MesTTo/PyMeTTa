@@ -32,6 +32,11 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                    clause_property(Ref, module(Module)),
                                    !.
 
+%A foreign space stores whatever its provider stores, equations included as
+%plain atoms; the hook owns the write entirely:
+'add-atom'(Space, Term, true) :- metta_foreign_space(Space), !,
+                                 metta_foreign_add(Space, Term).
+
 %Add a function atom:
 'add-atom'(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                  add_sexp(Space, Term),
@@ -49,6 +54,9 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
 
 %Add an atom to the space:
 'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
+
+'remove-atom'(Space, Term, Removed) :- metta_foreign_space(Space), !,
+                                       metta_foreign_remove(Space, Term, Removed).
 
 %%Remove a function atom:
 'remove-atom'(Space, Term, Removed) :- Term = [=,[F|Args],Body], !,
@@ -74,14 +82,31 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
 %Remove all same atoms:
 'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term).
 
-%Match for conjunctive pattern
+%Match against a foreign space: the provider enumerates candidates and the
+%pattern unifies here, so soundness stays the engine's however approximate
+%the provider's own filtering is. The conjunctive form recurses per conjunct
+%below, reaching this clause for each:
+match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
+                                             metta_foreign_space(Space),
+                                             Pattern \= [','|_],
+                                             \+ var(Pattern), !,
+                                             metta_foreign_match(Space, Pattern),
+                                             \+ cyclic_term(OutPattern),
+                                             Result = OutPattern.
+match(Space, PatternVar, OutPattern, Result) :- var(PatternVar),
+                                                nonvar(Space),
+                                                metta_foreign_space(Space), !,
+                                                metta_foreign_atoms(Space, PatternVar),
+                                                \+ cyclic_term(OutPattern),
+                                                Result = OutPattern.
+
+%Match for conjunctive pattern. Each conjunct routes through match/4 rather
+%than calling the space predicate directly, so a conjunction inherits every
+%kind of space matching supports, foreign spaces included:
 match(_, LComma, OutPattern, Result) :- LComma == [','], !,
                                         Result = OutPattern.
 match(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',', !,
-                                                         append([Space], Head, List),
-                                                         Term =.. List,
-                                                         catch(Term, _, fail),
-                                                         \+ cyclic_term(OutPattern),
+                                                         match(Space, Head, conj, conj),
                                                          match(Space, [','|Tail], OutPattern, Result).
 
 % When the pattern list itself is a variable -> enumerate all atoms
@@ -95,6 +120,10 @@ match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArg
                                                    catch(Term, _, fail),
                                                    \+ cyclic_term(OutPattern),
                                                    Result = OutPattern.
+
+'get-atoms'(Space, Pattern) :- nonvar(Space),
+                               metta_foreign_space(Space), !,
+                               metta_foreign_atoms(Space, Pattern).
 
 %Get all atoms in space, irregard of arity:
 'get-atoms'(Space, Pattern) :- current_predicate(Space/Arity),
