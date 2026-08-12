@@ -6,8 +6,7 @@
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
-%   Future Enhancements: retranslation of stale call-vs-data decisions when a
-%     function appears after code referencing it compiled (engine-side work).
+%   Future Enhancements: None
 
 :- use_module(library(janus)).
 :- use_module(library(lists)).
