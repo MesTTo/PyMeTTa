@@ -209,16 +209,31 @@ get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
 get_type_candidate(false, 'Bool') :- !.
+get_type_candidate(X, T) :- py_is_object(X), py_object_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
 get_type_candidate(X, T) :- type_declaration(X, T).
+%A grounded Python object is Grounded, and its Python classes are its types:
+%every class on the object's method resolution order short of object itself is
+%a candidate, so a torch Linear is a Linear and a Module, in the same way
+%MeTTa's own types are nondeterministic. This is what lets a declared
+%(-> Tensor Tensor Tensor) hold for values the host created.
+py_object_type(X, T) :- py_call(builtins:type(X), Class),
+                        py_call(builtins:getattr(Class, '__mro__'), MRO),
+                        py_call(builtins:list(MRO), Classes),
+                        member(C, Classes),
+                        py_call(builtins:getattr(C, '__name__'), Name),
+                        ( atom(Name) -> T = Name ; atom_string(T, Name) ),
+                        T \== object.
+
 'get-metatype'(X, 'Variable') :- var(X), !.
 'get-metatype'(X, 'Grounded') :- number(X), !.
 'get-metatype'(X, 'Grounded') :- string(X), !.
 'get-metatype'(true,  'Grounded') :- !.
 'get-metatype'(false, 'Grounded') :- !.
+'get-metatype'(X, 'Grounded') :- py_is_object(X), !.
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
