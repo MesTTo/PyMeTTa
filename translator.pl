@@ -45,7 +45,7 @@ maybe_print_compiled_clause(Label, FormTerm, Clause) :-
     swrite(FormTerm, FormStr),
     format("\e[33m-->  ~w  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [Label, FormStr]),
     portray_clause(current_output, Clause),
-    format("\e[33m^^^^^^^^^^^^^^^^^^^^^~n\e[0m").
+    format("\e[33m^^^^^^^^^^^^^^^^^^^^^\e[0m~n").
 
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.

@@ -27,12 +27,12 @@ parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 process_form(Space, parsed(expression, _, Term), []) :- 'add-atom'(Space, Term, true),
                                                         ( silent(true) -> true ; swrite(Term,STerm),
                                                                                  format("\e[33m--> metta sexpr -->~n\e[36m~w~n", [STerm]),
-                                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
+                                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^\e[0m~n") ).
 process_form(Space, parsed(runnable, FormStr, Term), Result) :- space_module(Space, Module),
                                                             with_metta_module(Module, translate_expr([collapse, Term], Goals, Result)),
                                                             ( silent(true) -> true ; format("\e[33m--> metta runnable  -->~n\e[36m!~w~n\e[33m-->  prolog goal  -->\e[35m ~n", [FormStr]),
                                                                                      forall(member(G, Goals), portray_clause((:- G))),
-                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ),
+                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^^\e[0m~n") ),
                                                             call_goals_in(Module, Goals).
 process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term),
                                                             Term = [=, [F|_], _],
@@ -46,7 +46,7 @@ process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term
                                                                                      clause(Head, Body, Ref),
                                                                                      ( Body == true -> Show = Head; Show = (Head :- Body) ),
                                                                                      portray_clause(current_output, Show),
-                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^~n\e[0m") ).
+                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^\e[0m~n") ).
 process_form(_, In, _) :- format(atom(Msg), "failed to process form: ~w", [In]), throw(error(syntax_error(Msg), none)).
 
 %Like blanks but counts newlines:
