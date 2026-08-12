@@ -1,7 +1,8 @@
-"""Purpose: training as MeTTa. Loss functions as MeTTa operations, an
-optimizer attached as step and zero operations, and a train_step helper that
-runs one whole update through the engine: forward by equations, backward and
-step in torch, loss returned as a number.
+"""Purpose: training as MeTTa, assembled from the general integration
+toolkit: losses arrive through module_ops over torch.nn.functional, an
+optimizer's step and zero_grad through wrap_object, and train_step runs one
+whole update with the forward pass in MeTTa. Nothing here is machinery of
+its own; that is the point.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -11,6 +12,7 @@ Open Obligations:
 from __future__ import annotations
 
 from petta import S, expr
+from petta.integrate import module_ops, wrap_object
 
 from ._torch import torch
 
@@ -20,60 +22,34 @@ LOSS_OPS: list[str] = []
 
 
 def install_loss_ops(m) -> list[str]:
-    """Register the loss functions install() ships: mse, cross-entropy, l1."""
+    """mse-loss, cross-entropy and l1-loss, straight off torch.nn.functional."""
     t = torch()
-    registered = []
-
-    def op(fn, name):
-        m.op(fn, name=name, raw=True, typed=False)
-        registered.append(name)
-
-    op(lambda pred, target: t.nn.functional.mse_loss(pred, target), "mse-loss")
-    op(
-        lambda logits, target: t.nn.functional.cross_entropy(logits, target),
-        "cross-entropy",
-    )
-    op(lambda pred, target: t.nn.functional.l1_loss(pred, target), "l1-loss")
+    registered = module_ops(m, t.nn.functional, ["mse_loss", "cross_entropy", "l1_loss"])
     LOSS_OPS[:] = registered
     return registered
 
 
 def attach_optimizer(m, optimizer, name: str = "optim"):
-    """Give an optimizer MeTTa spellings: (<name>-step!) and (<name>-zero!).
-
-        opt = torch.optim.SGD(model.parameters(), lr=0.1)
-        pettorch.attach_optimizer(m, opt)
-        m.run("!(optim-zero!)")     # zero gradients
-        ...backward...
-        m.run("!(optim-step!)")     # apply the update
-
-    Both answer True, the engine's own convention for an effectful builtin.
-    """
-
-    def step() -> bool:
-        optimizer.step()
-        return True
-
-    def zero() -> bool:
-        optimizer.zero_grad()
-        return True
-
-    m.op(step, name=f"{name}-step!", raw=True, typed=False)
-    m.op(zero, name=f"{name}-zero!", raw=True, typed=False)
+    """(name-step!) and (name-zero!): the optimizer's own methods as
+    operations, effect convention included (a Python None answers True, the
+    engine's own spelling for an effectful builtin)."""
+    wrap_object(
+        m,
+        name,
+        optimizer,
+        {"step": f"{name}-step!", "zero_grad": f"{name}-zero!"},
+    )
     return optimizer
 
 
 def train_step(m, loss_function: str, optimizer, *batch) -> float:
     """One update where the forward pass is MeTTa: returns the loss value.
 
-    Evaluates (loss_function batch...) in the space, which must answer one
-    loss tensor; then zero_grad, backward and step here. The division of
-    labour is the point: what to compute is equations the engine can match,
-    derive and explain; how to differentiate it is torch's.
+    What to compute stays equations the engine can match, derive and
+    explain; how to differentiate it is torch's.
     """
     t = torch()
-    call = expr(S[loss_function], *batch)
-    answers = m.eval(call)
+    answers = m.eval(expr(S[loss_function], *batch))
     if len(answers) != 1:
         raise RuntimeError(
             f"({loss_function} ...) answered {len(answers)} results; "

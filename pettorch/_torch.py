@@ -1,6 +1,8 @@
 """Purpose: the single lazy gateway to torch. Everything in pettorch imports
 torch through here, so a missing installation surfaces once, with the fix in
-the message, and importing pettorch itself stays free.
+the message, and importing pettorch itself stays free. Printing and typing
+of tensors need nothing here: the DLPack protocol registrations in
+petta.arrays cover every array library at once.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,18 +32,4 @@ def torch():
                 "build matching your hardware, for example: pip install torch"
             ) from exc
         _TORCH = t
-        _register_repr(t)
     return _TORCH
-
-
-def _register_repr(t) -> None:
-    """Stored tensors print their shape, dtype and device, not an address."""
-    from petta import register_object_repr
-
-    def describe(x) -> str:
-        dtype = str(x.dtype).removeprefix("torch.")
-        shape = "x".join(str(d) for d in x.shape) or "scalar"
-        grad = " grad" if x.requires_grad else ""
-        return f"<Tensor {shape} {dtype} {x.device}{grad}>"
-
-    register_object_repr(t.Tensor, describe)

@@ -1,8 +1,9 @@
-"""Purpose: pettorch, the deep integration between PeTTa's MeTTa and PyTorch.
-Both directions and the structure itself: tensors are atoms with identity, an
-nn.Module is a MeTTa function, a MeTTa program is an nn.Module, architectures
-reflect into facts rules can match, training runs through the engine with the
-autograd graph intact, and similarity search is a nondeterministic operation.
+"""Purpose: pettorch, PyTorch integrated with PeTTa as one instantiation of
+the general interface: petta.arrays carries the whole tensor operation set
+with torch as the constructor default, petta.integrate carries losses,
+optimizers, wrapping and reflection, and what remains genuinely torch is
+autograd, gelu and the nn.Module packaging of a MeTTa forward pass. The
+package is the existence proof that the general system loses nothing.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,13 +16,14 @@ Open Obligations:
     m.run("!(t-tolist (matmul (tensor ((1.0 2.0))) (tensor ((3.0) (4.0)))))")
     # [[Expr('((11.0))')]]
 
-Importing pettorch is free; torch loads on first use and a missing torch
-raises with the install command.
+Importing pettorch is free; torch loads on first use.
 """
 
 from __future__ import annotations
 
-from .knn import EmbeddingStore
+from petta.arrays import EmbeddingStore
+
+from . import reflect as _reflect_module
 from .modules import MettaModule, wrap
 from .reflect import VOCABULARY, reflect
 from .tensors import TENSOR_OPS, install_tensor_ops
@@ -32,6 +34,7 @@ __version__ = "0.2.0"
 __all__ = [
     "install",
     "installed",
+    "install_petta",
     "wrap",
     "MettaModule",
     "reflect",
@@ -50,16 +53,20 @@ _INSTALLED = False
 
 
 def install(m) -> list[str]:
-    """Register the whole operation set on the shared engine.
+    """Register the whole torch integration on the shared engine.
 
-    Idempotent per process, because operations are process-wide the way every
-    MeTTa function is: installing through one space serves them all. Returns
-    the registered names.
+    Idempotent per process, because operations are process-wide the way
+    every MeTTa function is. Returns the registered names.
     """
     global _INSTALLED
     names = install_tensor_ops(m) + install_loss_ops(m)
+    _reflect_module.register()
     _INSTALLED = True
     return names
+
+
+#: The integration protocol's spelling, so m.integrate(pettorch) works.
+install_petta = install
 
 
 def installed() -> bool:

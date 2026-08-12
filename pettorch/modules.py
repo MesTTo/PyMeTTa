@@ -1,9 +1,9 @@
-"""Purpose: the two directions a model crosses the boundary. wrap() makes an
-nn.Module callable as a MeTTa function, so symbolic rules decide which model
-runs. MettaModule makes a MeTTa program an nn.Module, so a program written as
-equations slots into optimizers and ordinary training loops. Both rest on one
-measured fact: tensors cross as themselves, so the autograd graph is never
-broken by the engine.
+"""Purpose: the two directions a model crosses the boundary, built on the
+general interface. wrap() is petta.integrate.wrap_callable plus the nn.Module
+reflector; MettaModule packages a MeTTa forward pass as an nn.Module so it
+slots into optimizers and training loops, its parameters reached from MeTTa
+through an ordinary registered operation. The autograd graph survives
+because tensors cross by identity, a property of the boundary, not of torch.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,34 +15,28 @@ from __future__ import annotations
 from typing import Any
 
 from petta import Gnd, S, decode, expr, val
+from petta.integrate import wrap_callable
 
+from .reflect import reflect as _reflect_model
 from ._torch import torch
 
 __all__ = ["wrap", "MettaModule"]
 
 
 def wrap(m, name: str, module, *, arities: list[int] | None = None):
-    """Register an nn.Module (or any callable over tensors) as a MeTTa function.
+    """Register a model (or any callable over tensors) as a MeTTa function.
 
         pettorch.wrap(m, "classify", model)
         m.run("!(t-argmax (classify (tensor (1.0 2.0))))")
 
-    The module also lands in the space as a fact, (nn-wrapped name <module>),
-    so rules can enumerate what is wrapped and pick a model symbolically, and
-    its architecture is reflected as atoms (see reflect). The call is raw:
-    tensors in, tensor out, autograd intact.
+    An nn.Module also reflects its architecture into facts and lands as
+    (nn-wrapped name <module>), so rules route between models symbolically.
     """
     t = torch()
-
-    def call(*xs):
-        return module(*xs)
-
-    m.op(call, name=name, raw=True, typed=False, arities=arities or [1])
+    wrap_callable(m, name, module, arities=arities or [1])
     m.add(expr(S["nn-wrapped"], S[name], val(module)))
     if isinstance(module, t.nn.Module):
-        from .reflect import reflect
-
-        reflect(m, name, module)
+        _reflect_model(m, name, module)
     return module
 
 
@@ -50,21 +44,17 @@ def MettaModule(metta, function: str, params: dict[str, Any] | None = None,
                 param_op: str = "param"):
     """An nn.Module whose forward pass is a MeTTa program.
 
-        m.run("(= (predict $x) (matmul (param w) $x))")
-        model = pettorch.MettaModule(m, "predict",
-                                     params={"w": torch.randn(2, 3)})
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        m.run("(= (predict $x) (t-sum (t* (param w) $x)))")
+        model = pettorch.MettaModule(m, "predict", params={"w": torch.zeros(2)})
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.05)
         loss = loss_fn(model(x), target)   # forward runs the equations
         loss.backward()                    # gradients reach model.w
 
-    Parameters are ordinary nn.Parameters registered on the module, so
-    optimizers, state_dict and .to(device) all see them, and they reach MeTTa
-    through the param operation: (param w) answers the live tensor, the very
-    same object, which is what keeps the graph connected. torch.compile
-    cannot trace through the engine; forward runs eager.
-
-    A factory rather than a class, so importing pettorch never imports torch;
-    the instance is an ordinary nn.Module subclass instance.
+    Parameters are ordinary nn.Parameters registered on the module, reached
+    from MeTTa through (param name) as the very same objects, which is what
+    keeps the graph connected. torch.compile cannot trace through the
+    engine; forward runs eager. A factory rather than a class, so importing
+    pettorch never imports torch.
     """
     t = torch()
 
@@ -96,8 +86,7 @@ def MettaModule(metta, function: str, params: dict[str, Any] | None = None,
             metta.op(fetch, name=param_op, raw=False, typed=False, pass_atoms=True)
 
         def forward(self, *xs):
-            call = expr(S[function], *(val(x) for x in xs))
-            answers = metta.eval(call)
+            answers = metta.eval(expr(S[function], *(val(x) for x in xs)))
             if len(answers) != 1:
                 raise RuntimeError(
                     f"({function} ...) answered {len(answers)} results; a "
