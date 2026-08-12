@@ -1,3 +1,20 @@
+"""Purpose: the petta package: PeTTa's Python surface. The legacy PeTTa class
+keeps its exact contract (swrite strings through helper.pl), and the rich
+surface lives beside it: atoms as Python values, the MeTTa runtime class,
+Python-backed MeTTa functions, structured queries and proof trees.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+
+    from petta import MeTTa, S, V
+
+    m = MeTTa()
+    m.run("(= (foo) boo) !(foo)")        # [[Sym('boo')]]
+    m.add(S.Parent(S.Tom, S.Bob))
+    m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
+"""
+
 import os
 import threading
 import importlib
@@ -6,6 +23,9 @@ CONSULTED = False
 CONSULT_LOCK = threading.Lock()
 janus = None
 DEFAULT_STACK_LIMIT = 8_000_000_000
+
+# Whether shim.pl has been consulted; owned by petta._engine.
+_SHIM_LOADED = False
 
 
 def _resolve_petta_path():
@@ -27,6 +47,12 @@ def _resolve_petta_path():
 
 
 class PeTTa:
+    """The original thin wrapper: swrite strings in, swrite strings out.
+
+    Kept exactly as it was for existing callers; the rich surface is the
+    MeTTa class beside it. Both share one consulted engine.
+    """
+
     def __init__(self, verbose=False, petta_path=None):
         global CONSULTED, janus
         self.verbose = bool(verbose)
@@ -79,3 +105,73 @@ class PeTTa:
     def process_metta_string(self, metta_code) -> str:
         """Compile a string of MeTTa code to Prolog and return the results of the run."""
         return self._run_helper("process_metta_string", metta_code)
+
+
+from .atoms import (  # noqa: E402
+    Atom,
+    Expr,
+    Gnd,
+    S,
+    Sym,
+    V,
+    Var,
+    alpha_eq,
+    decode,
+    encode,
+    expr,
+    is_ground,
+    parse,
+    register_object_repr,
+    sym,
+    unify,
+    val,
+    var,
+    variables,
+)
+from .derivation import Builtin, Derivation, Fact, Step  # noqa: E402
+from .errors import DECLINE, Decline, EngineError, MettaSyntaxError, PettaError  # noqa: E402
+from .results import Row, Rows  # noqa: E402
+from .space import MeTTa  # noqa: E402
+
+__version__ = "0.2.0"
+
+__all__ = [
+    # the legacy surface
+    "PeTTa",
+    # atoms
+    "Atom",
+    "Sym",
+    "Var",
+    "Gnd",
+    "Expr",
+    "S",
+    "V",
+    "sym",
+    "var",
+    "val",
+    "expr",
+    "encode",
+    "decode",
+    "parse",
+    "alpha_eq",
+    "unify",
+    "variables",
+    "is_ground",
+    "register_object_repr",
+    # runtime
+    "MeTTa",
+    "Rows",
+    "Row",
+    # diagnostics
+    "Derivation",
+    "Step",
+    "Fact",
+    "Builtin",
+    # errors
+    "PettaError",
+    "EngineError",
+    "MettaSyntaxError",
+    "Decline",
+    "DECLINE",
+    "__version__",
+]

@@ -1,0 +1,419 @@
+% Purpose: Prolog side of the petta Python library. Adds tagged term encoding,
+%   per-directive structured runs, space operations, Python-backed MeTTa
+%   functions (deterministic and nondeterministic), evaluation, and proof-tree
+%   derivations on top of an unmodified PeTTa engine. Consulted after
+%   src/main.pl; only adds predicates, never redefines engine ones.
+% Open Obligations:
+%   To Do: None
+%   Hacks: None
+%   Future Enhancements: retranslation of stale call-vs-data decisions when a
+%     function appears after code referencing it compiled (engine-side work).
+
+:- use_module(library(janus)).
+:- use_module(library(lists)).
+:- use_module(library(apply)).
+
+%%%%%%%%%% Wire encoding %%%%%%%%%%
+%
+% janus maps both a Prolog atom and a Prolog string to a Python str, and maps
+% the booleans to strings too, so a bare term crossing the boundary loses its
+% metatype. Every term crosses tagged instead: ["s",Name] symbol, ["g",Text]
+% string, ["n",N] number, ["b",true|false] boolean, ["v",Name] variable,
+% ["e",[...]] expression, ["o",Ref] Python object reference. The tag list
+% itself is nested lists, which janus converts natively in both directions.
+
+%Encode a Prolog term as a tagged wire term:
+petta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A, Name).
+petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
+petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
+petta_py_encode(T, ["n", T])    :- number(T), !.
+petta_py_encode(T, ["g", T])    :- string(T), !.
+petta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
+petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es).
+petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
+    petta_py_encode(H, EH),
+    petta_py_encode(T, ET).
+%A non-list compound prints as (f a b) under swrite, so it encodes the same way:
+petta_py_encode(T, ["e", [["s", FS] | Es]]) :-
+    compound(T),
+    T =.. [F|Args],
+    atom(F), !,
+    atom_string(F, FS),
+    maplist(petta_py_encode, Args, Es).
+%Anything else (a blob, a dict) is carried as text, the printer's last resort:
+petta_py_encode(T, ["g", S]) :- term_string(T, S).
+
+%Encode with an explicit Name-Var list, so parsed variables keep their names:
+petta_py_encode_named(T, Pairs, ["v", Name]) :-
+    var(T), !,
+    ( petta_py_var_name(Pairs, T, N) -> atom_string(N, Name)
+    ; term_to_atom(T, A), atom_string(A, Name) ).
+petta_py_encode_named(T, Pairs, ["e", Es]) :-
+    is_list(T), !,
+    petta_py_encode_named_list(T, Pairs, Es).
+petta_py_encode_named(T, _, W) :- petta_py_encode(T, W).
+
+petta_py_encode_named_list([], _, []).
+petta_py_encode_named_list([T|Ts], Pairs, [E|Es]) :-
+    petta_py_encode_named(T, Pairs, E),
+    petta_py_encode_named_list(Ts, Pairs, Es).
+
+petta_py_var_name([N-V|_], T, N) :- V == T, !.
+petta_py_var_name([_|Pairs], T, N) :- petta_py_var_name(Pairs, T, N).
+
+%A tag arrives back as an atom or a string depending on the sender; accept both:
+petta_py_tag(T, T) :- atom(T), !.
+petta_py_tag(T, A) :- string(T), atom_string(A, T).
+
+%Booleans cross from Python as janus @(true)/@(false), as atoms, or as text:
+petta_py_bool(B, true)  :- B == true, !.
+petta_py_bool(B, false) :- B == false, !.
+petta_py_bool(B, true)  :- B == '@'(true), !.
+petta_py_bool(B, false) :- B == '@'(false), !.
+petta_py_bool(B, true)  :- B == "true", !.
+petta_py_bool(_, false).
+
+%Decode a tagged wire term; every v tag becomes its own fresh variable:
+petta_py_decode([T, Obj], Obj)  :- petta_py_tag(T, o), !.
+petta_py_decode([T, S], A)      :- petta_py_tag(T, s), !, atom_string(A, S).
+petta_py_decode([T, S], Str)    :- petta_py_tag(T, g), !,
+    ( string(S) -> Str = S ; atom_string(S, Str) ).
+petta_py_decode([T, N], N)      :- petta_py_tag(T, n), !.
+petta_py_decode([T, B], A)      :- petta_py_tag(T, b), !, petta_py_bool(B, A).
+petta_py_decode([T, _], _)      :- petta_py_tag(T, v), !.
+petta_py_decode([T, Es], Term)  :- petta_py_tag(T, e), !,
+    maplist(petta_py_decode, Es, Term).
+
+%Decode sharing variables by name, so the $x in a head and in a body unify.
+%Bindings comes back as Name-Var pairs for reading answers off a query:
+petta_py_decode_shared(Tagged, Term, Bindings) :-
+    petta_py_decode_shared_(Tagged, Term, [], Bindings).
+
+petta_py_decode_shared_([T, Name0], Var, B0, B) :- petta_py_tag(T, v), !,
+    ( string(Name0) -> atom_string(Name, Name0) ; Name = Name0 ),
+    ( memberchk(Name-Var, B0) -> B = B0 ; B = [Name-Var|B0] ).
+petta_py_decode_shared_([T, Es], Term, B0, B) :- petta_py_tag(T, e), !,
+    foldl_decode(Es, Term, B0, B).
+petta_py_decode_shared_(Tagged, Term, B, B) :- petta_py_decode(Tagged, Term).
+
+foldl_decode([], [], B, B).
+foldl_decode([E|Es], [T|Ts], B0, B) :-
+    petta_py_decode_shared_(E, T, B0, B1),
+    foldl_decode(Es, Ts, B1, B).
+
+%%%%%%%%%% Errors %%%%%%%%%%
+%
+% Some exceptions are control signals rather than errors; converting one into a
+% value would swallow the very signal its thrower waits for.
+petta_py_control_exception(inference_limit_exceeded).
+petta_py_control_exception(time_limit_exceeded).
+petta_py_control_exception('$aborted').
+petta_py_control_exception(error(resource_error(_), _)).
+
+%%%%%%%%%% Run and load %%%%%%%%%%
+%
+% The engine's own pipeline is strip/3, top_forms//2, parse_form/2 then
+% process_form/3, and process_metta_string/3 flattens every directive's answers
+% into one list at the end. These entry points run the identical pipeline and
+% keep the grouping instead: one answer list per ! directive, in source order.
+
+petta_py_run(Source, Space, Groups) :-
+    ( string(Source) -> S = Source ; atom_string(Source, S) ),
+    string_codes(S, Cs),
+    strip(Cs, 0, Codes),
+    phrase(top_forms(Forms, 1), Codes),
+    maplist(parse_form, Forms, Parsed),
+    petta_py_process_forms(Parsed, Space, Groups), !.
+
+petta_py_process_forms([], _, []).
+petta_py_process_forms([P|Ps], Space, Out) :-
+    process_form(Space, P, Results),
+    ( P = parsed(runnable, _, _)
+      -> maplist(petta_py_encode, Results, Encoded),
+         Out = [Encoded|Rest]
+    ; Out = Rest ),
+    petta_py_process_forms(Ps, Space, Rest).
+
+%Load a file the way the CLI does, working_dir included, keeping the grouping:
+petta_py_load(File, Space, Groups) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    file_directory_name(FA, Dir),
+    retractall(working_dir(_)),
+    assertz(working_dir(Dir)),
+    read_file_to_string(FA, S, []),
+    petta_py_run(S, Space, Groups).
+
+%%%%%%%%%% Parse and print %%%%%%%%%%
+
+%Read one form into a tagged term, keeping variable names. sread/2 discards the
+%name map its own DCG builds; calling sexpr//3 directly keeps it:
+petta_py_parse(Source, Tagged) :-
+    ( string(Source) -> S = Source ; atom_string(Source, S) ),
+    atom_string(A, S),
+    atom_codes(A, Cs),
+    ( phrase(sexpr(Term, [], VarMap), Cs)
+      -> petta_py_encode_named(Term, VarMap, Tagged)
+    ; format(atom(Msg), 'Parse error in form: ~w', [S]),
+      throw(error(syntax_error(Msg), none)) ).
+
+%Print a tagged term the way PeTTa prints it:
+petta_py_swrite(Tagged, String) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    swrite(Term, String).
+
+%%%%%%%%%% Space operations %%%%%%%%%%
+%
+% Writes go through PeTTa's own 'add-atom'/3 and 'remove-atom'/3, so an
+% equation takes the engine's function path (register_fun, arity,
+% translate_clause, invalidation) exactly as one read from a file does, and
+% removal keeps the engine's own semantics (a plain atom removal is retractall).
+
+petta_py_add(Space, Tagged) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    'add-atom'(Space, Term, _).
+
+petta_py_add_many(Space, TaggedList) :-
+    forall(member(T, TaggedList), petta_py_add(Space, T)).
+
+petta_py_remove(Space, Tagged, Removed) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    'remove-atom'(Space, Term, Removed0),
+    petta_py_encode(Removed0, Removed).
+
+petta_py_atoms(Space, Encoded) :-
+    findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
+
+petta_py_count(Space, Count) :-
+    aggregate_all(count, 'get-atoms'(Space, _), Count).
+
+petta_py_contains(Space, Tagged) :-
+    petta_py_decode_shared(Tagged, Pattern, _),
+    match(Space, Pattern, found, found), !.
+
+%Clear a space: equations first through the engine's own removal, which erases
+%their compiled clauses, then any remaining stored atoms:
+petta_py_clear(Space) :-
+    findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
+    forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
+    forall(( current_predicate(Space/Arity),
+             functor(Head, Space, Arity) ),
+           retractall(Head)).
+
+%Fresh space names for callers that want an anonymous space. The & prefix is
+%load-bearing: 'is-space' recognises it, and a $ name would read as a variable.
+:- dynamic petta_py_space_counter/1.
+petta_py_space_counter(0).
+
+petta_py_new_space(Name) :-
+    retract(petta_py_space_counter(N)),
+    N1 is N + 1,
+    assertz(petta_py_space_counter(N1)),
+    atom_concat('&pyspace_', N1, Name).
+
+%%%%%%%%%% Query %%%%%%%%%%
+%
+% A query is a list of patterns run as one conjunction through the engine's own
+% match/4, its native [','|Patterns] form, so joins are the matcher's joins.
+% VarNames selects which variables come back, as one row per answer.
+
+petta_py_query(Space, PatternsTagged, VarNames, Row) :-
+    petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
+    petta_py_match_goal(Space, Patterns, Goal),
+    call(Goal),
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_match_goal(Space, [P], match(Space, P, answered, answered)) :- !.
+petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
+
+petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
+    findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
+
+%A row holds one encoded value per requested name; a variable the answer left
+%unbound comes back as itself:
+petta_py_row([], _, []).
+petta_py_row([Name0|Names], Bindings, [Value|Values]) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( memberchk(Name-V, Bindings) -> petta_py_encode(V, Value)
+    ; Value = ["v", Name0] ),
+    petta_py_row(Names, Bindings, Values).
+
+%%%%%%%%%% Evaluation %%%%%%%%%%
+%
+% Evaluation is the engine's own translate_expr/3 over the term, then its
+% goals, exactly what a ! directive runs. Answers enumerate on backtracking.
+
+petta_py_eval(Tagged, Encoded) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    translate_expr(Term, Goals, Out),
+    petta_py_call_goals(Goals),
+    petta_py_encode(Out, Encoded).
+
+petta_py_call_goals([]).
+petta_py_call_goals([G|Gs]) :- call(G), petta_py_call_goals(Gs).
+
+petta_py_eval_all(Tagged, Encoded) :-
+    findall(E, petta_py_eval(Tagged, E), Encoded).
+
+%%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
+%
+% A registered operation is an ordinary MeTTa function whose body lives in
+% Python. Arguments cross encoded so Python sees real atoms; results cross
+% back encoded. kind det calls once; kind many enumerates a Python iterator
+% through py_iter/2, which is genuine nondeterminism. The raw kinds skip the
+% encoding for speed and receive janus's default conversion instead, which
+% suits operations over object references such as tensors.
+
+:- dynamic petta_py_op_spec/3.
+
+%An operation that answers nothing sends the declined sentinel, which turns
+%into failure here: the semidet reading of a Python None or a raised Decline.
+petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declined).
+
+petta_py_dispatch_det(Name, Args, Result) :-
+    maplist(petta_py_encode, Args, TA),
+    py_call(petta_ops:dispatch(Name, TA), TR),
+    \+ petta_py_declined(TR),
+    petta_py_decode_shared(TR, Result, _).
+
+petta_py_dispatch_many(Name, Args, Result) :-
+    maplist(petta_py_encode, Args, TA),
+    py_iter(petta_ops:dispatch_many(Name, TA), TR),
+    petta_py_decode_shared(TR, Result, _).
+
+petta_py_dispatch_raw_det(Name, Args, Result) :-
+    py_call(petta_ops:dispatch_raw(Name, Args), Result).
+
+petta_py_dispatch_raw_many(Name, Args, Result) :-
+    py_iter(petta_ops:dispatch_raw_many(Name, Args), Result).
+
+%Register a Python-backed function of the given MeTTa arity. The compiled
+%predicate carries one extra output argument, the engine's own convention:
+petta_py_register_op(Name0, Arity, Kind) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    petta_py_unregister_op(Name, Arity),
+    length(Args, Arity),
+    append(Args, [Result], HeadArgs),
+    Head =.. [Name | HeadArgs],
+    petta_py_op_body(Kind, Name, Args, Result, Body),
+    assertz((Head :- Body)),
+    assertz(petta_py_op_spec(Name, Arity, Kind)),
+    register_fun(Name),
+    PredArity is Arity + 1,
+    ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
+    metta_on_function_changed(Name).
+
+petta_py_op_body(det,      Name, Args, R, petta_py_dispatch_det(Name, Args, R)).
+petta_py_op_body(many,     Name, Args, R, petta_py_dispatch_many(Name, Args, R)).
+petta_py_op_body(raw_det,  Name, Args, R, petta_py_dispatch_raw_det(Name, Args, R)).
+petta_py_op_body(raw_many, Name, Args, R, petta_py_dispatch_raw_many(Name, Args, R)).
+
+%Remove one registered arity of an operation, leaving other arities alone.
+%When nothing defines the name any more, forget the function entirely, the
+%same forgetting 'remove-atom'/3 does when a last equation goes: fun/1 and
+%arity/2 retract, so the next compile treats the name as data again:
+petta_py_unregister_op(Name0, Arity) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    PredArity is Arity + 1,
+    ( petta_py_op_spec(Name, Arity, _)
+      -> functor(Head, Name, PredArity),
+         retractall(Head),
+         retractall(petta_py_op_spec(Name, Arity, _)),
+         retractall(arity(Name, PredArity))
+    ; true ),
+    ( \+ ( current_predicate(Name/A), functor(H2, Name, A), clause(H2, _, _) )
+      -> retractall(fun(Name)),
+         retractall(arity(Name, _)),
+         metta_on_function_removed(Name)
+    ; true ).
+
+%Every function name the engine has registered, for completion and docs:
+petta_py_builtins(Names) :-
+    findall(S, ( fun(N), atom_string(N, S) ), Names).
+
+petta_py_is_function(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    fun(Name).
+
+petta_py_arities(Name0, As) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    findall(A, arity(Name, A), As).
+
+%%%%%%%%%% Derivation trees %%%%%%%%%%
+%
+% The classic three-clause proof-tree meta-interpreter, rendered in MeTTa
+% terms: every compiled clause remembers its source equation through
+% translated_from/2, so each node names the equation that fired, a stored atom
+% is a leaf, and a builtin call is an opaque leaf. Depth-bounded, because a
+% meta-interpreted search should fail loudly rather than loop silently.
+
+petta_py_derivation(Tagged, Depth, TreeTagged) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    Term = [F|Args],
+    atom(F),
+    append(Args, [Out], FullArgs),
+    Goal =.. [F|FullArgs],
+    petta_py_solve(Goal, Depth, Tree),
+    petta_py_encode_tree(Tree, [F|Args], Out, TreeTagged).
+
+petta_py_solve(_, D, _) :- D =< 0, !, fail.
+petta_py_solve(true, _, []) :- !.
+petta_py_solve((A, B), D, Tree) :- !,
+    petta_py_solve(A, D, TA),
+    petta_py_solve(B, D, TB),
+    append(TA, TB, Tree).
+%A clause compiled from a MeTTa equation is a step worth showing, and its body
+%is walked further. Everything else, engine machinery and space facts alike, is
+%called whole and appears as one leaf, so the tree stays in MeTTa terms:
+petta_py_solve(Goal, D, Tree) :-
+    \+ predicate_property(Goal, built_in),
+    catch(clause(Goal, Body, Ref), _, fail),
+    ( translated_from(Ref, Source)
+      -> D1 is D - 1,
+         petta_py_solve(Body, D1, Sub),
+         Tree = [step(Goal, Source, Sub)]
+    ; catch(call(Body), _, fail),
+      petta_py_leaf(Goal, Tree) ).
+petta_py_solve(Goal, _, [builtin(Goal)]) :-
+    predicate_property(Goal, built_in), !,
+    catch(call(Goal), _, fail).
+
+%A match over a space names the atom it found; anything else names its goal:
+petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
+petta_py_leaf(Goal, [fact('&self', Fact)]) :-
+    functor(Goal, Space, _),
+    atom_concat('&', _, Space), !,
+    Goal =.. [Space|Fact].
+petta_py_leaf(Goal, [builtin(Goal)]).
+
+%The tree crosses as nested tagged expressions:
+%  (derivation Conclusion Steps...) with each step
+%  (step Conclusion (= Head Body) Substeps...) or (fact Atom) or (builtin Text).
+petta_py_encode_tree(Steps, Root, Out, ["e", [["s", "derivation"], RootE | StepEs]]) :-
+    petta_py_encode([Root, '=', Out], ["e", [R, _, O]]),
+    RootE = ["e", [["s", "answer"], R, O]],
+    maplist(petta_py_encode_step, Steps, StepEs).
+
+petta_py_encode_step(step(Goal, Source, Sub), ["e", [["s", "step"], GoalE, SourceE | SubEs]]) :-
+    petta_py_encode(Goal, GoalE0),
+    petta_py_goal_term(GoalE0, GoalE),
+    petta_py_encode(Source, SourceE),
+    maplist(petta_py_encode_step, Sub, SubEs).
+petta_py_encode_step(fact(Space, Fact), ["e", [["s", "fact"], SpaceE, FactE]]) :-
+    petta_py_encode(Space, SpaceE),
+    petta_py_encode(Fact, FactE).
+petta_py_encode_step(builtin(Goal), ["e", [["s", "builtin"], ["g", Text]]]) :-
+    term_string(Goal, Text).
+
+%A compiled goal f(A1..An,Out) renders as the call (f A1..An) with its answer:
+petta_py_goal_term(["e", [F | ArgsAndOut]], ["e", [["s", "call"], ["e", [F|Args]], Out]]) :-
+    append(Args, [Out], ArgsAndOut), !.
+petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
+
+%%%%%%%%%% Silence %%%%%%%%%%
+%
+% filereader.pl decides silent/1 from the CLI argv at load time; a library run
+% has no argv, so the bridge sets it explicitly. Retract first, because two
+% contradictory silent/1 clauses would leave the engine on whichever is first.
+petta_py_set_silent(Silent) :-
+    retractall(silent(_)),
+    assertz(silent(Silent)).

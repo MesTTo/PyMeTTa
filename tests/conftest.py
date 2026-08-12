@@ -25,3 +25,11 @@ def petta_verbose(petta_module, petta_path):
 @pytest.fixture(scope="session")
 def dummy_metta_path(repo_root):
     return repo_root / "python" / "tests" / "data" / "dummy.metta"
+
+@pytest.fixture(scope="session")
+def metta(petta_path):
+    """The rich surface, on the same engine the legacy fixtures use."""
+    import os
+    os.environ.setdefault("PETTA_PATH", petta_path)
+    from petta import MeTTa
+    return MeTTa(petta_path=petta_path)
