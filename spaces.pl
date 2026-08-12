@@ -43,7 +43,7 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                  once(with_metta_module(Module, translate_clause(Term, Clause))),
                                  assertz(Module:Clause, Ref),
                                  assertz(translated_from(Ref, Term)),
-                                 metta_on_function_changed(FAtom),
+                                 forall(metta_on_function_changed(FAtom), true),
                                  invalidate_specializations(FAtom),
                                  maybe_print_compiled_clause("added function", Term, Clause).
 
@@ -60,14 +60,14 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                        findall(Ref, translated_from(Ref, Term), Refs),
                                        forall(member(Ref, Refs), erase(Ref)),
                                        retractall(translated_from(_, Term)),
-                                       metta_on_function_changed(F),
+                                       forall(metta_on_function_changed(F), true),
                                        invalidate_specializations(F),
                                        space_module(Space, Module),
                                        ( module_owns_function(Module, F) -> true
                                                                           ; retractall(fun_in(Module, F)) ),
                                        ( \+ function_still_defined(F)
                                          -> retractall(fun(F)), retractall(fun_in(_, F)),
-                                            metta_on_function_removed(F)
+                                            forall(metta_on_function_removed(F), true)
                                          ; true ),
                                        ( Refs = [] -> Removed = false ; Removed = true ).
 
