@@ -83,8 +83,13 @@ def dispatch_raw(name: str, args: list) -> Any:
     For operations over object references and numbers, where the encoding
     would cost more than the call. Symbols arrive as str and booleans as
     janus values here; use an encoded operation when that fidelity matters.
+    None crosses as janus @none, which the shim reads as no answer, so the
+    semidet rule holds on this path too; Decline is mapped to it here.
     """
-    return REGISTRY[name].fn(*args)
+    try:
+        return REGISTRY[name].fn(*args)
+    except Decline:
+        return None
 
 
 def dispatch_raw_many(name: str, args: list):

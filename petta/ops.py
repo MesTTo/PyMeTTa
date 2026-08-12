@@ -46,22 +46,35 @@ def _metta_name(fn: Callable, name: str | None) -> str:
     return name if name is not None else fn.__name__.replace("_", "-")
 
 
-def _arities(fn: Callable) -> tuple[list[int], list[inspect.Parameter]]:
-    """Every arity the defaults allow, smallest first, plus the parameters."""
+def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
+    """Every arity the defaults allow, smallest first, plus the parameters.
+
+    An explicit arities list overrides the derivation, which is how a
+    variadic callable registers: the call sites it serves are named rather
+    than inferred, since *args alone says nothing about MeTTa call forms.
+    """
     sig = inspect.signature(fn)
     params = []
+    variadic = False
     for p in sig.parameters.values():
-        if p.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-            raise TypeError(
-                f"cannot register {fn.__name__}: *args and **kwargs have no "
-                f"MeTTa call form; declare explicit parameters"
-            )
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            continue  # unreachable from MeTTa, harmless to ignore
+        if p.kind is inspect.Parameter.VAR_POSITIONAL:
+            variadic = True
+            continue
         if p.kind is inspect.Parameter.KEYWORD_ONLY:
             raise TypeError(
                 f"cannot register {fn.__name__}: keyword-only parameter "
                 f"{p.name!r} is unreachable from a positional MeTTa call site"
             )
         params.append(p)
+    if explicit is not None:
+        return sorted(set(explicit)), params
+    if variadic:
+        raise TypeError(
+            f"cannot register {fn.__name__}: *args has no single MeTTa call "
+            f"form; pass arities=[...] naming the argument counts to serve"
+        )
     required = sum(1 for p in params if p.default is inspect.Parameter.empty)
     return list(range(required, len(params) + 1)), params
 
@@ -83,16 +96,18 @@ def register(
     raw: bool = False,
     pass_atoms: bool = False,
     space: str = "&self",
+    arities: list[int] | None = None,
 ) -> Callable:
     """Make fn callable from MeTTa. Returns fn unchanged.
 
     A generator function registers as nondeterministic: each yield is one
     answer, and MeTTa's collapse, superpose and let compose over them. A
     plain function is deterministic; returning None or raising Decline
-    answers nothing. Defaults yield one registration per reachable arity.
+    answers nothing. Defaults yield one registration per reachable arity;
+    a variadic callable names its call forms with arities=[...].
     """
     metta_name = _metta_name(fn, name)
-    arities, params = _arities(fn)
+    arities, params = _arities(fn, arities)
     many = inspect.isgeneratorfunction(fn)
     kind = ("raw_many" if many else "raw_det") if raw else ("many" if many else "det")
     # One registry entry serves every arity: the engine passes however many

@@ -13,6 +13,10 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 
+%The engine asserts translated_from/2 without declaring it, so a read before
+%the first equation would raise existence rather than finding nothing:
+:- dynamic translated_from/2.
+
 %%%%%%%%%% Wire encoding %%%%%%%%%%
 %
 % janus maps both a Prolog atom and a Prolog string to a Python str, and maps
@@ -118,12 +122,21 @@ petta_py_control_exception(error(resource_error(_), _)).
 % keep the grouping instead: one answer list per ! directive, in source order.
 
 petta_py_run(Source, Space, Groups) :-
+    petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     string_codes(S, Cs),
     strip(Cs, 0, Codes),
     phrase(top_forms(Forms, 1), Codes),
     maplist(parse_form, Forms, Parsed),
     petta_py_process_forms(Parsed, Space, Groups), !.
+
+%The CLI asserts working_dir/1 from the file it loads, and import! reads it
+%unconditionally, so a string run needs one too; the process's own directory
+%is the honest analogue of "the file's directory" for source with no file:
+petta_py_ensure_working_dir :-
+    ( catch(working_dir(_), _, fail) -> true
+    ; working_directory(Dir, Dir),
+      assertz(working_dir(Dir)) ).
 
 petta_py_process_forms([], _, []).
 petta_py_process_forms([P|Ps], Space, Out) :-
@@ -300,11 +313,24 @@ petta_py_dispatch_many(Name, Args, Result) :-
     py_iter(petta_ops:dispatch_many(Name, TA), TR),
     petta_py_decode_shared(TR, Result, _).
 
+%Raw results skip the wire encoding, so a Python boolean arrives as janus's
+%@(true)/@(false); normalize to the language booleans exactly as 'py-call'
+%does, so raw operations compose with if, and, or:
+petta_py_raw_norm('@'(true), true) :- !.
+petta_py_raw_norm('@'(false), false) :- !.
+petta_py_raw_norm(R, R).
+
+%A raw None is janus's @(none); it reads as no answer, the same semidet rule
+%the encoded path applies, since MeTTa has no None value to hand back:
 petta_py_dispatch_raw_det(Name, Args, Result) :-
-    py_call(petta_ops:dispatch_raw(Name, Args), Result).
+    py_call(petta_ops:dispatch_raw(Name, Args), R0),
+    R0 \== '@'(none),
+    petta_py_raw_norm(R0, Result).
 
 petta_py_dispatch_raw_many(Name, Args, Result) :-
-    py_iter(petta_ops:dispatch_raw_many(Name, Args), Result).
+    py_iter(petta_ops:dispatch_raw_many(Name, Args), R0),
+    R0 \== '@'(none),
+    petta_py_raw_norm(R0, Result).
 
 %Register a Python-backed function of the given MeTTa arity. The compiled
 %predicate carries one extra output argument, the engine's own convention:
@@ -320,7 +346,7 @@ petta_py_register_op(Name0, Arity, Kind) :-
     register_fun(Name),
     PredArity is Arity + 1,
     ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
-    metta_on_function_changed(Name).
+    forall(metta_on_function_changed(Name), true).
 
 petta_py_op_body(det,      Name, Args, R, petta_py_dispatch_det(Name, Args, R)).
 petta_py_op_body(many,     Name, Args, R, petta_py_dispatch_many(Name, Args, R)).
@@ -431,6 +457,78 @@ petta_py_encode_step(builtin(Goal), ["e", [["s", "builtin"], ["g", Text]]]) :-
 petta_py_goal_term(["e", [F | ArgsAndOut]], ["e", [["s", "call"], ["e", [F|Args]], Out]]) :-
     append(Args, [Out], ArgsAndOut), !.
 petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
+
+%%%%%%%%%% The running space %%%%%%%%%%
+%
+% (context-space) answers the space whose module the current goal runs in, so
+% a program loaded into a named space can reach its own atoms the way a
+% program in &self writes (match &self ...). On a stock engine every run is
+% effectively &self, and that is the answer.
+
+'context-space'(Space) :-
+    ( current_predicate(current_metta_space/1) -> current_metta_space(Space)
+    ; Space = '&self' ).
+:- register_fun('context-space').
+
+%%%%%%%%%% Retranslation on late definitions %%%%%%%%%%
+%
+% The engine decides call-against-data per equation at compile time, so a
+% body mentioning a name that only becomes a function later stays data: the
+% classic case is (= (f) (g)) in one run and (= (g) 5) in the next, and the
+% Python case is an operation registered after equations that call it.
+% Both paths that define a function fire the metta_on_function_changed/1
+% extension point; this multifile clause walks the live equations whose
+% bodies mention the changed name and retranslates them in their own module,
+% so the compile-time decision is refreshed rather than stale.
+
+:- multifile metta_on_function_changed/1.
+:- multifile metta_on_function_removed/1.
+
+metta_on_function_changed(Name) :-
+    forall(petta_py_stale_equation(Name, Module, Ref, Source),
+           petta_py_retranslate(Module, Ref, Source)),
+    ( catch(invalidate_specializations(Name), _, true) -> true ; true ).
+
+%A fully removed function refreshes the other way: a mention that compiled as
+%a call goes back to data, since the name no longer names a function.
+metta_on_function_removed(Name) :-
+    forall(petta_py_stale_equation(Name, Module, Ref, Source),
+           petta_py_retranslate(Module, Ref, Source)).
+
+petta_py_stale_equation(Name, Module, Ref, Source) :-
+    translated_from(Ref, Source),
+    Source = [=, [Head|_], Body],
+    Head \== Name,
+    once(petta_py_mentions(Body, Name)),
+    catch(clause(_, _, Ref), _, fail),
+    ( catch(clause_property(Ref, module(M)), _, fail) -> Module = M
+    ; Module = user ).
+
+petta_py_mentions(T, _) :- var(T), !, fail.
+petta_py_mentions(T, Name) :- T == Name, !.
+petta_py_mentions(T, Name) :- is_list(T), member(X, T), petta_py_mentions(X, Name), !.
+
+petta_py_retranslate(Module, OldRef, Source) :-
+    Source = [=, [F|Args], Body],
+    erase(OldRef),
+    retractall(translated_from(OldRef, _)),
+    petta_py_drop_fun_meta(F, Args, Body),
+    petta_py_in_module(Module, once(translate_clause(Source, Clause))),
+    assertz(Module:Clause, NewRef),
+    assertz(translated_from(NewRef, Source)).
+
+%translate_clause/2 pushes a fun_meta entry per compile; dropping the stale
+%one first keeps the specializer's meta-clause list one entry per equation:
+petta_py_drop_fun_meta(F, Args, Body) :-
+    catch(nb_getval(F, Prev), _, Prev = []),
+    ( petta_py_select_meta(Prev, Args, Body, Rest)
+      -> ( Rest == [] -> nb_delete(F) ; nb_setval(F, Rest) )
+    ; true ).
+
+petta_py_select_meta([fun_meta(A, B)|Rest], Args, Body, Rest) :-
+    (A - B) =@= (Args - Body), !.
+petta_py_select_meta([Keep|Tail], Args, Body, [Keep|Rest]) :-
+    petta_py_select_meta(Tail, Args, Body, Rest).
 
 %%%%%%%%%% Silence %%%%%%%%%%
 %

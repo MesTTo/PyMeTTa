@@ -198,6 +198,7 @@ class MeTTa:
         typed: bool = True,
         raw: bool = False,
         pass_atoms: bool = False,
+        arities: list[int] | None = None,
     ):
         """Register a Python callable as a MeTTa function, decorator-style.
 
@@ -226,6 +227,7 @@ class MeTTa:
                 raw=raw,
                 pass_atoms=pass_atoms,
                 space=self._space,
+                arities=arities,
             )
 
         return apply(fn) if fn is not None else apply
