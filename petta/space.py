@@ -182,7 +182,9 @@ class MeTTa:
         the list can hold any number of answers, including none.
         """
         row = self._rt.once(
-            "petta_py_eval_all(W, Es)", W=_to_atom(target).to_wire()
+            "petta_py_eval_all(Space, W, Es)",
+            Space=self._space,
+            W=_to_atom(target).to_wire(),
         )
         return [from_wire(w) for w in row.get("Es", [])]
 
@@ -257,7 +259,8 @@ class MeTTa:
         a diagnostic, not an evaluation path.
         """
         rows = self._rt.iter(
-            "petta_py_derivation(W, D, T)",
+            "petta_py_derivation(Space, W, D, T)",
+            Space=self._space,
             W=_to_atom(target).to_wire(),
             D=depth,
         )

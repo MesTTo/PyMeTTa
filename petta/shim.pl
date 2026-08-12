@@ -237,22 +237,42 @@ petta_py_row([Name0|Names], Bindings, [Value|Values]) :-
     ; Value = ["v", Name0] ),
     petta_py_row(Names, Bindings, Values).
 
+%%%%%%%%%% Space modules %%%%%%%%%%
+%
+% On an engine carrying the per-space-equation patch, a space's compiled
+% clauses live in a module named after it and space_module/2 says which; a
+% stock engine keeps everything in user. Asking rather than assuming keeps
+% this shim loadable on both.
+
+petta_py_module(Space, Module) :-
+    ( current_predicate(space_module/2) -> space_module(Space, Module)
+    ; Module = user ).
+
+petta_py_in_module(Module, Goal) :-
+    ( current_predicate(with_metta_module/2) -> with_metta_module(Module, Goal)
+    ; call(Goal) ).
+
 %%%%%%%%%% Evaluation %%%%%%%%%%
 %
 % Evaluation is the engine's own translate_expr/3 over the term, then its
-% goals, exactly what a ! directive runs. Answers enumerate on backtracking.
+% goals, exactly what a ! directive runs: compiled and called in the space's
+% module, so the space's own equations answer. Answers enumerate on
+% backtracking.
 
-petta_py_eval(Tagged, Encoded) :-
+petta_py_eval(Space, Tagged, Encoded) :-
     petta_py_decode_shared(Tagged, Term, _),
-    translate_expr(Term, Goals, Out),
-    petta_py_call_goals(Goals),
+    petta_py_module(Space, Module),
+    petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
+                                 petta_py_call_goals(Module, Goals) )),
     petta_py_encode(Out, Encoded).
 
-petta_py_call_goals([]).
-petta_py_call_goals([G|Gs]) :- call(G), petta_py_call_goals(Gs).
+petta_py_call_goals(_, []).
+petta_py_call_goals(Module, [G|Gs]) :-
+    call(Module:G),
+    petta_py_call_goals(Module, Gs).
 
-petta_py_eval_all(Tagged, Encoded) :-
-    findall(E, petta_py_eval(Tagged, E), Encoded).
+petta_py_eval_all(Space, Tagged, Encoded) :-
+    findall(E, petta_py_eval(Space, Tagged, E), Encoded).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %
@@ -346,36 +366,39 @@ petta_py_arities(Name0, As) :-
 % is a leaf, and a builtin call is an opaque leaf. Depth-bounded, because a
 % meta-interpreted search should fail loudly rather than loop silently.
 
-petta_py_derivation(Tagged, Depth, TreeTagged) :-
+petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_decode_shared(Tagged, Term, _),
     Term = [F|Args],
     atom(F),
     append(Args, [Out], FullArgs),
     Goal =.. [F|FullArgs],
-    petta_py_solve(Goal, Depth, Tree),
+    petta_py_module(Space, Module),
+    petta_py_in_module(Module, petta_py_solve(Module, Goal, Depth, Tree)),
     petta_py_encode_tree(Tree, [F|Args], Out, TreeTagged).
 
-petta_py_solve(_, D, _) :- D =< 0, !, fail.
-petta_py_solve(true, _, []) :- !.
-petta_py_solve((A, B), D, Tree) :- !,
-    petta_py_solve(A, D, TA),
-    petta_py_solve(B, D, TB),
+petta_py_solve(_, _, D, _) :- D =< 0, !, fail.
+petta_py_solve(_, true, _, []) :- !.
+petta_py_solve(M, (A, B), D, Tree) :- !,
+    petta_py_solve(M, A, D, TA),
+    petta_py_solve(M, B, D, TB),
     append(TA, TB, Tree).
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is
-%called whole and appears as one leaf, so the tree stays in MeTTa terms:
-petta_py_solve(Goal, D, Tree) :-
-    \+ predicate_property(Goal, built_in),
-    catch(clause(Goal, Body, Ref), _, fail),
+%called whole and appears as one leaf, so the tree stays in MeTTa terms. The
+%lookup is module-qualified: a named space's equations live in its module, and
+%clause/3 falls back to user through module inheritance for the rest:
+petta_py_solve(M, Goal, D, Tree) :-
+    \+ predicate_property(M:Goal, built_in),
+    catch(clause(M:Goal, Body, Ref), _, fail),
     ( translated_from(Ref, Source)
       -> D1 is D - 1,
-         petta_py_solve(Body, D1, Sub),
+         petta_py_solve(M, Body, D1, Sub),
          Tree = [step(Goal, Source, Sub)]
-    ; catch(call(Body), _, fail),
+    ; catch(call(M:Body), _, fail),
       petta_py_leaf(Goal, Tree) ).
-petta_py_solve(Goal, _, [builtin(Goal)]) :-
-    predicate_property(Goal, built_in), !,
-    catch(call(Goal), _, fail).
+petta_py_solve(M, Goal, _, [builtin(Goal)]) :-
+    predicate_property(M:Goal, built_in), !,
+    catch(call(M:Goal), _, fail).
 
 %A match over a space names the atom it found; anything else names its goal:
 petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
