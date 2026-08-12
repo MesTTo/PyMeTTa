@@ -152,3 +152,15 @@ def test_why(m):
     assert "Missing" in m.why(S.Missing(V.x))
     m.add(S.Parent(S.a, S.b, S.c))
     assert "elements" in m.why(S.Parent(V.x,))
+
+
+def test_match_patterns_are_structural(m):
+    """The engine's own rule: match evaluates its space and its body, never
+    the pattern. A function call written inside a pattern is data there."""
+    m.add(S.pair(S.small, S.yes))
+    m.run("(= (sz-here) small)")
+    # The evaluated idiom: compute first, then match the value.
+    assert m.run("!(let $s (sz-here) (match (context-space) (pair $s $v) $v))") == [[S.yes]]
+    # The literal idiom: the pattern (pair (sz-here) $v) matches nothing,
+    # because no stored atom is literally shaped that way.
+    assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[expr()]]
