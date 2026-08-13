@@ -712,6 +712,7 @@ class MeTTa:
             s.cputime           # engine CPU seconds
             s.walltime          # wall seconds, Python's clock
             s.gc_count, s.gc_freed, s.gc_time
+            s.table_bytes       # answer-table bytes grown, tabling's memory
 
         The counters are the engine's statistics/2, and the engine is one
         per process, so a block that runs other threads' engine work counts
@@ -1258,12 +1259,15 @@ class _StatsBlock:
 
     Before exit the fields are None; after exit they carry the deltas the
     block spent: inferences (int), cputime (seconds), walltime (seconds,
-    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds).
+    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds),
+    and table_bytes (answer-table bytes the block grew or, negative,
+    released; tabling's memory made visible where the counters live).
     """
 
     __slots__ = (
         "_rt", "_before", "_wall",
         "inferences", "cputime", "walltime", "gc_count", "gc_freed", "gc_time",
+        "table_bytes",
     )
 
     def __init__(self, rt: Runtime) -> None:
@@ -1276,6 +1280,7 @@ class _StatsBlock:
         self.gc_count = None
         self.gc_freed = None
         self.gc_time = None
+        self.table_bytes = None
 
     def __enter__(self) -> "_StatsBlock":
         import time
@@ -1289,7 +1294,7 @@ class _StatsBlock:
 
         wall = time.perf_counter() - self._wall
         after = self._rt.apply_must("petta_py_stats")
-        inferences, cputime, gc_count, gc_freed, gc_ms = (
+        inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
             a - b for a, b in zip(after, self._before)
         )
         # The two petta_py_stats crossings themselves sit inside the
@@ -1300,6 +1305,7 @@ class _StatsBlock:
         self.gc_count = int(gc_count)
         self.gc_freed = int(gc_freed)
         self.gc_time = float(gc_ms) / 1000.0
+        self.table_bytes = int(table_bytes)
 
     def __repr__(self) -> str:
         if self.inferences is None:

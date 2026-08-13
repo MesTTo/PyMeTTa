@@ -647,6 +647,7 @@ def test_stats_block_counts_the_work(m):
     assert s.inferences > 100
     assert s.walltime > 0 and s.cputime >= 0
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
+    assert s.table_bytes == 0  # nothing tabled inside this block
     assert "inferences" in repr(s)
 
 

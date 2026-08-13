@@ -266,12 +266,15 @@ petta_py_captured(Pred, Ins, [Out, Text]) :-
     with_output_to(string(Text), call(Goal)).
 
 %One crossing for the engine's own counters: statistics/2 inferences and
-%cputime, and the garbage_collection triple (collections, bytes freed,
-%milliseconds spent). The Python side reads deltas around a with-block.
-petta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs]) :-
+%cputime, the garbage_collection triple (collections, bytes freed,
+%milliseconds spent), and the thread's answer-table bytes, which the
+%tabling review found reachable only through the lower-level runtime.
+%The Python side reads deltas around a with-block.
+petta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes]) :-
     statistics(inferences, Inferences),
     statistics(cputime, CpuTime),
-    statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]).
+    statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
+    statistics(table_space_used, TableBytes).
 
 %Run the wrapped call inside the engine's own transaction/1: its dynamic
 %writes, facts and equations alike, commit whole or roll back whole when
