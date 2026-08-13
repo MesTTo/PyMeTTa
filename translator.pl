@@ -343,6 +343,10 @@ translate_expr([H0|T0], Goals, Out) :-
                        ; Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
+        %The Prolog importer consumes its function-name list as data. Keeping
+        %that argument literal makes its translation stable after those names
+        %have become registered functions during an earlier space life.
+        ; translate_prolog_import(HV, T, GsH, Goals, Out)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; translate_args(T, GsT, AVs),
           append(GsH, GsT, Inner),
@@ -372,6 +376,17 @@ translate_expr([H0|T0], Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; append(Inner, [reduce([HV|AVs], Out)], Goals) )).
+
+prolog_function_importer(import_prolog_functions_from_file).
+prolog_function_importer(import_prolog_functions_from_module).
+
+translate_prolog_import(Importer, [File, FunctionNames], GsH, Goals, Out) :-
+    atom(Importer),
+    prolog_function_importer(Importer),
+    translate_expr(File, FileGoals, ResolvedFile),
+    append(GsH, FileGoals, Inner),
+    Goal =.. [Importer, ResolvedFile, FunctionNames, Out],
+    append(Inner, [Goal], Goals).
 
 %Generate actual function call or partial if arity not complete:
 build_call_or_partial(Fun, AVs, Out, Inner, Extra, Goals) :- length(AVs, N),

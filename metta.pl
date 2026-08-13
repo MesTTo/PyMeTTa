@@ -389,19 +389,107 @@ retractPredicate(_, false).
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
-'import!'(Space, File, true) :- catch_recover(importer_helper(Space, File), fail).
-importer_helper(Space, File) :- atom_string(File, SFile),
-                                working_dir(Base),
-                                ( file_name_extension(ModPath, 'py', SFile)
-                                  -> absolute_file_name(SFile, Path, [relative_to(Base)]),
-                                     file_directory_name(Path, Dir),
-                                     file_base_name(ModPath, ModuleName),
-                                     py_call(sys:path:append(Dir), _),
-                                     py_call(builtins:'__import__'(ModuleName), _)
-                                   ; ( Path = SFile ; atomic_list_concat([Base, '/', SFile], Path) ),
-                                     ensure_metta_ext(Path, PathWithExt),
-                                     exists_file(PathWithExt), !,
-                                     load_metta_file(PathWithExt, _, Space) ).
+import_file_string(File, File) :- string(File), !.
+import_file_string(File, SFile) :- atom_string(File, SFile).
+
+resolve_metta_import_path(SFile, Base, CanonPath) :-
+    ( Candidate = SFile ; atomic_list_concat([Base, '/', SFile], Candidate) ),
+    ensure_metta_ext(Candidate, PathWithExt),
+    absolute_file_name(PathWithExt, CanonPath,
+                       [access(read), file_errors(fail)]), !.
+resolve_metta_import_path(SFile, _, _) :-
+    ensure_metta_ext(SFile, RequestedPath),
+    throw(error(existence_error(source_sink, RequestedPath),
+                context(RequestedPath, 'while importing file'))).
+
+resolve_python_import_path(SFile, Base, CanonPath) :-
+    absolute_file_name(SFile, CanonPath,
+                       [relative_to(Base), access(read), file_errors(fail)]), !.
+resolve_python_import_path(SFile, _, _) :-
+    throw(error(existence_error(source_sink, SFile),
+                context(SFile, 'while importing file'))).
+
+%The loaded marker is a clause owned by the target space. Its non-true body
+%keeps it out of get-atoms/2, while a space clear still retracts it with every
+%other Space/N clause. Thus one space life skips an already loaded canonical
+%file, a loading marker breaks cycles, and a cleared pooled name reloads all
+%forms in its next life.
+import_life_marker(_) :- fail.
+
+import_marker_head(Space, CanonPath, Head) :-
+    Head =.. [Space, '$petta_import'(CanonPath)].
+
+import_marker_clause(Space, CanonPath, State, Ref) :-
+    import_marker_head(Space, CanonPath, Head),
+    clause(Head, import_life_marker(State), Ref).
+
+claim_import(Space, CanonPath, skip, _) :-
+    import_marker_clause(Space, CanonPath, loaded, _), !.
+claim_import(Space, CanonPath, skip, _) :-
+    import_marker_clause(Space, CanonPath, loading, _), !.
+claim_import(Space, CanonPath, load, Ref) :-
+    import_marker_head(Space, CanonPath, Head),
+    assertz((Head :- import_life_marker(loading)), Ref).
+
+erase_import_marker(Ref) :-
+    ( clause_property(Ref, erased) -> true ; erase(Ref) ).
+
+mark_import_loaded(Space, CanonPath, LoadingRef) :-
+    erase_import_marker(LoadingRef),
+    import_marker_head(Space, CanonPath, Head),
+    assertz((Head :- import_life_marker(loaded))).
+
+run_new_import(Space, CanonPath, LoadingRef, Goal) :-
+    catch(( once(Goal)
+            -> mark_import_loaded(Space, CanonPath, LoadingRef)
+             ; throw(error(import_error(loader_failed),
+                           context(CanonPath, 'import loader failed'))) ),
+          Error,
+          ( erase_import_marker(LoadingRef), throw(Error) )).
+
+:- meta_predicate import_once(+, +, 0).
+import_once(Space, CanonPath, Goal) :-
+    claim_import(Space, CanonPath, Action, LoadingRef),
+    ( Action == skip -> true
+    ; run_new_import(Space, CanonPath, LoadingRef, Goal) ).
+
+rethrow_import_target_error(_, Error) :- control_exception(Error), !,
+                                         throw(Error).
+rethrow_import_target_error(_, Error) :-
+    Error = error(_, context(Source, _)),
+    ( atom(Source) ; string(Source) ),
+    exists_file(Source), !,
+    throw(Error).
+rethrow_import_target_error(CanonPath, error(Type, _)) :- !,
+    throw(error(Type, context(CanonPath, 'while importing file'))).
+rethrow_import_target_error(CanonPath, Error) :-
+    throw(error(import_error(Error), context(CanonPath, 'while importing file'))).
+
+:- meta_predicate import_target(+, +, 0).
+import_target(Space, CanonPath, Goal) :-
+    catch(import_once(Space, CanonPath, Goal),
+          Error,
+          rethrow_import_target_error(CanonPath, Error)).
+
+%Missing targets, loader failures, and loader errors name the target and
+%surface to the caller; none is a recovery case. A failed load clears its
+%loading marker so a corrected file can be retried. Control exceptions keep
+%flying unchanged.
+'import!'(Space, File, true) :- importer_helper(Space, File).
+importer_helper(Space, File) :-
+    import_file_string(File, SFile),
+    working_dir(Base),
+    ( file_name_extension(_, py, SFile)
+      -> resolve_python_import_path(SFile, Base, CanonPath),
+         file_directory_name(CanonPath, Dir),
+         file_base_name(CanonPath, BaseName),
+         file_name_extension(ModuleName, py, BaseName),
+         import_target(Space, CanonPath,
+                       ( py_call(sys:path:append(Dir), _),
+                         py_call(builtins:'__import__'(ModuleName), _) ))
+       ; resolve_metta_import_path(SFile, Base, CanonPath),
+         import_target(Space, CanonPath,
+                       transaction(load_metta_file(CanonPath, _, Space))) ).
 
 :- dynamic translator_rule/1.
 'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
