@@ -137,3 +137,38 @@ def test_handlers_answer_response_terms(m):
         return expr(S.response, 418, "short and stout")
 
     assert app.dispatch("GET", "/teapot") == web.Response(418, "short and stout")
+
+
+def test_custom_converters_and_route_introspection(m):
+    app = web.router(m)
+    app.converter("upper", str.upper)
+
+    @app.get("/shout/{word:upper}")
+    def shout(word):
+        return word
+
+    assert app.dispatch("GET", "/shout/hey").body == "HEY"
+    # A caster that refuses reads as 422, exactly like the built-ins.
+    def picky(text):
+        raise ValueError("no")
+
+    app.converter("picky", picky)
+
+    @app.get("/never/{x:picky}")
+    def never(x):
+        return x
+
+    assert app.dispatch("GET", "/never/thing").status == 422
+    assert [r.path for r in app.routes] == ["/shout/{word:upper}", "/never/{x:picky}"]
+    with pytest.raises(ValueError):
+        app.add_route("GET", "/bad/{x:unknown}", "shout")
+
+
+def test_every_verb_has_its_decorator(m):
+    app = web.router(m)
+    for verb in ("post", "put", "delete", "patch", "head", "options"):
+        @getattr(app, verb)(f"/{verb}")
+        def handler(v=verb):
+            return v
+    for verb in ("POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"):
+        assert app.dispatch(verb, f"/{verb.lower()}").status == 200

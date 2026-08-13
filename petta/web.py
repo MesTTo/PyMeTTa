@@ -80,10 +80,17 @@ def _segments(path: str) -> list[str]:
     return trimmed.split("/") if trimmed else []
 
 
-def _compile(method: str, path: str, handler: str, index: int) -> Route:
+def _compile(
+    method: str,
+    path: str,
+    handler: str,
+    index: int,
+    converters: dict[str, Callable[[str], Any]] | None = None,
+) -> Route:
     """A path template into the pattern its route fact stores: literal
     segments are symbols, {name} and {name:type} are variables, so the
     fact (route app GET (users $id) handler k) is the whole routing rule."""
+    known = converters if converters is not None else _CASTERS
     atoms: list[Atom] = []
     params: list[str] = []
     casters: list[Callable[[str], Any]] = []
@@ -92,10 +99,10 @@ def _compile(method: str, path: str, handler: str, index: int) -> Route:
             inner = segment[1:-1]
             name, _, converter = inner.partition(":")
             converter = converter or "str"
-            if converter not in _CASTERS:
+            if converter not in known:
                 raise ValueError(
                     f"unknown path converter {converter!r} in {path!r}; "
-                    f"the converters are {sorted(_CASTERS)}"
+                    f"the converters are {sorted(known)}"
                 )
             if not name.isidentifier():
                 raise ValueError(
@@ -103,7 +110,7 @@ def _compile(method: str, path: str, handler: str, index: int) -> Route:
                 )
             atoms.append(Var(name))
             params.append(name)
-            casters.append(_CASTERS[converter])
+            casters.append(known[converter])
         else:
             atoms.append(Sym(segment))
     return Route(
@@ -143,6 +150,21 @@ class Router:
         self.name = name if name is not None else f"app-{next(_APP_NAMES)}"
         self._routes: list[Route] = []
         self._middleware: list[Callable] = []
+        self._converters: dict[str, Callable[[str], Any]] = dict(_CASTERS)
+
+    @property
+    def routes(self) -> tuple[Route, ...]:
+        """Every route this router registered, in registration order."""
+        return tuple(self._routes)
+
+    def converter(self, name: str, caster: Callable[[str], Any]) -> None:
+        """Teach this router a path converter, Starlette's own extension
+        point: after app.converter("upper", str.upper), a template may
+        say {word:upper} and the parameter arrives converted. A caster
+        raising ValueError or TypeError means the parameter refused, the
+        422 reading; any other exception is the caster's own bug and
+        propagates."""
+        self._converters[name] = caster
 
     # ------------------------------------------------------------ registration
 
@@ -169,11 +191,24 @@ class Router:
     def delete(self, path: str) -> Callable:
         return self.route("DELETE", path)
 
+    def patch(self, path: str) -> Callable:
+        return self.route("PATCH", path)
+
+    def head(self, path: str) -> Callable:
+        return self.route("HEAD", path)
+
+    def options(self, path: str) -> Callable:
+        return self.route("OPTIONS", path)
+
     def add_route(self, method: str, path: str, handler: str) -> Route:
         """A route for a handler the engine already answers: a registered
         operation or a MeTTa equation, named rather than imported."""
         compiled = _compile(
-            method.upper(), self._prefix + path, handler, len(self._routes)
+            method.upper(),
+            self._prefix + path,
+            handler,
+            len(self._routes),
+            self._converters,
         )
         self._routes.append(compiled)
         self._m.add(
