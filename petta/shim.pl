@@ -357,9 +357,63 @@ petta_py_in_module(Module, Goal) :-
 petta_py_eval(Space, Tagged, Encoded) :-
     petta_py_decode_shared(Tagged, Term, _),
     petta_py_module(Space, Module),
-    petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
-                                 petta_py_call_goals(Module, Goals) )),
+    ( petta_py_direct_goal(Module, Term, Goal, Out)
+      -> petta_py_in_module(Module, call(Module:Goal))
+    ; petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
+                                   petta_py_call_goals(Module, Goals) )) ),
     petta_py_encode(Out, Encoded).
+
+%The fast path: a flat call of a compiled function whose arguments are all
+%plain data needs no translation, just the call. translate_expr costs two
+%orders more than the call itself on such terms, and they are what an API
+%client evaluates all day. Anything with structure or evaluable arguments
+%(a special form, a nested call, a symbol that names a function) takes the
+%translator, whose judgment stays authoritative.
+%Every head translate_expr treats structurally (its HV == chain and the
+%stream rewrites): these must always take the translator, whatever their
+%arguments look like.
+petta_py_special('add-atom').     petta_py_special('and-then').
+petta_py_special(call).           petta_py_special(case).
+petta_py_special(catch).          petta_py_special(chain).
+petta_py_special(collapse).       petta_py_special(cut).
+petta_py_special(eval).           petta_py_special('filter-atom').
+petta_py_special(foldall).        petta_py_special('foldl-atom').
+petta_py_special(forall).         petta_py_special(hyperpose).
+petta_py_special(if).             petta_py_special(let).
+petta_py_special('let*').         petta_py_special('map-atom').
+petta_py_special(match).          petta_py_special(once).
+petta_py_special('or-else').      petta_py_special(prog1).
+petta_py_special(progn).          petta_py_special(quote).
+petta_py_special(reduce).         petta_py_special('remove-atom').
+petta_py_special(sealed).         petta_py_special(superpose).
+petta_py_special(test).           petta_py_special(transaction).
+petta_py_special(translatePredicate).
+petta_py_special(with_mutex).     petta_py_special('trace!').
+petta_py_special(unique).         petta_py_special('alpha-unique').
+petta_py_special(union).          petta_py_special(intersection).
+petta_py_special(subtraction).
+
+petta_py_direct_goal(Module, [F|Args], Goal, Out) :-
+    atom(F),
+    fun(F),
+    \+ petta_py_special(F),
+    petta_py_plain_args(Args),
+    length(Args, N),
+    Arity is N + 1,
+    arity(F, Arity),
+    current_predicate(Module:F/Arity),
+    append(Args, [Out], Full),
+    Goal =.. [F|Full].
+
+petta_py_plain_args([]).
+petta_py_plain_args([A|As]) :-
+    ( number(A) -> true
+    ; string(A) -> true
+    ; A == true -> true
+    ; A == false -> true
+    ; atom(A), \+ fun(A) -> true
+    ; py_is_object(A) ),
+    petta_py_plain_args(As).
 
 petta_py_call_goals(_, []).
 petta_py_call_goals(Module, [G|Gs]) :-
