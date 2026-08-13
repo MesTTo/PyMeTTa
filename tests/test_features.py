@@ -15,7 +15,6 @@ from petta import S, V, expr
 from petta.atoms import Expr, Gnd, Sym, Var
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings, strategies as st  # noqa: E402
 
 
 @pytest.fixture()
@@ -222,55 +221,6 @@ def test_save_refuses_live_objects(m):
     m.add(S.holds(val(object())))
     with pytest.raises(ValueError):
         m.save("/dev/null")
-
-
-# ------------------------------------------------- soft scorer differential
-
-_soft_installed = False
-
-
-def _soft_space(metta):
-    global _soft_installed
-    if not _soft_installed:
-        metta.run(
-            "!(import! &self (library lib_measure))\n"
-            "!(import! &self (library lib_soft))"
-        )
-        metta.add(expr(S.similar, S.lynx, S.puma, 0.8))
-        metta.add(expr(S.similar, S.heron, S.stork, 0.7))
-        _soft_installed = True
-    return metta
-
-
-@st.composite
-def terms(draw, depth: int = 0):
-    if depth >= 2 or draw(st.booleans()):
-        leaf = draw(st.sampled_from(("sym", "num", "var")))
-        if leaf == "sym":
-            return Sym(draw(st.sampled_from(("lynx", "puma", "heron", "stork", "finch"))))
-        if leaf == "num":
-            return Gnd(draw(st.integers(0, 3)))
-        return Var(draw(st.sampled_from(("p", "q"))))
-    size = draw(st.integers(1, 3))
-    return Expr([draw(terms(depth + 1)) for _ in range(size)])
-
-
-@settings(max_examples=50, deadline=None)
-@given(pattern=terms(), atom=terms())
-def test_python_soft_score_equals_metta_soft_score(metta, pattern, atom):
-    """The fast Python scorer and the pure MeTTa equations answer the same
-    degree for the same pair, similarity facts included."""
-    import petta_soft as soft
-
-    space = _soft_space(metta)
-    # The MeTTa side binds pattern variables; ground the comparison by
-    # scoring only patterns whose variables the engine can bind freshly.
-    engine = space.eval(expr(S["soft-score"], pattern, atom))
-    assert len(engine) == 1
-    table = {("lynx", "puma"): 0.8, ("heron", "stork"): 0.7}
-    assert float(engine[0].value) == pytest.approx(
-        soft.score(pattern, atom, table)
-    )
 
 
 # ----------------------------------------------------------------- measure
@@ -748,14 +698,3 @@ def test_regex_matcher_is_the_crisp_lexical_modality(m):
     assert all(pair[0] == 1.0 for pair in matches)
     assert m.eval('(rxm-t "^a" "abbey")') == [expr(1.0, "abbey")]
     assert m.eval('(rxm-t "^z" "abbey")') == []  # crisp: no answer below one
-
-
-def test_similar_pattern_declares_symbol_families(metta):
-    import petta_soft as soft
-
-    space = _soft_space(metta)
-    space.add(expr(S["fam-a"], S.x), expr(S["fam-b"], S.y))
-    landed = soft.similar_pattern(space, r"^fam-", "fam-canon", 0.8)
-    assert landed == 2
-    assert space.eval("(sym-sim fam-a fam-canon)") == [0.8]
-    assert space.eval("(sym-sim fam-canon fam-b)") == [0.8]  # both ways

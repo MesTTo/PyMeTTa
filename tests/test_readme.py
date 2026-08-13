@@ -26,6 +26,9 @@ def test_readme_block_executes(index, metta, tmp_path):
     source = _BLOCKS[index]
     if "torch" in source or "pettorch" in source:
         pytest.importorskip("torch")
+    if "pettaprove" in source:
+        # The soft layer lives in its own repository beside this one.
+        pytest.importorskip("pettaprove")
     # A real file, so inspect.getsource sees @m.define bodies, exactly as
     # the compiler asks of a REPL.
     path = tmp_path / f"readme_block_{index + 1}.py"

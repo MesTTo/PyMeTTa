@@ -22,7 +22,6 @@ with a message when the dependency is absent.
 | 11_pln_uncertain_reasoning | the engine's PLN library driven from Python |
 | 12_standing_queries | actors and pub-sub: mailboxes as spaces, delivery inside the write |
 | 13_custom_matchers | fuzzy and semantic matchers feeding the measure algebra |
-| 14_soft_unification | Sessa's weak unification and goal-directed soft proving over terms |
 | 15_web_routes | FastAPI's routing semantics: the table is facts, dispatch is unification |
 | 16_multishot_solving | clingo's multi-shot loop: parts ground incrementally, externals toggle |
 | 17_bounds_stats_capture | per-call time and inference bounds, engine stats, captured output |

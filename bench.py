@@ -15,7 +15,7 @@ import time
 from typing import Callable
 
 from petta import MeTTa, S, V, expr
-from petta.atoms import Expr, Gnd, from_wire
+from petta.atoms import Gnd, from_wire
 
 ROUNDS = 3
 
@@ -161,20 +161,6 @@ def add_table_rows(m: MeTTa) -> float:
         return 2000
 
     return _rate(load)
-
-
-@bench("soft-prove")
-def soft_prove(m: MeTTa) -> float:
-    import petta_soft as soft
-
-    with m.fresh_space() as s:
-        s.add(S["parent-of"](S.homer, S.bart), S["father-of"](S.abe, S.homer))
-        s.run("(= (grandpa-of $x $y) (and (father-of $x $z) (parent-of $z $y)))")
-        soft.similar(s, "grandpa-of", "grandfather-of", 0.9)
-        goal = S["grandfather-of"](V.who, S.bart)
-        return _rate(
-            lambda: [soft.prove(s, goal, threshold=0.5) for _ in range(200)] and 200
-        )
 
 
 @bench("weighted-relation")
