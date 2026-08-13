@@ -38,12 +38,21 @@ class TraceEvent:
         return f"{indent}-> {self.term}"
 
 
-def trace(space, source: str) -> list[TraceEvent]:
-    """Run source in this space under the engine's reduction trace."""
+def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
+    """Run source in this space under the engine's reduction trace.
+
+    max_events bounds the recording: past it the trace raises instead
+    of accumulating without limit, the same shape as the timeout and
+    inference bounds elsewhere."""
+    if max_events <= 0:
+        raise ValueError(
+            f"max_events must be positive, got {max_events!r}"
+        )
     row = space.runtime.once(
-        "metta_trace_source(Src, Space, Events)",
+        "metta_trace_source(Src, Space, Max, Events)",
         Src=source,
         Space=space.space_name,
+        Max=int(max_events),
     )
     events = []
     for line in row.get("Events") or []:

@@ -58,18 +58,31 @@ metta_trace_record(Depth, Kind, Term, Answer) :-
            [Depth, Kind, TermText, AnswerText]),
     nb_getval(metta_trace_seq, N),
     N1 is N + 1,
+    ( nb_getval(metta_trace_max, Max), N1 > Max
+      -> throw(error(resource_error(petta_trace_events(Max)),
+                     context(metta_trace_record/4,
+                             'the trace hit its max_events bound')))
+    ; true ),
     nb_setval(metta_trace_seq, N1),
     assertz(metta_trace_event(N, Event)).
 
 %Run Source in Space with the trace armed; Events come back oldest
-%first. The source executes for real, writes included, exactly like a
-%run; a second trace may not start while one is live.
+%first, at most Max of them: past the bound the trace throws instead of
+%accumulating without limit, since a long run's trace is data too. The
+%three-argument form carries the default bound.
 metta_trace_source(Source, Space, Events) :-
+    metta_trace_source(Source, Space, 1000000, Events).
+
+metta_trace_source(Source, Space, Max, Events) :-
+    ( integer(Max), Max > 0 -> true
+    ; throw(error(domain_error(positive_integer, Max),
+                  context(metta_trace_source/4, 'max_events bound')))),
     ( nb_current(metta_trace_active, true)
       -> throw(error(permission_error(trace, evaluation, nested),
                      context(metta_trace_source/3,
                              'a trace is already running')))
     ; true ),
+    nb_setval(metta_trace_max, Max),
     findall(Target, metta_trace_target(Target), Targets0),
     sort(Targets0, Targets),
     retractall(metta_trace_event(_, _)),
