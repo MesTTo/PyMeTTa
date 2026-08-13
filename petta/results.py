@@ -79,6 +79,22 @@ class Rows(list):
         index = self.columns.index(name)
         return [row[index] for row in self]
 
+    def first(self) -> Row | None:
+        """The first row, or None when there are no answers: the tolerant
+        accessor, SQLAlchemy's own naming."""
+        return self[0] if self else None
+
+    def one(self) -> Row:
+        """THE row, when the query is asserted to have exactly one answer;
+        none or several raise naming the count, so a lookup that silently
+        picked an arbitrary row cannot hide."""
+        if len(self) != 1:
+            raise ValueError(
+                f"one() expected exactly one row, got {len(self)}; "
+                f"use first() for row-or-None, or iterate for all"
+            )
+        return self[0]
+
     def build(self, column: str, cls: type) -> list[Any]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call."""

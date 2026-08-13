@@ -315,3 +315,33 @@ def test_add_table_refuses_ragged_columns(m):
     with pytest.raises(ValueError):
         m.add_table("edge", {"src": [S.a, S.b, S.c], "dst": [S.b]})
     assert m.query(S.edge(V.x, V.y)) == []
+
+
+def test_value_answers_the_one_answer(m):
+    from petta.errors import EngineError
+
+    assert m.value("(+ 1 2)") == 3 and isinstance(m.value("(+ 1 2)"), int)
+    m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
+    assert m.value(S.fact(5)) == 120
+    with pytest.raises(EngineError):
+        m.value("(superpose (1 2))")     # two answers is not a value
+    with pytest.raises(EngineError):
+        m.run("(= (nothing) (empty))")
+        m.value(S.nothing())             # no answer is not a value either
+
+
+def test_rows_first_and_one(m):
+    m.add(S.city(S.perth), S.city(S.sydney))
+    assert m.query(S.town(V.x)).first() is None
+    assert m.query(S.city(V.x)).first() is not None
+    with pytest.raises(ValueError):
+        m.query(S.city(V.x)).one()       # two rows
+    m.remove(S.city(S.perth))
+    assert str(m.query(S.city(V.x)).one().x) == "sydney"
+
+
+def test_space_iterates_and_subtracts(m):
+    m.add(S.a(1), S.b(2))
+    assert {str(a.head) for a in m} == {"a", "b"}
+    m -= S.a(1)
+    assert [str(a.head) for a in m] == ["b"]

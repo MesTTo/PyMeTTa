@@ -17,6 +17,7 @@ from . import ops as _ops_module
 from ._engine import Runtime, runtime
 from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, variables
 from .derivation import Derivation
+from .errors import EngineError
 from .results import Rows
 
 __all__ = ["MeTTa", "Prepared", "current_space"]
@@ -315,6 +316,14 @@ class MeTTa:
         self.add(atom)
         return self
 
+    def __isub__(self, atom: Any) -> "MeTTa":
+        self.remove(atom)
+        return self
+
+    def __iter__(self):
+        """Iterate the stored atoms: for atom in m."""
+        return iter(self.atoms())
+
     # ----------------------------------------------------------------- queries
 
     def query(
@@ -399,6 +408,28 @@ class MeTTa:
             "petta_py_eval_all", self._space, _to_atom(target).to_wire()
         )
         return [from_wire(w) for w in wires]
+
+    def value(self, target: Any) -> Any:
+        """THE answer of evaluating target, as a plain Python value.
+
+            m.value("(+ 1 2)")            # 3
+            m.value(S.fact(5))            # 120
+
+        Exactly one answer is the contract: none or several raise naming
+        the count, because a caller asking for the value has asserted
+        there is one. Grounded answers unwrap to their Python values;
+        symbols and structure stay atoms. eval() is the spelling for any
+        number of answers."""
+        answers = self.eval(target)
+        if len(answers) != 1:
+            raise EngineError(
+                f"value({_to_atom(target)}) expected exactly one answer, "
+                f"got {len(answers)}; use eval() for any number"
+            )
+        answer = answers[0]
+        from .atoms import Gnd, decode
+
+        return decode(answer) if isinstance(answer, Gnd) else answer
 
     # -------------------------------------------------------------- operations
 
