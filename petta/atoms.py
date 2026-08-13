@@ -3,7 +3,9 @@ them across janus without losing their metatype. A symbol and a grounded
 string both reach Python as str under janus's own conversion, booleans arrive
 as text, and containers are rewritten term-shaped, so every value crossing the
 boundary travels tagged instead: s symbol, g string, n number, b boolean,
-v variable, e expression, o object reference.
+v variable, e expression, o object reference. Python operators on atoms
+build terms, so V.age >= 18 is the expression (>= $age 18), while grounded
+values keep ordinary value semantics.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -195,6 +197,107 @@ class Atom:
     def __repr__(self) -> str:
         return f"{type(self).__name__}({str(self)!r})"
 
+    # Term-building operators, the query-builder lesson: arithmetic and
+    # order comparisons on symbols, variables and expressions CONSTRUCT the
+    # corresponding term, so V.age >= 18 is (>= $age 18) and V.x + 1 is
+    # (+ $x 1), guards and bodies written as the Python they look like.
+    # Gnd overrides both families with VALUE semantics (its comparisons
+    # answer booleans, engine-exactly), so a grounded number never quietly
+    # becomes a program. Equality stays equality everywhere; the term is
+    # spelled x.eq(y), since overloading == would cost structural equality.
+
+    def _build(self, op: str, other: Any, flipped: bool = False) -> "Expr":
+        left, right = (encode(other), self) if flipped else (self, encode(other))
+        return Expr([Sym(op), left, right])
+
+    def __add__(self, other: Any) -> "Expr":
+        return self._build("+", other)
+
+    def __radd__(self, other: Any) -> "Expr":
+        return self._build("+", other, flipped=True)
+
+    def __sub__(self, other: Any) -> "Expr":
+        return self._build("-", other)
+
+    def __rsub__(self, other: Any) -> "Expr":
+        return self._build("-", other, flipped=True)
+
+    def __mul__(self, other: Any) -> "Expr":
+        return self._build("*", other)
+
+    def __rmul__(self, other: Any) -> "Expr":
+        return self._build("*", other, flipped=True)
+
+    def __truediv__(self, other: Any) -> "Expr":
+        return self._build("/", other)
+
+    def __rtruediv__(self, other: Any) -> "Expr":
+        return self._build("/", other, flipped=True)
+
+    def __mod__(self, other: Any) -> "Expr":
+        return self._build("%", other)
+
+    def __rmod__(self, other: Any) -> "Expr":
+        return self._build("%", other, flipped=True)
+
+    def __pow__(self, other: Any) -> "Expr":
+        return self._build("pow-math", other)
+
+    def __rpow__(self, other: Any) -> "Expr":
+        return self._build("pow-math", other, flipped=True)
+
+    def __matmul__(self, other: Any) -> "Expr":
+        return self._build("matmul", other)
+
+    def __rmatmul__(self, other: Any) -> "Expr":
+        return self._build("matmul", other, flipped=True)
+
+    # &, | and ~ build the boolean terms, the query-composition idiom:
+    # (V.age >= 18) & (V.age <= 40) is (and (>= $age 18) (<= $age 40)),
+    # so guards compose the way the engine reads them. Python's own and,
+    # or and not are not overloadable; they hit __bool__, which refuses
+    # loudly on comparison terms.
+
+    def __and__(self, other: Any) -> "Expr":
+        return self._build("and", other)
+
+    def __rand__(self, other: Any) -> "Expr":
+        return self._build("and", other, flipped=True)
+
+    def __or__(self, other: Any) -> "Expr":
+        return self._build("or", other)
+
+    def __ror__(self, other: Any) -> "Expr":
+        return self._build("or", other, flipped=True)
+
+    def __xor__(self, other: Any) -> "Expr":
+        return self._build("xor", other)
+
+    def __rxor__(self, other: Any) -> "Expr":
+        return self._build("xor", other, flipped=True)
+
+    def __invert__(self) -> "Expr":
+        return Expr([Sym("not"), self])
+
+    def __lt__(self, other: Any) -> "Expr":
+        return self._build("<", other)
+
+    def __le__(self, other: Any) -> "Expr":
+        return self._build("<=", other)
+
+    def __gt__(self, other: Any) -> "Expr":
+        return self._build(">", other)
+
+    def __ge__(self, other: Any) -> "Expr":
+        return self._build(">=", other)
+
+    def eq(self, other: Any) -> "Expr":
+        """The equality TERM, (== self other); == itself compares atoms."""
+        return self._build("==", other)
+
+    def ne(self, other: Any) -> "Expr":
+        return Expr([Sym("not"), self.eq(other)])
+
     def __setattr__(self, *_: Any) -> None:
         raise AttributeError("atoms are immutable")
 
@@ -334,6 +437,77 @@ class Gnd(Atom):
         if _is_primitive(self.value):
             return hash(self.value)
         return hash(("gnd", id(self.value)))
+
+    # Grounded values are VALUES throughout: comparisons answer booleans
+    # (engine-exactly) and arithmetic computes, so an answer post-processes
+    # like the number it is; term building belongs to symbols, variables
+    # and expressions.
+
+    def _value_of(self, other: Any) -> Any:
+        return other.value if isinstance(other, Gnd) else other
+
+    def __add__(self, other: Any) -> Any:
+        return self.value + self._value_of(other)
+
+    def __radd__(self, other: Any) -> Any:
+        return self._value_of(other) + self.value
+
+    def __sub__(self, other: Any) -> Any:
+        return self.value - self._value_of(other)
+
+    def __rsub__(self, other: Any) -> Any:
+        return self._value_of(other) - self.value
+
+    def __mul__(self, other: Any) -> Any:
+        return self.value * self._value_of(other)
+
+    def __rmul__(self, other: Any) -> Any:
+        return self._value_of(other) * self.value
+
+    def __truediv__(self, other: Any) -> Any:
+        return self.value / self._value_of(other)
+
+    def __rtruediv__(self, other: Any) -> Any:
+        return self._value_of(other) / self.value
+
+    def __mod__(self, other: Any) -> Any:
+        return self.value % self._value_of(other)
+
+    def __rmod__(self, other: Any) -> Any:
+        return self._value_of(other) % self.value
+
+    def __pow__(self, other: Any) -> Any:
+        return self.value ** self._value_of(other)
+
+    def __rpow__(self, other: Any) -> Any:
+        return self._value_of(other) ** self.value
+
+    def __matmul__(self, other: Any) -> Any:
+        return self.value @ self._value_of(other)
+
+    def __rmatmul__(self, other: Any) -> Any:
+        return self._value_of(other) @ self.value
+
+    def __and__(self, other: Any) -> Any:
+        return self.value & self._value_of(other)
+
+    def __rand__(self, other: Any) -> Any:
+        return self._value_of(other) & self.value
+
+    def __or__(self, other: Any) -> Any:
+        return self.value | self._value_of(other)
+
+    def __ror__(self, other: Any) -> Any:
+        return self._value_of(other) | self.value
+
+    def __xor__(self, other: Any) -> Any:
+        return self.value ^ self._value_of(other)
+
+    def __rxor__(self, other: Any) -> Any:
+        return self._value_of(other) ^ self.value
+
+    def __invert__(self) -> Any:
+        return ~self.value
 
     # Grounded primitives order like their values, so answers sort and
     # compare with plain numbers: max(rows.column("age")) and Gnd(7) >= 5
@@ -516,6 +690,21 @@ class Expr(Atom):
 
     def __len__(self) -> int:
         return len(self.children)
+
+    def __bool__(self) -> bool:
+        # A comparison or boolean TERM has no truth value: bool() on one is
+        # almost always Python's sort, an if reading (V.a < V.b) as a fact,
+        # or `and` chaining terms that wanted &. Refusing here keeps those
+        # mistakes loud; every other expression stays truthy like any object.
+        head = self.head
+        if isinstance(head, Sym) and head.name in (
+            "<", "<=", ">", ">=", "==", "and", "or", "not", "xor"
+        ):
+            raise TypeError(
+                f"{self} is a comparison TERM, not a truth value; evaluate "
+                f"it (space.eval) or use it as a guard (where=...)"
+            )
+        return True
 
     def __getitem__(self, i: int | slice) -> Any:
         return self.children[i]
