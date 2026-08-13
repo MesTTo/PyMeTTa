@@ -20,13 +20,23 @@ EXAMPLES = sorted((Path(__file__).resolve().parents[1] / "examples").glob("[0-9]
 @pytest.mark.parametrize("example", EXAMPLES, ids=lambda p: p.stem)
 def test_example_runs_and_verifies_itself(example):
     repo = example.resolve().parents[2]
+    # The layered packages beside the core (petta_soft in this repo) join
+    # the path the same way the suite's own pythonpath carries them.
+    layered = os.pathsep.join(
+        [str(repo / "python"), str(repo / "petta_soft")]
+    )
     result = subprocess.run(
         [sys.executable, str(example)],
         capture_output=True,
         text=True,
         timeout=300,
         cwd=str(example.parent),
-        env={**os.environ, "PETTA_PATH": str(repo), "JAX_PLATFORMS": "cpu"},
+        env={
+            **os.environ,
+            "PETTA_PATH": str(repo),
+            "JAX_PLATFORMS": "cpu",
+            "PYTHONPATH": layered + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        },
     )
     output = result.stdout
     if result.returncode == 0 and output.startswith("SKIP:"):

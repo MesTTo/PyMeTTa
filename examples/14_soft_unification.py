@@ -15,7 +15,8 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V, expr, soft
+import petta_soft as soft
+from petta import MeTTa, S, V, expr
 
 m = MeTTa().fresh_space()
 soft.install(m)

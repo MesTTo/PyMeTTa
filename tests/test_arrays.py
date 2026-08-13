@@ -110,14 +110,3 @@ def test_arrays_layer_is_torch_free():
     source = inspect.getsource(arrays)
     assert "import torch" not in source
 
-
-def test_pettorch_uses_only_public_petta_surface():
-    """The generality proof: the torch integration is written against the
-    same public interface any library would use."""
-    import pathlib
-
-    root = pathlib.Path(arrays.__file__).parents[1] / "pettorch"
-    for path in root.glob("*.py"):
-        text = path.read_text()
-        assert "petta._" not in text, f"{path.name} reaches into petta internals"
-        assert "from petta import _" not in text, f"{path.name} reaches into petta internals"

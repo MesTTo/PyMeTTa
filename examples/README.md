@@ -17,9 +17,6 @@ with a message when the dependency is absent.
 | 03_objects_both_ways | the four-image translator and py-field reasoning |
 | 04_sql_is_a_space | DuckDB tables as a matchable space with WHERE pushdown |
 | 05_one_array_layer | NumPy and torch through one DLPack operation set |
-| 06_torch_deep | rules routing between models; equations trained by torch.optim |
-| 07_attention_is_matching | the KV cache as a space; attention equals torch's |
-| 08_predictive_coding | FabricPC settling driven by a symbolic convergence loop |
 | 09_the_routing_frame | dispatch as equations, the catch-all as the 404 |
 | 10_evolution_in_a_space | a population as a space; generations as rewriting |
 | 11_pln_uncertain_reasoning | the engine's PLN library driven from Python |
@@ -28,6 +25,9 @@ with a message when the dependency is absent.
 | 14_soft_unification | Sessa's weak unification and goal-directed soft proving over terms |
 | 15_web_routes | FastAPI's routing semantics: the table is facts, dispatch is unification |
 | 16_multishot_solving | clingo's multi-shot loop: parts ground incrementally, externals toggle |
+
+Numbers 06 to 08 are the torch examples; they live in the `pettorch`
+repository beside this one, keeping their names.
 
 The frame behind the folder: MeTTa's semantics subsume the concepts these
 systems are made of. Functions are grounded functions and a call is a

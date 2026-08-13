@@ -260,7 +260,7 @@ def terms(draw, depth: int = 0):
 def test_python_soft_score_equals_metta_soft_score(metta, pattern, atom):
     """The fast Python scorer and the pure MeTTa equations answer the same
     degree for the same pair, similarity facts included."""
-    from petta import soft
+    import petta_soft as soft
 
     space = _soft_space(metta)
     # The MeTTa side binds pattern variables; ground the comparison by

@@ -151,7 +151,7 @@ def add_table_rows(m: MeTTa) -> float:
 
 @bench("soft-prove")
 def soft_prove(m: MeTTa) -> float:
-    from petta import soft
+    import petta_soft as soft
 
     with m.fresh_space() as s:
         s.add(S["parent-of"](S.homer, S.bart), S["father-of"](S.abe, S.homer))

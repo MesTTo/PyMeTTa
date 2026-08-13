@@ -1,12 +1,20 @@
-"""Purpose: a database as a space: tables are relations, match pushes bound
-positions down as a WHERE clause, writes insert and delete, and one match
-joins SQL rows with native facts. The engine keeps unification, so pushdown
-is speed, never trust.
+"""Purpose: a database as a space, built HERE, on the public integration
+interface alone, because that is the point: tables are relations, match
+pushes bound positions down as a WHERE clause, writes insert and delete,
+and one match joins SQL rows with native facts. The engine keeps
+unification, so pushdown is speed, never trust. SQL NULL crosses as the
+symbol NULL both ways, non-primitive scalars (dates, decimals) cross as
+their ISO text so value semantics survive the boundary, and comparisons
+use IS NOT DISTINCT FROM so a NULL binding matches NULLs. The provider
+below is the whole worked SQL instance, not an import.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: pushdown for inequalities once patterns can carry
+    them; today equality on ground positions is what a pattern states.
 """
+
+from typing import Any, Iterator
 
 from _common import check, done, skip
 
@@ -15,28 +23,242 @@ try:
 except ImportError:
     skip("duckdb is not installed")
 
-from petta import MeTTa, expr, S
+from petta import MeTTa, S, V, expr
+from petta.atoms import Atom, Expr, Gnd, Sym, decode
+from petta.errors import PettaError
+from petta.foreign import SpaceProvider
 
-from petta.integrations.duckdb_space import attach
+# SQL NULL as an atom: the symbol NULL, SQL's own name for it. A string
+# "NULL" stays a string; only the symbol means the absent value.
+NULL = Sym("NULL")
+
+
+def _identifier(name: str) -> str:
+    """A quoted SQL identifier, embedded quotes doubled."""
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _to_atom_value(value: Any) -> Atom:
+    """One SQL scalar as an atom: NULL as the NULL symbol, primitives as
+    themselves, and everything else (dates, decimals, timestamps) as its
+    ISO text, so equal values stay equal across the boundary."""
+    if value is None:
+        return NULL
+    if isinstance(value, (bool, int, float, str)):
+        return Gnd(value)
+    return Gnd(str(value))
+
+
+def _to_sql_value(atom: Atom) -> Any:
+    """One pattern or row position as a SQL parameter; None for NULL."""
+    if isinstance(atom, Sym):
+        return None if atom == NULL else atom.name
+    return decode(atom)
+
+
+class DuckDBSpace(SpaceProvider):
+    """A DuckDB connection as a space: one relation per table.
+
+    Rows come back as (table col1 col2 ...) atoms with SQL text as grounded
+    strings, numbers as numbers, NULL as the NULL symbol, and other scalar
+    types as their ISO text. Ground pattern positions become a WHERE clause
+    using IS NOT DISTINCT FROM, parameterized, so the filter runs where the
+    data lives and a NULL binding finds NULLs.
+    """
+
+    def __init__(self, connection: Any, tables: list[str] | None = None) -> None:
+        self._conn = connection
+        self._tables = tables
+        self._owns_connection = False
+
+    # ------------------------------------------------------------- inspection
+
+    def table_names(self) -> list[str]:
+        if self._tables is not None:
+            return list(self._tables)
+        rows = self._conn.execute(
+            "select table_name from information_schema.tables "
+            "where table_schema = 'main' order by table_name"
+        ).fetchall()
+        return [r[0] for r in rows]
+
+    def columns(self, table: str) -> list[str]:
+        rows = self._conn.execute(
+            "select column_name from information_schema.columns "
+            "where table_name = ? order by ordinal_position",
+            [table],
+        ).fetchall()
+        if not rows:
+            raise PettaError(f"no table {table!r} in this DuckDB space")
+        return [r[0] for r in rows]
+
+    # ---------------------------------------------------------------- matching
+
+    def match(self, pattern: Atom) -> Iterator[Atom]:
+        if not (isinstance(pattern, Expr) and pattern.children and isinstance(pattern.head, Sym)):
+            # A shapeless pattern falls back to full enumeration; the engine
+            # unifies, so this stays correct.
+            yield from self.atoms()
+            return
+        table = pattern.head.name
+        if table not in self.table_names():
+            return
+        columns = self.columns(table)
+        if len(pattern.args) != len(columns):
+            return
+        where, parameters = [], []
+        for column, arg in zip(columns, pattern.args):
+            if isinstance(arg, Gnd) or (isinstance(arg, Sym) and arg == NULL):
+                # A ground position states its value; IS NOT DISTINCT FROM
+                # is SQL equality that also finds NULL when NULL is asked.
+                where.append(f"{_identifier(column)} IS NOT DISTINCT FROM ?")
+                parameters.append(_to_sql_value(arg))
+            # A non-NULL symbol stays out of the pushdown: rows carry text
+            # as grounded strings, so a symbol never matches one and the
+            # engine's unification is the answer, consistently.
+        sql = f"select * from {_identifier(table)}"
+        if where:
+            sql += " where " + " and ".join(where)
+        for row in self._conn.execute(sql, parameters).fetchall():
+            yield Expr([Sym(table), *(_to_atom_value(v) for v in row)])
+
+    def atoms(self) -> Iterator[Atom]:
+        for table in self.table_names():
+            for row in self._conn.execute(
+                f"select * from {_identifier(table)}"
+            ).fetchall():
+                yield Expr([Sym(table), *(_to_atom_value(v) for v in row)])
+
+    # ------------------------------------------------------------------ writes
+
+    def add(self, atom: Atom) -> None:
+        table, values = self._row_of(atom, "add")
+        marks = ", ".join("?" for _ in values)
+        self._conn.execute(
+            f"insert into {_identifier(table)} values ({marks})", values
+        )
+
+    def remove(self, atom: Atom) -> bool:
+        table, values = self._row_of(atom, "remove")
+        columns = self.columns(table)
+        where = " and ".join(
+            f"{_identifier(c)} IS NOT DISTINCT FROM ?" for c in columns
+        )
+        before = self._conn.execute(
+            f"select count(*) from {_identifier(table)} where {where}", values
+        ).fetchone()[0]
+        self._conn.execute(
+            f"delete from {_identifier(table)} where {where}", values
+        )
+        return before > 0
+
+    def clear(self) -> None:
+        """Every row of every table this space serves; the schema stays."""
+        for table in self.table_names():
+            self._conn.execute(f"delete from {_identifier(table)}")
+
+    def close(self) -> None:
+        """Close the connection if this space opened it; a caller's own
+        connection stays the caller's to close."""
+        if self._owns_connection:
+            self._conn.close()
+
+    def _row_of(self, atom: Atom, verb: str) -> tuple[str, list[Any]]:
+        if not (isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)):
+            raise PettaError(f"cannot {verb} {atom}: a row is (table values...)")
+        table = atom.head.name
+        columns = self.columns(table)
+        if len(atom.args) != len(columns):
+            raise PettaError(
+                f"cannot {verb} {atom}: {table} has columns {columns}"
+            )
+        values = []
+        for arg in atom.args:
+            if isinstance(arg, (Gnd, Sym)):
+                values.append(_to_sql_value(arg))
+            else:
+                raise PettaError(f"cannot {verb} {atom}: {arg} is not a value")
+        return table, values
+
+
+def attach(m, name: str, database: Any = ":memory:", tables: list[str] | None = None) -> DuckDBSpace:
+    """Register a DuckDB database as a space on this engine. database is a
+    connection, a path, or :memory:. A path or :memory: opens a connection
+    the space owns and close() closes; a passed connection stays the
+    caller's."""
+    if hasattr(database, "execute"):
+        provider = DuckDBSpace(database, tables)
+    else:
+        provider = DuckDBSpace(duckdb.connect(database), tables)
+        provider._owns_connection = True
+    m.register_space(name, provider)
+    return provider
+
 
 m = MeTTa().fresh_space()
 conn = duckdb.connect(":memory:")
 conn.execute("create table users (id integer, name text)")
 conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")
-attach(m, "&crm", conn)
+conn.execute("create table vips (id integer)")
+conn.execute("insert into vips values (1), (3)")
+provider = attach(m, "&crm", conn)
 
 check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
       [[expr("Ada", "Bob", "Cy")]])
 check("pushdown filter", m.run("!(match &crm (users 2 $n) $n)"), [["Bob"]])
 
+# The filter genuinely ran in SQL: a spy connection sees the WHERE clause.
+seen = []
+original = provider._conn
+
+
+class Spy:
+    def execute(self, sql, *a):
+        seen.append(sql)
+        return original.execute(sql, *a)
+
+
+provider._conn = Spy()
+m.run("!(match &crm (users 2 $n) $n)")
+provider._conn = original
+check("the WHERE ran where the data lives",
+      any("where" in s.lower() and "id" in s.lower() for s in seen), True)
+
+# Provider-level match answers atoms directly.
+check("provider-level match", list(provider.match(S.users(2, V.n))),
+      [expr(S.users, 2, "Bob")])
+
+# One match joins SQL tables with each other and with native facts.
+m.run("(nickname 1 the-countess)")
+(group,) = m.run(
+    "!(collapse (match &crm (, (vips $id) (users $id $n)) "
+    "(match (context-space) (nickname $id $nick) ($n $nick))))"
+)
+check("SQL joined with native facts", group, [expr(expr("Ada", S["the-countess"]))])
+
+# Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
 m.run('!(add-atom &crm (users 4 "Dee"))')
 check("insert landed in SQL",
       conn.execute("select name from users where id = 4").fetchone()[0], "Dee")
+m.run('!(remove-atom &crm (users 4 "Dee"))')
+check("delete landed in SQL",
+      conn.execute("select count(*) from users where id = 4").fetchone()[0], 0)
 
-m.run("(vip 1)\n(vip 4)")
-(group,) = m.run(
-    "!(collapse (match (context-space) (vip $id)"
-    " (match &crm (users $id $n) $n)))"
-)
-check("SQL joined with native facts", group, [expr("Ada", "Dee")])
+# NULL and dates: the NULL symbol both ways, ISO text for scalar types,
+# a NULL binding finding exactly the NULL row, clear() keeping the schema.
+conn.execute("create table logs (day DATE, note TEXT)")
+conn.execute("insert into logs values (DATE '2026-08-13', 'shipped'), (NULL, 'undated')")
+rows = m.run("!(collapse (match &crm (logs $d $n) ($d $n)))")
+listed = {str(pair) for pair in rows[0][0]}
+check("a date crosses as its ISO text", '("2026-08-13" "shipped")' in listed, True)
+check("NULL crosses as the NULL symbol", '(NULL "undated")' in listed, True)
+check("a NULL binding finds the NULL row",
+      m.run("!(match &crm (logs NULL $n) $n)"), [["undated"]])
+check("a date binding finds the dated row",
+      m.run('!(match &crm (logs "2026-08-13" $n) $n)'), [["shipped"]])
+provider.clear()
+check("clear empties, schema stays",
+      m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
+
+m.unregister_space("&crm")
 done("04_sql_is_a_space")
