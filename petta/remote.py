@@ -11,9 +11,7 @@ speed and reach, never trust.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: authentication and TLS termination belong to a
-    fronting proxy for now; the protocol itself is deliberately one JSON
-    POST per operation.
+  Future Enhancements: None
 """
 
 from __future__ import annotations
@@ -21,7 +19,7 @@ from __future__ import annotations
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Mapping
 from urllib.request import Request, urlopen
 
 from .atoms import Atom, from_wire
@@ -72,10 +70,28 @@ class RemoteSpace(SpaceProvider):
         return bool(answer.get("removed"))
 
 
-def connect(url: str, timeout: float = 30.0) -> Transport:
+def connect(
+    url: str,
+    timeout: float = 30.0,
+    *,
+    token: str | None = None,
+    headers: dict[str, str] | None = None,
+    ssl_context: Any = None,
+) -> Transport:
     """The HTTP transport for a serve()d engine: one POST per operation,
-    JSON both ways, errors surfaced with the remote's own message."""
+    JSON both ways, errors surfaced with the remote's own message.
+
+    token sends Bearer authentication, headers adds anything else a
+    deployment needs (an API key, a tenant id), and ssl_context is
+    Python's own ssl.SSLContext for https urls, certificate pinning
+    included, so the transport composes with whatever security the
+    serving side asks for."""
     base = url.rstrip("/")
+    sent = {"content-type": "application/json"}
+    if token is not None:
+        sent["authorization"] = f"Bearer {token}"
+    if headers:
+        sent.update(headers)
 
     def transport(operation: str, payload: dict) -> dict:
         from urllib.error import HTTPError
@@ -83,11 +99,11 @@ def connect(url: str, timeout: float = 30.0) -> Transport:
         request = Request(
             f"{base}/{operation}",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"content-type": "application/json"},
+            headers=dict(sent),
             method="POST",
         )
         try:
-            with urlopen(request, timeout=timeout) as response:
+            with urlopen(request, timeout=timeout, context=ssl_context) as response:
                 answer = json.loads(response.read().decode("utf-8"))
         except HTTPError as refusal:
             # The remote's refusal travels as a JSON error body; read it,
@@ -125,12 +141,15 @@ def attach(m, name: str, url_or_transport: Any, remote_space: str = "&self") -> 
 class Server:
     """This engine's spaces, served. close() stops accepting."""
 
-    def __init__(self, httpd: ThreadingHTTPServer, thread: threading.Thread, work=None) -> None:
+    def __init__(
+        self, httpd: ThreadingHTTPServer, thread: threading.Thread, work=None,
+        scheme: str = "http",
+    ) -> None:
         self._httpd = httpd
         self._thread = thread
         self._work = work
         self.host, self.port = httpd.server_address[:2]
-        self.url = f"http://{self.host}:{self.port}"
+        self.url = f"{scheme}://{self.host}:{self.port}"
 
     def close(self) -> None:
         self._httpd.shutdown()
@@ -140,14 +159,27 @@ class Server:
             self._work.put(None)
 
 
-def serve(m, host: str = "127.0.0.1", port: int = 0, spaces: list[str] | None = None) -> Server:
+def serve(
+    m,
+    host: str = "127.0.0.1",
+    port: int = 0,
+    spaces: list[str] | None = None,
+    *,
+    token: str | None = None,
+    authorize: Callable[[Mapping[str, str]], bool] | None = None,
+    ssl_context: Any = None,
+) -> Server:
     """Expose this engine's spaces over HTTP; port 0 picks a free one.
 
     Every operation answers for the space the request names, restricted
-    to `spaces` when given (an allowlist is the whole access model here;
-    front anything public with a real proxy). match runs the engine's own
-    match with the pattern as its template, so the instantiated atoms
-    cross, and the caller's engine re-unifies them.
+    to `spaces` when given. Security is the caller's to define, library
+    fashion: token requires Bearer authentication, authorize is the
+    general hook (the request headers in, a verdict out, so any scheme
+    an operator runs fits), and ssl_context, Python's own
+    ssl.SSLContext with a certificate loaded, serves TLS directly;
+    anything heavier still composes behind a fronting proxy. match runs
+    the engine's own match with the pattern as its template, so the
+    instantiated atoms cross, and the caller's engine re-unifies them.
 
     A context is a PROCESS: serving and attaching within one process
     cannot join through the local engine, because one runtime lock guards
@@ -195,9 +227,17 @@ def serve(m, host: str = "127.0.0.1", port: int = 0, spaces: list[str] | None = 
     work: "queue.Queue[tuple[str, dict, queue.SimpleQueue] | None]" = queue.Queue()
 
     def worker() -> None:
+        # A persistent engine makes this thread first-class for the
+        # engine: the fast calling convention works here, and the
+        # per-call temporary attach cost disappears, the janus-documented
+        # pattern for a thread that calls Prolog repeatedly.
+        import petta as pkg
+
+        pkg.janus.attach_engine()
         while True:
             item = work.get()
             if item is None:
+                pkg.janus.detach_engine()
                 return
             operation, payload, reply = item
             try:
@@ -208,10 +248,26 @@ def serve(m, host: str = "127.0.0.1", port: int = 0, spaces: list[str] | None = 
     engine_thread = threading.Thread(target=worker, daemon=True)
     engine_thread.start()
 
+    def authorized(headers: Mapping[str, str]) -> bool:
+        if token is not None:
+            if headers.get("authorization") != f"Bearer {token}":
+                return False
+        if authorize is not None and not authorize(headers):
+            return False
+        return True
+
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:  # noqa: N802  (http.server's spelling)
             length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
+            if not authorized(self.headers):
+                body = json.dumps({"error": "not authorized"}).encode("utf-8")
+                self.send_response(401)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             try:
                 payload = json.loads(self.rfile.read(length) or b"{}")
                 reply: queue.SimpleQueue = queue.SimpleQueue()
@@ -232,6 +288,8 @@ def serve(m, host: str = "127.0.0.1", port: int = 0, spaces: list[str] | None = 
             pass  # the suite is the log; a server for humans fronts this
 
     httpd = ThreadingHTTPServer((host, port), Handler)
+    if ssl_context is not None:
+        httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    return Server(httpd, thread, work)
+    return Server(httpd, thread, work, scheme="https" if ssl_context else "http")

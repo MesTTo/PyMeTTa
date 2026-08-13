@@ -91,11 +91,13 @@ class Runtime:
             self.petta_path = petta_path
             self._janus = pkg.janus
             # The functional calling convention (apply_once, cmd) skips the
-            # per-thread engine handling query_once performs, and calling it
-            # from any other thread aborts the PROCESS, observed and
-            # bisected; the fast path therefore runs only on the thread
-            # that consulted, every other thread falling back to the
-            # relational form with identical semantics.
+            # per-thread engine handling query_once performs: on a thread
+            # with NO Prolog engine it aborts the PROCESS, observed and
+            # bisected, while on a thread that attached one with
+            # janus.attach_engine() it works and stays fast. The fast path
+            # therefore runs on the consulting thread and on any thread
+            # holding an attached engine; every other thread falls back to
+            # the relational form with identical semantics.
             self._home_thread = threading.get_ident()
             if self._janus is None:
                 # The legacy class consulted first through a mocked janus, or
@@ -183,6 +185,18 @@ class Runtime:
             )
         return row
 
+    def _fast_ok(self) -> bool:
+        """Whether this thread may use the functional convention: the
+        consulting thread always, any other thread exactly when it holds
+        an attached Prolog engine (janus.attach_engine()); bare foreign
+        threads abort the process on apply_once and cmd, measured."""
+        if threading.get_ident() == self._home_thread:
+            return True
+        try:
+            return int(self._janus.engine()) >= 0
+        except Exception:
+            return False
+
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
         leading ground input arguments, one output argument, answered
@@ -193,7 +207,7 @@ class Runtime:
         as once(). Off the consulting thread the same call routes through
         the relational form, since the functional one is main-thread-only
         in janus (a foreign-thread call aborts the process)."""
-        if threading.get_ident() != self._home_thread:
+        if not self._fast_ok():
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join([*names, 'Out'])})"
             row = self.once(goal, **dict(zip(names, inputs)))
@@ -225,7 +239,7 @@ class Runtime:
         failure, errors classified exactly as once(). Off the consulting
         thread the call routes through the relational form, as apply()
         does and for the same reason."""
-        if threading.get_ident() != self._home_thread:
+        if not self._fast_ok():
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join(names)})" if names else predicate
             return bool(self.once(goal, **dict(zip(names, inputs))))

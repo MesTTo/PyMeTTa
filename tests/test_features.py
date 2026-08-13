@@ -436,3 +436,120 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
         child.terminate()
         child.wait(timeout=10)
         local.drop()
+
+
+# ------------------------------------------------- classes cross with behavior
+
+
+def test_type_methods_run_on_terms_and_handles(m):
+    import dataclasses
+
+    from petta import convert
+
+    @m.type
+    @dataclasses.dataclass
+    class Point:
+        x: float
+        y: float
+
+        def norm(self) -> float:
+            return (self.x ** 2 + self.y ** 2) ** 0.5
+
+        def scaled(self, k: float) -> "Point":
+            return Point(self.x * k, self.y * k)
+
+    assert m.run("!(Point-norm (Point 3.0 4.0))") == [[5.0]]
+    # A method answering the class answers a constructor TERM: MeTTa keeps
+    # matching it, and Python builds it back as the object it is.
+    (scaled,) = m.run("!(Point-scaled (Point 3.0 4.0) 2.0)")[0]
+    assert scaled == expr(S.Point, 6.0, 8.0)
+    assert convert.build(scaled, Point) == Point(6.0, 8.0)
+    # An equation over the constructor is a method written in MeTTa, on
+    # equal footing: MeTTa "modifies the object" and Python receives it.
+    m.run("(= (Point-flip (Point $x $y)) (Point $y $x))")
+    (flipped,) = m.run("!(Point-flip (Point-scaled (Point 3.0 4.0) 2.0))")[0]
+    assert convert.build(flipped, Point) == Point(8.0, 6.0)
+    # A live handle works through the same methods.
+    from petta import val
+
+    assert m.eval(expr(S["Point-norm"], val(Point(3.0, 4.0)))) == [5.0]
+
+
+def test_enum_members_match_in_metta(m):
+    import enum
+
+    @m.type
+    class Mood(enum.Enum):
+        Calm = 1
+        Storm = 2
+
+    m.add(S.today(S.Storm))
+    # Members are symbols with declarations: patterns match them, and
+    # get-type answers the enum.
+    assert m.run("!(match (context-space) (today Storm) stormy)") == [[S.stormy]]
+    assert m.run("!(get-type Storm)") == [[S.Mood]]
+
+
+def test_remote_auth_token_and_hook(metta):
+    from petta import remote
+    from petta.errors import PettaError
+
+    served = metta.fresh_space()
+    served.add(S.fact(1))
+    server = remote.serve(
+        metta,
+        spaces=[served.space_name],
+        token="s3cret",
+        authorize=lambda headers: headers.get("x-tenant") == "acme",
+    )
+    try:
+        good = remote.connect(
+            server.url, token="s3cret", headers={"x-tenant": "acme"}
+        )
+        assert list(remote.RemoteSpace(good, served.space_name).atoms())
+        with pytest.raises(PettaError):
+            bad_token = remote.connect(
+                server.url, token="wrong", headers={"x-tenant": "acme"}
+            )
+            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
+        with pytest.raises(PettaError):
+            no_tenant = remote.connect(server.url, token="s3cret")
+            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
+    finally:
+        server.close()
+        served.drop()
+
+
+def test_remote_serves_tls(metta, tmp_path):
+    import shutil
+    import ssl
+    import subprocess
+
+    from petta import remote
+
+    if shutil.which("openssl") is None:
+        pytest.skip("openssl is not installed")
+    key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
+    subprocess.run(
+        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", str(key),
+         "-out", str(cert), "-days", "1", "-nodes", "-subj", "/CN=localhost"],
+        check=True, capture_output=True,
+    )
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(cert, key)
+    client_context = ssl.create_default_context(cafile=str(cert))
+    client_context.check_hostname = False  # self-signed CN, loopback address
+
+    served = metta.fresh_space()
+    served.add(S.tls(S.ok))
+    server = remote.serve(
+        metta, spaces=[served.space_name], ssl_context=server_context
+    )
+    try:
+        assert server.url.startswith("https://")
+        transport = remote.connect(server.url, ssl_context=client_context)
+        atoms = list(remote.RemoteSpace(transport, served.space_name).atoms())
+        assert atoms == [expr(S.tls, S.ok)]
+    finally:
+        server.close()
+        served.drop()
