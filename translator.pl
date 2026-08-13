@@ -20,7 +20,7 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
                                                                   flatten(GoalsA,GoalsPrefix)
                                                                 ; Args1 = Args0, GoalsPrefix = [] ),
-                                               catch(nb_getval(F, Prev), _, Prev = []),
+                                               catch_recover(nb_getval(F, Prev), Prev = []),
                                                nb_setval(F, [fun_meta(Args1, BodyExpr) | Prev]),
                                                ( declared_output_type(F, 'Atom')
                                                  -> GoalsBody = [],
@@ -83,7 +83,7 @@ reduce([F|Args], Out) :- nonvar(F), atom(F), fun_here(F)
                             current_metta_module(Module),
                             ( current_predicate(Module:F/Arity) , \+ (current_op(_, _, F), Arity =< 2)
                               -> resolve_memoization(F, Args, Out, Goal),
-                                 catch(call(Module:Goal), _, fail)
+                                 catch_recover(call(Module:Goal), fail)
                             ; incomplete_application_kind(F, Arity, partial)
                               -> Out = partial(F,Args)
                             ; throw_function_overapplication(F, N) )
@@ -129,7 +129,7 @@ translate_expr([H0|T0], Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
         translate_expr(H, GsH, HV),
         %--- Translator rules ---:
-        ( nonvar(HV), translator_rule(HV) -> ( catch(type_declaration(HV, TypeChain), _, fail)
+        ( nonvar(HV), translator_rule(HV) -> ( catch_recover(type_declaration(HV, TypeChain), fail)
                                                -> TypeChain = [->|Xs],
                                                   append(ArgTypes, [_], Xs),
                                                   translate_args_by_type(T, ArgTypes, GsT, T1)
@@ -333,9 +333,14 @@ translate_expr([H0|T0], Goals, Out) :-
           translate_expr(Expr, GsExpr, ExprOut),
           append(GsH, [], Inner),
           goals_list_to_conj(GsExpr, Conj),
+          %A program's own catch still cannot eat a control signal: an
+          %interrupt or limit caught here would make the program
+          %accidentally unstoppable, the reason KeyboardInterrupt lives
+          %outside Exception.
           Goal = catch((Conj, Out = ExprOut),
                        Exception,
-                       (Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
+                       (control_exception(Exception) -> throw(Exception)
+                       ; Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
                                                       ; Out = ['Error', Exception])),
           append(Inner, [Goal], Goals)
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
@@ -346,7 +351,7 @@ translate_expr([H0|T0], Goals, Out) :-
             ( atom(HV), fun_here(HV), Fun = HV, AllAVs = AVs, IsPartial = false
             ; compound(HV), HV = partial(Fun, Bound), append(Bound,AVs,AllAVs), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
-            -> findall(TypeChain, catch(type_declaration(Fun, TypeChain), _, fail), TypeChains),
+            -> findall(TypeChain, catch_recover(type_declaration(Fun, TypeChain), fail), TypeChains),
                list_to_set(TypeChains, UniqueTypeChains),
                ( UniqueTypeChains \= []
                  -> length(AllAVs, InputArity),
@@ -527,14 +532,14 @@ memberchk_eq(V, [H|_]) :- V == H, !.
 memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
 
 %Generate readable lambda name:
-next_lambda_name(Name) :- ( catch(nb_getval(lambda_counter, Prev), _, Prev = 0) ),
+next_lambda_name(Name) :- ( catch_recover(nb_getval(lambda_counter, Prev), Prev = 0) ),
                           N is Prev + 1,
                           nb_setval(lambda_counter, N),
                           format(atom(Name), 'lambda_~d', [N]).
 
 declared_output_type(F, OutType) :- atom(F),
 									nonvar(OutType),
-									catch(type_declaration(F, TypeChain), _, fail),
+									catch_recover(type_declaration(F, TypeChain), fail),
 									TypeChain = [->|Types],
 									append(_, [DeclaredOutType], Types),
 									DeclaredOutType == OutType.

@@ -67,7 +67,7 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
 %%Remove a function atom:
 'remove-atom'(Space, Term, Removed) :- Term = [=,[F|Args],Body], !,
                                        remove_sexp(Space, Term),
-                                       catch(nb_getval(F, Prev), _, Prev = []),
+                                       catch_recover(nb_getval(F, Prev), Prev = []),
                                        (   select(fun_meta(Args, Body), Prev, Rest)
                                            -> ( Rest == [] -> nb_delete(F)
                                                             ; nb_setval(F, Rest) ) ; true ),
@@ -126,7 +126,7 @@ match(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
 
 %Match for pattern:
 match(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
-                                                   catch(Term, _, fail),
+                                                   catch_recover(Term, fail),
                                                    \+ cyclic_term(OutPattern),
                                                    Result = OutPattern.
 

@@ -5,9 +5,9 @@
 %Re-specializing a function already being specialized is refused: its key must differ from the ongoing one
 %(same keys are memoized via ho_specialization), and ever-growing keys - e.g. a recursive call wrapping its
 %higher-order argument, (= (evolve $r $g) (evolve (twice $r) $g)) - would otherwise diverge at compile time:
-maybe_specialize_call(HV, AVs, Out, Goal) :- catch(nb_getval('$spec_stack', Stack), _, Stack = []),
+maybe_specialize_call(HV, AVs, Out, Goal) :- catch_recover(nb_getval('$spec_stack', Stack), Stack = []),
                                              \+ memberchk(HV, Stack),
-                                             setup_call_cleanup( (catch(nb_getval(specneeded,Prev),_,Prev = []), nb_setval(specneeded,false),
+                                             setup_call_cleanup( (catch_recover(nb_getval(specneeded,Prev), Prev = []), nb_setval(specneeded,false),
                                                                   nb_setval('$spec_stack', [HV|Stack])),
                                                                  specialize_call(HV, AVs, Out, Goal),
                                                                  (nb_setval('$spec_stack', Stack),
@@ -25,7 +25,7 @@ normalize_specialization_key(Term, Normalized) :-
 
 %Specialize a call by creating and translating a specialized version of the MeTTa code:
 specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses stored for HV:
-                                       catch(nb_getval(HV, MetaList0), _, fail),
+                                       catch_recover(nb_getval(HV, MetaList0), fail),
                                        copy_term(MetaList0, MetaList),
                                        %2. Copy all clause variables eligible for specialization across all meta-clauses:
                                        bagof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
@@ -47,7 +47,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses s
                                              assertz(ho_specialization(HV, SpecName)),
                                              assertz(arity(SpecName, Arity)),
                                              ( %4.2. Re-use the type definition of the parent function for the specialization:
-                                               findall(TypeChain, catch(type_declaration(HV, TypeChain), _, fail), TypeChains),
+                                               findall(TypeChain, catch_recover(type_declaration(HV, TypeChain), fail), TypeChains),
                                                forall(member(TypeChain, TypeChains), add_sexp('&self', [':', SpecName, TypeChain])),
                                                %4.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
                                                maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
@@ -115,7 +115,7 @@ forget_symbol(Name) :- retractall('&self'(=, [Name|_], _)),
                        forall(metta_on_function_removed(Name), true),
                        retractall(arity(Name,_)),
                        retractall(fun(Name)),
-                       catch(nb_delete(Name), _, true),
+                       catch_recover(nb_delete(Name), true),
                        retractall(ho_specialization(Name,_)).
 
 %Invalidate all specializations:

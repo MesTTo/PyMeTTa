@@ -224,7 +224,7 @@ get_type_candidate(X, T) :- type_declaration(X, T).
 %A bridge that knows how to read the object answers with every type name at
 %once, protocols included, as plain text the boundary cannot damage; without
 %one, the class walk below runs, plus any engine-side extra types:
-py_object_type(X, T) :- ( catch(py_object_type_names(X, Names), _, fail )
+py_object_type(X, T) :- ( catch_recover(py_object_type_names(X, Names), fail)
                           -> member(N, Names),
                              ( atom(N) -> T = N ; atom_string(T, N) )
                         ; py_object_class_type(X, T) ).
@@ -389,7 +389,7 @@ retractPredicate(_, false).
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
-'import!'(Space, File, true) :- catch(importer_helper(Space, File), _, fail).
+'import!'(Space, File, true) :- catch_recover(importer_helper(Space, File), fail).
 importer_helper(Space, File) :- atom_string(File, SFile),
                                 working_dir(Base),
                                 ( file_name_extension(ModPath, 'py', SFile)
@@ -426,6 +426,26 @@ with_metta_module(Module, Goal) :-
     setup_call_cleanup(b_setval('$petta_module', Module),
                        Goal,
                        b_setval('$petta_module', Previous)).
+
+%Control signals pass through every recovery catch: a caught abort, limit,
+%alarm, or interrupt is a stopped program pretending it succeeded. This is
+%the KeyboardInterrupt-outside-Exception design; a swallowed limit signal
+%also DISARMS call_with_inference_limit for the rest of the call, measured
+%as six million inferences spent under a thousand-inference budget when a
+%recovery catch ate the signal mid-translation.
+control_exception(time_limit_exceeded).
+control_exception(inference_limit_exceeded).
+control_exception(petta_py_interrupted).
+control_exception('$aborted').
+control_exception(error(petta_py_time_limit(_), _)).
+control_exception(error(petta_py_inference_limit(_), _)).
+control_exception(error(resource_error(_), _)).
+
+%The evaluator's catch-all: real errors take the recovery, control
+%signals keep flying.
+:- meta_predicate catch_recover(0, 0).
+catch_recover(Goal, Recovery) :-
+    catch(Goal, E, ( control_exception(E) -> throw(E) ; call(Recovery) )).
 
 %Whether a symbol is callable from where we are: a function this module defines,
 %one &self defines, since &self is the shared space, or a builtin, which is a
