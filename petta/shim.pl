@@ -379,6 +379,19 @@ petta_py_is_function(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name).
 
+%Whether a function ANSWERS from this space: it has clauses its module can
+%see, its own or inherited from user. Another space's equations live in that
+%space's module and are invisible here, so they do not count.
+petta_py_function_visible(Space0, Name0) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    fun(Name),
+    petta_py_module(Space, Module),
+    catch(( current_predicate(Module:Name/Arity),
+            functor(Head, Name, Arity),
+            clause(Module:Head, _, _) ),
+          _, fail), !.
+
 petta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     findall(A, arity(Name, A), As).

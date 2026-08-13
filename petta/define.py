@@ -120,12 +120,19 @@ class Defined:
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 
 
-def compile_function(fn: Callable, known: Callable[[str], bool]) -> tuple[list[str], Atom, Callable]:
-    """Read a function's source into (parameters, MeTTa body, Python twin).
+def compile_function(
+    fn: Callable,
+    known: Callable[[str], bool],
+    nondet: Callable[[str], bool] | None = None,
+) -> tuple[list[str], dict, Atom, Callable, bool]:
+    """Read a function's source into (parameters, head patterns, MeTTa body,
+    Python twin, is_generator).
 
     `known` answers whether a free identifier names a function the engine
     knows, which separates a call to another definition from a closure over
-    a host value.
+    a host value. `nondet` answers whether a name is known to answer
+    nondeterministically, which decides how `for` and `yield from` iterate
+    a call to it.
     """
     try:
         source = textwrap.dedent(inspect.getsource(fn))
@@ -153,8 +160,9 @@ def compile_function(fn: Callable, known: Callable[[str], bool]) -> tuple[list[s
     # A literal-patterned position is fixed by the head, so it is not a
     # variable in the body's scope; naming it there would shadow the match.
     scope = [p for p in params if p not in patterns]
-    compiler = _Compiler(fn.__name__, scope, known)
-    if _is_generator(definition):
+    compiler = _Compiler(fn.__name__, scope, known, nondet=nondet)
+    generator = _is_generator(definition)
+    if generator:
         # A generator is nondeterminism: each yield is one answer, which is
         # exactly what superpose spells; branches contribute their own
         # superpositions and evaluation flattens them.
@@ -162,7 +170,7 @@ def compile_function(fn: Callable, known: Callable[[str], bool]) -> tuple[list[s
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
-    return params, patterns, body, _python_twin(fn, patterns)
+    return params, patterns, body, _python_twin(fn, patterns), generator
 
 
 def _is_generator(node: ast.FunctionDef) -> bool:
@@ -208,24 +216,89 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
     return params, patterns
 
 
-def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Callable:
-    """The same body with the function's own name bound to itself, so
-    recursion inside the twin reaches the twin rather than the term builder.
+class TwinDispatcher:
+    """The Python twin of a possibly-stacked definition: clause twins in
+    definition order, first whose head admits the arguments answers, the
+    engine's own first-match reading that the guards compile. Twins of other
+    definitions resolve to dispatchers too, so twins compose: a twin calling
+    another defined name runs that name's Python, not a term builder."""
 
-    A clause with literal head patterns twins per clause: its guard raises
-    LookupError when an argument misses the pattern, since dispatch between
-    clauses belongs to the engine and the twin only answers for inputs its
-    own head matches.
+    __slots__ = ("name", "clauses")
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.clauses: list[Callable] = []
+
+    def __call__(self, *args: Any):
+        for clause in self.clauses:
+            try:
+                return clause(*args)
+            except _ClauseMiss:
+                continue
+        raise LookupError(f"{self.name}: no clause's head matches {args!r}")
+
+    @property
+    def __name__(self) -> str:
+        return self.name
+
+    @property
+    def __doc__(self) -> str | None:  # type: ignore[override]
+        return self.clauses[0].__doc__ if self.clauses else None
+
+    def __repr__(self) -> str:
+        return f"<python twin of {self.name}, {len(self.clauses)} clause(s)>"
+
+
+class _ClauseMiss(LookupError):
+    """A clause twin refusing arguments its head does not match."""
+
+
+# (id of a module's globals, name) -> the dispatcher every twin from that
+# module resolves the name to; and per module, every twin-globals view built,
+# so a later definition becomes visible to earlier twins, Python's own rule
+# that a call resolves its callee at call time.
+_TWIN_DISPATCHERS: dict[tuple[int, str], TwinDispatcher] = {}
+_TWIN_VIEWS: dict[int, list[dict]] = {}
+
+
+def twin_dispatcher(fn: Callable) -> TwinDispatcher:
+    """The dispatcher for fn's name in fn's module, created on first use and
+    pushed into every twin-globals view of that module."""
+    mid, name = id(fn.__globals__), fn.__name__
+    dispatcher = _TWIN_DISPATCHERS.get((mid, name))
+    if dispatcher is None:
+        dispatcher = _TWIN_DISPATCHERS[(mid, name)] = TwinDispatcher(name)
+        for view in _TWIN_VIEWS.get(mid, []):
+            view[name] = dispatcher
+    return dispatcher
+
+
+def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Callable:
+    """One clause's Python twin, head guard included.
+
+    The twin's globals overlay every dispatcher this module has, its own
+    name's first of all, so recursion reaches the dispatcher rather than the
+    term builder, across clauses and across definitions. A clause with
+    literal head patterns raises a clause miss when an argument misses one,
+    and the dispatcher moves on.
     """
     globals_ = dict(fn.__globals__)
+    mid = id(fn.__globals__)
+    for (module_id, other), dispatcher in _TWIN_DISPATCHERS.items():
+        if module_id == mid:
+            globals_[other] = dispatcher
+    _TWIN_VIEWS.setdefault(mid, []).append(globals_)
+
     name = fn.__name__
+    own = twin_dispatcher(fn)
+    globals_[name] = own
+
     closure = fn.__closure__
     freevars = fn.__code__.co_freevars
-
-    cell: types.CellType | None = None
     if name in freevars and closure is not None:
         cells = list(closure)
         cell = types.CellType()
+        cell.cell_contents = own
         cells[freevars.index(name)] = cell
         closure = tuple(cells)
 
@@ -233,23 +306,18 @@ def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Calla
         fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
     )
     twin.__doc__ = fn.__doc__
-    globals_[name] = twin
-    if cell is not None:
-        cell.cell_contents = twin
     if not patterns:
         return twin
 
-    import inspect as _inspect
-
-    order = list(_inspect.signature(fn).parameters)
+    order = list(inspect.signature(fn).parameters)
 
     def guarded(*args):
         for position, value in zip(order, args):
             expected = patterns.get(position)
             if expected is not None and expected != value:
-                raise LookupError(
+                raise _ClauseMiss(
                     f"{name}: this clause's head matches {position}={expected}, "
-                    f"not {value!r}; the engine dispatches between clauses"
+                    f"not {value!r}"
                 )
         return twin(*args)
 
@@ -259,12 +327,103 @@ def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Calla
 
 
 class _Compiler(ast.NodeVisitor):
-    """Python syntax to MeTTa terms, one construct at a time."""
+    """Python syntax to MeTTa terms, one construct at a time.
 
-    def __init__(self, name: str, params: list[str], known: Callable[[str], bool]):
+    scope maps each Python name to the MeTTa variable currently holding it.
+    Rebinding a name mints a fresh variable (x, then x-2, then x-3), the
+    static-single-assignment discipline: a let* pair whose sides share a
+    variable would unify them, so `x = x + 1` must bind a new name. The
+    minted names carry a hyphen, which no Python identifier can, so they
+    never collide with source names. Branches fork the scope, since a
+    rebind inside one arm must not leak into the other.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        params: list[str] | dict[str, str],
+        known: Callable[[str], bool],
+        used: set[str] | None = None,
+        nondet: Callable[[str], bool] | None = None,
+    ):
         self.name = name
-        self.scope = list(params)
+        self.scope: dict[str, str] = (
+            dict(params) if isinstance(params, dict) else {p: p for p in params}
+        )
         self.known = known
+        # Whether a name is known to answer nondeterministically (a compiled
+        # generator or a generator operation): iterating one binds the call
+        # directly, since the call itself is the fork.
+        self.nondet = nondet or (lambda _: False)
+        # Every variable name any compiler of this definition has minted;
+        # shared across forks so two branches never mint the same fresh name.
+        self.used: set[str] = used if used is not None else set(self.scope.values())
+
+    def _fork(self) -> "_Compiler":
+        """A compiler for one branch: its own scope, the shared minted set."""
+        return _Compiler(
+            self.name, dict(self.scope), self.known, used=self.used, nondet=self.nondet
+        )
+
+    def _inner(self, extra: list[str]) -> "_Compiler":
+        """A compiler for a nested binder (lambda, comprehension): the outer
+        scope plus the binder's own parameters, shadowing by name."""
+        scope = dict(self.scope)
+        scope.update({p: p for p in extra})
+        return _Compiler(self.name, scope, self.known, used=self.used, nondet=self.nondet)
+
+    def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
+        """`for var in iter_node` around a compiled body.
+
+        A call to a known-nondeterministic name IS the iteration: binding it
+        forks once per answer. Anything else evaluates to an expression whose
+        elements superpose.
+        """
+        if (
+            isinstance(iter_node, ast.Call)
+            and isinstance(iter_node.func, ast.Name)
+            and self.nondet(iter_node.func.id)
+        ):
+            return Expr([Sym("let"), Var(var), self.expression(iter_node), body])
+        source = self.expression(iter_node)
+        return Expr(
+            [Sym("let"), Var(var), Expr([Sym("superpose"), source]), body]
+        )
+
+    def _yield_from(self, node: ast.YieldFrom) -> Atom:
+        """`yield from e`: a nondeterministic call answers directly, one
+        yield per answer; any other iterable superposes its elements."""
+        value = node.value
+        if (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and self.nondet(value.func.id)
+        ):
+            return self.expression(value)
+        return Expr([Sym("superpose"), self.expression(value)])
+
+    def _bind(self, name: str) -> str:
+        """The MeTTa variable a (re)binding of name writes to."""
+        if name not in self.scope and name not in self.used:
+            variable = name
+        else:
+            n = 2
+            while f"{name}-{n}" in self.used:
+                n += 1
+            variable = f"{name}-{n}"
+        self.scope[name] = variable
+        self.used.add(variable)
+        return variable
+
+    def _temp(self, base: str) -> str:
+        """A fresh variable for the compiler's own use, outside any Python
+        name's scope; the hyphen in the spelling keeps it unreachable."""
+        n = 2
+        while f"{base}-{n}" in self.used:
+            n += 1
+        variable = f"{base}-{n}"
+        self.used.add(variable)
+        return variable
 
     # ------------------------------------------------------------- statements
 
@@ -292,12 +451,12 @@ class _Compiler(ast.NodeVisitor):
                 )
             return self.expression(head.value)
 
-        if isinstance(head, (ast.Assign, ast.AnnAssign)):
-            target, value = self._binding(head)
-            return Expr([Sym("let*"), Expr([Expr([Var(target), value])]), self.block(rest)])
+        if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            variable, value = self._binding(head)
+            return Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), self.block(rest)])
 
         if isinstance(head, ast.If):
-            return self.if_statement(head, rest, self.block)
+            return self.if_statement(head, rest, lambda c, stmts: c.block(stmts))
 
         if isinstance(head, (ast.While, ast.For)):
             raise CompileError(
@@ -317,8 +476,32 @@ class _Compiler(ast.NodeVisitor):
             line=head.lineno,
         )
 
-    def _binding(self, head: ast.Assign | ast.AnnAssign) -> tuple[str, Atom]:
-        if isinstance(head, ast.AnnAssign):
+    def _binding(self, head: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[str, Atom]:
+        """One binding: the MeTTa variable to write and the value term.
+
+        The value compiles BEFORE the target rebinds, so `x = x + 1` reads
+        the old x on the right and writes a fresh variable on the left.
+        """
+        if isinstance(head, ast.AugAssign):
+            # x += e is x = x <op> e; the desugared node lowers identically.
+            target_name = _name_of(head.target, head.lineno)
+            value = self._x_BinOp(
+                ast.BinOp(
+                    left=ast.copy_location(ast.Name(id=target_name, ctx=ast.Load()), head),
+                    op=head.op,
+                    right=head.value,
+                    lineno=head.lineno,
+                    col_offset=head.col_offset,
+                )
+            )
+            if target_name not in self.scope:
+                raise CompileError(
+                    f"{target_name!r} is augmented before it is bound",
+                    construct="augmented assignment",
+                    line=head.lineno,
+                )
+            target = target_name
+        elif isinstance(head, ast.AnnAssign):
             if head.value is None:
                 raise CompileError(
                     "an annotation without a value binds nothing",
@@ -330,14 +513,15 @@ class _Compiler(ast.NodeVisitor):
         else:
             target = _single_target(head)
             value = self.expression(head.value)
-        self.scope.append(target)
-        return target, value
+        return self._bind(target), value
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
         test = self.expression(node.test)
-        then = continue_with(node.body)
+        # Each arm compiles in its own forked scope: a rebind inside one arm
+        # must not rename what the other arm, or anything after, reads.
+        then = continue_with(self._fork(), node.body)
         if node.orelse:
-            otherwise = continue_with(node.orelse)
+            otherwise = continue_with(self._fork(), node.orelse)
             if rest:
                 raise CompileError(
                     "statements after an if/else where both branches close are "
@@ -348,7 +532,7 @@ class _Compiler(ast.NodeVisitor):
         elif rest:
             # `if c: return a` followed by more statements: the rest is the
             # else branch, Python's own early-return shape.
-            otherwise = continue_with(rest)
+            otherwise = continue_with(self._fork(), rest)
         else:
             raise CompileError(
                 "an `if` with no `else` and nothing after it leaves one branch "
@@ -384,28 +568,42 @@ class _Compiler(ast.NodeVisitor):
             return [answer, *(self.yield_answers(rest) if rest else [])]
 
         if isinstance(head, ast.Expr) and isinstance(head.value, ast.YieldFrom):
-            raise CompileError(
-                "`yield from` has no equation; yield each answer, or register "
-                "the generator as an operation with @m.op, where it is native "
-                "nondeterminism",
-                construct="yield from",
-                line=head.lineno,
-            )
+            return [
+                self._yield_from(head.value),
+                *(self.yield_answers(rest) if rest else []),
+            ]
 
-        if isinstance(head, (ast.Assign, ast.AnnAssign)):
-            target, value = self._binding(head)
+        if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            variable, value = self._binding(head)
             tail = _superpose(self.yield_answers(rest))
-            return [Expr([Sym("let*"), Expr([Expr([Var(target), value])]), tail])]
+            return [Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), tail])]
 
         if isinstance(head, ast.If):
-            then = _superpose(self.yield_answers(head.body))
+            then = _superpose(self._fork().yield_answers(head.body))
             otherwise = (
-                _superpose(self.yield_answers(head.orelse))
+                _superpose(self._fork().yield_answers(head.orelse))
                 if head.orelse
                 else Expr([Sym("empty")])
             )
             chooser = Expr([Sym("if"), self.expression(head.test), then, otherwise])
             return [chooser, *(self.yield_answers(rest) if rest else [])]
+
+        if isinstance(head, ast.For):
+            # `for x in e: <yields>` is iteration as nondeterminism: bind x
+            # to each element of e through superpose, answer the body for
+            # each. The loop never closes the block, exactly as in Python.
+            if head.orelse:
+                raise CompileError(
+                    "`for ... else` has no equation; the else arm runs on "
+                    "non-break exit and this subset has no break",
+                    construct="for-else",
+                    line=head.lineno,
+                )
+            body_compiler = self._fork()
+            var = body_compiler._bind(_name_of(head.target, head.lineno))
+            body = _superpose(body_compiler.yield_answers(head.body))
+            looped = self._iteration(head.iter, var, body)
+            return [looped, *(self.yield_answers(rest) if rest else [])]
 
         if isinstance(head, ast.Return):
             raise CompileError(
@@ -453,7 +651,7 @@ class _Compiler(ast.NodeVisitor):
 
     def _x_Name(self, node: ast.Name) -> Atom:
         if node.id in self.scope:
-            return Var(node.id)
+            return Var(self.scope[node.id])
         if node.id == self.name or node.id in _MAGIC or self.known(node.id):
             return Sym(node.id)
         # Python cannot spell a hyphen, and the engine's own names carry
@@ -510,21 +708,35 @@ class _Compiler(ast.NodeVisitor):
         )
 
     def _x_Compare(self, node: ast.Compare) -> Atom:
-        if len(node.ops) != 1:
-            raise CompileError(
-                "a chained comparison such as a < b < c has no single MeTTa "
-                "term; write (a < b) and (b < c)",
-                construct="chained comparison",
-                line=node.lineno,
-            )
-        op = _COMPARE.get(type(node.ops[0]))
-        if op is None:
-            raise CompileError(
-                f"the comparison {type(node.ops[0]).__name__} has no MeTTa function",
-                construct=type(node.ops[0]).__name__,
-                line=node.lineno,
-            )
-        return Expr([Sym(op), self.expression(node.left), self.expression(node.comparators[0])])
+        terms = [self.expression(v) for v in [node.left, *node.comparators]]
+        # A middle operand of a chain is read by two links; Python evaluates
+        # it once, so anything that is not already a leaf binds to a
+        # temporary before any link is built. Minted names carry a hyphen,
+        # unreachable from Python identifiers.
+        bindings: list[tuple[str, Atom]] = []
+        for i in range(1, len(terms) - 1):
+            if not isinstance(terms[i], (Var, Sym, Gnd)):
+                temp = self._temp("cmp")
+                bindings.append((temp, terms[i]))
+                terms[i] = Var(temp)
+        links: list[Atom] = []
+        for i, op_node in enumerate(node.ops):
+            op = _COMPARE.get(type(op_node))
+            if op is None:
+                raise CompileError(
+                    f"the comparison {type(op_node).__name__} has no MeTTa "
+                    f"function",
+                    construct=type(op_node).__name__,
+                    line=node.lineno,
+                )
+            links.append(Expr([Sym(op), terms[i], terms[i + 1]]))
+        folded = links[-1]
+        for link in reversed(links[:-1]):
+            # The chain short-circuits exactly as Python's does.
+            folded = Expr([Sym("if"), link, folded, Gnd(False)])
+        for temp, value in reversed(bindings):
+            folded = Expr([Sym("let*"), Expr([Expr([Var(temp), value])]), folded])
+        return folded
 
     def _x_BoolOp(self, node: ast.BoolOp) -> Atom:
         # Python's and/or short-circuit; the engine's are strict. The faithful
@@ -559,37 +771,52 @@ class _Compiler(ast.NodeVisitor):
                 line=node.lineno,
             )
         params = [arg.arg for arg in a.args]
-        inner = _Compiler(self.name, self.scope + params, self.known)
+        inner = self._inner(params)
         body = inner.expression(node.body)
         return Expr([Sym("|->"), Expr([Var(p) for p in params]), body])
 
     def _x_ListComp(self, node: ast.ListComp) -> Atom:
-        """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), with an
-        if-filter composing through filter-atom first."""
-        if len(node.generators) != 1:
-            raise CompileError(
-                "a comprehension with several `for` clauses has no single "
-                "map-atom form; nest comprehensions or write recursion",
-                construct="comprehension",
-                line=node.lineno,
-            )
-        gen = node.generators[0]
-        if gen.is_async:
-            raise CompileError(
-                "an async comprehension has no equation",
-                construct="comprehension",
-                line=node.lineno,
-            )
-        var = _name_of(gen.target, node.lineno)
-        source: Atom = self.expression(gen.iter)
-        inner = _Compiler(self.name, self.scope + [var], self.known)
+        """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), an
+        if-filter composing through filter-atom first. Several `for`
+        clauses nest the maps, each outer level flattening its nested
+        answers with a left union-atom fold, so the elements arrive in
+        Python's own order."""
+        for gen in node.generators:
+            if gen.is_async:
+                raise CompileError(
+                    "an async comprehension has no equation",
+                    construct="comprehension",
+                    line=node.lineno,
+                )
+        return self._comprehension(node.generators, node.elt, node.lineno)
+
+    def _comprehension(
+        self, generators: list[ast.comprehension], elt: ast.expr, line: int
+    ) -> Atom:
+        gen = generators[0]
+        var = _name_of(gen.target, line)
+        # The source reads in THIS scope: a later clause's source may use an
+        # earlier clause's variable, but never its own.
+        source = self.expression(gen.iter)
+        inner = self._inner([var])
         for condition in gen.ifs:
             predicate = Expr(
                 [Sym("|->"), Expr([Var(var)]), inner.expression(condition)]
             )
             source = Expr([Sym("filter-atom"), source, predicate])
-        mapper = Expr([Sym("|->"), Expr([Var(var)]), inner.expression(node.elt)])
-        return Expr([Sym("map-atom"), source, mapper])
+        if len(generators) == 1:
+            mapper = Expr([Sym("|->"), Expr([Var(var)]), inner.expression(elt)])
+            return Expr([Sym("map-atom"), source, mapper])
+        nested = inner._comprehension(generators[1:], elt, line)
+        mapper = Expr([Sym("|->"), Expr([Var(var)]), nested])
+        return Expr(
+            [
+                Sym("foldl-atom"),
+                Expr([Sym("map-atom"), source, mapper]),
+                Expr([]),
+                Sym("union-atom"),
+            ]
+        )
 
     def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:
         raise CompileError(
@@ -623,8 +850,119 @@ class _Compiler(ast.NodeVisitor):
             return Expr(
                 [Sym("superpose"), Expr([self.expression(a) for a in node.args])]
             )
+        # Python's own builtins, where a name in scope has not shadowed them,
+        # bridge to the engine functions that mean the same thing.
+        if node.func.id in _PYBUILTIN_CALLS and node.func.id not in self.scope:
+            return _PYBUILTIN_CALLS[node.func.id](self, node)
         callee = self._x_Name(node.func)
         return Expr([callee, *(self.expression(a) for a in node.args)])
+
+    # -------------------------------------------- Python builtins, bridged
+
+    def _args(self, node: ast.Call, count: int | None, name: str) -> list[Atom]:
+        if count is not None and len(node.args) != count:
+            raise CompileError(
+                f"{name}() compiles with exactly {count} argument(s) here",
+                construct=name,
+                line=node.lineno,
+            )
+        return [self.expression(a) for a in node.args]
+
+    def _py_len(self, node: ast.Call) -> Atom:
+        (xs,) = self._args(node, 1, "len")
+        return Expr([Sym("size-atom"), xs])
+
+    def _py_abs(self, node: ast.Call) -> Atom:
+        (x,) = self._args(node, 1, "abs")
+        return Expr([Sym("abs-math"), x])
+
+    def _py_min(self, node: ast.Call) -> Atom:
+        return self._extremum(node, "min")
+
+    def _py_max(self, node: ast.Call) -> Atom:
+        return self._extremum(node, "max")
+
+    def _extremum(self, node: ast.Call, which: str) -> Atom:
+        # min(xs) reads the elements of one expression; min(a, b, ...) folds
+        # the engine's two-place min over the arguments, Python's own split.
+        args = self._args(node, None, which)
+        if len(args) == 0:
+            raise CompileError(f"{which}() needs arguments", construct=which, line=node.lineno)
+        if len(args) == 1:
+            return Expr([Sym(f"{which}-atom"), args[0]])
+        folded = args[-1]
+        for term in reversed(args[:-1]):
+            folded = Expr([Sym(which), term, folded])
+        return folded
+
+    def _py_sum(self, node: ast.Call) -> Atom:
+        args = self._args(node, None, "sum")
+        if len(args) not in (1, 2):
+            raise CompileError(
+                "sum() takes an iterable and an optional start",
+                construct="sum",
+                line=node.lineno,
+            )
+        start: Atom = args[1] if len(args) == 2 else Gnd(0)
+        return Expr([Sym("foldl-atom"), args[0], start, Sym("+")])
+
+    def _py_sorted(self, node: ast.Call) -> Atom:
+        (xs,) = self._args(node, 1, "sorted")
+        return Expr([Sym("sort-atom"), xs])
+
+    def _py_pow(self, node: ast.Call) -> Atom:
+        base, exponent = self._args(node, 2, "pow")
+        return Expr([Sym("pow-math"), base, exponent])
+
+    def _x_Subscript(self, node: ast.Subscript) -> Atom:
+        if isinstance(node.slice, ast.Slice):
+            raise CompileError(
+                "a slice has no engine builtin; take elements with indexing, "
+                "a comprehension, or an operation",
+                construct="slice",
+                line=node.lineno,
+            )
+        source = self.expression(node.value)
+        index = self.expression(node.slice)
+        # index-atom counts from zero and refuses negatives; Python counts
+        # negatives from the end. A literal decides at compile time; anything
+        # else binds both parts once and decides at run time.
+        if isinstance(index, Gnd) and isinstance(index.value, int) and index.value >= 0:
+            return Expr([Sym("index-atom"), source, index])
+        source_temp = self._temp("seq")
+        index_temp = self._temp("idx")
+        chosen = Expr(
+            [
+                Sym("if"),
+                Expr([Sym("<"), Var(index_temp), Gnd(0)]),
+                Expr(
+                    [
+                        Sym("index-atom"),
+                        Var(source_temp),
+                        Expr(
+                            [
+                                Sym("+"),
+                                Expr([Sym("size-atom"), Var(source_temp)]),
+                                Var(index_temp),
+                            ]
+                        ),
+                    ]
+                ),
+                Expr([Sym("index-atom"), Var(source_temp), Var(index_temp)]),
+            ]
+        )
+        return Expr(
+            [
+                Sym("let*"),
+                Expr(
+                    [
+                        Expr([Var(source_temp), source]),
+                        Expr([Var(index_temp), index]),
+                    ]
+                ),
+                chosen,
+            ]
+        )
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
@@ -657,7 +995,10 @@ class _Compiler(ast.NodeVisitor):
         pattern_scope = _PatternScope(self)
         pattern = pattern_scope.expression(pattern_node)
         # Names the pattern bound are in scope for the template.
-        self.scope.extend(n for n in pattern_scope.bound if n not in self.scope)
+        for bound in pattern_scope.bound:
+            if bound not in self.scope:
+                self.scope[bound] = bound
+                self.used.add(bound)
         template = self.expression(template_node)
         return Expr([Sym("match"), space, pattern, template])
 
@@ -700,7 +1041,7 @@ class _PatternScope:
     def expression(self, node: ast.expr) -> Atom:
         if isinstance(node, ast.Name):
             if node.id in self.outer.scope:
-                return Var(node.id)
+                return Var(self.outer.scope[node.id])
             if node.id[:1].islower() and not self.outer.known(node.id) and node.id != self.outer.name:
                 if node.id not in self.bound:
                     self.bound.append(node.id)
@@ -718,7 +1059,11 @@ class _PatternScope:
             # is the relation symbol, not a fresh variable; a head already in
             # scope stays the variable it is.
             head_id = node.func.id
-            head: Atom = Var(head_id) if head_id in self.outer.scope else Sym(head_id)
+            head: Atom = (
+                Var(self.outer.scope[head_id])
+                if head_id in self.outer.scope
+                else Sym(head_id)
+            )
             return Expr([head, *(self.expression(a) for a in node.args)])
         if isinstance(node, (ast.Tuple, ast.List)):
             return Expr([self.expression(e) for e in node.elts])
@@ -732,11 +1077,32 @@ class _PatternScope:
         )
 
 
+# Python builtin -> its lowering. Consulted for a call to one of these names
+# when no parameter shadows it; each maps to the engine function that means
+# the same thing on the values this subset computes.
+_PYBUILTIN_CALLS: dict[str, Callable] = {
+    "len": _Compiler._py_len,
+    "abs": _Compiler._py_abs,
+    "min": _Compiler._py_min,
+    "max": _Compiler._py_max,
+    "sum": _Compiler._py_sum,
+    "sorted": _Compiler._py_sorted,
+    "pow": _Compiler._py_pow,
+}
+
+
 def _superpose(answers: list[Atom]) -> Expr:
-    """The answers as one superposition, flattened where a member already is one."""
+    """The answers as one superposition, flattened where a member already is
+    one over literal alternatives; (superpose $x) over a bound value stays
+    whole, since only an expression of alternatives can splice."""
     flat: list[Atom] = []
     for a in answers:
-        if isinstance(a, Expr) and a.head == Sym("superpose") and len(a) == 2:
+        if (
+            isinstance(a, Expr)
+            and a.head == Sym("superpose")
+            and len(a) == 2
+            and isinstance(a[1], Expr)
+        ):
             flat.extend(a[1])
         else:
             flat.append(a)

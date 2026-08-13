@@ -14,11 +14,18 @@ from typing import Any, Callable, Iterable
 
 from . import ops as _ops_module
 from ._engine import Runtime, runtime
-from .atoms import Atom, Expr, Sym, Var, encode, from_wire, parse, variables
+from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, variables
 from .derivation import Derivation
 from .results import Rows
 
 __all__ = ["MeTTa"]
+
+# @define bookkeeping is keyed (space name, function name) process-wide,
+# because equations live in spaces, not in MeTTa instances: two instances
+# bound to one space stack clauses of one function together.
+_DEFINE_CLAUSES: dict[tuple[str, str], list[dict]] = {}
+_DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
+_DEFINED_GENERATORS: set[tuple[str, str]] = set()
 
 
 def _to_atom(value: Any) -> Atom:
@@ -61,8 +68,6 @@ class MeTTa:
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
         self._space = space
-        self._declared_defines: dict[str, bool] = {}
-        self._define_clauses: dict[str, list[dict]] = {}
 
     # ------------------------------------------------------------------ naming
 
@@ -143,6 +148,12 @@ class MeTTa:
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
         self._rt.once("petta_py_clear(Space)", Space=self._space)
+        # The @define bookkeeping follows the equations it describes.
+        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
+            for key in [k for k in registry if k[0] == self._space]:
+                del registry[key]
+        for key in [k for k in _DEFINED_GENERATORS if k[0] == self._space]:
+            _DEFINED_GENERATORS.discard(key)
 
     def __iadd__(self, atom: Any) -> "MeTTa":
         self.add(atom)
@@ -247,6 +258,16 @@ class MeTTa:
     def is_function(self, name: str) -> bool:
         return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
 
+    def is_function_here(self, name: str) -> bool:
+        """Whether a function would answer from THIS space: it has clauses
+        this space's module sees, its own or the shared ones in user.
+        Another space's equations are invisible here and do not count."""
+        return bool(
+            self._rt.once(
+                "petta_py_function_visible(Space, Name)", Space=self._space, Name=name
+            )
+        )
+
     def arities(self, name: str) -> list[int]:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
         row = self._rt.once("petta_py_arities(Name, As)", Name=name)
@@ -332,14 +353,34 @@ class MeTTa:
         the running space, lowercase free names in the pattern binding as
         variables.
         """
-        from .define import Defined, compile_function
+        from ._ops import REGISTRY
+        from .define import Defined, compile_function, twin_dispatcher
         from .errors import CompileError
         from .ops import metta_type_for
 
-        params, patterns, body, twin = compile_function(fn, known=self.is_function)
+        def nondet(called: str) -> bool:
+            operation = REGISTRY.get(called)
+            if operation is not None and operation.kind in ("many", "raw_many"):
+                return True
+            return (self._space, called) in _DEFINED_GENERATORS
+
+        params, patterns, body, twin, generator = compile_function(
+            fn, known=self.is_function, nondet=nondet
+        )
         name = fn.__name__
-        earlier = self._define_clauses.setdefault(name, [])
-        if patterns and any(not e for e in earlier):
+        # Clause stacking is per (space, name), process-wide: equations live
+        # in the space, not in whichever MeTTa instance happened to add them.
+        earlier = _DEFINE_CLAUSES.setdefault((self._space, name), [])
+        if not earlier and self.is_function_here(name):
+            raise CompileError(
+                f"{name!r} is already a function this space answers (an "
+                f"engine builtin, an operation, or an equation): defining it "
+                f"would stack a clause onto it and the existing definition "
+                f"would keep answering first. Pick another name, or add the "
+                f"equation deliberately with m.run.",
+                construct="name collision",
+            )
+        if patterns and any(not clause["patterns"] for clause in earlier):
             raise CompileError(
                 f"a clause of {name} with a literal head comes after the "
                 f"general clause, which already matches everything; define "
@@ -350,24 +391,37 @@ class MeTTa:
         # clauses means first-match, so each clause is guarded against every
         # earlier literal head it would otherwise also answer for. The guard
         # is ordinary MeTTa, visible in .source(), never a hidden rule.
-        body = _guard_against(body, earlier, patterns, params)
-        earlier.append(dict(patterns))
+        body = _guard_against(
+            body, [clause["patterns"] for clause in earlier], patterns, params
+        )
         head = Expr(
             [Sym(name), *(patterns.get(p, Var(p)) for p in params)]
         )
-        self.add(Expr([Sym("="), head, body]))
+        equation = Expr([Sym("="), head, body])
+        dispatcher = twin_dispatcher(fn)
+        if any(alpha_eq(clause["equation"], equation) for clause in earlier):
+            # The identical clause again, a re-run cell or module reload:
+            # adding it would duplicate answers, so it stands as it is.
+            return Defined(name, params, body, dispatcher, self, patterns=patterns)
+        earlier.append({"patterns": dict(patterns), "equation": equation})
+        dispatcher.clauses.append(twin)
+        self.add(equation)
         # Annotations declare the type, exactly as they do for operations,
         # once per name so stacked clauses do not repeat the declaration.
         annotated = fn.__annotations__
-        if any(k != "return" for k in annotated) and not self._declared_defines.get(name):
+        if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get(
+            (self._space, name)
+        ):
             arg_types = [
                 Sym(metta_type_for(annotated[p])) if p in annotated else Sym("%Undefined%")
                 for p in params
             ]
             ret = Sym(metta_type_for(annotated["return"])) if "return" in annotated else Sym("%Undefined%")
             self.add(Expr([Sym(":"), Sym(name), Expr([Sym("->"), *arg_types, ret])]))
-            self._declared_defines[name] = True
-        return Defined(name, params, body, twin, self, patterns=patterns)
+            _DECLARED_DEFINES[(self._space, name)] = True
+        if generator:
+            _DEFINED_GENERATORS.add((self._space, name))
+        return Defined(name, params, body, dispatcher, self, patterns=patterns)
 
     def fn(self, name: str) -> "_EngineFunction":
         """Any engine function as an ordinary Python callable.
