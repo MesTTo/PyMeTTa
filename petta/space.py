@@ -497,6 +497,16 @@ class MeTTa:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
+    def lint(self):
+        """Diagnose this space for the silently-wrong class: declared
+        types nothing defines, arity mismatches, unbound body variables,
+        duplicate equations, and references no function or fact carries.
+        Answers petta.lint.Finding records, empty when nothing looks
+        wrong."""
+        from .lint import lint as _lint
+
+        return _lint(self)
+
     def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset
