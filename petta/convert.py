@@ -15,6 +15,8 @@ Open Obligations:
 from __future__ import annotations
 
 import dataclasses
+import itertools
+import typing
 from enum import Enum
 from typing import Any, Callable, NamedTuple
 
@@ -314,7 +316,11 @@ def _type_name_of(atom: Atom) -> str:
 
 
 def declarations(cls: type) -> tuple[Expr, ...]:
-    """The (: ...) atoms a type contributes, without projecting an instance."""
+    """The (: ...) atoms a type contributes, without projecting an instance.
+    Constructor arrows carry the field annotations' own types, mapped the
+    way registration maps signatures, so a dataclass field typed float
+    declares Number rather than %Undefined%; a Union field superposes one
+    arrow per member, the checker's own reading of alternatives."""
     if issubclass(cls, Enum):
         decls = [Expr([S[":"], Sym(cls.__name__), S.Type])]
         decls.extend(Expr([S[":"], Sym(m.name), Sym(cls.__name__)]) for m in cls)
@@ -322,17 +328,32 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     registration = _lookup(cls) or _default_registration(cls)
     if registration is None or registration.image != "expression":
         return ()
+    from .ops import type_atoms_for
+
     fields = registration.fields or ()
-    arg_types = [S["%Undefined%"] for _ in fields]
-    return (
-        Expr(
+    try:
+        hints = typing.get_type_hints(cls)
+    except Exception as exc:
+        raise TypeError(
+            f"the field annotations of {cls.__name__} do not resolve "
+            f"({exc}); a declared field type must name something importable"
+        ) from exc
+    alternative_lists = [
+        type_atoms_for(hints[f]) if f in hints else [S["%Undefined%"]]
+        for f in fields
+    ]
+    out: list[Expr] = []
+    for combo in itertools.product(*alternative_lists):
+        declaration = Expr(
             [
                 S[":"],
                 Sym(registration.type_name),
-                Expr([S["->"], *arg_types, Sym(registration.type_name)]),
+                Expr([S["->"], *combo, Sym(registration.type_name)]),
             ]
-        ),
-    )
+        )
+        if declaration not in out:
+            out.append(declaration)
+    return tuple(out)
 
 
 def build(atom: Atom, cls: type | None = None) -> Any:

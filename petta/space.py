@@ -502,7 +502,12 @@ class MeTTa:
             twin_dispatcher,
         )
         from .errors import CompileError
-        from .ops import metta_type_for, resolved_annotations
+        from .ops import (
+            class_declarations,
+            declaration_exprs,
+            referenced_classes,
+            resolved_annotations,
+        )
 
         def nondet(called: str) -> bool:
             for spelling in (called, called.replace("_", "-")):
@@ -588,12 +593,17 @@ class MeTTa:
         if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get(
             (self._space, name)
         ):
-            arg_types = [
-                Sym(metta_type_for(annotated[p])) if p in annotated else Sym("%Undefined%")
-                for p in params
+            import inspect as _inspect
+
+            annotations = [
+                annotated.get(p, _inspect.Parameter.empty) for p in params
             ]
-            ret = Sym(metta_type_for(annotated["return"])) if "return" in annotated else Sym("%Undefined%")
-            self.add(Expr([Sym(":"), Sym(name), Expr([Sym("->"), *arg_types, ret])]))
+            ret_annotation = annotated.get("return", _inspect.Parameter.empty)
+            for declaration in declaration_exprs(name, annotations, ret_annotation):
+                self.add(declaration)
+            for cls in referenced_classes([*annotations, ret_annotation]):
+                for extra in class_declarations(cls):
+                    self.add(extra)
             _DECLARED_DEFINES[(self._space, name)] = True
         if compiled.generator:
             _DEFINED_GENERATORS.add((self._space, name))
