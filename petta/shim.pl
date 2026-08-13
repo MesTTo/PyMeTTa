@@ -13,6 +13,7 @@
 :- use_module(library(apply)).
 :- use_module(library(time)).
 :- use_module(library(prolog_profile)).
+:- use_module(library(wfs)).
 
 %The engine asserts translated_from/2 without declaring it, so a read before
 %the first equation would raise existence rather than finding nothing:
@@ -229,6 +230,7 @@ petta_py_wrappable(petta_py_query_all).
 petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
+petta_py_wrappable(petta_py_eval_res_all).
 petta_py_wrappable(petta_py_captured).
 petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
@@ -537,14 +539,42 @@ petta_py_in_module(Module, Goal) :-
 % module, so the space's own equations answer. Answers enumerate on
 % backtracking.
 
+%Every answer carries its Well Founded Semantics truth: call_delays is
+%one '$wfs_call' around the goal, answering true for an unconditional
+%derivation and the conjunction of unknown tabled goals otherwise, per
+%answer, INSIDE the enumeration, which is the only place the condition
+%exists (findall erases it). An unconditional answer encodes exactly as
+%before; an undefined one crosses under the u tag so the third truth
+%value reaches Python instead of masquerading as an ordinary answer.
+%The wrapper is unconditional on purpose: every gate on "tabling in use"
+%has a first-tabled-call window that would answer silently wrong exactly
+%once, and callees make per-predicate checks unsound. Measured cost on
+%the trivial-eval crossing: five to ten percent (interleaved A/B against
+%a plain twin, 222-236k against 248-249k calls per second); real
+%evaluations amortize it below that.
 petta_py_eval(Space, Tagged, Encoded) :-
+    petta_py_eval_(Space, Tagged, plain, Encoded).
+
+petta_py_eval_(Space, Tagged, Residuals, Encoded) :-
     petta_py_decode_shared(Tagged, Term, _),
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
-      -> petta_py_in_module(Module, call(Module:Goal))
+      -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
     ; petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
-                                   petta_py_call_goals(Module, Goals) )) ),
-    petta_py_encode(Out, Encoded).
+                                   call_delays(petta_py_call_goals(Module, Goals),
+                                               Delays) )) ),
+    petta_py_encode_truth(Out, Delays, Residuals, Encoded).
+
+petta_py_encode_truth(Out, Delays, Residuals, Encoded) :-
+    ( Delays == true
+      -> petta_py_encode(Out, Encoded)
+    ; petta_py_encode(Out, Inner),
+      term_string(Delays, Why),
+      ( Residuals == residual
+        -> delays_residual_program(Delays, _:Clauses),
+           term_string(Clauses, ResidualText),
+           Encoded = ["u", Inner, Why, ResidualText]
+      ; Encoded = ["u", Inner, Why] ) ).
 
 %The fast path: a flat call of a compiled function whose arguments are all
 %plain data needs no translation, just the call. translate_expr costs two
@@ -605,6 +635,12 @@ petta_py_call_goals(Module, [G|Gs]) :-
 
 petta_py_eval_all(Space, Tagged, Encoded) :-
     findall(E, petta_py_eval(Space, Tagged, E), Encoded).
+
+%The residual variant additionally derives, per undefined answer, the
+%residual program from its delays (the loop through tnot responsible),
+%the explanation surface eval(residuals=True) opts into.
+petta_py_eval_res_all(Space, Tagged, Encoded) :-
+    findall(E, petta_py_eval_(Space, Tagged, residual, E), Encoded).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %

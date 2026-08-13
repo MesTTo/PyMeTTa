@@ -630,6 +630,7 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
+        residuals: bool = False,
     ) -> list[Atom] | tuple[list[Atom], str]:
         """Evaluate a term, returning every answer.
 
@@ -637,12 +638,22 @@ class MeTTa:
         translate_expr over the term, then its goals. Nondeterminism means
         the list can hold any number of answers, including none.
 
+        Every answer carries its truth: an answer that is undefined under
+        Well Founded Semantics (a tabled loop through tnot, reachable via
+        translatePredicate or injected Prolog) arrives as an Undefined
+        holding the answer and the delay condition that makes it
+        undefined, never as an ordinary-looking value. `residuals=True`
+        additionally fills each Undefined's .residual with the residual
+        program, the clauses of the loop itself. run() does not carry the
+        third truth value; evaluate through eval() when it matters.
+
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. With
         `capture=True` the return value is (answers, text), text being
         everything the evaluation printed.
         """
-        pred, ins = "petta_py_eval_all", [self._space, _to_atom(target).to_wire()]
+        entry = "petta_py_eval_res_all" if residuals else "petta_py_eval_all"
+        pred, ins = entry, [self._space, _to_atom(target).to_wire()]
         limits = _limits(timeout, inferences)
         if limits is None and not capture:
             wires = self._rt.apply_must(pred, *ins)
@@ -681,8 +692,15 @@ class MeTTa:
                 f"got {len(answers)}; use eval() for any number"
             )
         answer = answers[0]
-        from .atoms import Gnd, decode
+        from .atoms import Gnd, Undefined, decode
 
+        if isinstance(answer, Undefined):
+            raise EngineError(
+                f"value({_to_atom(target)}) answered with undefined truth "
+                f"({answer.why}); a caller asking for THE value has "
+                f"asserted a definite one exists. eval() carries the "
+                f"third truth value."
+            )
         return decode(answer) if isinstance(answer, Gnd) else answer
 
     def stats(self) -> "_StatsBlock":

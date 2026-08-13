@@ -28,6 +28,7 @@ __all__ = [
     "Var",
     "Gnd",
     "Expr",
+    "Undefined",
     "S",
     "V",
     "sym",
@@ -890,6 +891,50 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     raise ValueError(f"unknown wire tag {tag!r}")
 
 
+class Undefined:
+    """An answer whose truth is undefined under Well Founded Semantics.
+
+    eval() yields one of these instead of a plain atom when the answer's
+    derivation hangs on unresolved tabled goals, a loop through tnot.
+    value holds the answer term; why holds the delay condition the engine
+    reported (call_delays); residual, filled when eval(residuals=True)
+    asked for it, holds the residual program, the clauses of the loop
+    itself. Truthiness is refused on purpose: undefined is neither True
+    nor False, so branch on .value and .why explicitly, the reason
+    KeyboardInterrupt lives outside Exception applied to truth.
+    """
+
+    __slots__ = ("value", "why", "residual")
+
+    def __init__(self, value: Any, why: str, residual: str | None = None) -> None:
+        self.value = value
+        self.why = why
+        self.residual = residual
+
+    def __bool__(self) -> bool:
+        from .errors import PettaError
+
+        raise PettaError(
+            f"this answer's truth is undefined ({self.why}); branch on "
+            f".value and .why explicitly instead of treating it as a "
+            f"boolean"
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, Undefined)
+            and self.value == other.value
+            and self.why == other.why
+            and self.residual == other.residual
+        )
+
+    def __hash__(self) -> int:
+        return hash((Undefined, self.value, self.why, self.residual))
+
+    def __repr__(self) -> str:
+        return f"Undefined({self.value!r}, why={self.why!r})"
+
+
 def from_wire(wire: Any) -> Atom:
     """Rebuild an atom from the tagged wire form janus delivered.
 
@@ -897,6 +942,15 @@ def from_wire(wire: Any) -> Atom:
     recursion ceiling; strict, because a malformed payload is a boundary
     bug that must surface rather than coerce.
     """
+    # The u tag wraps a whole answer whose truth is undefined; it never
+    # nests inside expressions, so it is handled at the entry alone.
+    if (
+        isinstance(wire, (list, tuple))
+        and len(wire) in (3, 4)
+        and wire[0] == "u"
+    ):
+        residual = wire[3] if len(wire) == 4 else None
+        return Undefined(from_wire(wire[1]), str(wire[2]), residual)
     if not isinstance(wire, (list, tuple)) or len(wire) != 2:
         raise ValueError(f"malformed wire term: {wire!r}")
     if wire[0] != "e":
