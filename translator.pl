@@ -37,7 +37,8 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                length(FinalArgs, CompiledArity),
                                                (arity(F, CompiledArity) -> true ; assertz(arity(F, CompiledArity))),
                                                append(GoalsPrefix, FinalGoals, Goals),
-                                               goals_list_to_conj(Goals, BodyConj).
+                                               goals_list_to_conj(Goals, BodyConj0),
+                                               merge_branch_returns(Head, BodyConj0, BodyConj).
 
 %Print compiled clause:
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
@@ -434,8 +435,58 @@ build_branch(true, Val, Out, (Out = Val)) :- !.
 %parameter (an if arm of (let* (($c $a)) $a) collapses to the parameter $a):
 %aliasing the head's output with the parameter makes the other arm's
 %unification corrupt it, so the clause fails wherever that arm runs.
+%merge_branch_returns/3 restores the translate-time binding afterwards,
+%exactly where the whole clause proves it private.
 build_branch(Con, Val, Out, (Con, Out = Val)) :- var(Val), !.
 build_branch(Con, Val, Out, (Val = Out, Con)).
+
+%Restore last-call optimization where it is safe: a branch ending with the
+%runtime unification (Out = V) keeps a tail-recursive loop from running in
+%constant stack, since the recursive call is no longer last. When V occurs
+%nowhere in the head and exactly twice in the body (its producing goal and
+%this unification), it is private to the branch, so binding V to Out at
+%translate time is sound and the trailing unification disappears, putting
+%the branch's real last goal back in tail position.
+merge_branch_returns(Head, Body0, Body) :- mbr_goal(Body0, Head, Body0, Body).
+
+mbr_goal((A , B), H, W, (A1 , B1)) :- !, mbr_goal(A, H, W, A1), mbr_goal(B, H, W, B1).
+mbr_goal((C -> T ; E), H, W, (C -> T1 ; E1)) :- !, mbr_branch(T, H, W, T1),
+                                                   mbr_branch(E, H, W, E1).
+mbr_goal((A ; B), H, W, (A1 ; B1)) :- !, mbr_goal(A, H, W, A1), mbr_goal(B, H, W, B1).
+mbr_goal((C -> T), H, W, (C -> T1)) :- !, mbr_branch(T, H, W, T1).
+mbr_goal(G, _, _, G).
+
+mbr_branch(B0, H, W, B) :-
+    ( mbr_split(B0, Prefix, (Out = V)),
+      var(V), var(Out), V \== Out,
+      %Private means: absent from the head, exactly twice in the whole
+      %body, and produced INSIDE this branch's own goals; a variable bound
+      %before the branch (a let, say) fails the last test, since aliasing
+      %it would let the other arm corrupt it.
+      mbr_count(H, V, 0, 0),
+      mbr_count(W, V, 0, 2),
+      mbr_count(Prefix, V, 0, 1)
+      -> V = Out,
+         mbr_goal(Prefix, H, W, B)
+    ; mbr_goal(B0, H, W, B) ).
+
+%Split a conjunction into everything-but-last and its last conjunct:
+mbr_split((A , B), Prefix, Last) :- !,
+    ( mbr_split(B, P1, Last), ( P1 == true -> Prefix = A ; Prefix = (A , P1) ) ).
+mbr_split(G, true, G).
+
+%Count occurrences of one variable in a term, by identity:
+mbr_count(T, V, C0, C) :- ( T == V -> C is C0 + 1
+                          ; var(T) -> C = C0
+                          ; compound(T) -> functor(T, _, N),
+                                           mbr_count_args(1, N, T, V, C0, C)
+                          ; C = C0 ).
+
+mbr_count_args(I, N, _, _, C, C) :- I > N, !.
+mbr_count_args(I, N, T, V, C0, C) :- arg(I, T, A),
+                                     mbr_count(A, V, C0, C1),
+                                     I1 is I + 1,
+                                     mbr_count_args(I1, N, T, V, C1, C).
 
 %Translate case expression recursively into nested if:
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
