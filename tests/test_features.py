@@ -553,3 +553,98 @@ def test_remote_serves_tls(metta, tmp_path):
     finally:
         server.close()
         served.drop()
+
+
+# ------------------------------------------ resource limits, stats, capture
+
+
+def test_run_time_limit_raises_and_is_prompt(m):
+    import time
+
+    from petta import TimeLimitError
+
+    m.run("(= (spin-a $n) (if (== $n 0) done (spin-a (- $n 1))))")
+    started = time.perf_counter()
+    with pytest.raises(TimeLimitError):
+        m.run("!(spin-a 100000000)", timeout=0.05)
+    assert time.perf_counter() - started < 5.0  # the guard stopped it, not completion
+
+
+def test_inference_limit_raises_under_the_shared_parent(m):
+    from petta import InferenceLimitError, ResourceLimitError
+
+    m.run("(= (spin-b $n) (if (== $n 0) done (spin-b (- $n 1))))")
+    with pytest.raises(InferenceLimitError):
+        m.run("!(spin-b 100000000)", inferences=10_000)
+    with pytest.raises(ResourceLimitError):
+        m.run("!(spin-b 100000000)", inferences=10_000)
+
+
+def test_limits_leave_finished_work_standing(m):
+    from petta import TimeLimitError
+
+    m.run("(= (spin-c $n) (if (== $n 0) done (spin-c (- $n 1))))")
+    with pytest.raises(TimeLimitError):
+        m.run("(landed first) !(spin-c 100000000)", timeout=0.05)
+    assert expr(S.landed, S.first) in m  # the fact before the stop stands
+
+
+def test_limits_on_query_eval_value_and_prepared(m):
+    from petta import InferenceLimitError
+
+    m.add_table("edge", [(i, i + 1) for i in range(200)])
+    rows = m.query(
+        S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000
+    )
+    assert len(rows) == 199  # a generous bound changes nothing
+    with pytest.raises(InferenceLimitError):
+        m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d), inferences=100)
+    m.run("(= (spin-d $n) (if (== $n 0) done (spin-d (- $n 1))))")
+    with pytest.raises(InferenceLimitError):
+        m.eval("(spin-d 100000000)", inferences=5_000)
+    with pytest.raises(InferenceLimitError):
+        m.value("(spin-d 100000000)", inferences=5_000)
+    prepared = m.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d))
+    with pytest.raises(InferenceLimitError):
+        prepared.solve(inferences=100)
+    assert len(prepared.solve(timeout=30.0)) == 198
+
+
+def test_limit_validation_refuses_nonsense(m):
+    with pytest.raises(ValueError):
+        m.run("!(+ 1 1)", timeout=0)
+    with pytest.raises(ValueError):
+        m.query(S.x(V.a), inferences=-3)
+
+
+def test_run_capture_collects_printed_output(m):
+    groups, text = m.run("!(println! (hello world)) !(+ 1 2)", capture=True)
+    assert "(hello world)" in text
+    assert groups[1] == [3]
+    assert m.run("!(+ 1 2)") == [[3]]  # capture off: the shape is unchanged
+
+
+def test_capture_composes_with_limits(m):
+    from petta import TimeLimitError
+
+    groups, text = m.run("!(println! bounded)", capture=True, timeout=5.0)
+    assert "bounded" in text and len(groups) == 1
+    m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
+    with pytest.raises(TimeLimitError):
+        m.run("!(spin-e 100000000)", capture=True, timeout=0.05)
+
+
+def test_eval_capture(m):
+    answers, text = m.eval("(println! from-eval)", capture=True)
+    assert "from-eval" in text
+    assert answers == [True]
+
+
+def test_stats_block_counts_the_work(m):
+    m.add_table("edge", [(i, i + 1) for i in range(50)])
+    with m.stats() as s:
+        m.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
+    assert s.inferences > 100
+    assert s.walltime > 0 and s.cputime >= 0
+    assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
+    assert "inferences" in repr(s)

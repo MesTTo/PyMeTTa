@@ -135,8 +135,11 @@ from .errors import (  # noqa: E402
     CompileError,
     Decline,
     EngineError,
+    InferenceLimitError,
     MettaSyntaxError,
     PettaError,
+    ResourceLimitError,
+    TimeLimitError,
 )
 from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
@@ -185,6 +188,9 @@ __all__ = [
     # errors
     "PettaError",
     "EngineError",
+    "ResourceLimitError",
+    "TimeLimitError",
+    "InferenceLimitError",
     "MettaSyntaxError",
     "CompileError",
     "Decline",

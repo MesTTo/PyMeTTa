@@ -12,6 +12,9 @@ __all__ = [
     "PettaError",
     "MettaSyntaxError",
     "EngineError",
+    "ResourceLimitError",
+    "TimeLimitError",
+    "InferenceLimitError",
     "CompileError",
     "Decline",
     "DECLINE",
@@ -32,6 +35,23 @@ class EngineError(PettaError):
     The original janus exception rides along as __cause__, so nothing is
     hidden; the message here is the engine's, trimmed of janus framing.
     """
+
+
+class ResourceLimitError(EngineError):
+    """A per-call resource guard stopped the evaluation.
+
+    The guard is the caller's own timeout= or inferences= bound. Whatever
+    the goal completed before the stop, writes included, stands; that is
+    what stopping a computation mid-way means everywhere.
+    """
+
+
+class TimeLimitError(ResourceLimitError):
+    """timeout= seconds elapsed before the call finished."""
+
+
+class InferenceLimitError(ResourceLimitError):
+    """inferences= engine steps were spent before the call finished."""
 
 
 class CompileError(PettaError):

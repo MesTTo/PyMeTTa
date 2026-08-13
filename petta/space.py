@@ -55,6 +55,20 @@ def _to_atom(value: Any) -> Atom:
     return encode(value)
 
 
+def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
+    """Validate the per-call bounds into the shim's (-1 = none) pair."""
+    if timeout is None and inferences is None:
+        return None
+    if timeout is not None and not timeout > 0:
+        raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
+    if inferences is not None and not inferences > 0:
+        raise ValueError(f"inferences must be a positive count, got {inferences!r}")
+    return (
+        -1.0 if timeout is None else float(timeout),
+        -1 if inferences is None else int(inferences),
+    )
+
+
 class MeTTa:
     """A space bound to the engine: the way in from Python.
 
@@ -150,7 +164,15 @@ class MeTTa:
 
     # ----------------------------------------------------------------- running
 
-    def run(self, source: str, using: dict[str, Any] | None = None) -> list[list[Atom]]:
+    def run(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: bool = False,
+    ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
         """Run MeTTa source: one list of answers per ! directive.
 
         The pipeline is the engine's own reader, compiler and evaluator, so
@@ -165,20 +187,39 @@ class MeTTa:
 
         Each named symbol substitutes to its value (objects by identity),
         after reading, before anything runs.
+
+        `timeout` (seconds) and `inferences` (engine steps) bound the call
+        with the engine's own guards; passing either raises TimeLimitError
+        or InferenceLimitError when the bound is hit, and whatever the
+        source completed before the stop, writes included, stands. With
+        `capture=True` the return value is (groups, text), text being
+        everything the source printed, println! included.
         """
         if not using:
-            row = self._rt.must(
-                "petta_py_run(Src, Space, Groups)", Src=source, Space=self._space
-            )
+            pred, ins = "petta_py_run", [source, self._space]
         else:
             pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
+            pred, ins = "petta_py_run_using", [source, self._space, pairs]
+        limits = _limits(timeout, inferences)
+        if limits is None and not capture:
+            names = ["Src", "Space"] if not using else ["Src", "Space", "Pairs"]
+            goal = f"{pred}({', '.join(names)}, Groups)"
+            row = self._rt.must(goal, **dict(zip(names, ins)))
+            out = row.get("Groups", [])
+        else:
+            if capture:
+                pred, ins = "petta_py_captured", [pred, ins]
+            seconds, steps = limits if limits is not None else (-1.0, -1)
             row = self._rt.must(
-                "petta_py_run_using(Src, Space, Pairs, Groups)",
-                Src=source,
-                Space=self._space,
-                Pairs=pairs,
+                "petta_py_limited(T, I, P, Ins, Out)",
+                T=seconds, I=steps, P=pred, Ins=ins,
             )
-        return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
+            out = row.get("Out", [])
+        if capture:
+            groups_wire, text = out
+            groups = [[from_wire(w) for w in group] for group in groups_wire]
+            return groups, text
+        return [[from_wire(w) for w in group] for group in out]
 
     def save(self, path: str) -> int:
         """Write every stored atom of this space, equations included, as
@@ -331,6 +372,8 @@ class MeTTa:
         *patterns: Any,
         where: Any | None = None,
         limit: int | None = None,
+        timeout: float | None = None,
+        inferences: int | None = None,
     ) -> Rows:
         """Match patterns against this space as one conjunction.
 
@@ -343,7 +386,10 @@ class MeTTa:
             m.query(S.person(V.name, V.age), where=V.age >= 18)
 
         `limit` bounds the answers, the engine stopping at the count
-        rather than trimming afterwards.
+        rather than trimming afterwards. `timeout` (seconds) and
+        `inferences` (engine steps) bound the whole call, raising
+        TimeLimitError or InferenceLimitError when hit, for joins whose
+        size is not known in advance.
 
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
@@ -358,18 +404,17 @@ class MeTTa:
                     columns.append(name)
         wires = [a.to_wire() for a in atoms]
         if where is not None:
-            answered = self._rt.apply_must(
-                "petta_py_query_guarded_all",
-                self._space, wires, _to_atom(where).to_wire(), columns, limit or 0,
-            )
+            pred = "petta_py_query_guarded_all"
+            ins = [self._space, wires, _to_atom(where).to_wire(), columns, limit or 0]
         elif limit is not None:
-            answered = self._rt.apply_must(
-                "petta_py_query_limit_all", self._space, wires, columns, limit
-            )
+            pred, ins = "petta_py_query_limit_all", [self._space, wires, columns, limit]
         else:
-            answered = self._rt.apply_must(
-                "petta_py_query_all", self._space, wires, columns
-            )
+            pred, ins = "petta_py_query_all", [self._space, wires, columns]
+        limits = _limits(timeout, inferences)
+        if limits is None:
+            answered = self._rt.apply_must(pred, *ins)
+        else:
+            answered = self._rt.apply_must("petta_py_limited", *limits, pred, ins)
         decoded = [tuple(from_wire(v) for v in r) for r in answered]
         return Rows(tuple(columns), decoded)
 
@@ -397,19 +442,47 @@ class MeTTa:
 
     # -------------------------------------------------------------- evaluation
 
-    def eval(self, target: Any) -> list[Atom]:
+    def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: bool = False,
+    ) -> list[Atom] | tuple[list[Atom], str]:
         """Evaluate a term, returning every answer.
 
         This is what !(...) runs, minus the printing: the engine's
         translate_expr over the term, then its goals. Nondeterminism means
         the list can hold any number of answers, including none.
+
+        `timeout` (seconds) and `inferences` (engine steps) bound the call,
+        raising TimeLimitError or InferenceLimitError when hit. With
+        `capture=True` the return value is (answers, text), text being
+        everything the evaluation printed.
         """
-        wires = self._rt.apply_must(
-            "petta_py_eval_all", self._space, _to_atom(target).to_wire()
-        )
+        pred, ins = "petta_py_eval_all", [self._space, _to_atom(target).to_wire()]
+        limits = _limits(timeout, inferences)
+        if limits is None and not capture:
+            wires = self._rt.apply_must(pred, *ins)
+        else:
+            if capture:
+                pred, ins = "petta_py_captured", [pred, ins]
+            seconds, steps = limits if limits is not None else (-1.0, -1)
+            out = self._rt.apply_must("petta_py_limited", seconds, steps, pred, ins)
+            if capture:
+                wires, text = out
+                return [from_wire(w) for w in wires], text
+            wires = out
         return [from_wire(w) for w in wires]
 
-    def value(self, target: Any) -> Any:
+    def value(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Any:
         """THE answer of evaluating target, as a plain Python value.
 
             m.value("(+ 1 2)")            # 3
@@ -419,8 +492,8 @@ class MeTTa:
         the count, because a caller asking for the value has asserted
         there is one. Grounded answers unwrap to their Python values;
         symbols and structure stay atoms. eval() is the spelling for any
-        number of answers."""
-        answers = self.eval(target)
+        number of answers, and carries the same timeout/inferences bounds."""
+        answers = self.eval(target, timeout=timeout, inferences=inferences)
         if len(answers) != 1:
             raise EngineError(
                 f"value({_to_atom(target)}) expected exactly one answer, "
@@ -430,6 +503,23 @@ class MeTTa:
         from .atoms import Gnd, decode
 
         return decode(answer) if isinstance(answer, Gnd) else answer
+
+    def stats(self) -> "_StatsBlock":
+        """The engine's own counters over a with-block, as deltas.
+
+            with m.stats() as s:
+                m.query(S.edge(V.x, V.y), S.edge(V.y, V.z))
+            s.inferences        # engine steps the block spent
+            s.cputime           # engine CPU seconds
+            s.walltime          # wall seconds, Python's clock
+            s.gc_count, s.gc_freed, s.gc_time
+
+        The counters are the engine's statistics/2, and the engine is one
+        per process, so a block that runs other threads' engine work counts
+        that work too; the honest reading is "what the engine did while
+        this block ran". The z3py Solver.statistics() reading, on the
+        engine this library actually has."""
+        return _StatsBlock(self._rt)
 
     # -------------------------------------------------------------- operations
 
@@ -964,6 +1054,63 @@ class _Assuming:
             self._space.remove(fact)
 
 
+class _StatsBlock:
+    """MeTTa.stats(): engine counter deltas over one with-block.
+
+    Before exit the fields are None; after exit they carry the deltas the
+    block spent: inferences (int), cputime (seconds), walltime (seconds,
+    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds).
+    """
+
+    __slots__ = (
+        "_rt", "_before", "_wall",
+        "inferences", "cputime", "walltime", "gc_count", "gc_freed", "gc_time",
+    )
+
+    def __init__(self, rt: Runtime) -> None:
+        self._rt = rt
+        self._before = None
+        self._wall = None
+        self.inferences = None
+        self.cputime = None
+        self.walltime = None
+        self.gc_count = None
+        self.gc_freed = None
+        self.gc_time = None
+
+    def __enter__(self) -> "_StatsBlock":
+        import time
+
+        self._before = self._rt.apply_must("petta_py_stats")
+        self._wall = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        import time
+
+        wall = time.perf_counter() - self._wall
+        after = self._rt.apply_must("petta_py_stats")
+        inferences, cputime, gc_count, gc_freed, gc_ms = (
+            a - b for a, b in zip(after, self._before)
+        )
+        # The two petta_py_stats crossings themselves sit inside the
+        # window; their cost is a few hundred inferences, the noise floor.
+        self.inferences = int(inferences)
+        self.cputime = float(cputime)
+        self.walltime = wall
+        self.gc_count = int(gc_count)
+        self.gc_freed = int(gc_freed)
+        self.gc_time = float(gc_ms) / 1000.0
+
+    def __repr__(self) -> str:
+        if self.inferences is None:
+            return "<stats: pending>"
+        return (
+            f"<stats: {self.inferences} inferences, "
+            f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
+        )
+
+
 class Prepared:
     """A prepared query: pattern wires and columns built once, solved many
     times, optionally with per-call facts. The ladder the clingo API walks
@@ -990,40 +1137,39 @@ class Prepared:
                     columns.append(name)
         self.columns = tuple(columns)
 
-    def solve(self, given: list | None = None, limit: int | None = None) -> Rows:
-        """Answers now, with `given` facts present for this call alone."""
+    def solve(
+        self,
+        given: list | None = None,
+        limit: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Rows:
+        """Answers now, with `given` facts present for this call alone.
+        `timeout` and `inferences` bound this solve exactly as they bound
+        MeTTa.query()."""
         if not given:
-            return self._run(limit)
+            return self._run(limit, timeout, inferences)
         with self._space.assuming(*given):
-            return self._run(limit)
+            return self._run(limit, timeout, inferences)
 
-    def _run(self, limit: int | None) -> Rows:
+    def _run(self, limit: int | None, timeout: float | None, inferences: int | None) -> Rows:
         rt = self._space.runtime
+        space = self._space.space_name
+        names = list(self.columns)
         if self._guard is not None:
-            row = rt.once(
-                "petta_py_query_guarded_all(Space, Ps, G, Names, Limit, Rows)",
-                Space=self._space.space_name,
-                Ps=self._wires,
-                G=self._guard,
-                Names=list(self.columns),
-                Limit=limit or 0,
-            )
+            pred = "petta_py_query_guarded_all"
+            ins = [space, self._wires, self._guard, names, limit or 0]
         elif limit is not None:
-            row = rt.once(
-                "petta_py_query_limit_all(Space, Ps, Names, Limit, Rows)",
-                Space=self._space.space_name,
-                Ps=self._wires,
-                Names=list(self.columns),
-                Limit=limit,
-            )
+            pred, ins = "petta_py_query_limit_all", [space, self._wires, names, limit]
         else:
-            row = rt.once(
-                "petta_py_query_all(Space, Ps, Names, Rows)",
-                Space=self._space.space_name,
-                Ps=self._wires,
-                Names=list(self.columns),
-            )
-        decoded = [tuple(from_wire(v) for v in r) for r in row.get("Rows", [])]
+            pred, ins = "petta_py_query_all", [space, self._wires, names]
+        limits = _limits(timeout, inferences)
+        if limits is None:
+            answered = rt.apply_must(pred, *ins)
+        else:
+            answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
+        decoded = [tuple(from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 
     def __repr__(self) -> str:

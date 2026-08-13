@@ -16,7 +16,12 @@ import sys
 import threading
 from typing import Any, Iterator
 
-from .errors import EngineError, MettaSyntaxError
+from .errors import (
+    EngineError,
+    InferenceLimitError,
+    MettaSyntaxError,
+    TimeLimitError,
+)
 
 _LOCK = threading.RLock()
 
@@ -280,8 +285,13 @@ class Runtime:
         # Reader refusals arrive tagged with their own functor by the shim
         # (petta_py_tag_reader), so classification is structural: a SQL
         # error that happens to say "syntax error" stays an EngineError.
+        # The resource guards tag the same way (petta_py_limited).
         if "petta_syntax_error" in message:
             raise MettaSyntaxError(message) from exc
+        if "petta_py_time_limit" in message:
+            raise TimeLimitError(message) from exc
+        if "petta_py_inference_limit" in message:
+            raise InferenceLimitError(message) from exc
         raise EngineError(message) from exc
 
     # ------------------------------------------------------------------- helpers

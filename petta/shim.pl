@@ -11,6 +11,7 @@
 :- use_module(library(janus)).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
+:- use_module(library(time)).
 
 %The engine asserts translated_from/2 without declaring it, so a read before
 %the first equation would raise existence rather than finding nothing:
@@ -205,6 +206,65 @@ petta_py_load(File, Space, Groups) :-
           petta_py_run(S, Space, Groups) ),
         ( retractall(working_dir(_)),
           forall(member(W, Saved), assertz(working_dir(W))) )).
+
+%%%%%%%%%% Guarded and captured calls %%%%%%%%%%
+%
+% Two meta entry points wrap the run, query and eval entry points without
+% changing them. petta_py_limited applies the engine's own per-call guards,
+% call_with_time_limit (seconds) and call_with_inference_limit (steps);
+% petta_py_captured collects everything the wrapped goal prints to the
+% current output. Both name their target as data, a listed entry point plus
+% its input list and one output, so they compose by listing
+% petta_py_captured as itself wrappable: limited over captured is a capture
+% inside a limit. Exceeding a guard throws a functor of its own
+% (petta_py_time_limit / petta_py_inference_limit), the petta_syntax_error
+% pattern: the Python side classifies structurally, never by message text.
+% A guard that stops a goal stops it mid-way, so writes it already made
+% stand, the honest semantics of every timeout.
+
+petta_py_wrappable(petta_py_run).
+petta_py_wrappable(petta_py_run_using).
+petta_py_wrappable(petta_py_query_all).
+petta_py_wrappable(petta_py_query_guarded_all).
+petta_py_wrappable(petta_py_query_limit_all).
+petta_py_wrappable(petta_py_eval_all).
+petta_py_wrappable(petta_py_captured).
+
+petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
+    ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),
+    ( petta_py_wrappable(Pred) -> true
+    ; throw(error(domain_error(petta_py_wrappable, Pred), none)) ),
+    append(Ins, [Out], Args),
+    Goal =.. [Pred | Args].
+
+%TimeS and Inf use -1 for "no bound"; both bounds may apply at once, the
+%inference wrapper outermost so a time signal thrown inside it passes out.
+petta_py_limited(TimeS, Inf, Pred, Ins, Out) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    petta_py_guarded(TimeS, Inf, Goal).
+
+petta_py_guarded(TimeS, Inf, Goal) :-
+    ( TimeS < 0 -> Timed = Goal
+    ; Timed = catch(call_with_time_limit(TimeS, Goal),
+                    time_limit_exceeded,
+                    throw(error(petta_py_time_limit(TimeS), none))) ),
+    ( Inf < 0 -> call(Timed)
+    ; call_with_inference_limit(Timed, Inf, Result),
+      ( Result == inference_limit_exceeded
+        -> throw(error(petta_py_inference_limit(Inf), none))
+      ; true ) ).
+
+petta_py_captured(Pred, Ins, [Out, Text]) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    with_output_to(string(Text), call(Goal)).
+
+%One crossing for the engine's own counters: statistics/2 inferences and
+%cputime, and the garbage_collection triple (collections, bytes freed,
+%milliseconds spent). The Python side reads deltas around a with-block.
+petta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs]) :-
+    statistics(inferences, Inferences),
+    statistics(cputime, CpuTime),
+    statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]).
 
 %%%%%%%%%% Parse and print %%%%%%%%%%
 
