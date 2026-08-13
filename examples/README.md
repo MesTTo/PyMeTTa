@@ -25,7 +25,7 @@ with a message when the dependency is absent.
 | 11_pln_uncertain_reasoning | the engine's PLN library driven from Python |
 | 12_standing_queries | actors and pub-sub: mailboxes as spaces, delivery inside the write |
 | 13_custom_matchers | fuzzy and semantic matchers feeding the measure algebra |
-| 14_soft_unification | Sessa's weak unification: match quality as a measure over terms |
+| 14_soft_unification | Sessa's weak unification and goal-directed soft proving over terms |
 
 The frame behind the folder: MeTTa's semantics subsume the concepts these
 systems are made of. Functions are grounded functions and a call is a

@@ -2,8 +2,8 @@
 building operators over the whole engine-evaluable algebra, declarations
 generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
 classes as declared types), guarded and bounded queries, assumptions,
-prepared queries, and general weighted relations with the neural predicate
-as their torch instance.
+prepared queries, general weighted relations with the neural predicate as
+their torch instance, and goal-directed soft proving with Proof objects.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -285,3 +285,64 @@ def test_neural_predicate_is_a_weighted_relation(m):
     # Bound mode scores one class.
     (scored,) = m.run("!(guess (tensor (1.0 0.0)) one)")[0]
     assert str(scored[1]) == "one" and 0.0 < float(scored[0]) <= 1.0
+
+
+# ------------------------------------------------------------ soft proving
+
+
+def test_soft_prove_the_grandfather_example(m):
+    """tensor-theorem-prover's README example, run on this engine: the
+    goal predicate grandfather-of never appears in the knowledge, only
+    grandpa-of does, and the similarity bridge carries the proof."""
+    from petta import soft
+
+    m.add(
+        S["parent-of"](S.homer, S.bart),
+        S["father-of"](S.abe, S.homer),
+    )
+    m.run(
+        "(= (grandpa-of $x $y) (and (father-of $x $z) (parent-of $z $y)))"
+    )
+    soft.similar(m, "grandpa-of", "grandfather-of", 0.9)
+
+    proof = soft.prove(m, S["grandfather-of"](V.who, S.bart), threshold=0.5)
+    assert proof is not None
+    assert proof.substitutions["who"] == S.abe
+    assert proof.similarity == pytest.approx(0.9)
+    assert [s.kind for s in proof.steps] == ["rule", "fact", "fact"]
+    assert "grandpa-of" in str(proof)
+
+    # Below the threshold there is no proof; that is Braid's rule.
+    assert soft.prove(m, S["grandfather-of"](V.who, S.bart), threshold=0.95) is None
+    # An unprovable goal answers None, the prover's contract.
+    assert soft.prove(m, S["grandfather-of"](S.bart, S.homer)) is None
+
+
+def test_soft_prove_all_ranks_by_similarity(m):
+    from petta import soft
+
+    m.add(S.pet(S.cat), S.pet(S.dog))
+    soft.similar(m, "feline", "cat", 0.8)
+    soft.similar(m, "feline", "dog", 0.6)
+    proofs = soft.prove_all(m, S.pet(S.feline), threshold=0.5)
+    assert [p.similarity for p in proofs] == [pytest.approx(0.8), pytest.approx(0.6)]
+
+
+def test_soft_prove_evaluates_ground_guards(m):
+    from petta import soft
+
+    m.add(S.measured(S.beam, 12))
+    m.run("(= (long $x) (and (measured $x $len) (> $len 10)))")
+    proof = soft.prove(m, S.long(S.beam))
+    assert proof is not None and proof.similarity == 1.0
+    assert [s.kind for s in proof.steps] == ["rule", "fact", "guard"]
+
+
+def test_soft_prove_takes_conjunction_goals(m):
+    from petta import soft
+
+    m.add(S.measured(S.beam, 12))
+    proof = soft.prove(m, m.parse("(and (measured beam $len) (> $len 10))"))
+    assert proof is not None and proof.similarity == 1.0
+    assert proof.substitutions["len"] == 12
+    assert [s.kind for s in proof.steps] == ["fact", "guard"]
