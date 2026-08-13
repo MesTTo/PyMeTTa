@@ -997,7 +997,7 @@ class MeTTa:
         from ._ops import REGISTRY
         from .define import (
             Defined,
-            canonical_aux,
+            canonical_aux_set,
             compile_function,
             hazard_twin,
             twin_dispatcher,
@@ -1046,6 +1046,22 @@ class MeTTa:
                 f"the general clause last",
                 construct="clause order",
             )
+        for clause in earlier:
+            earlier_patterns = clause["patterns"]
+            if (
+                len(earlier_patterns) < len(patterns)
+                and all(
+                    patterns.get(param) == value
+                    for param, value in earlier_patterns.items()
+                )
+            ):
+                raise CompileError(
+                    f"a clause of {name} fixes every literal from an earlier "
+                    f"head and adds more literals, so the earlier clause "
+                    f"already answers every input this clause could match; "
+                    f"put the more specific clause first",
+                    construct="clause order",
+                )
         # MeTTa equations are alternatives, and a Python author stacking
         # clauses means first-match, so each clause is guarded against every
         # earlier literal head it would otherwise also answer for. The guard
@@ -1058,16 +1074,23 @@ class MeTTa:
         )
         equation = Expr([Sym("="), head, body])
         dispatcher = twin_dispatcher(fn)
-        # Idempotence compares with auxiliary helper names canonicalized:
-        # every compilation serials its helpers, so the same source re-run
-        # must be recognized through the renaming.
-        canonical = canonical_aux(equation, name)
+        # Idempotence compares the main equation and all helper equations with
+        # auxiliary names canonicalized. A loop-body-only or lifted-body-only
+        # change must replace the old clause and its old helpers.
+        equations = (equation, *compiled.aux)
+        canonical = canonical_aux_set(equations, name)
         clause_twin = (
-            hazard_twin(name, compiled.hazards) if compiled.hazards else compiled.twin
+            hazard_twin(name, compiled.hazards, patterns, params)
+            if compiled.hazards
+            else compiled.twin
         )
         replaced = None
         for position, clause in enumerate(earlier):
-            if alpha_eq(canonical_aux(clause["equation"], name), canonical):
+            old_equations = (clause["equation"], *clause.get("aux", ()))
+            old_canonical = canonical_aux_set(old_equations, name)
+            if len(old_canonical) == len(canonical) and all(
+                alpha_eq(old, new) for old, new in zip(old_canonical, canonical)
+            ):
                 # The identical clause again, a re-run cell or module
                 # reload: adding it would duplicate answers, so it stands.
                 return Defined(
@@ -1081,10 +1104,22 @@ class MeTTa:
             # clause, the notebook reading; the old equation goes, the new
             # one takes its place in both the space and the twin dispatch.
             self.remove(earlier[replaced]["equation"])
-            earlier[replaced] = {"patterns": dict(patterns), "equation": equation}
+            for helper_equation in earlier[replaced].get("aux", ()):
+                self.remove(helper_equation)
+            earlier[replaced] = {
+                "patterns": dict(patterns),
+                "equation": equation,
+                "aux": tuple(compiled.aux),
+            }
             dispatcher.clauses[replaced] = clause_twin
         else:
-            earlier.append({"patterns": dict(patterns), "equation": equation})
+            earlier.append(
+                {
+                    "patterns": dict(patterns),
+                    "equation": equation,
+                    "aux": tuple(compiled.aux),
+                }
+            )
             dispatcher.clauses.append(clause_twin)
         for helper_equation in compiled.aux:
             self.add(helper_equation)
@@ -1292,10 +1327,10 @@ def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> A
     For each earlier clause, the inputs it claims are the positions it fixed
     with literals; when this clause leaves all of those positions variable,
     the two overlap, and this clause answers (empty) there, so dispatch reads
-    first-match the way the stacked Python reads.
+    first-match the way the stacked Python reads. define() refuses a later
+    head that fixes every literal in an earlier head because no variable is
+    available for a conditional guard.
     """
-    from .atoms import Gnd
-
     for earlier_patterns in earlier:
         if not earlier_patterns:
             continue

@@ -3,8 +3,8 @@ be written in the language its author, human or model, is fluent in, and run
 as PeTTa. The source is read with ast, never traced: tracing loses branches,
 which is torch.jit.script's own reason for reading syntax. Three rules hold
 the subset together: syntax outside it is a CompileError naming the construct,
-the line, and what to write instead, never a silent fallback; every construct
-in the subset has one MeTTa spelling; and a free identifier must be a
+the line, and what to write instead; every supported construct has one MeTTa
+spelling; and a free identifier must be a
 parameter, a known function, or read as a data constructor, so a compiled
 body is pure atoms that any evaluator can take whole.
 Open Obligations:
@@ -21,7 +21,7 @@ import itertools
 import textwrap
 import types
 from collections.abc import Callable
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode
 from .errors import CompileError
@@ -93,6 +93,16 @@ def canonical_aux(equation: Expr, name: str) -> Expr:
     """The equation with its auxiliary names serial-independent, for
     comparing a re-defined clause against the recorded one: every symbol
     `name--kind-N` becomes `name--kind` numbered by first appearance."""
+    return canonical_aux_set((equation,), name)[0]
+
+
+def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...]:
+    """Canonicalize a main equation and all its helper equations together.
+
+    One shared name mapping preserves references between the main equation,
+    loop helpers, and lifted definitions. Comparing the whole tuple detects a
+    change that exists only in a helper body.
+    """
     mapping: dict[str, str] = {}
 
     def walk(atom: Atom) -> Atom:
@@ -105,7 +115,7 @@ def canonical_aux(equation: Expr, name: str) -> Expr:
             return Expr([walk(c) for c in atom])
         return atom
 
-    return walk(equation)
+    return tuple(cast(Expr, walk(equation)) for equation in equations)
 
 
 class Defined:
@@ -352,9 +362,17 @@ _TWIN_DISPATCHERS: dict[tuple[int, str], TwinDispatcher] = {}
 _TWIN_VIEWS: dict[int, list[dict]] = {}
 
 
-def hazard_twin(name: str, hazards: frozenset[str]) -> Callable:
-    """The honest twin for a clause Python cannot run: calling it says
-    exactly why, instead of failing on a NameError three frames deep."""
+def hazard_twin(
+    name: str,
+    hazards: frozenset[str],
+    patterns: dict[str, Atom] | None = None,
+    params: list[str] | None = None,
+) -> Callable[..., Any]:
+    """The refusal twin for a clause Python cannot run.
+
+    Calling it names the unsupported engine behavior instead of raising an
+    unrelated NameError from inside the original function.
+    """
 
     def unrunnable(*_args, **_kwargs):
         reasons = ", ".join(sorted(hazards))
@@ -365,7 +383,7 @@ def hazard_twin(name: str, hazards: frozenset[str]) -> Callable:
         )
 
     unrunnable.__name__ = name
-    return unrunnable
+    return _guard_twin(unrunnable, name, params or [], patterns)
 
 
 def twin_dispatcher(fn: Callable) -> TwinDispatcher:
@@ -380,7 +398,9 @@ def twin_dispatcher(fn: Callable) -> TwinDispatcher:
     return dispatcher
 
 
-def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Callable:
+def _python_twin(
+    fn: Callable[..., Any], patterns: dict[str, Atom] | None = None
+) -> Callable[..., Any]:
     """One clause's Python twin, head guard included.
 
     The twin's globals overlay every dispatcher this module has, its own
@@ -413,10 +433,19 @@ def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Calla
         fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
     )
     twin.__doc__ = fn.__doc__
+    order = list(inspect.signature(fn).parameters)
+    return _guard_twin(twin, name, order, patterns)
+
+
+def _guard_twin(
+    twin: Callable[..., Any],
+    name: str,
+    order: list[str],
+    patterns: dict[str, Atom] | None,
+) -> Callable[..., Any]:
+    """Apply one literal-head guard to either kind of clause twin."""
     if not patterns:
         return twin
-
-    order = list(inspect.signature(fn).parameters)
 
     def guarded(*args):
         for position, value in zip(order, args):
@@ -429,7 +458,7 @@ def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Calla
         return twin(*args)
 
     guarded.__name__ = name
-    guarded.__doc__ = fn.__doc__
+    guarded.__doc__ = twin.__doc__
     return guarded
 
 

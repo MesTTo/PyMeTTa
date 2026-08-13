@@ -1,6 +1,6 @@
 """Purpose: the Python-to-MeTTa compiler: lowerings run against the engine,
-refusals name construct and line, and the Python twin agrees with the
-equations on ground inputs, property-fuzzed.
+refusals name construct and line, helper-bearing redefinitions replace as a
+unit, and guarded Python twins agree with equations on ground inputs.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -454,7 +454,7 @@ def test_host_bindings_refuse_the_constructor_reading(m):
 Threshold = 5
 
 
-def test_twin_raises_honestly_for_engine_only_bodies(m):
+def test_twin_refuses_engine_only_bodies(m):
     m.add(expr(S.fact9, 9))
 
     @m.define
@@ -481,3 +481,71 @@ def test_same_head_redefinition_replaces(m):
     # The notebook reading: one head, the newest body, exactly one answer.
     assert m.run("!(collapse (dvalue))") == [[expr(2)]]
     assert dvalue.py() == 2
+
+
+def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
+    @m.define
+    def daux_replace(n):
+        total = 0
+        while n > 0:
+            total += 1
+            n -= 1
+        return total
+
+    assert m.value(daux_replace(3)) == 3
+
+    @m.define
+    def daux_replace(n):  # noqa: F811
+        total = 0
+        while n > 0:
+            total += 2
+            n -= 1
+        return total
+
+    assert m.value(daux_replace(3)) == 6
+    assert daux_replace.py(3) == 6
+
+    @m.define
+    def daux_replace(n):  # noqa: F811
+        total = 0
+        while n > 0:
+            total += 2
+            n -= 1
+        return total
+
+    assert m.value(daux_replace(3)) == 6
+    assert daux_replace.py(3) == 6
+    helpers = [
+        atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")
+    ]
+    assert len(helpers) == 1
+
+
+def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):
+    @m.define
+    def dsubsumed(x, y=0):
+        return 10
+
+    with pytest.raises(CompileError, match="earlier clause already answers"):
+
+        @m.define
+        def dsubsumed(x=1, y=0):  # noqa: F811
+            return 20
+
+    assert m.run("!(collapse (dsubsumed 1 0))") == [[expr(10)]]
+    assert dsubsumed.py(1, 0) == 10
+
+
+def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
+    @m.define
+    def dhazard_guard(n=0):
+        return match(Fact(x), x)  # noqa: F821
+
+    @m.define
+    def dhazard_guard(n):  # noqa: F811
+        return n + 1
+
+    assert m.run("!(dhazard-guard 2)") == [[3]]
+    assert dhazard_guard.py(2) == 3
+    with pytest.raises(RuntimeError, match="match against the space"):
+        dhazard_guard.py(0)
