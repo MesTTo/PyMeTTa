@@ -225,9 +225,9 @@ class MeTTa:
         if not wires:
             return
         if len(wires) == 1:
-            self._rt.must("petta_py_add(Space, W)", Space=self._space, W=wires[0])
+            self._rt.do_must("petta_py_add", self._space, wires[0])
         else:
-            self._rt.must("petta_py_add_many(Space, Ws)", Space=self._space, Ws=wires)
+            self._rt.do_must("petta_py_add_many", self._space, wires)
 
     def add_table(self, head: Any, data: Any) -> int:
         """Any tabular source as facts (head v1 .. vn); answers how many.
@@ -268,16 +268,16 @@ class MeTTa:
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: an equation removal reports
         whether it existed; a plain atom removal removes every copy."""
-        row = self._rt.must(
-            "petta_py_remove(Space, W, R)", Space=self._space, W=_to_atom(atom).to_wire()
+        removed = self._rt.apply_must(
+            "petta_py_remove", self._space, _to_atom(atom).to_wire()
         )
-        result = from_wire(row["R"])
+        result = from_wire(removed)
         return bool(getattr(result, "value", True))
 
     def atoms(self) -> list[Atom]:
         """Every stored atom in this space."""
-        row = self._rt.once("petta_py_atoms(Space, Ws)", Space=self._space)
-        return [from_wire(w) for w in row.get("Ws", [])]
+        wires = self._rt.apply_must("petta_py_atoms", self._space)
+        return [from_wire(w) for w in wires]
 
     def count(self) -> int:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
@@ -287,10 +287,9 @@ class MeTTa:
         return self.count()
 
     def __contains__(self, atom: Any) -> bool:
-        row = self._rt.once(
-            "petta_py_contains(Space, W)", Space=self._space, W=_to_atom(atom).to_wire()
+        return self._rt.do(
+            "petta_py_contains", self._space, _to_atom(atom).to_wire()
         )
-        return bool(row)
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
@@ -350,30 +349,19 @@ class MeTTa:
                     columns.append(name)
         wires = [a.to_wire() for a in atoms]
         if where is not None:
-            row = self._rt.once(
-                "petta_py_query_guarded_all(Space, Ps, G, Names, Limit, Rows)",
-                Space=self._space,
-                Ps=wires,
-                G=_to_atom(where).to_wire(),
-                Names=columns,
-                Limit=limit or 0,
+            answered = self._rt.apply_must(
+                "petta_py_query_guarded_all",
+                self._space, wires, _to_atom(where).to_wire(), columns, limit or 0,
             )
         elif limit is not None:
-            row = self._rt.once(
-                "petta_py_query_limit_all(Space, Ps, Names, Limit, Rows)",
-                Space=self._space,
-                Ps=wires,
-                Names=columns,
-                Limit=limit,
+            answered = self._rt.apply_must(
+                "petta_py_query_limit_all", self._space, wires, columns, limit
             )
         else:
-            row = self._rt.once(
-                "petta_py_query_all(Space, Ps, Names, Rows)",
-                Space=self._space,
-                Ps=wires,
-                Names=columns,
+            answered = self._rt.apply_must(
+                "petta_py_query_all", self._space, wires, columns
             )
-        decoded = [tuple(from_wire(v) for v in r) for r in row.get("Rows", [])]
+        decoded = [tuple(from_wire(v) for v in r) for r in answered]
         return Rows(tuple(columns), decoded)
 
     def assuming(self, *facts: Any) -> "_Assuming":
@@ -407,12 +395,10 @@ class MeTTa:
         translate_expr over the term, then its goals. Nondeterminism means
         the list can hold any number of answers, including none.
         """
-        row = self._rt.once(
-            "petta_py_eval_all(Space, W, Es)",
-            Space=self._space,
-            W=_to_atom(target).to_wire(),
+        wires = self._rt.apply_must(
+            "petta_py_eval_all", self._space, _to_atom(target).to_wire()
         )
-        return [from_wire(w) for w in row.get("Es", [])]
+        return [from_wire(w) for w in wires]
 
     # -------------------------------------------------------------- operations
 
