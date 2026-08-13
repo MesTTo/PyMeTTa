@@ -1,0 +1,155 @@
+"""Purpose: verify version-pinned fast cache save and load, text auto-detection,
+equation recompilation, live-object refusal, and corrupt-cache failures.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+import re
+
+import pytest
+
+from petta import EngineError, S, V, backend_info, val
+
+
+@pytest.fixture()
+def m(metta):
+    with metta.fresh_space() as space:
+        yield space
+
+
+def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):
+    path = tmp_path / "knowledge.petta-fast"
+    with metta.fresh_space() as source, metta.fresh_space() as loaded:
+        source.run(
+            "(fast-io-fact alpha) (fast-io-fact beta) "
+            "(= (fast-io-next $x) (+ $x 1))"
+        )
+        assert source.save(path, format="fast") == 3
+        assert loaded.load(path) == []
+        assert [row.x for row in loaded.query(S["fast-io-fact"](V.x))] == [
+            S.alpha,
+            S.beta,
+        ]
+        assert loaded.run("!(fast-io-next 41)") == [[42]]
+
+
+def test_load_auto_detects_text_and_fast_files(metta, tmp_path):
+    text_path = tmp_path / "knowledge.metta"
+    fast_path = tmp_path / "knowledge.fast"
+    with (
+        metta.fresh_space() as source,
+        metta.fresh_space() as from_text,
+        metta.fresh_space() as from_fast,
+    ):
+        source.add(S["auto-fact"](S.one), S["auto-fact"](S.two))
+        source.save(text_path)
+        source.save(fast_path, format="fast")
+        assert text_path.read_text() == "(auto-fact one)\n(auto-fact two)\n"
+        assert from_text.load(text_path) == []
+        assert from_fast.load(fast_path) == []
+        expected = [S.one, S.two]
+        assert [row.x for row in from_text.query(S["auto-fact"](V.x))] == expected
+        assert [row.x for row in from_fast.query(S["auto-fact"](V.x))] == expected
+
+
+def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
+    m.add(S.holds(val(object())))
+    with pytest.raises(ValueError) as text_error:
+        m.save(tmp_path / "object.metta")
+    with pytest.raises(ValueError) as fast_error:
+        m.save(tmp_path / "object.fast", format="fast")
+    assert str(fast_error.value) == str(text_error.value)
+    assert "live Python object" in str(fast_error.value)
+    assert not (tmp_path / "object.fast").exists()
+
+
+def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):
+    path = tmp_path / "wrong-swi.fast"
+    m.save(path, format="fast")
+    header = path.read_bytes().split(b"\n", 1)[0]
+    fields = header.split(b"\t")
+    fields[3] = b"0.0.0"
+    path.write_bytes(b"\t".join(fields) + b"\n")
+
+    with pytest.raises(EngineError) as error:
+        m.load(path)
+    message = str(error.value)
+    assert str(path) in message
+    assert "SWI-Prolog version" in message
+    assert "re-save" in message
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement", "message"),
+    [(1, b"PETTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
+)
+def test_fast_load_refuses_other_incompatible_headers(
+    m, tmp_path, field, replacement, message
+):
+    path = tmp_path / f"wrong-header-{field}.fast"
+    m.save(path, format="fast")
+    header = path.read_bytes().split(b"\n", 1)[0]
+    fields = header.split(b"\t")
+    fields[field] = replacement
+    path.write_bytes(b"\t".join(fields) + b"\n")
+
+    with pytest.raises(EngineError, match=message) as error:
+        m.load(path)
+    assert "re-save" in str(error.value)
+
+
+def test_fast_load_reports_a_truncated_payload(metta, tmp_path):
+    path = tmp_path / "truncated.fast"
+    with metta.fresh_space() as source, metta.fresh_space() as target:
+        source.add(*(S.payload(i, S.value) for i in range(20)))
+        source.save(path, format="fast")
+        data = path.read_bytes()
+        path.write_bytes(data[:-3])
+
+        with pytest.raises(EngineError) as error:
+            target.load(path)
+        message = str(error.value)
+        assert str(path) in message
+        assert "corrupt or incomplete" in message
+        assert "re-save" in message
+        assert target.count() == 0
+
+
+def test_fast_file_starts_with_the_magic_header(m, tmp_path):
+    path = tmp_path / "header.fast"
+    m.add(S.header(S.fact))
+    m.save(path, format="fast")
+    data = path.read_bytes()
+    assert data.startswith(b"PETTA-CACHE\tPETTA-FAST\t1\t")
+    header = data.split(b"\n", 1)[0] + b"\n"
+    assert re.fullmatch(
+        rb"PETTA-CACHE\tPETTA-FAST\t1\t\d+\.\d+\.\d+\n", header
+    )
+    assert header[:-1].split(b"\t")[3].decode() == backend_info()["swi_prolog"]
+
+
+try:
+    from hypothesis import HealthCheck, given, settings, strategies as st
+except ModuleNotFoundError:
+    pass
+else:
+    @settings(
+        max_examples=30,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        st.lists(st.integers(-1_000_000, 1_000_000), max_size=40, unique=True)
+    )
+    def test_fast_round_trip_preserves_generated_fact_lists(metta, tmp_path, values):
+        path = tmp_path / "generated.fast"
+        with metta.fresh_space() as source, metta.fresh_space() as target:
+            source.add(*(S["generated-value"](value) for value in values))
+            assert source.save(path, format="fast") == len(values)
+            assert target.load(path) == []
+            assert [
+                int(row.value)
+                for row in target.query(S["generated-value"](V.value))
+            ] == values

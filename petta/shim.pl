@@ -981,3 +981,65 @@ petta_py_select_meta([Keep|Tail], Args, Body, [Keep|Rest]) :-
 petta_py_set_silent(Silent) :-
     retractall(silent(_)),
     assertz(silent(Silent)).
+
+%%%%%%%%%% Trusted fast cache I/O %%%%%%%%%%
+%
+%One fast_write carries the whole atom list. The text header pins both this
+%container contract and the SWI release whose private term encoding produced
+%the payload. Python validates it before calling the reader, and this section
+%checks it again on the same stream before fast_read can see any payload byte.
+
+:- use_module(library(fastrw), [fast_read/2, fast_write/2]).
+
+petta_py_fast_header(Header) :-
+    current_prolog_flag(version_data, swi(Major, Minor, Patch, _)),
+    format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t1\t~d.~d.~d\n',
+           [Major, Minor, Patch]).
+
+petta_py_fast_has_object(Term) :- py_is_object(Term), !.
+petta_py_fast_has_object(Term) :-
+    compound(Term),
+    compound_name_arguments(Term, _, Args),
+    member(Arg, Args),
+    petta_py_fast_has_object(Arg), !.
+
+petta_py_fast_save(File, Space, Result) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
+      -> petta_py_encode(ObjectAtom, Encoded),
+         Result = ["object", Encoded]
+    ; petta_py_fast_header(Header),
+      string_codes(Header, HeaderCodes),
+      setup_call_cleanup(
+          open(FA, write, Out, [type(binary)]),
+          ( maplist(put_byte(Out), HeaderCodes),
+            fast_write(Out, Atoms) ),
+          close(Out)),
+      length(Atoms, Count),
+      Result = ["saved", Count] ).
+
+petta_py_fast_expect_header([], _).
+petta_py_fast_expect_header([Expected|Rest], In) :-
+    get_byte(In, Actual),
+    ( Actual =:= Expected
+      -> petta_py_fast_expect_header(Rest, In)
+    ; throw(error(petta_fast_header_mismatch(Expected, Actual), none)) ).
+
+petta_py_fast_read(In, File, Atoms) :-
+    catch(fast_read(In, Read), Caught,
+          throw(error(petta_fast_read_failed(File, Caught), none))),
+    ( is_list(Read)
+      -> Atoms = Read
+    ; throw(error(petta_fast_payload_not_atom_list(File), none)) ).
+
+petta_py_fast_load(File, Space) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    petta_py_fast_header(Header),
+    string_codes(Header, HeaderCodes),
+    setup_call_cleanup(
+        open(FA, read, In, [type(binary)]),
+        ( petta_py_fast_expect_header(HeaderCodes, In),
+          petta_py_fast_read(In, FA, Atoms),
+          forall(member(Atom, Atoms), 'add-atom'(Space, Atom, _)) ),
+        close(In)).

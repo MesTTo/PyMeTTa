@@ -224,6 +224,54 @@ def subscribe_tax(m: MeTTa) -> float:
             subscription.cancel()
 
 
+@bench("save-load-fast-vs-metta")
+def save_load_fast_vs_metta(m: MeTTa) -> float:
+    """Compare real public save and load paths over 20,001 stored atoms.
+
+    The detail line reports both atom rates and their ratio. The returned
+    rate is the fast path so the common harness can print it too. On the
+    adoption run, fast measured 556,498 atoms/s against text's 53,564,
+    a 10.389x speedup on this workload.
+    """
+    import tempfile
+    from pathlib import Path
+
+    atom_count = 20_001
+    with (
+        tempfile.TemporaryDirectory(prefix="petta-fast-io-") as directory,
+        m.fresh_space() as source,
+        m.fresh_space() as target,
+    ):
+        source.add(*(S["bench-save-node"](i, i + 1) for i in range(20_000)))
+        source.run("(= (bench-save-next $x) (+ $x 1))")
+
+        def measure(format: str) -> float:
+            path = Path(directory) / f"roundtrip.{format}"
+            best = 0.0
+            for _ in range(ROUNDS):
+                target.clear()
+                start = time.perf_counter()
+                saved = source.save(path, format=format)
+                groups = target.load(path)
+                elapsed = time.perf_counter() - start
+                if saved != atom_count or groups or target.count() != atom_count:
+                    raise RuntimeError(
+                        f"{format} benchmark did not round-trip {atom_count} atoms"
+                    )
+                if target.run("!(bench-save-next 41)") != [[42]]:
+                    raise RuntimeError(f"{format} benchmark lost its equation")
+                best = max(best, atom_count / elapsed)
+            return best
+
+        text_rate = measure("metta")
+        fast_rate = measure("fast")
+        print(
+            f"save-load-fast-vs-metta detail: metta={text_rate:,.0f} atoms/s "
+            f"fast={fast_rate:,.0f} atoms/s speedup={fast_rate / text_rate:.3f}x"
+        )
+        return fast_rate
+
+
 def main(argv: list[str]) -> None:
     chosen = argv or sorted(BENCHES)
     m = MeTTa()

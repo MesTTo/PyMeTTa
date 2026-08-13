@@ -276,10 +276,35 @@ class MeTTa:
         groups = [[from_wire(w) for w in group] for group in out]
         return groups, EngineProfile(samples, ticks, nodes)
 
-    def save(self, path: str) -> int:
+    def save(self, path: str, format: str = "metta") -> int:
         """Write every stored atom of this space, equations included, as
-        MeTTa source load() reads back; answers how many. Atoms carrying
-        live host objects cannot survive a file and are refused."""
+        MeTTa source by default, or as a version-pinned trusted cache with
+        format="fast"; answers how many. Atoms carrying live host objects
+        cannot survive either file and are refused."""
+        if format not in ("metta", "fast"):
+            raise ValueError(
+                f"save format must be 'metta' or 'fast', got {format!r}"
+            )
+        if format == "fast":
+            result = self._rt.apply_must(
+                "petta_py_fast_save", str(path), self._space
+            )
+            if not isinstance(result, list) or len(result) != 2:
+                raise EngineError(
+                    f"petta_py_fast_save returned an invalid result: {result!r}"
+                )
+            kind, value = result
+            if kind == "object":
+                atom = from_wire(value)
+                raise ValueError(
+                    f"{atom} carries a live Python object; a file cannot "
+                    f"hold it. Remove it, or persist its data explicitly."
+                )
+            if kind != "saved":
+                raise EngineError(
+                    f"petta_py_fast_save returned an unknown result: {result!r}"
+                )
+            return int(value)
         atoms = self.atoms()
         lines = []
         for atom in atoms:
@@ -294,9 +319,83 @@ class MeTTa:
         return len(atoms)
 
     def load(self, path: str) -> list[list[Atom]]:
-        """Load a .metta file the way the CLI does, working directory included."""
-        row = self._rt.must("petta_py_load(File, Space, Groups)", File=str(path), Space=self._space)
+        """Load a text program or an auto-detected trusted fast cache."""
+        file = str(path)
+        try:
+            with open(file, "rb") as handle:
+                is_fast = handle.read(len(b"PETTA-CACHE\t")) == b"PETTA-CACHE\t"
+        except OSError:
+            is_fast = False
+        if is_fast:
+            return self._load_fast(file)
+        row = self._rt.must(
+            "petta_py_load(File, Space, Groups)", File=file, Space=self._space
+        )
         return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
+
+    def _load_fast(self, path: str) -> list[list[Atom]]:
+        """Validate a trusted cache header, then let the engine read it."""
+        expected_text = self._rt.apply_must("petta_py_fast_header")
+        expected = str(expected_text).encode("ascii")
+        try:
+            with open(path, "rb") as handle:
+                actual = handle.readline(512)
+        except OSError as exc:
+            raise EngineError(
+                f"cannot read the fast cache header from {path!r}: {exc}; "
+                f"re-save the cache from its source data"
+            ) from exc
+
+        def reject(reason: str) -> EngineError:
+            return EngineError(
+                f"cannot load fast cache {path!r}: {reason}; re-save it with "
+                f"this PeTTa and SWI-Prolog version"
+            )
+
+        if not actual.endswith(b"\n"):
+            raise reject("the header is truncated or malformed")
+        fields = actual[:-1].split(b"\t")
+        expected_fields = expected[:-1].split(b"\t")
+        if len(fields) != 4:
+            raise reject("the header is malformed")
+        if fields[0] != expected_fields[0]:
+            raise reject("the cache marker is invalid")
+        if fields[1] != expected_fields[1]:
+            raise reject(
+                f"magic tag {fields[1]!r} does not match {expected_fields[1]!r}"
+            )
+        if fields[2] != expected_fields[2]:
+            raise reject(
+                f"format version {fields[2]!r} does not match "
+                f"{expected_fields[2]!r}"
+            )
+        if fields[3] != expected_fields[3]:
+            raise reject(
+                f"SWI-Prolog version {fields[3]!r} does not match the running "
+                f"version {expected_fields[3]!r}"
+            )
+        if actual != expected:
+            raise reject("the header is malformed")
+        try:
+            self._rt.do_must("petta_py_fast_load", path, self._space)
+        except EngineError as exc:
+            message = str(exc)
+            if not any(
+                tag in message
+                for tag in (
+                    "petta_fast_header_mismatch",
+                    "petta_fast_read_failed",
+                    "petta_fast_payload_not_atom_list",
+                )
+            ):
+                raise EngineError(
+                    f"fast load failed while adding atoms from {path!r}: {exc}"
+                ) from exc
+            raise EngineError(
+                f"fast load failed for {path!r}: {exc}. The cache is corrupt "
+                f"or incomplete; re-save it from the source data."
+            ) from exc
+        return []
 
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
