@@ -161,3 +161,31 @@ def test_pydantic_models_project_like_dataclasses():
     # pydantic runs it: a field refusing its type is pydantic's own error.
     with pytest.raises(pydantic.ValidationError):
         build(expr(S.Reading, "t1", S.tall), Reading)
+
+
+def test_pydantic_alias_fields_rebuild(metta):
+    pydantic = pytest.importorskip("pydantic")
+
+    class Wire(pydantic.BaseModel):
+        internal: int = pydantic.Field(alias="external")
+        model_config = pydantic.ConfigDict(populate_by_name=True)
+
+    projected = project(Wire(external=7))
+    rebuilt = build(projected.atom, Wire)
+    assert isinstance(rebuilt, Wire) and rebuilt.internal == 7
+
+
+def test_parameterized_field_annotations_rebuild_nested_enums():
+    from dataclasses import dataclass
+    from typing import Optional
+
+    @dataclass
+    class Palette:
+        colours: list[Color]
+        favourite: Optional[Color]
+
+    projected = project(Palette([Color.red, Color.blue], Color.red))
+    rebuilt = build(projected.atom, Palette)
+    assert rebuilt == Palette([Color.red, Color.blue], Color.red)
+    assert isinstance(rebuilt.colours[0], Color)
+    assert isinstance(rebuilt.favourite, Color)

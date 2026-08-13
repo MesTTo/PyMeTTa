@@ -154,7 +154,13 @@ def _default_registration(cls: type) -> _Registration | None:
         return _Registration(
             "expression",
             lambda obj: tuple(getattr(obj, n) for n in names),
-            lambda *parts: cls(**dict(zip(names, parts))),
+            # model_validate with by_name, not cls(**...): a field declared
+            # with an alias validates under the alias in the constructor,
+            # while projection read the ATTRIBUTE names, and by_name lets
+            # the attribute names validate directly.
+            lambda *parts: cls.model_validate(
+                dict(zip(names, parts)), by_name=True
+            ),
             cls.__name__,
             names,
             _field_types(cls, names),
@@ -183,10 +189,11 @@ def _default_registration(cls: type) -> _Registration | None:
 
 
 def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
-    """Declared field classes, for rebuilding parts that need their class,
-    an Enum member above all. Annotations that do not resolve are a hard
-    error naming the class: one broken hint silently erasing every field
-    type would rebuild nested Enums as bare symbols."""
+    """Declared field annotations, kept WHOLE, for rebuilding parts that
+    need their class: an Enum member above all, but also an Enum inside
+    list[Colour] or Optional[Colour], which a bare-class filter would
+    erase and leave as an unreconstructed symbol. Annotations that do not
+    resolve are a hard error naming the class."""
     import typing
 
     try:
@@ -196,7 +203,7 @@ def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
             f"the field annotations of {cls.__name__} do not resolve "
             f"({exc}); a declared field type must name something importable"
         ) from exc
-    return tuple(hints.get(n) if isinstance(hints.get(n), type) else None for n in names)
+    return tuple(hints.get(n) for n in names)
 
 
 def project(value: Any) -> Projected:
@@ -373,15 +380,19 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     return tuple(out)
 
 
-def build(atom: Atom, cls: type | None = None) -> Any:
+def build(atom: Atom, cls: Any = None) -> Any:
     """The reverse: rebuild the Python value an atom describes.
 
     A constructor expression rebuilds through its registered from_atom,
     children rebuilt recursively; an Enum symbol rebuilds to the member when
-    cls names the Enum; a grounded atom unwraps to its value. Anything else
+    cls names the Enum; a grounded atom unwraps to its value. cls may be a
+    full annotation, not only a class: Optional[Colour] tries its members,
+    list[Colour] rebuilds each element, Annotated unwraps. Anything else
     is returned as the atom it is, which is the honest answer for structure
     with no registered reverse.
     """
+    if cls is not None and not isinstance(cls, type):
+        return _build_annotated(atom, cls)
     if isinstance(atom, Gnd):
         return decode(atom)
     if isinstance(atom, Sym) and cls is not None:
@@ -426,6 +437,47 @@ def build(atom: Atom, cls: type | None = None) -> Any:
         if hook is not None and isinstance(atom, Expr):
             return hook(*(build(c) for c in atom.args))
     return atom
+
+
+def _build_annotated(atom: Atom, annotation: Any) -> Any:
+    """Rebuild guided by a typing annotation rather than a bare class:
+    Annotated unwraps, a Union tries the member the atom's shape names,
+    and a sequence annotation rebuilds elementwise into its container."""
+    import types as _types
+
+    origin = typing.get_origin(annotation)
+    if origin is typing.Annotated:
+        return _build_annotated(atom, typing.get_args(annotation)[0])
+    if origin in (typing.Union, _types.UnionType):
+        members = [
+            member
+            for member in typing.get_args(annotation)
+            if member is not type(None)
+        ]
+        for member in members:
+            try:
+                candidate = build(atom, member)
+            except (KeyError, TypeError):
+                continue  # not this member's shape; the next may claim it
+            if candidate is not atom:
+                return candidate
+        return build(atom, None)
+    if isinstance(atom, Expr) and isinstance(origin, type):
+        import collections.abc as abc
+
+        args = typing.get_args(annotation)
+        if origin is tuple:
+            if args and args[-1] is Ellipsis:
+                return tuple(build(c, args[0]) for c in atom.children)
+            if args and len(args) == len(atom.children):
+                return tuple(build(c, a) for c, a in zip(atom.children, args))
+            return tuple(build(c) for c in atom.children)
+        if origin is list or issubclass(origin, abc.Sequence):
+            element = args[0] if args else None
+            return [build(c, element) for c in atom.children]
+    if isinstance(annotation, type):
+        return build(atom, annotation)
+    return build(atom, None)
 
 
 def _dedup(decls: list[Expr]) -> tuple[Expr, ...]:
