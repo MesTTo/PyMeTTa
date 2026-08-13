@@ -16,6 +16,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import itertools
+import operator
 from typing import Any, Iterator
 
 from .atoms import Atom, Expr, Gnd, S, Sym, Var, decode, expr, val
@@ -42,6 +44,8 @@ _PROTOCOLS_REGISTERED = False
 # ITS aliases; (space, name) -> (library, arities) records what to remove.
 _CONSTRUCTOR_NAMES = ("tensor", "zeros", "ones", "randn", "arange-t", "eye")
 _SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
+_SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
+_STORE_SERIAL = itertools.count(1)
 
 
 def _alias_equation(name: str, library: str, arity: int) -> Expr:
@@ -52,6 +56,13 @@ def _alias_equation(name: str, library: str, arity: int) -> Expr:
             Expr([S[name], *variables]),
             Expr([S[f"{name}--{library}"], *variables]),
         ]
+    )
+
+
+def _route_equation(alias: str, target: str, arity: int) -> Expr:
+    variables = [Var(f"a{i}") for i in range(1, arity + 1)]
+    return Expr(
+        [S["="], Expr([S[alias], *variables]), Expr([S[target], *variables])]
     )
 
 
@@ -369,9 +380,13 @@ class EmbeddingStore:
         store.add(S.dog, numpy.array([1.0, 0.0]))
         m.run("!(collapse (emb-knn (tensor (1.0 0.0)) 1))")
 
-    Cosine similarity over the array API's own operations; the matrix caches
-    between writes. (name-knn $q $k) is nondeterministic retrieval, best
-    first; (name-embed $key) answers the stored vector or nothing.
+    Cosine similarity uses the array API's own operations, and the matrix
+    caches between writes. add() has map semantics: adding an existing key
+    replaces its vector in its first-seen position. (name-knn $q $k) is
+    nondeterministic retrieval, best first; (name-embed $key) answers the
+    stored vector or nothing. Public operation names route through equations
+    in this space to unique internal operations, so the same store name in a
+    different space cannot retarget this store.
     """
 
     def __init__(
@@ -391,9 +406,10 @@ class EmbeddingStore:
         self._vectors: list[Any] = []
         self._matrix = None
         self._index = None
+        self._width: int | None = None
 
         def knn(query, k) -> Iterator[Any]:
-            yield from self._search(decode(query), int(decode(k)))
+            yield from self._search(decode(query), decode(k))
 
         def embed(key):
             atom = key if isinstance(key, Atom) else S[str(key)]
@@ -402,21 +418,66 @@ class EmbeddingStore:
                     return val(vector)
             return None
 
-        m.op(knn, name=f"{name}-knn", raw=False, typed=False, pass_atoms=True)
-        m.op(embed, name=f"{name}-embed", raw=False, typed=False, pass_atoms=True)
+        serial = next(_STORE_SERIAL)
+        internal_knn = f"{name}--store-{serial}-knn"
+        internal_embed = f"{name}--store-{serial}-embed"
+        m.op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
+        m.op(embed, name=internal_embed, raw=False, typed=False, pass_atoms=True)
+
+        key = (m.space_name, name)
+        previous = _SPACE_STORES.get(key)
+        if previous is not None:
+            m.remove(_route_equation(f"{name}-knn", previous[0], 2))
+            m.remove(_route_equation(f"{name}-embed", previous[1], 1))
+        m.add(
+            _route_equation(f"{name}-knn", internal_knn, 2),
+            _route_equation(f"{name}-embed", internal_embed, 1),
+        )
+        _SPACE_STORES[key] = (internal_knn, internal_embed)
 
     def add(self, key: Any, vector: Any) -> None:
         atom = key if isinstance(key, Atom) else S[str(key)]
-        if not is_array(vector):
-            import numpy
-
-            vector = numpy.asarray(vector, dtype=numpy.float32)
-        self._keys.append(atom)
-        self._vectors.append(vector)
+        vector = self._checked_vector(vector, copy=True)
+        try:
+            index = self._keys.index(atom)
+        except ValueError:
+            self._keys.append(atom)
+            self._vectors.append(vector)
+        else:
+            old = self._vectors[index]
+            if self._mirror:
+                self._m.remove(Expr([S.embedding, atom, val(old)]))
+            self._vectors[index] = vector
         self._matrix = None
         self._index = None
         if self._mirror:
             self._m.add(Expr([S.embedding, atom, val(vector)]))
+
+    def _checked_vector(self, vector: Any, *, copy: bool = False) -> Any:
+        if not is_array(vector):
+            import numpy
+
+            vector = numpy.asarray(vector, dtype=numpy.float32)
+        if vector.ndim != 1:
+            raise ValueError(
+                f"embedding vectors must be one-dimensional, got shape "
+                f"{tuple(vector.shape)}"
+            )
+        width = int(vector.shape[0])
+        if self._width is not None and width != self._width:
+            raise ValueError(
+                f"embedding vector width must be {self._width}, got {width}"
+            )
+        xp = namespace_of(vector)
+        if not bool(xp.all(xp.isfinite(vector))):
+            raise ValueError("embedding vectors must contain only finite values")
+        as_float = xp.astype(vector, xp.float32)
+        norm = float(xp.linalg.vector_norm(as_float))
+        if norm == 0.0:
+            raise ValueError("embedding vectors must have a nonzero norm")
+        if self._width is None:
+            self._width = width
+        return xp.asarray(vector, copy=True) if copy else vector
 
     def __len__(self) -> int:
         return len(self._keys)
@@ -441,7 +502,7 @@ class EmbeddingStore:
             stacked = xp.stack([xp.astype(r, xp.float32) for r in rows])
             norms = xp.sqrt(xp.sum(stacked * stacked, axis=-1, keepdims=True))
             self._matrix = stacked / norms
-        q = query if is_array(query) else xp.asarray(query, dtype=xp.float32)
+        q = self._checked_vector(query)
         if type(q) is not type(self._vectors[0]):
             q = xp.from_dlpack(q)
         q = xp.reshape(xp.astype(q, xp.float32), (-1,))
@@ -465,6 +526,14 @@ class EmbeddingStore:
         (or asked for), an exact IndexFlatIP over the normalized matrix
         answers, byte-agreeing with the argsort path by a differential
         test; argsort otherwise."""
+        if isinstance(k, bool):
+            raise TypeError(f"k must be a positive integer, got {k!r}")
+        try:
+            k = operator.index(k)
+        except TypeError:
+            raise TypeError(f"k must be a positive integer, got {k!r}") from None
+        if k <= 0:
+            raise ValueError(f"k must be a positive integer, got {k}")
         if not self._keys:
             return
         xp, q = self._normalized_query(self._resolve(query))

@@ -103,10 +103,70 @@ def test_embedding_store_runs_on_numpy(am):
     assert scores == sorted(scores, reverse=True)
 
 
+def test_same_named_embedding_stores_route_per_space(metta):
+    with metta.fresh_space() as left, metta.fresh_space() as right:
+        left_store = arrays.EmbeddingStore(left, name="shared-emb")
+        right_store = arrays.EmbeddingStore(right, name="shared-emb")
+        left_store.add(S.dog, numpy.array([1.0, 0.0]))
+        right_store.add(S.cat, numpy.array([0.0, 1.0]))
+
+        assert left.run("!(shared-emb-embed dog)")
+        assert left.run("!(shared-emb-embed cat)") == [[]]
+        assert right.run("!(shared-emb-embed cat)")
+        assert right.run("!(shared-emb-embed dog)") == [[]]
+
+
+def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):
+    with metta.fresh_space() as space:
+        store = arrays.EmbeddingStore(space, name="replace-emb")
+        original = numpy.array([1.0, 0.0])
+        store.add(S.same, original)
+        original[:] = [0.0, 1.0]
+        assert store.vector_for(S.same).tolist() == [1.0, 0.0]
+
+        replacement = numpy.array([0.0, 1.0])
+        store.add(S.same, replacement)
+        assert len(store) == 1
+        assert store.keys() == [S.same]
+        assert store.vector_for(S.same).tolist() == [0.0, 1.0]
+        assert len(space.query(S.embedding(S.same, V.vector))) == 1
+
+
+@pytest.mark.parametrize(
+    ("vector", "message"),
+    [
+        (numpy.array([[1.0, 0.0]]), "one-dimensional"),
+        (numpy.array([numpy.nan, 1.0]), "finite"),
+        (numpy.array([numpy.inf, 1.0]), "finite"),
+        (numpy.array([0.0, 0.0]), "nonzero"),
+    ],
+)
+def test_embedding_store_validates_added_vectors(metta, vector, message):
+    with metta.fresh_space() as space:
+        store = arrays.EmbeddingStore(space, name="validated-emb")
+        with pytest.raises(ValueError, match=message):
+            store.add(S.bad, vector)
+
+
+def test_embedding_store_requires_one_width_and_positive_integer_k(metta):
+    with metta.fresh_space() as space:
+        store = arrays.EmbeddingStore(space, name="bounded-emb")
+        store.add(S.good, numpy.array([1.0, 0.0]))
+        with pytest.raises(ValueError, match="width must be 2"):
+            store.add(S.wide, numpy.array([1.0, 0.0, 0.0]))
+        for invalid in (0, -1):
+            with pytest.raises(ValueError, match="positive integer"):
+                list(store.ranked([1.0, 0.0], invalid))
+        for invalid in (True, 1.5, "1"):
+            with pytest.raises(TypeError, match="positive integer"):
+                list(store.ranked([1.0, 0.0], invalid))
+        with pytest.raises(ValueError, match="width must be 2"):
+            list(store.ranked([1.0, 0.0, 0.0], 1))
+
+
 def test_arrays_layer_is_torch_free():
     """The module must not import torch anywhere, even lazily by name."""
     import inspect
 
     source = inspect.getsource(arrays)
     assert "import torch" not in source
-
