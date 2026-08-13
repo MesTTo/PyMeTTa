@@ -413,3 +413,19 @@ def test_metta_programs_steer_through_the_reflection_space(m):
     finally:
         sub.cancel()
         reflection.remove(S.control(S.verbosity, 2))
+
+
+def test_drop_cancels_the_spaces_subscriptions(metta):
+    from petta import MeTTa, REFLECTION_SPACE
+
+    reflection = MeTTa(REFLECTION_SPACE)
+    space = metta.fresh_space()
+    name = space.space_name
+    seen = []
+    subscription = space.subscribe(S.ping(V.x), lambda e: seen.append(e))
+    assert reflection.query(S.subscription(S[name], V.p, V.on))
+    space.drop()
+    # The watcher died with its space: inactive, and its reflection fact
+    # removed, so a pooled name reused later starts unwatched.
+    assert subscription._active is False
+    assert not reflection.query(S.subscription(S[name], V.p, V.on))

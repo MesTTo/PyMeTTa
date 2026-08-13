@@ -246,6 +246,15 @@ petta_py_remove(Space, Tagged, Removed) :-
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
 
+%Bulk cleanup of the reflection facts describing one space: every
+%(defined <Space> _) atom in &petta goes through the engine's own removal
+%funnel (hooks fire per fact), but in ONE crossing from Python; the
+%per-fact crossing measured 10,000 calls and 64ms for 10,000 defines.
+petta_py_reflect_clear_defined(SpaceName) :-
+    ( atom(SpaceName) -> S = SpaceName ; atom_string(S, SpaceName) ),
+    findall(F, 'get-atoms'('&petta', [defined, S, F]), Fs),
+    forall(member(F, Fs), 'remove-atom'('&petta', [defined, S, F], _)).
+
 petta_py_count(Space, Count) :-
     aggregate_all(count, 'get-atoms'(Space, _), Count).
 

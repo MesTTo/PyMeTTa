@@ -116,9 +116,16 @@ class MeTTa:
         """Clear this space and release its name for reuse. Dropping a
         foreign space releases the binding and leaves the provider's own
         data alone; &self, the engine's own space, is cleared but its name
-        never released."""
+        never released. Subscriptions on the space cancel with it: a
+        pooled name reused later must not deliver to the old life's
+        watchers."""
         from .foreign import PROVIDERS, unregister_provider
+        from .subscribe import _SUBSCRIPTIONS
 
+        for subscription in [
+            s for s in _SUBSCRIPTIONS if s.space == self._space
+        ]:
+            subscription.cancel()
         if self._space in PROVIDERS:
             unregister_provider(self._rt, self._space)
         self.clear()
@@ -231,7 +238,9 @@ class MeTTa:
 
         The source is read by the interface it offers, never by library:
         iter_rows() (polars), itertuples() (pandas), a mapping of columns,
-        or any iterable of row sequences. The reverse direction is
+        or any iterable of row sequences. A mapping's fact positions are
+        its own key order, and columns of unequal length are a hard error
+        rather than a silent truncation. The reverse direction is
         rows.table(), the dict every DataFrame constructor takes."""
         import collections.abc as _abc
 
@@ -241,7 +250,7 @@ class MeTTa:
         elif hasattr(data, "itertuples"):
             rows = data.itertuples(index=False)
         elif isinstance(data, _abc.Mapping):
-            rows = zip(*data.values())
+            rows = zip(*data.values(), strict=True)
         elif isinstance(data, _abc.Iterable):
             rows = iter(data)
         else:
@@ -293,15 +302,15 @@ class MeTTa:
         for key in [k for k in _DEFINED_GENERATORS if k[0] == self._space]:
             _DEFINED_GENERATORS.discard(key)
         # Reflection facts describing this space follow it too, so a pooled
-        # name reused later does not inherit another life's story.
+        # name reused later does not inherit another life's story. One
+        # engine crossing removes them all; per-fact crossings measured
+        # 64ms for 10,000 defines.
         from .ops import REFLECTION_SPACE
 
         if self._space != REFLECTION_SPACE:
-            reflection = MeTTa(REFLECTION_SPACE)
-            for row in reflection.query(
-                Expr([Sym("defined"), Sym(self._space), Var("f")])
-            ):
-                reflection.remove(Expr([Sym("defined"), Sym(self._space), row.f]))
+            self._rt.must(
+                "petta_py_reflect_clear_defined(Space)", Space=self._space
+            )
 
     def __iadd__(self, atom: Any) -> "MeTTa":
         self.add(atom)

@@ -309,3 +309,9 @@ def test_add_table_reads_any_tabular_source(m):
     assert {(r["name"], r.age) for r in rows} == {("ada", 36), ("bob", 41)}
     with pytest.raises(TypeError):
         m.add_table("bad", 7)
+
+
+def test_add_table_refuses_ragged_columns(m):
+    with pytest.raises(ValueError):
+        m.add_table("edge", {"src": [S.a, S.b, S.c], "dst": [S.b]})
+    assert m.query(S.edge(V.x, V.y)) == []
