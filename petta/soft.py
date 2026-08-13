@@ -86,6 +86,12 @@ def score(
     to the MeTTa equations by a differential fuzz."""
     table = similarities or {}
     bindings = _bindings if _bindings is not None else {}
+    # In the engine both sides live in ONE scope, so an atom-side variable
+    # whose name a pattern variable already bound stands as that binding;
+    # the mirror dereferences it the same way, or (lynx) against a bound
+    # $p would score zero where the engine sees identity.
+    while isinstance(atom, Var) and atom.name in bindings:
+        atom = bindings[atom.name]
     if isinstance(pattern, Var):
         bound = bindings.get(pattern.name)
         if bound is None:
