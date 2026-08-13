@@ -162,12 +162,32 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):
     m.add(S.header(S.fact))
     m.save(path, format="fast")
     data = path.read_bytes()
-    assert data.startswith(b"PETTA-CACHE\tPETTA-FAST\t1\t")
+    assert data.startswith(b"PETTA-CACHE\tPETTA-FAST\t2\t")
     header = data.split(b"\n", 1)[0] + b"\n"
     assert re.fullmatch(
-        rb"PETTA-CACHE\tPETTA-FAST\t1\t\d+\.\d+\.\d+\n", header
+        rb"PETTA-CACHE\tPETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header
     )
     assert header[:-1].split(b"\t")[3].decode() == backend_info()["swi_prolog"]
+
+
+def test_flipped_payload_byte_refuses_before_reading(metta, tmp_path):
+    """The header's sha256 gates the payload: a single flipped byte, size
+    unchanged, refuses on integrity before fast_read sees any byte."""
+    path = tmp_path / "flipped.fast"
+    with metta.fresh_space() as source, metta.fresh_space() as target:
+        source.add(*(S.payload(i, S.value) for i in range(20)))
+        source.save(path, format="fast")
+        data = bytearray(path.read_bytes())
+        data[-1] ^= 0xFF
+        path.write_bytes(bytes(data))
+
+        with pytest.raises(EngineError) as error:
+            target.load(path)
+        message = str(error.value)
+        assert str(path) in message
+        assert "integrity" in message
+        assert "corrupt or incomplete" in message
+        assert target.count() == 0
 
 
 try:

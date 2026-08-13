@@ -1053,10 +1053,14 @@ petta_py_set_silent(Silent) :-
 
 :- use_module(library(fastrw), [fast_read/2, fast_write/2]).
 :- use_module(library(zlib), [gzopen/4]).
+:- use_module(library(memfile)).
 
+%The version prefix of the header; the file appends a tab, the sha256 of
+%the payload bytes, and a newline, so integrity refuses before fast_read
+%sees a single payload byte.
 petta_py_fast_header(Header) :-
     current_prolog_flag(version_data, swi(Major, Minor, Patch, _)),
-    format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t1\t~d.~d.~d\n',
+    format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t2\t~d.~d.~d',
            [Major, Minor, Patch]).
 
 %A cache whose path ends .gz reads and writes through zlib's stream;
@@ -1079,15 +1083,38 @@ petta_py_fast_save(File, Space, Result) :-
     ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
       -> petta_py_encode(ObjectAtom, Encoded),
          Result = ["object", Encoded]
-    ; petta_py_fast_header(Header),
-      string_codes(Header, HeaderCodes),
-      setup_call_cleanup(
-          petta_py_fast_open(FA, write, Out),
-          ( maplist(put_byte(Out), HeaderCodes),
-            fast_write(Out, Atoms) ),
-          close(Out)),
+    ; setup_call_cleanup(
+          new_memory_file(MF),
+          ( setup_call_cleanup(
+                open_memory_file(MF, write, PW, [encoding(octet)]),
+                fast_write(PW, Atoms),
+                close(PW)),
+            petta_py_hash_memory_file(MF, Hash),
+            petta_py_fast_header(Prefix),
+            format(string(Header), '~w\t~w\n', [Prefix, Hash]),
+            string_codes(Header, HeaderCodes),
+            setup_call_cleanup(
+                petta_py_fast_open(FA, write, Out),
+                ( maplist(put_byte(Out), HeaderCodes),
+                  setup_call_cleanup(
+                      open_memory_file(MF, read, PR, [encoding(octet)]),
+                      copy_stream_data(PR, Out),
+                      close(PR)) ),
+                close(Out)) ),
+          free_memory_file(MF)),
       length(Atoms, Count),
       Result = ["saved", Count] ).
+
+%One compact octet string, one C hash. Measured against the crypto
+%filter-stream route (copy through the filter into a null sink), which
+%charged ~9ms per 700KB pass; this stays ~1ms.
+petta_py_hash_memory_file(MF, Hash) :-
+    memory_file_to_string(MF, Payload, octet),
+    crypto_data_hash(Payload, Hash, [algorithm(sha256), encoding(octet)]).
+
+petta_py_hash_stream(In, Hash) :-
+    read_string(In, _, Payload),
+    crypto_data_hash(Payload, Hash, [algorithm(sha256), encoding(octet)]).
 
 petta_py_fast_expect_header([], _).
 petta_py_fast_expect_header([Expected|Rest], In) :-
@@ -1103,13 +1130,68 @@ petta_py_fast_read(In, File, Atoms) :-
       -> Atoms = Read
     ; throw(error(petta_fast_payload_not_atom_list(File), none)) ).
 
+%After the version prefix: one tab, sixty-four hex digits, one newline.
+petta_py_fast_expect_hash(In, File, Hash) :-
+    read_string(In, "\n", "", _, Line),
+    ( string_concat("\t", Hash, Line),
+      string_length(Hash, 64),
+      forall(string_code(_, Hash, C),
+             ( C >= 0'0, C =< 0'9 ; C >= 0'a, C =< 0'f ))
+      -> true
+    ; throw(error(petta_fast_integrity_header(File), none)) ).
+
+%Two passes: the first proves the payload hash through the crypto filter
+%stream, the second lets fast_read consume the now-proven bytes straight
+%off the file. fastrw is unsafe on untrusted bytes, so no payload byte
+%reaches it before the digest agrees.
 petta_py_fast_load(File, Space) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
-    petta_py_fast_header(Header),
-    string_codes(Header, HeaderCodes),
+    petta_py_fast_header(Prefix),
+    string_codes(Prefix, PrefixCodes),
+    setup_call_cleanup(
+        petta_py_fast_open(FA, read, HIn),
+        ( petta_py_fast_expect_header(PrefixCodes, HIn),
+          petta_py_fast_expect_hash(HIn, FA, ExpectedHash),
+          petta_py_hash_stream(HIn, ActualHash) ),
+        close(HIn)),
+    atom_string(ActualHash, ActualHashText),
+    ( ActualHashText == ExpectedHash -> true
+    ; throw(error(petta_fast_integrity_mismatch(FA), none)) ),
     setup_call_cleanup(
         petta_py_fast_open(FA, read, In),
-        ( petta_py_fast_expect_header(HeaderCodes, In),
+        ( petta_py_fast_expect_header(PrefixCodes, In),
+          petta_py_fast_expect_hash(In, FA, _),
           petta_py_fast_read(In, FA, Atoms),
           forall(member(Atom, Atoms), 'add-atom'(Space, Atom, _)) ),
         close(In)).
+
+%%%%%%%%%% Content digest %%%%%%%%%%
+%
+%A space's content as one sha256: each atom canonicalized (fresh copy,
+%numbered variables, quoted write) so alpha-equivalent equations print
+%identically in every process, the lines multiset-sorted so insertion
+%order cannot matter, then hashed as one utf8 document. Live objects
+%print by address and are refused, the save contract.
+
+:- use_module(library(crypto), [crypto_data_hash/3,
+                                crypto_open_hash_stream/3,
+                                crypto_stream_hash/2]).
+
+petta_py_digest(Space, Result) :-
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
+      -> petta_py_encode(ObjectAtom, Encoded),
+         Result = ["object", Encoded]
+    ; findall(Line, ( member(Atom, Atoms),
+                      petta_py_digest_line(Atom, Line) ),
+              Lines),
+      msort(Lines, Sorted),
+      atomic_list_concat(Sorted, '\n', Joined),
+      crypto_data_hash(Joined, Hex, [algorithm(sha256)]),
+      Result = ["digest", Hex] ).
+
+petta_py_digest_line(Atom, Line) :-
+    copy_term(Atom, Copy),
+    numbervars(Copy, 0, _),
+    with_output_to(string(Line),
+                   write_term(Copy, [quoted(true), numbervars(true)])).

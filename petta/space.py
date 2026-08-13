@@ -350,8 +350,10 @@ class MeTTa:
 
     def _load_fast(self, path: str) -> list[list[Atom]]:
         """Validate a trusted cache header, then let the engine read it."""
+        import re
+
         expected_text = self._rt.apply_must("petta_py_fast_header")
-        expected = str(expected_text).encode("ascii")
+        expected_fields = str(expected_text).encode("ascii").split(b"\t")
         try:
             with _open_maybe_gz(path, "rb") as handle:
                 actual = handle.readline(512)
@@ -370,8 +372,7 @@ class MeTTa:
         if not actual.endswith(b"\n"):
             raise reject("the header is truncated or malformed")
         fields = actual[:-1].split(b"\t")
-        expected_fields = expected[:-1].split(b"\t")
-        if len(fields) != 4:
+        if len(fields) != 5:
             raise reject("the header is malformed")
         if fields[0] != expected_fields[0]:
             raise reject("the cache marker is invalid")
@@ -389,8 +390,8 @@ class MeTTa:
                 f"SWI-Prolog version {fields[3]!r} does not match the running "
                 f"version {expected_fields[3]!r}"
             )
-        if actual != expected:
-            raise reject("the header is malformed")
+        if not re.fullmatch(rb"[0-9a-f]{64}", fields[4]):
+            raise reject("the integrity hash is malformed")
         try:
             self._rt.do_must("petta_py_fast_load", path, self._space)
         except EngineError as exc:
@@ -399,6 +400,8 @@ class MeTTa:
                 tag in message
                 for tag in (
                     "petta_fast_header_mismatch",
+                    "petta_fast_integrity_header",
+                    "petta_fast_integrity_mismatch",
                     "petta_fast_read_failed",
                     "petta_fast_payload_not_atom_list",
                 )
@@ -493,6 +496,32 @@ class MeTTa:
     def count(self) -> int:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
+
+    def digest(self) -> str:
+        """A sha256 hex digest of this space's content: every stored atom,
+        equations included, canonicalized (variables numbered, multiset
+        sorted) so the same atoms answer the same digest in any insertion
+        order and in any process. Two spaces agree on digest() exactly
+        when save() would write the same content. Live host objects have
+        no cross-process identity and are refused, like save()."""
+        result = self._rt.apply_must("petta_py_digest", self._space)
+        if not isinstance(result, list) or len(result) != 2:
+            raise EngineError(
+                f"petta_py_digest returned an invalid result: {result!r}"
+            )
+        kind, value = result
+        if kind == "object":
+            atom = from_wire(value)
+            raise ValueError(
+                f"{atom} carries a live Python object; it has no "
+                f"cross-process identity to digest. Remove it, or digest "
+                f"its data explicitly."
+            )
+        if kind != "digest":
+            raise EngineError(
+                f"petta_py_digest returned an unknown result: {result!r}"
+            )
+        return str(value)
 
     def __len__(self) -> int:
         return self.count()
