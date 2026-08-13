@@ -117,6 +117,55 @@ class Rows(list):
             for i, name in enumerate(self.columns)
         }
 
+    def to_df(self):
+        """The rows as a pandas DataFrame, DuckDB's own conversion naming.
+        pandas is the caller's dependency; its absence raises naming the
+        need, and table() stays the constructor-agnostic shape."""
+        try:
+            import pandas
+        except ImportError as missing:
+            raise ImportError(
+                "to_df() builds a pandas DataFrame and pandas is not "
+                "installed; rows.table() is the plain dict any frame "
+                "constructor takes"
+            ) from missing
+        return pandas.DataFrame(self.table())
+
+    def to_pl(self):
+        """The rows as a polars DataFrame; the polars twin of to_df()."""
+        try:
+            import polars
+        except ImportError as missing:
+            raise ImportError(
+                "to_pl() builds a polars DataFrame and polars is not "
+                "installed; rows.table() is the plain dict any frame "
+                "constructor takes"
+            ) from missing
+        return polars.DataFrame(self.table())
+
+    def _repr_html_(self) -> str:
+        """Notebook display: the columns as a header, one row per answer,
+        every cell escaped. Past 100 rows the tail is an explicit count,
+        never a silent cut."""
+        import html
+
+        shown = 100
+        head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
+        body = "".join(
+            "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>"
+            for row in self[:shown]
+        )
+        rest = (
+            f"<tr><td colspan={max(len(self.columns), 1)}>"
+            f"&#8230; {len(self) - shown} more rows</td></tr>"
+            if len(self) > shown
+            else ""
+        )
+        return (
+            "<table style='font-family: monospace; border-collapse: collapse;'>"
+            f"<thead><tr>{head}</tr></thead><tbody>{body}{rest}</tbody></table>"
+        )
+
     def __repr__(self) -> str:
         header = ", ".join(self.columns)
         return f"Rows[{header}]({super().__repr__()})"
