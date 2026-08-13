@@ -345,3 +345,22 @@ def test_space_iterates_and_subtracts(m):
     assert {str(a.head) for a in m} == {"a", "b"}
     m -= S.a(1)
     assert [str(a.head) for a in m] == ["b"]
+
+
+def test_atoms_destructure_with_match_statements(m):
+    m.add(S.likes(S.cat, 9))
+    (atom,) = m.query(V.a).column("a")
+    match atom:
+        case Expr([Sym("likes"), Sym(who), Gnd(count)]):
+            assert who == "cat" and count == 9
+        case _:
+            pytest.fail("the class pattern did not destructure")
+    # An expression is a Sequence, so the bare sequence pattern works too.
+    match S.likes(S.dog):
+        case [Sym("likes"), pet]:
+            assert pet == S.dog
+        case _:
+            pytest.fail("the sequence pattern did not destructure")
+    match Var("x"):
+        case Var(name):
+            assert name == "x"

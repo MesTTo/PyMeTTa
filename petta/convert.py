@@ -82,10 +82,15 @@ def register_type(
         )
 
     to_atom returns the children (projected recursively); from_atom rebuilds
-    from them. A class you own may carry __metta__ and __from_metta__ instead
-    and skip registration. image chooses among symbol, expression, handle and
-    operations; the docstring of project() states the rule for choosing.
-    Returns cls, so it composes as a decorator.
+    from them, and IS the answer to "what should build() return for this
+    atom": the reverse is yours to define, per type, and build() consults
+    it whenever the constructor name matches. A class you own may carry
+    __metta__ and __from_metta__ instead and skip registration. Nothing
+    here is required for the common cases: an Enum, dataclass, NamedTuple
+    or pydantic model translates by default, both ways, from the class
+    alone. image chooses among symbol, expression, handle and operations;
+    the docstring of project() states the rule for choosing. Returns cls,
+    so it composes as a decorator.
     """
     if image not in IMAGES:
         raise ValueError(f"image must be one of {IMAGES}, not {image!r}")

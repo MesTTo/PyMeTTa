@@ -347,6 +347,7 @@ class Sym(Atom):
     """
 
     __slots__ = ("name", "_wire")
+    __match_args__ = ("name",)
     name: str
 
     def __init__(self, name: str) -> None:
@@ -387,6 +388,7 @@ class Var(Atom):
     """A variable: a hole a match may fill. $x in source."""
 
     __slots__ = ("name", "_wire")
+    __match_args__ = ("name",)
     name: str
 
     def __init__(self, name: str) -> None:
@@ -429,6 +431,7 @@ class Gnd(Atom):
     """
 
     __slots__ = ("value",)
+    __match_args__ = ("value",)
     value: Any
 
     def __init__(self, value: Any) -> None:
@@ -632,6 +635,7 @@ class Expr(Atom):
     """
 
     __slots__ = ("children", "_hash")
+    __match_args__ = ("children",)
     children: tuple[Atom, ...]
 
     def __init__(self, children: Sequence[Atom]) -> None:
