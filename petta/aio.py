@@ -56,14 +56,38 @@ class _EngineThread:
         self.work: "queue.Queue[_Request | None]" = queue.Queue()
         self.thread: threading.Thread | None = None
         self._transition = threading.Lock()
+        self._state_lock = threading.Lock()
+        self._state = "unstarted"
+        self._failure: BaseException | None = None
+        self._startup: asyncio.Future[None] | None = None
         self._current: _Request | None = None
         self._swi_thread: Any = None
 
     async def start(self) -> None:
-        if self.thread is not None:
-            return
         loop = asyncio.get_running_loop()
-        started: asyncio.Future = loop.create_future()
+        started: asyncio.Future[None] | None = None
+        launch = False
+        with self._state_lock:
+            if self._state == "live":
+                if self.thread is not None and self.thread.is_alive():
+                    return
+                self._fail_locked(RuntimeError("the worker thread stopped"))
+            if self._state == "starting":
+                started = self._startup
+                assert started is not None
+                launch = False
+            elif self._state in ("failed", "closing", "closed"):
+                self._raise_state_locked()
+            else:
+                started = loop.create_future()
+                self._startup = started
+                self._state = "starting"
+                launch = True
+
+        assert started is not None
+        if not launch:
+            await started
+            return
 
         def worker() -> None:
             # A persistent attached engine makes this thread first-class
@@ -81,38 +105,82 @@ class _EngineThread:
                 # Bind to an ordinary local: Python deletes the except
                 # target when the block exits, and the deferred lambda
                 # would find the name unbound instead of the exception.
+                with self._state_lock:
+                    self._fail_locked(exc)
                 failure = exc
                 loop.call_soon_threadsafe(
                     lambda: started.done() or started.set_exception(failure)
                 )
                 return
+            with self._state_lock:
+                if self._state == "starting":
+                    self._state = "live"
             loop.call_soon_threadsafe(
                 lambda: started.done() or started.set_result(None)
             )
-            while True:
-                request = self.work.get()
-                if request is None:
-                    pkg.janus.detach_engine()
-                    return
-                if request.abandoned.is_set():
-                    continue  # cancelled while queued: never runs
-                with self._transition:
-                    self._current = request
-                try:
-                    result = request.fn(request.target)
-                except BaseException as exc:  # delivered, never swallowed
-                    outcome, failed = exc, True
-                else:
-                    outcome, failed = result, False
-                finally:
+            try:
+                while True:
+                    request = self.work.get()
+                    if request is None:
+                        return
+                    if request.abandoned.is_set():
+                        continue  # cancelled while queued: never runs
                     with self._transition:
-                        self._current = None
-                        self._drain(pkg)
-                _deliver(request, outcome, failed=failed)
+                        self._current = request
+                    try:
+                        result = request.fn(request.target)
+                    except BaseException as exc:  # noqa: BLE001
+                        # Base exceptions cross to the awaiting task too.
+                        outcome, failed = exc, True
+                    else:
+                        outcome, failed = result, False
+                    finally:
+                        with self._transition:
+                            self._current = None
+                            self._drain(pkg)
+                    _deliver(request, outcome, failed=failed)
+            finally:
+                try:
+                    pkg.janus.detach_engine()
+                except Exception as exc:  # noqa: BLE001
+                    # Any detachment failure makes the worker unusable.
+                    with self._state_lock:
+                        self._fail_locked(exc)
+                else:
+                    with self._state_lock:
+                        if self._state == "closing":
+                            self._state = "closed"
+                        elif self._state == "live":
+                            self._fail_locked(
+                                RuntimeError("the worker thread stopped unexpectedly")
+                            )
 
         self.thread = threading.Thread(target=worker, name="petta-aio", daemon=True)
         self.thread.start()
         await started
+
+    def _fail_locked(self, cause: BaseException) -> None:
+        self._failure = cause
+        self._state = "failed"
+
+    def _raise_state_locked(self) -> None:
+        if self._state == "failed":
+            cause = self._failure
+            detail = (
+                f": {type(cause).__name__}: {cause}" if cause is not None else ""
+            )
+            raise PettaError(f"AsyncMeTTa worker failed{detail}") from cause
+        raise PettaError(f"AsyncMeTTa worker is {self._state}")
+
+    def submit(self, request: _Request) -> None:
+        with self._state_lock:
+            if self._state == "live" and self.thread is not None:
+                if not self.thread.is_alive():
+                    self._fail_locked(RuntimeError("the worker thread stopped"))
+                else:
+                    self.work.put(request)
+                    return
+            self._raise_state_locked()
 
     def _drain(self, pkg) -> None:
         # One no-op engine call: a thread_signal throw that raced the end
@@ -142,8 +210,31 @@ class _EngineThread:
             )
             return True
 
-    def close_soon(self) -> None:
-        self.work.put(None)
+    def close_soon(self) -> threading.Thread | None:
+        with self._state_lock:
+            if self._state == "unstarted":
+                self._state = "closed"
+                return None
+            if self._state == "failed":
+                self._state = "closed"
+                return self.thread
+            if self._state == "closed":
+                return self.thread
+            if self._state != "closing":
+                self._state = "closing"
+                self.work.put(None)
+            return self.thread
+
+    @property
+    def state(self) -> str:
+        with self._state_lock:
+            if (
+                self._state == "live"
+                and self.thread is not None
+                and not self.thread.is_alive()
+            ):
+                self._fail_locked(RuntimeError("the worker thread stopped"))
+            return self._state
 
 
 def _deliver(request: _Request, payload, *, failed: bool) -> None:
@@ -170,9 +261,10 @@ class AsyncMeTTa:
             await am.add(S.edge(1, 2))
             rows = await am.query(S.edge(V.a, V.b))
 
-    Every method mirrors MeTTa's method of the same name, bounds and
-    capture included; call(fn) reaches anything not mirrored by running
-    fn(m) on the engine's thread. interrupt() stops the evaluation the
+    The exact rule should be: every finite request-response method forwards through the worker. Context managers, cursors, decorators, callback registrations, returned synchronous helper objects, and interactive entry points remain call() or synchronous-surface operations.
+
+    call(fn) reaches anything not mirrored by running fn(m) on the engine's
+    thread. interrupt() stops the evaluation the
     worker is running right now, and cancelling a waiting task (an
     asyncio timeout included) interrupts its own call, so the engine
     stops working for a listener that is gone.
@@ -204,8 +296,9 @@ class AsyncMeTTa:
 
     async def start(self) -> "AsyncMeTTa":
         """Start the engine thread; connect() and `async with` call this."""
-        if self._owner:
-            await self._worker.start()
+        if self._closed:
+            raise PettaError("this AsyncMeTTa is closed")
+        await self._worker.start()
         return self
 
     async def call(self, fn: Callable[[MeTTa], Any]) -> Any:
@@ -214,11 +307,10 @@ class AsyncMeTTa:
         derivations, stats blocks and all."""
         if self._closed:
             raise PettaError("this AsyncMeTTa is closed")
-        if self._worker.thread is None:
-            await self.start()
+        await self._worker.start()
         loop = asyncio.get_running_loop()
         request = _Request(fn, self._m, loop, loop.create_future())
-        self._worker.work.put(request)
+        self._worker.submit(request)
         try:
             return await request.future
         except asyncio.CancelledError:
@@ -244,8 +336,8 @@ class AsyncMeTTa:
     async def load(self, path: str) -> list:
         return await self.call(lambda m: m.load(path))
 
-    async def save(self, path: str) -> int:
-        return await self.call(lambda m: m.save(path))
+    async def save(self, path: str, format: str = "metta") -> int:
+        return await self.call(lambda m: m.save(path, format=format))
 
     async def add(self, *atoms: Any) -> None:
         return await self.call(lambda m: m.add(*atoms))
@@ -274,6 +366,63 @@ class AsyncMeTTa:
     async def value(self, target: Any, **bounds) -> Any:
         return await self.call(lambda m: m.value(target, **bounds))
 
+    async def fresh_space(self) -> AsyncMeTTa:
+        fresh = await self.call(lambda m: m.fresh_space())
+        return AsyncMeTTa._sharing(fresh, self._worker)
+
+    async def drop(self) -> None:
+        return await self.call(lambda m: m.drop())
+
+    async def profile(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Any:
+        return await self.call(
+            lambda m: m.profile(
+                source, using, timeout=timeout, inferences=inferences
+            )
+        )
+
+    async def parse(self, source: str) -> Any:
+        return await self.call(lambda m: m.parse(source))
+
+    async def cast(self, value: Any, type_: Any) -> Any:
+        return await self.call(lambda m: m.cast(value, type_))
+
+    async def trace(self, source: str, max_events: int = 1_000_000) -> Any:
+        return await self.call(lambda m: m.trace(source, max_events=max_events))
+
+    async def lint(self) -> Any:
+        return await self.call(lambda m: m.lint())
+
+    async def digest(self) -> str:
+        return await self.call(lambda m: m.digest())
+
+    async def unregister(self, name: str) -> None:
+        return await self.call(lambda m: m.unregister(name))
+
+    async def builtins(self) -> list[str]:
+        return await self.call(lambda m: m.builtins())
+
+    async def is_function(self, name: str) -> bool:
+        return await self.call(lambda m: m.is_function(name))
+
+    async def is_function_here(self, name: str) -> bool:
+        return await self.call(lambda m: m.is_function_here(name))
+
+    async def arities(self, name: str) -> list[int]:
+        return await self.call(lambda m: m.arities(name))
+
+    async def derivation(self, target: Any, depth: int = 30) -> Any:
+        return await self.call(lambda m: m.derivation(target, depth=depth))
+
+    async def why(self, pattern: Any) -> str:
+        return await self.call(lambda m: m.why(pattern))
+
     async def space(self, name: str) -> "AsyncMeTTa":
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
@@ -288,11 +437,11 @@ class AsyncMeTTa:
         if self._closed:
             return
         self._closed = True
-        if not self._owner or self._worker.thread is None:
+        if not self._owner:
             return
-        self._worker.close_soon()
-        thread = self._worker.thread
-        await asyncio.get_running_loop().run_in_executor(None, thread.join)
+        thread = self._worker.close_soon()
+        if thread is not None and thread.is_alive():
+            await asyncio.get_running_loop().run_in_executor(None, thread.join)
 
     async def __aenter__(self) -> "AsyncMeTTa":
         return await self.start()
@@ -301,11 +450,7 @@ class AsyncMeTTa:
         await self.aclose()
 
     def __repr__(self) -> str:
-        state = (
-            "closed"
-            if self._closed
-            else ("live" if self._worker.thread else "unstarted")
-        )
+        state = "closed" if self._closed else self._worker.state
         return f"AsyncMeTTa({self._m.space_name!r}, {state})"
 
 

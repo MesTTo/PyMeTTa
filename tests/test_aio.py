@@ -8,6 +8,7 @@ Open Obligations:
 """
 
 import asyncio
+import inspect
 
 import pytest
 
@@ -175,3 +176,120 @@ def test_aio_cancelled_while_queued_never_runs(m):
             return True
 
     assert asyncio.run(go())
+
+
+def test_aio_exposes_every_plain_request_response_method():
+    from petta import aio
+
+    expected = {
+        "fresh_space",
+        "drop",
+        "profile",
+        "parse",
+        "cast",
+        "trace",
+        "lint",
+        "digest",
+        "unregister",
+        "builtins",
+        "is_function",
+        "is_function_here",
+        "arities",
+        "derivation",
+        "why",
+    }
+    assert not expected.difference(dir(aio.AsyncMeTTa))
+    signature = inspect.signature(aio.AsyncMeTTa.save)
+    assert list(signature.parameters) == ["self", "path", "format"]
+    assert signature.parameters["format"].default == "metta"
+
+
+def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
+    from petta import aio
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=metta.fresh_space()) as am:
+            parsed = await am.parse("(aio-forward value)")
+            assert parsed == S["aio-forward"](S.value)
+            assert await am.cast(3, int) == 3
+            assert isinstance(await am.builtins(), list)
+            assert await am.is_function("+")
+            assert isinstance(await am.is_function_here("+"), bool)
+            assert await am.arities("+")
+            assert await am.lint() == []
+            assert len(await am.digest()) == 64
+            assert "unknown" in (await am.why(S["aio-unknown"](V.x))).lower()
+
+            groups, profile = await am.profile("!(+ 1 2)")
+            assert groups == [[3]]
+            assert profile.samples >= 0
+            assert isinstance(await am.trace("!(+ 2 3)"), list)
+
+            await am.run(
+                "(aio-proof fact)\n"
+                "(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
+            )
+            assert await am.derivation(S["aio-prove"]())
+
+            await am.call(
+                lambda sync: sync.op(
+                    lambda value: value,
+                    name="aio-unregister-target",
+                    typed=False,
+                )
+            )
+            assert await am.is_function("aio-unregister-target")
+            await am.unregister("aio-unregister-target")
+            assert not await am.is_function("aio-unregister-target")
+
+            path = tmp_path / "aio.fast"
+            assert await am.save(path, format="fast") == 2
+
+            fresh = await am.fresh_space()
+            assert fresh._worker is am._worker
+            await fresh.add(S.temporary(1))
+            assert await fresh.count() == 1
+            await fresh.drop()
+            await fresh.aclose()
+            await am.drop()
+
+    asyncio.run(go())
+
+
+def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
+    import petta
+    from petta import PettaError, aio
+
+    def fail_attach():
+        raise RuntimeError("round2 attach failed")
+
+    monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
+
+    async def go():
+        broken = aio.AsyncMeTTa()
+        with pytest.raises(RuntimeError, match="round2 attach failed"):
+            await broken.start()
+        assert "failed" in repr(broken)
+        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+            await broken.start()
+        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+            await broken.count()
+        await broken.aclose()
+        assert "closed" in repr(broken)
+
+    asyncio.run(go())
+
+
+def test_aio_borrowed_space_refuses_after_owner_closes(metta):
+    from petta import PettaError, aio
+
+    async def go():
+        owner = await aio.connect(metta=metta)
+        borrowed = await owner.space("&aio-closed-borrower")
+        await owner.aclose()
+        assert "closed" in repr(borrowed)
+        with pytest.raises(PettaError, match="closed"):
+            await borrowed.count()
+
+    asyncio.run(go())
+    metta.space("&aio-closed-borrower").drop()
