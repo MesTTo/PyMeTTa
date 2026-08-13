@@ -171,11 +171,11 @@ def test_type_declares_enum_members(m):
     import enum
 
     @m.type
-    class Mood(enum.Enum):
+    class DeclaredMood(enum.Enum):
         Calm = 1
         Storm = 2
 
-    assert expr(S[":"], S.Calm, S.Mood) in m
+    assert expr(S[":"], S.Calm, S.DeclaredMood) in m
 
 
 # ----------------------------------------------------- host values in source
@@ -448,38 +448,42 @@ def test_type_methods_run_on_terms_and_handles(m):
 
     @m.type
     @dataclasses.dataclass
-    class Point:
+    class MethodPoint:
         x: float
         y: float
 
         def norm(self) -> float:
             return (self.x ** 2 + self.y ** 2) ** 0.5
 
-        def scaled(self, k: float) -> "Point":
-            return Point(self.x * k, self.y * k)
+        def scaled(self, k: float) -> "MethodPoint":
+            return MethodPoint(self.x * k, self.y * k)
 
-    assert m.run("!(Point-norm (Point 3.0 4.0))") == [[5.0]]
+    assert m.run("!(MethodPoint-norm (MethodPoint 3.0 4.0))") == [[5.0]]
     # A method answering the class answers a constructor TERM: MeTTa keeps
     # matching it, and Python builds it back as the object it is.
-    (scaled,) = m.run("!(Point-scaled (Point 3.0 4.0) 2.0)")[0]
-    assert scaled == expr(S.Point, 6.0, 8.0)
-    assert convert.build(scaled, Point) == Point(6.0, 8.0)
+    (scaled,) = m.run(
+        "!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)"
+    )[0]
+    assert scaled == expr(S.MethodPoint, 6.0, 8.0)
+    assert convert.build(scaled, MethodPoint) == MethodPoint(6.0, 8.0)
     # An equation over the constructor is a method written in MeTTa, on
     # equal footing: MeTTa "modifies the object" and Python receives it.
-    m.run("(= (Point-flip (Point $x $y)) (Point $y $x))")
-    (flipped,) = m.run("!(Point-flip (Point-scaled (Point 3.0 4.0) 2.0))")[0]
-    assert convert.build(flipped, Point) == Point(8.0, 6.0)
+    m.run("(= (MethodPoint-flip (MethodPoint $x $y)) (MethodPoint $y $x))")
+    (flipped,) = m.run(
+        "!(MethodPoint-flip (MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0))"
+    )[0]
+    assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
     # A live handle works through the same methods.
     from petta import val
 
-    assert m.eval(expr(S["Point-norm"], val(Point(3.0, 4.0)))) == [5.0]
+    assert m.eval(expr(S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0)))) == [5.0]
 
 
 def test_enum_members_match_in_metta(m):
     import enum
 
     @m.type
-    class Mood(enum.Enum):
+    class MatchingMood(enum.Enum):
         Calm = 1
         Storm = 2
 
@@ -487,7 +491,7 @@ def test_enum_members_match_in_metta(m):
     # Members are symbols with declarations: patterns match them, and
     # get-type answers the enum.
     assert m.run("!(match (context-space) (today Storm) stormy)") == [[S.stormy]]
-    assert m.run("!(get-type Storm)") == [[S.Mood]]
+    assert m.run("!(get-type Storm)") == [[S.MatchingMood]]
 
 
 def test_remote_auth_token_and_hook(metta):

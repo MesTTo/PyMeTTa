@@ -1,12 +1,13 @@
 """Purpose: the four-image translator: defaults on sight, registration in
-the pytree shape, declarations, and the reverse rebuilding real objects.
+the pytree shape, typed declarations, lossless rebuilds, and explicit
+refusals for unrepresentable state and type-name collisions.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, make_dataclass
 from enum import Enum
 from typing import NamedTuple
 
@@ -28,7 +29,7 @@ class Person:
     age: int
 
 
-class Point(NamedTuple):
+class CoordinateTuple(NamedTuple):
     x: float
     y: float
 
@@ -48,7 +49,9 @@ def test_dataclass_projects_to_constructor_expression():
 
 
 def test_namedtuple_projects_like_a_dataclass():
-    assert project(Point(1.0, 2.0)).atom == expr(S.Point, 1.0, 2.0)
+    assert project(CoordinateTuple(1.0, 2.0)).atom == expr(
+        S.CoordinateTuple, 1.0, 2.0
+    )
 
 
 def test_nesting_is_the_pytree_rule():
@@ -189,3 +192,80 @@ def test_parameterized_field_annotations_rebuild_nested_enums():
     assert rebuilt == Palette([Color.red, Color.blue], Color.red)
     assert isinstance(rebuilt.colours[0], Color)
     assert isinstance(rebuilt.favourite, Color)
+
+
+def test_enum_typed_field_uses_the_enum_in_constructor_declarations():
+    class ConversionShade(Enum):
+        RED = 1
+        BLUE = 2
+
+    @dataclass
+    class EnumPaint:
+        shade: ConversionShade
+
+    projected = project(EnumPaint(ConversionShade.RED))
+    assert "(: EnumPaint (-> ConversionShade EnumPaint))" in set(
+        map(str, projected.declarations)
+    )
+    assert build(projected.atom, EnumPaint) == EnumPaint(ConversionShade.RED)
+
+
+def test_pydantic_extra_fields_are_refused_by_name():
+    pydantic = pytest.importorskip("pydantic")
+
+    class ExtraRejectModel(pydantic.BaseModel):
+        value: int
+        model_config = pydantic.ConfigDict(extra="allow")
+
+    value = ExtraRejectModel(value=1, retained=2, also_retained=3)
+    with pytest.raises(
+        TypeError, match=r"extra fields would be lost \(also_retained, retained\)"
+    ):
+        project(value)
+
+
+def test_keyword_only_dataclass_rebuilds_by_field_name():
+    @dataclass(kw_only=True)
+    class KeywordOnlyRecord:
+        required: int
+        optional: int = 7
+
+    original = KeywordOnlyRecord(required=1)
+    assert build(project(original).atom, KeywordOnlyRecord) == original
+
+
+def test_init_false_dataclass_requires_an_explicit_reverse():
+    @dataclass
+    class DerivedStateRecord:
+        value: int
+        cached: int = field(default=9, init=False)
+
+    original = DerivedStateRecord(1)
+    with pytest.raises(TypeError, match=r"init=False state.*cached"):
+        project(original)
+
+    def rebuild(value, cached):
+        rebuilt = DerivedStateRecord(value)
+        rebuilt.cached = cached
+        return rebuilt
+
+    register_type(
+        DerivedStateRecord,
+        to_atom=lambda item: (item.value, item.cached),
+        from_atom=rebuild,
+        fields=("value", "cached"),
+    )
+    assert build(project(original).atom, DerivedStateRecord) == original
+
+
+def test_type_name_collision_is_refused_and_build_honors_requested_class():
+    first_cls = make_dataclass("ConversionCollision", [("left", int)])
+    second_cls = make_dataclass("ConversionCollision", [("right", int)])
+    first = first_cls(7)
+    atom = project(first).atom
+
+    with pytest.raises(ValueError, match="type name 'ConversionCollision'.*already"):
+        project(second_cls("later"))
+    with pytest.raises(TypeError, match="belongs to .*not"):
+        build(atom, second_cls)
+    assert build(atom, first_cls) == first

@@ -5,7 +5,9 @@ constructor expression whose parts match. So this is four images, a rule for
 choosing, defaults so common types need no registration, and a registry in
 the shape JAX proved with pytrees: a type, a flatten, an unflatten. project()
 turns an object into atoms plus the declarations that type them; build() is
-the missing reverse, rebuilding the object an answer describes.
+the missing reverse, rebuilding the object an answer describes. Type names
+have one owning class, and default expression images refuse state they cannot
+rebuild.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,6 +52,16 @@ _REGISTRY: dict[type, _Registration] = {}
 
 # constructor symbol name -> (type, registration), for the reverse direction.
 _CONSTRUCTORS: dict[str, tuple[type, _Registration]] = {}
+
+# declared type name -> its one Python owner. Two unrelated classes cannot
+# share a constructor/type spelling because an unannotated build has no way
+# to select between them.
+_TYPE_OWNERS: dict[str, type] = {}
+
+
+def _class_label(cls: type) -> str:
+    """One class label that still distinguishes a same-name redefinition."""
+    return f"{cls.__module__}.{cls.__qualname__} (class object {id(cls):#x})"
 
 
 class Projected(NamedTuple):
@@ -102,17 +114,7 @@ def register_type(
         type_name=type_name,
         fields=tuple(fields),
     )
-    if image in ("expression", "symbol"):
-        holder = _CONSTRUCTORS.get(type_name)
-        if holder is not None and holder[0] is not cls:
-            raise ValueError(
-                f"the constructor name {type_name!r} already belongs to "
-                f"{holder[0].__name__}; two types under one name would "
-                f"rebuild each other's atoms. Register with name=... to "
-                f"pick a distinct spelling."
-            )
-        _CONSTRUCTORS[type_name] = (cls, registration)
-    _REGISTRY[cls] = registration
+    _record_registration(cls, registration)
     return cls
 
 
@@ -130,10 +132,39 @@ def ensure_registered(cls: type) -> _Registration:
                 f"dataclass or NamedTuple); teach the translator with "
                 f"register_type(...)"
             )
-        _REGISTRY[cls] = registration
-        if registration.image == "expression":
-            _CONSTRUCTORS[registration.type_name] = (cls, registration)
+        _record_registration(cls, registration)
     return registration
+
+
+def _record_registration(cls: type, registration: _Registration) -> None:
+    """Record one registration after proving its public type name is safe."""
+    current = _REGISTRY.get(cls)
+    if current is not None and current.type_name != registration.type_name:
+        raise ValueError(
+            f"{cls.__name__} is already registered as {current.type_name!r}; "
+            f"changing its type name would leave existing atoms with the old "
+            f"owner. Keep that name or register a distinct class."
+        )
+
+    if registration.image in ("expression", "symbol"):
+        holder = _TYPE_OWNERS.get(registration.type_name)
+        if holder is not None and holder is not cls:
+            raise ValueError(
+                f"the type name {registration.type_name!r} already has a "
+                f"registered class ({_class_label(holder)}); register "
+                f"{_class_label(cls)} with name=... "
+                f"to pick a distinct spelling. Replacing the owner would make "
+                f"build() return the wrong class."
+            )
+        _TYPE_OWNERS[registration.type_name] = cls
+
+    if current is not None and current.image == "expression":
+        old = _CONSTRUCTORS.get(current.type_name)
+        if old is not None and old[0] is cls:
+            _CONSTRUCTORS.pop(current.type_name)
+    if registration.image == "expression":
+        _CONSTRUCTORS[registration.type_name] = (cls, registration)
+    _REGISTRY[cls] = registration
 
 
 def _lookup(cls: type) -> _Registration | None:
@@ -156,9 +187,21 @@ def _default_registration(cls: type) -> _Registration | None:
     pydantic = sys.modules.get("pydantic")
     if pydantic is not None and issubclass(cls, pydantic.BaseModel):
         names = tuple(cls.model_fields.keys())
+
+        def pydantic_parts(obj: Any) -> tuple[Any, ...]:
+            extras = getattr(obj, "__pydantic_extra__", None)
+            if extras:
+                extra_names = ", ".join(sorted(map(str, extras)))
+                raise TypeError(
+                    f"cannot project {cls.__name__}: its Pydantic extra fields "
+                    f"would be lost ({extra_names}). Declare those fields on "
+                    f"the model or register an explicit conversion."
+                )
+            return tuple(getattr(obj, name) for name in names)
+
         return _Registration(
             "expression",
-            lambda obj: tuple(getattr(obj, n) for n in names),
+            pydantic_parts,
             # model_validate with by_name, not cls(**...): a field declared
             # with an alias validates under the alias in the constructor,
             # while projection read the ATTRIBUTE names, and by_name lets
@@ -171,11 +214,20 @@ def _default_registration(cls: type) -> _Registration | None:
             _field_types(cls, names),
         )
     if dataclasses.is_dataclass(cls) and not isinstance(cls, type(None)):
-        names = tuple(f.name for f in dataclasses.fields(cls))
+        data_fields = tuple(dataclasses.fields(cls))
+        non_init = tuple(field.name for field in data_fields if not field.init)
+        if non_init:
+            listed = ", ".join(non_init)
+            raise TypeError(
+                f"{cls.__name__} has init=False state that the default "
+                f"expression image cannot rebuild ({listed}). Register the "
+                f"type explicitly with to_atom and from_atom."
+            )
+        names = tuple(field.name for field in data_fields)
         return _Registration(
             "expression",
             lambda obj: tuple(getattr(obj, n) for n in names),
-            lambda *parts: cls(*parts),
+            lambda *parts: cls(**dict(zip(names, parts))),
             cls.__name__,
             names,
             _field_types(cls, names),
@@ -243,9 +295,7 @@ def project(value: Any) -> Projected:
         if registration is not None:
             # Memoized, so the reverse direction knows the constructor a
             # default projection used without an explicit registration.
-            _REGISTRY[cls] = registration
-            if registration.image == "expression":
-                _CONSTRUCTORS[registration.type_name] = (cls, registration)
+            _record_registration(cls, registration)
 
     if registration is None:
         hook = getattr(value, "__metta__", None)
@@ -282,8 +332,9 @@ def project(value: Any) -> Projected:
 def _project_symbol(value: Any, cls: type, registration: _Registration) -> Projected:
     if isinstance(value, Enum):
         member = Sym(value.name)
-        decls = [Expr([S[":"], Sym(cls.__name__), S.Type])]
-        decls.extend(Expr([S[":"], Sym(m.name), Sym(cls.__name__)]) for m in cls)
+        type_name = registration.type_name
+        decls = [Expr([S[":"], Sym(type_name), S.Type])]
+        decls.extend(Expr([S[":"], Sym(m.name), Sym(type_name)]) for m in cls)
         return Projected(member, tuple(decls))
     text = str(value)
     return Projected(
@@ -306,14 +357,17 @@ def _project_expression(value: Any, cls: type, registration: _Registration) -> P
     decls: list[Expr] = []
     for p in projected:
         decls.extend(p.declarations)
-    decls.append(_constructor_declaration(registration, projected))
+    if registration.field_types:
+        decls.extend(declarations(cls))
+    else:
+        decls.append(_constructor_declaration(registration, projected))
     atom = Expr([Sym(registration.type_name), *(p.atom for p in projected)])
     return Projected(atom, _dedup(decls))
 
 
 def _constructor_declaration(registration: _Registration, projected: list[Projected]) -> Expr:
     """(: Person (-> String Number Person)), argument types read off the parts."""
-    arg_types = [S[_type_name_of(p.atom)] for p in projected]
+    arg_types = [_projected_type_atom(part) for part in projected]
     return Expr(
         [
             S[":"],
@@ -321,6 +375,19 @@ def _constructor_declaration(registration: _Registration, projected: list[Projec
             Expr([S["->"], *arg_types, Sym(registration.type_name)]),
         ]
     )
+
+
+def _projected_type_atom(projected: Projected) -> Atom:
+    """Read a symbol projection's exact declaration before inferring shape."""
+    for declaration in projected.declarations:
+        if (
+            len(declaration.children) == 3
+            and declaration.head == S[":"]
+            and declaration.children[1] == projected.atom
+            and isinstance(declaration.children[2], Sym)
+        ):
+            return declaration.children[2]
+    return S[_type_name_of(projected.atom)]
 
 
 def _type_name_of(atom: Atom) -> str:
@@ -337,10 +404,6 @@ def _type_name_of(atom: Atom) -> str:
         name = atom.head.name
         if name in _CONSTRUCTORS:
             return _CONSTRUCTORS[name][1].type_name
-    if isinstance(atom, Sym):
-        for _cls, reg in _CONSTRUCTORS.values():
-            if reg.image == "symbol":
-                return reg.type_name
     return "%Undefined%"
 
 
@@ -351,10 +414,16 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     declares Number rather than %Undefined%; a Union field superposes one
     arrow per member, the checker's own reading of alternatives."""
     if issubclass(cls, Enum):
-        decls = [Expr([S[":"], Sym(cls.__name__), S.Type])]
-        decls.extend(Expr([S[":"], Sym(m.name), Sym(cls.__name__)]) for m in cls)
+        registration = ensure_registered(cls)
+        type_name = registration.type_name
+        decls = [Expr([S[":"], Sym(type_name), S.Type])]
+        decls.extend(Expr([S[":"], Sym(m.name), Sym(type_name)]) for m in cls)
         return tuple(decls)
-    registration = _lookup(cls) or _default_registration(cls)
+    registration = _lookup(cls)
+    if registration is None:
+        registration = _default_registration(cls)
+        if registration is not None:
+            _record_registration(cls, registration)
     if registration is None or registration.image != "expression":
         return ()
     from .ops import type_atoms_for
@@ -393,8 +462,7 @@ def build(atom: Atom, cls: Any = None) -> Any:
     cls names the Enum; a grounded atom unwraps to its value. cls may be a
     full annotation, not only a class: Optional[Colour] tries its members,
     list[Colour] rebuilds each element, Annotated unwraps. Anything else
-    is returned as the atom it is, which is the honest answer for structure
-    with no registered reverse.
+    stays an atom because no registered reverse exists for that structure.
     """
     if cls is not None and not isinstance(cls, type):
         return _build_annotated(atom, cls)
@@ -412,9 +480,17 @@ def build(atom: Atom, cls: Any = None) -> Any:
             return registration.from_atom(atom.name)
     if isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym):
         hit = _CONSTRUCTORS.get(atom.head.name)
+        if hit is not None and cls is not None and hit[0] is not cls:
+            raise TypeError(
+                f"({atom.head.name} ...) belongs to "
+                f"{_class_label(hit[0])}, not {_class_label(cls)}; build() will not "
+                f"substitute a different class with the same type name"
+            )
         if hit is None and cls is not None:
             registration = _lookup(cls) or _default_registration(cls)
             if registration is not None and registration.type_name == atom.head.name:
+                if _REGISTRY.get(cls) is None:
+                    _record_registration(cls, registration)
                 hit = (cls, registration)
         if hit is not None:
             target_cls, registration = hit

@@ -175,11 +175,13 @@ def test_type_decorator_declares_field_types(m):
 
     @m.type
     @dataclasses.dataclass
-    class Point:
+    class DeclaredPoint:
         x: float
         y: float
 
-    assert _arrows_of(m, "Point") == {"(-> Number Number Point)"}
+    assert _arrows_of(m, "DeclaredPoint") == {
+        "(-> Number Number DeclaredPoint)"
+    }
 
 
 # --------------------------------------------------- guarded bounded query
