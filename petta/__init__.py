@@ -139,7 +139,7 @@ from .errors import (  # noqa: E402
     PettaError,
 )
 from .results import Row, Rows  # noqa: E402
-from .space import MeTTa, current_space  # noqa: E402
+from .space import MeTTa, Prepared, current_space  # noqa: E402
 from . import arrays, convert, foreign, integrate, matching, measure, soft  # noqa: E402
 from .define import Defined  # noqa: E402
 from .foreign import SpaceProvider  # noqa: E402
@@ -172,6 +172,7 @@ __all__ = [
     "register_object_repr",
     # runtime
     "MeTTa",
+    "Prepared",
     "Rows",
     "Row",
     # diagnostics

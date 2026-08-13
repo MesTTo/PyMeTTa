@@ -1,7 +1,8 @@
 """Purpose: the MeTTa runtime surface. One class binds a space name to the
 process's engine and offers running source, loading files, structured space
-edits, conjunctive queries, evaluation, Python-backed operations, proof-tree
-derivations and a why-not diagnostic, all in PeTTa's own semantics.
+edits, conjunctive queries with guards, bounds, scoped assumptions and
+preparation, evaluation, Python-backed operations, proof-tree derivations
+and a why-not diagnostic, all in PeTTa's own semantics.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +19,7 @@ from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, var
 from .derivation import Derivation
 from .results import Rows
 
-__all__ = ["MeTTa", "current_space"]
+__all__ = ["MeTTa", "Prepared", "current_space"]
 
 
 def current_space(default: str = "&self") -> str:
@@ -264,15 +265,29 @@ class MeTTa:
 
     # ----------------------------------------------------------------- queries
 
-    def query(self, *patterns: Any) -> Rows:
+    def query(
+        self,
+        *patterns: Any,
+        where: Any | None = None,
+        limit: int | None = None,
+    ) -> Rows:
         """Match patterns against this space as one conjunction.
 
         Variables shared between patterns join, the engine's own match/4
         doing the joining. Columns are the variable names in first
-        appearance order.
+        appearance order. `where` is a guard term over the same variables,
+        evaluated per join and required true, so restrictions a pattern
+        cannot spell (an inequality) compose onto the match:
+
+            m.query(S.person(V.name, V.age), where=V.age >= 18)
+
+        `limit` bounds the answers, the engine stopping at the count
+        rather than trimming afterwards.
 
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
+        if limit is not None and limit <= 0:
+            raise ValueError(f"limit must be positive, got {limit}")
         atoms = [_to_atom(p) for p in patterns]
         columns: list[str] = []
         for a in atoms:
@@ -280,14 +295,55 @@ class MeTTa:
                 # `_` is anonymous: fresh at every occurrence, never a column.
                 if name != "_" and name not in columns:
                     columns.append(name)
-        row = self._rt.once(
-            "petta_py_query_all(Space, Ps, Names, Rows)",
-            Space=self._space,
-            Ps=[a.to_wire() for a in atoms],
-            Names=columns,
-        )
+        wires = [a.to_wire() for a in atoms]
+        if where is not None:
+            row = self._rt.once(
+                "petta_py_query_guarded_all(Space, Ps, G, Names, Limit, Rows)",
+                Space=self._space,
+                Ps=wires,
+                G=_to_atom(where).to_wire(),
+                Names=columns,
+                Limit=limit or 0,
+            )
+        elif limit is not None:
+            row = self._rt.once(
+                "petta_py_query_limit_all(Space, Ps, Names, Limit, Rows)",
+                Space=self._space,
+                Ps=wires,
+                Names=columns,
+                Limit=limit,
+            )
+        else:
+            row = self._rt.once(
+                "petta_py_query_all(Space, Ps, Names, Rows)",
+                Space=self._space,
+                Ps=wires,
+                Names=columns,
+            )
         decoded = [tuple(from_wire(v) for v in r) for r in row.get("Rows", [])]
         return Rows(tuple(columns), decoded)
+
+    def assuming(self, *facts: Any) -> "_Assuming":
+        """Facts held only inside a with-block: the assumptions reading of
+        a what-if query, added on entry, removed on exit, exceptions
+        included.
+
+            with m.assuming(S.closed(S.bridge)):
+                detour = m.query(S.route(V.r), where=...)
+        """
+        return _Assuming(self, [_to_atom(f) for f in facts])
+
+    def prepare(self, *patterns: Any, where: Any | None = None) -> "Prepared":
+        """A query whose shape is fixed and whose facts are not: the wire
+        form and columns build once, and each solve() may bring per-call
+        facts (given=) that leave nothing behind.
+
+            route = m.prepare(S.path(V.a, V.b), where=V.a != ...)
+            route.solve()
+            route.solve(given=[S.edge(S.x, S.y)])
+        """
+        return Prepared(self, [_to_atom(p) for p in patterns],
+                        None if where is None else _to_atom(where))
 
     # -------------------------------------------------------------- evaluation
 
@@ -738,6 +794,91 @@ def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> A
             condition = test if condition is None else Expr([Sym("and"), condition, test])
         body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
     return body
+
+
+class _Assuming:
+    """Facts scoped to a with-block; see MeTTa.assuming."""
+
+    __slots__ = ("_space", "_facts")
+
+    def __init__(self, space: MeTTa, facts: list[Atom]) -> None:
+        self._space = space
+        self._facts = facts
+
+    def __enter__(self) -> MeTTa:
+        self._space.add(*self._facts)
+        return self._space
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        for fact in self._facts:
+            self._space.remove(fact)
+
+
+class Prepared:
+    """A prepared query: pattern wires and columns built once, solved many
+    times, optionally with per-call facts. The ladder the clingo API walks
+    (assumptions per solve, inputs per session, rules added), with the rung
+    clingo lacks: rules REMOVED, since this engine erases clauses whole.
+
+        route = m.prepare(S.path(V.a, V.b))
+        route.solve()
+        route.solve(given=[S.edge(S.a, S.b)])   # facts for this call only
+    """
+
+    __slots__ = ("_space", "_patterns", "_where", "_wires", "_guard", "columns")
+
+    def __init__(self, space: MeTTa, patterns: list[Atom], where: Atom | None) -> None:
+        self._space = space
+        self._patterns = patterns
+        self._where = where
+        self._wires = [p.to_wire() for p in patterns]
+        self._guard = None if where is None else where.to_wire()
+        columns: list[str] = []
+        for pattern in patterns:
+            for name in variables(pattern):
+                if name != "_" and name not in columns:
+                    columns.append(name)
+        self.columns = tuple(columns)
+
+    def solve(self, given: list | None = None, limit: int | None = None) -> Rows:
+        """Answers now, with `given` facts present for this call alone."""
+        if not given:
+            return self._run(limit)
+        with self._space.assuming(*given):
+            return self._run(limit)
+
+    def _run(self, limit: int | None) -> Rows:
+        rt = self._space.runtime
+        if self._guard is not None:
+            row = rt.once(
+                "petta_py_query_guarded_all(Space, Ps, G, Names, Limit, Rows)",
+                Space=self._space.space_name,
+                Ps=self._wires,
+                G=self._guard,
+                Names=list(self.columns),
+                Limit=limit or 0,
+            )
+        elif limit is not None:
+            row = rt.once(
+                "petta_py_query_limit_all(Space, Ps, Names, Limit, Rows)",
+                Space=self._space.space_name,
+                Ps=self._wires,
+                Names=list(self.columns),
+                Limit=limit,
+            )
+        else:
+            row = rt.once(
+                "petta_py_query_all(Space, Ps, Names, Rows)",
+                Space=self._space.space_name,
+                Ps=self._wires,
+                Names=list(self.columns),
+            )
+        decoded = [tuple(from_wire(v) for v in r) for r in row.get("Rows", [])]
+        return Rows(self.columns, decoded)
+
+    def __repr__(self) -> str:
+        shown = ", ".join(str(p) for p in self._patterns)
+        return f"<prepared {shown} -> {', '.join(self.columns)}>"
 
 
 class _EngineFunction:

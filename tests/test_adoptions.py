@@ -1,7 +1,8 @@
 """Purpose: what the library-evaluation batch shipped, engine-backed: term
-building operators over the whole engine-evaluable algebra, and
-declarations generalised (TypeVars, Unions superposing, Callable arrows,
-tuple shapes, classes as declared types).
+building operators over the whole engine-evaluable algebra, declarations
+generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
+classes as declared types), guarded and bounded queries, assumptions, and
+prepared queries.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -178,3 +179,56 @@ def test_type_decorator_declares_field_types(m):
         y: float
 
     assert _arrows_of(m, "Point") == {"(-> Number Number Point)"}
+
+
+# --------------------------------------------------- guarded bounded query
+
+
+def test_query_where_guard_and_limit(m):
+    m.add(
+        S.person(S.ada, 36),
+        S.person(S.bob, 12),
+        S.person(S.cyd, 70),
+    )
+    adults = m.query(S.person(V.name, V.age), where=V.age >= 18)
+    assert {str(r.name) for r in adults} == {"ada", "cyd"}
+    # Guards compose with the boolean operators, the engine reading them.
+    mid = m.query(
+        S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40)
+    )
+    assert {str(r.name) for r in mid} == {"ada"}
+    assert len(m.query(S.person(V.name, V.age), limit=2)) == 2
+    with pytest.raises(ValueError):
+        m.query(S.person(V.name, V.age), limit=0)
+
+
+# ------------------------------------------------------------- assumptions
+
+
+def test_assuming_scopes_facts(m):
+    m.add(S.road(S.a, S.b))
+    with m.assuming(S.road(S.b, S.c)):
+        assert len(m.query(S.road(V.x, V.y))) == 2
+    assert len(m.query(S.road(V.x, V.y))) == 1
+    # The exception path removes too.
+    try:
+        with m.assuming(S.road(S.b, S.c)):
+            raise RuntimeError("boom")
+    except RuntimeError:
+        pass
+    assert len(m.query(S.road(V.x, V.y))) == 1
+
+
+# --------------------------------------------------------- prepared queries
+
+
+def test_prepared_query_with_given(m):
+    m.add(S.edge(S.a, S.b))
+    hop = m.prepare(S.edge(V.x, V.y))
+    assert hop.columns == ("x", "y")
+    assert len(hop.solve()) == 1
+    # given= facts exist for this call alone.
+    assert len(hop.solve(given=[S.edge(S.b, S.c)])) == 2
+    assert len(hop.solve()) == 1
+    guarded = m.prepare(S.edge(V.x, V.y), where=V.x.eq(S.a))
+    assert len(guarded.solve(given=[S.edge(S.b, S.c)])) == 1

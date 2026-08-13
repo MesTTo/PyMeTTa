@@ -323,6 +323,29 @@ petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
 
+%A query with a guard and a bound: the guard decodes IN THE SAME variable
+%scope as the patterns, so $age in both is one variable; after the match
+%joins, the guard evaluates in the space's module and must answer true.
+%Limit 0 means every answer.
+petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
+    petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
+    petta_py_match_goal(Space, Patterns, Goal),
+    petta_py_module(Space, Module),
+    call(Goal),
+    petta_py_in_module(Module, ( translate_expr(Guard, Goals, Out),
+                                 petta_py_call_goals(Module, Goals) )),
+    Out == true,
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_query_guarded_all(Space, PatternsTagged, GuardTagged, VarNames, Limit, Rows) :-
+    Query = petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row),
+    ( Limit > 0
+      -> findall(Row, limit(Limit, Query), Rows)
+    ; findall(Row, Query, Rows) ).
+
+petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
+    findall(Row, limit(Limit, petta_py_query(Space, PatternsTagged, VarNames, Row)), Rows).
+
 %A row holds one encoded value per requested name; a variable the answer left
 %unbound comes back as itself:
 petta_py_row([], _, []).
