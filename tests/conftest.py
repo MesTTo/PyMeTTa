@@ -8,7 +8,7 @@ def repo_root():
 
 @pytest.fixture(scope="session")
 def petta_module():
-    return importlib.import_module("python.petta")
+    return importlib.import_module("petta")
 
 @pytest.fixture(scope="session")
 def petta_path(repo_root):
