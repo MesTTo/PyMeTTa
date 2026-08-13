@@ -1,12 +1,13 @@
 :- use_module(library(readutil)). % read_file_to_string/3
 :- use_module(library(pcre)). % re_replace/4
+:- use_module(library(zlib)). % gzopen/3, .gz program files
 :- current_prolog_flag(argv, Args), ( (memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args))
                                       -> assertz(silent(true)) ; assertz(silent(false)) ).
 
 %Read Filename into string S and process it (S holds MeTTa code):
 load_metta_file(Filename, Results) :- load_metta_file(Filename, Results, '&self').
 load_metta_file(Filename, Results, Space) :-
-    catch(( read_file_to_string(Filename, S, []),
+    catch(( read_metta_source(Filename, S),
             process_metta_string(S, Results, Space) ),
           Error,
           rethrow_metta_file_error(Filename, Error)).
@@ -18,6 +19,20 @@ rethrow_metta_file_error(_, Error) :- Error = error(_, context(_, _)), !,
 rethrow_metta_file_error(Filename, error(Type, _)) :- !,
     throw(error(Type, context(Filename, 'while loading MeTTa file'))).
 rethrow_metta_file_error(_, Error) :- throw(Error).
+
+%A .gz program reads through the engine's own zlib stream, any other path
+%reads plain, so every consumer of MeTTa files, import! and the CLI
+%included, accepts gzip-compressed source under its ordinary name. A
+%corrupt archive names the file, not the anonymous stream inside it.
+read_metta_source(Filename, S) :-
+    ( file_name_extension(_, gz, Filename)
+      -> catch(setup_call_cleanup(gzopen(Filename, read, In),
+                                  read_string(In, _, S),
+                                  close(In)),
+               error(Type, _),
+               throw(error(Type, context(Filename,
+                                         'while reading gzip-compressed MeTTa source'))))
+    ; read_file_to_string(Filename, S, []) ).
 
 %Extract function definitions, call invocations, and S-expressions part of &self space:
 process_metta_string(S, Results) :- process_metta_string(S, Results, '&self').

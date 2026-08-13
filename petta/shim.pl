@@ -204,7 +204,7 @@ petta_py_load(File, Space, Groups) :-
     catch_recover(findall(W, working_dir(W), Saved), Saved = []),
     setup_call_cleanup(
         ( retractall(working_dir(_)), assertz(working_dir(Dir)) ),
-        ( read_file_to_string(FA, S, []),
+        ( read_metta_source(FA, S),  %the engine's gz-aware program reader
           petta_py_run(S, Space, Groups) ),
         ( retractall(working_dir(_)),
           forall(member(W, Saved), assertz(working_dir(W))) )).
@@ -1052,11 +1052,19 @@ petta_py_set_silent(Silent) :-
 %checks it again on the same stream before fast_read can see any payload byte.
 
 :- use_module(library(fastrw), [fast_read/2, fast_write/2]).
+:- use_module(library(zlib), [gzopen/4]).
 
 petta_py_fast_header(Header) :-
     current_prolog_flag(version_data, swi(Major, Minor, Patch, _)),
     format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t1\t~d.~d.~d\n',
            [Major, Minor, Patch]).
+
+%A cache whose path ends .gz reads and writes through zlib's stream;
+%Python's gzip module accepts the same files and vice versa.
+petta_py_fast_open(File, Mode, Stream) :-
+    ( file_name_extension(_, gz, File)
+      -> gzopen(File, Mode, Stream, [type(binary)])
+    ; open(File, Mode, Stream, [type(binary)]) ).
 
 petta_py_fast_has_object(Term) :- py_is_object(Term), !.
 petta_py_fast_has_object(Term) :-
@@ -1074,7 +1082,7 @@ petta_py_fast_save(File, Space, Result) :-
     ; petta_py_fast_header(Header),
       string_codes(Header, HeaderCodes),
       setup_call_cleanup(
-          open(FA, write, Out, [type(binary)]),
+          petta_py_fast_open(FA, write, Out),
           ( maplist(put_byte(Out), HeaderCodes),
             fast_write(Out, Atoms) ),
           close(Out)),
@@ -1100,7 +1108,7 @@ petta_py_fast_load(File, Space) :-
     petta_py_fast_header(Header),
     string_codes(Header, HeaderCodes),
     setup_call_cleanup(
-        open(FA, read, In, [type(binary)]),
+        petta_py_fast_open(FA, read, In),
         ( petta_py_fast_expect_header(HeaderCodes, In),
           petta_py_fast_read(In, FA, Atoms),
           forall(member(Atom, Atoms), 'add-atom'(Space, Atom, _)) ),

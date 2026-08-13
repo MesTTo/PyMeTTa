@@ -386,6 +386,7 @@ retractPredicate(G, true) :- retract(G), !.
 retractPredicate(_, false).
 
 %%% Library / Import: %%%
+ensure_metta_ext(Path, Path) :- file_name_extension(_, gz, Path), !.
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 

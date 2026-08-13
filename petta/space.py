@@ -56,6 +56,17 @@ def _to_atom(value: Any) -> Atom:
     return encode(value)
 
 
+def _open_maybe_gz(path: str, mode: str):
+    """Open a save or load path, gzip-compressed when it ends .gz. The
+    engine side mirrors this with zlib's gzopen, so both readers accept
+    either writer's files."""
+    if path.endswith(".gz"):
+        import gzip
+
+        return gzip.open(path, mode)
+    return open(path, mode)
+
+
 def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
     """Validate the per-call bounds into the shim's (-1 = none) pair."""
     if timeout is None and inferences is None:
@@ -279,8 +290,10 @@ class MeTTa:
     def save(self, path: str, format: str = "metta") -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
-        format="fast"; answers how many. Atoms carrying live host objects
-        cannot survive either file and are refused."""
+        format="fast"; answers how many. A path ending .gz writes gzip
+        compressed in either format, and load and import! read it back
+        under the same name. Atoms carrying live host objects cannot
+        survive either file and are refused."""
         if format not in ("metta", "fast"):
             raise ValueError(
                 f"save format must be 'metta' or 'fast', got {format!r}"
@@ -314,15 +327,17 @@ class MeTTa:
                     f"hold it. Remove it, or persist its data explicitly."
                 )
             lines.append(str(atom))
-        with open(path, "w") as handle:
+        with _open_maybe_gz(str(path), "wt") as handle:
             handle.write("\n".join(lines) + ("\n" if lines else ""))
         return len(atoms)
 
     def load(self, path: str) -> list[list[Atom]]:
-        """Load a text program or an auto-detected trusted fast cache."""
+        """Load a text program or an auto-detected trusted fast cache,
+        gzip-compressed or plain; a .gz path sniffs and reads through
+        the decompressed bytes."""
         file = str(path)
         try:
-            with open(file, "rb") as handle:
+            with _open_maybe_gz(file, "rb") as handle:
                 is_fast = handle.read(len(b"PETTA-CACHE\t")) == b"PETTA-CACHE\t"
         except OSError:
             is_fast = False
@@ -338,7 +353,7 @@ class MeTTa:
         expected_text = self._rt.apply_must("petta_py_fast_header")
         expected = str(expected_text).encode("ascii")
         try:
-            with open(path, "rb") as handle:
+            with _open_maybe_gz(path, "rb") as handle:
                 actual = handle.readline(512)
         except OSError as exc:
             raise EngineError(

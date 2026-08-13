@@ -117,6 +117,46 @@ def test_fast_load_reports_a_truncated_payload(metta, tmp_path):
         assert target.count() == 0
 
 
+def test_gz_round_trips_both_formats_and_import(metta, tmp_path):
+    text_gz = tmp_path / "corpus.metta.gz"
+    fast_gz = tmp_path / "corpus.fast.gz"
+    with (
+        metta.fresh_space() as source,
+        metta.fresh_space() as from_text,
+        metta.fresh_space() as from_fast,
+        metta.fresh_space() as imported,
+    ):
+        source.run("(gz-fact one) (gz-fact two) (= (gz-next $x) (+ $x 1))")
+        assert source.save(text_gz) == 3
+        assert source.save(fast_gz, format="fast") == 3
+        raw = text_gz.read_bytes()
+        assert raw[:2] == b"\x1f\x8b"  # really gzip on disk
+        assert b"gz-fact" not in raw  # compressed, not plain text
+        assert from_text.load(text_gz) == []
+        assert from_fast.load(fast_gz) == []
+        for target in (from_text, from_fast):
+            assert [row.x for row in target.query(S["gz-fact"](V.x))] == [
+                S.one,
+                S.two,
+            ]
+            assert target.run("!(gz-next 41)") == [[42]]
+        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [
+            [True]
+        ]
+        assert [row.x for row in imported.query(S["gz-fact"](V.x))] == [
+            S.one,
+            S.two,
+        ]
+
+
+def test_corrupt_gz_is_loud_and_names_the_file(metta, tmp_path):
+    bad = tmp_path / "broken.metta.gz"
+    bad.write_bytes(b"\x1f\x8bnot really gzip")
+    with metta.fresh_space() as target, pytest.raises(EngineError) as caught:
+        target.load(bad)
+    assert str(bad) in str(caught.value)
+
+
 def test_fast_file_starts_with_the_magic_header(m, tmp_path):
     path = tmp_path / "header.fast"
     m.add(S.header(S.fact))
