@@ -78,8 +78,12 @@ class _EngineThread:
                 pkg.janus.attach_engine()
                 self._swi_thread = pkg.janus.engine()
             except BaseException as exc:
+                # Bind to an ordinary local: Python deletes the except
+                # target when the block exits, and the deferred lambda
+                # would find the name unbound instead of the exception.
+                failure = exc
                 loop.call_soon_threadsafe(
-                    lambda: started.done() or started.set_exception(exc)
+                    lambda: started.done() or started.set_exception(failure)
                 )
                 return
             loop.call_soon_threadsafe(
