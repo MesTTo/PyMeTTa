@@ -35,7 +35,8 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
 %A foreign space stores whatever its provider stores, equations included as
 %plain atoms; the hook owns the write entirely:
 'add-atom'(Space, Term, true) :- metta_foreign_space(Space), !,
-                                 metta_foreign_add(Space, Term).
+                                 metta_foreign_add(Space, Term),
+                                 forall(metta_on_atom_added(Space, Term), true).
 
 %Add a function atom:
 'add-atom'(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
@@ -50,13 +51,18 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                  assertz(translated_from(Ref, Term)),
                                  forall(metta_on_function_changed(FAtom), true),
                                  invalidate_specializations(FAtom),
+                                 forall(metta_on_atom_added(Space, Term), true),
                                  maybe_print_compiled_clause("added function", Term, Clause).
 
 %Add an atom to the space:
-'add-atom'(Space, Term, true) :- add_sexp(Space, Term).
+'add-atom'(Space, Term, true) :- add_sexp(Space, Term),
+                                 forall(metta_on_atom_added(Space, Term), true).
 
 'remove-atom'(Space, Term, Removed) :- metta_foreign_space(Space), !,
-                                       metta_foreign_remove(Space, Term, Removed).
+                                       metta_foreign_remove(Space, Term, Removed),
+                                       ( Removed == true
+                                         -> forall(metta_on_atom_removed(Space, Term), true)
+                                         ; true ).
 
 %%Remove a function atom:
 'remove-atom'(Space, Term, Removed) :- Term = [=,[F|Args],Body], !,
@@ -77,10 +83,13 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                          -> retractall(fun(F)), retractall(fun_in(_, F)),
                                             forall(metta_on_function_removed(F), true)
                                          ; true ),
-                                       ( Refs = [] -> Removed = false ; Removed = true ).
+                                       ( Refs = [] -> Removed = false
+                                       ; Removed = true,
+                                         forall(metta_on_atom_removed(Space, Term), true) ).
 
 %Remove all same atoms:
-'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term).
+'remove-atom'(Space, Term, true) :- remove_sexp(Space, Term),
+                                    forall(metta_on_atom_removed(Space, Term), true).
 
 %Match against a foreign space: the provider enumerates candidates and the
 %pattern unifies here, so soundness stays the engine's however approximate
