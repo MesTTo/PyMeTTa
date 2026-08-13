@@ -150,7 +150,7 @@ def test_constructor_convention_capitalized_names(m):
         ("def f(x):\n    return {1: x}", "dict"),
         ("def f(x):\n    return f'{x}!'", "f-string"),
         ("def f(x):\n    return unknown_lowercase(x)", "not a parameter"),
-        ("def f(x, y=1):\n    return x", "default"),
+        ("def f(x, y=[]):\n    return x", "literal"),
     ],
 )
 def test_refusals_name_construct_and_line(m, source, needle):
@@ -207,3 +207,51 @@ def test_modulo_matches_python_on_signs(metta):
     for a, b in [(-7, 3), (5, -2), (7, 3), (-5, -2)]:
         (engine_answer,) = metta.eval(dmod(a, b))
         assert engine_answer == dmod.py(a, b) == a % b
+
+
+def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
+    """def fib(n=0) is the equation matching 0; definition order is clause
+    order; the engine dispatches between the stacked clauses."""
+
+    @m.define
+    def dfib(n=0):
+        return 0
+
+    @m.define
+    def dfib(n=1):  # noqa: F811  stacking is the point
+        return 1
+
+    @m.define
+    def dfib(n):  # noqa: F811
+        return dfib(n - 1) + dfib(n - 2)
+
+    assert m.run("!(dfib 0)") == [[0]]
+    assert m.run("!(dfib 1)") == [[1]]
+    assert m.run("!(dfib 10)") == [[55]]
+
+    # A literal clause's twin guards its own head; dispatch is the engine's.
+    @m.define
+    def donly(n=5):
+        return 99
+
+    assert donly.py(5) == 99
+    assert "(= (donly 5) 99)" == donly.source()
+    with pytest.raises(LookupError):
+        donly.py(4)
+
+
+def test_annotations_declare_types_for_defines(m):
+    @m.define
+    def dtyped(x: int) -> int:
+        return x + 1
+
+    assert m.run("!(get-type (dtyped 1))") == [[S.Number]]
+
+
+def test_engine_functions_feel_like_python(m):
+    m.run("(= (dtriple $x) (* $x 3))")
+    triple = m.fn("dtriple")
+    assert triple(14) == 42
+    assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
+    with pytest.raises(ValueError):
+        m.fn("superpose")(expr(1, 2))  # two answers is not one

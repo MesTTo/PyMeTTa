@@ -285,6 +285,43 @@ class Gnd(Atom):
             return hash(self.value)
         return hash(("gnd", id(self.value)))
 
+    # Grounded primitives order like their values, so answers sort and
+    # compare with plain numbers: max(rows.column("age")) and Gnd(7) >= 5
+    # both mean what they read as. Anything else refuses loudly.
+
+    def _ordered(self, other: Any):
+        mine = self.value
+        theirs = other.value if isinstance(other, Gnd) else other
+        if _is_primitive(mine) and _is_primitive(theirs) and not (
+            isinstance(mine, str) != isinstance(theirs, str)
+        ):
+            return mine, theirs
+        return None
+
+    def __lt__(self, other: Any) -> bool:
+        pair = self._ordered(other)
+        if pair is None:
+            return NotImplemented
+        return pair[0] < pair[1]
+
+    def __le__(self, other: Any) -> bool:
+        pair = self._ordered(other)
+        if pair is None:
+            return NotImplemented
+        return pair[0] <= pair[1]
+
+    def __gt__(self, other: Any) -> bool:
+        pair = self._ordered(other)
+        if pair is None:
+            return NotImplemented
+        return pair[0] > pair[1]
+
+    def __ge__(self, other: Any) -> bool:
+        pair = self._ordered(other)
+        if pair is None:
+            return NotImplemented
+        return pair[0] >= pair[1]
+
     def __str__(self) -> str:
         v = self.value
         if isinstance(v, bool):

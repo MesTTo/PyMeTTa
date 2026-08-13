@@ -61,6 +61,8 @@ class MeTTa:
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
         self._space = space
+        self._declared_defines: dict[str, bool] = {}
+        self._define_clauses: dict[str, list[dict]] = {}
 
     # ------------------------------------------------------------------ naming
 
@@ -331,12 +333,53 @@ class MeTTa:
         variables.
         """
         from .define import Defined, compile_function
+        from .errors import CompileError
+        from .ops import metta_type_for
 
-        params, body, twin = compile_function(fn, known=self.is_function)
+        params, patterns, body, twin = compile_function(fn, known=self.is_function)
         name = fn.__name__
-        head = Expr([Sym(name), *(Var(p) for p in params)])
+        earlier = self._define_clauses.setdefault(name, [])
+        if patterns and any(not e for e in earlier):
+            raise CompileError(
+                f"a clause of {name} with a literal head comes after the "
+                f"general clause, which already matches everything; define "
+                f"the general clause last",
+                construct="clause order",
+            )
+        # MeTTa equations are alternatives, and a Python author stacking
+        # clauses means first-match, so each clause is guarded against every
+        # earlier literal head it would otherwise also answer for. The guard
+        # is ordinary MeTTa, visible in .source(), never a hidden rule.
+        body = _guard_against(body, earlier, patterns, params)
+        earlier.append(dict(patterns))
+        head = Expr(
+            [Sym(name), *(patterns.get(p, Var(p)) for p in params)]
+        )
         self.add(Expr([Sym("="), head, body]))
-        return Defined(name, params, body, twin, self)
+        # Annotations declare the type, exactly as they do for operations,
+        # once per name so stacked clauses do not repeat the declaration.
+        annotated = fn.__annotations__
+        if any(k != "return" for k in annotated) and not self._declared_defines.get(name):
+            arg_types = [
+                Sym(metta_type_for(annotated[p])) if p in annotated else Sym("%Undefined%")
+                for p in params
+            ]
+            ret = Sym(metta_type_for(annotated["return"])) if "return" in annotated else Sym("%Undefined%")
+            self.add(Expr([Sym(":"), Sym(name), Expr([Sym("->"), *arg_types, ret])]))
+            self._declared_defines[name] = True
+        return Defined(name, params, body, twin, self, patterns=patterns)
+
+    def fn(self, name: str) -> "_EngineFunction":
+        """Any engine function as an ordinary Python callable.
+
+            car = m.fn("car-atom")
+            car(m.parse("(1 2 3)"))     # 1
+            m.fn("superpose").all(expr(1, 2, 3))   # [1, 2, 3]
+
+        Calling expects exactly one answer and raises otherwise, the loud
+        reading; .all returns every answer, nondeterminism included.
+        """
+        return _EngineFunction(self, name)
 
     # ---------------------------------------------------------- integrations
 
@@ -366,3 +409,58 @@ class MeTTa:
     def runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
+
+
+def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> Atom:
+    """The current clause's body, declining every earlier literal head.
+
+    For each earlier clause, the inputs it claims are the positions it fixed
+    with literals; when this clause leaves all of those positions variable,
+    the two overlap, and this clause answers (empty) there, so dispatch reads
+    first-match the way the stacked Python reads.
+    """
+    from .atoms import Gnd
+
+    for earlier_patterns in earlier:
+        if not earlier_patterns:
+            continue
+        overlapping = all(
+            p not in patterns or patterns[p] == v for p, v in earlier_patterns.items()
+        )
+        contested = [p for p in earlier_patterns if p not in patterns]
+        if not overlapping or not contested:
+            continue
+        condition: Atom | None = None
+        for p in contested:
+            test = Expr([Sym("=="), Var(p), earlier_patterns[p]])
+            condition = test if condition is None else Expr([Sym("and"), condition, test])
+        body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
+    return body
+
+
+class _EngineFunction:
+    """One engine function, callable the way Python callables are."""
+
+    __slots__ = ("_space", "_name")
+
+    def __init__(self, space: MeTTa, name: str) -> None:
+        self._space = space
+        self._name = name
+
+    def _term(self, args: tuple) -> Expr:
+        return Expr([Sym(self._name), *(encode(a) for a in args)])
+
+    def __call__(self, *args: Any) -> Any:
+        answers = self._space.eval(self._term(args))
+        if len(answers) != 1:
+            raise ValueError(
+                f"({self._name} ...) answered {len(answers)} results; calling "
+                f"expects exactly one. Use .all(...) for every answer."
+            )
+        return answers[0]
+
+    def all(self, *args: Any) -> list:
+        return self._space.eval(self._term(args))
+
+    def __repr__(self) -> str:
+        return f"<engine function {self._name} on {self._space.space_name}>"

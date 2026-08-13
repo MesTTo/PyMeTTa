@@ -82,11 +82,13 @@ class Defined:
     m.eval(fact(5)) against fact.py(5), for every ground input.
     """
 
-    __slots__ = ("name", "params", "body", "_py", "space", "doc", "__name__", "__wrapped__")
+    __slots__ = ("name", "params", "patterns", "body", "_py", "space", "doc", "__name__", "__wrapped__")
 
-    def __init__(self, name: str, params: list[str], body: Atom, py: Callable, space: Any):
+    def __init__(self, name: str, params: list[str], body: Atom, py: Callable, space: Any,
+                 patterns: dict[str, Atom] | None = None):
         self.name = name
         self.params = params
+        self.patterns = dict(patterns or {})
         self.body = body
         self._py = py
         self.space = space
@@ -106,7 +108,9 @@ class Defined:
 
     @property
     def head(self) -> Expr:
-        return Expr([Sym(self.name), *(Var(p) for p in self.params)])
+        return Expr(
+            [Sym(self.name), *(self.patterns.get(p, Var(p)) for p in self.params)]
+        )
 
     def source(self) -> str:
         """The equation as MeTTa source."""
@@ -145,8 +149,11 @@ def compile_function(fn: Callable, known: Callable[[str], bool]) -> tuple[list[s
             line=definition.lineno,
         )
 
-    params = _parameters(definition)
-    compiler = _Compiler(fn.__name__, params, known)
+    params, patterns = _parameters(definition)
+    # A literal-patterned position is fixed by the head, so it is not a
+    # variable in the body's scope; naming it there would shadow the match.
+    scope = [p for p in params if p not in patterns]
+    compiler = _Compiler(fn.__name__, scope, known)
     if _is_generator(definition):
         # A generator is nondeterminism: each yield is one answer, which is
         # exactly what superpose spells; branches contribute their own
@@ -155,7 +162,7 @@ def compile_function(fn: Callable, known: Callable[[str], bool]) -> tuple[list[s
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
-    return params, body, _python_twin(fn)
+    return params, patterns, body, _python_twin(fn, patterns)
 
 
 def _is_generator(node: ast.FunctionDef) -> bool:
@@ -165,7 +172,19 @@ def _is_generator(node: ast.FunctionDef) -> bool:
     return False
 
 
-def _parameters(node: ast.FunctionDef) -> list[str]:
+def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
+    """Parameter names, plus head patterns spelled as literal defaults.
+
+    A literal default is not a Python default here: it is the equation's head
+    pattern for that position, so stacked definitions read as clauses:
+
+        def fib(n=0): return 0
+        def fib(n=1): return 1
+        def fib(n):   return fib(n - 1) + fib(n - 2)
+
+    Clause order is definition order, the engine's own rule. A non-literal
+    default stays refused, since an arbitrary object has no head pattern.
+    """
     a = node.args
     if a.vararg or a.kwarg or a.kwonlyargs or a.posonlyargs:
         raise CompileError(
@@ -174,19 +193,30 @@ def _parameters(node: ast.FunctionDef) -> list[str]:
             construct="arguments",
             line=node.lineno,
         )
-    if a.defaults:
-        raise CompileError(
-            "a compiled function has no default arguments; an equation's head "
-            "is one arity. Define two functions, or register an operation.",
-            construct="defaults",
-            line=node.lineno,
-        )
-    return [arg.arg for arg in a.args]
+    params = [arg.arg for arg in a.args]
+    patterns: dict[str, Atom] = {}
+    for arg, default in zip(reversed(a.args), reversed(a.defaults)):
+        if not (isinstance(default, ast.Constant) and isinstance(default.value, (bool, int, float, str))):
+            raise CompileError(
+                "a default here is a head pattern, so it must be a literal: "
+                "def fib(n=0) makes an equation matching 0. For an optional "
+                "argument, define two functions or register an operation.",
+                construct="defaults",
+                line=node.lineno,
+            )
+        patterns[arg.arg] = Gnd(default.value)
+    return params, patterns
 
 
-def _python_twin(fn: Callable) -> Callable:
+def _python_twin(fn: Callable, patterns: dict[str, Atom] | None = None) -> Callable:
     """The same body with the function's own name bound to itself, so
-    recursion inside the twin reaches the twin rather than the term builder."""
+    recursion inside the twin reaches the twin rather than the term builder.
+
+    A clause with literal head patterns twins per clause: its guard raises
+    LookupError when an argument misses the pattern, since dispatch between
+    clauses belongs to the engine and the twin only answers for inputs its
+    own head matches.
+    """
     globals_ = dict(fn.__globals__)
     name = fn.__name__
     closure = fn.__closure__
@@ -206,7 +236,26 @@ def _python_twin(fn: Callable) -> Callable:
     globals_[name] = twin
     if cell is not None:
         cell.cell_contents = twin
-    return twin
+    if not patterns:
+        return twin
+
+    import inspect as _inspect
+
+    order = list(_inspect.signature(fn).parameters)
+
+    def guarded(*args):
+        for position, value in zip(order, args):
+            expected = patterns.get(position)
+            if expected is not None and expected != value:
+                raise LookupError(
+                    f"{name}: this clause's head matches {position}={expected}, "
+                    f"not {value!r}; the engine dispatches between clauses"
+                )
+        return twin(*args)
+
+    guarded.__name__ = name
+    guarded.__doc__ = fn.__doc__
+    return guarded
 
 
 class _Compiler(ast.NodeVisitor):

@@ -38,6 +38,7 @@ class _Registration(NamedTuple):
     from_atom: Callable[..., Any] | None
     type_name: str
     fields: tuple[str, ...]
+    field_types: tuple = ()
 
 
 # type -> registration, consulted before the defaults.
@@ -118,6 +119,7 @@ def _default_registration(cls: type) -> _Registration | None:
             lambda *parts: cls(*parts),
             cls.__name__,
             names,
+            _field_types(cls, names),
         )
     if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # NamedTuple
         names = tuple(cls._fields)
@@ -127,8 +129,21 @@ def _default_registration(cls: type) -> _Registration | None:
             lambda *parts: cls(*parts),
             cls.__name__,
             names,
+            _field_types(cls, names),
         )
     return None
+
+
+def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
+    """Declared field classes, for rebuilding parts that need their class,
+    an Enum member above all; unresolvable annotations stay None."""
+    try:
+        import typing
+
+        hints = typing.get_type_hints(cls)
+    except Exception:
+        return tuple(None for _ in names)
+    return tuple(hints.get(n) if isinstance(hints.get(n), type) else None for n in names)
 
 
 def project(value: Any) -> Projected:
@@ -300,6 +315,8 @@ def build(atom: Atom, cls: type | None = None) -> Any:
                 hit = (cls, registration)
         if hit is not None:
             target_cls, registration = hit
+            kinds = registration.field_types or tuple(None for _ in atom.args)
+            parts = [build(c, k) for c, k in zip(atom.args, kinds)]
             if registration.from_atom is None:
                 hook = getattr(target_cls, "__from_metta__", None)
                 if hook is None:
@@ -307,8 +324,8 @@ def build(atom: Atom, cls: type | None = None) -> Any:
                         f"{target_cls.__name__} has no from_atom and no "
                         f"__from_metta__; register the reverse to rebuild it"
                     )
-                return hook(*(build(c) for c in atom.args))
-            return registration.from_atom(*(build(c) for c in atom.args))
+                return hook(*parts)
+            return registration.from_atom(*parts)
     hook_cls = cls or None
     if hook_cls is not None:
         hook = getattr(hook_cls, "__from_metta__", None)
