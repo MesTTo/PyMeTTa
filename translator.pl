@@ -428,8 +428,14 @@ translate_pattern([H|T], [P|Ps]) :- !, translate_pattern(H, P),
 
 % Constructs the goal for a single branch of an if-then-else/case.
 build_branch(true, Val, Out, (Out = Val)) :- !.
-build_branch(Con, Val, Out, Goal) :- var(Val) -> Val = Out, Goal = Con
-                                               ; Goal = (Val = Out, Con).
+%A variable-valued branch unifies with the output at RUNTIME, inside the
+%branch. Unifying at translate time (Val = Out) is only sound when Val is
+%private to the branch, and it is not when the branch's value is a clause
+%parameter (an if arm of (let* (($c $a)) $a) collapses to the parameter $a):
+%aliasing the head's output with the parameter makes the other arm's
+%unification corrupt it, so the clause fails wherever that arm runs.
+build_branch(Con, Val, Out, (Con, Out = Val)) :- var(Val), !.
+build_branch(Con, Val, Out, (Val = Out, Con)).
 
 %Translate case expression recursively into nested if:
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
