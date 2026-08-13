@@ -733,3 +733,25 @@ def test_profile_counts_samples_on_real_work(m):
     assert isinstance(predicate, str) and ticks_self >= 0
     assert prof.top(1) == prof.nodes[:1]
     assert "samples" in repr(prof)
+
+
+def test_regex_matcher_is_the_crisp_lexical_modality(m):
+    from petta import matching
+
+    matching.install_regex(m, name="rxm-t", lexicon=["alpha", "beta", "abbey"])
+    (matches,) = m.eval('(collapse (rxm-t "^a" $w))')
+    assert sorted(pair[1].value for pair in matches) == ["abbey", "alpha"]
+    assert all(pair[0] == 1.0 for pair in matches)
+    assert m.eval('(rxm-t "^a" "abbey")') == [expr(1.0, "abbey")]
+    assert m.eval('(rxm-t "^z" "abbey")') == []  # crisp: no answer below one
+
+
+def test_similar_pattern_declares_symbol_families(metta):
+    import petta_soft as soft
+
+    space = _soft_space(metta)
+    space.add(expr(S["fam-a"], S.x), expr(S["fam-b"], S.y))
+    landed = soft.similar_pattern(space, r"^fam-", "fam-canon", 0.8)
+    assert landed == 2
+    assert space.eval("(sym-sim fam-a fam-canon)") == [0.8]
+    assert space.eval("(sym-sim fam-canon fam-b)") == [0.8]  # both ways
