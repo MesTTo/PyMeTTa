@@ -23,6 +23,9 @@ with a message when the dependency is absent.
 | 09_the_routing_frame | dispatch as equations, the catch-all as the 404 |
 | 10_evolution_in_a_space | a population as a space; generations as rewriting |
 | 11_pln_uncertain_reasoning | the engine's PLN library driven from Python |
+| 12_standing_queries | actors and pub-sub: mailboxes as spaces, delivery inside the write |
+| 13_custom_matchers | fuzzy and semantic matchers feeding the measure algebra |
+| 14_soft_unification | Sessa's weak unification: match quality as a measure over terms |
 
 The frame behind the folder: MeTTa's semantics subsume the concepts these
 systems are made of. Functions are grounded functions and a call is a
@@ -30,5 +33,7 @@ reduction; stateful objects are grounded atoms with identity; tables,
 caches and populations are spaces and a query is a match; dispatch is
 equations with the catch-all last; generators, search and retrieval are
 nondeterminism; schemas are constructors with declarations; structure is
-facts rules match over. An integration maps a library onto that, and the
-toolkit in `petta.integrate` makes the mapping a page of code.
+facts rules match over; subscriptions are standing queries; closeness of
+any kind is a matcher whose answers carry a measure. An integration maps a
+library onto that, and the toolkit in `petta.integrate` makes the mapping
+a page of code.
