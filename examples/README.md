@@ -25,6 +25,7 @@ with a message when the dependency is absent.
 | 14_soft_unification | Sessa's weak unification and goal-directed soft proving over terms |
 | 15_web_routes | FastAPI's routing semantics: the table is facts, dispatch is unification |
 | 16_multishot_solving | clingo's multi-shot loop: parts ground incrementally, externals toggle |
+| 17_bounds_stats_capture | per-call time and inference bounds, engine stats, captured output |
 
 Numbers 06 to 08 are the torch examples; they live in the `pettorch`
 repository beside this one, keeping their names.
