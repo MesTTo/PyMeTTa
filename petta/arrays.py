@@ -374,13 +374,23 @@ class EmbeddingStore:
     first; (name-embed $key) answers the stored vector or nothing.
     """
 
-    def __init__(self, m, name: str = "emb", mirror: bool = True) -> None:
+    def __init__(
+        self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"
+    ) -> None:
+        if backend not in ("auto", "argsort", "faiss"):
+            raise PettaError(
+                f"backend is auto, argsort or faiss, not {backend!r}"
+            )
+        if backend == "faiss":
+            import faiss  # noqa: F401  requested explicitly: fail here if absent
         self._m = m
         self._name = name
         self._mirror = mirror
+        self._backend = backend
         self._keys: list[Atom] = []
         self._vectors: list[Any] = []
         self._matrix = None
+        self._index = None
 
         def knn(query, k) -> Iterator[Any]:
             yield from self._search(decode(query), int(decode(k)))
@@ -404,6 +414,7 @@ class EmbeddingStore:
         self._keys.append(atom)
         self._vectors.append(vector)
         self._matrix = None
+        self._index = None
         if self._mirror:
             self._m.add(Expr([S.embedding, atom, val(vector)]))
 
@@ -420,9 +431,7 @@ class EmbeddingStore:
                 return vector
         raise KeyError(f"no embedding stored for {atom}")
 
-    def _search(self, query: Any, k: int):
-        if not self._keys:
-            return
+    def _normalized_query(self, query: Any):
         xp = namespace_of(self._vectors[0])
         if self._matrix is None:
             rows = [
@@ -436,10 +445,81 @@ class EmbeddingStore:
         if type(q) is not type(self._vectors[0]):
             q = xp.from_dlpack(q)
         q = xp.reshape(xp.astype(q, xp.float32), (-1,))
-        q = q / xp.sqrt(xp.sum(q * q))
+        return xp, q / xp.sqrt(xp.sum(q * q))
+
+    def _use_faiss(self) -> bool:
+        if self._backend == "argsort":
+            return False
+        if self._backend == "faiss":
+            return True
+        try:
+            import faiss  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
+    def ranked(self, query: Any, k: int):
+        """(key atom, cosine) pairs best first: the raw retrieval every
+        surface (knn, the matcher) formats its own way. With faiss present
+        (or asked for), an exact IndexFlatIP over the normalized matrix
+        answers, byte-agreeing with the argsort path by a differential
+        test; argsort otherwise."""
+        if not self._keys:
+            return
+        xp, q = self._normalized_query(self._resolve(query))
+        count = min(k, len(self._keys))
+        if self._use_faiss():
+            import faiss
+            import numpy
+
+            if self._index is None:
+                matrix = numpy.ascontiguousarray(
+                    numpy.asarray(self._matrix, dtype=numpy.float32)
+                )
+                self._index = faiss.IndexFlatIP(matrix.shape[1])
+                self._index.add(matrix)
+            probe = numpy.ascontiguousarray(
+                numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
+            )
+            scores, indexes = self._index.search(probe, count)
+            for score, index in zip(scores[0], indexes[0]):
+                yield self._keys[int(index)], round(float(score), 6)
+            return
         scores = self._matrix @ q
         order = xp.argsort(scores)
-        count = min(k, len(self._keys))
         for i in range(count):
             index = int(order[-(i + 1)])
-            yield expr(self._keys[index], round(float(scores[index]), 6))
+            yield self._keys[index], round(float(scores[index]), 6)
+
+    def _search(self, query: Any, k: int):
+        for key, score in self.ranked(query, k):
+            yield expr(key, score)
+
+    def _resolve(self, query: Any) -> Any:
+        """A query as a vector: an array or sequence stands as itself, a
+        stored key answers its vector."""
+        if is_array(query) or isinstance(query, (list, tuple)):
+            return query
+        return self.vector_for(query)
+
+    def matcher(self, name: str = "semmatch", threshold: float = 0.0) -> str:
+        """This store as a first-class matcher: (name $q $key) scores a
+        candidate by cosine, (name $q $unbound) generates best first, both
+        answering (score value) pairs for the measure algebra. The
+        embedding-similarity move of neural theorem proving, packaged."""
+        from . import matching
+
+        def score(query: Any, candidate: Any) -> float:
+            a = self._resolve(query)
+            b = self._resolve(candidate)
+            xp, qa = self._normalized_query(a)
+            _, qb = self._normalized_query(b)
+            return round(float(xp.sum(qa * qb)), 6)
+
+        def generate(query: Any):
+            yield from self.ranked(query, len(self._keys))
+
+        return matching.matcher(
+            self._m, name, score=score, generate=generate, threshold=threshold
+        )

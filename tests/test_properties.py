@@ -26,8 +26,10 @@ _name = st.text(
     min_size=1,
     max_size=12,
 ).filter(
+    # "_" is the anonymous variable, fresh at every occurrence by contract,
+    # so it cannot appear in round-trip properties that expect sharing.
     lambda s: s[0] not in "$&-<>=+*?0123456789"
-    and s not in ("True", "False", "true", "false")
+    and s not in ("True", "False", "true", "false", "_")
 )
 
 _numbers = st.one_of(

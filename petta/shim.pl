@@ -152,6 +152,36 @@ petta_py_ensure_working_dir :-
     ; working_directory(Dir, Dir),
       assertz(working_dir(Dir)) ).
 
+%Run with named host values: each Name-Value pair substitutes the bare
+%symbol Name throughout the parsed forms before anything runs, the local-
+%variable reading a dataframe gets in embedded SQL. Values arrive on the
+%wire, objects boxed, so identity crosses whole.
+petta_py_run_using(Source, Space, Pairs, Groups) :-
+    petta_py_ensure_working_dir,
+    ( string(Source) -> S = Source ; atom_string(Source, S) ),
+    string_codes(S, Cs),
+    strip(Cs, 0, Codes),
+    petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
+                          maplist(parse_form, Forms, Parsed0) )),
+    maplist(petta_py_using_pair, Pairs, Bindings),
+    maplist(petta_py_substitute_form(Bindings), Parsed0, Parsed),
+    petta_py_process_forms(Parsed, Space, Groups), !.
+
+petta_py_using_pair([Name0, Wire], Name-Value) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    petta_py_decode_shared(Wire, Value, _).
+
+petta_py_substitute_form(Bindings, parsed(Kind, N, Term0), parsed(Kind, N, Term)) :- !,
+    petta_py_substitute(Bindings, Term0, Term).
+petta_py_substitute_form(Bindings, Term0, Term) :-
+    petta_py_substitute(Bindings, Term0, Term).
+
+petta_py_substitute(_, T, T) :- var(T), !.
+petta_py_substitute(Bindings, T, V) :- atom(T), memberchk(T-V, Bindings), !.
+petta_py_substitute(Bindings, T, Out) :- is_list(T), !,
+    maplist(petta_py_substitute(Bindings), T, Out).
+petta_py_substitute(_, T, T).
+
 petta_py_process_forms([], _, []).
 petta_py_process_forms([P|Ps], Space, Out) :-
     process_form(Space, P, Results),
@@ -595,6 +625,36 @@ petta_py_register_foreign(Space0) :-
 petta_py_unregister_foreign(Space0) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     retractall(petta_py_foreign(Space)).
+
+%%%%%%%%%% Subscriptions %%%%%%%%%%
+%
+% Standing queries: when Python has subscribers, every space write crosses
+% to petta_ops for pattern matching and callbacks, synchronously, inside
+% the write. The guard is one dynamic flag, so an unsubscribed process
+% pays a single failed lookup per write and nothing more.
+
+:- multifile metta_on_atom_added/2.
+:- multifile metta_on_atom_removed/2.
+:- dynamic petta_py_subscriptions_on/0.
+
+metta_on_atom_added(Space, Term) :-
+    petta_py_subscriptions_on,
+    atom(Space),
+    petta_py_encode(Term, W),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:atom_added(SpaceStr, W), _).
+
+metta_on_atom_removed(Space, Term) :-
+    petta_py_subscriptions_on,
+    atom(Space),
+    petta_py_encode(Term, W),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:atom_removed(SpaceStr, W), _).
+
+petta_py_subscriptions(Enabled) :-
+    ( Enabled == true
+      -> ( petta_py_subscriptions_on -> true ; assertz(petta_py_subscriptions_on) )
+    ; retractall(petta_py_subscriptions_on) ).
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %

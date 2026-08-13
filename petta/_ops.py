@@ -151,6 +151,18 @@ def foreign_clear(space):
     return impl(space)
 
 
+def atom_added(space, wire):
+    from .subscribe import atom_added as impl
+
+    return impl(space, wire)
+
+
+def atom_removed(space, wire):
+    from .subscribe import atom_removed as impl
+
+    return impl(space, wire)
+
+
 def type_names(obj: Any) -> list[str]:
     """Every type name an object carries, for the engine's typing bridge:
     its classes in resolution order short of object, then every satisfied

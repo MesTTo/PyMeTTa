@@ -79,6 +79,13 @@ class Rows(list):
         index = self.columns.index(name)
         return [row[index] for row in self]
 
+    def build(self, column: str, cls: type) -> list[Any]:
+        """One column's atoms rebuilt as instances of cls, through the
+        two-way translator: typed rows, one call."""
+        from . import convert
+
+        return [convert.build(value, cls) for value in self.column(column)]
+
     def __repr__(self) -> str:
         header = ", ".join(self.columns)
         return f"Rows[{header}]({super().__repr__()})"

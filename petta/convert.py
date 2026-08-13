@@ -22,6 +22,7 @@ from .atoms import Atom, Expr, Gnd, S, Sym, decode, encode, val
 
 __all__ = [
     "register_type",
+    "ensure_registered",
     "project",
     "build",
     "declarations",
@@ -105,6 +106,26 @@ def register_type(
         _CONSTRUCTORS[type_name] = (cls, registration)
     _REGISTRY[cls] = registration
     return cls
+
+
+def ensure_registered(cls: type) -> _Registration:
+    """The registration this class projects through, defaults memoized: an
+    Enum, dataclass or NamedTuple gets its default image recorded exactly
+    as a first projection would record it; anything else must have been
+    registered and says so."""
+    registration = _lookup(cls)
+    if registration is None:
+        registration = _default_registration(cls)
+        if registration is None:
+            raise TypeError(
+                f"{cls.__name__} has no default image (not an Enum, "
+                f"dataclass or NamedTuple); teach the translator with "
+                f"register_type(...)"
+            )
+        _REGISTRY[cls] = registration
+        if registration.image == "expression":
+            _CONSTRUCTORS[registration.type_name] = (cls, registration)
+    return registration
 
 
 def _lookup(cls: type) -> _Registration | None:

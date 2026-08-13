@@ -141,16 +141,52 @@ class MeTTa:
 
     # ----------------------------------------------------------------- running
 
-    def run(self, source: str) -> list[list[Atom]]:
+    def run(self, source: str, using: dict[str, Any] | None = None) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
 
         The pipeline is the engine's own reader, compiler and evaluator, so
         the answers are exactly what the CLI would print, kept grouped per
         directive instead of flattened. Equations and facts in the source
         land in this space.
+
+        `using` names Python values the source refers to by bare symbol,
+        the way DuckDB reads a local dataframe by its variable name:
+
+            m.run("!(py-len graph)", using={"graph": my_graph})
+
+        Each named symbol substitutes to its value (objects by identity),
+        after reading, before anything runs.
         """
-        row = self._rt.must("petta_py_run(Src, Space, Groups)", Src=source, Space=self._space)
+        if not using:
+            row = self._rt.must(
+                "petta_py_run(Src, Space, Groups)", Src=source, Space=self._space
+            )
+        else:
+            pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
+            row = self._rt.must(
+                "petta_py_run_using(Src, Space, Pairs, Groups)",
+                Src=source,
+                Space=self._space,
+                Pairs=pairs,
+            )
         return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
+
+    def save(self, path: str) -> int:
+        """Write every stored atom of this space, equations included, as
+        MeTTa source load() reads back; answers how many. Atoms carrying
+        live host objects cannot survive a file and are refused."""
+        atoms = self.atoms()
+        lines = []
+        for atom in atoms:
+            if not _serializable(atom):
+                raise ValueError(
+                    f"{atom} carries a live Python object; a file cannot "
+                    f"hold it. Remove it, or persist its data explicitly."
+                )
+            lines.append(str(atom))
+        with open(path, "w") as handle:
+            handle.write("\n".join(lines) + ("\n" if lines else ""))
+        return len(atoms)
 
     def load(self, path: str) -> list[list[Atom]]:
         """Load a .metta file the way the CLI does, working directory included."""
@@ -340,6 +376,35 @@ class MeTTa:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
         row = self._rt.once("petta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
+
+    # ----------------------------------------------------------- subscriptions
+
+    def subscribe(
+        self,
+        pattern: Any,
+        callback: Callable | None = None,
+        *,
+        on: str = "add",
+    ):
+        """A standing query on this space: every added (or removed, or
+        both) atom unifying with the pattern becomes an Event.
+
+            seen = []
+            sub = m.subscribe(S.order(V.id), lambda e: seen.append(e))
+            m.add(S.order(1))          # seen[0].bindings["id"] == 1
+            sub.cancel()
+
+        With a callback, delivery is synchronous, inside the write that
+        caused it (the callback may write back; the engine re-enters
+        cleanly; an infinite add-triggers-add loop is the author's own).
+        Without one, events queue on the subscription and drain() empties
+        them: the mailbox reading. Removal events for plain atoms may fire
+        for atoms that were never stored, since the engine's removal is
+        retractall; re-check the space rather than trust the event.
+        """
+        from .subscribe import subscribe as _subscribe
+
+        return _subscribe(self._rt, self._space, _to_atom(pattern), callback, on)
 
     # ------------------------------------------------------------- diagnostics
 
@@ -537,6 +602,50 @@ class MeTTa:
             patterns=patterns, runtime_ops=compiled.runtime_ops,
         )
 
+    def type(self, cls: type | None = None, *, accessors: bool = True):
+        """Declare a Python class INTO this space, decorator-style: the
+        (: ...) declarations land as atoms, and an expression-image class
+        (a dataclass, a NamedTuple) also gains one accessor equation per
+        field, so the structure is not merely visible but reasoned over.
+
+            @m.type
+            @dataclass
+            class Person:
+                name: str
+                age: int
+
+            m.add(encode := petta.convert.project(Person("Ada", 36)).atom)
+            m.run("!(Person-age (Person \\"Ada\\" 36))")     # [[36]]
+
+        An Enum declares its members; get-type sees them all. Returns the
+        class, so it stacks under @dataclass.
+        """
+        from . import convert as _convert
+
+        def apply(target: type) -> type:
+            registration = _convert.ensure_registered(target)
+            for declaration in _convert.declarations(target):
+                self.add(declaration)
+            if (
+                accessors
+                and registration.image == "expression"
+                and registration.fields
+            ):
+                constructor = registration.type_name
+                fields = registration.fields
+                variables = [Var(f"f{i}") for i in range(1, len(fields) + 1)]
+                for position, field_name in enumerate(fields):
+                    head = Expr(
+                        [
+                            Sym(f"{constructor}-{field_name}"),
+                            Expr([Sym(constructor), *variables]),
+                        ]
+                    )
+                    self.add(Expr([Sym("="), head, variables[position]]))
+            return target
+
+        return apply(cls) if cls is not None else apply
+
     def fn(self, name: str) -> "_EngineFunction":
         """Any engine function as an ordinary Python callable.
 
@@ -577,6 +686,21 @@ class MeTTa:
     def runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
+
+
+def _serializable(atom: Atom) -> bool:
+    from .atoms import Gnd
+
+    stack = [atom]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, Gnd) and not isinstance(
+            current.value, (bool, int, float, str)
+        ):
+            return False
+        if isinstance(current, Expr):
+            stack.extend(current.children)
+    return True
 
 
 def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> Atom:
