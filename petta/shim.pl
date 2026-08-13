@@ -418,9 +418,14 @@ petta_py_contains(Space, Tagged) :-
 %removes equations first through the engine's own removal, which erases
 %their compiled clauses, then any remaining stored atoms:
 petta_py_clear(Space) :-
-    metta_foreign_space(Space), !,
+    petta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_clear(SpaceStr), _).
+petta_py_clear(Space) :-
+    metta_foreign_space(Space), !,
+    ( metta_foreign_clear(Space) -> true
+    ; throw(error(permission_error(clear, foreign_space, Space),
+                  context(Space, 'this foreign space defines no clear'))) ).
 petta_py_clear(Space) :-
     findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
@@ -892,9 +897,17 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 
 :- dynamic petta_py_foreign/1.
 
+%Each clause guards on the python registry: the foreign hooks are
+%multifile, and an engine-side foreign space (a Redis space, say) must
+%fall through to its own contribution instead of being claimed here.
+%metta_foreign_clear/1 is the clear hook an engine-side foreign space
+%may implement; a space without one refuses to clear, loudly.
+:- multifile metta_foreign_clear/1.
+
 metta_foreign_space(Space) :- petta_py_foreign(Space).
 
 metta_foreign_match(Space, Pattern) :-
+    petta_py_foreign(Space),
     petta_py_encode(Pattern, W),
     atom_string(Space, SpaceStr),
     py_iter(petta_ops:foreign_match(SpaceStr, W), CW),
@@ -902,16 +915,19 @@ metta_foreign_match(Space, Pattern) :-
     Pattern = Candidate.
 
 metta_foreign_atoms(Space, Atom) :-
+    petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_iter(petta_ops:foreign_atoms(SpaceStr), CW),
     petta_py_decode_shared(CW, Atom, _).
 
 metta_foreign_add(Space, Term) :-
+    petta_py_foreign(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_add(SpaceStr, W), _).
 
 metta_foreign_remove(Space, Term, Removed) :-
+    petta_py_foreign(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_remove(SpaceStr, W), R0),
