@@ -145,7 +145,7 @@ def test_constructor_convention_capitalized_names(m):
 @pytest.mark.parametrize(
     ("source", "needle"),
     [
-        ("def f(x):\n    while x > 0:\n        x = x - 1\n    return x", "recursion"),
+        ("def f(x):\n    while x > 0:\n        break\n    return x", "test"),
         ("def f(x):\n    y = x @ x\n    return y", "matmul"),
         ("def f(x):\n    return {1: x}", "dict"),
         ("def f(x):\n    return f'{x}!'", "f-string"),
@@ -238,6 +238,104 @@ def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
     assert "(= (donly 5) 99)" == donly.source()
     with pytest.raises(LookupError):
         donly.py(4)
+
+
+def test_while_becomes_a_tail_recursive_helper(m):
+    @m.define
+    def dgcd(a, b):
+        while b != 0:
+            t = b
+            b = a % b
+            a = t
+        return a
+
+    assert m.run("!(dgcd 48 36)") == [[12]]
+    assert dgcd.py(48, 36) == 12
+    # The helper is an ordinary equation, visible in the space.
+    helpers = [x for x in m.atoms() if str(x).startswith("(= (dgcd--loop")]
+    assert len(helpers) == 1
+
+
+def test_nested_loops_carry_the_outer_state(m):
+    @m.define
+    def dtriangles(n):
+        total = 0
+        i = 0
+        while i < n:
+            j = 0
+            while j < i:
+                total += j
+                j += 1
+            i += 1
+        return total
+
+    assert m.run("!(dtriangles 5)") == [[10]]
+    assert dtriangles.py(5) == 10
+
+
+def test_for_peels_with_decons_and_early_return_searches(m):
+    @m.define
+    def dfind(xs, target):
+        i = 0
+        while i < len(xs):
+            if xs[i] == target:
+                return i
+            i += 1
+        return -1
+
+    assert m.run("!(dfind (a b c) b)") == [[1]]
+    assert m.run("!(dfind (a b c) z)") == [[-1]]
+
+    @m.define
+    def dpositive(xs):
+        acc = 0
+        for x in xs:
+            if x > 0:
+                acc += x
+        return acc
+
+    assert m.run("!(dpositive (3 -1 4 -1 5))") == [[12]]
+    assert dpositive.py((3, -1, 4, -1, 5)) == 12
+
+
+def test_nested_defs_lift_with_their_closure(m):
+    @m.define
+    def douter(x, y):
+        def scaled(v):
+            return v * 2 + y
+
+        return scaled(x) + scaled(y)
+
+    assert m.run("!(douter 3 4)") == [[22]]
+    assert douter.py(3, 4) == 22
+
+
+def test_loops_run_in_constant_stack(m):
+    """Two million rounds through the compiled helper: last-call optimized,
+    so the loop runs in constant stack, the mark of a real loop rather than
+    recursion wearing one's clothes."""
+
+    @m.define
+    def dcountdown(n):
+        while n > 0:
+            n -= 1
+        return n
+
+    assert m.run("!(dcountdown 2000000)") == [[0]]
+
+
+def test_loop_variable_read_after_for_is_refused(m):
+    with pytest.raises(CompileError) as excinfo:
+
+        @m.define
+        def dleak(xs):
+            for x in xs:
+                pass
+            return x  # noqa: F821
+
+    assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(
+        excinfo.value
+    )
 
 
 def test_annotations_declare_types_for_defines(m):

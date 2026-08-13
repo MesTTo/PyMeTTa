@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import itertools
 import textwrap
 import types
 from collections.abc import Callable
@@ -72,6 +73,42 @@ _INSTEAD = {
 # `empty` answers nothing.
 _MAGIC = ("match", "superpose", "collapse", "empty")
 
+# Auxiliary equation names (loop helpers, lifted defs) carry a process-wide
+# serial, so no two compilations ever share one and re-adding never stacks a
+# clause onto an old helper. Idempotence comparison canonicalizes them away.
+_AUX_NAMES = itertools.count(1)
+
+
+def _recursion_closer(helper: str, state: list[str], prefix: list):
+    """What a loop body's fall-through means: one more round, with each
+    state name's CURRENT variable at that point in the body."""
+
+    def recur(compiler: "_Compiler") -> Expr:
+        return Expr(
+            [Sym(helper), *prefix, *(Var(compiler.scope[n]) for n in state)]
+        )
+
+    return recur
+
+
+def canonical_aux(equation: Expr, name: str) -> Expr:
+    """The equation with its auxiliary names serial-independent, for
+    comparing a re-defined clause against the recorded one: every symbol
+    `name--kind-N` becomes `name--kind` numbered by first appearance."""
+    mapping: dict[str, str] = {}
+
+    def walk(atom: Atom) -> Atom:
+        if isinstance(atom, Sym) and atom.name.startswith(f"{name}--"):
+            if atom.name not in mapping:
+                stem = atom.name.rsplit("-", 1)[0]
+                mapping[atom.name] = f"{stem}-{len(mapping) + 1}"
+            return Sym(mapping[atom.name])
+        if isinstance(atom, Expr):
+            return Expr([walk(c) for c in atom])
+        return atom
+
+    return walk(equation)
+
 
 class Defined:
     """A function that exists twice: as MeTTa equations and as Python.
@@ -124,9 +161,12 @@ def compile_function(
     fn: Callable,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
-) -> tuple[list[str], dict, Atom, Callable, bool]:
+) -> tuple[list[str], dict, Atom, Callable, bool, list]:
     """Read a function's source into (parameters, head patterns, MeTTa body,
-    Python twin, is_generator).
+    Python twin, is_generator, auxiliary equations).
+
+    The auxiliary equations are the loops' tail-recursive helpers and the
+    lifted inner definitions, ready to add before the main equation.
 
     `known` answers whether a free identifier names a function the engine
     knows, which separates a call to another definition from a closure over
@@ -170,13 +210,19 @@ def compile_function(
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
-    return params, patterns, body, _python_twin(fn, patterns), generator
+    return params, patterns, body, _python_twin(fn, patterns), generator, compiler.aux
 
 
 def _is_generator(node: ast.FunctionDef) -> bool:
-    for sub in ast.walk(node):
+    """Whether THIS function yields: a nested def's yields are its own."""
+    stack = list(node.body)
+    while stack:
+        sub = stack.pop()
+        if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
         if isinstance(sub, (ast.Yield, ast.YieldFrom)):
             return True
+        stack.extend(ast.iter_child_nodes(sub))
     return False
 
 
@@ -345,6 +391,9 @@ class _Compiler(ast.NodeVisitor):
         known: Callable[[str], bool],
         used: set[str] | None = None,
         nondet: Callable[[str], bool] | None = None,
+        aux: list | None = None,
+        lifted: dict | None = None,
+        closer: Callable[["_Compiler"], Atom] | None = None,
     ):
         self.name = name
         self.scope: dict[str, str] = (
@@ -354,23 +403,80 @@ class _Compiler(ast.NodeVisitor):
         # Whether a name is known to answer nondeterministically (a compiled
         # generator or a generator operation): iterating one binds the call
         # directly, since the call itself is the fork.
-        self.nondet = nondet or (lambda _: False)
+        self._given_nondet = nondet or (lambda _: False)
         # Every variable name any compiler of this definition has minted;
         # shared across forks so two branches never mint the same fresh name.
         self.used: set[str] = used if used is not None else set(self.scope.values())
+        # Auxiliary equations this definition grows: loop helpers and lifted
+        # inner definitions, shared by every compiler of the definition.
+        self.aux: list[Expr] = aux if aux is not None else []
+        # Python name -> (equation name, lifted outer names, is_generator)
+        # for inner defs; a call site prepends the lifted names' CURRENT
+        # variables, which is Python's own late binding, resolved per call.
+        self.lifted: dict[str, tuple[str, list[str], bool]] = (
+            lifted if lifted is not None else {}
+        )
+        # What a block falling off its end means: None is the function-level
+        # reading (a missing return is a refusal); a loop body's closer
+        # builds the recursive call from the scope at that point.
+        self.closer = closer
+        # The scope NAMES that closer reads, visible to state analysis: a
+        # nested loop must carry them even when its own syntax never
+        # mentions them, or the enclosing recursion loses its state.
+        self.closer_names: list[str] = []
+
+    def nondet(self, called: str) -> bool:
+        lifted = self.lifted.get(called)
+        if lifted is not None:
+            return lifted[2]
+        return self._given_nondet(called)
 
     def _fork(self) -> "_Compiler":
         """A compiler for one branch: its own scope, the shared minted set."""
-        return _Compiler(
-            self.name, dict(self.scope), self.known, used=self.used, nondet=self.nondet
+        forked = _Compiler(
+            self.name,
+            dict(self.scope),
+            self.known,
+            used=self.used,
+            nondet=self._given_nondet,
+            aux=self.aux,
+            lifted=self.lifted,
+            closer=self.closer,
         )
+        forked.closer_names = list(self.closer_names)
+        return forked
 
     def _inner(self, extra: list[str]) -> "_Compiler":
         """A compiler for a nested binder (lambda, comprehension): the outer
         scope plus the binder's own parameters, shadowing by name."""
         scope = dict(self.scope)
         scope.update({p: p for p in extra})
-        return _Compiler(self.name, scope, self.known, used=self.used, nondet=self.nondet)
+        inner = _Compiler(
+            self.name,
+            scope,
+            self.known,
+            used=self.used,
+            nondet=self._given_nondet,
+            aux=self.aux,
+            lifted=self.lifted,
+            closer=self.closer,
+        )
+        inner.closer_names = list(self.closer_names)
+        return inner
+
+    def _equation_compiler(self, params: list[str], closer=None) -> "_Compiler":
+        """A compiler for a NEW equation (a loop helper, a lifted def):
+        fresh variable namespace, shared aux and lifted registries."""
+        return _Compiler(
+            self.name,
+            params,
+            self.known,
+            used=None,
+            nondet=self._given_nondet,
+            aux=self.aux,
+            lifted=self.lifted,
+            closer=closer,
+        )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
         """`for var in iter_node` around a compiled body.
@@ -429,9 +535,14 @@ class _Compiler(ast.NodeVisitor):
 
     def block(self, statements: list[ast.stmt]) -> Atom:
         """A statement list folded into one term: assignments become let*
-        bindings around what follows, if/return close the branch."""
+        bindings around what follows, if/return close the branch, and a loop
+        becomes its own tail-recursive equation whose parameters are the
+        loop state, with everything after the loop living in the equation's
+        exit branch, Appel's blocks-as-functions."""
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
+            if self.closer is not None:
+                return self.closer(self)
             raise CompileError(f"{self.name} has no body to compile", construct="body")
         head, rest = statements[0], statements[1:]
 
@@ -458,13 +569,21 @@ class _Compiler(ast.NodeVisitor):
         if isinstance(head, ast.If):
             return self.if_statement(head, rest, lambda c, stmts: c.block(stmts))
 
-        if isinstance(head, (ast.While, ast.For)):
+        if isinstance(head, ast.While):
+            return self._while_statement(head, rest)
+
+        if isinstance(head, ast.For):
+            return self._for_statement(head, rest)
+
+        if isinstance(head, ast.FunctionDef):
+            self._lift_definition(head)
+            return self.block(rest)
+
+        if isinstance(head, (ast.Break, ast.Continue)):
             raise CompileError(
-                f"`{type(head).__name__.lower()}` has no equation; write the "
-                f"loop as recursion (define a helper that calls itself), or as "
-                f"a comprehension over map-atom/filter-atom, or register the "
-                f"whole function as an operation with @m.op",
-                construct=type(head).__name__,
+                f"`{type(head).__name__.lower()}` has no equation here; fold "
+                f"the exit condition into the loop's test, or return",
+                construct=type(head).__name__.lower(),
                 line=head.lineno,
             )
 
@@ -533,6 +652,9 @@ class _Compiler(ast.NodeVisitor):
             # `if c: return a` followed by more statements: the rest is the
             # else branch, Python's own early-return shape.
             otherwise = continue_with(self._fork(), rest)
+        elif self.closer is not None:
+            # Inside a loop body, falling past the `if` continues the loop.
+            otherwise = self.closer(self._fork())
         else:
             raise CompileError(
                 "an `if` with no `else` and nothing after it leaves one branch "
@@ -541,6 +663,158 @@ class _Compiler(ast.NodeVisitor):
                 line=node.lineno,
             )
         return Expr([Sym("if"), test, then, otherwise])
+
+    # ------------------------------------------------------------------ loops
+
+    def _free_reads(self, nodes: list) -> list[str]:
+        """Scope names the nodes read, first-appearance order: the loop
+        state, since a name never read again need not be carried."""
+        found: list[str] = []
+        for node in nodes:
+            for sub in ast.walk(node):
+                if (
+                    isinstance(sub, ast.Name)
+                    and isinstance(sub.ctx, ast.Load)
+                    and sub.id in self.scope
+                    and sub.id not in found
+                ):
+                    found.append(sub.id)
+        return found
+
+    def _loop_state(self, nodes: list) -> list[str]:
+        """The state a loop helper carries: every scope name the loop or its
+        continuation reads, plus whatever the enclosing continuation itself
+        will read, which the syntax of `nodes` cannot show."""
+        state = self._free_reads(nodes)
+        for name in self.closer_names:
+            if name in self.scope and name not in state:
+                state.append(name)
+        return state
+
+    def _while_statement(self, node: ast.While, rest: list[ast.stmt]) -> Atom:
+        """The loop as its own tail-recursive equation: parameters are the
+        loop state, the test chooses between one more round and the exit,
+        and the statements after the loop ARE the exit branch. With no break
+        in the subset, a while-else always runs, so it prefixes the rest."""
+        rest = list(node.orelse) + rest
+        state = self._loop_state([node.test, *node.body, *rest])
+        helper = f"{self.name}--loop-{next(_AUX_NAMES)}"
+
+        equation_compiler = self._equation_compiler(state)
+        equation_compiler.closer_names = list(state)
+        recur = _recursion_closer(helper, state, prefix=[])
+        body_compiler = equation_compiler._fork()
+        body_compiler.closer = recur
+        exit_compiler = equation_compiler._fork()
+        # The exit continues whatever the enclosing block was continuing.
+        exit_compiler.closer = self.closer
+
+        test = equation_compiler.expression(node.test)
+        body = body_compiler.block(node.body)
+        exit_branch = exit_compiler.block(rest)
+        head = Expr([Sym(helper), *(Var(n) for n in state)])
+        self.aux.append(
+            Expr([Sym("="), head, Expr([Sym("if"), test, body, exit_branch])])
+        )
+        return Expr([Sym(helper), *(Var(self.scope[n]) for n in state)])
+
+    def _for_statement(self, node: ast.For, rest: list[ast.stmt]) -> Atom:
+        """for x in e: the same equation over the remaining elements,
+        decons-atom peeling one per round. A nondeterministic source
+        collapses first, which is Python's own single pass over it."""
+        target = _name_of(node.target, node.lineno)
+        rest = list(node.orelse) + rest
+        if target in self._free_reads(rest) or target in self.closer_names:
+            raise CompileError(
+                f"{target!r} is read after the loop, where Python would hold "
+                f"the last element; bind that value to its own name inside "
+                f"the loop instead",
+                construct="for",
+                line=node.lineno,
+            )
+        state = [
+            n
+            for n in self._loop_state([*node.body, *rest])
+            if n != target
+        ]
+        helper = f"{self.name}--each-{next(_AUX_NAMES)}"
+        sequence = "loop-rest"
+
+        equation_compiler = self._equation_compiler([sequence, *state])
+        equation_compiler.closer_names = list(state)
+        body_compiler = equation_compiler._fork()
+        variable = body_compiler._bind(target)
+        tail = body_compiler._temp("tail")
+        body_compiler.closer = _recursion_closer(helper, state, prefix=[Var(tail)])
+        exit_compiler = equation_compiler._fork()
+        exit_compiler.closer = self.closer
+
+        body = Expr(
+            [
+                Sym("let"),
+                Expr([Var(variable), Var(tail)]),
+                Expr([Sym("decons-atom"), Var(sequence)]),
+                body_compiler.block(node.body),
+            ]
+        )
+        exit_branch = exit_compiler.block(rest)
+        head = Expr([Sym(helper), Var(sequence), *(Var(n) for n in state)])
+        test = Expr([Sym("=="), Var(sequence), Expr([])])
+        self.aux.append(
+            Expr([Sym("="), head, Expr([Sym("if"), test, exit_branch, body])])
+        )
+        source = self._materialized(node.iter)
+        return Expr(
+            [Sym(helper), source, *(Var(self.scope[n]) for n in state)]
+        )
+
+    def _materialized(self, iter_node: ast.expr) -> Atom:
+        """An iterable as one expression value: a nondeterministic call's
+        answers collapse into a tuple, anything else already is its value."""
+        if (
+            isinstance(iter_node, ast.Call)
+            and isinstance(iter_node.func, ast.Name)
+            and self.nondet(iter_node.func.id)
+        ):
+            return Expr([Sym("collapse"), self.expression(iter_node)])
+        return self.expression(iter_node)
+
+    # ---------------------------------------------------- lifted definitions
+
+    def _lift_definition(self, node: ast.FunctionDef) -> None:
+        """A nested def, lambda-lifted (Johnsson): its free outer names
+        become leading parameters, the equation joins the definition's own,
+        and every call site prepends the lifted names' current variables,
+        which is Python's late binding resolved per call."""
+        if node.args.defaults or node.args.vararg or node.args.kwarg or node.args.kwonlyargs:
+            raise CompileError(
+                "a nested def takes plain positional parameters; defaults "
+                "belong on top-level clauses, where they are head patterns",
+                construct="nested def",
+                line=node.lineno,
+            )
+        params = [arg.arg for arg in node.args.args]
+        lifted: list[str] = []
+        for sub in ast.walk(node):
+            if (
+                isinstance(sub, ast.Name)
+                and isinstance(sub.ctx, ast.Load)
+                and sub.id in self.scope
+                and sub.id not in params
+                and sub.id not in lifted
+            ):
+                lifted.append(sub.id)
+        mangled = f"{self.name}--{node.name}-{next(_AUX_NAMES)}"
+        generator = _is_generator(node)
+        self.lifted[node.name] = (mangled, lifted, generator)
+
+        inner = self._equation_compiler(lifted + params)
+        if generator:
+            body = _superpose(inner.yield_answers(node.body))
+        else:
+            body = inner.block(node.body)
+        head = Expr([Sym(mangled), *(Var(n) for n in lifted + params)])
+        self.aux.append(Expr([Sym("="), head, body]))
 
     # ----------------------------------------------------------- yield blocks
 
@@ -849,6 +1123,25 @@ class _Compiler(ast.NodeVisitor):
             # superpose(a, b, c): one expression holding the alternatives.
             return Expr(
                 [Sym("superpose"), Expr([self.expression(a) for a in node.args])]
+            )
+        if node.func.id in self.lifted:
+            # A lifted inner def: its free names travel as leading
+            # arguments, read from the scope AT THE CALL, Python's rule.
+            mangled, lifted_names, _ = self.lifted[node.func.id]
+            missing = [n for n in lifted_names if n not in self.scope]
+            if missing:
+                raise CompileError(
+                    f"{node.func.id!r} closes over {missing} which are not "
+                    f"in scope here",
+                    construct="nested def",
+                    line=node.lineno,
+                )
+            return Expr(
+                [
+                    Sym(mangled),
+                    *(Var(self.scope[n]) for n in lifted_names),
+                    *(self.expression(a) for a in node.args),
+                ]
             )
         # Python's own builtins, where a name in scope has not shadowed them,
         # bridge to the engine functions that mean the same thing.

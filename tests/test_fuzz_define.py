@@ -23,6 +23,18 @@ from petta.atoms import Expr, Gnd
 _COUNTER = itertools.count()
 
 
+def _tuple_literal(draw, lowest: int, highest: int) -> str:
+    """A Python tuple literal of small ints; the one-element spelling needs
+    its trailing comma, or (5) is just 5."""
+    values = [
+        str(draw(st.integers(-5, 5)))
+        for _ in range(draw(st.integers(lowest, highest)))
+    ]
+    if len(values) == 1:
+        return f"({values[0]},)"
+    return "(" + ", ".join(values) + ")"
+
+
 def _load(tmp_path_factory, source: str, name: str):
     """A real function object whose source inspect.getsource can read: the
     compiler reads syntax from the file, so each program becomes one."""
@@ -108,15 +120,17 @@ def bool_expr(draw, names: tuple, depth: int = 0):
 
 
 @st.composite
-def statements(draw, names: tuple, indent: str, depth: int = 0):
-    """A statement block ending in a return on every path; rebinding is
-    weighted up because it is the bug class this suite exists for."""
+def assignments(draw, scope: list, indent: str, count: int, protected: tuple = ()):
+    """count assignment lines over (and into) scope; rebinding weighted up
+    because it is the bug class this suite exists for. protected names stay
+    readable but never assigned: clobbering a loop counter would generate a
+    genuinely nonterminating program, in Python exactly as compiled."""
     lines: list[str] = []
-    scope = list(names)
-    for _ in range(draw(st.integers(0, 3))):
-        rebind = scope and draw(st.integers(0, 2)) > 0
+    assignable = [n for n in scope if n not in protected]
+    for _ in range(count):
+        rebind = assignable and draw(st.integers(0, 2)) > 0
         if rebind:
-            target = draw(st.sampled_from(scope))
+            target = draw(st.sampled_from(tuple(assignable)))
             if draw(st.booleans()):
                 op = draw(st.sampled_from(("+=", "-=", "*=")))
                 lines.append(f"{indent}{target} {op} {draw(int_expr(tuple(scope)))}")
@@ -126,6 +140,55 @@ def statements(draw, names: tuple, indent: str, depth: int = 0):
         lines.append(f"{indent}{target} = {draw(int_expr(tuple(scope)))}")
         if target not in scope:
             scope.append(target)
+            assignable.append(target)
+    return lines
+
+
+@st.composite
+def loop_block(draw, scope: list, indent: str):
+    """A terminating loop: a bounded while over a fresh counter, or a for
+    over a literal tuple, each mutating accumulators from the scope."""
+    counter = draw(st.sampled_from(("i", "j", "k")))
+    while counter in scope:
+        counter += "x"
+    lines: list[str] = []
+    inner = indent + "    "
+    if draw(st.booleans()):
+        bound = draw(st.integers(0, 4))
+        lines.append(f"{indent}{counter} = 0")
+        scope.append(counter)
+        lines.append(f"{indent}while {counter} < {bound}:")
+        # A name FIRST bound inside the body may be unbound after a loop
+        # that never ran (Python's UnboundLocalError; the compiler's named
+        # refusal), so only body-local or pre-bound names appear, and body
+        # additions do not escape into the outer scope.
+        body_scope = list(scope)
+        lines.extend(
+            draw(assignments(body_scope, inner, draw(st.integers(1, 2)), (counter,)))
+        )
+        if draw(st.integers(0, 3)) == 0:
+            lines.append(f"{inner}if {draw(bool_expr(tuple(body_scope), 1))}:")
+            lines.append(f"{inner}    return {draw(int_expr(tuple(body_scope)))}")
+        lines.append(f"{inner}{counter} += 1")
+    else:
+        lines.append(
+            f"{indent}for {counter} in {_tuple_literal(draw, 0, 4)}:"
+        )
+        body_scope = list(scope) + [counter]
+        lines.extend(draw(assignments(body_scope, inner, draw(st.integers(1, 2)))))
+        # Neither the loop variable nor a body-first binding survives the
+        # loop: reading either after it is refused (or unbound in Python).
+    return lines
+
+
+@st.composite
+def statements(draw, names: tuple, indent: str, depth: int = 0):
+    """A statement block ending in a return on every path."""
+    lines: list[str] = []
+    scope = list(names)
+    lines.extend(draw(assignments(scope, indent, draw(st.integers(0, 3)))))
+    if depth == 0 and draw(st.integers(0, 2)) == 0:
+        lines.extend(draw(loop_block(scope, indent)))
     if depth < 2 and draw(st.integers(0, 2)) == 0:
         test = draw(bool_expr(tuple(scope)))
         then = draw(statements(tuple(scope), indent + "    ", depth + 1))
@@ -165,16 +228,10 @@ def generator_programs(draw):
             lines.append(f"    if {draw(bool_expr(names))}:")
             lines.append(f"        yield {draw(int_expr(names))}")
         elif kind == "for":
-            elements = ", ".join(
-                str(draw(st.integers(-5, 5))) for _ in range(draw(st.integers(2, 4)))
-            )
-            lines.append(f"    for x in ({elements}):")
+            lines.append(f"    for x in {_tuple_literal(draw, 1, 4)}:")
             lines.append(f"        yield {draw(int_expr(('a', 'b', 'x')))}")
         else:
-            elements = ", ".join(
-                str(draw(st.integers(-5, 5))) for _ in range(draw(st.integers(2, 3)))
-            )
-            lines.append(f"    yield from ({elements})")
+            lines.append(f"    yield from {_tuple_literal(draw, 1, 3)}")
     return name, f"def {name}(a, b):\n" + "\n".join(lines) + "\n"
 
 
