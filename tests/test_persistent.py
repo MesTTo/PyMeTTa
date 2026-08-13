@@ -1,5 +1,6 @@
 """Purpose: journal-backed fact spaces, including registered matching,
-validation, replay, compaction, and isolation between independent journals.
+validation, replay, terminal-tail repair, failed-write containment,
+compaction, and isolation between independent journals.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -8,9 +9,11 @@ Open Obligations:
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
-from petta import PettaError, S, V, val
+from petta import EngineError, PettaError, S, V, val
 from petta.persistent import PersistentFactSpace
 
 
@@ -218,3 +221,193 @@ def test_facts_survive_a_killed_process(tmp_path):
         assert list(replayed.atoms()) == [S.survivor(1), S.survivor(2)]
     finally:
         replayed.close()
+
+
+def test_clear_journal_reopens_after_variable_retractall(tmp_path):
+    journal = tmp_path / "clear.db"
+    schema = {"edge": 2, "label": 1}
+    space = PersistentFactSpace(journal, schema, sync="close")
+    try:
+        space.add(S.edge(S.a, S.b))
+        space.add(S.edge(S.b, S.c))
+        space.add(S.label(S.kept))
+        space.clear()
+        assert list(space.atoms()) == []
+    finally:
+        space.close()
+
+    assert "retractall(" in journal.read_text()
+    reopened = PersistentFactSpace(journal, schema, sync="close")
+    try:
+        assert list(reopened.atoms()) == []
+    finally:
+        reopened.close()
+
+
+@pytest.mark.parametrize(
+    ("action", "error_name"),
+    [
+        ("retractall(edge(_),1).\n", "persistent_schema"),
+        ("retractall(other(_,_),1).\n", "persistent_schema"),
+        ("retractall(edge(_,_),-1).\n", "persistent_retract_count"),
+        ("retractall(edge(node(a),_),1).\n", "persistent_native"),
+    ],
+)
+def test_retractall_validation_keeps_schema_count_and_native_checks(
+    tmp_path, action, error_name
+):
+    journal = tmp_path / f"invalid-retractall-{error_name}.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    with journal.open("a") as stream:
+        stream.write(action)
+
+    with pytest.raises(EngineError, match=error_name):
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+
+
+def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):
+    journal = tmp_path / "failed-append.db"
+    saved = tmp_path / "failed-append.saved"
+    first = S.edge(S.a, S.b)
+    rejected = S.edge(S.c, S.d)
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        space.add(first)
+        os.replace(journal, saved)
+        journal.mkdir()
+        with pytest.raises(EngineError, match="source_sink"):
+            space.add(rejected)
+        assert list(space.atoms()) == [first]
+        with pytest.raises(PettaError, match="unusable for writes.*earlier add"):
+            space.add(S.edge(S.e, S.f))
+    finally:
+        if journal.is_dir():
+            journal.rmdir()
+        if saved.exists():
+            os.replace(saved, journal)
+        space.close()
+
+    reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert list(reopened.atoms()) == [first]
+    finally:
+        reopened.close()
+
+
+@pytest.mark.parametrize("operation", ["remove", "clear"])
+def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operation):
+    journal = tmp_path / f"failed-{operation}.db"
+    saved = tmp_path / f"failed-{operation}.saved"
+    facts = [S.edge(S.a, S.b), S.edge(S.c, S.d)]
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        for fact in facts:
+            space.add(fact)
+        os.replace(journal, saved)
+        journal.mkdir()
+        with pytest.raises(EngineError, match="source_sink"):
+            if operation == "remove":
+                space.remove(facts[0])
+            else:
+                space.clear()
+        assert list(space.atoms()) == facts
+        with pytest.raises(PettaError, match=f"earlier {operation}"):
+            space.clear()
+    finally:
+        if journal.is_dir():
+            journal.rmdir()
+        if saved.exists():
+            os.replace(saved, journal)
+        space.close()
+
+    reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert list(reopened.atoms()) == facts
+    finally:
+        reopened.close()
+
+
+def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path):
+    journal = tmp_path / "terminal-tail.db"
+    prefix_facts = [S.edge(S.a, S.b), S.edge(S.b, S.c)]
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        for fact in prefix_facts:
+            space.add(fact)
+    finally:
+        space.close()
+
+    complete_prefix = journal.read_bytes()
+    incomplete_tail = b"assert(edge(c,"
+    with journal.open("ab") as stream:
+        stream.write(incomplete_tail)
+
+    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert list(recovered.atoms()) == prefix_facts
+    finally:
+        recovered.close()
+    assert journal.read_bytes() == complete_prefix
+    assert (tmp_path / "terminal-tail.db.tail").read_bytes() == incomplete_tail
+
+
+def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):
+    journal = tmp_path / "earlier-corruption.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    corrupt = journal.read_bytes() + b"foreign(edge(a,b)).\nassert(edge(c,"
+    journal.write_bytes(corrupt)
+
+    with pytest.raises(
+        EngineError, match="corrupt before its incomplete terminal record"
+    ):
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    assert journal.read_bytes() == corrupt
+    assert not (tmp_path / "earlier-corruption.db.tail").exists()
+
+
+def test_complete_invalid_terminal_record_is_not_treated_as_truncation(tmp_path):
+    journal = tmp_path / "terminal-corruption.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    corrupt = journal.read_bytes() + b"foreign(edge(a,b))."
+    journal.write_bytes(corrupt)
+
+    with pytest.raises(EngineError, match="complete but invalid record"):
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    assert journal.read_bytes() == corrupt
+    assert not (tmp_path / "terminal-corruption.db.tail").exists()
+
+
+def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):
+    journal = tmp_path / "invalid-action.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    with journal.open("ab") as stream:
+        stream.write(b"foreign(edge(a,b)).\n")
+
+    with pytest.raises(EngineError, match="persistent_journal_action") as caught:
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    assert caught.value.__cause__ is not None
+
+
+def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
+    journal = tmp_path / "module-pool.db"
+    first = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    first_module = first._module
+    try:
+        with pytest.raises(PettaError, match="already attached"):
+            PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    finally:
+        first.close()
+
+    second = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert second._module == first_module
+    finally:
+        second.close()

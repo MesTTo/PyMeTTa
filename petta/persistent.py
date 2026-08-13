@@ -1,7 +1,9 @@
 """Purpose: fixed-schema fact spaces backed by SWI persistency journals.
 The provider keeps native MeTTa facts in typed dynamic predicates, writes
 every change through library(persistency), and replays the journal when a
-new provider attaches to the same path.
+new provider attaches to the same path. On attach, an incomplete final
+record is copied to ``<journal>.tail`` and removed only when every earlier
+newline-terminated record validates. Earlier corruption is refused.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,10 +20,9 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
-import petta as pkg
-
+from ._engine import Runtime, runtime
 from .atoms import Atom, Expr, Gnd, Sym, from_wire, is_ground
-from .errors import PettaError
+from .errors import EngineError, PettaError
 from .foreign import SpaceProvider
 
 __all__ = ["PersistentFactSpace"]
@@ -30,6 +31,7 @@ __all__ = ["PersistentFactSpace"]
 _MODULE_IDS = itertools.count()
 _STATE_LOCK = threading.Lock()
 _ACTIVE_PATHS: set[Path] = set()
+_MODULE_POOL: dict[tuple[tuple[str, int], ...], list[str]] = {}
 
 _PERSISTENCY_API = {
     ("persistent", 1),
@@ -53,10 +55,14 @@ _HELPER_ARITIES = {
     "clear_one": 2,
     "clear": 0,
     "validate_native": 1,
+    "validate_pattern": 1,
     "validate_fact": 1,
+    "validate_pattern_fact": 1,
     "validate_action": 1,
     "validate_stream": 1,
     "validate": 1,
+    "validate_text": 1,
+    "tail_status": 2,
     "attach": 2,
     "sync": 0,
     "flush": 0,
@@ -117,29 +123,35 @@ def _journal_path(path: str | os.PathLike[str]) -> Path:
     return resolved
 
 
-def _janus_module() -> Any:
-    if pkg.janus is None:
-        pkg.MeTTa()
-    if pkg.janus is None:
-        raise RuntimeError("PeTTa started without a Janus module")
-    return pkg.janus
-
-
-def _quoted_atom(janus: Any, value: str) -> str:
-    row = janus.query_once(
+def _quoted_atom(engine: Runtime, value: str) -> str:
+    row = engine.once(
         "term_string(Atom, Text, [quoted(true), ignore_ops(true)])",
-        {"Atom": value},
+        Atom=value,
     )
     if row is None or row.get("truth") is False or not isinstance(row.get("Text"), str):
         raise PettaError(f"SWI-Prolog could not quote schema head {value!r}")
     return row["Text"]
 
 
-def _new_module(path: Path) -> str:
+def _acquire_module(
+    path: Path, schema: Mapping[str, int]
+) -> tuple[str, tuple[tuple[str, int], ...], bool]:
+    # Clause order controls atoms() order, so preserve the schema mapping's
+    # insertion order in the pool key instead of reusing a differently ordered
+    # module with the same head/arity pairs.
+    key = tuple(schema.items())
     digest = hashlib.blake2s(str(path).encode("utf-8"), digest_size=6).hexdigest()
     with _STATE_LOCK:
+        available = _MODULE_POOL.get(key)
+        if available:
+            return available.pop(), key, False
         identifier = next(_MODULE_IDS)
-    return f"petta_persistent_{digest}_{identifier}"
+    return f"petta_persistent_{digest}_{identifier}", key, True
+
+
+def _return_module(key: tuple[tuple[str, int], ...], module: str) -> None:
+    with _STATE_LOCK:
+        _MODULE_POOL.setdefault(key, []).append(module)
 
 
 def _helper_names(module: str, schema: Mapping[str, int]) -> dict[str, str]:
@@ -251,7 +263,7 @@ def _module_source(
     maplist({helpers["decode"]}, Wires, Args),
     atom_concat(assert_, Head, AssertHead),
     Goal =.. [AssertHead | Args],
-    with_mutex({mutex}, call(Goal)).
+    with_mutex({mutex}, transaction(call(Goal))).
 
 {helpers["remove"]}(Head, Wires, Removed) :-
     {helpers["schema"]}(Head, Arity),
@@ -262,7 +274,7 @@ def _module_source(
     Retract =.. [RetractHead | Args],
     with_mutex({mutex},
         ( once(call(Fact))
-        -> call(Retract), Removed = 1
+        -> transaction(call(Retract)), Removed = 1
         ; Removed = 0
         )).
 
@@ -274,8 +286,9 @@ def _module_source(
 
 {helpers["clear"]} :-
     with_mutex({mutex},
-        forall({helpers["schema"]}(Head, Arity),
-               {helpers["clear_one"]}(Head, Arity))).
+        transaction(
+            forall({helpers["schema"]}(Head, Arity),
+                   {helpers["clear_one"]}(Head, Arity)))).
 
 {helpers["validate_native"]}(Value) :- number(Value), !.
 {helpers["validate_native"]}(Value) :- string(Value), !.
@@ -283,11 +296,23 @@ def _module_source(
 {helpers["validate_native"]}(Value) :-
     throw(error(type_error(persistent_native, Value), _)).
 
+{helpers["validate_pattern"]}(Value) :- var(Value), !.
+{helpers["validate_pattern"]}(Value) :-
+    {helpers["validate_native"]}(Value).
+
 {helpers["validate_fact"]}(Fact) :-
     callable(Fact),
     functor(Fact, Head, Arity),
     ( {helpers["schema"]}(Head, Arity)
     -> Fact =.. [_ | Args], maplist({helpers["validate_native"]}, Args)
+    ; throw(error(domain_error(persistent_schema, Fact), _))
+    ).
+
+{helpers["validate_pattern_fact"]}(Fact) :-
+    callable(Fact),
+    functor(Fact, Head, Arity),
+    ( {helpers["schema"]}(Head, Arity)
+    -> Fact =.. [_ | Args], maplist({helpers["validate_pattern"]}, Args)
     ; throw(error(domain_error(persistent_schema, Fact), _))
     ).
 
@@ -299,8 +324,11 @@ def _module_source(
 {helpers["validate_action"]}(retract(Fact)) :- !,
     {helpers["validate_fact"]}(Fact).
 {helpers["validate_action"]}(retractall(Fact, Count)) :- !,
-    integer(Count),
-    {helpers["validate_fact"]}(Fact).
+    ( integer(Count), Count >= 0
+    -> true
+    ; throw(error(type_error(persistent_retract_count, Count), _))
+    ),
+    {helpers["validate_pattern_fact"]}(Fact).
 {helpers["validate_action"]}(Action) :-
     throw(error(domain_error(persistent_journal_action, Action), _)).
 
@@ -321,6 +349,19 @@ def _module_source(
     ; true
     ).
 
+{helpers["validate_text"]}(Text) :-
+    setup_call_cleanup(
+        open_string(Text, Stream),
+        {helpers["validate_stream"]}(Stream),
+        close(Stream)).
+
+{helpers["tail_status"]}(Text, Status) :-
+    atom_string(Atom, Text),
+    catch(
+        ( read_term_from_atom(Atom, _, [module(db)]), Status = complete ),
+        error(syntax_error(_), _),
+        Status = incomplete).
+
 {helpers["attach"]}(File, Sync) :- db_attach(File, [sync(Sync)]).
 {helpers["sync"]} :- with_mutex({mutex}, db_sync(reload)).
 %db_sync(close) flushes and closes the journal stream now; the next write
@@ -339,11 +380,13 @@ class PersistentFactSpace(SpaceProvider):
     boolean. Live Python objects and nested expressions are refused because
     they cannot survive journal replay.
 
-    The journal is schema-bound. Its writes sit outside transaction/1, so a
-    compound update is not a transactional file operation. Compound writes
-    and matching reads use a mutex unique to the generated Prolog module.
-    Only one process may own a journal path at a time. This class also refuses
-    a second live attachment to the same path within the current process.
+    The journal is schema-bound. Generated memory mutations run inside
+    transaction/1, so an append error rolls them back. Journal I/O itself is
+    not transactional, so any updater error makes the provider refuse later
+    writes until it is closed, checked, and reopened. Compound writes and
+    matching reads use a mutex unique to the generated Prolog module. Only one
+    process may own a journal path at a time. This class also refuses a second
+    live attachment to the same path within the current process.
 
     `sync` picks the write-sync mode, performance by default: "none" (the
     default) buffers journal writes, the fastest mode; a clean close()
@@ -374,22 +417,16 @@ class PersistentFactSpace(SpaceProvider):
         self._sync_mode = sync
         self._path = _journal_path(path)
         self._schema = _validated_schema(schema)
-        self._janus = _janus_module()
-        self._module = _new_module(self._path)
-        self._mutex = f"{self._module}_mutex"
-        self._helpers = _helper_names(self._module, self._schema)
+        self._runtime = runtime()
+        self._janus = self._runtime._janus
+        self._module = ""
+        self._module_key: tuple[tuple[str, int], ...] = ()
+        self._module_loaded = False
+        self._module_released = False
         self._call_lock = threading.RLock()
         self._closed = True
         self._claimed = False
-
-        quoted_heads = {head: _quoted_atom(self._janus, head) for head in self._schema}
-        source = _module_source(
-            self._module,
-            self._mutex,
-            self._schema,
-            quoted_heads,
-            self._helpers,
-        )
+        self._write_failure: str | None = None
 
         with _STATE_LOCK:
             if self._path in _ACTIVE_PATHS:
@@ -401,20 +438,46 @@ class PersistentFactSpace(SpaceProvider):
             self._claimed = True
 
         try:
-            self._janus.consult(f"{self._module}.pl", data=source)
-            self._call(
-                "validate",
-                "File",
-                {"File": str(self._path)},
-                require_open=False,
+            self._module, self._module_key, is_new = _acquire_module(
+                self._path, self._schema
             )
+            self._mutex = f"{self._module}_mutex"
+            self._helpers = _helper_names(self._module, self._schema)
+            if is_new:
+                quoted_heads = {
+                    head: _quoted_atom(self._runtime, head) for head in self._schema
+                }
+                source = _module_source(
+                    self._module,
+                    self._mutex,
+                    self._schema,
+                    quoted_heads,
+                    self._helpers,
+                )
+                try:
+                    self._janus.consult(f"{self._module}.pl", data=source)
+                except Exception as exc:
+                    self._runtime._raise(
+                        f"consult persistent module {self._module}", exc
+                    )
+            self._module_loaded = True
+            self._validate_or_repair_tail()
             self._call(
                 "attach",
                 "File, Sync",
                 {"File": str(self._path), "Sync": self._sync_mode},
                 require_open=False,
             )
-        except BaseException:
+        except BaseException as exc:
+            if self._module_loaded:
+                try:
+                    self._call("close", require_open=False)
+                except BaseException as cleanup_error:
+                    exc.add_note(
+                        f"persistent module cleanup also failed: {cleanup_error}"
+                    )
+                else:
+                    self._release_module()
             self._release_path()
             raise
         self._closed = False
@@ -433,11 +496,11 @@ class PersistentFactSpace(SpaceProvider):
 
     def add(self, atom: Atom) -> None:
         head, wires = self._fact_parts(atom, "add")
-        self._call("add", "Head, Wires", {"Head": head, "Wires": wires})
+        self._write_call("add", "Head, Wires", {"Head": head, "Wires": wires})
 
     def remove(self, atom: Atom) -> bool:
         head, wires = self._fact_parts(atom, "remove")
-        row = self._call(
+        row = self._write_call(
             "remove",
             "Head, Wires, Removed",
             {"Head": head, "Wires": wires},
@@ -451,29 +514,170 @@ class PersistentFactSpace(SpaceProvider):
 
     def clear(self) -> None:
         """Remove every stored fact while keeping the declared schema."""
-        self._call("clear")
+        self._write_call("clear")
 
     def sync(self) -> None:
         """Reload journal changes that are safe to apply to this attachment."""
-        self._call("sync")
+        self._write_call("sync")
 
     def flush(self) -> None:
         """Push buffered journal writes to disk right now, whatever the
         sync mode: the on-demand checkpoint for the fast default."""
-        self._call("flush")
+        self._write_call("flush")
 
     def compact(self) -> None:
         """Ask library(persistency) to garbage-collect obsolete actions."""
-        self._call("compact")
+        self._write_call("compact")
 
     def close(self) -> None:
-        """Detach the journal and remove its facts from the generated module."""
+        """Detach the journal, clear its facts, and return its module for reuse."""
         with self._call_lock:
             if self._closed:
                 return
             self._call("close")
             self._closed = True
             self._release_path()
+            self._release_module()
+
+    def _validate_or_repair_tail(self) -> None:
+        """Validate the journal or remove one incomplete final record.
+
+        library(persistency) writes one complete action and its newline in one
+        call. A non-newline suffix is therefore recoverable only when the
+        complete prefix validates independently. The removed bytes are kept
+        beside the journal so recovery never destroys the only copy.
+        """
+        try:
+            self._call(
+                "validate",
+                "File",
+                {"File": str(self._path)},
+                require_open=False,
+            )
+            return
+        except PettaError as validation_error:
+            try:
+                contents = self._path.read_bytes()
+            except OSError as read_error:
+                raise PettaError(
+                    f"cannot inspect persistent journal {self._path} after "
+                    f"validation failed: {read_error}"
+                ) from validation_error
+
+            boundary = contents.rfind(b"\n") + 1
+            tail = contents[boundary:]
+            if not tail:
+                raise EngineError(
+                    f"persistent journal {self._path} is corrupt before its "
+                    f"terminal record. Correct or remove the malformed record "
+                    f"reported by the engine, then reopen it: {validation_error}"
+                ) from validation_error
+            try:
+                tail_text = tail.decode("utf-8")
+            except UnicodeDecodeError:
+                # A process can stop between bytes of one UTF-8 code point.
+                # The exact bytes still go to the backup below.
+                tail_status = "incomplete"
+            else:
+                status_row = self._call(
+                    "tail_status",
+                    "Text, Status",
+                    {"Text": tail_text},
+                    require_open=False,
+                )
+                tail_status = status_row.get("Status")
+            if tail_status != "incomplete":
+                raise EngineError(
+                    f"persistent journal {self._path} ends with a complete but "
+                    f"invalid record, not a truncated record. Correct or remove "
+                    f"the terminal bytes reported by the engine, then reopen it: "
+                    f"{validation_error}"
+                ) from validation_error
+            try:
+                prefix = contents[:boundary].decode("utf-8")
+            except UnicodeDecodeError as prefix_error:
+                raise EngineError(
+                    f"persistent journal {self._path} contains invalid UTF-8 "
+                    f"before its terminal record. Restore or repair the bytes "
+                    f"before byte {boundary}, then reopen it."
+                ) from prefix_error
+            try:
+                self._call(
+                    "validate_text",
+                    "Text",
+                    {"Text": prefix},
+                    require_open=False,
+                )
+            except PettaError as prefix_error:
+                raise EngineError(
+                    f"persistent journal {self._path} is corrupt before its "
+                    f"incomplete terminal record. Correct or remove the "
+                    f"malformed newline-terminated record reported by the "
+                    f"engine, then reopen it: {prefix_error}"
+                ) from validation_error
+
+            backup = Path(f"{self._path}.tail")
+            try:
+                with backup.open("xb") as stream:
+                    stream.write(tail)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            except FileExistsError as backup_error:
+                raise PettaError(
+                    f"cannot recover persistent journal {self._path}: tail "
+                    f"backup {backup} already exists. Move that backup aside, "
+                    f"then reopen the journal."
+                ) from backup_error
+            except OSError as backup_error:
+                raise PettaError(
+                    f"cannot save the incomplete terminal record from "
+                    f"persistent journal {self._path} to {backup}: "
+                    f"{backup_error}"
+                ) from backup_error
+
+            try:
+                with self._path.open("r+b") as stream:
+                    stream.truncate(boundary)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            except OSError as truncate_error:
+                raise PettaError(
+                    f"saved the incomplete terminal record from {self._path} "
+                    f"to {backup}, but could not truncate the journal to byte "
+                    f"{boundary}: {truncate_error}. Repair the journal before "
+                    f"reopening it."
+                ) from truncate_error
+
+            self._call(
+                "validate",
+                "File",
+                {"File": str(self._path)},
+                require_open=False,
+            )
+
+    def _write_call(
+        self,
+        helper: str,
+        arguments: str = "",
+        inputs: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        with self._call_lock:
+            if self._closed:
+                raise PettaError(f"persistent fact space for {self._path} is closed")
+            if self._write_failure is not None:
+                raise PettaError(
+                    f"persistent fact space for {self._path} is unusable for "
+                    f"writes because an earlier {self._write_failure}. Close "
+                    f"it, repair the journal if needed, and reopen it."
+                )
+            try:
+                return self._call(helper, arguments, inputs)
+            except BaseException as exc:
+                self._write_failure = (
+                    f"{helper} operation failed and journal consistency could "
+                    f"not be proved: {type(exc).__name__}: {exc}"
+                )
+                raise
 
     def _facts(self, head: str | None = None) -> list[Atom]:
         if head is None:
@@ -568,8 +772,8 @@ class PersistentFactSpace(SpaceProvider):
             goal = f"{self._module}:{predicate}"
             if arguments:
                 goal += f"({arguments})"
-            row = self._janus.query_once(goal, {} if inputs is None else inputs)
-            if row is None or row.get("truth") is False:
+            row = self._runtime.once(goal, **({} if inputs is None else inputs))
+            if not row:
                 raise PettaError(
                     f"SWI-Prolog refused persistent operation {helper!r} for "
                     f"{self._path}: {goal} failed"
@@ -582,3 +786,9 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             _ACTIVE_PATHS.discard(self._path)
         self._claimed = False
+
+    def _release_module(self) -> None:
+        if not self._module_loaded or self._module_released:
+            return
+        _return_module(self._module_key, self._module)
+        self._module_released = True
