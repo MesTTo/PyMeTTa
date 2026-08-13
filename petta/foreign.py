@@ -13,11 +13,19 @@ Open Obligations:
 
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any, ClassVar
 
 from .atoms import Atom, encode, from_wire
+from .errors import PettaError
 
-__all__ = ["SpaceProvider", "PROVIDERS", "register_provider", "unregister_provider"]
+__all__ = [
+    "PROVIDERS",
+    "SpaceProvider",
+    "register_provider",
+    "require_capability",
+    "unregister_provider",
+]
 
 # space name (with &) -> provider; consulted by the shim's foreign hooks
 # through the petta_ops module functions below.
@@ -35,6 +43,16 @@ class SpaceProvider:
     answers a clear error instead of pretending.
     """
 
+    capabilities: ClassVar[dict[str, bool]] = {}
+
+    def supports(self, capability: str) -> bool:
+        """Whether an optional space operation is supported.
+
+        Unspecified capabilities are permissive so existing providers retain
+        their behavior. A provider declares only the operations it refuses.
+        """
+        return self.capabilities.get(capability, True)
+
     def match(self, pattern: Atom) -> Iterator[Any]:
         """Candidates for a pattern; the default enumerates everything."""
         return self.atoms()
@@ -50,6 +68,21 @@ class SpaceProvider:
 
     def clear(self) -> None:
         raise NotImplementedError(f"{type(self).__name__} is read-only: no clear")
+
+
+def require_capability(space: str, capability: str, operation: str) -> None:
+    """Refuse an operation before it creates partial state or enters Prolog."""
+    provider = PROVIDERS.get(space)
+    if provider is None or provider.supports(capability):
+        return
+    name = type(provider).__name__
+    if capability == "enumerate":
+        detail = "cannot enumerate atoms"
+    elif capability == "subscribe":
+        detail = "offers no event source and refuses writes"
+    else:
+        detail = f"does not support {capability}"
+    raise PettaError(f"{operation} cannot use {space}: its {name} provider {detail}")
 
 
 def register_provider(runtime, name: str, provider: SpaceProvider) -> None:

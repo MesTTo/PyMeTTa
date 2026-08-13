@@ -92,6 +92,9 @@ def _contains_binding_form(atom: Atom) -> bool:
 def lint(space) -> list[Finding]:
     """Diagnose a space. Answers findings, empty when nothing looks
     wrong; print them or branch on .kind."""
+    from .foreign import require_capability
+
+    require_capability(space.space_name, "enumerate", "lint")
     runtime = space.runtime
     findings: list[Finding] = []
     atoms = space.atoms()

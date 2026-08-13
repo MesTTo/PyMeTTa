@@ -97,6 +97,9 @@ def subscribe(
     global _RUNTIME
     if on not in ("add", "remove", "both"):
         raise ValueError(f"on must be add, remove or both, not {on!r}")
+    from .foreign import require_capability
+
+    require_capability(space, "subscribe", "subscribe")
     _RUNTIME = runtime
     subscription = Subscription(space, pattern, callback, on)
     # The standing query reflects into the library's own space, removed on

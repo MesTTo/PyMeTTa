@@ -28,7 +28,8 @@ Open Obligations:
 from __future__ import annotations
 
 import json
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -172,7 +173,10 @@ class DAS:
             with urlopen(request, timeout=self._timeout) as response:
                 text = response.read().decode("utf8")
         except HTTPError as exc:
-            detail = exc.read().decode("utf8", "replace")
+            try:
+                detail = exc.read().decode("utf8", "replace")
+            finally:
+                exc.close()
             raise DASError(
                 f"DAS {method} {path} answered {exc.code}: {detail}"
             ) from exc
@@ -371,6 +375,11 @@ class DASSpace(SpaceProvider):
     expressions DAS matched, and the engine unifies them, so joins mix
     DAS candidates with native facts. Knowledge loads through das-cli;
     the write paths say so."""
+
+    capabilities: ClassVar[dict[str, bool]] = {
+        "enumerate": False,
+        "subscribe": False,
+    }
 
     def __init__(self, das: DAS) -> None:
         self._das = das

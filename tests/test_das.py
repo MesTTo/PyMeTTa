@@ -13,10 +13,11 @@ Open Obligations:
 
 import json
 import os
+from io import BytesIO
 
 import pytest
 
-from petta import EngineError, S, V, expr
+from petta import EngineError, PettaError, S, V, expr
 from petta.atoms import Gnd, parse
 from petta.das import DAS, DASAnswer, DASError, DASSpace
 
@@ -165,6 +166,52 @@ def test_das_space_joins_with_native_facts(metta):
 
 def test_ping_is_false_when_nothing_listens():
     assert DAS("http://127.0.0.1:9", timeout=0.5).ping() is False
+
+
+def test_plain_http_error_body_is_closed_after_reading(monkeypatch):
+    from urllib.error import HTTPError
+
+    import petta.das as das_module
+
+    class TrackedHTTPError(HTTPError):
+        was_closed = False
+
+        def close(self):
+            self.was_closed = True
+            super().close()
+
+    failure = TrackedHTTPError(
+        "http://scripted/probe",
+        500,
+        "failure",
+        {},
+        BytesIO(b"router failure"),
+    )
+
+    def refuse(request, timeout):
+        raise failure
+
+    monkeypatch.setattr(das_module, "urlopen", refuse)
+    with pytest.raises(DASError, match="500.*router failure"):
+        DAS("http://scripted")._request("GET", "/probe")
+    assert failure.was_closed
+
+
+def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
+    name = "&das-capability-test"
+    metta.register_space(name, DASSpace(ScriptedDAS([_COMPLETED])))
+    try:
+        space = metta.space(name)
+        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+            space.lint()
+        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+            space.digest()
+        with pytest.raises(
+            PettaError, match="DASSpace.*no event source.*refuses writes"
+        ):
+            space.subscribe(S.watched(V.x))
+    finally:
+        metta.unregister_space(name)
 
 
 class LegacyScriptedDAS(DAS):
