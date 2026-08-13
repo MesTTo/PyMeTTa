@@ -15,6 +15,7 @@ __all__ = [
     "ResourceLimitError",
     "TimeLimitError",
     "InferenceLimitError",
+    "Interrupted",
     "CompileError",
     "Decline",
     "DECLINE",
@@ -52,6 +53,14 @@ class TimeLimitError(ResourceLimitError):
 
 class InferenceLimitError(ResourceLimitError):
     """inferences= engine steps were spent before the call finished."""
+
+
+class Interrupted(EngineError):
+    """interrupt() stopped the evaluation mid-goal.
+
+    The sqlite3 and DuckDB reading of interrupt: whatever the goal
+    completed before the stop, writes included, stands.
+    """
 
 
 class CompileError(PettaError):

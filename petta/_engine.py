@@ -19,6 +19,7 @@ from typing import Any, Iterator
 from .errors import (
     EngineError,
     InferenceLimitError,
+    Interrupted,
     MettaSyntaxError,
     TimeLimitError,
 )
@@ -301,6 +302,8 @@ class Runtime:
             raise TimeLimitError(message) from exc
         if "petta_py_inference_limit" in message:
             raise InferenceLimitError(message) from exc
+        if "petta_py_interrupted" in message:
+            raise Interrupted(message) from exc
         raise EngineError(message) from exc
 
     # ------------------------------------------------------------------- helpers

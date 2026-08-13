@@ -106,3 +106,72 @@ def test_aio_spaces_borrow_the_owners_thread(m):
     got, still = asyncio.run(go())
     assert (got, still) == (1, 0)
     MeTTa("&aio-borrowed").drop()
+
+
+def test_aio_interrupt_stops_the_running_evaluation(m):
+    from petta import Interrupted, aio
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.run(
+                "(= (aio-spin-c $n) (if (== $n 0) done (aio-spin-c (- $n 1))))"
+            )
+            spin = asyncio.ensure_future(am.eval("(aio-spin-c 2000000000)"))
+            await asyncio.sleep(0.15)  # well inside the engine by now
+            assert am.interrupt() is True
+            with pytest.raises(Interrupted):
+                await spin
+            assert am.interrupt() is False  # idle again: the no-op reading
+            return await am.value("(+ 1 1)")  # the engine keeps working after
+
+    assert asyncio.run(go()) == 2
+
+
+def test_aio_timeout_cancellation_stops_the_engine(m):
+    import time
+
+    from petta import aio
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.run(
+                "(= (aio-spin-d $n) (if (== $n 0) done (aio-spin-d (- $n 1))))"
+            )
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(
+                    am.eval("(aio-spin-d 2000000000)"), timeout=0.2
+                )
+            # The cancellation interrupted the engine: were the spin still
+            # holding the worker, this next call would wait minutes.
+            t0 = time.perf_counter()
+            value = await am.value("(+ 2 2)")
+            return value, time.perf_counter() - t0
+
+    value, took = asyncio.run(go())
+    assert value == 4
+    assert took < 30.0
+
+
+def test_aio_cancelled_while_queued_never_runs(m):
+    from petta import aio
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.run(
+                "(= (aio-spin-e $n) (if (== $n 0) done (aio-spin-e (- $n 1))))"
+            )
+            long = asyncio.ensure_future(am.eval("(aio-spin-e 30000000)"))
+            queued = asyncio.ensure_future(am.add(S.never(1)))
+            await asyncio.sleep(0.05)  # long is running; queued is waiting
+            queued.cancel()
+            long.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await queued
+            with pytest.raises(asyncio.CancelledError):
+                await long
+            # The abandoned add never ran: no (never 1) fact exists. The
+            # space is not empty, because the spin equation is stored too.
+            assert await am.query(S.never(V.n)) == []
+            return True
+
+    assert asyncio.run(go())
