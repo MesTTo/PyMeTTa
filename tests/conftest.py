@@ -1,6 +1,19 @@
 import importlib
+import os
 from pathlib import Path
 import pytest
+
+try:
+    from hypothesis import settings
+except ModuleNotFoundError:
+    pass
+else:
+    # A red example must be reproducible: every failure prints its
+    # reproduction blob, and HYPOTHESIS_PROFILE=ci derandomizes whole
+    # runs while the default keeps exploring fresh examples.
+    settings.register_profile("petta", print_blob=True)
+    settings.register_profile("ci", print_blob=True, derandomize=True)
+    settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "petta"))
 
 @pytest.fixture(scope="session")
 def repo_root():

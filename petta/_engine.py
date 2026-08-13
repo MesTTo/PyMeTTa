@@ -14,7 +14,7 @@ import importlib
 import os
 import sys
 import threading
-from typing import Any, Iterator
+from typing import Any, Iterator, NoReturn
 
 from .errors import (
     EngineError,
@@ -290,7 +290,7 @@ class Runtime:
                 self._raise(goal, exc)
         return iter(rows)
 
-    def _raise(self, goal: str, exc: BaseException) -> None:
+    def _raise(self, goal: str, exc: BaseException) -> NoReturn:
         message = _clean_message(exc)
         # Reader refusals arrive tagged with their own functor by the shim
         # (petta_py_tag_reader), so classification is structural: a SQL

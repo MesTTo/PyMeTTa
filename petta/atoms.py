@@ -532,6 +532,10 @@ class Gnd(Atom):
     def _ordered(self, other: Any):
         mine = self.value
         theirs = other.value if isinstance(other, Gnd) else other
+        # Booleans do not order: the engine keeps Bool apart from Number
+        # and refuses (< True 5), so Python must not answer it either.
+        if isinstance(mine, bool) or isinstance(theirs, bool):
+            return None
         if _is_primitive(mine) and _is_primitive(theirs) and not (
             isinstance(mine, str) != isinstance(theirs, str)
         ):

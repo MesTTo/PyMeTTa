@@ -107,8 +107,12 @@ def connect(
                 answer = json.loads(response.read().decode("utf-8"))
         except HTTPError as refusal:
             # The remote's refusal travels as a JSON error body; read it,
-            # so the caller gets the remote engine's own words.
-            body = refusal.read().decode("utf-8", "replace")
+            # so the caller gets the remote engine's own words, and close
+            # the response it rides on.
+            try:
+                body = refusal.read().decode("utf-8", "replace")
+            finally:
+                refusal.close()
             try:
                 answer = json.loads(body)
             except ValueError:

@@ -12,6 +12,7 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
+from collections.abc import Iterable
 from typing import Any, Callable
 
 from .atoms import Atom, Expr, S, Sym, Var, expr

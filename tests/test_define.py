@@ -352,7 +352,9 @@ def test_engine_functions_feel_like_python(m):
     triple = m.fn("dtriple")
     assert triple(14) == 42
     assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
-    with pytest.raises(ValueError):
+    from petta import EngineError
+
+    with pytest.raises(EngineError):
         m.fn("superpose")(expr(1, 2))  # two answers is not one
 
 

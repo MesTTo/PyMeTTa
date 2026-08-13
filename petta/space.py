@@ -1586,7 +1586,8 @@ class _EngineFunction:
     def __call__(self, *args: Any) -> Any:
         answers = self._space.eval(self._term(args))
         if len(answers) != 1:
-            raise ValueError(
+            # The same violated contract as value(): the same error class.
+            raise EngineError(
                 f"({self._name} ...) answered {len(answers)} results; calling "
                 f"expects exactly one. Use .all(...) for every answer."
             )
