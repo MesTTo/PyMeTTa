@@ -137,6 +137,20 @@ def prepared_vs_query(m: MeTTa) -> float:
         return _rate(lambda: [hop.solve() for _ in range(20)] and 20)
 
 
+@bench("query-bounded")
+def query_bounded(m: MeTTa) -> float:
+    """The guarded crossing: a generous timeout+inference bound on the
+    same query as query-where's shape; the gap against an unbounded run
+    is the guard's whole cost (measured 4.5% at adoption)."""
+    with m.fresh_space() as s:
+        s.add(*(S.edge(i, i + 1) for i in range(2000)))
+        return _rate(
+            lambda: len(
+                s.query(S.edge(V.a, V.b), limit=50, timeout=30.0, inferences=50_000_000)
+            )
+        )
+
+
 @bench("add-table-rows")
 def add_table_rows(m: MeTTa) -> float:
     rows = [(i, i + 1) for i in range(2000)]

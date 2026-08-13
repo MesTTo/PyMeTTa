@@ -1,7 +1,7 @@
 [project]
-name = "python"
-version = "0.1.0"
-description = "Add your description here"
+name = "petta-workspace"
+version = "0.0.0"
+description = "Development workspace configuration; the installable package is built by setup.py at the repository root"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
