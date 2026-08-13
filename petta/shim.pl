@@ -150,7 +150,7 @@ petta_py_run(Source, Space, Groups) :-
 %unconditionally, so a string run needs one too; the process's own directory
 %is the honest analogue of "the file's directory" for source with no file:
 petta_py_ensure_working_dir :-
-    ( catch(working_dir(_), _, fail) -> true
+    ( catch_recover(working_dir(_), fail) -> true
     ; working_directory(Dir, Dir),
       assertz(working_dir(Dir)) ).
 
@@ -200,7 +200,7 @@ petta_py_process_forms([P|Ps], Space, Out) :-
 petta_py_load(File, Space, Groups) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
     file_directory_name(FA, Dir),
-    catch(findall(W, working_dir(W), Saved), _, Saved = []),
+    catch_recover(findall(W, working_dir(W), Saved), Saved = []),
     setup_call_cleanup(
         ( retractall(working_dir(_)), assertz(working_dir(Dir)) ),
         ( read_file_to_string(FA, S, []),
@@ -728,10 +728,10 @@ petta_py_function_visible(Space0, Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name),
     petta_py_module(Space, Module),
-    catch(( current_predicate(Module:Name/Arity),
-            functor(Head, Name, Arity),
-            clause(Module:Head, _, _) ),
-          _, fail), !.
+    catch_recover(( current_predicate(Module:Name/Arity),
+                    functor(Head, Name, Arity),
+                    clause(Module:Head, _, _) ),
+                  fail), !.
 
 petta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
@@ -771,7 +771,7 @@ petta_py_solve(M, (A, B), D, Tree) :- !,
 %proof" would be a lie about why:
 petta_py_solve(M, Goal, D, Tree) :-
     \+ predicate_property(M:Goal, built_in),
-    catch(clause(M:Goal, Body, Ref), _, fail),
+    catch_recover(clause(M:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
       -> D1 is D - 1,
          petta_py_solve(M, Body, D1, Sub),
@@ -930,7 +930,7 @@ py_object_type_names(X, Names) :-
 metta_on_function_changed(Name) :-
     forall(petta_py_stale_equation(Name, Module, Ref, Source),
            petta_py_retranslate(Module, Ref, Source)),
-    ( catch(invalidate_specializations(Name), _, true) -> true ; true ).
+    ( catch_recover(invalidate_specializations(Name), true) -> true ; true ).
 
 %A fully removed function refreshes the other way: a mention that compiled as
 %a call goes back to data, since the name no longer names a function.
@@ -943,8 +943,8 @@ petta_py_stale_equation(Name, Module, Ref, Source) :-
     Source = [=, [Head|_], Body],
     Head \== Name,
     once(petta_py_mentions(Body, Name)),
-    catch(clause(_, _, Ref), _, fail),
-    ( catch(clause_property(Ref, module(M)), _, fail) -> Module = M
+    catch_recover(clause(_, _, Ref), fail),
+    ( catch_recover(clause_property(Ref, module(M)), fail) -> Module = M
     ; Module = user ).
 
 petta_py_mentions(T, _) :- var(T), !, fail.
@@ -963,7 +963,7 @@ petta_py_retranslate(Module, OldRef, Source) :-
 %translate_clause/2 pushes a fun_meta entry per compile; dropping the stale
 %one first keeps the specializer's meta-clause list one entry per equation:
 petta_py_drop_fun_meta(F, Args, Body) :-
-    catch(nb_getval(F, Prev), _, Prev = []),
+    catch_recover(nb_getval(F, Prev), Prev = []),
     ( petta_py_select_meta(Prev, Args, Body, Rest)
       -> ( Rest == [] -> nb_delete(F) ; nb_setval(F, Rest) )
     ; true ).
