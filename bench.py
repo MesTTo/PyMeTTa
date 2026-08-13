@@ -107,6 +107,123 @@ def run_source(m: MeTTa) -> float:
     return _rate(lambda: [m.run("!(+ 1 2)") for _ in range(1000)] and 1000)
 
 
+@bench("term-operators")
+def term_operators(m: MeTTa) -> float:
+    def build() -> int:
+        for i in range(20000):
+            (V.age >= i) & (V.age <= i + 10) | ~V.retired
+        return 20000
+
+    return _rate(build)
+
+
+@bench("query-where")
+def query_where(m: MeTTa) -> float:
+    with m.fresh_space() as s:
+        s.add(*(S.person(S[f"p{i}"], i % 90) for i in range(2000)))
+        guard = (V.age >= 18) & (V.age <= 40)
+        return _rate(
+            lambda: len(s.query(S.person(V.name, V.age), where=guard))
+        )
+
+
+@bench("prepared-vs-query")
+def prepared_vs_query(m: MeTTa) -> float:
+    """The prepared ladder: solves/second on a wired two-pattern join;
+    compare against query-2k-rows for the wiring cost saved."""
+    with m.fresh_space() as s:
+        s.add(*(S.edge(i, i + 1) for i in range(500)))
+        hop = s.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c))
+        return _rate(lambda: [hop.solve() for _ in range(20)] and 20)
+
+
+@bench("add-table-rows")
+def add_table_rows(m: MeTTa) -> float:
+    rows = [(i, i + 1) for i in range(2000)]
+
+    def load() -> int:
+        with m.fresh_space() as s:
+            s.add_table("edge", rows)
+        return 2000
+
+    return _rate(load)
+
+
+@bench("web-dispatch")
+def web_dispatch(m: MeTTa) -> float:
+    from petta import web
+
+    with m.fresh_space() as s:
+        app = web.router(s)
+        for i in range(8):
+            s.run(f'(= (bench-page-{i} $id) "page {i}")')
+            app.add_route("GET", f"/page{i}/{{id:int}}", f"bench-page-{i}")
+        return _rate(
+            lambda: [app.dispatch("GET", "/page3/7") for _ in range(500)] and 500
+        )
+
+
+@bench("soft-prove")
+def soft_prove(m: MeTTa) -> float:
+    from petta import soft
+
+    with m.fresh_space() as s:
+        s.add(S["parent-of"](S.homer, S.bart), S["father-of"](S.abe, S.homer))
+        s.run("(= (grandpa-of $x $y) (and (father-of $x $z) (parent-of $z $y)))")
+        soft.similar(s, "grandpa-of", "grandfather-of", 0.9)
+        goal = S["grandfather-of"](V.who, S.bart)
+        return _rate(
+            lambda: [soft.prove(s, goal, threshold=0.5) for _ in range(200)] and 200
+        )
+
+
+@bench("weighted-relation")
+def weighted_relation_rate(m: MeTTa) -> float:
+    from petta import measure
+
+    with m.fresh_space() as s:
+        measure.install(s)
+        measure.weighted_relation(
+            s, "bench-mood", lambda day: [0.25, 0.75], [S.calm, S.tense]
+        )
+        return _rate(
+            lambda: [
+                s.run("!(ws-best (collapse (bench-mood today)))")
+                for _ in range(500)
+            ]
+            and 500
+        )
+
+
+@bench("register-op")
+def register_op(m: MeTTa) -> float:
+    """Registrations/second, declarations and reflection facts included."""
+
+    def register_batch() -> int:
+        for i in range(100):
+            def fn(x: int) -> int:
+                return x
+
+            m.op(fn, name=f"bench-reg-{i}")
+            m.unregister(f"bench-reg-{i}")
+        return 100
+
+    return _rate(register_batch)
+
+
+@bench("subscribe-tax")
+def subscribe_tax(m: MeTTa) -> float:
+    """Adds/second WITH a live subscription elsewhere: the price every
+    space write pays for the dispatch hook once any subscription exists,
+    to compare against add-batch."""
+    with m.fresh_space() as other, m.fresh_space() as s:
+        subscription = other.subscribe(S.never(V.x))
+        try:
+            return _rate(lambda: s.add(*(S.n(i) for i in range(2000))) or 2000)
+        finally:
+            subscription.cancel()
+
+
 def main(argv: list[str]) -> None:
     chosen = argv or sorted(BENCHES)
     m = MeTTa()
