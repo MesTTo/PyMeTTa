@@ -194,28 +194,62 @@ current_metta_space(Space) :- current_metta_module(Module),
 
 %A ':' declaration in scope here: this space's, and &self's, since &self is the
 %shared space. That is the rule fun_here/1 already applies to functions.
-type_declaration(X, T) :- current_metta_space(Space),
-                          (   match(Space, [':', X, T], T, _)
-                          ;   Space \== '&self',
-                              match('&self', [':', X, T], T, _) ).
+type_declaration(X, T) :- current_metta_module(Module),
+                          type_declaration_in(Module, X, T).
 
-get_function_type([F|Args], T) :- nonvar(F), type_declaration(F, [->|Ts]),
+type_declaration_in(user, X, T) :- !, match('&self', [':', X, T], T, _).
+type_declaration_in(Module, X, T) :- (   match(Module, [':', X, T], T, _)
+                                     ;   match('&self', [':', X, T], T, _) ).
+
+%&self is always the engine's native space. Keeping its lookup direct avoids
+%the provider and module-dispatch layers on every recursive type probe.
+get_function_type([F|Args], T) :- nonvar(F),
+                                  catch('&self'(':', F, [->|Ts]), E, recover_failure(E)),
                                   append(As,[T],Ts),
-                                  maplist('get-type',Args,As).
+                                  maplist('get-type', Args, As).
+get_function_type_in(Module, [F|Args], T) :- Module \== user,
+                                             nonvar(F),
+                                             type_declaration_in(Module, F, [->|Ts]),
+                                             append(As,[T],Ts),
+                                             maplist(Module:'get-type', Args, As).
 
 :- dynamic 'get-type'/2.
-'get-type'(X, T) :- (get_type_candidate(X, T) *-> true ; T = '%Undefined%' ).
+%A type query executed in a named space reads the scoped MeTTa module once,
+%then keeps that module through the candidate loop. Translation, evaluation,
+%and host calls all establish the same scoped state through with_metta_module/2.
+'get-type'(X, T) :- current_metta_module(Module),
+                    ( ( Module == user -> get_type_candidate(X, T)
+                                         ; get_type_candidate_in(Module, X, T) )
+                      *-> true ; T = '%Undefined%' ).
 get_type_candidate(X, 'Number')   :- number(X), !.
 get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
 get_type_candidate(false, 'Bool') :- !.
-get_type_candidate(X, T) :- py_is_object(X), py_object_type(X, T).
+%Only PyObject blobs can be Janus references. The blob guard avoids calling
+%into Janus, and initializing Python, while typing ordinary MeTTa values;
+%py_is_object/1 still validates a live reference and reports a freed one.
+get_type_candidate(X, T) :- atomic(X), \+ atom(X),
+                            blob(X, 'PyObject'), py_is_object(X), py_object_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
-get_type_candidate(X, T) :- type_declaration(X, T).
+get_type_candidate(X, T) :- catch('&self'(':', X, T), E, recover_failure(E)),
+                            \+ cyclic_term(T).
+
+get_type_candidate_in(_, X, 'Number')   :- number(X), !.
+get_type_candidate_in(_, X, _) :- var(X), !.
+get_type_candidate_in(_, X, 'String')   :- string(X), !.
+get_type_candidate_in(_, true, 'Bool')  :- !.
+get_type_candidate_in(_, false, 'Bool') :- !.
+get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
+                                  blob(X, 'PyObject'), py_is_object(X), py_object_type(X, T).
+get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
+get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
+                                       is_list(X),
+                                       maplist(Module:'get-type', X, T).
+get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
@@ -245,7 +279,7 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 'get-metatype'(X, 'Grounded') :- string(X), !.
 'get-metatype'(true,  'Grounded') :- !.
 'get-metatype'(false, 'Grounded') :- !.
-'get-metatype'(X, 'Grounded') :- py_is_object(X), !.
+'get-metatype'(X, 'Grounded') :- blob(X, 'PyObject'), py_is_object(X), !.
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
@@ -536,23 +570,39 @@ control_exception(error(resource_error(_), _)).
 catch_recover(Goal, Recovery) :-
     catch(Goal, E, ( control_exception(E) -> throw(E) ; call(Recovery) )).
 
-%Whether a symbol is callable from where we are: a function this module defines,
-%one &self defines, since &self is the shared space, or a builtin, which is a
-%function nobody claimed a module for. Anything else is data here, which is what
-%keeps one space's equations out of another's compilation.
-fun_here(F) :- current_metta_module(Module),
-               (   fun_in(Module, F) -> true
-               ;   fun_in(user, F) -> true
-               ;   fun(F), \+ fun_in(_, F) ).
+%The hot recovery case needs no meta-call or compound handler term. Real
+%errors fail the candidate; control signals retain catch_recover/2 semantics.
+recover_failure(E) :- ( control_exception(E) -> throw(E) ; fail ).
+
+%Whether a symbol is callable from where we are: a process-wide function that
+%no named equation module claims, a function this module defines, or one &self
+%defines, since &self is shared. fun_scoped/1 summarizes non-user fun_in/2
+%claims. A builtin or user-only function is therefore unambiguous in every
+%space and avoids a current-module read in higher-order loops.
+fun_here(F) :- fun(F), \+ fun_scoped(F), !.
+fun_here(F) :- current_metta_module(Module), fun_here_in(Module, F).
+
+fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
+                          ;   Module \== user, fun_in(user, F) ).
 
 %Register a function and record which module its clauses live in. fun/1 stays
 %global because the translator consults it at compile time to decide whether a
 %head is a call or data, and that decision has to hold wherever the term is
 %compiled; fun_in/2 says where the clauses actually are, so a caller can ask
 %whether *this* space defines a symbol rather than whether any space does.
-:- dynamic fun_in/2.
+:- dynamic fun_in/2, fun_scoped/1.
 register_fun_in(Module, N) :- register_fun(N),
-                              ( fun_in(Module, N) -> true ; assertz(fun_in(Module, N)) ).
+                              ( fun_in(Module, N) -> true ; assertz(fun_in(Module, N)) ),
+                              ( Module == user -> true
+                              ; fun_scoped(N) -> true
+                              ; assertz(fun_scoped(N)) ).
+
+unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
+                                ( fun_in(Other, N), Other \== user
+                                  -> true ; retractall(fun_scoped(N)) ).
+
+unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
+                                retractall(fun_scoped(N)).
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',

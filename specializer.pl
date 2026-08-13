@@ -5,9 +5,9 @@
 %Re-specializing a function already being specialized is refused: its key must differ from the ongoing one
 %(same keys are memoized via ho_specialization), and ever-growing keys - e.g. a recursive call wrapping its
 %higher-order argument, (= (evolve $r $g) (evolve (twice $r) $g)) - would otherwise diverge at compile time:
-maybe_specialize_call(HV, AVs, Out, Goal) :- catch_recover(nb_getval('$spec_stack', Stack), Stack = []),
+maybe_specialize_call(HV, AVs, Out, Goal) :- ( nb_current('$spec_stack', Stack) -> true ; Stack = [] ),
                                              \+ memberchk(HV, Stack),
-                                             setup_call_cleanup( (catch_recover(nb_getval(specneeded,Prev), Prev = []), nb_setval(specneeded,false),
+                                             setup_call_cleanup( (( nb_current(specneeded, Prev) -> true ; Prev = [] ), nb_setval(specneeded,false),
                                                                   nb_setval('$spec_stack', [HV|Stack])),
                                                                  specialize_call(HV, AVs, Out, Goal),
                                                                  (nb_setval('$spec_stack', Stack),
@@ -25,7 +25,7 @@ normalize_specialization_key(Term, Normalized) :-
 
 %Specialize a call by creating and translating a specialized version of the MeTTa code:
 specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses stored for HV:
-                                       catch_recover(nb_getval(HV, MetaList0), fail),
+                                       nb_current(HV, MetaList0),
                                        copy_term(MetaList0, MetaList),
                                        %2. Copy all clause variables eligible for specialization across all meta-clauses:
                                        bagof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
@@ -115,7 +115,7 @@ forget_symbol(Name) :- retractall('&self'(=, [Name|_], _)),
                        forall(metta_on_function_removed(Name), true),
                        retractall(arity(Name,_)),
                        retractall(fun(Name)),
-                       catch_recover(nb_delete(Name), true),
+                       ( nb_current(Name, _) -> nb_delete(Name) ; true ),
                        retractall(ho_specialization(Name,_)).
 
 %Invalidate all specializations:

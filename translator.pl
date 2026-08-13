@@ -20,7 +20,7 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
                                                                   flatten(GoalsA,GoalsPrefix)
                                                                 ; Args1 = Args0, GoalsPrefix = [] ),
-                                               catch_recover(nb_getval(F, Prev), Prev = []),
+                                               ( nb_current(F, Prev) -> true ; Prev = [] ),
                                                nb_setval(F, [fun_meta(Args1, BodyExpr) | Prev]),
                                                ( declared_output_type(F, 'Atom')
                                                  -> GoalsBody = [],
@@ -76,14 +76,21 @@ throw_function_overapplication(Fun, ActualInputArity) :-
 % reduce/2 came back as a partial application instead of running: `(map-atom
 % (1 2 3) double)` answered `((partial double (1)) ...)`. A builtin still
 % resolves, through the module's own inheritance from user.
-reduce([F|Args], Out) :- nonvar(F), atom(F), fun_here(F)
+reduce([F|Args], Out) :- nonvar(F), atom(F),
+                         ( fun(F), \+ fun_scoped(F) -> Module = user
+                         ; current_metta_module(Module), fun_here_in(Module, F) )
                          -> % --- Case 1: callable predicate ---
                             length(Args, N),
                             Arity is N + 1,
-                            current_metta_module(Module),
-                            ( current_predicate(Module:F/Arity) , \+ (current_op(_, _, F), Arity =< 2)
+                            ( ( Module == user -> current_predicate(F/Arity)
+                                               ; current_predicate(Module:F/Arity) ),
+                              \+ (current_op(_, _, F), Arity =< 2)
                               -> resolve_memoization(F, Args, Out, Goal),
-                                 catch_recover(call(Module:Goal), fail)
+                                 %Keep the recovery handler inside catch/3. A
+                                 %catch_recover/2 wrapper adds a Prolog call to
+                                 %every dynamic reduction even when none throws.
+                                 ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
+                                 catch(call(CallGoal), E, recover_failure(E))
                             ; incomplete_application_kind(F, Arity, partial)
                               -> Out = partial(F,Args)
                             ; throw_function_overapplication(F, N) )
@@ -463,10 +470,11 @@ build_branch(Con, Val, Out, (Val = Out, Con)).
 %Restore last-call optimization where it is safe: a branch ending with the
 %runtime unification (Out = V) keeps a tail-recursive loop from running in
 %constant stack, since the recursive call is no longer last. When V occurs
-%nowhere in the head and exactly twice in the body (its producing goal and
-%this unification), it is private to the branch, so binding V to Out at
-%translate time is sound and the trailing unification disappears, putting
-%the branch's real last goal back in tail position.
+%nowhere in the head or outside this branch, and occurs before the final
+%unification inside the branch, it is private to the branch. Binding V to Out
+%at translate time is then sound and removes the trailing unification. The
+%branch's real last goal returns to tail position, including when a nested
+%conditional produces V in more than one alternative.
 merge_branch_returns(Head, Body0, Body) :- mbr_goal(Body0, Head, Body0, Body).
 
 mbr_goal((A , B), H, W, (A1 , B1)) :- !, mbr_goal(A, H, W, A1), mbr_goal(B, H, W, B1).
@@ -479,13 +487,16 @@ mbr_goal(G, _, _, G).
 mbr_branch(B0, H, W, B) :-
     ( mbr_split(B0, Prefix, (Out = V)),
       var(V), var(Out), V \== Out,
-      %Private means: absent from the head, exactly twice in the whole
-      %body, and produced INSIDE this branch's own goals; a variable bound
-      %before the branch (a let, say) fails the last test, since aliasing
-      %it would let the other arm corrupt it.
+      %Private means absent from the head, confined to this branch in the
+      %whole body, and produced inside this branch's own goals. A variable
+      %bound before the branch fails the confinement test, since aliasing it
+      %would let another arm corrupt it.
       mbr_count(H, V, 0, 0),
-      mbr_count(W, V, 0, 2),
-      mbr_count(Prefix, V, 0, 1)
+      mbr_count(B0, V, 0, BranchCount),
+      mbr_count(W, V, 0, WholeCount),
+      WholeCount =:= BranchCount,
+      mbr_count(Prefix, V, 0, PrefixCount),
+      PrefixCount > 0
       -> V = Out,
          mbr_goal(Prefix, H, W, B)
     ; mbr_goal(B0, H, W, B) ).
@@ -547,7 +558,7 @@ memberchk_eq(V, [H|_]) :- V == H, !.
 memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
 
 %Generate readable lambda name:
-next_lambda_name(Name) :- ( catch_recover(nb_getval(lambda_counter, Prev), Prev = 0) ),
+next_lambda_name(Name) :- ( nb_current(lambda_counter, Prev) -> true ; Prev = 0 ),
                           N is Prev + 1,
                           nb_setval(lambda_counter, N),
                           format(atom(Name), 'lambda_~d', [N]).
