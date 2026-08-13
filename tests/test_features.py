@@ -648,3 +648,87 @@ def test_stats_block_counts_the_work(m):
     assert s.walltime > 0 and s.cputime >= 0
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
     assert "inferences" in repr(s)
+
+
+# ---------------------------------------------- streaming, atomic, profiling
+
+
+def test_stream_pulls_rows_lazily_and_interleaves(m):
+    from petta import PettaError
+
+    m.add_table("edge", [(i, i + 1) for i in range(500)])
+    with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
+        first = next(rows)
+        assert (first.a, first.b, first.c) == (0, 1, 2)
+        # Unrelated engine work interleaves while the cursor stays open,
+        # which a raw janus cursor forbids.
+        assert m.value("(+ 1 2)") == 3
+        second = next(rows)
+        assert (second.a, second.b, second.c) == (1, 2, 3)
+    with pytest.raises(PettaError):
+        next(rows)  # leaving the with-block closed it
+
+
+def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
+    from petta import PettaError
+
+    m.add_table("edge", [(i, i + 1) for i in range(50)])
+    cursor = m.stream(S.edge(V.a, V.b))
+    assert [tuple(r) for r in cursor] == [tuple(r) for r in m.query(S.edge(V.a, V.b))]
+    with pytest.raises(PettaError):
+        next(cursor)  # exhaustion closed it
+    cursor.close()  # and a second close is a no-op
+
+
+def test_stream_guard_and_per_pull_bounds(m):
+    from petta import InferenceLimitError
+
+    m.add_table("edge", [(i, i + 1) for i in range(100)])
+    with m.stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
+        assert [r.a for r in rows] == list(range(90, 100))
+    m.run("(= (stream-spin $n) (if (== $n 0) done (stream-spin (- $n 1))))")
+    cursor = m.stream(
+        S.edge(V.a, V.b),
+        where="(== (stream-spin 100000000) done)",
+        inferences=1_000,
+    )
+    with pytest.raises(InferenceLimitError):
+        next(cursor)
+    cursor.close()
+
+
+def test_atomic_run_commits_or_rolls_back_whole(m):
+    from petta import EngineError, expr
+
+    with pytest.raises(EngineError):
+        m.run("(kept fact) !(/ 1 0)", atomic=True)
+    assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
+    m.run("(kept fact) !(+ 1 1)", atomic=True)
+    assert expr(S.kept, S.fact) in m  # and commits whole on success
+
+
+def test_speculative_run_answers_and_discards(m):
+    from petta import expr
+
+    groups = m.run("(ghost fact) !(+ 2 2)", speculative=True)
+    assert groups[-1] == [4]
+    assert expr(S.ghost, S.fact) not in m
+    groups, text = m.run(
+        "(ghost2 x) !(println! spec-out)", speculative=True, capture=True
+    )
+    assert "spec-out" in text
+    assert expr(S.ghost2, S.x) not in m
+    with pytest.raises(ValueError):
+        m.run("!(+ 1 1)", atomic=True, speculative=True)
+
+
+def test_profile_counts_samples_on_real_work(m):
+    m.run("(= (prof-spin $n) (if (== $n 0) done (prof-spin (- $n 1))))")
+    groups, prof = m.profile("!(prof-spin 10000000)")
+    assert groups == [[S.done]]
+    assert prof.samples > 0 and prof.ticks > 0
+    assert len(prof.nodes) >= 1
+    predicate, calls, redos, ticks_self, siblings = prof.nodes[0]
+    assert isinstance(predicate, str) and ticks_self >= 0
+    assert prof.top(1) == prof.nodes[:1]
+    assert "samples" in repr(prof)

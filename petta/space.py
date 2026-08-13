@@ -11,16 +11,17 @@ Open Obligations:
 
 from __future__ import annotations
 
+import weakref
 from typing import Any, Callable, Iterable
 
 from . import ops as _ops_module
 from ._engine import Runtime, runtime
 from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, variables
 from .derivation import Derivation
-from .errors import EngineError
-from .results import Rows
+from .errors import EngineError, PettaError
+from .results import Rows, _row_class
 
-__all__ = ["MeTTa", "Prepared", "current_space"]
+__all__ = ["MeTTa", "Prepared", "Cursor", "EngineProfile", "current_space"]
 
 
 def current_space(default: str = "&self") -> str:
@@ -164,6 +165,13 @@ class MeTTa:
 
     # ----------------------------------------------------------------- running
 
+    def _run_target(self, source: str, using: dict[str, Any] | None) -> tuple[str, list]:
+        """The (entry point, inputs) pair a run of this source crosses as."""
+        if not using:
+            return "petta_py_run", [source, self._space]
+        pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
+        return "petta_py_run_using", [source, self._space, pairs]
+
     def run(
         self,
         source: str,
@@ -172,6 +180,8 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
+        atomic: bool = False,
+        speculative: bool = False,
     ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
         """Run MeTTa source: one list of answers per ! directive.
 
@@ -194,19 +204,33 @@ class MeTTa:
         source completed before the stop, writes included, stands. With
         `capture=True` the return value is (groups, text), text being
         everything the source printed, println! included.
+
+        `atomic=True` runs the whole source inside the engine's own
+        transaction/1: every write, facts and equations alike, commits
+        whole, or rolls back whole when a directive throws; the inline
+        (transaction ...) form does the same for a scope inside a
+        program. `speculative=True` is the what-if twin through
+        snapshot/1: the answers return and every write is discarded.
+        Both cover engine state; a Python operation's side effects, and
+        subscription callbacks already fired, stay where they happened.
         """
-        if not using:
-            pred, ins = "petta_py_run", [source, self._space]
-        else:
-            pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
-            pred, ins = "petta_py_run_using", [source, self._space, pairs]
+        if atomic and speculative:
+            raise ValueError(
+                "atomic= and speculative= are exclusive: one commits the "
+                "run's writes whole, the other discards them whole"
+            )
+        pred, ins = self._run_target(source, using)
         limits = _limits(timeout, inferences)
-        if limits is None and not capture:
+        if limits is None and not (capture or atomic or speculative):
             names = ["Src", "Space"] if not using else ["Src", "Space", "Pairs"]
             goal = f"{pred}({', '.join(names)}, Groups)"
             row = self._rt.must(goal, **dict(zip(names, ins)))
             out = row.get("Groups", [])
         else:
+            if atomic:
+                pred, ins = "petta_py_atomic", [pred, ins]
+            elif speculative:
+                pred, ins = "petta_py_speculative", [pred, ins]
             if capture:
                 pred, ins = "petta_py_captured", [pred, ins]
             seconds, steps = limits if limits is not None else (-1.0, -1)
@@ -220,6 +244,37 @@ class MeTTa:
             groups = [[from_wire(w) for w in group] for group in groups_wire]
             return groups, text
         return [[from_wire(w) for w in group] for group in out]
+
+    def profile(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> tuple[list[list[Atom]], "EngineProfile"]:
+        """Run source under the engine's statistical profiler, answering
+        (groups, profile): the groups exactly as run() answers them, and
+        the profile carrying sample counters plus one row per predicate,
+        self-ticks first.
+
+            groups, prof = m.profile("!(big-computation)")
+            prof.top(5)     # the five predicates the samples landed in
+
+        The sampler is statistical: a program that finishes in
+        milliseconds carries few samples, so profile something that runs.
+        Profiling changes execution; it is a debugging surface, not a
+        mode to leave on.
+        """
+        pred, ins = self._run_target(source, using)
+        seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
+        row = self._rt.must(
+            "petta_py_limited(T, I, P, Ins, Out)",
+            T=seconds, I=steps, P="petta_py_profiled", Ins=[pred, ins],
+        )
+        out, samples, ticks, nodes = row["Out"]
+        groups = [[from_wire(w) for w in group] for group in out]
+        return groups, EngineProfile(samples, ticks, nodes)
 
     def save(self, path: str) -> int:
         """Write every stored atom of this space, equations included, as
@@ -417,6 +472,33 @@ class MeTTa:
             answered = self._rt.apply_must("petta_py_limited", *limits, pred, ins)
         decoded = [tuple(from_wire(v) for v in r) for r in answered]
         return Rows(tuple(columns), decoded)
+
+    def stream(
+        self,
+        *patterns: Any,
+        where: Any | None = None,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> "Cursor":
+        """query(), pulled: the same conjunction and guard, answered one
+        row at a time through a cursor the engine holds open.
+
+            with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
+                for row in rows:
+                    if wanted(row):
+                        break            # nothing further is even joined
+
+        The join's state lives inside an SWI engine between pulls, each
+        pull is one ordinary call, and unrelated calls interleave freely,
+        so a huge join costs one row of work per row actually taken where
+        query() computes and decodes every answer up front. `timeout`
+        bounds each pull's wall time; `inferences` is one budget for the
+        cursor's whole engine work, spent across pulls, because an
+        engine's inferences are its own. The cursor enumerates under the
+        engine's logical update view: writes made after the first pull
+        are not seen by this cursor.
+        """
+        return Cursor(self, patterns, where, timeout, inferences)
 
     def assuming(self, *facts: Any) -> "_Assuming":
         """Facts held only inside a with-block: the assumptions reading of
@@ -1108,6 +1190,118 @@ class _StatsBlock:
         return (
             f"<stats: {self.inferences} inferences, "
             f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
+        )
+
+
+class Cursor:
+    """MeTTa.stream(): answers pulled one at a time from an engine-held
+    query. Iterate it, close() it, or leave its with-block; exhaustion
+    closes it by itself, a second close is a no-op, and a cursor dropped
+    unclosed is reaped by its finalizer. Rows carry the query's variable
+    names as columns, exactly as query()'s rows do.
+    """
+
+    __slots__ = ("columns", "_row_cls", "_timeout", "_rt", "_handle", "_closed", "_finalizer", "__weakref__")
+
+    def __init__(
+        self,
+        space: "MeTTa",
+        patterns: tuple,
+        where: Any | None,
+        timeout: float | None,
+        inferences: int | None,
+    ) -> None:
+        atoms = [_to_atom(p) for p in patterns]
+        columns: list[str] = []
+        for a in atoms:
+            for name in variables(a):
+                if name != "_" and name not in columns:
+                    columns.append(name)
+        self.columns = tuple(columns)
+        self._row_cls = _row_class(self.columns)
+        limits = _limits(timeout, inferences)
+        # The inference budget rides inside the engine (its work is its
+        # own counter's, invisible to a per-pull wrapper); the wall bound
+        # wraps each pull outside, where idle time between pulls is free.
+        self._timeout = None if limits is None or limits[0] < 0 else limits[0]
+        steps = -1 if limits is None else limits[1]
+        self._rt = space.runtime
+        wires = [a.to_wire() for a in atoms]
+        guard = [] if where is None else _to_atom(where).to_wire()
+        self._handle = self._rt.apply_must(
+            "petta_py_cursor_open", space.space_name, wires, guard, list(columns), steps
+        )
+        self._closed = False
+        # The finalizer is the last guard, not the contract: it destroys
+        # the engine if a cursor is dropped unclosed, from whichever
+        # thread collection runs on (cross-thread destroy is probed).
+        self._finalizer = weakref.finalize(self, Cursor._reap, self._handle)
+
+    @staticmethod
+    def _reap(handle: Any) -> None:
+        import petta as pkg
+
+        try:
+            pkg.janus.query_once("petta_py_cursor_close(E)", {"E": handle})
+        except Exception:
+            pass  # the engine is already gone, or the process is ending
+
+    def __iter__(self) -> "Cursor":
+        return self
+
+    def __next__(self):
+        if self._closed:
+            raise PettaError("this cursor is closed")
+        if self._timeout is None:
+            answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
+        else:
+            answer = self._rt.apply_must(
+                "petta_py_limited", self._timeout, -1,
+                "petta_py_cursor_next", [self._handle],
+            )
+        if not answer:
+            self.close()
+            raise StopIteration
+        return self._row_cls(from_wire(v) for v in answer[0])
+
+    def close(self) -> None:
+        """Destroy the held engine; idempotent, and exhaustion calls it."""
+        if self._closed:
+            return
+        self._closed = True
+        self._finalizer()  # runs the reap exactly once; later GC is a no-op
+
+    def __enter__(self) -> "Cursor":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __repr__(self) -> str:
+        state = "closed" if self._closed else "open"
+        return f"<cursor {state} -> {', '.join(self.columns)}>"
+
+
+class EngineProfile:
+    """MeTTa.profile()'s second answer: the sampler's counters and one
+    row per predicate, self-ticks-descending. Each node is (predicate,
+    calls, redos, ticks_self, ticks_siblings)."""
+
+    __slots__ = ("samples", "ticks", "nodes")
+
+    def __init__(self, samples: int, ticks: int, nodes: list) -> None:
+        self.samples = int(samples)
+        self.ticks = int(ticks)
+        self.nodes = [tuple(node) for node in nodes]
+
+    def top(self, n: int = 10) -> list[tuple]:
+        """The n predicates the samples landed in most."""
+        return self.nodes[:n]
+
+    def __repr__(self) -> str:
+        return (
+            f"<profile: {self.samples} samples, {self.ticks} ticks, "
+            f"{len(self.nodes)} predicates>"
         )
 
 

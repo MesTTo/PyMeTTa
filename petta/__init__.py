@@ -144,7 +144,7 @@ from .errors import (  # noqa: E402
 )
 from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
-from .space import MeTTa, Prepared, current_space  # noqa: E402
+from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from . import aio, arrays, convert, foreign, integrate, matching, measure, remote, testing  # noqa: E402
 from .define import Defined  # noqa: E402
 from .foreign import SpaceProvider  # noqa: E402
@@ -178,6 +178,8 @@ __all__ = [
     # runtime
     "MeTTa",
     "Prepared",
+    "Cursor",
+    "EngineProfile",
     "Rows",
     "Row",
     "REFLECTION_SPACE",

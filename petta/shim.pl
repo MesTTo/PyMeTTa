@@ -12,6 +12,7 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(time)).
+:- use_module(library(prolog_profile)).
 
 %The engine asserts translated_from/2 without declaring it, so a read before
 %the first equation would raise existence rather than finding nothing:
@@ -229,6 +230,10 @@ petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_captured).
+petta_py_wrappable(petta_py_atomic).
+petta_py_wrappable(petta_py_speculative).
+petta_py_wrappable(petta_py_profiled).
+petta_py_wrappable(petta_py_cursor_next).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
     ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),
@@ -265,6 +270,87 @@ petta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs]) :-
     statistics(inferences, Inferences),
     statistics(cputime, CpuTime),
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]).
+
+%Run the wrapped call inside the engine's own transaction/1: its dynamic
+%writes, facts and equations alike, commit whole or roll back whole when
+%the goal fails or throws. This is the engine's inline (transaction ...)
+%form lifted over a whole entry point. Subscription callbacks fire when a
+%write happens and are not unfired by a rollback, and the Python-side
+%effects of operations are equally the caller's own.
+petta_py_atomic(Pred, Ins, Out) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    transaction(Goal).
+
+%Run against a frozen view and discard every change: snapshot/1, the
+%what-if reading. The answers return; the space stays as it was.
+petta_py_speculative(Pred, Ins, Out) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    snapshot(Goal).
+
+%%%%%%%%%% Lazy cursors %%%%%%%%%%
+%
+% A query held open as an SWI engine: engine_next pulls one answer per
+% call, the goal's join state stays alive inside the engine between
+% pulls, and unrelated calls interleave freely, which a raw janus cursor
+% forbids (its frames nest LIFO and it dies crossing threads; probed).
+% The handle crosses to Python opaquely inside prolog/1, and both
+% stepping and destroying work from any thread (probed). The engine runs
+% under the logical update view: a fact added after the first pull is not
+% seen by this cursor, the snapshot-like enumeration contract.
+
+%Inf bounds the cursor's WHOLE engine work, installed inside the engine:
+%an engine counts its own inferences, so an outer call_with_inference_limit
+%around one pull sees almost none of the work (measured: a 100M-step guard
+%ran to completion under a 1000-inference outer bound). The limiter's
+%dynamic extent lives on the engine's own stack, so it spans every resume,
+%the cumulative-budget reading. Wall bounds stay outside, per pull, where
+%idle time between pulls cannot count.
+petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Inf, prolog(Engine)) :-
+    ( GuardTagged == [] ->
+        Goal = petta_py_query(Space, PatternsTagged, VarNames, Row)
+    ; Goal = petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row)
+    ),
+    ( Inf < 0 -> Bounded = Goal
+    ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
+                  ( Result == inference_limit_exceeded
+                    -> throw(error(petta_py_inference_limit(Inf), none))
+                  ; true ) )
+    ),
+    engine_create(Row, Bounded, Engine).
+
+%[] is exhaustion, [Row] one answer, so Python needs no sentinel value.
+petta_py_cursor_next(Engine, Answer) :-
+    ( engine_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
+
+%Idempotent close: a second destroy finds no engine and is at peace.
+petta_py_cursor_close(Engine) :-
+    catch(engine_destroy(Engine), error(existence_error(_, _), _), true).
+
+%%%%%%%%%% Profiling %%%%%%%%%%
+%
+% The statistical profiler around one wrapped call, its terminal report
+% swallowed and its data projected to plain values: the summary counters
+% and one row per predicate, self-ticks-descending. Sampling is
+% statistical, so a short program may carry few samples.
+petta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    with_output_to(string(_), profile(Goal, [top(0)])),
+    profile_data(Data),
+    get_dict(summary, Data, Summary),
+    get_dict(samples, Summary, Samples),
+    get_dict(ticks, Summary, Ticks),
+    get_dict(nodes, Data, NodeDicts),
+    %sort/4 keys index compounds, not lists, so the self-ticks ride in
+    %front as the key of a pair and are stripped after the sort.
+    findall(Self-[PredName, Calls, Redos, Self, Siblings],
+            ( member(Node, NodeDicts),
+              get_dict(predicate, Node, P), term_string(P, PredName),
+              get_dict(call, Node, Calls), get_dict(redo, Node, Redos),
+              get_dict(ticks_self, Node, Self),
+              get_dict(ticks_siblings, Node, Siblings) ),
+            Keyed),
+    sort(1, @>=, Keyed, SortedKeyed),
+    findall(Row, member(_-Row, SortedKeyed), Nodes).
 
 %%%%%%%%%% Parse and print %%%%%%%%%%
 
