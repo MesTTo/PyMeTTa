@@ -83,3 +83,59 @@ def test_mm2_exec_transforms_inside_mork(mork, metta):
     rows = mork.query(S.enemy(S.sam, V.x))
     assert [row.x for row in rows] == [S.tim]
     assert not mork.query(S.friend(S.sam, V.x))
+
+
+@pytest.fixture()
+def named_pair(metta):
+    alpha = metta.space("&mork:iso-alpha")
+    beta = metta.space("&mork:iso-beta")
+    yield alpha, beta
+    for space in (alpha, beta):
+        for atom in space.atoms():
+            space.remove(atom)
+
+
+def test_named_mork_spaces_are_isolated(named_pair, mork):
+    alpha, beta = named_pair
+    alpha.add(S.only(S.alpha))
+    beta.add(S.only(S.beta))
+    assert [str(a) for a in alpha.atoms()] == ["(only alpha)"]
+    assert [str(a) for a in beta.atoms()] == ["(only beta)"]
+    assert not mork.query(S.only(V.x))  # the default space saw nothing
+
+
+def test_bulk_add_lands_in_one_crossing(metta, named_pair):
+    alpha, _ = named_pair
+    stored = metta.runtime.once(
+        "findall(_A, (between(1, 500, _I), _A = [bulked, _I]), _L),"
+        " 'mork-add-atoms'('&mork:iso-alpha', _L, true),"
+        " aggregate_all(count,"
+        "   ('get-atoms'('&mork:iso-alpha', _P), _P = [bulked, _]), N)"
+    )["N"]
+    assert stored == 500
+    assert len(alpha.query(S.bulked(V.i))) == 500
+
+
+try:
+    from hypothesis import HealthCheck, given, settings
+except ModuleNotFoundError:
+    pass
+else:
+    from petta.testing import expressions
+
+    @settings(
+        max_examples=25,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(expressions(max_leaves=6, ground=True))
+    def test_generated_expressions_round_trip_through_mork(metta, atom):
+        """MORK's own parser and printer agree with the engine's on
+        whatever the strategy generates: what goes in comes back."""
+        space = metta.space("&mork:fuzz")
+        try:
+            space.add(atom)
+            assert atom in [a for a in space.atoms()]
+        finally:
+            for stored in space.atoms():
+                space.remove(stored)
