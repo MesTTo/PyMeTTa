@@ -12,6 +12,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
@@ -50,14 +51,19 @@ class Subscription:
         return events
 
     def cancel(self) -> None:
-        if self._active:
+        # The registry mutation is locked: two threads cancelling the
+        # same subscription both used to pass the _active guard, and the
+        # second list removal raised. Delivery never runs under the lock.
+        with _REGISTRY_LOCK:
+            if not self._active:
+                return
             self._active = False
             _SUBSCRIPTIONS.remove(self)
-            _sync_engine()
-            if self._fact is not None and _RUNTIME is not None:
-                from .ops import _reflect_remove
+        _sync_engine()
+        if self._fact is not None and _RUNTIME is not None:
+            from .ops import _reflect_remove
 
-                _reflect_remove(_RUNTIME, self._fact)
+            _reflect_remove(_RUNTIME, self._fact)
 
     def _deliver(self, event: Event) -> None:
         if self.callback is None:
@@ -68,6 +74,7 @@ class Subscription:
 
 _SUBSCRIPTIONS: list[Subscription] = []
 _RUNTIME = None
+_REGISTRY_LOCK = threading.Lock()
 
 
 def _sync_engine() -> None:
@@ -103,7 +110,8 @@ def subscribe(
         [Sym("subscription"), Sym(space), pattern, Sym(on)]
     )
     _reflect_add(runtime, subscription._fact)
-    _SUBSCRIPTIONS.append(subscription)
+    with _REGISTRY_LOCK:
+        _SUBSCRIPTIONS.append(subscription)
     _sync_engine()
     return subscription
 
