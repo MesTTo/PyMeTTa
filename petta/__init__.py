@@ -138,6 +138,7 @@ from .errors import (  # noqa: E402
     MettaSyntaxError,
     PettaError,
 )
+from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import MeTTa, Prepared, current_space  # noqa: E402
 from . import arrays, convert, foreign, integrate, matching, measure, soft  # noqa: E402
@@ -175,6 +176,7 @@ __all__ = [
     "Prepared",
     "Rows",
     "Row",
+    "REFLECTION_SPACE",
     # diagnostics
     "Derivation",
     "Step",

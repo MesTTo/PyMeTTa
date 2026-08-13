@@ -258,6 +258,16 @@ class MeTTa:
                 del registry[key]
         for key in [k for k in _DEFINED_GENERATORS if k[0] == self._space]:
             _DEFINED_GENERATORS.discard(key)
+        # Reflection facts describing this space follow it too, so a pooled
+        # name reused later does not inherit another life's story.
+        from .ops import REFLECTION_SPACE
+
+        if self._space != REFLECTION_SPACE:
+            reflection = MeTTa(REFLECTION_SPACE)
+            for row in reflection.query(
+                Expr([Sym("defined"), Sym(self._space), Var("f")])
+            ):
+                reflection.remove(Expr([Sym("defined"), Sym(self._space), row.f]))
 
     def __iadd__(self, atom: Any) -> "MeTTa":
         self.add(atom)
@@ -584,6 +594,7 @@ class MeTTa:
         # Clause stacking is per (space, name), process-wide: equations live
         # in the space, not in whichever MeTTa instance happened to add them.
         earlier = _DEFINE_CLAUSES.setdefault((self._space, name), [])
+        first_clause = not earlier
         if not earlier and self.is_function_here(name):
             raise CompileError(
                 f"{name!r} is already a function this space answers (an "
@@ -643,6 +654,14 @@ class MeTTa:
         for helper_equation in compiled.aux:
             self.add(helper_equation)
         self.add(equation)
+        if first_clause:
+            # The function reflects into the library's own space, one fact
+            # per (space, name), following the space through clear().
+            self._rt.must(
+                "petta_py_add(Space, W)",
+                Space=_ops_module.REFLECTION_SPACE,
+                W=Expr([Sym("defined"), Sym(self._space), Sym(name)]).to_wire(),
+            )
         # Annotations declare the type, exactly as they do for operations,
         # once per name so stacked clauses do not repeat the declaration.
         annotated = resolved_annotations(fn)

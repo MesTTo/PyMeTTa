@@ -3,7 +3,8 @@ building operators over the whole engine-evaluable algebra, declarations
 generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
 classes as declared types), guarded and bounded queries, assumptions,
 prepared queries, general weighted relations with the neural predicate as
-their torch instance, and goal-directed soft proving with Proof objects.
+their torch instance, goal-directed soft proving with Proof objects, and
+the &petta reflection space the library describes itself into.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -346,3 +347,69 @@ def test_soft_prove_takes_conjunction_goals(m):
     assert proof is not None and proof.similarity == 1.0
     assert proof.substitutions["len"] == 12
     assert [s.kind for s in proof.steps] == ["fact", "guard"]
+
+
+# --------------------------------------------------------- reflection space
+
+
+def test_the_library_reflects_into_its_own_space(m):
+    from petta import MeTTa, REFLECTION_SPACE
+
+    reflection = MeTTa(REFLECTION_SPACE)
+
+    @m.op(name="reflect-probe")
+    def reflect_probe(x: int) -> int:
+        return x
+
+    rows = reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
+    assert [(r.arity, str(r.kind)) for r in rows] == [(1, "det")]
+    m.unregister("reflect-probe")
+    assert not reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
+
+    @m.define
+    def probe_twice(x):
+        return x + x
+
+    assert reflection.query(S.defined(S[m.space_name], S["probe-twice"]))
+
+    sub = m.subscribe(S.road(V.a, V.b))
+    watched = reflection.query(S.subscription(S[m.space_name], V.p, V.on))
+    assert len(watched) == 1 and str(watched[0].on) == "add"
+    sub.cancel()
+    assert not reflection.query(S.subscription(S[m.space_name], V.p, V.on))
+
+
+def test_reflection_facts_follow_a_dropped_space(metta):
+    from petta import MeTTa, REFLECTION_SPACE
+
+    reflection = MeTTa(REFLECTION_SPACE)
+    space = metta.fresh_space()
+
+    @space.define
+    def fleeting(x):
+        return x
+
+    name = space.space_name
+    assert reflection.query(S.defined(S[name], S.fleeting))
+    space.drop()
+    assert not reflection.query(S.defined(S[name], S.fleeting))
+
+
+def test_metta_programs_steer_through_the_reflection_space(m):
+    """Deeper control without forking: a Python subscription on &petta
+    reacts to control atoms a MeTTa program writes there."""
+    from petta import MeTTa, REFLECTION_SPACE
+
+    reflection = MeTTa(REFLECTION_SPACE)
+    seen = []
+    sub = reflection.subscribe(
+        S.control(V.knob, V.value), lambda e: seen.append(e)
+    )
+    try:
+        m.run("!(add-atom &petta (control verbosity 2))")
+        assert len(seen) == 1
+        assert seen[0].bindings["knob"] == S.verbosity
+        assert seen[0].bindings["value"] == 2
+    finally:
+        sub.cancel()
+        reflection.remove(S.control(S.verbosity, 2))

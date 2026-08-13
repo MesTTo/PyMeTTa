@@ -27,7 +27,36 @@ __all__ = [
     "referenced_classes",
     "class_declarations",
     "registered",
+    "REFLECTION_SPACE",
 ]
+
+#: The library's own space. Everything Python registers reflects here as
+#: ordinary atoms: (op name arity kind) per registered arity,
+#: (defined space name) per @define function, (subscription space pattern
+#: on) per standing query. It is a space like any other, so MeTTa programs
+#: can query the library's surface, and writing to it composes with
+#: subscriptions: a Python subscription on &petta reacts to control atoms
+#: a MeTTa program adds, which is steering the library from inside MeTTa
+#: without forking it.
+REFLECTION_SPACE = "&petta"
+
+
+def _op_facts(op: "Operation") -> list[Expr]:
+    return [
+        expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities
+    ]
+
+
+def _reflect_add(runtime, atom: Expr) -> None:
+    runtime.must(
+        "petta_py_add(Space, W)", Space=REFLECTION_SPACE, W=atom.to_wire()
+    )
+
+
+def _reflect_remove(runtime, atom: Expr) -> None:
+    runtime.once(
+        "petta_py_remove(Space, W, _)", Space=REFLECTION_SPACE, W=atom.to_wire()
+    )
 
 # Python annotation -> MeTTa type name. Everything else is %Undefined%,
 # matching what the engine says about an undeclared value.
@@ -335,7 +364,11 @@ def register(
     )
     for declaration in declarations:
         runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
-    REGISTRY[metta_name] = Operation(
+    previous = REGISTRY.get(metta_name)
+    if previous is not None:
+        for fact in _op_facts(previous):
+            _reflect_remove(runtime, fact)
+    operation = Operation(
         name=metta_name,
         fn=fn,
         kind=kind,
@@ -343,7 +376,11 @@ def register(
         pass_atoms=pass_atoms,
         space=space,
         declarations=declarations,
+        arities=tuple(arities),
     )
+    for fact in _op_facts(operation):
+        _reflect_add(runtime, fact)
+    REGISTRY[metta_name] = operation
     return fn
 
 
@@ -365,6 +402,8 @@ def unregister(runtime, name: str) -> None:
                 Space=op.space,
                 W=declaration.to_wire(),
             )
+        for fact in _op_facts(op):
+            _reflect_remove(runtime, fact)
     REGISTRY.pop(name, None)
 
 

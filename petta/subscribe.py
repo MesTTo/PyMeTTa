@@ -42,6 +42,7 @@ class Subscription:
     on: str  # "add" | "remove" | "both"
     _queue: list[Event] = field(default_factory=list)
     _active: bool = True
+    _fact: Atom | None = None  # the reflection atom in &petta, if any
 
     def drain(self) -> list[Event]:
         """Every queued event, oldest first; the queue empties."""
@@ -53,6 +54,10 @@ class Subscription:
             self._active = False
             _SUBSCRIPTIONS.remove(self)
             _sync_engine()
+            if self._fact is not None and _RUNTIME is not None:
+                from .ops import _reflect_remove
+
+                _reflect_remove(_RUNTIME, self._fact)
 
     def _deliver(self, event: Event) -> None:
         if self.callback is None:
@@ -85,6 +90,17 @@ def subscribe(
         raise ValueError(f"on must be add, remove or both, not {on!r}")
     _RUNTIME = runtime
     subscription = Subscription(space, pattern, callback, on)
+    # The standing query reflects into the library's own space, removed on
+    # cancel, so MeTTa programs see what Python is watching. The fact goes
+    # in before the subscription activates: a watcher of &petta sees other
+    # subscriptions arrive, never its own birth.
+    from .atoms import Expr, Sym
+    from .ops import _reflect_add
+
+    subscription._fact = Expr(
+        [Sym("subscription"), Sym(space), pattern, Sym(on)]
+    )
+    _reflect_add(runtime, subscription._fact)
     _SUBSCRIPTIONS.append(subscription)
     _sync_engine()
     return subscription

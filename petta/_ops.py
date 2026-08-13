@@ -35,6 +35,7 @@ class Operation:
     pass_atoms: bool  # give the callable atoms rather than decoded values
     space: str | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
+    arities: tuple = ()  # every registered arity, for reflection facts
 
 
 REGISTRY: dict[str, Operation] = {}
