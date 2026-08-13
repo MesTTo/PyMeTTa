@@ -19,6 +19,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import math
 from typing import Any, Callable, Iterable
 
 from .atoms import Atom, Expr, Gnd, Sym, Var, decode, expr
@@ -57,6 +58,8 @@ def matcher(
     saying no.
     """
 
+    threshold = _bounded_degree(threshold, f"matcher {name!r} threshold")
+
     def run(query, candidate=None):
         if candidate is None or isinstance(candidate, Var):
             if generate is None:
@@ -65,15 +68,35 @@ def matcher(
                     f"matcher has no generator; pass generate= to serve it"
                 )
             for value, degree in generate(_plain(query)):
+                degree = _bounded_degree(
+                    degree, f"matcher {name!r} generated degree"
+                )
                 if degree >= threshold:
-                    yield expr(float(degree), value)
+                    yield expr(degree, value)
             return
-        degree = float(score(_plain(query), _plain(candidate)))
+        degree = _bounded_degree(
+            score(_plain(query), _plain(candidate)),
+            f"matcher {name!r} score degree",
+        )
         if degree >= threshold:
             yield expr(degree, candidate)
 
     m.op(run, name=name, typed=False, pass_atoms=True)
     return name
+
+
+def _bounded_degree(value: Any, boundary: str) -> float:
+    try:
+        degree = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"{boundary} must be a finite number in [0, 1], got {value!r}"
+        ) from None
+    if not math.isfinite(degree) or not 0.0 <= degree <= 1.0:
+        raise ValueError(
+            f"{boundary} must be finite and in [0, 1], got {degree!r}"
+        )
+    return degree
 
 
 def _plain(value: Any) -> Any:

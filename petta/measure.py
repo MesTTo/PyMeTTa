@@ -39,12 +39,25 @@ def ws(*weighted: tuple[float, Any]) -> Expr:
 def pairs(atom: Atom) -> list[tuple[float, Any]]:
     """A weighted superposition read back: [(weight, value), ...], grounded
     values unwrapped."""
-    out: list[tuple[float, Any]] = []
-    for pair in atom:
-        weight, value = pair[0], pair[1]
-        out.append(
-            (float(decode(weight)), decode(value) if isinstance(value, Gnd) else value)
+    if not isinstance(atom, Expr):
+        raise ValueError(  # noqa: TRY004 - the atom has the wrong structure
+            f"a weighted superposition must be an expression of pairs, got {atom!r}"
         )
+    out: list[tuple[float, Any]] = []
+    for index, pair in enumerate(atom):
+        if not isinstance(pair, Expr) or len(pair) != 2:
+            raise ValueError(
+                f"weighted pair {index} must have exactly two items "
+                f"(weight value), got {pair!r}"
+            )
+        weight, value = pair[0], pair[1]
+        try:
+            number = float(decode(weight))
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"weighted pair {index} has a nonnumeric weight: {weight!r}"
+            ) from None
+        out.append((number, decode(value) if isinstance(value, Gnd) else value))
     return out
 
 
@@ -53,6 +66,8 @@ def weighted_relation(
     name: str,
     weights: Callable[[Any], Iterable[Any]],
     classes: Iterable[Any],
+    *,
+    raw_atoms: bool = False,
 ) -> str:
     """Register a weights-producing callable as a weighted MeTTa relation.
 
@@ -62,8 +77,11 @@ def weighted_relation(
 
     classes are the relation's answer terms, in order; weights(value) must
     answer one weight per class, each already in its final form (a float,
-    or any atom the caller wants carried, a val() tensor included). The
-    relation is dual-mode: (name $x) superposes every (weight class) pair,
+    or any atom the caller wants carried, a val() tensor included).
+    weights(value) receives a decoded grounded value; symbols and expressions
+    stay atoms. Set raw_atoms=True only when the
+    callable explicitly needs every input atom, including grounded values.
+    The relation is dual-mode: (name $x) superposes every (weight class) pair,
     and (name $x class) scores the one class, both lib_measure's own shape,
     so ws-best is argmax, ws-sample! the stochastic reading, and rules
     compose over the answers as over any weighted alternatives. This is the
@@ -73,7 +91,8 @@ def weighted_relation(
     class_atoms = [encode(c) for c in classes]
 
     def relation(value, chosen=None):
-        answered = list(weights(value))
+        source = value if raw_atoms or not isinstance(value, Gnd) else decode(value)
+        answered = list(weights(source))
         if len(answered) != len(class_atoms):
             raise ValueError(
                 f"{name}: weights answered {len(answered)} values "
