@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import html
 from dataclasses import dataclass, field
-from typing import Union
+from typing import TypeGuard, Union
 
 from .atoms import Atom, Expr, Gnd, Sym
 
@@ -77,16 +77,31 @@ class Derivation:
     @staticmethod
     def from_atom(tree: Atom) -> "Derivation":
         """Parse the (derivation (answer Call Out) Steps...) atom."""
-        if not (isinstance(tree, Expr) and _headed(tree, "derivation")):
-            raise ValueError(f"not a derivation atom: {tree}")
+        if not (
+            isinstance(tree, Expr)
+            and _headed(tree, "derivation")
+            and len(tree) >= 2
+        ):
+            raise ValueError(
+                f"malformed derivation node {tree}: expected "
+                f"(derivation (answer Call Out) Step...)"
+            )
         answer_expr = tree[1]
+        if not (_headed(answer_expr, "answer") and len(answer_expr) == 3):
+            raise ValueError(
+                f"malformed answer node {answer_expr}: expected (answer Call Out)"
+            )
         call, out = answer_expr[1], answer_expr[2]
         children = tuple(_node(c) for c in tree.children[2:])
         return Derivation(call=call, answer=out, children=children)
 
     @property
     def facts(self) -> list[Fact]:
-        return [n for n in _walk(self.children) if isinstance(n, Fact)]
+        seen: list[Fact] = []
+        for node in _walk(self.children):
+            if isinstance(node, Fact) and node not in seen:
+                seen.append(node)
+        return seen
 
     @property
     def rules(self) -> list[Atom]:
@@ -134,7 +149,7 @@ def _pretty(atom: Atom) -> Atom:
     return walk(atom)
 
 
-def _headed(e: Atom, name: str) -> bool:
+def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
     return (
         isinstance(e, Expr)
         and len(e) > 0
@@ -145,20 +160,39 @@ def _headed(e: Atom, name: str) -> bool:
 
 def _node(e: Atom) -> Node:
     if _headed(e, "step"):
+        if len(e) < 3:
+            raise ValueError(
+                f"malformed step node {e}: expected "
+                f"(step (call Call Out) Equation Child...)"
+            )
         call_expr = e[1]  # (call (f args...) Out)
+        if not (_headed(call_expr, "call") and len(call_expr) == 3):
+            raise ValueError(
+                f"malformed call node {call_expr}: expected (call Call Out)"
+            )
         call, out = call_expr[1], call_expr[2]
         equation = e[2]
         children = tuple(_node(c) for c in e.children[3:])
         return Step(call=call, answer=out, equation=equation, children=children)
     if _headed(e, "fact"):
+        if len(e) != 3:
+            raise ValueError(
+                f"malformed fact node {e}: expected (fact Space Atom)"
+            )
         space = e[1]
         name = space.name if isinstance(space, Sym) else str(space)
         return Fact(space=name, atom=e[2])
     if _headed(e, "builtin"):
+        if len(e) != 2:
+            raise ValueError(
+                f"malformed builtin node {e}: expected (builtin Text)"
+            )
         payload = e[1]
         text = payload.value if isinstance(payload, Gnd) else str(payload)
         return Builtin(text=str(text))
-    raise ValueError(f"unknown derivation node: {e}")
+    raise ValueError(
+        f"malformed derivation node {e}: expected step, fact, or builtin"
+    )
 
 
 def _walk(nodes: tuple[Node, ...]):

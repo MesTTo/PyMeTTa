@@ -53,3 +53,29 @@ def test_rows_html_tail_is_an_explicit_count():
     page = rows._repr_html_()
     assert page.count("<tr>") == 1 + 100 + 1  # header, hundred rows, the tail
     assert "50 more rows" in page
+
+
+def test_rows_reject_duplicate_columns_and_wrong_row_widths():
+    with pytest.raises(ValueError, match="duplicate.*x"):
+        Rows(("x", "x"), [(1, 2)])
+    with pytest.raises(ValueError, match="row 0 has 1 values for 2 columns"):
+        Rows(("x", "y"), [(1,)])
+    with pytest.raises(ValueError, match="row 0 has 2 values for 1 columns"):
+        Rows(("x",), [(1, 2)])
+
+
+def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
+    rows = Rows((), [(), ()])
+    with pytest.raises(ValueError, match="nonempty zero-column"):
+        rows.table()
+
+    pandas = pytest.importorskip("pandas")
+    polars = pytest.importorskip("polars")
+    assert isinstance(rows.to_df(), pandas.DataFrame)
+    assert rows.to_df().shape == (2, 0)
+    assert isinstance(rows.to_pl(), polars.DataFrame)
+    assert rows.to_pl().shape == (2, 0)
+
+
+def test_empty_zero_column_rows_remain_an_empty_table():
+    assert Rows((), []).table() == {}

@@ -1,11 +1,12 @@
-"""Purpose: engine-backed tests for proof trees and their rendering.
+"""Purpose: engine-backed tests for proof trees, validation, and rendering.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-from petta import Derivation, Fact, S, V
+import pytest
+from petta import Derivation, Fact, S, V, expr
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):
@@ -50,3 +51,54 @@ def test_html_rendering(metta):
     assert "<pre>" in proof._repr_html_()
     assert isinstance(proof, Derivation)
     assert isinstance(proof.facts[0], Fact)
+
+
+@pytest.mark.parametrize(
+    ("tree", "message"),
+    [
+        (expr(S.derivation), "malformed derivation"),
+        (expr(S.derivation, expr(S.wrong, S.call, S.out)), "answer node"),
+        (expr(S.derivation, expr(S.answer, S.call)), "answer node"),
+        (
+            expr(
+                S.derivation,
+                expr(S.answer, S.call, S.out),
+                expr(S.step, expr(S.wrong, S.call, S.out), S.equation),
+            ),
+            "call node",
+        ),
+        (
+            expr(
+                S.derivation,
+                expr(S.answer, S.call, S.out),
+                expr(S.fact, S.space),
+            ),
+            "fact node",
+        ),
+        (
+            expr(
+                S.derivation,
+                expr(S.answer, S.call, S.out),
+                expr(S.builtin, S.one, S.two),
+            ),
+            "builtin node",
+        ),
+    ],
+)
+def test_malformed_derivation_nodes_are_named(tree, message):
+    with pytest.raises(ValueError, match=message):
+        Derivation.from_atom(tree)
+
+
+def test_derivation_facts_deduplicate_in_first_seen_order():
+    fact_a = expr(S.fact, S["&self"], S.a(1))
+    fact_b = expr(S.fact, S["&self"], S.b(2))
+    tree = expr(
+        S.derivation,
+        expr(S.answer, S.call, S.out),
+        fact_a,
+        fact_b,
+        fact_a,
+    )
+    proof = Derivation.from_atom(tree)
+    assert [fact.atom for fact in proof.facts] == [S.a(1), S.b(2)]

@@ -71,9 +71,26 @@ class Rows(list):
     __slots__ = ("columns",)
 
     def __init__(self, columns: tuple[str, ...], rows: list[tuple]) -> None:
-        cls = _row_class(tuple(columns))
-        super().__init__(cls(r) for r in rows)
-        self.columns = tuple(columns)
+        columns = tuple(columns)
+        duplicates = [
+            name for i, name in enumerate(columns) if name in columns[:i]
+        ]
+        if duplicates:
+            raise ValueError(
+                f"Rows column names must be unique; duplicate names: {duplicates}"
+            )
+        checked = []
+        for index, row in enumerate(rows):
+            values = tuple(row)
+            if len(values) != len(columns):
+                raise ValueError(
+                    f"Rows row {index} has {len(values)} values for "
+                    f"{len(columns)} columns"
+                )
+            checked.append(values)
+        cls = _row_class(columns)
+        super().__init__(cls(r) for r in checked)
+        self.columns = columns
 
     def column(self, name: str) -> list[Any]:
         index = self.columns.index(name)
@@ -109,6 +126,12 @@ class Rows(list):
         symbols and structure become their text."""
         from .atoms import Gnd, decode
 
+        if self and not self.columns:
+            raise ValueError(
+                "table() cannot represent nonempty zero-column Rows as a "
+                "column mapping"
+            )
+
         def plain(value: Any) -> Any:
             return decode(value) if isinstance(value, Gnd) else str(value)
 
@@ -129,6 +152,8 @@ class Rows(list):
                 "installed; rows.table() is the plain dict any frame "
                 "constructor takes"
             ) from missing
+        if self and not self.columns:
+            return pandas.DataFrame([{} for _ in self])
         return pandas.DataFrame(self.table())
 
     def to_pl(self):
@@ -141,6 +166,8 @@ class Rows(list):
                 "installed; rows.table() is the plain dict any frame "
                 "constructor takes"
             ) from missing
+        if self and not self.columns:
+            return polars.DataFrame([{} for _ in self])
         return polars.DataFrame(self.table())
 
     def _repr_html_(self) -> str:
