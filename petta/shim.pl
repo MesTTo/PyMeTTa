@@ -142,7 +142,7 @@ petta_py_run(Source, Space, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     string_codes(S, Cs),
-    strip(Cs, 0, Codes),
+    strip(Cs, outside, Codes),
     petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
                           maplist(parse_form, Forms, Parsed) )),
     petta_py_process_forms(Parsed, Space, Groups), !.
@@ -163,7 +163,7 @@ petta_py_run_using(Source, Space, Pairs, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     string_codes(S, Cs),
-    strip(Cs, 0, Codes),
+    strip(Cs, outside, Codes),
     petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
                           maplist(parse_form, Forms, Parsed0) )),
     maplist(petta_py_using_pair, Pairs, Bindings),
@@ -386,8 +386,14 @@ petta_py_add(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Term, _),
     'add-atom'(Space, Term, _).
 
+petta_py_decode_for_add(Tagged, Term) :-
+    petta_py_decode_shared(Tagged, Term, _).
+
 petta_py_add_many(Space, TaggedList) :-
-    forall(member(T, TaggedList), petta_py_add(Space, T)).
+    maplist(petta_py_decode_for_add, TaggedList, Terms),
+    ( current_predicate(mork_space_name/2), mork_space_name(Space, _)
+      -> 'mork-add-atoms'(Space, Terms, _)
+    ; forall(member(Term, Terms), 'add-atom'(Space, Term, _)) ).
 
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
@@ -1112,12 +1118,30 @@ petta_py_fast_has_object(Term) :-
     member(Arg, Args),
     petta_py_fast_has_object(Arg), !.
 
+%Symbols have no quoted text form in MeTTa. These characters either split a
+%token or change the form's structure, so every swrite-based seam refuses them.
+petta_py_unsafe_symbol(Symbol) :- atom(Symbol),
+                                  atom_codes(Symbol, Codes),
+                                  member(Code, Codes),
+                                  ( code_type(Code, space)
+                                  ; memberchk(Code, [0'(, 0'), 0'"]) ), !.
+petta_py_bad_text_symbol(Term, Term) :- petta_py_unsafe_symbol(Term), !.
+petta_py_bad_text_symbol(Term, Bad) :-
+    compound(Term),
+    compound_name_arguments(Term, Functor, Args),
+    ( petta_py_bad_text_symbol(Functor, Bad)
+    ; member(Arg, Args), petta_py_bad_text_symbol(Arg, Bad) ), !.
+
 petta_py_fast_save(File, Space, Result) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
     findall(Atom, 'get-atoms'(Space, Atom), Atoms),
     ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
       -> petta_py_encode(ObjectAtom, Encoded),
          Result = ["object", Encoded]
+    ; member(SymbolAtom, Atoms),
+      petta_py_bad_text_symbol(SymbolAtom, BadSymbol)
+      -> petta_py_encode(BadSymbol, Encoded),
+         Result = ["symbol", Encoded]
     ; setup_call_cleanup(
           new_memory_file(MF),
           ( setup_call_cleanup(
@@ -1217,6 +1241,10 @@ petta_py_digest(Space, Result) :-
     ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
       -> petta_py_encode(ObjectAtom, Encoded),
          Result = ["object", Encoded]
+    ; member(SymbolAtom, Atoms),
+      petta_py_bad_text_symbol(SymbolAtom, BadSymbol)
+      -> petta_py_encode(BadSymbol, Encoded),
+         Result = ["symbol", Encoded]
     ; findall(Line, ( member(Atom, Atoms),
                       petta_py_digest_line(Atom, Line) ),
               Lines),

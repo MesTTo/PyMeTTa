@@ -54,6 +54,33 @@ def test_load_auto_detects_text_and_fast_files(metta, tmp_path):
         assert [row.x for row in from_fast.query(S["auto-fact"](V.x))] == expected
 
 
+def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):
+    path = tmp_path / "escaped-quote.metta"
+    with metta.fresh_space() as source, metta.fresh_space() as loaded:
+        source.add(S.h('a"b'))
+        assert source.save(path) == 1
+        assert path.read_text() == '(h "a\\"b")\n'
+        assert loaded.load(path) == []
+        assert loaded.query(S.h(V.value))[0].value.value == 'a"b'
+
+
+def test_escaped_quote_runs_directly(metta):
+    with metta.fresh_space() as space:
+        assert space.run(
+            '(= (quote-id $x) $x)\n!(quote-id "a\\"b")'
+        ) == [['a"b']]
+
+
+def test_comments_remain_outside_escaped_string_state(metta):
+    with metta.fresh_space() as space:
+        assert space.run(
+            '; leading comment\n'
+            '(escaped-text "a\\"; ) b") ; trailing comment\n'
+            '!(+ 1 2)'
+        ) == [[3]]
+        assert space.query(S["escaped-text"](V.value))[0].value.value == 'a"; ) b'
+
+
 def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
     m.add(S.holds(val(object())))
     with pytest.raises(ValueError) as text_error:
@@ -63,6 +90,18 @@ def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
     assert str(fast_error.value) == str(text_error.value)
     assert "live Python object" in str(fast_error.value)
     assert not (tmp_path / "object.fast").exists()
+
+
+@pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
+@pytest.mark.parametrize("format", ["metta", "fast"])
+def test_save_refuses_symbols_without_round_trip_text(
+    m, tmp_path, name, format
+):
+    path = tmp_path / f"unsafe-{format}"
+    m.add(S.container(S[name]))
+    with pytest.raises(ValueError, match="symbol.*round-trip text spelling"):
+        m.save(path, format=format)
+    assert not path.exists()
 
 
 def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):

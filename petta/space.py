@@ -313,6 +313,8 @@ class MeTTa:
                     f"{atom} carries a live Python object; a file cannot "
                     f"hold it. Remove it, or persist its data explicitly."
                 )
+            if kind == "symbol":
+                _raise_unsafe_text_symbol(from_wire(value), "save")
             if kind != "saved":
                 raise EngineError(
                     f"petta_py_fast_save returned an unknown result: {result!r}"
@@ -326,6 +328,9 @@ class MeTTa:
                     f"{atom} carries a live Python object; a file cannot "
                     f"hold it. Remove it, or persist its data explicitly."
                 )
+            bad = _unsafe_text_symbol(atom)
+            if bad is not None:
+                _raise_unsafe_text_symbol(bad, "save")
             lines.append(str(atom))
         with _open_maybe_gz(str(path), "wt") as handle:
             handle.write("\n".join(lines) + ("\n" if lines else ""))
@@ -537,6 +542,9 @@ class MeTTa:
         order and in any process. Two spaces agree on digest() exactly
         when save() would write the same content. Live host objects have
         no cross-process identity and are refused, like save()."""
+        from .foreign import require_capability
+
+        require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
             raise EngineError(
@@ -550,6 +558,8 @@ class MeTTa:
                 f"cross-process identity to digest. Remove it, or digest "
                 f"its data explicitly."
             )
+        if kind == "symbol":
+            _raise_unsafe_text_symbol(from_wire(value), "digest")
         if kind != "digest":
             raise EngineError(
                 f"petta_py_digest returned an unknown result: {result!r}"
@@ -1319,6 +1329,29 @@ def _serializable(atom: Atom) -> bool:
         if isinstance(current, Expr):
             stack.extend(current.children)
     return True
+
+
+def _unsafe_text_symbol(atom: Atom) -> Sym | None:
+    stack = [atom]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, Sym) and any(
+            character.isspace() or character in '()"'
+            for character in current.name
+        ):
+            return current
+        if isinstance(current, Expr):
+            stack.extend(reversed(current.children))
+    return None
+
+
+def _raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
+    name = symbol.name if isinstance(symbol, Sym) else str(symbol)
+    raise ValueError(
+        f"{operation} cannot write symbol {name!r} as MeTTa text: symbol "
+        f"names containing whitespace, parentheses, or quotes have no "
+        f"round-trip text spelling"
+    )
 
 
 def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> Atom:

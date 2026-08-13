@@ -65,3 +65,11 @@ def test_digest_refuses_live_objects(metta):
         m.add(S.holds(val(object())))
         with pytest.raises(ValueError, match="cross-process identity"):
             m.digest()
+
+
+@pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
+def test_digest_refuses_symbols_without_round_trip_text(metta, name):
+    with metta.fresh_space() as m:
+        m.add(S.container(S[name]))
+        with pytest.raises(ValueError, match="symbol.*round-trip text spelling"):
+            m.digest()
