@@ -28,11 +28,35 @@ def started() -> bool:
 
 
 def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":
-    """The process's runtime, started on first use."""
+    """The process's runtime, started on first use.
+
+    There is exactly one engine per process, so a later caller cannot have
+    a different tree: an explicit petta_path that disagrees with the one
+    already consulted raises rather than being silently ignored. Verbosity
+    is per-call state and simply applies.
+    """
     global _RUNTIME
     with _LOCK:
         if _RUNTIME is None:
             _RUNTIME = Runtime(petta_path=petta_path, verbose=verbose)
+        else:
+            active = _RUNTIME.petta_path
+            if (
+                petta_path is not None
+                and active is not None
+                and os.path.abspath(petta_path) != os.path.abspath(active)
+            ):
+                raise ValueError(
+                    f"the engine was consulted from {active!r} and cannot "
+                    f"be reconsulted from {petta_path!r}: PeTTa keeps one "
+                    f"engine per process. Start a new process for a "
+                    f"different tree."
+                )
+            if verbose != _RUNTIME.verbose:
+                _RUNTIME.verbose = verbose
+                _RUNTIME.once(
+                    "petta_py_set_silent(S)", S="false" if verbose else "true"
+                )
         return _RUNTIME
 
 
@@ -59,6 +83,7 @@ class Runtime:
                     petta_path = pkg._resolve_petta_path()
                 self._consult_engine(pkg, petta_path)
                 pkg.CONSULTED = True
+            self.petta_path = petta_path
             self._janus = pkg.janus
             if self._janus is None:
                 # The legacy class consulted first through a mocked janus, or

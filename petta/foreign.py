@@ -48,10 +48,20 @@ class SpaceProvider:
     def remove(self, atom: Atom) -> bool:
         raise NotImplementedError(f"{type(self).__name__} is read-only: no remove")
 
+    def clear(self) -> None:
+        raise NotImplementedError(f"{type(self).__name__} is read-only: no clear")
+
 
 def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
     if not name.startswith("&"):
         raise ValueError(f"a space name starts with &; got {name!r}")
+    holder = PROVIDERS.get(name)
+    if holder is not None and holder is not provider:
+        raise ValueError(
+            f"{name} already has a provider ({type(holder).__name__}); "
+            f"unregister it first, or pick another name. Replacing silently "
+            f"would leave the old owner holding a dead registration."
+        )
     PROVIDERS[name] = provider
     runtime.must("petta_py_register_foreign(Space)", Space=name)
 
@@ -85,3 +95,8 @@ def foreign_add(space: str, atom_wire: list) -> bool:
 
 def foreign_remove(space: str, atom_wire: list) -> bool:
     return bool(PROVIDERS[space].remove(from_wire(atom_wire)))
+
+
+def foreign_clear(space: str) -> bool:
+    PROVIDERS[space].clear()
+    return True

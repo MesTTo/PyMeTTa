@@ -68,6 +68,7 @@ class MeTTa:
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
         self._space = space
+        self._ephemeral = False
 
     # ------------------------------------------------------------------ naming
 
@@ -80,9 +81,44 @@ class MeTTa:
         return MeTTa(name)
 
     def fresh_space(self) -> "MeTTa":
-        """An anonymous space with a name nothing else is using."""
+        """An anonymous space with a name nothing else is using.
+
+        Works as a context manager: leaving the block drops the space, so a
+        churn of short-lived spaces reuses names instead of growing the
+        engine's module table.
+
+            with m.fresh_space() as scratch:
+                scratch.add(...)
+        """
         row = self._rt.must("petta_py_new_space(Name)")
-        return MeTTa(row["Name"])
+        fresh = MeTTa(row["Name"])
+        fresh._ephemeral = True
+        return fresh
+
+    def drop(self) -> None:
+        """Clear this space and release its name for reuse. Dropping a
+        foreign space releases the binding and leaves the provider's own
+        data alone; &self, the engine's own space, is cleared but its name
+        never released."""
+        from .foreign import PROVIDERS, unregister_provider
+
+        if self._space in PROVIDERS:
+            unregister_provider(self._rt, self._space)
+        self.clear()
+        if self._space != "&self":
+            self._rt.must("petta_py_release_space(Space)", Space=self._space)
+
+    def __enter__(self) -> "MeTTa":
+        if not self._ephemeral:
+            raise TypeError(
+                f"{self._space} was not created by fresh_space(); only an "
+                f"anonymous space scopes to a with-block, since leaving the "
+                f"block drops it. Call drop() deliberately for a named one."
+            )
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.drop()
 
     def __repr__(self) -> str:
         return f"MeTTa({self._space!r})"

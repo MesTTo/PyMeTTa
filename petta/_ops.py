@@ -145,6 +145,12 @@ def foreign_remove(space, atom_wire):
     return impl(space, atom_wire)
 
 
+def foreign_clear(space):
+    from .foreign import foreign_clear as impl
+
+    return impl(space)
+
+
 def type_names(obj: Any) -> list[str]:
     """Every type name an object carries, for the engine's typing bridge:
     its classes in resolution order short of object, then every satisfied

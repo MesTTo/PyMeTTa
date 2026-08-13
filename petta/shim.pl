@@ -151,14 +151,20 @@ petta_py_process_forms([P|Ps], Space, Out) :-
     ; Out = Rest ),
     petta_py_process_forms(Ps, Space, Rest).
 
-%Load a file the way the CLI does, working_dir included, keeping the grouping:
+%Load a file the way the CLI does, working_dir included, keeping the
+%grouping. The directory holds only for THIS load: whatever working_dir the
+%process had comes back afterwards, exceptions included, so one load never
+%changes where every later run resolves its relative imports from.
 petta_py_load(File, Space, Groups) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
     file_directory_name(FA, Dir),
-    retractall(working_dir(_)),
-    assertz(working_dir(Dir)),
-    read_file_to_string(FA, S, []),
-    petta_py_run(S, Space, Groups).
+    catch(findall(W, working_dir(W), Saved), _, Saved = []),
+    setup_call_cleanup(
+        ( retractall(working_dir(_)), assertz(working_dir(Dir)) ),
+        ( read_file_to_string(FA, S, []),
+          petta_py_run(S, Space, Groups) ),
+        ( retractall(working_dir(_)),
+          forall(member(W, Saved), assertz(working_dir(W))) )).
 
 %%%%%%%%%% Parse and print %%%%%%%%%%
 
@@ -207,8 +213,14 @@ petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.
 
-%Clear a space: equations first through the engine's own removal, which erases
+%Clear a space: a foreign space's provider owns its storage, so the
+%provider clears (or refuses, loudly, when it cannot); a native space
+%removes equations first through the engine's own removal, which erases
 %their compiled clauses, then any remaining stored atoms:
+petta_py_clear(Space) :-
+    metta_foreign_space(Space), !,
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_clear(SpaceStr), _).
 petta_py_clear(Space) :-
     findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
@@ -218,14 +230,40 @@ petta_py_clear(Space) :-
 
 %Fresh space names for callers that want an anonymous space. The & prefix is
 %load-bearing: 'is-space' recognises it, and a $ name would read as a variable.
+%A released name goes back into a pool and is handed out again, because a
+%space's module cannot be destroyed (SWI keeps modules for the process), so
+%reuse is what keeps a churn of short-lived spaces from growing the module
+%table forever. A candidate that already holds anything, foreign
+%registrations included, is skipped: fresh means fresh.
 :- dynamic petta_py_space_counter/1.
+:- dynamic petta_py_free_space/1.
 petta_py_space_counter(0).
 
 petta_py_new_space(Name) :-
+    ( retract(petta_py_free_space(Name))
+      -> true
+    ; petta_py_next_space(Name) ).
+
+petta_py_next_space(Name) :-
     retract(petta_py_space_counter(N)),
     N1 is N + 1,
     assertz(petta_py_space_counter(N1)),
-    atom_concat('&pyspace_', N1, Name).
+    atom_concat('&pyspace_', N1, Candidate),
+    ( petta_py_space_untouched(Candidate)
+      -> Name = Candidate
+    ; petta_py_next_space(Name) ).
+
+petta_py_space_untouched(Name) :-
+    \+ petta_py_foreign(Name),
+    \+ ( current_predicate(Name/Arity),
+         functor(Head, Name, Arity),
+         clause(Head, _, _) ).
+
+%Release a space: everything cleared, the name pooled for reuse.
+petta_py_release_space(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    petta_py_clear(Name),
+    ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
 
 %%%%%%%%%% Query %%%%%%%%%%
 %

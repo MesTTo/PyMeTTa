@@ -185,3 +185,48 @@ def test_provider_level_match_yields_atoms(db):
     _m, conn, provider = db
     got = list(provider.match(S.users(2, V.n)))
     assert got == [expr(S.users, 2, "Bob")]
+
+
+def test_duckdb_null_and_dates_cross_with_value_semantics(metta):
+    """SQL NULL is the NULL symbol both ways, a NULL binding finds NULLs
+    (IS NOT DISTINCT FROM), non-primitive scalars cross as ISO text, and
+    clear() empties every table while the schema stays."""
+    duckdb = pytest.importorskip("duckdb")
+    from petta.integrations.duckdb_space import NULL, attach
+
+    conn = duckdb.connect(":memory:")
+    conn.execute("create table logs (day DATE, note TEXT)")
+    conn.execute("insert into logs values (DATE '2026-08-13', 'shipped'), (NULL, 'undated')")
+    space = attach(metta, "&logs", conn)
+    try:
+        rows = metta.run("!(collapse (match &logs (logs $d $n) ($d $n)))")
+        listed = {str(pair) for pair in rows[0][0]}
+        assert '("2026-08-13" "shipped")' in listed
+        assert '(NULL "undated")' in listed
+        # A NULL binding pushes down and matches exactly the NULL row.
+        hit = metta.run('!(match &logs (logs NULL $n) $n)')
+        assert hit == [["undated"]]
+        # A date binding by its ISO text finds the dated row.
+        hit = metta.run('!(match &logs (logs "2026-08-13" $n) $n)')
+        assert hit == [["shipped"]]
+        space.clear()
+        assert metta.run("!(collapse (match &logs (logs $d $n) x))") == [[expr()]]
+    finally:
+        metta.unregister_space("&logs")
+        conn.close()
+
+
+def test_provider_collision_is_refused(metta):
+    class Empty(SpaceProvider):
+        def atoms(self):
+            return iter(())
+
+    first = Empty()
+    metta.register_space("&col", first)
+    try:
+        with pytest.raises(ValueError):
+            metta.register_space("&col", Empty())
+        # The same provider again is idempotent, not a collision.
+        metta.register_space("&col", first)
+    finally:
+        metta.unregister_space("&col")

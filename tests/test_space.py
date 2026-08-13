@@ -202,3 +202,41 @@ def test_anonymous_variables_do_not_join(m):
     assert len(m.query(S.duo(V._, V._))) == 2
     # And the anonymous variable never becomes a column.
     assert m.query(S.duo(V.x, V._)).columns == ("x",)
+
+
+def test_fresh_spaces_drop_and_names_recycle(metta):
+    """A dropped space's name returns to the pool, so churn does not grow
+    the engine's module table; the with-block is the drop."""
+    with metta.fresh_space() as scratch:
+        first = scratch.space_name
+        scratch.add(S.noted(S.here))
+        assert len(scratch) == 1
+    with metta.fresh_space() as again:
+        assert again.space_name == first
+        assert len(again) == 0
+    import pytest
+
+    with pytest.raises(TypeError):
+        with metta:
+            pass
+
+
+def test_load_restores_the_working_directory(metta, tmp_path):
+    """One load resolves its imports from its own directory and puts the
+    process's directory back afterwards, so later runs are untouched."""
+    inner = tmp_path / "prog.metta"
+    inner.write_text("!(+ 1 1)\n")
+    import petta
+
+    before = petta.janus.query_once("working_dir(D)")
+    metta.load(str(inner))
+    after = petta.janus.query_once("working_dir(D)")
+    assert (before or {}).get("D") == (after or {}).get("D")
+
+
+def test_runtime_refuses_a_second_tree(metta):
+    import pytest
+    from petta import MeTTa
+
+    with pytest.raises(ValueError):
+        MeTTa(petta_path="/definitely/not/this/tree")
