@@ -16,6 +16,7 @@ Open Obligations:
 """
 
 import os
+import sys
 import threading
 import importlib
 
@@ -152,6 +153,34 @@ from .subscribe import Event, Subscription, bridge  # noqa: E402
 
 __version__ = "0.2.0"
 
+
+def backend_info() -> dict[str, str | None]:
+    """Return backend versions and the PeTTa runtime tree in use.
+
+    This function does not start the PeTTa runtime. The petta_path value is
+    None until a MeTTa runtime exists.
+    """
+    from . import _engine
+
+    janus_bridge = importlib.import_module("janus_swi")
+    swi_version_num = janus_bridge.query_once(
+        "current_prolog_flag(version, SwiVersion)"
+    )["SwiVersion"]
+    active_runtime = _engine._RUNTIME
+    return {
+        "petta": __version__,
+        "janus": janus_bridge.version_str(),
+        "swi_prolog": janus_bridge.version_str(swi_version_num),
+        "python": (
+            f"{sys.version_info.major}.{sys.version_info.minor}."
+            f"{sys.version_info.micro}"
+        ),
+        "petta_path": (
+            None if active_runtime is None else active_runtime.petta_path
+        ),
+    }
+
+
 __all__ = [
     # the legacy surface
     "PeTTa",
@@ -184,6 +213,7 @@ __all__ = [
     "Row",
     "REFLECTION_SPACE",
     # diagnostics
+    "backend_info",
     "Derivation",
     "Step",
     "Fact",
