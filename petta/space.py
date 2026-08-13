@@ -406,20 +406,32 @@ class MeTTa:
         variables.
         """
         from ._ops import REGISTRY
-        from .define import Defined, canonical_aux, compile_function, twin_dispatcher
+        from .define import (
+            Defined,
+            canonical_aux,
+            compile_function,
+            hazard_twin,
+            twin_dispatcher,
+        )
         from .errors import CompileError
-        from .ops import metta_type_for
+        from .ops import metta_type_for, resolved_annotations
 
         def nondet(called: str) -> bool:
-            operation = REGISTRY.get(called)
-            if operation is not None and operation.kind in ("many", "raw_many"):
-                return True
-            return (self._space, called) in _DEFINED_GENERATORS
+            for spelling in (called, called.replace("_", "-")):
+                operation = REGISTRY.get(spelling)
+                if operation is not None and operation.kind in ("many", "raw_many"):
+                    return True
+                if (self._space, spelling) in _DEFINED_GENERATORS:
+                    return True
+            return False
 
-        params, patterns, body, twin, generator, aux = compile_function(
-            fn, known=self.is_function, nondet=nondet
+        # The equation's name follows the operation rule: underscores read
+        # as hyphens, one policy across both decorators.
+        name = fn.__name__.replace("_", "-")
+        compiled = compile_function(
+            fn, known=self.is_function, nondet=nondet, metta_name=name
         )
-        name = fn.__name__
+        params, patterns, body = compiled.params, compiled.patterns, compiled.body
         # Clause stacking is per (space, name), process-wide: equations live
         # in the space, not in whichever MeTTa instance happened to add them.
         earlier = _DEFINE_CLAUSES.setdefault((self._space, name), [])
@@ -455,21 +467,36 @@ class MeTTa:
         # every compilation serials its helpers, so the same source re-run
         # must be recognized through the renaming.
         canonical = canonical_aux(equation, name)
-        if any(
-            alpha_eq(canonical_aux(clause["equation"], name), canonical)
-            for clause in earlier
-        ):
-            # The identical clause again, a re-run cell or module reload:
-            # adding it would duplicate answers, so it stands as it is.
-            return Defined(name, params, body, dispatcher, self, patterns=patterns)
-        earlier.append({"patterns": dict(patterns), "equation": equation})
-        dispatcher.clauses.append(twin)
-        for helper_equation in aux:
+        clause_twin = (
+            hazard_twin(name, compiled.hazards) if compiled.hazards else compiled.twin
+        )
+        replaced = None
+        for position, clause in enumerate(earlier):
+            if alpha_eq(canonical_aux(clause["equation"], name), canonical):
+                # The identical clause again, a re-run cell or module
+                # reload: adding it would duplicate answers, so it stands.
+                return Defined(
+                    name, params, body, dispatcher, self,
+                    patterns=patterns, runtime_ops=compiled.runtime_ops,
+                )
+            if clause["patterns"] == patterns:
+                replaced = position
+        if replaced is not None:
+            # The same head with a new body is a redefinition of that
+            # clause, the notebook reading; the old equation goes, the new
+            # one takes its place in both the space and the twin dispatch.
+            self.remove(earlier[replaced]["equation"])
+            earlier[replaced] = {"patterns": dict(patterns), "equation": equation}
+            dispatcher.clauses[replaced] = clause_twin
+        else:
+            earlier.append({"patterns": dict(patterns), "equation": equation})
+            dispatcher.clauses.append(clause_twin)
+        for helper_equation in compiled.aux:
             self.add(helper_equation)
         self.add(equation)
         # Annotations declare the type, exactly as they do for operations,
         # once per name so stacked clauses do not repeat the declaration.
-        annotated = fn.__annotations__
+        annotated = resolved_annotations(fn)
         if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get(
             (self._space, name)
         ):
@@ -480,9 +507,12 @@ class MeTTa:
             ret = Sym(metta_type_for(annotated["return"])) if "return" in annotated else Sym("%Undefined%")
             self.add(Expr([Sym(":"), Sym(name), Expr([Sym("->"), *arg_types, ret])]))
             _DECLARED_DEFINES[(self._space, name)] = True
-        if generator:
+        if compiled.generator:
             _DEFINED_GENERATORS.add((self._space, name))
-        return Defined(name, params, body, dispatcher, self, patterns=patterns)
+        return Defined(
+            name, params, body, dispatcher, self,
+            patterns=patterns, runtime_ops=compiled.runtime_ops,
+        )
 
     def fn(self, name: str) -> "_EngineFunction":
         """Any engine function as an ordinary Python callable.

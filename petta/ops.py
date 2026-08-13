@@ -41,6 +41,23 @@ def metta_type_for(annotation: Any) -> str:
     return "%Undefined%"
 
 
+def resolved_annotations(fn: Callable) -> dict[str, Any]:
+    """The function's annotations as real types, never text: under
+    `from __future__ import annotations` the raw __annotations__ are
+    strings, which would all read as %Undefined% and silently drop the
+    declared types. Unresolvable annotations are a hard error naming the
+    function."""
+    import typing
+
+    try:
+        return typing.get_type_hints(fn)
+    except Exception as exc:
+        raise TypeError(
+            f"the annotations of {fn.__name__} do not resolve "
+            f"({exc}); a declared type must name something importable"
+        ) from exc
+
+
 def _metta_name(fn: Callable, name: str | None) -> str:
     """The MeTTa spelling: underscores read as hyphens unless overridden."""
     return name if name is not None else fn.__name__.replace("_", "-")
@@ -80,10 +97,14 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
 
 
 def _type_declaration(name: str, params: list[inspect.Parameter], fn: Callable) -> Expr:
-    """(: name (-> T1 .. Tn R)) from the annotations, arrow over full arity."""
-    arg_types = [S[metta_type_for(p.annotation)] for p in params]
-    returns = inspect.signature(fn).return_annotation
-    ret = S[metta_type_for(returns if returns is not inspect.Signature.empty else Any)]
+    """(: name (-> T1 .. Tn R)) from the annotations, arrow over full arity.
+    Annotations resolve through typing, so postponed (string) annotations
+    declare the types they name rather than %Undefined%."""
+    hints = resolved_annotations(fn)
+    arg_types = [
+        S[metta_type_for(hints.get(p.name, inspect.Parameter.empty))] for p in params
+    ]
+    ret = S[metta_type_for(hints.get("return", Any))]
     return expr(S[":"], S[name], Expr([S["->"], *arg_types, ret]))
 
 

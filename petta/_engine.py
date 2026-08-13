@@ -132,6 +132,11 @@ class Runtime:
             "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
         )
         pkg._SHIM_LOADED = True
+        # The runtime-backed prelude compiled Python leans on; registered
+        # with the shim so the two arrive together.
+        from . import _prelude
+
+        _prelude.install(self)
 
     # -------------------------------------------------------------------- calls
 

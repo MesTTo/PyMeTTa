@@ -10,9 +10,7 @@ body is pure atoms that any evaluator can take whole.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: f-string lowering once the engine grows a string
-    formatting builtin worth targeting; today the refusal names str-append
-    operations instead.
+  Future Enhancements: None
 """
 
 from __future__ import annotations
@@ -23,7 +21,7 @@ import itertools
 import textwrap
 import types
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NamedTuple
 
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode
 from .errors import CompileError
@@ -119,10 +117,14 @@ class Defined:
     m.eval(fact(5)) against fact.py(5), for every ground input.
     """
 
-    __slots__ = ("name", "params", "patterns", "body", "_py", "space", "doc", "__name__", "__wrapped__")
+    __slots__ = (
+        "name", "params", "patterns", "body", "_py", "space", "doc",
+        "runtime_ops", "__name__", "__wrapped__",
+    )
 
     def __init__(self, name: str, params: list[str], body: Atom, py: Callable, space: Any,
-                 patterns: dict[str, Atom] | None = None):
+                 patterns: dict[str, Atom] | None = None,
+                 runtime_ops: frozenset[str] = frozenset()):
         self.name = name
         self.params = params
         self.patterns = dict(patterns or {})
@@ -130,6 +132,10 @@ class Defined:
         self._py = py
         self.space = space
         self.doc = py.__doc__
+        # The prelude operations the equations lean on: empty means the
+        # compiled source runs on any evaluator; named means it needs this
+        # runtime's registered operations.
+        self.runtime_ops = runtime_ops
         self.__name__ = name
         self.__wrapped__ = py
 
@@ -157,22 +163,40 @@ class Defined:
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 
 
+class Compiled(NamedTuple):
+    """Everything one clause compiles to."""
+
+    params: list[str]
+    patterns: dict[str, Atom]
+    body: Atom
+    twin: Callable
+    generator: bool
+    aux: list[Expr]
+    runtime_ops: frozenset[str]
+    hazards: frozenset[str]
+
+
 def compile_function(
     fn: Callable,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
-) -> tuple[list[str], dict, Atom, Callable, bool, list]:
-    """Read a function's source into (parameters, head patterns, MeTTa body,
-    Python twin, is_generator, auxiliary equations).
+    metta_name: str | None = None,
+) -> Compiled:
+    """Read a function's source into a Compiled clause.
 
     The auxiliary equations are the loops' tail-recursive helpers and the
     lifted inner definitions, ready to add before the main equation.
+    runtime_ops names the prelude operations the equations lean on, and
+    hazards the reasons the Python twin cannot run (a match, a minted
+    constructor, an engine-only callee): calling such a twin raises with
+    the reasons rather than failing on a NameError.
 
     `known` answers whether a free identifier names a function the engine
     knows, which separates a call to another definition from a closure over
     a host value. `nondet` answers whether a name is known to answer
     nondeterministically, which decides how `for` and `yield from` iterate
-    a call to it.
+    a call to it. `metta_name` is the equation's own name; it defaults to
+    the Python name with underscores as hyphens, the operation rule.
     """
     try:
         source = textwrap.dedent(inspect.getsource(fn))
@@ -200,7 +224,19 @@ def compile_function(
     # A literal-patterned position is fixed by the head, so it is not a
     # variable in the body's scope; naming it there would shadow the match.
     scope = [p for p in params if p not in patterns]
-    compiler = _Compiler(fn.__name__, scope, known, nondet=nondet)
+    closure_names = set(fn.__code__.co_freevars)
+
+    def host(identifier: str) -> bool:
+        return identifier in fn.__globals__ or identifier in closure_names
+
+    compiler = _Compiler(
+        metta_name or fn.__name__.replace("_", "-"),
+        scope,
+        known,
+        nondet=nondet,
+        pyname=fn.__name__,
+        host=host,
+    )
     generator = _is_generator(definition)
     if generator:
         # A generator is nondeterminism: each yield is one answer, which is
@@ -210,7 +246,16 @@ def compile_function(
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
-    return params, patterns, body, _python_twin(fn, patterns), generator, compiler.aux
+    return Compiled(
+        params,
+        patterns,
+        body,
+        _python_twin(fn, patterns),
+        generator,
+        compiler.aux,
+        frozenset(compiler.runtime_ops),
+        frozenset(compiler.hazards),
+    )
 
 
 def _is_generator(node: ast.FunctionDef) -> bool:
@@ -307,6 +352,22 @@ _TWIN_DISPATCHERS: dict[tuple[int, str], TwinDispatcher] = {}
 _TWIN_VIEWS: dict[int, list[dict]] = {}
 
 
+def hazard_twin(name: str, hazards: frozenset[str]) -> Callable:
+    """The honest twin for a clause Python cannot run: calling it says
+    exactly why, instead of failing on a NameError three frames deep."""
+
+    def unrunnable(*_args, **_kwargs):
+        reasons = ", ".join(sorted(hazards))
+        raise RuntimeError(
+            f"{name}.py cannot run this clause in Python: its body uses "
+            f"{reasons}, which exist only in the engine. Evaluate through "
+            f"the space instead: m.eval({name}(...))."
+        )
+
+    unrunnable.__name__ = name
+    return unrunnable
+
+
 def twin_dispatcher(fn: Callable) -> TwinDispatcher:
     """The dispatcher for fn's name in fn's module, created on first use and
     pushed into every twin-globals view of that module."""
@@ -394,8 +455,25 @@ class _Compiler(ast.NodeVisitor):
         aux: list | None = None,
         lifted: dict | None = None,
         closer: Callable[["_Compiler"], Atom] | None = None,
+        pyname: str | None = None,
+        host: Callable[[str], bool] | None = None,
+        runtime_ops: set[str] | None = None,
+        hazards: set[str] | None = None,
     ):
         self.name = name
+        # The Python spelling of the definition's own name, for recursion
+        # written the way the author wrote it; self.name is the MeTTa one.
+        self.pyname = pyname or name
+        self._builtins = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        # Whether an identifier resolves to a host binding (a global or a
+        # closure cell): a capitalized name that does is a module constant,
+        # not a data constructor, and compiles to a refusal.
+        self.host = host or (lambda _: False)
+        # The prelude operations this definition leans on, and the reasons
+        # its Python twin cannot run (a match, a constructor); both shared
+        # across every compiler of the definition, like aux.
+        self.runtime_ops: set[str] = runtime_ops if runtime_ops is not None else set()
+        self.hazards: set[str] = hazards if hazards is not None else set()
         self.scope: dict[str, str] = (
             dict(params) if isinstance(params, dict) else {p: p for p in params}
         )
@@ -442,6 +520,10 @@ class _Compiler(ast.NodeVisitor):
             aux=self.aux,
             lifted=self.lifted,
             closer=self.closer,
+            pyname=self.pyname,
+            host=self.host,
+            runtime_ops=self.runtime_ops,
+            hazards=self.hazards,
         )
         forked.closer_names = list(self.closer_names)
         return forked
@@ -460,6 +542,10 @@ class _Compiler(ast.NodeVisitor):
             aux=self.aux,
             lifted=self.lifted,
             closer=self.closer,
+            pyname=self.pyname,
+            host=self.host,
+            runtime_ops=self.runtime_ops,
+            hazards=self.hazards,
         )
         inner.closer_names = list(self.closer_names)
         return inner
@@ -476,6 +562,10 @@ class _Compiler(ast.NodeVisitor):
             aux=self.aux,
             lifted=self.lifted,
             closer=closer,
+            pyname=self.pyname,
+            host=self.host,
+            runtime_ops=self.runtime_ops,
+            hazards=self.hazards,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
@@ -520,6 +610,11 @@ class _Compiler(ast.NodeVisitor):
         self.scope[name] = variable
         self.used.add(variable)
         return variable
+
+    def _python_resolvable(self, identifier: str) -> bool:
+        """Whether the twin could resolve this callee: a host binding or a
+        Python builtin. An engine-only name makes the twin unrunnable."""
+        return self.host(identifier) or identifier in self._builtins
 
     def _temp(self, base: str) -> str:
         """A fresh variable for the compiler's own use, outside any Python
@@ -635,7 +730,7 @@ class _Compiler(ast.NodeVisitor):
         return self._bind(target), value
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
-        test = self.expression(node.test)
+        test = self._truthy(node.test)
         # Each arm compiles in its own forked scope: a rebind inside one arm
         # must not rename what the other arm, or anything after, reads.
         then = continue_with(self._fork(), node.body)
@@ -709,7 +804,7 @@ class _Compiler(ast.NodeVisitor):
         # The exit continues whatever the enclosing block was continuing.
         exit_compiler.closer = self.closer
 
-        test = equation_compiler.expression(node.test)
+        test = equation_compiler._truthy(node.test)
         body = body_compiler.block(node.body)
         exit_branch = exit_compiler.block(rest)
         head = Expr([Sym(helper), *(Var(n) for n in state)])
@@ -859,7 +954,7 @@ class _Compiler(ast.NodeVisitor):
                 if head.orelse
                 else Expr([Sym("empty")])
             )
-            chooser = Expr([Sym("if"), self.expression(head.test), then, otherwise])
+            chooser = Expr([Sym("if"), self._truthy(head.test), then, otherwise])
             return [chooser, *(self.yield_answers(rest) if rest else [])]
 
         if isinstance(head, ast.For):
@@ -926,16 +1021,37 @@ class _Compiler(ast.NodeVisitor):
     def _x_Name(self, node: ast.Name) -> Atom:
         if node.id in self.scope:
             return Var(self.scope[node.id])
-        if node.id == self.name or node.id in _MAGIC or self.known(node.id):
+        if node.id == self.pyname or node.id == self.name:
+            # Recursion, in either spelling; the equation carries the MeTTa
+            # name.
+            return Sym(self.name)
+        if node.id in _MAGIC:
+            return Sym(node.id)
+        if self.known(node.id):
+            if not self._python_resolvable(node.id):
+                self.hazards.add(f"the engine function {node.id}")
             return Sym(node.id)
         # Python cannot spell a hyphen, and the engine's own names carry
         # them, so sqrt_math reaches sqrt-math when that is what exists.
         hyphenated = node.id.replace("_", "-")
         if hyphenated != node.id and self.known(hyphenated):
+            if not self._python_resolvable(node.id):
+                self.hazards.add(f"the engine function {hyphenated}")
             return Sym(hyphenated)
         if node.id[:1].isupper():
+            if self.host(node.id):
+                raise CompileError(
+                    f"{node.id!r} is a module binding, not a data "
+                    f"constructor: compiling it as a symbol would drop its "
+                    f"value silently. Pass it as an argument, or inline the "
+                    f"literal.",
+                    construct="host binding",
+                    line=node.lineno,
+                )
             # The constructor convention: a capitalized free name is data,
-            # (Parent $x $y) in a pattern or a tag in an answer.
+            # (Parent $x $y) in a pattern or a tag in an answer. Data has
+            # no Python value, so the twin cannot run a body that mints it.
+            self.hazards.add(f"the constructor {node.id}")
             return Sym(node.id)
         raise CompileError(
             f"{node.id!r} is not a parameter of {self.name}, not a function "
@@ -971,7 +1087,8 @@ class _Compiler(ast.NodeVisitor):
                 return Gnd(-operand.value)
             return Expr([Sym("-"), Gnd(0), self.expression(operand)])
         if isinstance(node.op, ast.Not):
-            return Expr([Sym("not"), self.expression(node.operand)])
+            # Python's not is truthiness negated, over any value.
+            return Expr([Sym("not"), self._truthy(node.operand)])
         if isinstance(node.op, ast.UAdd):
             return self.expression(node.operand)
         raise CompileError(
@@ -995,15 +1112,7 @@ class _Compiler(ast.NodeVisitor):
                 terms[i] = Var(temp)
         links: list[Atom] = []
         for i, op_node in enumerate(node.ops):
-            op = _COMPARE.get(type(op_node))
-            if op is None:
-                raise CompileError(
-                    f"the comparison {type(op_node).__name__} has no MeTTa "
-                    f"function",
-                    construct=type(op_node).__name__,
-                    line=node.lineno,
-                )
-            links.append(Expr([Sym(op), terms[i], terms[i + 1]]))
+            links.append(self._compare_link(op_node, terms[i], terms[i + 1], node.lineno))
         folded = links[-1]
         for link in reversed(links[:-1]):
             # The chain short-circuits exactly as Python's does.
@@ -1012,24 +1121,68 @@ class _Compiler(ast.NodeVisitor):
             folded = Expr([Sym("let*"), Expr([Expr([Var(temp), value])]), folded])
         return folded
 
+    def _truthy(self, node: ast.expr) -> Atom:
+        """A test position: Python decides by truthiness, so anything not
+        already boolean-valued by its syntax wraps in py-truthy, whose
+        answer IS bool() of the value. A comparison or a `not` stays bare."""
+        if isinstance(node, ast.Compare):
+            return self.expression(node)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return self.expression(node)
+        if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            return Gnd(node.value)
+        self.runtime_ops.add("py-truthy")
+        return Expr([Sym("py-truthy"), self.expression(node)])
+
+    def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
+        """One comparison: order through the engine's numeric functions,
+        equality and membership through the prelude, so mixed numeric types
+        and containers answer exactly what Python answers."""
+        if isinstance(op_node, ast.Eq):
+            self.runtime_ops.add("py-eq")
+            return Expr([Sym("py-eq"), left, right])
+        if isinstance(op_node, ast.NotEq):
+            self.runtime_ops.add("py-eq")
+            return Expr([Sym("not"), Expr([Sym("py-eq"), left, right])])
+        if isinstance(op_node, ast.In):
+            self.runtime_ops.add("py-in")
+            return Expr([Sym("py-in"), left, right])
+        if isinstance(op_node, ast.NotIn):
+            self.runtime_ops.add("py-in")
+            return Expr([Sym("not"), Expr([Sym("py-in"), left, right])])
+        op = _COMPARE.get(type(op_node))
+        if op is None:
+            raise CompileError(
+                f"the comparison {type(op_node).__name__} has no MeTTa function",
+                construct=type(op_node).__name__,
+                line=line,
+            )
+        return Expr([Sym(op), left, right])
+
     def _x_BoolOp(self, node: ast.BoolOp) -> Atom:
-        # Python's and/or short-circuit; the engine's are strict. The faithful
-        # spelling is if, which evaluates one arm: a and b is (if a b False),
-        # a or b is (if a True b), for boolean-valued operands.
-        terms = [self.expression(v) for v in node.values]
-        folded = terms[-1]
-        for term in reversed(terms[:-1]):
+        # Python's and/or short-circuit AND answer the deciding operand
+        # itself (3 or 7 is 3), so each step binds its operand once and
+        # chooses by truthiness. Exactly Python, exactly once each.
+        self.runtime_ops.add("py-truthy")
+        folded = self.expression(node.values[-1])
+        for value in reversed(node.values[:-1]):
+            term = self.expression(value)
+            temp = self._temp("bool")
+            test = Expr([Sym("py-truthy"), Var(temp)])
             if isinstance(node.op, ast.And):
-                folded = Expr([Sym("if"), term, folded, Gnd(False)])
+                chosen = Expr([Sym("if"), test, folded, Var(temp)])
             else:
-                folded = Expr([Sym("if"), term, Gnd(True), folded])
+                chosen = Expr([Sym("if"), test, Var(temp), folded])
+            folded = Expr(
+                [Sym("let*"), Expr([Expr([Var(temp), term])]), chosen]
+            )
         return folded
 
     def _x_IfExp(self, node: ast.IfExp) -> Atom:
         return Expr(
             [
                 Sym("if"),
-                self.expression(node.test),
+                self._truthy(node.test),
                 self.expression(node.body),
                 self.expression(node.orelse),
             ]
@@ -1075,7 +1228,7 @@ class _Compiler(ast.NodeVisitor):
         inner = self._inner([var])
         for condition in gen.ifs:
             predicate = Expr(
-                [Sym("|->"), Expr([Var(var)]), inner.expression(condition)]
+                [Sym("|->"), Expr([Var(var)]), inner._truthy(condition)]
             )
             source = Expr([Sym("filter-atom"), source, predicate])
         if len(generators) == 1:
@@ -1162,8 +1315,11 @@ class _Compiler(ast.NodeVisitor):
         return [self.expression(a) for a in node.args]
 
     def _py_len(self, node: ast.Call) -> Atom:
+        # py-len is Python's len: expressions AND strings, since which one
+        # arrives is a runtime fact.
         (xs,) = self._args(node, 1, "len")
-        return Expr([Sym("size-atom"), xs])
+        self.runtime_ops.add("py-len")
+        return Expr([Sym("py-len"), xs])
 
     def _py_abs(self, node: ast.Call) -> Atom:
         (x,) = self._args(node, 1, "abs")
@@ -1207,55 +1363,69 @@ class _Compiler(ast.NodeVisitor):
         base, exponent = self._args(node, 2, "pow")
         return Expr([Sym("pow-math"), base, exponent])
 
-    def _x_Subscript(self, node: ast.Subscript) -> Atom:
-        if isinstance(node.slice, ast.Slice):
+    def _py_str_builtin(self, node: ast.Call) -> Atom:
+        (value,) = self._args(node, 1, "str")
+        self.runtime_ops.add("py-str")
+        return Expr([Sym("py-str"), value])
+
+    def _py_repr_builtin(self, node: ast.Call) -> Atom:
+        (value,) = self._args(node, 1, "repr")
+        self.runtime_ops.add("py-repr")
+        return Expr([Sym("py-repr"), value])
+
+    def _py_round(self, node: ast.Call) -> Atom:
+        args = self._args(node, None, "round")
+        if len(args) not in (1, 2):
             raise CompileError(
-                "a slice has no engine builtin; take elements with indexing, "
-                "a comprehension, or an operation",
-                construct="slice",
+                "round() takes a value and an optional digit count",
+                construct="round",
                 line=node.lineno,
             )
+        # The prelude's py-round is Python's round, banker's rounding and
+        # all; the engine's round-math rounds half away from zero.
+        self.runtime_ops.add("py-round")
+        return Expr([Sym("py-round"), *args])
+
+    def _py_range(self, node: ast.Call) -> Atom:
+        args = self._args(node, None, "range")
+        if len(args) not in (1, 2, 3):
+            raise CompileError(
+                "range() takes start, stop and an optional step",
+                construct="range",
+                line=node.lineno,
+            )
+        self.runtime_ops.add("py-range")
+        return Expr([Sym("py-range"), *args])
+
+    def _x_Subscript(self, node: ast.Subscript) -> Atom:
         source = self.expression(node.value)
-        index = self.expression(node.slice)
-        # index-atom counts from zero and refuses negatives; Python counts
-        # negatives from the end. A literal decides at compile time; anything
-        # else binds both parts once and decides at run time.
-        if isinstance(index, Gnd) and isinstance(index.value, int) and index.value >= 0:
-            return Expr([Sym("index-atom"), source, index])
-        source_temp = self._temp("seq")
-        index_temp = self._temp("idx")
-        chosen = Expr(
-            [
-                Sym("if"),
-                Expr([Sym("<"), Var(index_temp), Gnd(0)]),
-                Expr(
-                    [
-                        Sym("index-atom"),
-                        Var(source_temp),
-                        Expr(
-                            [
-                                Sym("+"),
-                                Expr([Sym("size-atom"), Var(source_temp)]),
-                                Var(index_temp),
-                            ]
-                        ),
-                    ]
-                ),
-                Expr([Sym("index-atom"), Var(source_temp), Var(index_temp)]),
-            ]
-        )
-        return Expr(
-            [
-                Sym("let*"),
-                Expr(
-                    [
-                        Expr([Var(source_temp), source]),
-                        Expr([Var(index_temp), index]),
-                    ]
-                ),
-                chosen,
-            ]
-        )
+        if isinstance(node.slice, ast.Slice):
+            if node.slice.step is not None:
+                raise CompileError(
+                    "a stepped slice has no lowering; take a plain slice "
+                    "and a comprehension, or an operation",
+                    construct="slice",
+                    line=node.lineno,
+                )
+            self.runtime_ops.add("py-slice")
+            no_bound = Sym("py-no-bound")
+            lower = (
+                self.expression(node.slice.lower)
+                if node.slice.lower is not None
+                else no_bound
+            )
+            upper = (
+                self.expression(node.slice.upper)
+                if node.slice.upper is not None
+                else no_bound
+            )
+            return Expr([Sym("py-slice"), source, lower, upper])
+        # py-at is Python indexing itself: zero-based, negatives from the
+        # end, strings included, an out-of-range index a loud error. No
+        # engine fast path: index-atom cannot index a string, and whether a
+        # value is one is a runtime fact.
+        self.runtime_ops.add("py-at")
+        return Expr([Sym("py-at"), source, self.expression(node.slice)])
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
@@ -1293,6 +1463,8 @@ class _Compiler(ast.NodeVisitor):
                 self.scope[bound] = bound
                 self.used.add(bound)
         template = self.expression(template_node)
+        # A match reads the space; Python alone has nothing to run it on.
+        self.hazards.add("a match against the space")
         return Expr([Sym("match"), space, pattern, template])
 
     def _x_Tuple(self, node: ast.Tuple) -> Atom:
@@ -1311,12 +1483,48 @@ class _Compiler(ast.NodeVisitor):
         )
 
     def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:
-        raise CompileError(
-            "an f-string has no MeTTa lowering here; build text with repr and "
-            "concat, or register a formatting operation with @m.op",
-            construct="f-string",
-            line=node.lineno,
-        )
+        """An f-string joins its parts through the prelude: literal text as
+        itself, {v} as py-str, {v!r} as py-repr, {v:spec} as py-format with
+        a literal spec. Exactly Python's building, so the twin agrees to
+        the character."""
+        self.runtime_ops.add("py-str-join")
+        parts: list[Atom] = []
+        for piece in node.values:
+            if isinstance(piece, ast.Constant) and isinstance(piece.value, str):
+                parts.append(Gnd(piece.value))
+                continue
+            if not isinstance(piece, ast.FormattedValue):
+                raise CompileError(
+                    "this f-string part has no lowering",
+                    construct="f-string",
+                    line=node.lineno,
+                )
+            value = self.expression(piece.value)
+            if piece.format_spec is not None:
+                spec = piece.format_spec
+                if not (
+                    isinstance(spec, ast.JoinedStr)
+                    and all(
+                        isinstance(s, ast.Constant) and isinstance(s.value, str)
+                        for s in spec.values
+                    )
+                ):
+                    raise CompileError(
+                        "a computed f-string format spec has no lowering; "
+                        "write the spec literally, as in {x:.2f}",
+                        construct="f-string",
+                        line=node.lineno,
+                    )
+                literal = "".join(s.value for s in spec.values)
+                self.runtime_ops.add("py-format")
+                parts.append(Expr([Sym("py-format"), value, Gnd(literal)]))
+            elif piece.conversion == ord("r"):
+                self.runtime_ops.add("py-repr")
+                parts.append(Expr([Sym("py-repr"), value]))
+            else:
+                self.runtime_ops.add("py-str")
+                parts.append(Expr([Sym("py-str"), value]))
+        return Expr([Sym("py-str-join"), Expr(parts)])
 
 
 class _PatternScope:
@@ -1381,6 +1589,10 @@ _PYBUILTIN_CALLS: dict[str, Callable] = {
     "sum": _Compiler._py_sum,
     "sorted": _Compiler._py_sorted,
     "pow": _Compiler._py_pow,
+    "str": _Compiler._py_str_builtin,
+    "repr": _Compiler._py_repr_builtin,
+    "round": _Compiler._py_round,
+    "range": _Compiler._py_range,
 }
 
 

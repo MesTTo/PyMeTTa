@@ -95,7 +95,8 @@ def test_lambda_is_first_class(m):
         f = lambda v: v + 10  # noqa: E731
         return f(f(x))
 
-    assert m.run("!(dapply_twice 1)") == [[21]]
+    # One naming policy across both decorators: underscores read as hyphens.
+    assert m.run("!(dapply-twice 1)") == [[21]]
 
 
 def test_comprehension_is_map_atom(m):
@@ -148,7 +149,7 @@ def test_constructor_convention_capitalized_names(m):
         ("def f(x):\n    while x > 0:\n        break\n    return x", "test"),
         ("def f(x):\n    y = x @ x\n    return y", "matmul"),
         ("def f(x):\n    return {1: x}", "dict"),
-        ("def f(x):\n    return f'{x}!'", "f-string"),
+        ("def f(x, w):\n    return f'{x:{w}}'", "f-string"),
         ("def f(x):\n    return unknown_lowercase(x)", "not a parameter"),
         ("def f(x, y=[]):\n    return x", "literal"),
     ],
@@ -353,3 +354,128 @@ def test_engine_functions_feel_like_python(m):
     assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
     with pytest.raises(ValueError):
         m.fn("superpose")(expr(1, 2))  # two answers is not one
+
+
+def test_boolean_operators_answer_the_operand(m):
+    """3 or 7 is 3, 0 or 7 is 7, 3 and 7 is 7: Python's own reading,
+    truthiness deciding and the operand answering."""
+
+    @m.define
+    def dpick(a, b):
+        return a or b
+
+    @m.define
+    def dboth(a, b):
+        return a and b
+
+    assert m.run("!(dpick 3 7)") == [[3]]
+    assert m.run("!(dpick 0 7)") == [[7]]
+    assert m.run("!(dboth 3 7)") == [[7]]
+    assert m.run("!(dboth 0 7)") == [[0]]
+    assert dpick.py(0, 7) == 7 and dboth.py(3, 7) == 7
+
+
+def test_truthiness_decides_tests(m):
+    """A bare value as the test reads by bool(), zero and empty the only
+    falsehoods, exactly Python."""
+
+    @m.define
+    def dclassify(n):
+        if n:
+            return Some  # noqa: F821
+        return Nothing  # noqa: F821
+
+    assert m.run("!(dclassify 7)") == [[S.Some]]
+    assert m.run("!(dclassify 0)") == [[S.Nothing]]
+    # Constructors exist only in the engine; the twin says so.
+    with pytest.raises(RuntimeError):
+        dclassify.py(7)
+
+
+def test_mixed_numeric_equality_and_membership(m):
+    @m.define
+    def dsame(a, b):
+        return a == b / 1
+
+    @m.define
+    def dhas(x, xs):
+        return x in xs
+
+    assert m.run("!(dsame 4 4)") == [[True]]
+    assert m.run("!(dhas 2 (1 2 3))") == [[True]]
+    assert m.run("!(dhas 9 (1 2 3))") == [[False]]
+    assert m.run('!(dhas "ell" "hello")') == [[True]]
+
+
+def test_fstrings_str_round_range_slices(m):
+    @m.define
+    def dlabel(x):
+        return f"v={x:03d}!"
+
+    @m.define
+    def dtext(x):
+        return str(x)
+
+    @m.define
+    def dbank(x):
+        return round(x)
+
+    @m.define
+    def dspan(n):
+        return sum(range(n))
+
+    @m.define
+    def dcut(xs):
+        return xs[1:-1]
+
+    assert m.run("!(dlabel 7)") == [["v=007!"]]
+    assert m.run("!(dtext 42)") == [["42"]]
+    # Banker's rounding, not half-away: Python's own round.
+    assert m.run("!(dbank 2.5)") == [[2]]
+    assert m.run("!(dbank 3.5)") == [[4]]
+    assert m.run("!(dspan 5)") == [[10]]
+    assert m.run("!(dcut (a b c d))") == [[expr(S.b, S.c)]]
+    assert dlabel.py(7) == "v=007!" and dcut.py(("a", "b", "c", "d")) == ("b", "c")
+    assert "py-str-join" in dlabel.runtime_ops
+
+
+def test_host_bindings_refuse_the_constructor_reading(m):
+    with pytest.raises(CompileError) as caught:
+
+        @m.define
+        def dthreshold(x):
+            return x + Threshold  # noqa: F821
+
+    assert "module binding" in str(caught.value)
+
+
+Threshold = 5
+
+
+def test_twin_raises_honestly_for_engine_only_bodies(m):
+    m.add(expr(S.fact9, 9))
+
+    @m.define
+    def dseek():
+        return match(fact9(v), v)  # noqa: F821
+
+    assert m.run("!(dseek)") == [[9]]
+    with pytest.raises(RuntimeError) as caught:
+        dseek.py()
+    assert "match against the space" in str(caught.value)
+
+
+def test_same_head_redefinition_replaces(m):
+    @m.define
+    def dvalue():
+        return 1
+
+    assert m.run("!(dvalue)") == [[1]]
+
+    @m.define
+    def dvalue():
+        return 2
+
+    # The notebook reading: one head, the newest body, exactly one answer.
+    assert m.run("!(collapse (dvalue))") == [[expr(2)]]
+    assert dvalue.py() == 2

@@ -75,7 +75,8 @@ def int_expr(draw, names: tuple, depth: int = 0):
         return str(draw(st.integers(-9, 9)))
     kind = draw(
         st.sampled_from(
-            ("add", "sub", "mul", "mod", "neg", "min", "max", "abs", "ifexp")
+            ("add", "sub", "mul", "mod", "neg", "min", "max", "abs",
+             "ifexp", "or", "and", "truthytest")
         )
     )
     a = draw(int_expr(names, depth + 1))
@@ -95,6 +96,12 @@ def int_expr(draw, names: tuple, depth: int = 0):
         return f"({a} % {divisor})"
     if kind in ("min", "max"):
         return f"{kind}({a}, {b})"
+    if kind in ("or", "and"):
+        # Python answers the deciding OPERAND, an int here, not a boolean.
+        return f"({a} {kind} {b})"
+    if kind == "truthytest":
+        # A bare int as the test: truthiness, zero the only falsehood.
+        return f"({a} if {b} else {draw(int_expr(names, depth + 1))})"
     test = draw(bool_expr(names, depth + 1))
     return f"({a} if {test} else {b})"
 
@@ -106,7 +113,13 @@ def bool_expr(draw, names: tuple, depth: int = 0):
         kind = "cmp"
     if kind == "cmp":
         op = draw(st.sampled_from(("<", "<=", ">", ">=", "==", "!=")))
-        return f"({draw(int_expr(names, depth + 1))} {op} {draw(int_expr(names, depth + 1))})"
+        left = draw(int_expr(names, depth + 1))
+        right = draw(int_expr(names, depth + 1))
+        if op in ("==", "!=") and draw(st.integers(0, 3)) == 0:
+            # Mixed numeric equality: Python says 4 == 4.0; so must the
+            # compiled form, through py-eq.
+            right = f"({right} / 1)"
+        return f"({left} {op} {right})"
     if kind == "chain":
         op1, op2 = draw(st.sampled_from(("<", "<="))), draw(st.sampled_from(("<", "<=")))
         parts = [draw(int_expr(names, depth + 1)) for _ in range(3)]
@@ -248,6 +261,11 @@ def collection_programs(draw):
         "index": f"xs[{draw(st.integers(-4, 3))}]",
         "comprehension": "sum([x * x for x in xs if x > 0])",
         "pairs": "len([(x, y) for x in xs for y in xs if x < y])",
+        "member": "(1 if 3 in xs else 0)",
+        "slice": f"sum(xs[{draw(st.integers(-3, 2))}:{draw(st.integers(-2, 4))}])",
+        "range": "sum(range(len(xs)))",
+        "fstring": "len(f'{xs[0]}:{xs[1]:04d}')",
+        "text": "len(str(sorted(xs)))",
     }
     picked = [draw(st.sampled_from(sorted(reducers))) for _ in range(2)]
     expression = " + ".join(reducers[p] for p in picked)
