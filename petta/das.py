@@ -202,14 +202,22 @@ class DAS:
             f"{ws_base}/command-router/ws/{execution_id}",
             timeout=self._timeout,
         )
+        from websocket import WebSocketConnectionClosedException
+
         try:
             while True:
                 message = connection.recv()
                 if not message:
                     continue
                 yield json.loads(message)
-        except Exception:
+        except WebSocketConnectionClosedException:
+            # The server closed the stream; the caller's terminal-event
+            # handling decides whether the answer set was complete.
             return
+        except Exception as exc:
+            raise DASError(
+                f"the DAS event stream broke mid-query: {exc}"
+            ) from exc
         finally:
             connection.close()
 
