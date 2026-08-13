@@ -16,48 +16,15 @@ from hypothesis import given, settings, strategies as st  # noqa: E402
 from petta import Expr, Gnd, S, Sym, Var, alpha_eq, expr, unify  # noqa: E402
 from petta.atoms import from_wire  # noqa: E402
 
-# Names PeTTa's tokeniser reads back whole: no whitespace, parens, quotes,
-# and not starting with the characters that mean something else at the front.
-# true and false are excluded alongside True and False: the engine holds its
-# booleans as those very atoms, so the symbol spelling and the boolean are one
-# term there, and a round trip canonicalizes to the boolean; pinned below.
-_name = st.text(
-    alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"),
-    min_size=1,
-    max_size=12,
-).filter(
-    # "_" is the anonymous variable, fresh at every occurrence by contract,
-    # so it cannot appear in round-trip properties that expect sharing.
-    lambda s: s[0] not in "$&-<>=+*?0123456789"
-    and s not in ("True", "False", "true", "false", "_")
-)
+# The generators are the library's own public ones: petta.testing carries
+# the engine truths (readable names, boolean canonicalization, printer
+# limits) so users fuzz with exactly what this suite fuzzes with.
+from petta import testing as pt  # noqa: E402
 
-_numbers = st.one_of(
-    st.integers(min_value=-(2**62), max_value=2**62),
-    # inf prints as a symbol under the engine's printer, and NaN never
-    # compares equal; both are excluded as printer limits, not carried bugs.
-    st.floats(allow_nan=False, allow_infinity=False, width=64),
-)
-
-_strings = st.text(
-    alphabet=st.characters(codec="utf-8", exclude_characters='\x00'),
-    max_size=20,
-)
-
-
-def _atoms(depth: int = 3):
-    base = st.one_of(
-        _name.map(Sym),
-        _name.map(Var),
-        _numbers.map(Gnd),
-        st.booleans().map(Gnd),
-        _strings.map(Gnd),
-    )
-    return st.recursive(
-        base,
-        lambda inner: st.lists(inner, max_size=4).map(Expr),
-        max_leaves=8,
-    )
+_name = pt.names()
+_numbers = pt.numbers()
+_strings = pt.texts()
+_atoms = pt.atoms
 
 
 @given(_atoms())
@@ -165,3 +132,18 @@ def test_python_equality_is_engine_equality(metta, a, b):
     engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
     assert len(engine) == 1
     assert engine[0].value is (Gnd(a) == Gnd(b))
+
+
+@given(pt.atoms(ground=True))
+def test_ground_strategy_generates_no_variables(atom):
+    from petta.atoms import variables
+
+    assert list(variables(atom)) == []
+
+
+def test_testing_names_the_need_without_hypothesis(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "hypothesis", None)
+    with pytest.raises(ImportError, match="hypothesis"):
+        pt.names()
