@@ -148,6 +148,7 @@ from . import (  # noqa: E402
     integrate,
     matching,
     measure,
+    multishot,
     soft,
     web,
 )
@@ -205,6 +206,7 @@ __all__ = [
     "foreign",
     "matching",
     "measure",
+    "multishot",
     "soft",
     "web",
     "SpaceProvider",

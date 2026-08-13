@@ -27,6 +27,7 @@ with a message when the dependency is absent.
 | 13_custom_matchers | fuzzy and semantic matchers feeding the measure algebra |
 | 14_soft_unification | Sessa's weak unification and goal-directed soft proving over terms |
 | 15_web_routes | FastAPI's routing semantics: the table is facts, dispatch is unification |
+| 16_multishot_solving | clingo's multi-shot loop: parts ground incrementally, externals toggle |
 
 The frame behind the folder: MeTTa's semantics subsume the concepts these
 systems are made of. Functions are grounded functions and a call is a
