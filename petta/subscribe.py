@@ -71,10 +71,12 @@ _RUNTIME = None
 
 
 def _sync_engine() -> None:
+    """Tell the engine which spaces have watchers: writes anywhere else
+    never cross the boundary. The set, not a flag, is the whole point."""
     if _RUNTIME is not None:
         _RUNTIME.must(
-            "petta_py_subscriptions(E)",
-            E="true" if _SUBSCRIPTIONS else "false",
+            "petta_py_subscriptions(Spaces)",
+            Spaces=sorted({s.space for s in _SUBSCRIPTIONS}),
         )
 
 

@@ -712,31 +712,33 @@ petta_py_unregister_foreign(Space0) :-
 %
 % Standing queries: when Python has subscribers, every space write crosses
 % to petta_ops for pattern matching and callbacks, synchronously, inside
-% the write. The guard is one dynamic flag, so an unsubscribed process
-% pays a single failed lookup per write and nothing more.
+% the write. The guard is one dynamic fact PER SUBSCRIBED SPACE, first-arg
+% indexed, so a write to any unwatched space pays a single failed lookup
+% and never crosses to Python; the global-flag version taxed every write
+% in the process 2.3x once any subscription existed, measured.
 
 :- multifile metta_on_atom_added/2.
 :- multifile metta_on_atom_removed/2.
-:- dynamic petta_py_subscriptions_on/0.
+:- dynamic petta_py_subscribed_space/1.
 
 metta_on_atom_added(Space, Term) :-
-    petta_py_subscriptions_on,
     atom(Space),
+    petta_py_subscribed_space(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:atom_added(SpaceStr, W), _).
 
 metta_on_atom_removed(Space, Term) :-
-    petta_py_subscriptions_on,
     atom(Space),
+    petta_py_subscribed_space(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:atom_removed(SpaceStr, W), _).
 
-petta_py_subscriptions(Enabled) :-
-    ( Enabled == true
-      -> ( petta_py_subscriptions_on -> true ; assertz(petta_py_subscriptions_on) )
-    ; retractall(petta_py_subscriptions_on) ).
+petta_py_subscriptions(Spaces) :-
+    retractall(petta_py_subscribed_space(_)),
+    forall(member(S, Spaces),
+           ( atom_string(A, S), assertz(petta_py_subscribed_space(A)) )).
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %
