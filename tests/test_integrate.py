@@ -94,6 +94,34 @@ def test_py_field_reasons_in_both_modes(metta):
     assert names == {"depth", "name"}
 
 
+def test_py_attr_and_bound_py_field_read_a_property_once(metta):
+    class Counted:
+        def __init__(self):
+            self.reads = 0
+
+        @property
+        def item(self):
+            self.reads += 1
+            return self.reads
+
+    pi.install_reflection_ops(metta)
+    target = Counted()
+    space = metta.fresh_space()
+    try:
+        space.add(S.target(val(target)))
+        assert space.run(
+            "!(match (context-space) (target $x) (py-attr $x item))"
+        ) == [[1]]
+        assert target.reads == 1
+        (pair,) = space.run(
+            "!(match (context-space) (target $x) (py-field $x item))"
+        )[0]
+        assert int(pair[1].value) == 2
+        assert target.reads == 2
+    finally:
+        space.drop()
+
+
 def test_integrate_module_protocol_and_idempotence(metta):
     import types
 

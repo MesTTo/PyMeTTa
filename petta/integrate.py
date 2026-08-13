@@ -331,16 +331,21 @@ def install_reflection_ops(m) -> list[str]:
     def py_attr(obj, name):
         target = decode(obj) if isinstance(obj, Gnd) else obj
         attr = name.name if isinstance(name, Sym) else str(decode(name))
-        if not hasattr(target, attr):
+        try:
+            value = getattr(target, attr)
+        except AttributeError:
             return None
-        return val(getattr(target, attr))
+        return val(value)
 
     def py_field(obj, name=None):
         target = decode(obj) if isinstance(obj, Gnd) else obj
         if name is not None and not isinstance(name, Var):
             attr = name.name if isinstance(name, Sym) else str(decode(name))
-            if hasattr(target, attr):
-                yield expr(Sym(attr), val(getattr(target, attr)))
+            try:
+                value = getattr(target, attr)
+            except AttributeError:
+                return
+            yield expr(Sym(attr), val(value))
             return
         for attr in _field_names(target):
             yield expr(Sym(attr), val(getattr(target, attr)))
