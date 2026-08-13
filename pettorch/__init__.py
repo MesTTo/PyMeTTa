@@ -25,6 +25,7 @@ from petta.arrays import EmbeddingStore
 
 from . import reflect as _reflect_module
 from .modules import MettaModule, wrap
+from .neural import neural_predicate
 from .reflect import VOCABULARY, reflect
 from .tensors import TENSOR_OPS, install_tensor_ops
 from .train import LOSS_OPS, attach_optimizer, install_loss_ops, train_step
@@ -37,6 +38,7 @@ __all__ = [
     "install_petta",
     "wrap",
     "MettaModule",
+    "neural_predicate",
     "reflect",
     "VOCABULARY",
     "EmbeddingStore",

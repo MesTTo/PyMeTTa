@@ -2,7 +2,8 @@
 building operators over the whole engine-evaluable algebra, declarations
 generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
 classes as declared types), guarded and bounded queries, assumptions,
-prepared queries, and general weighted relations.
+prepared queries, and general weighted relations with the neural predicate
+as their torch instance.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -255,3 +256,32 @@ def test_weighted_relation_takes_any_callable(m):
     assert best == S.tense
     (scored,) = m.run("!(mood today calm)")[0]
     assert float(scored[0]) == 0.25 and scored[1] == S.calm
+
+
+# --------------------------------------------------------- neural predicate
+
+
+def test_neural_predicate_is_a_weighted_relation(m):
+    torch = pytest.importorskip("torch")
+    import pettorch
+
+    pettorch.install(m)
+    m.run("!(import! (context-space) (library lib_measure))")
+
+    # A fixed network whose argmax for [1, 0] is class one.
+    network = torch.nn.Linear(2, 3, bias=False)
+    with torch.no_grad():
+        network.weight.copy_(
+            torch.tensor([[0.1, 0.9], [2.0, 0.1], [0.2, 0.2]])
+        )
+    pettorch.neural_predicate(m, "guess", network, [S.zero, S.one, S.two])
+
+    (pairs,) = m.run("!(collapse (guess (tensor (1.0 0.0))))")[0]
+    assert len(pairs) == 3
+    total = sum(float(p[0]) for p in pairs)
+    assert total == pytest.approx(1.0)
+    (best,) = m.run("!(ws-best (collapse (guess (tensor (1.0 0.0)))))")[0]
+    assert best == S.one
+    # Bound mode scores one class.
+    (scored,) = m.run("!(guess (tensor (1.0 0.0)) one)")[0]
+    assert str(scored[1]) == "one" and 0.0 < float(scored[0]) <= 1.0
