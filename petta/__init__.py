@@ -148,6 +148,7 @@ from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from . import aio, arrays, convert, das, foreign, integrate, lint, matching, measure, persistent, remote, testing, trace  # noqa: E402
+from .casting import CastError, cast  # noqa: E402
 from .define import Defined  # noqa: E402
 from .foreign import SpaceProvider  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
@@ -206,6 +207,8 @@ __all__ = [
     "variables",
     "is_ground",
     "register_object_repr",
+    "cast",
+    "CastError",
     # runtime
     "MeTTa",
     "Prepared",

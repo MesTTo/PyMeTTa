@@ -497,6 +497,17 @@ class MeTTa:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
+    def cast(self, value, type_):
+        """Answer value, narrowed to its Python-most spelling, when this
+        space's type discipline admits it as type_: the same acceptance
+        a typed call compiles, ':' declarations in this space and &self
+        in scope, protocol types included. A refused cast raises
+        petta.CastError naming the value's actual types, the loud
+        spelling of what a typed call does silently."""
+        from .casting import cast as _cast
+
+        return _cast(self, value, type_)
+
     def trace(self, source: str):
         """Run source under the engine's reduction trace and answer
         TraceEvent records: what entered reduction at which depth, what

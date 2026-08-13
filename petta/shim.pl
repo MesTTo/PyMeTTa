@@ -563,6 +563,25 @@ petta_py_in_module(Module, Goal) :-
     ( current_predicate(with_metta_module/2) -> with_metta_module(Module, Goal)
     ; call(Goal) ).
 
+%The translator's own acceptance for one typed argument position,
+%exposed to Python: Value admits Type when ('get-type' *-> true ;
+%'get-metatype') succeeds with Type bound, the exact check a typed call
+%compiles, run in Space's module so its ':' declarations and &self's
+%both answer, protocol types included. Both terms decode with shared
+%variables, so a repeated variable in the target ((Pair $t $t))
+%constrains. Refusal answers the value's own type candidates for the
+%message; 'get-type' always answers at least '%Undefined%'.
+petta_py_cast(Space, ValueW, TypeW, Out) :-
+    petta_py_decode_shared(ValueW, Value, _),
+    petta_py_decode_shared(TypeW, Type, _),
+    petta_py_module(Space, Module),
+    ( petta_py_in_module(Module,
+          ( 'get-type'(Value, Type) *-> true ; 'get-metatype'(Value, Type) ))
+      -> Out = ["s", "ok"]
+    ; petta_py_in_module(Module, findall(T, 'get-type'(Value, T), Ts)),
+      maplist(petta_py_encode, Ts, TsW),
+      Out = ["e", TsW] ).
+
 %%%%%%%%%% Evaluation %%%%%%%%%%
 %
 % Evaluation is the engine's own translate_expr/3 over the term, then its

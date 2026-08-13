@@ -1,0 +1,122 @@
+"""Purpose: runtime typecasting. A cast answers the value narrowed when
+the engine's own typed-call acceptance admits it, raises CastError
+naming the actual types otherwise, reads ':' declarations
+space-relatively, spells Python types the way get-type does (bool
+before int), passes the translator's unchecked targets unchecked,
+reaches metatypes through the same fallback a typed call compiles, and
+ducks through protocol types registered on the integrate surface.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+import pytest
+
+from petta import CastError, Gnd, S, V, cast
+
+
+@pytest.fixture()
+def m(metta):
+    with metta.fresh_space() as space:
+        yield space
+
+
+def test_ground_values_cast_to_their_own_types(m):
+    assert m.cast(3, int) == 3
+    assert m.cast(3, "Number") == 3
+    assert m.cast(3.5, float) == 3.5
+    assert m.cast("s", str) == "s"
+    assert m.cast(True, bool) is True
+
+
+def test_bool_is_bool_before_int_is_number(m):
+    with pytest.raises(CastError):
+        m.cast(True, int)
+
+
+def test_declared_symbols_cast_by_their_declarations(m):
+    m.run("(: Ann Person)")
+    assert m.cast(S.Ann, "Person") is S.Ann
+    with pytest.raises(CastError) as caught:
+        m.cast(S.Ann, "Robot")
+    assert "Person" in str(caught.value)
+
+
+def test_metatype_targets_reach_through_the_fallback(m):
+    assert m.cast(S.mystery, "Symbol") is S.mystery
+    with pytest.raises(CastError):
+        m.cast(S.mystery, "Person")
+
+
+def test_arrow_typed_expressions_cast_structurally(m):
+    m.run("(: Cons (-> Number (List Number) (List Number))) (: Nil (List Number))")
+    tail = S.Cons(1, S.Nil)
+    assert m.cast(tail, "(List Number)") is tail
+    assert m.cast(tail, S.List(V.t)) is tail
+    with pytest.raises(CastError):
+        m.cast(tail, "(List String)")
+
+
+def test_unchecked_targets_pass_unchecked(m):
+    assert m.cast(S.anything, "Atom") is S.anything
+    assert m.cast(Gnd(3), "%Undefined%") == 3
+
+
+def test_protocol_types_duck_through_the_type_system(m, metta):
+    from petta import integrate
+
+    integrate.register_object_type(lambda x: hasattr(x, "quack"), "Ducky")
+
+    class Quacks:
+        quack = "yes"
+
+    class Silent:
+        pass
+
+    duck = Quacks()
+    assert m.cast(duck, "Ducky") is duck
+    assert m.cast(duck, Quacks) is duck
+    with pytest.raises(CastError):
+        m.cast(Silent(), "Ducky")
+
+
+def test_declarations_are_space_relative(metta):
+    with metta.fresh_space() as a, metta.fresh_space() as b:
+        a.run("(: Bob Person)")
+        assert a.cast(S.Bob, "Person") is S.Bob
+        with pytest.raises(CastError):
+            b.cast(S.Bob, "Person")
+
+
+def test_the_module_function_takes_the_space_first(m):
+    assert cast(m, 3, "Number") == 3
+    assert issubclass(CastError, TypeError)
+
+
+def test_ground_atoms_narrow_to_their_python_values(m):
+    assert m.cast(Gnd(3), "Number") == 3
+    assert isinstance(m.cast(Gnd(3), int), int)
+
+
+try:
+    from hypothesis import HealthCheck, given, settings
+except ModuleNotFoundError:
+    pass
+else:
+    from petta.testing import expressions
+
+    @settings(
+        max_examples=25,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(expressions(max_leaves=6, ground=True))
+    def test_generated_atoms_cast_to_atom_and_refuse_the_absurd(metta, atom):
+        """Atom admits everything unchecked; a type name nothing
+        declares refuses everything, loudly and precisely."""
+        with metta.fresh_space() as space:
+            assert space.cast(atom, "Atom") is not None
+            with pytest.raises(CastError) as caught:
+                space.cast(atom, "Absurd987")
+            assert "does not admit" in str(caught.value)
