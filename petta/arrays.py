@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Iterator
 
-from .atoms import Atom, Expr, Gnd, S, Sym, decode, expr, val
+from .atoms import Atom, Expr, Gnd, S, Sym, Var, decode, expr, val
 from .errors import PettaError
 from . import integrate as _integrate
 
@@ -33,6 +33,26 @@ __all__ = [
 
 ARRAY_OPS: list[str] = []
 _PROTOCOLS_REGISTERED = False
+
+# Constructor names aliased per space: the operation registers once per
+# backend under name--lib, and each installed space carries equations
+# routing its own (tensor ...) to its own backend, so two spaces with two
+# default libraries coexist and a later install never retargets an earlier
+# space's constructors. Reinstalling a space with another default replaces
+# ITS aliases; (space, name) -> (library, arities) records what to remove.
+_CONSTRUCTOR_NAMES = ("tensor", "zeros", "ones", "randn", "arange-t", "eye")
+_SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
+
+
+def _alias_equation(name: str, library: str, arity: int) -> Expr:
+    variables = [Var(f"a{i}") for i in range(1, arity + 1)]
+    return Expr(
+        [
+            S["="],
+            Expr([S[name], *variables]),
+            Expr([S[f"{name}--{library}"], *variables]),
+        ]
+    )
 
 
 def is_array(x: Any) -> bool:
@@ -116,16 +136,43 @@ def install(m, default: Any = None) -> list[str]:
     """
     _register_protocols()
     xp_default = _default_namespace(default)
+    library = getattr(xp_default, "__name__", str(xp_default)).rsplit(".", 1)[-1]
     registered: list[str] = []
 
     def op(fn, *, name: str, raw: bool = True, types: list[str] | None = None, **kw):
-        if m.is_function(name) and name not in _known_ops():
+        if (
+            m.is_function(name)
+            and name not in _known_ops()
+            and name not in _CONSTRUCTOR_NAMES
+        ):
             raise PettaError(
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
             )
         m.op(fn, name=name, raw=raw, typed=False, **kw)
         if types:
+            m.add(expr(S[":"], S[name], Expr([S["->"], *(S[t] for t in types)])))
+        registered.append(name)
+        return fn
+
+    def constructor(fn, *, name: str, arities: list[int] | None = None,
+                    raw: bool = True, types: list[str] | None = None, **kw):
+        """A constructor registers per backend as name--library, and THIS
+        space routes its bare name there through per-space equations, so
+        the default is the space's, never the process's. Installing the
+        space again with another default replaces its aliases."""
+        namespaced = f"{name}--{library}"
+        op(fn, name=namespaced, raw=raw, arities=arities, **kw)
+        key = (m.space_name, name)
+        previous = _SPACE_CONSTRUCTORS.get(key)
+        if previous is not None:
+            old_library, old_arities = previous
+            for arity in old_arities:
+                m.remove(_alias_equation(name, old_library, arity))
+        for arity in arities or [1]:
+            m.add(_alias_equation(name, library, arity))
+        _SPACE_CONSTRUCTORS[key] = (library, list(arities or [1]))
+        if types and previous is None:
             m.add(expr(S[":"], S[name], Expr([S["->"], *(S[t] for t in types)])))
         registered.append(name)
         return fn
@@ -150,15 +197,17 @@ def install(m, default: Any = None) -> list[str]:
             return val(raw_data)
         return val(xp_default.asarray(raw_data, dtype=xp_default.float32))
 
-    op(make_tensor, name="tensor", raw=False, pass_atoms=True,
-       types=["%Undefined%", "DLTensor"])
+    constructor(make_tensor, name="tensor", raw=False, pass_atoms=True,
+                types=["%Undefined%", "DLTensor"])
 
     dims = [1, 2, 3, 4]
-    op(lambda *s: xp_default.zeros(tuple(int(d) for d in s)), name="zeros", arities=dims)
-    op(lambda *s: xp_default.ones(tuple(int(d) for d in s)), name="ones", arities=dims)
-    op(_randn(xp_default), name="randn", arities=dims)
-    op(lambda n: xp_default.arange(float(n)), name="arange-t")
-    op(lambda n: xp_default.eye(int(n)), name="eye")
+    constructor(lambda *s: xp_default.zeros(tuple(int(d) for d in s)),
+                name="zeros", arities=dims)
+    constructor(lambda *s: xp_default.ones(tuple(int(d) for d in s)),
+                name="ones", arities=dims)
+    constructor(_randn(xp_default), name="randn", arities=dims)
+    constructor(lambda n: xp_default.arange(float(n)), name="arange-t")
+    constructor(lambda n: xp_default.eye(int(n)), name="eye")
 
     # ---------------------------------------------------------------- algebra
 
@@ -182,8 +231,10 @@ def install(m, default: Any = None) -> list[str]:
     op(lambda a: namespace_of(a).log(a), name="t-log")
 
     def power(a, p):
-        xp = namespace_of(a)
-        return xp.pow(a, xp.asarray(p, dtype=a.dtype)) if not is_array(p) else xp.pow(a, p)
+        # Through aligned() like every other binary operation, so a mixed
+        # pair (a torch base, a NumPy exponent) converts before the call.
+        a2, p2, xp = aligned(a, p)
+        return xp.pow(a2, p2)
 
     op(power, name="t-pow")
 

@@ -189,11 +189,10 @@ class Runtime:
 
     def _raise(self, goal: str, exc: BaseException) -> None:
         message = _clean_message(exc)
-        lowered = message.lower()
-        # The reader's own refusals: sread says "Parse error in form", the
-        # top-level form scanner throws syntax_error/1, which SWI renders as
-        # "Syntax error: ...".
-        if "syntax error" in lowered or "syntax_error" in lowered or "parse error" in lowered:
+        # Reader refusals arrive tagged with their own functor by the shim
+        # (petta_py_tag_reader), so classification is structural: a SQL
+        # error that happens to say "syntax error" stays an EngineError.
+        if "petta_syntax_error" in message:
             raise MettaSyntaxError(message) from exc
         raise EngineError(message) from exc
 

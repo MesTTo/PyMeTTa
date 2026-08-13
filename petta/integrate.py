@@ -55,15 +55,20 @@ class Integration(Protocol):
     def install(self, m) -> None: ...
 
 
-_INSTALLED: dict[str, Any] = {}
+_INSTALLED: dict[tuple[str, str], Any] = {}
 
 
 def integrate(m, target: Any) -> str:
-    """Install an integration on the engine, idempotently per process.
+    """Install an integration on a space, idempotently per (space, name).
 
     target may be: a module (or dotted module name) defining install_petta(m),
     an Integration object, or the name of an installed package's entry point
     in the petta.integrations group. Returns the integration's name.
+
+    Idempotence is per SPACE, because equations and facts an installer
+    writes land in the space it was handed: installing into a second space
+    installs again there. Operations are process-wide either way, and
+    re-registering them is the registry's ordinary replacement.
     """
     if isinstance(target, str):
         target = _resolve(target)
@@ -77,13 +82,15 @@ def integrate(m, target: Any) -> str:
             f"{target!r} is not an integration: define install_petta(m) on "
             f"the module, or provide an object with .name and .install(m)"
         )
-    if name not in _INSTALLED:
+    key = (m.space_name, name)
+    if key not in _INSTALLED:
         installer(m)
-        _INSTALLED[name] = target
+        _INSTALLED[key] = target
     return name
 
 
-def installed() -> dict[str, Any]:
+def installed() -> dict[tuple[str, str], Any]:
+    """(space, integration name) -> the installed target."""
     return dict(_INSTALLED)
 
 
@@ -138,10 +145,22 @@ def module_ops(
         metta_name = rename.get(pyname, pyname.replace("_", "-"))
         if prefix:
             metta_name = f"{prefix}{metta_name}"
+        spread = False
         try:
-            m.op(fn, name=metta_name, raw=raw, typed=typed)
-        except TypeError:
-            # A builtin without introspectable signature: serve common arities.
+            signature = inspect.signature(fn)
+        except ValueError:
+            # No introspectable signature (a C builtin): every call form is
+            # plausible, so the common arities serve.
+            spread = True
+        else:
+            # A variadic callable accepts every count, so the common
+            # arities are all reachable; keyword-only refusals propagate,
+            # since inventing forms for them would fail at call time.
+            spread = any(
+                p.kind is inspect.Parameter.VAR_POSITIONAL
+                for p in signature.parameters.values()
+            )
+        if spread:
             m.op(
                 _spread(fn),
                 name=metta_name,
@@ -149,6 +168,8 @@ def module_ops(
                 typed=False,
                 arities=[0, 1, 2, 3, 4],
             )
+        else:
+            m.op(fn, name=metta_name, raw=raw, typed=typed)
         registered.append(metta_name)
     return registered
 
@@ -165,13 +186,50 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     """One callable, any callable, as a MeTTa function under a chosen name.
 
     The instance behind a bound method or a callable object crosses nothing:
-    the closure holds it, so identity and state stay Python's.
+    the closure holds it, so identity and state stay Python's. The served
+    arities are the signature's own reachable positional counts; a callable
+    whose signature cannot be inspected, or that is variadic, names its
+    call forms with arities=[...] rather than being served invented ones.
     """
+    if arities is None:
+        try:
+            signature = inspect.signature(target)
+        except ValueError as exc:
+            raise PettaError(
+                f"{name}: the callable's signature is not inspectable, so "
+                f"its call forms cannot be derived; pass arities=[...]"
+            ) from exc
+        positional = []
+        variadic = False
+        for parameter in signature.parameters.values():
+            if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+                variadic = True
+            elif parameter.kind is inspect.Parameter.KEYWORD_ONLY and (
+                parameter.default is inspect.Parameter.empty
+            ):
+                raise PettaError(
+                    f"{name}: required keyword-only parameter "
+                    f"{parameter.name!r} is unreachable from a positional "
+                    f"MeTTa call site"
+                )
+            elif parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            ):
+                positional.append(parameter)
+        required = sum(
+            1 for p in positional if p.default is inspect.Parameter.empty
+        )
+        if variadic:
+            # Every count is reachable through *args; serve the common ones.
+            arities = list(range(required, max(required + 1, 5)))
+        else:
+            arities = list(range(required, len(positional) + 1))
 
     def call(*xs):
         return target(*xs)
 
-    m.op(call, name=name, raw=True, typed=False, arities=arities or [0, 1, 2, 3, 4])
+    m.op(call, name=name, raw=True, typed=False, arities=arities)
     return target
 
 

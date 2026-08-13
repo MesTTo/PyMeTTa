@@ -125,13 +125,23 @@ petta_py_control_exception(error(resource_error(_), _)).
 % into one list at the end. These entry points run the identical pipeline and
 % keep the grouping instead: one answer list per ! directive, in source order.
 
+%Reader failures carry their own functor, petta_syntax_error/1, so the
+%Python side classifies by structure rather than by hunting the words
+%"syntax error" in arbitrary messages (a SQL error saying them is not a
+%MeTTa reader refusal).
+petta_py_tag_reader(Goal) :-
+    catch(Goal, Caught,
+          ( ( Caught = error(syntax_error(M), _) ; Caught = syntax_error(M) )
+            -> throw(error(petta_syntax_error(M), none))
+          ; throw(Caught) )).
+
 petta_py_run(Source, Space, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     string_codes(S, Cs),
     strip(Cs, 0, Codes),
-    phrase(top_forms(Forms, 1), Codes),
-    maplist(parse_form, Forms, Parsed),
+    petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
+                          maplist(parse_form, Forms, Parsed) )),
     petta_py_process_forms(Parsed, Space, Groups), !.
 
 %The CLI asserts working_dir/1 from the file it loads, and import! reads it
@@ -177,7 +187,7 @@ petta_py_parse(Source, Tagged) :-
     ( phrase(sexpr(Term, [], VarMap), Cs)
       -> petta_py_encode_named(Term, VarMap, Tagged)
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
-      throw(error(syntax_error(Msg), none)) ).
+      throw(error(petta_syntax_error(Msg), none)) ).
 
 %Print a tagged term the way PeTTa prints it:
 petta_py_swrite(Tagged, String) :-
@@ -488,7 +498,10 @@ petta_py_solve(M, (A, B), D, Tree) :- !,
 %is walked further. Everything else, engine machinery and space facts alike, is
 %called whole and appears as one leaf, so the tree stays in MeTTa terms. The
 %lookup is module-qualified: a named space's equations live in its module, and
-%clause/3 falls back to user through module inheritance for the rest:
+%clause/3 falls back to user through module inheritance for the rest. Only the
+%clause INSPECTION is guarded (an uninspectable goal is an opaque leaf); a
+%body or builtin that ERRS propagates, because (/ 1 0) failing into "no
+%proof" would be a lie about why:
 petta_py_solve(M, Goal, D, Tree) :-
     \+ predicate_property(M:Goal, built_in),
     catch(clause(M:Goal, Body, Ref), _, fail),
@@ -496,11 +509,11 @@ petta_py_solve(M, Goal, D, Tree) :-
       -> D1 is D - 1,
          petta_py_solve(M, Body, D1, Sub),
          Tree = [step(Goal, Source, Sub)]
-    ; catch(call(M:Body), _, fail),
+    ; call(M:Body),
       petta_py_leaf(Goal, Tree) ).
 petta_py_solve(M, Goal, _, [builtin(Goal)]) :-
     predicate_property(M:Goal, built_in), !,
-    catch(call(M:Goal), _, fail).
+    call(M:Goal).
 
 %A match over a space names the atom it found; anything else names its goal:
 petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.

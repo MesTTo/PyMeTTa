@@ -22,6 +22,15 @@ from ._torch import torch
 
 __all__ = ["wrap", "MettaModule"]
 
+# Whose parameters (param ...) answers with. During a forward pass, the
+# running module's, top of the stack, so two models never read each other's
+# weights however many exist. Outside any forward, the module built on the
+# space the engine is evaluating in, read through petta.current_space();
+# only when that still leaves several is the read ambiguous, and it says so.
+_ACTIVE: list[dict[str, Any]] = []
+_BY_OP: dict[tuple[str, str], list[dict[str, Any]]] = {}
+_REGISTERED_OPS: set[str] = set()
+
 
 def wrap(m, name: str, module, *, arities: list[int] | None = None):
     """Register a model (or any callable over tensors) as a MeTTa function.
@@ -72,21 +81,43 @@ def MettaModule(metta, function: str, params: dict[str, Any] | None = None,
                 self.register_parameter(name, parameter)
                 registry[name] = parameter
             self._registry = registry
+            _BY_OP.setdefault((param_op, metta.space_name), []).append(registry)
 
-            def fetch(key) -> Any:
-                name = key.name if hasattr(key, "name") else str(key)
-                if name not in registry:
-                    raise KeyError(
-                        f"({param_op} {name}) names no parameter of "
-                        f"MettaModule({function!r}); parameters are "
-                        f"{sorted(registry)}"
-                    )
-                return val(registry[name])
+            if param_op not in _REGISTERED_OPS:
 
-            metta.op(fetch, name=param_op, raw=False, typed=False, pass_atoms=True)
+                def fetch(key) -> Any:
+                    from petta.space import current_space
+
+                    name = key.name if hasattr(key, "name") else str(key)
+                    if _ACTIVE:
+                        owner = _ACTIVE[-1]
+                    else:
+                        space = current_space()
+                        owners = _BY_OP.get((param_op, space), [])
+                        if len(owners) != 1:
+                            raise RuntimeError(
+                                f"({param_op} {name}) is ambiguous here: "
+                                f"{len(owners)} modules built on {space} "
+                                f"share the operation. Evaluate through the "
+                                f"module, or give each its own param_op."
+                            )
+                        owner = owners[0]
+                    if name not in owner:
+                        raise KeyError(
+                            f"({param_op} {name}) names no parameter here; "
+                            f"parameters are {sorted(owner)}"
+                        )
+                    return val(owner[name])
+
+                metta.op(fetch, name=param_op, raw=False, typed=False, pass_atoms=True)
+                _REGISTERED_OPS.add(param_op)
 
         def forward(self, *xs):
-            answers = metta.eval(expr(S[function], *(val(x) for x in xs)))
+            _ACTIVE.append(self._registry)
+            try:
+                answers = metta.eval(expr(S[function], *(val(x) for x in xs)))
+            finally:
+                _ACTIVE.pop()
             if len(answers) != 1:
                 raise RuntimeError(
                     f"({function} ...) answered {len(answers)} results; a "

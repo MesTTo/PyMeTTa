@@ -106,7 +106,14 @@ def test_integrate_module_protocol_and_idempotence(metta):
     assert name == "fake_integration"
     pi.integrate(metta, fake)
     assert len(calls) == 1  # idempotent per process
-    assert "fake_integration" in pi.installed()
+    # Installation is per (space, name): a second space installs again.
+    assert (metta.space_name, "fake_integration") in pi.installed()
+    other = metta.fresh_space()
+    try:
+        pi.integrate(other, fake)
+        assert len(calls) == 2
+    finally:
+        other.drop()
 
 
 def test_facts_bulk_load(metta):

@@ -18,7 +18,23 @@ from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, var
 from .derivation import Derivation
 from .results import Rows
 
-__all__ = ["MeTTa"]
+__all__ = ["MeTTa", "current_space"]
+
+
+def current_space(default: str = "&self") -> str:
+    """The space whose module the ENGINE is evaluating in right now.
+
+    Callable from inside a registered operation, where it answers the space
+    of the program that called it: janus re-enters the engine cleanly, so
+    an operation can behave per-space without the space being an argument.
+    Outside any evaluation it answers the default.
+    """
+    import petta as pkg
+
+    if pkg.janus is None:
+        return default
+    row = pkg.janus.query_once("current_metta_space(S)")
+    return str(row["S"]) if row else default
 
 # @define bookkeeping is keyed (space name, function name) process-wide,
 # because equations live in spaces, not in MeTTa instances: two instances
@@ -333,8 +349,15 @@ class MeTTa:
         Each tree names the equations that fired and the stored atoms at the
         leaves, read from the translated_from links the engine keeps for
         every compiled clause. Meta-interpreted, so slower than evaluation;
-        a diagnostic, not an evaluation path.
+        a diagnostic, not an evaluation path. Depth bounds the SEARCH, and
+        an evaluation error inside a proof surfaces as itself rather than
+        as an empty proof list.
         """
+        if depth <= 0:
+            raise ValueError(
+                f"derivation depth must be positive, got {depth}: a zero "
+                f"budget would answer no proofs for everything"
+            )
         rows = self._rt.iter(
             "petta_py_derivation(Space, W, D, T)",
             Space=self._space,

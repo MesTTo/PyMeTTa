@@ -177,7 +177,11 @@ def extra_types(obj) -> list[str]:
         try:
             if predicate(obj):
                 names.append(name)
-        except Exception:
-            # A protocol probe must never take typing down with it.
-            continue
+        except Exception as exc:
+            # A broken probe is the registrant's bug: surface it with the
+            # protocol's name attached, never as a type quietly missing.
+            raise RuntimeError(
+                f"the type predicate for protocol {name!r} raised on "
+                f"{type(obj).__name__}: {exc}"
+            ) from exc
     return names

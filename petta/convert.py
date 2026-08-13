@@ -93,9 +93,17 @@ def register_type(
         type_name=type_name,
         fields=tuple(fields),
     )
-    _REGISTRY[cls] = registration
-    if image == "expression":
+    if image in ("expression", "symbol"):
+        holder = _CONSTRUCTORS.get(type_name)
+        if holder is not None and holder[0] is not cls:
+            raise ValueError(
+                f"the constructor name {type_name!r} already belongs to "
+                f"{holder[0].__name__}; two types under one name would "
+                f"rebuild each other's atoms. Register with name=... to "
+                f"pick a distinct spelling."
+            )
         _CONSTRUCTORS[type_name] = (cls, registration)
+    _REGISTRY[cls] = registration
     return cls
 
 
@@ -136,13 +144,18 @@ def _default_registration(cls: type) -> _Registration | None:
 
 def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
     """Declared field classes, for rebuilding parts that need their class,
-    an Enum member above all; unresolvable annotations stay None."""
-    try:
-        import typing
+    an Enum member above all. Annotations that do not resolve are a hard
+    error naming the class: one broken hint silently erasing every field
+    type would rebuild nested Enums as bare symbols."""
+    import typing
 
+    try:
         hints = typing.get_type_hints(cls)
-    except Exception:
-        return tuple(None for _ in names)
+    except Exception as exc:
+        raise TypeError(
+            f"the field annotations of {cls.__name__} do not resolve "
+            f"({exc}); a declared field type must name something importable"
+        ) from exc
     return tuple(hints.get(n) if isinstance(hints.get(n), type) else None for n in names)
 
 
@@ -194,6 +207,13 @@ def project(value: Any) -> Projected:
         return Projected(val(value), ())
 
     if registration.image == "symbol":
+        if registration.to_atom is not None:
+            # A registered spelling: the symbol the registrant chose.
+            text = registration.to_atom(value)
+            return Projected(
+                Sym(str(text)),
+                (Expr([S[":"], Sym(str(text)), Sym(registration.type_name)]),),
+            )
         return _project_symbol(value, cls, registration)
     if registration.image == "handle":
         return Projected(val(value), ())
@@ -305,8 +325,16 @@ def build(atom: Atom, cls: type | None = None) -> Any:
     """
     if isinstance(atom, Gnd):
         return decode(atom)
-    if isinstance(atom, Sym) and cls is not None and issubclass(cls, Enum):
-        return cls[atom.name]
+    if isinstance(atom, Sym) and cls is not None:
+        if issubclass(cls, Enum):
+            return cls[atom.name]
+        registration = _lookup(cls)
+        if (
+            registration is not None
+            and registration.image == "symbol"
+            and registration.from_atom is not None
+        ):
+            return registration.from_atom(atom.name)
     if isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym):
         hit = _CONSTRUCTORS.get(atom.head.name)
         if hit is None and cls is not None:
@@ -315,6 +343,13 @@ def build(atom: Atom, cls: type | None = None) -> Any:
                 hit = (cls, registration)
         if hit is not None:
             target_cls, registration = hit
+            if registration.fields and len(atom.args) != len(registration.fields):
+                raise TypeError(
+                    f"({atom.head.name} ...) carries {len(atom.args)} "
+                    f"part(s); {target_cls.__name__} has "
+                    f"{len(registration.fields)} field(s). Rebuilding would "
+                    f"drop or invent values."
+                )
             kinds = registration.field_types or tuple(None for _ in atom.args)
             parts = [build(c, k) for c, k in zip(atom.args, kinds)]
             if registration.from_atom is None:

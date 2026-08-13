@@ -763,17 +763,22 @@ class _Compiler(ast.NodeVisitor):
 
     def _free_reads(self, nodes: list) -> list[str]:
         """Scope names the nodes read, first-appearance order: the loop
-        state, since a name never read again need not be carried."""
+        state, since a name never read again need not be carried. An
+        augmented assignment's target is a read too: x *= 2 reads x."""
         found: list[str] = []
+
+        def note(identifier: str) -> None:
+            if identifier in self.scope and identifier not in found:
+                found.append(identifier)
+
         for node in nodes:
             for sub in ast.walk(node):
-                if (
-                    isinstance(sub, ast.Name)
-                    and isinstance(sub.ctx, ast.Load)
-                    and sub.id in self.scope
-                    and sub.id not in found
+                if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load):
+                    note(sub.id)
+                elif isinstance(sub, ast.AugAssign) and isinstance(
+                    sub.target, ast.Name
                 ):
-                    found.append(sub.id)
+                    note(sub.target.id)
         return found
 
     def _loop_state(self, nodes: list) -> list[str]:

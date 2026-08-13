@@ -34,6 +34,20 @@ class Row(tuple):
                 f"no column {name!r}; columns are {list(type(self)._columns)}"
             ) from None
 
+    def __getitem__(self, key):
+        # A column NAME works everywhere an index does, and it is the only
+        # spelling that reaches a column named like a tuple method: for a
+        # query variable $count, row.count is tuple.count, row["count"] is
+        # the answer.
+        if isinstance(key, str):
+            try:
+                key = type(self)._columns.index(key)
+            except ValueError:
+                raise KeyError(
+                    f"no column {key!r}; columns are {list(type(self)._columns)}"
+                ) from None
+        return tuple.__getitem__(self, key)
+
     def __repr__(self) -> str:
         inner = ", ".join(f"{c}={v!r}" for c, v in zip(type(self)._columns, self))
         return f"Row({inner})"

@@ -177,9 +177,13 @@ def _object_str(value: Any) -> str:
         try:
             if predicate(value):
                 return fn(value)
-        except Exception:
-            # Printing must never take a session down with it.
-            continue
+        except Exception as exc:
+            # A registered printer that raises is the registrant's bug;
+            # name it rather than printing around it.
+            raise RuntimeError(
+                f"a registered object repr raised on "
+                f"{type(value).__name__}: {exc}"
+            ) from exc
     return f"<{type(value).__name__}>"
 
 
