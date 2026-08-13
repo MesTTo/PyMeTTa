@@ -429,3 +429,76 @@ def test_drop_cancels_the_spaces_subscriptions(metta):
     # removed, so a pooled name reused later starts unwatched.
     assert subscription._active is False
     assert not reflection.query(S.subscription(S[name], V.p, V.on))
+
+
+def test_shared_class_declarations_survive_one_unregister(m):
+    import dataclasses
+
+    @dataclasses.dataclass
+    class SharedReview:
+        stars: float
+
+    @m.op(name="rate-one")
+    def rate_one(r: SharedReview) -> float:
+        return r.stars
+
+    @m.op(name="rate-two")
+    def rate_two(r: SharedReview) -> float:
+        return r.stars * 2
+
+    constructor = "(-> Number SharedReview)"
+    assert _arrows_of(m, "SharedReview") == {constructor}
+    m.unregister("rate-one")
+    # The other owner still declares the class.
+    assert _arrows_of(m, "SharedReview") == {constructor}
+    m.unregister("rate-two")
+    assert _arrows_of(m, "SharedReview") == set()
+
+
+def test_registration_failure_leaves_nothing_half_registered(m):
+    from petta import REFLECTION_SPACE, MeTTa, V
+
+    class Unresolvable:
+        pass
+
+    def bad(x: "NoSuchName") -> int:  # noqa: F821
+        return 1
+
+    with pytest.raises(TypeError):
+        m.op(bad, name="bad-op")
+    reflection = MeTTa(REFLECTION_SPACE)
+    assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
+    assert not m.is_function("bad-op")
+    assert _arrows_of(m, "bad-op") == set()
+
+
+def test_union_expansion_is_bounded(m):
+    from typing import Union
+
+    U = Union[int, str, bool]
+
+    def wide(a: U, b: U, c: U, d: U, e: U, f: U) -> U:
+        return a
+
+    with pytest.raises(TypeError):
+        m.op(wide, name="wide-op")
+    assert not m.is_function("wide-op")
+
+
+def test_annotated_and_generic_annotations_map_faithfully(m):
+    from typing import Annotated, Generic, TypeVar
+
+    from petta.ops import referenced_classes, type_atoms_for
+
+    class Meta:
+        pass
+
+    T = TypeVar("T")
+
+    class GenericBox(Generic[T]):
+        pass
+
+    assert [str(a) for a in type_atoms_for(Annotated[int, Meta])] == ["Number"]
+    assert [str(a) for a in type_atoms_for(GenericBox[int])] == ["GenericBox"]
+    referenced = referenced_classes([Annotated[int, Meta], GenericBox[int]])
+    assert GenericBox in referenced and Meta not in referenced

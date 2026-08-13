@@ -58,6 +58,36 @@ def _reflect_remove(runtime, atom: Expr) -> None:
         "petta_py_remove(Space, W, _)", Space=REFLECTION_SPACE, W=atom.to_wire()
     )
 
+
+# Declarations are shared: two signatures naming Point both need
+# (: Point ...), and removal of every copy on the first unregister would
+# leave the second describing an undeclared type. Ownership counts per
+# (space, declaration); the atom enters the space with the first owner and
+# leaves with the last.
+_DECLARATION_REFS: dict[tuple[str, str], int] = {}
+
+
+def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
+    key = (space, str(declaration))
+    count = _DECLARATION_REFS.get(key, 0)
+    if count == 0:
+        runtime.must(
+            "petta_py_add(Space, W)", Space=space, W=declaration.to_wire()
+        )
+    _DECLARATION_REFS[key] = count + 1
+
+
+def _release_declaration(runtime, space: str, declaration: Expr) -> None:
+    key = (space, str(declaration))
+    count = _DECLARATION_REFS.get(key, 0)
+    if count <= 1:
+        _DECLARATION_REFS.pop(key, None)
+        runtime.once(
+            "petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire()
+        )
+    else:
+        _DECLARATION_REFS[key] = count - 1
+
 # Python annotation -> MeTTa type name. Everything else is %Undefined%,
 # matching what the engine says about an undeclared value.
 _TYPE_NAMES: list[tuple[type, str]] = [
@@ -113,9 +143,12 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
         return [S["%Undefined%"]]
     if annotation is None or annotation is type(None):
         return [S.NoneType]
+    origin = typing.get_origin(annotation)
+    if origin is typing.Annotated:
+        # Metadata is not type: Annotated[int, Meta] is Number.
+        return type_atoms_for(typing.get_args(annotation)[0])
     if isinstance(annotation, typing.TypeVar):
         return [Var(annotation.__name__.lower())]
-    origin = typing.get_origin(annotation)
     if origin is None:
         if isinstance(annotation, type) and metta_type_for(annotation) == "%Undefined%":
             return [S[_class_type_name(annotation)]]
@@ -125,10 +158,10 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
 
     if origin in (typing.Union, _types.UnionType):
         alts: list[Atom] = []
+        seen: set[str] = set()
         for member in typing.get_args(annotation):
             for atom in type_atoms_for(member):
-                if atom not in alts:
-                    alts.append(atom)
+                _add_unique(alts, seen, atom)
         return alts
 
     import collections.abc as abc
@@ -139,21 +172,24 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
             return [S["%Undefined%"]]
         arg_lists, ret = list(args[0]), args[1]
         arrows: list[Atom] = []
-        for combo in _combinations([type_atoms_for(a) for a in arg_lists]
-                                   + [type_atoms_for(ret)]):
-            arrow = Expr([S["->"], *combo])
-            if arrow not in arrows:
-                arrows.append(arrow)
+        seen = set()
+        for combo in _bounded_product(
+            [type_atoms_for(a) for a in arg_lists] + [type_atoms_for(ret)],
+            f"the Callable annotation {annotation!r}",
+        ):
+            _add_unique(arrows, seen, Expr([S["->"], *combo]))
         return arrows
     if origin is tuple:
         args = typing.get_args(annotation)
         if args and args[-1] is Ellipsis:
             return [S.Expression]
         shapes: list[Atom] = []
-        for combo in _combinations([type_atoms_for(a) for a in args]):
-            shape = Expr(list(combo))
-            if shape not in shapes:
-                shapes.append(shape)
+        seen = set()
+        for combo in _bounded_product(
+            [type_atoms_for(a) for a in args],
+            f"the tuple annotation {annotation!r}",
+        ):
+            _add_unique(shapes, seen, Expr(list(combo)))
         return shapes
     if isinstance(origin, type):
         if issubclass(origin, abc.Mapping):
@@ -177,28 +213,52 @@ def _class_type_name(cls: type) -> str:
     return registration.type_name if registration is not None else cls.__name__
 
 
-def _combinations(alternative_lists: list[list[Atom]]):
+#: The most superposed declarations one signature may expand to. The cross
+#: product of Union alternatives is the checker's own reading, but past
+#: this bound the expansion is a signature bug, not a type: six three-way
+#: Unions measured seconds of expansion for thousands of arrows.
+DECLARATION_LIMIT = 512
+
+
+def _add_unique(items: list, seen: set, atom: Atom) -> None:
+    key = str(atom)
+    if key not in seen:
+        seen.add(key)
+        items.append(atom)
+
+
+def _bounded_product(alternative_lists: list[list[Atom]], described: str):
     import itertools
 
+    total = 1
+    for alternatives in alternative_lists:
+        total *= max(1, len(alternatives))
+        if total > DECLARATION_LIMIT:
+            raise TypeError(
+                f"{described} expands to over {DECLARATION_LIMIT} superposed "
+                f"combinations; simplify the Unions, or register with "
+                f"typed=False and declare by hand"
+            )
     return itertools.product(*alternative_lists)
 
 
 def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> list[Expr]:
     """Every (: name (-> ...)) atom a signature declares: the cross product
     of each argument's alternatives with the return's, one declaration per
-    combination, superposing for the checker exactly as a Union reads.
-    NoneType leaves the return alternatives, because returning None answers
-    nothing rather than a value; a return that was only None declares
-    %Undefined%."""
+    combination, superposing for the checker exactly as a Union reads,
+    refused past DECLARATION_LIMIT. NoneType leaves the return
+    alternatives, because returning None answers nothing rather than a
+    value; a return that was only None declares %Undefined%."""
     arg_lists = [type_atoms_for(a) for a in arg_annotations]
     ret_alts = [t for t in type_atoms_for(ret_annotation) if t != S.NoneType]
     if not ret_alts:
         ret_alts = [S["%Undefined%"]]
     out: list[Expr] = []
-    for combo in _combinations(arg_lists + [ret_alts]):
-        declaration = expr(S[":"], S[name], Expr([S["->"], *combo]))
-        if declaration not in out:
-            out.append(declaration)
+    seen: set[str] = set()
+    for combo in _bounded_product(
+        arg_lists + [ret_alts], f"the signature of {name}"
+    ):
+        _add_unique(out, seen, expr(S[":"], S[name], Expr([S["->"], *combo])))
     return out
 
 
@@ -211,20 +271,32 @@ def referenced_classes(annotations: Iterable[Any]) -> list[type]:
 
     found: list[type] = []
 
+    def collect(cls: Any) -> None:
+        if (
+            isinstance(cls, type)
+            and metta_type_for(cls) == "%Undefined%"
+            and not inspect.isabstract(cls)
+            and cls.__module__ not in ("builtins",)
+            and cls not in found
+        ):
+            found.append(cls)
+
     def walk(annotation: Any) -> None:
         if annotation is None or annotation is type(None):
             return
         if annotation is inspect.Parameter.empty or annotation is Any or annotation is object:
             return
         if isinstance(annotation, type):
-            if (
-                metta_type_for(annotation) == "%Undefined%"
-                and not inspect.isabstract(annotation)
-                and annotation.__module__ not in ("builtins",)
-                and annotation not in found
-            ):
-                found.append(annotation)
+            collect(annotation)
             return
+        origin = typing.get_origin(annotation)
+        if origin is typing.Annotated:
+            # Only the type half: Annotated metadata is not a value type.
+            walk(typing.get_args(annotation)[0])
+            return
+        # A parameterized generic whose declaration names its origin class
+        # (GenericBox[int] declares GenericBox) must make that class exist.
+        collect(origin)
         for arg in typing.get_args(annotation):
             if arg is Ellipsis:
                 continue
@@ -349,25 +421,17 @@ def register(
     arities, params = _arities(fn, arities)
     many = inspect.isgeneratorfunction(fn)
     kind = ("raw_many" if many else "raw_det") if raw else ("many" if many else "det")
-    # The engine registers every arity in one checked step (a collision with
-    # a static procedure throws with nothing touched, and stale arities from
-    # an earlier registration of the name are replaced, never left behind);
-    # the Python registry commits only after the engine accepted.
-    runtime.must(
-        "petta_py_register_op_set(Name, Arities, Kind)",
-        Name=metta_name,
-        Arities=list(arities),
-        Kind=kind,
-    )
+    # Everything computable is computed BEFORE the engine changes: a
+    # refusing annotation or an over-expanded Union leaves nothing half
+    # registered. Then the engine registers every arity in one checked
+    # step (a collision with a static procedure throws with nothing
+    # touched); declaration and reflection writes follow with a rollback
+    # that restores the previous registration whole, and the Python
+    # registry commits last.
     declarations = (
         tuple(_type_declarations(metta_name, params, fn)) if typed and params else ()
     )
-    for declaration in declarations:
-        runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
     previous = REGISTRY.get(metta_name)
-    if previous is not None:
-        for fact in _op_facts(previous):
-            _reflect_remove(runtime, fact)
     operation = Operation(
         name=metta_name,
         fn=fn,
@@ -378,8 +442,54 @@ def register(
         declarations=declarations,
         arities=tuple(arities),
     )
-    for fact in _op_facts(operation):
-        _reflect_add(runtime, fact)
+    new_facts = _op_facts(operation)
+    old_facts = _op_facts(previous) if previous is not None else []
+    runtime.must(
+        "petta_py_register_op_set(Name, Arities, Kind)",
+        Name=metta_name,
+        Arities=list(arities),
+        Kind=kind,
+    )
+    retained: list[Expr] = []
+    added_facts: list[Expr] = []
+    try:
+        for declaration in declarations:
+            _retain_declaration(runtime, space, declaration)
+            retained.append(declaration)
+        for fact in new_facts:
+            if fact not in old_facts:
+                _reflect_add(runtime, fact)
+                added_facts.append(fact)
+    except BaseException:
+        for fact in added_facts:
+            _reflect_remove(runtime, fact)
+        for declaration in retained:
+            _release_declaration(runtime, space, declaration)
+        if previous is not None:
+            runtime.must(
+                "petta_py_register_op_set(Name, Arities, Kind)",
+                Name=previous.name,
+                Arities=list(previous.arities or (previous.arity,)),
+                Kind=previous.kind,
+            )
+        else:
+            for arity in arities:
+                runtime.must(
+                    "petta_py_unregister_op(Name, Arity)",
+                    Name=metta_name,
+                    Arity=arity,
+                )
+        raise
+    # Committed: the previous life retires, shared pieces surviving. Facts
+    # equal in both lives were never re-added, so they are not removed;
+    # declarations release through the refcount, staying while any other
+    # owner still declares them.
+    if previous is not None:
+        for fact in old_facts:
+            if fact not in new_facts:
+                _reflect_remove(runtime, fact)
+        for declaration in previous.declarations:
+            _release_declaration(runtime, previous.space or space, declaration)
     REGISTRY[metta_name] = operation
     return fn
 
@@ -397,11 +507,7 @@ def unregister(runtime, name: str) -> None:
         )
     if op is not None:
         for declaration in op.declarations:
-            runtime.once(
-                "petta_py_remove(Space, W, _)",
-                Space=op.space,
-                W=declaration.to_wire(),
-            )
+            _release_declaration(runtime, op.space or "&self", declaration)
         for fact in _op_facts(op):
             _reflect_remove(runtime, fact)
     REGISTRY.pop(name, None)
