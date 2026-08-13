@@ -1,5 +1,14 @@
+"""Purpose: command-line launcher arguments, environment, and error paths.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
 import os
 from unittest.mock import Mock
+
+import pytest
 
 from petta import cli
 
@@ -42,12 +51,31 @@ def test_main_preserves_optional_mork_behavior(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
     monkeypatch.setenv("PETTA_CLI_TEST", "inherited")
+    monkeypatch.setenv("LD_PRELOAD", "/caller/libexisting.so")
 
     assert cli.main(["program.metta"]) == 0
 
     command = call.call_args.args[0]
     child_env = call.call_args.kwargs["env"]
     assert command[-2:] == ["program.metta", "mork"]
-    assert child_env["LD_PRELOAD"] == str(mork_library)
+    assert child_env["LD_PRELOAD"] == os.pathsep.join(
+        (str(mork_library), "/caller/libexisting.so")
+    )
     assert child_env["PETTA_CLI_TEST"] == "inherited"
     assert child_env is not os.environ
+
+
+def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):
+    runtime = tmp_path / "runtime"
+    main_file = runtime / "src" / "main.pl"
+    main_file.parent.mkdir(parents=True)
+    main_file.touch()
+    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(
+        cli.subprocess,
+        "call",
+        Mock(side_effect=FileNotFoundError("swipl")),
+    )
+
+    with pytest.raises(FileNotFoundError, match="SWI-Prolog.*swipl.*PATH"):
+        cli.main([])
