@@ -70,6 +70,7 @@ exp(Arg,R) :- R is exp(Arg).
 'sqrt-math'(A, Out)   :- Out is sqrt(A).
 'abs-math'(A, Out)    :- Out is abs(A).
 'log-math'(Base, X, Out) :- Out is log(X) / log(Base).
+'exp-math'(A, Out)    :- Out is exp(A).
 'trunc-math'(A, Out)  :- Out is truncate(A).
 'ceil-math'(A, Out)   :- Out is ceil(A).
 'floor-math'(A, Out)  :- Out is floor(A).
@@ -278,13 +279,23 @@ assert(Goal, true) :- ( call(Goal) -> true
 
 %%% Python bindings: %%%
 % janus converts Python booleans to @(true)/@(false); normalize them to the
-% language booleans so py-call results compose with if, and, or, ==.
+% language booleans, through lists too, so py-call results compose with if,
+% and, or, == whether the boolean is the answer or sits inside one.
 py_bool_norm('@'(true), true) :- !.
 py_bool_norm('@'(false), false) :- !.
+py_bool_norm(L, L1) :- is_list(L), !, maplist(py_bool_norm, L, L1).
 py_bool_norm(R, R).
+% The same conversion outward: the language booleans are the atoms true and
+% false, which janus would pass as the strings 'true' and 'false'; map them
+% (through lists too) to @(true)/@(false) so Python receives real booleans.
+py_arg_norm(true, '@'(true)) :- !.
+py_arg_norm(false, '@'(false)) :- !.
+py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
+py_arg_norm(X, X).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
-'py-call'([Spec|Args], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
+'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
                                         must_be(atom, A),
+                                        maplist(py_arg_norm, Args0, Args),
                                         ( sub_atom(A, 0, 1, _, '.')         % ".method"
                                           -> sub_atom(A, 1, _, 0, Fun),
                                              Args = [Obj|Rest],
@@ -435,7 +446,7 @@ register_fun_in(Module, N) :- register_fun(N),
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','set_hook',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
-                          'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'trunc-math', 'ceil-math',
+                          'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, exists_file,
