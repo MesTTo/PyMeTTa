@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import dataclasses
 import itertools
+import sys
 import typing
 from enum import Enum
 from typing import Any, Callable, NamedTuple
@@ -142,6 +143,22 @@ def _default_registration(cls: type) -> _Registration | None:
     """The image common types get without being registered."""
     if issubclass(cls, Enum):
         return _Registration("symbol", None, None, cls.__name__, ())
+    # A pydantic model is a constructor expression like a dataclass, its
+    # fields read from model_fields and its rebuild through the class
+    # itself, so validation runs exactly where pydantic runs it. Detected
+    # through sys.modules: if pydantic was never imported, no BaseModel
+    # subclass can exist, and the library keeps zero dependency on it.
+    pydantic = sys.modules.get("pydantic")
+    if pydantic is not None and issubclass(cls, pydantic.BaseModel):
+        names = tuple(cls.model_fields.keys())
+        return _Registration(
+            "expression",
+            lambda obj: tuple(getattr(obj, n) for n in names),
+            lambda *parts: cls(**dict(zip(names, parts))),
+            cls.__name__,
+            names,
+            _field_types(cls, names),
+        )
     if dataclasses.is_dataclass(cls) and not isinstance(cls, type(None)):
         names = tuple(f.name for f in dataclasses.fields(cls))
         return _Registration(

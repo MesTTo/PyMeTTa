@@ -141,3 +141,23 @@ def test_grounded_and_container_projections():
     assert project(3).atom == Gnd(3)
     assert project([1, 2]).atom == expr(1, 2)
     assert isinstance(val({"a": 1}), Gnd)
+
+
+def test_pydantic_models_project_like_dataclasses():
+    pydantic = pytest.importorskip("pydantic")
+
+    class Reading(pydantic.BaseModel):
+        sensor: str
+        value: float
+
+    projected = project(Reading(sensor="t1", value=21.5))
+    assert projected.atom == expr(S.Reading, "t1", 21.5)
+    assert "(: Reading (-> String Number Reading))" in set(
+        map(str, projected.declarations)
+    )
+    rebuilt = build(projected.atom, Reading)
+    assert isinstance(rebuilt, Reading) and rebuilt.value == 21.5
+    # The rebuild runs through the model itself, so validation runs where
+    # pydantic runs it: a field refusing its type is pydantic's own error.
+    with pytest.raises(pydantic.ValidationError):
+        build(expr(S.Reading, "t1", S.tall), Reading)
