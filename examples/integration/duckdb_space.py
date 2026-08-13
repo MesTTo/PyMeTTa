@@ -261,4 +261,4 @@ check("clear empties, schema stays",
       m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
 
 m.unregister_space("&crm")
-done("04_sql_is_a_space")
+done("duckdb_space")

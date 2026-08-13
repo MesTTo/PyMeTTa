@@ -113,7 +113,7 @@ def test_read_only_provider_errors_loudly(metta):
         metta.unregister_space(name)
 
 
-# The worked SQL instance lives whole in examples/04_sql_is_a_space.py,
+# The worked SQL instance lives whole in examples/integration/duckdb_space.py,
 # which verifies itself in the suite; here stays the provider protocol.
 
 

@@ -39,4 +39,4 @@ try:
     check("mixed numpy@torch via DLPack", float(out[0]), 8.0)
 except ImportError:
     print("  (torch absent: mixed-library half skipped)")
-done("05_one_array_layer")
+done("array_interop")

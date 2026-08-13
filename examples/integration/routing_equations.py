@@ -24,4 +24,4 @@ check("a route", app.run("!(handle home)"), [[expr(S.Page, 200, "Welcome")]])
 check("the 404", app.run("!(handle nowhere)"), [[expr(S.NotFound, 404, S.nowhere)]])
 check("middleware is composition", app.run("!(logged about)"),
       [[expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]])
-done("09_the_routing_frame")
+done("routing_equations")

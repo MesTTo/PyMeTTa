@@ -31,4 +31,4 @@ m.run("(= (anc $x $y) (match (context-space) (Parent $x $y) $y))\n"
       "(= (anc $x $y) (let $m (match (context-space) (Parent $x $m0) $m0) (anc $m $y)))")
 (proof,) = m.derivation(S.anc(S.Tom, S.Zoe))
 check("proof facts", len(proof.facts) >= 2)
-done("01_first_steps")
+done("first_steps")

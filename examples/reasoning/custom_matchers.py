@@ -55,4 +55,4 @@ m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
     "!(collapse (match (context-space) (person $p) (same-initial a $p)))"
 )[0]
 check("composes with structural match", len(hits), 2)
-done("13_custom_matchers")
+done("custom_matchers")

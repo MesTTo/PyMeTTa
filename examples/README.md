@@ -1,41 +1,72 @@
-# Examples: the integrations, each one runnable and self-verifying
+# Examples by topic
 
-Every example asserts its own outputs, so a printout here is a checked claim
-rather than something to trust; the test suite runs them all
-(`python/tests/test_examples.py`), which is what keeps them true. Run one
-from the repository root:
+Every example asserts its own outputs. `python/tests/test_examples.py`
+discovers them recursively and excludes only the shared `_common.py`, so a
+stopped example fails the build. Run any example from the repository root:
 
-    python python/examples/01_first_steps.py
+    PYTHONPATH=python/examples python python/examples/basics/first_steps.py
 
-Examples with optional dependencies (duckdb, numpy, torch, fabricpc) skip
+The examples keep `from _common import ...` uniform. The test runner and the
+command above add the examples root to Python's module search path; `_common.py`
+then locates the repository by its project markers instead of assuming a fixed
+folder depth.
+
+Examples with optional dependencies such as DuckDB, NumPy, and PyTorch skip
 with a message when the dependency is absent.
+
+## Basics
 
 | example | what it shows |
 |---|---|
-| 01_first_steps | run, atoms, joined queries, eval, proof trees |
-| 02_write_metta_in_python | @m.define: Python compiled to equations, stacked clauses, generators, match |
-| 03_objects_both_ways | the four-image translator and py-field reasoning |
-| 04_sql_is_a_space | DuckDB tables as a matchable space with WHERE pushdown |
-| 05_one_array_layer | NumPy and torch through one DLPack operation set |
-| 09_the_routing_frame | dispatch as equations, the catch-all as the 404 |
-| 10_evolution_in_a_space | a population as a space; generations as rewriting |
-| 11_pln_uncertain_reasoning | the engine's PLN library driven from Python |
-| 12_standing_queries | actors and pub-sub: mailboxes as spaces, delivery inside the write |
-| 13_custom_matchers | fuzzy and semantic matchers feeding the measure algebra |
-| 15_web_routes | FastAPI's routing semantics: the table is facts, dispatch is unification |
-| 16_multishot_solving | clingo's multi-shot loop: parts ground incrementally, externals toggle |
-| 17_bounds_stats_capture | per-call time and inference bounds, engine stats, captured output |
+| [`basics/first_steps.py`](basics/first_steps.py) | run, atoms, joined queries, eval, and proof trees |
 
-Numbers 06 to 08 are the torch examples; they live in the `pettorch`
-repository beside this one, keeping their names.
+## Operations
 
-The frame behind the folder: MeTTa's semantics subsume the concepts these
-systems are made of. Functions are grounded functions and a call is a
-reduction; stateful objects are grounded atoms with identity; tables,
-caches and populations are spaces and a query is a match; dispatch is
-equations with the catch-all last; generators, search and retrieval are
-nondeterminism; schemas are constructors with declarations; structure is
-facts rules match over; subscriptions are standing queries; closeness of
-any kind is a matcher whose answers carry a measure. An integration maps a
-library onto that, and the toolkit in `petta.integrate` makes the mapping
-a page of code.
+| example | what it shows |
+|---|---|
+| [`operations/python_definitions.py`](operations/python_definitions.py) | `@m.define`: Python compiled to equations, stacked clauses, generators, and match |
+| [`operations/engine_controls.py`](operations/engine_controls.py) | per-call time and inference bounds, engine stats, captured output, and DataFrame conversion |
+
+## Data
+
+| example | what it shows |
+|---|---|
+| [`data/array_interop.py`](data/array_interop.py) | NumPy and PyTorch through one DLPack operation set |
+
+## Integration
+
+| example | what it shows |
+|---|---|
+| [`integration/python_objects.py`](integration/python_objects.py) | Python object projection, reconstruction, and `py-field` reasoning |
+| [`integration/duckdb_space.py`](integration/duckdb_space.py) | DuckDB tables as a matchable space with `WHERE` pushdown |
+| [`integration/routing_equations.py`](integration/routing_equations.py) | dispatch as equations, with the catch-all as the 404 |
+| [`integration/web_routes.py`](integration/web_routes.py) | FastAPI-shaped routing: the table is facts and dispatch is unification |
+| [`integration/multishot_solving.py`](integration/multishot_solving.py) | clingo-shaped multi-shot solving: parts ground incrementally and externals toggle |
+
+## Reasoning
+
+| example | what it shows |
+|---|---|
+| [`reasoning/evolutionary_search.py`](reasoning/evolutionary_search.py) | a population as a space and generations as rewriting |
+| [`reasoning/pln_uncertain_reasoning.py`](reasoning/pln_uncertain_reasoning.py) | the engine's PLN library driven from Python |
+| [`reasoning/custom_matchers.py`](reasoning/custom_matchers.py) | fuzzy and semantic matchers feeding the measure algebra |
+
+## Live systems
+
+| example | what it shows |
+|---|---|
+| [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub: mailboxes as spaces and delivery inside the write |
+
+The torch examples formerly numbered 06 to 08 live in the sibling `pettorch`
+repository. The former soft-unification example 14 lives in the sibling
+`pettaprove` repository.
+
+MeTTa's semantics subsume the concepts these systems are made of. Functions
+are grounded functions and a call is a reduction. Stateful objects are
+grounded atoms with identity. Tables, caches, and populations are spaces, and
+a query is a match. Dispatch is equations with the catch-all last. Generators,
+search, and retrieval are nondeterminism. Schemas are constructors with
+declarations. Structure is facts that rules match over. Subscriptions are
+standing queries. Closeness of any kind is a matcher whose answers carry a
+measure. An integration maps a library onto those forms, and the toolkit in
+`petta.integrate` supports that mapping.

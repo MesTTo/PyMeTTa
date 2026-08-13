@@ -1,6 +1,7 @@
-"""Purpose: the two lines every example needs: make petta importable from a
-repo checkout and point PETTA_PATH at it, then a tiny check helper that
-makes each example self-verifying rather than a printout to trust.
+"""Purpose: make petta importable from a repository checkout regardless of
+the example's folder depth, point PETTA_PATH at that checkout, and provide
+small helpers that make each example self-verifying rather than a printout
+to trust.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -11,7 +12,18 @@ import os
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+
+def _find_repo(start: Path) -> Path:
+    """Find the repository by its Python project and engine library markers."""
+    for candidate in start.resolve().parents:
+        if (candidate / "python" / "pyproject.toml").is_file() and (
+            candidate / "lib"
+        ).is_dir():
+            return candidate
+    raise RuntimeError(f"cannot find the PeTTa repository above {start}")
+
+
+REPO = _find_repo(Path(__file__))
 sys.path.insert(0, str(REPO / "python"))
 os.environ.setdefault("PETTA_PATH", str(REPO))
 

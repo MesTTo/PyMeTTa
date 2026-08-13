@@ -56,4 +56,4 @@ for subscription in (ping, pong, audit, inbox):
     subscription.cancel()
 m.add(S.ping(99))
 check("no delivery after cancel", len(transcript), 5)
-done("12_standing_queries")
+done("standing_queries")

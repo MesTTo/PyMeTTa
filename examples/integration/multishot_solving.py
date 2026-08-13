@@ -99,4 +99,4 @@ check(
 blocked.assign(False)
 check("and gone when withdrawn", m.query(S.blocked(V.x)), [])
 blocked.release()
-done("16_multishot_solving")
+done("multishot_solving")

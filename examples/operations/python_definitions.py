@@ -54,4 +54,4 @@ try:
         return n
 except CompileError as e:
     check("refusal names the fix", "recursion" in str(e) and "line" in str(e))
-done("02_write_metta_in_python")
+done("python_definitions")
