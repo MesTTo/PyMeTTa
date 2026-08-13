@@ -89,7 +89,11 @@ def score(
     if isinstance(pattern, Var):
         bound = bindings.get(pattern.name)
         if bound is None:
-            bindings[pattern.name] = atom
+            # A variable meeting the same-named variable is the engine's
+            # own sharing, one hole seen twice: recording it would make the
+            # binding self-referential and the dereference below a cycle.
+            if not (isinstance(atom, Var) and atom.name == pattern.name):
+                bindings[pattern.name] = atom
             return 1.0
         return score(bound, atom, table, bindings)
     if isinstance(pattern, Expr) and isinstance(atom, Expr):
