@@ -497,6 +497,16 @@ class MeTTa:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
+    def trace(self, source: str):
+        """Run source under the engine's reduction trace and answer
+        TraceEvent records: what entered reduction at which depth, what
+        it answered, and which reductions failed (a call with no exit).
+        The source executes for real, writes included, like run(); the
+        wrap exists only while tracing, so untraced calls pay nothing."""
+        from .trace import trace as _trace
+
+        return _trace(self, source)
+
     def lint(self):
         """Diagnose this space for the silently-wrong class: declared
         types nothing defines, arity mismatches, unbound body variables,

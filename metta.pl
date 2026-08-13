@@ -19,8 +19,8 @@ library(X, Y, Path) :- library_path(Base), atom_concat(_, X, Base), atomic_list_
 :- use_module(library(process)).
 :- use_module(library(filesex)).
 :- current_prolog_flag(argv, Argv),
-  ( member(mork, Argv) -> ensure_loaded([ext_points, parser, translator, specializer, filereader, '../mork_ffi/morkspaces', spaces])
-                        ; ensure_loaded([ext_points, parser, translator, specializer, filereader, spaces])).
+  ( member(mork, Argv) -> ensure_loaded([ext_points, parser, translator, specializer, filereader, '../mork_ffi/morkspaces', spaces, tracer])
+                        ; ensure_loaded([ext_points, parser, translator, specializer, filereader, spaces, tracer])).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
