@@ -364,3 +364,75 @@ def test_atoms_destructure_with_match_statements(m):
     match Var("x"):
         case Var(name):
             assert name == "x"
+
+
+# ----------------------------------------------- contexts: bridges, remotes
+
+
+def test_bridge_rules_connect_spaces(metta):
+    from petta import bridge
+
+    src = metta.fresh_space()
+    dst = metta.fresh_space()
+    rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
+    try:
+        src.add(S.alarm(S.kitchen))
+        assert dst.query(S.notify(V.z)).one().z == S.kitchen
+        src.remove(S.alarm(S.kitchen))
+        assert dst.query(S.notify(V.z)) == []
+    finally:
+        rule.cancel()
+        src.drop()
+        dst.drop()
+
+
+def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
+    """The other engine is a PROCESS, as deployment means it: a subprocess
+    serves one space, this engine attaches it, and one local match joins
+    remote rows with local facts across the wire."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from petta import remote
+    from petta.errors import PettaError
+
+    script = Path(__file__).parent / "data" / "remote_server.py"
+    child = subprocess.Popen(
+        [sys.executable, str(script)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+    )
+    local = metta.fresh_space()
+    try:
+        line = child.stdout.readline()
+        assert line, child.stderr.read()
+        info = json.loads(line)
+        remote.attach(local, "&hq", info["url"], remote_space=info["space"])
+        # A match crosses the wire, filtered by the remote engine's own match.
+        assert local.run("!(match &hq (users 2 $n) $n)") == [["Bob"]]
+        # And joins with local facts in ONE match, the multi-context point.
+        local.run("(vip 1)")
+        (group,) = local.run(
+            "!(collapse (match (context-space) (vip $id)"
+            " (match &hq (users $id $n) $n)))"
+        )
+        assert group == [expr("Ada")]
+        # Writes cross too, and the remote engine answers them back.
+        local.run('!(add-atom &hq (users 3 "Cy"))')
+        assert local.run("!(match &hq (users 3 $n) $n)") == [["Cy"]]
+        local.run('!(remove-atom &hq (users 3 "Cy"))')
+        assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[expr()]]
+        # A space outside the allowlist is refused with the remote's words.
+        stray = remote.RemoteSpace(remote.connect(info["url"]), "&self")
+        with pytest.raises(PettaError):
+            list(stray.match(S.anything(V.x)))
+        local.unregister_space("&hq")
+    finally:
+        child.terminate()
+        child.wait(timeout=10)
+        local.drop()

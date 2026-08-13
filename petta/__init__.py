@@ -141,10 +141,10 @@ from .errors import (  # noqa: E402
 from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import MeTTa, Prepared, current_space  # noqa: E402
-from . import arrays, convert, foreign, integrate, matching, measure  # noqa: E402
+from . import arrays, convert, foreign, integrate, matching, measure, remote  # noqa: E402
 from .define import Defined  # noqa: E402
 from .foreign import SpaceProvider  # noqa: E402
-from .subscribe import Event, Subscription  # noqa: E402
+from .subscribe import Event, Subscription, bridge  # noqa: E402
 
 __version__ = "0.2.0"
 
@@ -199,9 +199,11 @@ __all__ = [
     "SpaceProvider",
     "Defined",
     "register_object_repr_protocol",
-    # standing queries and context
+    # standing queries and contexts
     "Event",
     "Subscription",
+    "bridge",
+    "remote",
     "current_space",
     "__version__",
 ]

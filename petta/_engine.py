@@ -90,6 +90,13 @@ class Runtime:
                 pkg.CONSULTED = True
             self.petta_path = petta_path
             self._janus = pkg.janus
+            # The functional calling convention (apply_once, cmd) skips the
+            # per-thread engine handling query_once performs, and calling it
+            # from any other thread aborts the PROCESS, observed and
+            # bisected; the fast path therefore runs only on the thread
+            # that consulted, every other thread falling back to the
+            # relational form with identical semantics.
+            self._home_thread = threading.get_ident()
             if self._janus is None:
                 # The legacy class consulted first through a mocked janus, or
                 # a test set CONSULTED by hand; import the real bridge.
@@ -183,7 +190,14 @@ class Runtime:
         goal string on this machine (4.13M against 702k trivial calls per
         second), which is why every hot entry point crosses this way.
         Failure answers None, the semidet reading; errors classify exactly
-        as once()."""
+        as once(). Off the consulting thread the same call routes through
+        the relational form, since the functional one is main-thread-only
+        in janus (a foreign-thread call aborts the process)."""
+        if threading.get_ident() != self._home_thread:
+            names = [f"A{i}" for i in range(len(inputs))]
+            goal = f"{predicate}({', '.join([*names, 'Out'])})"
+            row = self.once(goal, **dict(zip(names, inputs)))
+            return row.get("Out") if row else None
         with _LOCK:
             try:
                 value = self._janus.apply_once(
@@ -208,7 +222,13 @@ class Runtime:
     def do(self, predicate: str, *inputs: Any) -> bool:
         """Run a void shim predicate (ground inputs, no outputs) through
         janus.cmd, the fastest crossing: True on success, False on
-        failure, errors classified exactly as once()."""
+        failure, errors classified exactly as once(). Off the consulting
+        thread the call routes through the relational form, as apply()
+        does and for the same reason."""
+        if threading.get_ident() != self._home_thread:
+            names = [f"A{i}" for i in range(len(inputs))]
+            goal = f"{predicate}({', '.join(names)})" if names else predicate
+            return bool(self.once(goal, **dict(zip(names, inputs))))
         with _LOCK:
             try:
                 truth = self._janus.cmd("user", predicate, *inputs)

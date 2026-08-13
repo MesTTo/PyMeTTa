@@ -17,7 +17,7 @@ from typing import Any, Callable, Mapping
 
 from .atoms import Atom, from_wire, unify
 
-__all__ = ["Subscription", "Event", "subscribe"]
+__all__ = ["Subscription", "Event", "subscribe", "bridge"]
 
 
 @dataclass(frozen=True)
@@ -131,3 +131,46 @@ def atom_added(space: str, wire: list) -> bool:
 
 def atom_removed(space: str, wire: list) -> bool:
     return _dispatch("remove", space, wire)
+
+
+# ------------------------------------------------------------ bridge rules
+
+
+def _instantiate(template: Atom, bindings: Mapping[str, Atom]) -> Atom:
+    from .atoms import Expr, Var
+
+    if isinstance(template, Var):
+        return bindings.get(template.name, template)
+    if isinstance(template, Expr):
+        return Expr([_instantiate(c, bindings) for c in template.children])
+    return template
+
+
+def bridge(source, pattern, target, template=None, on: str = "add") -> Subscription:
+    """A bridge rule between spaces, the multi-context-systems reading:
+    when an atom unifying with pattern arrives in source, the template's
+    instantiation under the match's bindings lands in target, and with
+    on="both" a removal in source removes the instantiation from target,
+    the mirrored rule.
+
+        rule = petta.bridge(src, S.alarm(V.zone), dst, S.notify(V.zone))
+        src.add(S.alarm(S.kitchen))        # dst now holds (notify kitchen)
+        rule.cancel()
+
+    template defaults to the pattern itself. The rule is a standing
+    query, delivered inside the write that triggered it; target needs
+    only add and remove, so a remote.attach()ed space bridges across
+    engines identically."""
+    from .space import _to_atom
+
+    shape = _to_atom(pattern)
+    built = shape if template is None else _to_atom(template)
+
+    def deliver(event: Event) -> None:
+        instantiated = _instantiate(built, event.bindings)
+        if event.action == "add":
+            target.add(instantiated)
+        else:
+            target.remove(instantiated)
+
+    return source.subscribe(shape, deliver, on=on)
