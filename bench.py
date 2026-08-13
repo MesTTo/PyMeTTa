@@ -149,20 +149,6 @@ def add_table_rows(m: MeTTa) -> float:
     return _rate(load)
 
 
-@bench("web-dispatch")
-def web_dispatch(m: MeTTa) -> float:
-    from petta import web
-
-    with m.fresh_space() as s:
-        app = web.router(s)
-        for i in range(8):
-            s.run(f'(= (bench-page-{i} $id) "page {i}")')
-            app.add_route("GET", f"/page{i}/{{id:int}}", f"bench-page-{i}")
-        return _rate(
-            lambda: [app.dispatch("GET", "/page3/7") for _ in range(500)] and 500
-        )
-
-
 @bench("soft-prove")
 def soft_prove(m: MeTTa) -> float:
     from petta import soft
