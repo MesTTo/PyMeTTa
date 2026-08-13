@@ -144,7 +144,7 @@ from .errors import (  # noqa: E402
 from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import MeTTa, Prepared, current_space  # noqa: E402
-from . import arrays, convert, foreign, integrate, matching, measure, remote  # noqa: E402
+from . import aio, arrays, convert, foreign, integrate, matching, measure, remote  # noqa: E402
 from .define import Defined  # noqa: E402
 from .foreign import SpaceProvider  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
@@ -210,6 +210,7 @@ __all__ = [
     "Subscription",
     "bridge",
     "remote",
+    "aio",
     "current_space",
     "__version__",
 ]
