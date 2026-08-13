@@ -61,6 +61,24 @@ def test_equation_removal_is_per_space(metta):
     assert b.run("!(psp-r)") == [[2]]
 
 
+def test_identical_equation_removal_keeps_the_twin(metta):
+    """Two spaces holding the SAME equation, the shape every shared
+    library import produces. The compiled-clause erasure is term-keyed,
+    so without the module filter removing one twin erased the other
+    space's clause and its bookkeeping record with it."""
+    a, b = metta.fresh_space(), metta.fresh_space()
+    a.run("(= (psp-twin $n) (+ $n 1))")
+    b.run("(= (psp-twin $n) (+ $n 1))")
+    assert a.remove("(= (psp-twin $n) (+ $n 1))") is True
+    assert b.run("!(psp-twin 1)") == [[2]]
+    # The survivor's own removal still finds its record: the term-wide
+    # retractall would have stripped it and reported False here.
+    assert b.remove("(= (psp-twin $n) (+ $n 1))") is True
+    assert b.run("!(psp-twin 1)") == [[expr(S["psp-twin"], 1)]]
+    a.drop()
+    b.drop()
+
+
 def test_python_ops_reach_every_space(metta):
     @metta.op
     def psp_op_everywhere(x: int) -> int:

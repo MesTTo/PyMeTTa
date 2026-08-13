@@ -71,12 +71,17 @@ module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
                                        (   select(fun_meta(Args, Body), Prev, Rest)
                                            -> ( Rest == [] -> nb_delete(F)
                                                             ; nb_setval(F, Rest) ) ; true ),
-                                       findall(Ref, translated_from(Ref, Term), Refs),
-                                       forall(member(Ref, Refs), erase(Ref)),
-                                       retractall(translated_from(_, Term)),
+                                       space_module(Space, Module),
+                                       %Only this space's compiled clauses die: the same equation
+                                       %imported into two spaces compiles into two modules, and the
+                                       %term-keyed lookup alone would erase the twin space's clause
+                                       %and, through the term-wide retractall, its record with it.
+                                       findall(Ref, ( translated_from(Ref, Term),
+                                                      clause_property(Ref, module(Module)) ), Refs),
+                                       forall(member(Ref, Refs), ( erase(Ref),
+                                                                   retractall(translated_from(Ref, _)) )),
                                        forall(metta_on_function_changed(F), true),
                                        invalidate_specializations(F),
-                                       space_module(Space, Module),
                                        ( module_owns_function(Module, F) -> true
                                                                           ; retractall(fun_in(Module, F)) ),
                                        ( \+ function_still_defined(F)
