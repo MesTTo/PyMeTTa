@@ -14,6 +14,10 @@ remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
 space_module('&self', user) :- !.
 space_module(Space, Space).
 
+%The shared space's storage predicate, asserted by writes; declared so
+%a read on a virgin engine fails cleanly instead of erring undefined.
+:- dynamic '&self'/3.
+
 %Whether any module still holds a clause for a function. `user` is always
 %checked, because a function read from a file is compiled by process_form/3
 %rather than by add-atom/3 and so has no fun_in/2 record of its own.

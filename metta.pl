@@ -1,4 +1,7 @@
 %%%%%%%%%% Dependencies %%%%%%%%%%
+%Asserted at runtime (git imports, the CLI driver); declared so a
+%reference before the first assert fails instead of erring undefined.
+:- dynamic library_path/1, working_dir/1.
 library(X, Path) :- standard_library_path(Base), atomic_list_concat([Base, '/', X], Path).
 library(X, Y, Path) :- library_path(Base), atom_concat(_, X, Base), atomic_list_concat([Base, '/', Y], Path).
 :- prolog_load_context(directory, Source),

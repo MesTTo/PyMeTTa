@@ -1,6 +1,11 @@
 :- use_module(library(readutil)). % read_file_to_string/3
 :- use_module(library(pcre)). % re_replace/4
 :- use_module(library(zlib)). % gzopen/3, .gz program files
+%Every compiled clause's source equation; asserted here and by
+%add-atom/3, read by removal and the tracer, so it must exist before
+%the first function ever compiles (a virgin-engine remove-atom read it
+%undefined and crashed).
+:- dynamic translated_from/2.
 :- current_prolog_flag(argv, Args), ( (memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args))
                                       -> assertz(silent(true)) ; assertz(silent(false)) ).
 
