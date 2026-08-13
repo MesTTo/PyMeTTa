@@ -131,13 +131,16 @@ def install(m, default: Any = None) -> list[str]:
         return fn
 
     def aligned(a, b):
-        """Two operands in one library: convert the right into the left's."""
+        """Two operands in one library: the right converts into the left's,
+        through DLPack when it is an array and by lifting when it is a bare
+        number, since the standard's functions take arrays on both sides."""
+        xp = namespace_of(a)
         if is_array(b):
-            xp = namespace_of(a)
             if type(b) is not type(a):
                 b = xp.from_dlpack(b)
-            return a, b, xp
-        return a, b, namespace_of(a)
+        else:
+            b = xp.asarray(b, dtype=a.dtype)
+        return a, b, xp
 
     # ------------------------------------------------------------ constructors
 
@@ -159,15 +162,17 @@ def install(m, default: Any = None) -> list[str]:
 
     # ---------------------------------------------------------------- algebra
 
-    def binop(fn, name, typed=True):
+    def binop(fn, name, second="%Undefined%"):
         def call(a, b):
             a2, b2, xp = aligned(a, b)
             return fn(xp, a2, b2)
 
-        op(call, name=name,
-           types=["DLTensor", "DLTensor", "DLTensor"] if typed else None)
+        # The second operand's declared type states what aligned() accepts:
+        # elementwise operations lift a bare number, so their declaration
+        # must not claim DLTensor for it; matmul genuinely needs two arrays.
+        op(call, name=name, types=["DLTensor", second, "DLTensor"])
 
-    binop(lambda xp, a, b: xp.matmul(a, b), "matmul")
+    binop(lambda xp, a, b: xp.matmul(a, b), "matmul", second="DLTensor")
     binop(lambda xp, a, b: xp.add(a, b), "t+")
     binop(lambda xp, a, b: xp.subtract(a, b), "t-")
     binop(lambda xp, a, b: xp.multiply(a, b), "t*")
