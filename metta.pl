@@ -273,6 +273,13 @@ assert(Goal, true) :- ( call(Goal) -> true
                                       format("Assertion failed: ~w~n", [RG]),
                                       halt(1) ).
 
+%%% The running space: %%%
+% (context-space) answers the space whose module the current goal runs in,
+% so a program loaded into a named space reaches its own atoms the way a
+% program in &self writes (match &self ...); outside any named space the
+% answer is &self.
+'context-space'(Space) :- ( current_metta_space(Space) -> true ; Space = '&self' ).
+
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
@@ -449,6 +456,6 @@ register_fun_in(Module, N) :- register_fun(N),
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
-                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', library, exists_file,
+                          'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
                           import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
                           'add-translator-rule!', 'remove-translator-rule!', argv]).
