@@ -426,7 +426,30 @@ petta_py_clear(Space) :-
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
     forall(( current_predicate(Space/Arity),
              functor(Head, Space, Arity) ),
-           retractall(Head)).
+           retractall(Head)),
+    space_module(Space, Module),
+    petta_py_clear_tabling(Space, Module).
+
+%Tabling state dies with the space life. Clause removal leaves both the
+%tabled property and the answer tables standing, so a reused pooled
+%module answered its NEW definition from the dead life's cache with no
+%tabling declared in the new life (probe p14_pool_table_leak). Untable
+%every tabled predicate the module itself owns (current_predicate/1
+%enumeration does not cross the default-module chain, probed on this
+%SWI), abolish whatever tables remain in the module, and retract the
+%space's (tabled ...) reflection facts, which describe declarations that
+%no longer exist.
+petta_py_clear_tabling(Space, Module) :-
+    forall(( current_predicate(Module:Name/Arity),
+             functor(Head, Name, Arity),
+             \+ predicate_property(Module:Head, imported_from(_)),
+             predicate_property(Module:Head, tabled) ),
+           untable(Module:Name/Arity)),
+    abolish_module_tables(Module),
+    findall([tabled, Space, F, A],
+            'get-atoms'('&petta', [tabled, Space, F, A]),
+            Facts),
+    forall(member(Fact, Facts), 'remove-atom'('&petta', Fact, _)).
 
 %Fresh space names for callers that want an anonymous space. The & prefix is
 %load-bearing: 'is-space' recognises it, and a $ name would read as a variable.
