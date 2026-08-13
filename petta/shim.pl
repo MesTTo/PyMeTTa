@@ -327,13 +327,18 @@ petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
 %scope as the patterns, so $age in both is one variable; after the match
 %joins, the guard evaluates in the space's module and must answer true.
 %Limit 0 means every answer.
+%The guard translates ONCE, before the match enumerates: its variables are
+%the same Prolog variables the patterns bind, so each answer runs the
+%already-compiled goals against its own bindings, and backtracking retracts
+%them. Translating inside the enumeration would recompile per candidate
+%row, which measured at ~500ms per 2000-row guarded query.
 petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
     petta_py_match_goal(Space, Patterns, Goal),
     petta_py_module(Space, Module),
+    petta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
     call(Goal),
-    petta_py_in_module(Module, ( translate_expr(Guard, Goals, Out),
-                                 petta_py_call_goals(Module, Goals) )),
+    petta_py_call_goals(Module, Goals),
     Out == true,
     petta_py_row(VarNames, Bindings, Row).
 
