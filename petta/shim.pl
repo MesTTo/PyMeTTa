@@ -94,7 +94,12 @@ petta_py_decode_shared(Tagged, Term, Bindings) :-
 
 petta_py_decode_shared_([T, Name0], Var, B0, B) :- petta_py_tag(T, v), !,
     ( string(Name0) -> atom_string(Name, Name0) ; Name = Name0 ),
-    ( memberchk(Name-Var, B0) -> B = B0 ; B = [Name-Var|B0] ).
+    %The anonymous variable is fresh at every occurrence and never binds,
+    %exactly as the reader treats $_ in source; recording it would make two
+    %underscores constrain each other.
+    ( Name == '_' -> Var = _, B = B0
+    ; memberchk(Name-Var, B0) -> B = B0
+    ; B = [Name-Var|B0] ).
 petta_py_decode_shared_([T, Es], Term, B0, B) :- petta_py_tag(T, e), !,
     foldl_decode(Es, Term, B0, B).
 petta_py_decode_shared_(Tagged, Term, B, B) :- petta_py_decode(Tagged, Term).
@@ -331,6 +336,27 @@ petta_py_dispatch_raw_many(Name, Args, Result) :-
     R0 \== '@'(none),
     petta_py_raw_norm(R0, Result).
 
+%Register every arity of a Python-backed function in one step, checked
+%before anything mutates: a name whose compiled predicate would collide
+%with a static procedure ((+)/3, say) throws HERE, with no state touched,
+%and every previously registered arity of the name is replaced rather than
+%left behind for calls the new callable no longer serves.
+petta_py_register_op_set(Name0, Arities, Kind) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    %The probe is the same assert the registration will do, on a clause that
+    %can never run; the engine's own permission error surfaces here, before
+    %any existing registration has been touched. predicate_property cannot
+    %stand in for it: autoloadable names report static yet accept clauses.
+    forall(member(A, Arities),
+           ( PredArity is A + 1,
+             functor(Probe, Name, PredArity),
+             ( petta_py_op_spec(Name, A, _) -> true
+             ; setup_call_cleanup(assertz((Probe :- fail), Ref),
+                                  true,
+                                  erase(Ref)) ) )),
+    forall(petta_py_op_spec(Name, Old, _), petta_py_unregister_op(Name, Old)),
+    forall(member(A, Arities), petta_py_register_op(Name, A, Kind)).
+
 %Register a Python-backed function of the given MeTTa arity. The compiled
 %predicate carries one extra output argument, the engine's own convention:
 petta_py_register_op(Name0, Arity, Kind) :-
@@ -534,17 +560,8 @@ py_object_type_names(X, Names) :-
     py_is_object(X),
     py_call(petta_ops:type_names(X), Names).
 
-%%%%%%%%%% The running space %%%%%%%%%%
-%
-% (context-space) answers the space whose module the current goal runs in, so
-% a program loaded into a named space can reach its own atoms the way a
-% program in &self writes (match &self ...). On a stock engine every run is
-% effectively &self, and that is the answer.
-
-'context-space'(Space) :-
-    ( current_predicate(current_metta_space/1) -> current_metta_space(Space)
-    ; Space = '&self' ).
-:- register_fun('context-space').
+%(context-space) lives in the engine now (src/metta.pl); the shim keeps
+%nothing to add for it.
 
 %%%%%%%%%% Retranslation on late definitions %%%%%%%%%%
 %

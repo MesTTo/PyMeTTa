@@ -148,3 +148,18 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     )
     assert from_wire(row["W2"]) == Gnd(True)
     assert parse("true") == Gnd(True)
+
+
+@settings(max_examples=80, deadline=None)
+@given(
+    a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
+    b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
+)
+def test_python_equality_is_engine_equality(metta, a, b):
+    """Gnd == Gnd answers exactly what the engine's == answers for the same
+    two values, NaN, negative zero and mixed numeric types included."""
+    from petta.atoms import Gnd
+
+    engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+    assert len(engine) == 1
+    assert engine[0].value is (Gnd(a) == Gnd(b))

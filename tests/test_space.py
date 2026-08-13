@@ -164,3 +164,41 @@ def test_match_patterns_are_structural(m):
     # The literal idiom: the pattern (pair (sz-here) $v) matches nothing,
     # because no stored atom is literally shaped that way.
     assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[expr()]]
+
+
+def test_bare_atoms_are_refused_loudly(m):
+    """A stored atom is an expression; anything else must error, never
+    vanish: the silent write was a real bug this pins."""
+    import pytest
+    from petta import S
+
+    with pytest.raises(TypeError):
+        m.add(S.bare)
+    with pytest.raises(TypeError):
+        m.add(7)
+
+
+def test_object_identity_survives_the_boundary(m):
+    """One live object is one box everywhere: stored, found, removed."""
+    from petta import S, V, val
+
+    class Thing:
+        pass
+
+    thing = Thing()
+    m.add(S.holds(val(thing)))
+    assert S.holds(val(thing)) in m
+    rows = m.query(S.holds(V.x))
+    assert rows[0].x.value is thing
+    assert m.remove(S.holds(val(thing))) is True
+    assert S.holds(val(thing)) not in m
+
+
+def test_anonymous_variables_do_not_join(m):
+    """Two underscores are two fresh variables, exactly as parsed $_ $_."""
+    from petta import S, V
+
+    m.add(S.duo(S.a, S.a), S.duo(S.a, S.b))
+    assert len(m.query(S.duo(V._, V._))) == 2
+    # And the anonymous variable never becomes a column.
+    assert m.query(S.duo(V.x, V._)).columns == ("x",)

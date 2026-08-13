@@ -127,6 +127,20 @@ class Runtime:
                 return {}
             return row
 
+    def must(self, goal: str, **inputs: Any) -> dict:
+        """Run a goal that is REQUIRED to succeed: a bridge entry point that
+        fails has hit a bug or a refused input, and silence would let a
+        write vanish. Failure raises; the semidet reading stays with once().
+        """
+        row = self.once(goal, **inputs)
+        if not row:
+            raise EngineError(
+                f"the engine refused {goal.split('(')[0]}: the goal failed "
+                f"rather than erring, which for this entry point means the "
+                f"inputs were not accepted"
+            )
+        return row
+
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
         """Enumerate a nondeterministic goal's answers.
 

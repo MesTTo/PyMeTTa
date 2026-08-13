@@ -33,6 +33,8 @@ class Operation:
     kind: str  # det | many | raw_det | raw_many
     arity: int
     pass_atoms: bool  # give the callable atoms rather than decoded values
+    space: str | None = None  # where the type declaration was added
+    declaration: Any = None  # the (: ...) atom, for unregistration
 
 
 REGISTRY: dict[str, Operation] = {}

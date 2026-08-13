@@ -81,7 +81,7 @@ class MeTTa:
 
     def fresh_space(self) -> "MeTTa":
         """An anonymous space with a name nothing else is using."""
-        row = self._rt.once("petta_py_new_space(Name)")
+        row = self._rt.must("petta_py_new_space(Name)")
         return MeTTa(row["Name"])
 
     def __repr__(self) -> str:
@@ -97,12 +97,12 @@ class MeTTa:
         directive instead of flattened. Equations and facts in the source
         land in this space.
         """
-        row = self._rt.once("petta_py_run(Src, Space, Groups)", Src=source, Space=self._space)
+        row = self._rt.must("petta_py_run(Src, Space, Groups)", Src=source, Space=self._space)
         return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
 
     def load(self, path: str) -> list[list[Atom]]:
         """Load a .metta file the way the CLI does, working directory included."""
-        row = self._rt.once("petta_py_load(File, Space, Groups)", File=str(path), Space=self._space)
+        row = self._rt.must("petta_py_load(File, Space, Groups)", File=str(path), Space=self._space)
         return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
 
     def parse(self, source: str) -> Atom:
@@ -112,16 +112,31 @@ class MeTTa:
     # ------------------------------------------------------------- space edits
 
     def add(self, *atoms: Any) -> None:
-        """Add atoms to this space. An (= ...) atom compiles as an equation."""
+        """Add atoms to this space, one engine round-trip for the lot.
+        An (= ...) atom compiles as an equation. A stored atom is an
+        expression, the engine's own storage shape, so anything else is
+        refused here rather than failing silently inside."""
+        wires = []
         for a in atoms:
-            self._rt.once(
-                "petta_py_add(Space, W)", Space=self._space, W=_to_atom(a).to_wire()
-            )
+            atom = _to_atom(a)
+            if not isinstance(atom, Expr):
+                raise TypeError(
+                    f"a stored atom is an expression; {atom!r} is "
+                    f"{atom.metatype}. Wrap a bare value in structure, as in "
+                    f"(value {atom})."
+                )
+            wires.append(atom.to_wire())
+        if not wires:
+            return
+        if len(wires) == 1:
+            self._rt.must("petta_py_add(Space, W)", Space=self._space, W=wires[0])
+        else:
+            self._rt.must("petta_py_add_many(Space, Ws)", Space=self._space, Ws=wires)
 
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: an equation removal reports
         whether it existed; a plain atom removal removes every copy."""
-        row = self._rt.once(
+        row = self._rt.must(
             "petta_py_remove(Space, W, R)", Space=self._space, W=_to_atom(atom).to_wire()
         )
         result = from_wire(row["R"])
@@ -147,7 +162,7 @@ class MeTTa:
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
-        self._rt.once("petta_py_clear(Space)", Space=self._space)
+        self._rt.must("petta_py_clear(Space)", Space=self._space)
         # The @define bookkeeping follows the equations it describes.
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
             for key in [k for k in registry if k[0] == self._space]:
@@ -174,7 +189,8 @@ class MeTTa:
         columns: list[str] = []
         for a in atoms:
             for name in variables(a):
-                if name not in columns:
+                # `_` is anonymous: fresh at every occurrence, never a column.
+                if name != "_" and name not in columns:
                     columns.append(name)
         row = self._rt.once(
             "petta_py_query_all(Space, Ps, Names, Rows)",
@@ -354,7 +370,7 @@ class MeTTa:
         variables.
         """
         from ._ops import REGISTRY
-        from .define import Defined, compile_function, twin_dispatcher
+        from .define import Defined, canonical_aux, compile_function, twin_dispatcher
         from .errors import CompileError
         from .ops import metta_type_for
 
@@ -364,7 +380,7 @@ class MeTTa:
                 return True
             return (self._space, called) in _DEFINED_GENERATORS
 
-        params, patterns, body, twin, generator = compile_function(
+        params, patterns, body, twin, generator, aux = compile_function(
             fn, known=self.is_function, nondet=nondet
         )
         name = fn.__name__
@@ -399,12 +415,21 @@ class MeTTa:
         )
         equation = Expr([Sym("="), head, body])
         dispatcher = twin_dispatcher(fn)
-        if any(alpha_eq(clause["equation"], equation) for clause in earlier):
+        # Idempotence compares with auxiliary helper names canonicalized:
+        # every compilation serials its helpers, so the same source re-run
+        # must be recognized through the renaming.
+        canonical = canonical_aux(equation, name)
+        if any(
+            alpha_eq(canonical_aux(clause["equation"], name), canonical)
+            for clause in earlier
+        ):
             # The identical clause again, a re-run cell or module reload:
             # adding it would duplicate answers, so it stands as it is.
             return Defined(name, params, body, dispatcher, self, patterns=patterns)
         earlier.append({"patterns": dict(patterns), "equation": equation})
         dispatcher.clauses.append(twin)
+        for helper_equation in aux:
+            self.add(helper_equation)
         self.add(equation)
         # Annotations declare the type, exactly as they do for operations,
         # once per name so stacked clauses do not repeat the declaration.

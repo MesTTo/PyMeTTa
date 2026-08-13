@@ -110,37 +110,49 @@ def register(
     arities, params = _arities(fn, arities)
     many = inspect.isgeneratorfunction(fn)
     kind = ("raw_many" if many else "raw_det") if raw else ("many" if many else "det")
-    # One registry entry serves every arity: the engine passes however many
-    # arguments the call site had, and the defaults absorb the difference.
-    REGISTRY[metta_name] = Operation(
-        name=metta_name, fn=fn, kind=kind, arity=max(arities), pass_atoms=pass_atoms
+    # The engine registers every arity in one checked step (a collision with
+    # a static procedure throws with nothing touched, and stale arities from
+    # an earlier registration of the name are replaced, never left behind);
+    # the Python registry commits only after the engine accepted.
+    runtime.must(
+        "petta_py_register_op_set(Name, Arities, Kind)",
+        Name=metta_name,
+        Arities=list(arities),
+        Kind=kind,
     )
-    for arity in arities:
-        runtime.once(
-            "petta_py_register_op(Name, Arity, Kind)",
-            Name=metta_name,
-            Arity=arity,
-            Kind=kind,
-        )
-    if typed and params:
-        declaration = _type_declaration(metta_name, params, fn)
-        runtime.once(
-            "petta_py_add(Space, W)", Space=space, W=declaration.to_wire()
-        )
+    declaration = _type_declaration(metta_name, params, fn) if typed and params else None
+    if declaration is not None:
+        runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
+    REGISTRY[metta_name] = Operation(
+        name=metta_name,
+        fn=fn,
+        kind=kind,
+        arity=max(arities),
+        pass_atoms=pass_atoms,
+        space=space,
+        declaration=declaration,
+    )
     return fn
 
 
 def unregister(runtime, name: str) -> None:
-    """Remove every arity of a registered operation."""
-    op = REGISTRY.pop(name, None)
-    if op is None:
-        return
-    for arity_row in runtime.iter(
-        "petta_py_op_spec(Name, Arity, _)", Name=name
+    """Remove every arity of a registered operation, and the type
+    declaration registration added, so nothing keeps describing a function
+    that no longer exists."""
+    op = REGISTRY.get(name)
+    for arity_row in list(
+        runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name)
     ):
-        runtime.once(
+        runtime.must(
             "petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"]
         )
+    if op is not None and op.declaration is not None:
+        runtime.once(
+            "petta_py_remove(Space, W, _)",
+            Space=op.space,
+            W=op.declaration.to_wire(),
+        )
+    REGISTRY.pop(name, None)
 
 
 def registered() -> dict[str, Operation]:

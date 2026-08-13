@@ -162,3 +162,54 @@ def test_unify():
     assert got == {"x": S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
     assert unify(V.x, expr(S.a)) == {"x": expr(S.a)}
+
+
+def test_ground_equality_is_the_engines():
+    """Python-side == must never disagree with an equation's ==: booleans
+    are not integers, integers are not floats, IEEE identity for floats
+    with -0.0 apart from 0.0 and NaN equal to itself, objects by identity."""
+    assert Gnd(1) != Gnd(1.0)
+    assert Gnd(1.0) == Gnd(1.0)
+    assert Gnd(0.0) != Gnd(-0.0)
+    nan = float("nan")
+    assert Gnd(nan) == Gnd(nan)
+    assert Gnd(True) != Gnd(1)
+    assert Gnd(1) == 1 and Gnd(1) != 1.0
+    assert unify(Gnd(1), Gnd(1.0)) is None
+    assert unify(Gnd(nan), Gnd(nan)) == {}
+
+
+def test_boxes_intern_per_object_identity():
+    """One live object always crosses as one box, so stored and queried
+    meet in the same reference; a dead object costs nothing after."""
+    from petta.atoms import boxed
+
+    thing = object()
+    assert boxed(thing) is boxed(thing)
+    assert boxed(thing).value is thing
+
+
+def test_deep_terms_cross_and_print():
+    """Depth is data: the codec and the printer take 5000 levels without
+    meeting Python's recursion ceiling."""
+    from petta.atoms import from_wire
+
+    atom = Gnd(1)
+    for _ in range(5000):
+        atom = expr(S.wrap, atom)
+    assert from_wire(atom.to_wire()) == atom
+    assert str(atom).startswith("(wrap (wrap")
+    assert variables(atom) == []
+
+
+def test_malformed_wire_is_refused():
+    from petta.atoms import from_wire
+
+    for bad in (["b", "garbage"], ["n", "123"], ["s", 123], ["e", 5], ["zz", 1]):
+        with pytest.raises(ValueError):
+            from_wire(bad)
+
+
+def test_anonymous_variable_is_fresh_per_occurrence():
+    assert unify(S.pair(V._, V._), S.pair(S.a, S.b)) == {}
+    assert unify(S.pair(V._, V._), S.pair(S.a, S.a)) == {}

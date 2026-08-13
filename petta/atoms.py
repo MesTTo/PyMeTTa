@@ -13,7 +13,9 @@ Open Obligations:
 from __future__ import annotations
 
 import collections.abc as _abc
+import math
 import re
+import weakref
 from collections.abc import Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import Any, Callable
@@ -71,6 +73,27 @@ def _is_primitive(value: Any) -> bool:
     return isinstance(value, (str, int, float, bool))
 
 
+def _ground_equal(mine: Any, theirs: Any) -> bool:
+    """Equality exactly as the engine's == reads it, so a comparison made in
+    Python and one made in an equation never disagree: booleans are not
+    integers, an integer is not a float ((== 1 1.0) is false), floats
+    compare by IEEE identity (-0.0 is not 0.0, and a NaN IS itself), and an
+    opaque object is itself alone."""
+    if isinstance(mine, bool) or isinstance(theirs, bool):
+        return type(mine) is type(theirs) and mine == theirs
+    if isinstance(mine, float) and isinstance(theirs, float):
+        if math.isnan(mine) or math.isnan(theirs):
+            return math.isnan(mine) and math.isnan(theirs)
+        if mine == theirs == 0.0:
+            return math.copysign(1.0, mine) == math.copysign(1.0, theirs)
+        return mine == theirs
+    if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
+        return type(mine) is type(theirs) and mine == theirs
+    if _is_primitive(mine) and _is_primitive(theirs):
+        return type(mine) is type(theirs) and mine == theirs
+    return mine is theirs
+
+
 class Box:
     """Holds one Python value so it crosses the boundary by reference.
 
@@ -80,17 +103,48 @@ class Box:
     element objects. Which types convert is janus's decision, not ours, so
     every opaque value crosses boxed, uniformly, and every consuming surface
     unboxes: from_wire, raw operation arguments and results, and the
-    engine's typing through py_object_unwrap/2. A caller never sees a box;
-    it exists only on the wire and inside the engine.
+    engine's typing through py_object_type_names/2. A caller never sees a
+    box; it exists only on the wire and inside the engine.
+
+    Boxes are INTERNED per object identity through boxed(): one live object
+    always crosses as the same box, so a stored atom and a later query meet
+    in the same reference and unification by identity means identity. The
+    intern table holds boxes weakly: a box lives exactly as long as
+    something references it (an atom in a space does, through janus), and a
+    dropped object costs nothing forever after.
     """
 
-    __slots__ = ("value",)
+    __slots__ = ("value", "__weakref__")
 
     def __init__(self, value: Any) -> None:
         self.value = value
 
     def __repr__(self) -> str:
         return f"Box({self.value!r})"
+
+
+# id(value) -> weakref to the box carrying it; see Box's docstring.
+_BOXES: dict[int, "weakref.ref[Box]"] = {}
+
+
+def boxed(value: Any) -> Box:
+    """THE box for this object, minted on first crossing, stable while any
+    reference to it lives anywhere, engine included."""
+    key = id(value)
+    reference = _BOXES.get(key)
+    if reference is not None:
+        box = reference()
+        if box is not None and box.value is value:
+            return box
+    box = Box(value)
+
+    def _evict(_: Any, key: int = key) -> None:
+        current = _BOXES.get(key)
+        if current is not None and current() is None:
+            del _BOXES[key]
+
+    _BOXES[key] = weakref.ref(box, _evict)
+    return box
 
 
 # type -> callable(value) -> str, consulted by Gnd.__str__ for object values,
@@ -263,20 +317,12 @@ class Gnd(Atom):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Gnd):
-            if isinstance(self.value, bool) != isinstance(other.value, bool):
-                return False
-            if _is_primitive(self.value) and _is_primitive(other.value):
-                return self.value == other.value
-            return self.value is other.value
+            return _ground_equal(self.value, other.value)
         if isinstance(other, Atom):
             return False
-        # Raw Python value on the other side: compare by value for primitives,
-        # by identity for carried objects, keeping bool apart from int.
-        if _is_primitive(self.value) and _is_primitive(other):
-            if isinstance(self.value, bool) != isinstance(other, bool):
-                return False
-            return self.value == other
-        return self.value is other
+        # Raw Python value on the other side, the ergonomic comparison:
+        # the same engine identity the Gnd-to-Gnd case applies.
+        return _ground_equal(self.value, other)
 
     def __hash__(self) -> int:
         # Hash agrees with equality: a primitive hashes as its value, so
@@ -380,7 +426,7 @@ class Gnd(Atom):
             return ["n", v]
         if isinstance(v, Box):
             return ["o", v]
-        return ["o", Box(v)]
+        return ["o", boxed(v)]
 
     @property
     def metatype(self) -> str:
@@ -395,22 +441,74 @@ class Expr(Atom):
     that costs an engine call.
     """
 
-    __slots__ = ("children",)
+    __slots__ = ("children", "_hash")
     children: tuple[Atom, ...]
 
     def __init__(self, children: Sequence[Atom]) -> None:
         object.__setattr__(self, "children", tuple(children))
+        object.__setattr__(self, "_hash", None)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Atom):
             return NotImplemented
-        return isinstance(other, Expr) and other.children == self.children
+        if not isinstance(other, Expr):
+            return False
+        # Iterative: nested tuple equality would recurse to the term's
+        # depth, and depth is data here.
+        stack: list[tuple[Expr, Expr]] = [(self, other)]
+        while stack:
+            a, b = stack.pop()
+            if len(a.children) != len(b.children):
+                return False
+            for x, y in zip(a.children, b.children, strict=True):
+                if isinstance(x, Expr) and isinstance(y, Expr):
+                    stack.append((x, y))
+                elif x != y:
+                    return False
+        return True
 
     def __hash__(self) -> int:
-        return hash(("expr", self.children))
+        # Cached, and computed bottom-up without recursion on first use.
+        cached = self._hash
+        if cached is not None:
+            return cached
+        order: list[Expr] = []
+        stack: list[Expr] = [self]
+        while stack:
+            node = stack.pop()
+            if node._hash is None:
+                order.append(node)
+                stack.extend(
+                    c for c in node.children
+                    if isinstance(c, Expr) and c._hash is None
+                )
+        for node in reversed(order):
+            if node._hash is None:
+                value = hash(("expr", tuple(hash(c) for c in node.children)))
+                object.__setattr__(node, "_hash", value)
+        return self._hash
 
     def __str__(self) -> str:
-        return "(" + " ".join(str(c) for c in self.children) + ")"
+        # Iterative: deep expressions are ordinary data here, and a printer
+        # must not hit Python's recursion ceiling on them.
+        parts: list[str] = []
+        stack: list[Any] = [self]
+        while stack:
+            item = stack.pop()
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, Expr):
+                parts.append("(")
+                tail: list[Any] = []
+                for i, child in enumerate(item.children):
+                    if i:
+                        tail.append(" ")
+                    tail.append(child)
+                tail.append(")")
+                stack.extend(reversed(tail))
+            else:
+                parts.append(str(item))
+        return "".join(parts)
 
     def __len__(self) -> int:
         return len(self.children)
@@ -422,7 +520,19 @@ class Expr(Atom):
         return iter(self.children)
 
     def to_wire(self) -> list:
-        return ["e", [c.to_wire() for c in self.children]]
+        # Iterative for the same reason __str__ is: depth is data.
+        out: list = ["e", []]
+        stack: list[tuple[Expr, list]] = [(self, out[1])]
+        while stack:
+            node, sink = stack.pop()
+            for child in node.children:
+                if isinstance(child, Expr):
+                    slot: list = ["e", []]
+                    sink.append(slot)
+                    stack.append((child, slot[1]))
+                else:
+                    sink.append(child.to_wire())
+        return out
 
     @property
     def metatype(self) -> str:
@@ -501,28 +611,91 @@ def decode(atom: Any) -> Any:
     return atom.value if isinstance(atom, Gnd) else atom
 
 
-def from_wire(wire: Any) -> Atom:
-    """Rebuild an atom from the tagged wire form janus delivered."""
-    if not isinstance(wire, (list, tuple)) or len(wire) != 2:
-        raise ValueError(f"malformed wire term: {wire!r}")
-    tag, payload = wire
+class _PendingExpr:
+    """A wire expression mid-build; its items become an Expr once every
+    nested expression below it has become one."""
+
+    __slots__ = ("items", "built")
+
+    def __init__(self) -> None:
+        self.items: list = []
+        self.built: Expr | None = None
+
+
+def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
+    """One non-expression wire term, its payload validated exactly: a wrong
+    payload is a boundary bug and must say so, never coerce."""
     if tag == "s":
+        if not isinstance(payload, str):
+            raise ValueError(f"wire symbol payload must be text, got {payload!r}")
         return Sym(payload)
     if tag == "g":
+        if not isinstance(payload, str):
+            raise ValueError(f"wire string payload must be text, got {payload!r}")
         return Gnd(payload)
     if tag == "n":
+        if isinstance(payload, bool) or not isinstance(payload, (int, float)):
+            raise ValueError(f"wire number payload must be numeric, got {payload!r}")
         return Gnd(payload)
     if tag == "b":
-        return Gnd(payload if isinstance(payload, bool) else payload == "true")
+        if isinstance(payload, bool):
+            return Gnd(payload)
+        if payload in ("true", "false"):
+            return Gnd(payload == "true")
+        raise ValueError(f"wire boolean payload must be true or false, got {payload!r}")
     if tag == "v":
+        if not isinstance(payload, str):
+            raise ValueError(f"wire variable payload must be text, got {payload!r}")
         return Var(payload)
-    if tag == "e":
-        return Expr([from_wire(c) for c in payload])
     if tag == "o":
         if isinstance(payload, Box):
             payload = payload.value
         return Gnd(payload)
     raise ValueError(f"unknown wire tag {tag!r}")
+
+
+def from_wire(wire: Any) -> Atom:
+    """Rebuild an atom from the tagged wire form janus delivered.
+
+    Iterative, because expression depth is data and must not meet Python's
+    recursion ceiling; strict, because a malformed payload is a boundary
+    bug that must surface rather than coerce.
+    """
+    if not isinstance(wire, (list, tuple)) or len(wire) != 2:
+        raise ValueError(f"malformed wire term: {wire!r}")
+    if wire[0] != "e":
+        return _leaf_from_wire(wire[0], wire[1])
+
+    root = _PendingExpr()
+    pendings: list[_PendingExpr] = [root]
+    stack: list[tuple[Any, _PendingExpr]] = [(wire[1], root)]
+    while stack:
+        children, pending = stack.pop()
+        if not isinstance(children, (list, tuple)):
+            raise ValueError(f"wire expression payload must be a list, got {children!r}")
+        for child in children:
+            if not isinstance(child, (list, tuple)) or len(child) != 2:
+                raise ValueError(f"malformed wire term: {child!r}")
+            tag, payload = child
+            if tag == "e":
+                nested = _PendingExpr()
+                pendings.append(nested)
+                pending.items.append(nested)
+                stack.append((payload, nested))
+            else:
+                pending.items.append(_leaf_from_wire(tag, payload))
+    # Children are discovered after their parents, so building in reverse
+    # discovery order builds every nested expression before its holder.
+    for pending in reversed(pendings):
+        pending.built = Expr(
+            [
+                item.built if isinstance(item, _PendingExpr) else item
+                for item in pending.items
+            ]
+        )
+    if root.built is None:
+        raise RuntimeError("wire decoding built no root expression")
+    return root.built
 
 
 # ----------------------------------------------------------------- constructors
@@ -628,18 +801,17 @@ def parse(source: str) -> Atom:
 # ------------------------------------------------------------------ inspection
 
 def variables(atom: Atom) -> list[str]:
-    """Variable names in an atom, in first-appearance order."""
+    """Variable names in an atom, in first-appearance order. Iterative:
+    depth is data."""
     out: list[str] = []
-
-    def walk(a: Atom) -> None:
+    stack: list[Atom] = [atom]
+    while stack:
+        a = stack.pop()
         if isinstance(a, Var):
             if a.name not in out:
                 out.append(a.name)
         elif isinstance(a, Expr):
-            for c in a.children:
-                walk(c)
-
-    walk(atom)
+            stack.extend(reversed(a.children))
     return out
 
 
@@ -660,15 +832,21 @@ def alpha_eq(a: Atom, b: Atom) -> bool:
 
 
 def _alpha(a: Atom, b: Atom, ab: dict, ba: dict) -> bool:
-    if isinstance(a, Var) and isinstance(b, Var):
-        if ab.setdefault(a.name, b.name) != b.name:
+    stack: list[tuple[Atom, Atom]] = [(a, b)]
+    while stack:
+        x, y = stack.pop()
+        if isinstance(x, Var) and isinstance(y, Var):
+            if ab.setdefault(x.name, y.name) != y.name:
+                return False
+            if ba.setdefault(y.name, x.name) != x.name:
+                return False
+        elif isinstance(x, Expr) and isinstance(y, Expr):
+            if len(x.children) != len(y.children):
+                return False
+            stack.extend(zip(x.children, y.children, strict=True))
+        elif x != y:
             return False
-        return ba.setdefault(b.name, a.name) == a.name
-    if isinstance(a, Expr) and isinstance(b, Expr):
-        if len(a.children) != len(b.children):
-            return False
-        return all(_alpha(x, y, ab, ba) for x, y in zip(a.children, b.children, strict=True))
-    return a == b
+    return True
 
 
 def unify(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:
@@ -685,14 +863,23 @@ def unify(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:
 
 
 def _unify(p: Atom, a: Atom, b: dict) -> bool:
-    if isinstance(p, Var):
-        seen = b.get(p.name)
-        if seen is None:
-            b[p.name] = a
-            return True
-        return seen == a
-    if isinstance(p, Expr) and isinstance(a, Expr):
-        if len(p.children) != len(a.children):
+    stack: list[tuple[Atom, Atom]] = [(p, a)]
+    while stack:
+        x, y = stack.pop()
+        if isinstance(x, Var):
+            # `_` is anonymous: it matches anything, binds nothing, and two
+            # occurrences never constrain each other, the reader's own rule.
+            if x.name == "_":
+                continue
+            seen = b.get(x.name)
+            if seen is None:
+                b[x.name] = y
+            elif seen != y:
+                return False
+        elif isinstance(x, Expr) and isinstance(y, Expr):
+            if len(x.children) != len(y.children):
+                return False
+            stack.extend(zip(x.children, y.children, strict=True))
+        elif x != y:
             return False
-        return all(_unify(x, y, b) for x, y in zip(p.children, a.children, strict=True))
-    return p == a
+    return True

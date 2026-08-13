@@ -53,12 +53,12 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
     if not name.startswith("&"):
         raise ValueError(f"a space name starts with &; got {name!r}")
     PROVIDERS[name] = provider
-    runtime.once("petta_py_register_foreign(Space)", Space=name)
+    runtime.must("petta_py_register_foreign(Space)", Space=name)
 
 
 def unregister_provider(runtime, name: str) -> None:
     PROVIDERS.pop(name, None)
-    runtime.once("petta_py_unregister_foreign(Space)", Space=name)
+    runtime.must("petta_py_unregister_foreign(Space)", Space=name)
 
 
 # ------------------------------------------------- called from the shim
