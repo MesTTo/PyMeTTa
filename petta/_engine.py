@@ -109,6 +109,15 @@ class Runtime:
                 # a test set CONSULTED by hand; import the real bridge.
                 self._janus = pkg.janus = importlib.import_module("janus_swi")
             self._consult_shim(pkg, petta_path)
+            # Without a heartbeat, Python never processes a SIGINT while a
+            # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
+            # queued past 1.5s. With Prolog calling Python every 100,000
+            # inferences the same signal raises KeyboardInterrupt within
+            # ~10ms of engine time (this engine spins ~13M inferences/s),
+            # and an interleaved A/B on a pure 3M-step loop measured parity
+            # with no heartbeat at all; 10,000 cost ~2% on that loop
+            # (probes in ai-tmp/janus-probes/11_interrupt_heartbeat).
+            self._janus.heartbeat(100_000)
 
     # ------------------------------------------------------------------ startup
 
