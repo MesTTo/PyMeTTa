@@ -116,6 +116,23 @@ def test_bulk_add_lands_in_one_crossing(metta, named_pair):
     assert len(alpha.query(S.bulked(V.i))) == 500
 
 
+def test_hostile_strings_round_trip_or_refuse(metta):
+    """Escaped writing keeps line-breaking strings whole through MORK's
+    line protocol, and a NUL byte, which would die at the C boundary,
+    refuses loudly instead of killing the process."""
+    from petta import EngineError, val
+
+    space = metta.space("&mork:hostile")
+    for text in ['a"b', "a\\b", "a\nb", "a\tb", "a\rb", "é字"]:
+        atom = S.holds(val(text))
+        space.add(atom)
+        stored = [a.children[1].value for a in space.atoms()]
+        assert stored == [text]
+        space.remove(atom)
+    with pytest.raises(EngineError):
+        space.add(S.holds(val("a\x00b")))
+
+
 try:
     from hypothesis import HealthCheck, given, settings
 except ModuleNotFoundError:

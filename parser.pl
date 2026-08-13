@@ -13,9 +13,17 @@ swrite_exp([])    --> !, "()".
 swrite_exp(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq(Args) ), ")".
 seq([X])    --> swrite_exp(X).
 seq([X|Xs]) --> swrite_exp(X), " ", seq(Xs).
+%The five escapes hyperon's Str Display emits and this reader already
+%decodes (string_chars): quote, backslash, newline, tab, carriage
+%return. Writing them keeps a printed string literal on one line, so
+%every line-oriented consumer of swrite text (the MORK bridge splits
+%dumps on newlines) re-parses it to itself.
 escape_quotes([], []).
 escape_quotes([0'\\|T], [0'\\,0'\\|R]) :- !, escape_quotes(T, R).
 escape_quotes([0'"|T], [0'\\,0'"|R]) :- !, escape_quotes(T, R).
+escape_quotes([0'\n|T], [0'\\,0'n|R]) :- !, escape_quotes(T, R).
+escape_quotes([0'\t|T], [0'\\,0't|R]) :- !, escape_quotes(T, R).
+escape_quotes([0'\r|T], [0'\\,0'r|R]) :- !, escape_quotes(T, R).
 escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 
 %Read S string or atom, extract codes, and apply DCG (parsing):

@@ -569,7 +569,17 @@ class Gnd(Atom):
             # holds them as the atoms true and false.
             return "True" if v else "False"
         if isinstance(v, str):
-            return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+            # The same five escapes the engine's swrite emits and its
+            # reader decodes, so a printed string stays on one line and
+            # both printers agree byte for byte.
+            escaped = (
+                v.replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\t", "\\t")
+                .replace("\r", "\\r")
+            )
+            return '"' + escaped + '"'
         if isinstance(v, (int, float)):
             return repr(v)
         return _object_str(v)
