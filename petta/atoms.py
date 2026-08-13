@@ -346,7 +346,7 @@ class Sym(Atom):
     and folding them together is the ambiguity the wire encoding removes.
     """
 
-    __slots__ = ("name",)
+    __slots__ = ("name", "_wire")
     name: str
 
     def __init__(self, name: str) -> None:
@@ -364,7 +364,15 @@ class Sym(Atom):
         return self.name
 
     def to_wire(self) -> list:
-        return ["s", _encodable(self.name)]
+        # Atoms are immutable, so the wire form is computed once and kept;
+        # the S builder interns symbols, so a head symbol's wire cell is
+        # shared by every fact that names it. Wire lists are read-only by
+        # contract on both sides of the boundary.
+        wire = getattr(self, "_wire", None)
+        if wire is None:
+            wire = ["s", _encodable(self.name)]
+            object.__setattr__(self, "_wire", wire)
+        return wire
 
     @property
     def metatype(self) -> str:
@@ -378,7 +386,7 @@ class Sym(Atom):
 class Var(Atom):
     """A variable: a hole a match may fill. $x in source."""
 
-    __slots__ = ("name",)
+    __slots__ = ("name", "_wire")
     name: str
 
     def __init__(self, name: str) -> None:
@@ -396,7 +404,11 @@ class Var(Atom):
         return f"${self.name}"
 
     def to_wire(self) -> list:
-        return ["v", _encodable(self.name)]
+        wire = getattr(self, "_wire", None)
+        if wire is None:
+            wire = ["v", _encodable(self.name)]
+            object.__setattr__(self, "_wire", wire)
+        return wire
 
     @property
     def metatype(self) -> str:
@@ -713,7 +725,11 @@ class Expr(Atom):
         return iter(self.children)
 
     def to_wire(self) -> list:
-        # Iterative for the same reason __str__ is: depth is data.
+        # Iterative for the same reason __str__ is: depth is data. Leaf
+        # symbols and variables answer their cached wire cells; the
+        # expression skeleton itself is one-shot in the hot paths (a fact
+        # is added once), so it builds fresh, measured cheaper than
+        # memoizing it.
         out: list = ["e", []]
         stack: list[tuple[Expr, list]] = [(self, out[1])]
         while stack:
@@ -815,13 +831,36 @@ class _PendingExpr:
         self.built: Expr | None = None
 
 
+# Decoded symbols and variables intern per name: their equality and hash
+# are by name already, the instances are immutable, and a query answering
+# thousands of rows repeats a small vocabulary, so sharing the instances
+# (wire caches included) is pure saving. Vocabularies are bounded by the
+# program; the tables live for the process like the S builder's own cache.
+_WIRE_SYMS: dict[str, Sym] = {}
+_WIRE_VARS: dict[str, Var] = {}
+
+
+def _wire_sym(name: str) -> Sym:
+    interned = _WIRE_SYMS.get(name)
+    if interned is None:
+        interned = _WIRE_SYMS[name] = Sym(name)
+    return interned
+
+
+def _wire_var(name: str) -> Var:
+    interned = _WIRE_VARS.get(name)
+    if interned is None:
+        interned = _WIRE_VARS[name] = Var(name)
+    return interned
+
+
 def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
     payload is a boundary bug and must say so, never coerce."""
     if tag == "s":
         if not isinstance(payload, str):
             raise ValueError(f"wire symbol payload must be text, got {payload!r}")
-        return Sym(payload)
+        return _wire_sym(payload)
     if tag == "g":
         if not isinstance(payload, str):
             raise ValueError(f"wire string payload must be text, got {payload!r}")
@@ -839,7 +878,7 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     if tag == "v":
         if not isinstance(payload, str):
             raise ValueError(f"wire variable payload must be text, got {payload!r}")
-        return Var(payload)
+        return _wire_var(payload)
     if tag == "o":
         if isinstance(payload, Box):
             payload = payload.value
@@ -862,21 +901,44 @@ def from_wire(wire: Any) -> Atom:
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(wire[1], root)]
+    # The three hottest tags decode inline, validation kept: a 2000-row
+    # answer is hundreds of thousands of cells, and the dispatch call per
+    # cell was half the query path's whole cost, profiled.
+    wire_sym, gnd, seq = _wire_sym, Gnd, (list, tuple)
     while stack:
         children, pending = stack.pop()
-        if not isinstance(children, (list, tuple)):
+        if not isinstance(children, seq):
             raise ValueError(f"wire expression payload must be a list, got {children!r}")
+        items = pending.items
         for child in children:
-            if not isinstance(child, (list, tuple)) or len(child) != 2:
+            if not isinstance(child, seq) or len(child) != 2:
                 raise ValueError(f"malformed wire term: {child!r}")
             tag, payload = child
-            if tag == "e":
+            if tag == "s":
+                if not isinstance(payload, str):
+                    raise ValueError(
+                        f"wire symbol payload must be text, got {payload!r}"
+                    )
+                items.append(wire_sym(payload))
+            elif tag == "n":
+                if isinstance(payload, bool) or not isinstance(payload, (int, float)):
+                    raise ValueError(
+                        f"wire number payload must be numeric, got {payload!r}"
+                    )
+                items.append(gnd(payload))
+            elif tag == "g":
+                if not isinstance(payload, str):
+                    raise ValueError(
+                        f"wire string payload must be text, got {payload!r}"
+                    )
+                items.append(gnd(payload))
+            elif tag == "e":
                 nested = _PendingExpr()
                 pendings.append(nested)
-                pending.items.append(nested)
+                items.append(nested)
                 stack.append((payload, nested))
             else:
-                pending.items.append(_leaf_from_wire(tag, payload))
+                items.append(_leaf_from_wire(tag, payload))
     # Children are discovered after their parents, so building in reverse
     # discovery order builds every nested expression before its holder.
     for pending in reversed(pendings):
