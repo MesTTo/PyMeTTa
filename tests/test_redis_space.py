@@ -15,13 +15,13 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 
 import pytest
 
 from petta import S, V, expr
 
-_PORT = 46381
-_CONTAINER = "petta-redis-test"
+_CONTAINER = f"petta-redis-test-{uuid.uuid4().hex[:12]}"
 
 
 def _docker_ready() -> bool:
@@ -43,21 +43,39 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def redis_address(metta):
-    subprocess.run(
-        ["docker", "rm", "-f", _CONTAINER], capture_output=True, timeout=30
-    )
     run = subprocess.run(
         ["docker", "run", "-d", "--rm", "--name", _CONTAINER,
-         "-p", f"{_PORT}:6379", "redis:7.2.3-alpine"],
+         "-p", "127.0.0.1::6379", "redis:7.2.3-alpine"],
         capture_output=True, text=True, timeout=120,
     )
     assert run.returncode == 0, run.stderr
-    time.sleep(0.5)
-    metta.run("!(import! &self (library lib_redis))")
-    yield f"localhost:{_PORT}"
-    subprocess.run(
-        ["docker", "rm", "-f", _CONTAINER], capture_output=True, timeout=30
-    )
+    try:
+        port = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                '{{(index (index .NetworkSettings.Ports "6379/tcp") 0).HostPort}}',
+                _CONTAINER,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert port.returncode == 0, port.stderr
+        host_port = port.stdout.strip()
+        assert host_port.isdigit(), port.stdout
+        time.sleep(0.5)
+        metta.run("!(import! &self (library lib_redis))")
+        yield f"localhost:{host_port}"
+    finally:
+        subprocess.run(
+            ["docker", "rm", "-f", _CONTAINER],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
 
 
 @pytest.fixture()
