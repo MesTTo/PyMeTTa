@@ -167,6 +167,66 @@ def test_ping_is_false_when_nothing_listens():
     assert DAS("http://127.0.0.1:9", timeout=0.5).ping() is False
 
 
+class LegacyScriptedDAS(DAS):
+    """Speaks like the deployed 1.2.0-rc images: refuses the enveloped
+    shape with the router's own 400 text, accepts the flat one, and
+    streams flat events with answer chunks under data."""
+
+    def __init__(self, events):
+        super().__init__("http://scripted:0")
+        self.posted = []
+        self._script = list(events)
+
+    def _request(self, method, path, body=None):
+        self.posted.append((method, path, body))
+        if path == "/command-router/executions":
+            if "command_type" not in (body or {}):
+                raise DASError(
+                    "DAS POST /command-router/executions answered 400: "
+                    '{"error":"Missing fields: command_type, command_text"}'
+                )
+            return {"execution_id": "exec-legacy", "status": "pending"}
+        return {}
+
+    def _events(self, execution_id):
+        yield from self._script
+
+
+def test_legacy_dialect_negotiates_tokens_and_handle_answers():
+    das = LegacyScriptedDAS([
+        {"execution_id": "exec-legacy", "status": "running"},
+        {"data": [{
+            "assignment": {"a": "3225ea79", "b": "181a1943"},
+            "assignment_metta": {},
+            "handles": [["ecb646aa"]],
+            "metta_expressions": [[]],
+            "importance": 0.0,
+            "strength": 0.0,
+        }]},
+        {"execution_id": "exec-legacy", "status": "completed",
+         "total_items": 1},
+    ])
+    answers = das.query(S.Similarity(V.a, V.b))
+    body = das.posted[-1][2]
+    assert body["command_type"] == "query"
+    assert body["command_text"] == (
+        "LINK_TEMPLATE Expression 3 NODE Symbol Similarity "
+        "VARIABLE a VARIABLE b"
+    )
+    assert answers[0].handles == {"a": "3225ea79", "b": "181a1943"}
+    assert answers[0]["a"] == Gnd("3225ea79")
+    assert das._dialect == "legacy"
+
+
+def test_token_rendering_distinguishes_ground_links_from_templates():
+    from petta.das import _render_tokens
+
+    assert _render_tokens(S.f(S.g(S.a), V.x)) == (
+        "LINK_TEMPLATE Expression 3 NODE Symbol f "
+        "LINK Expression 2 NODE Symbol g NODE Symbol a VARIABLE x"
+    )
+
+
 _LIVE_URL = os.environ.get("PETTA_DAS_URL", "http://localhost:40009")
 
 
@@ -175,17 +235,16 @@ _LIVE_URL = os.environ.get("PETTA_DAS_URL", "http://localhost:40009")
     reason=f"no DAS command router answering at {_LIVE_URL}",
 )
 def test_live_router_round_trip():
-    das = DAS(_LIVE_URL)
-    execution_id = das.execute(
-        "query",
-        {
-            "query": {"syntax": "metta", "tokens": ["(Similarity %a %b)"]},
-            "use_metta_as_query_tokens": True,
-            "populate_metta_mapping": True,
-            "max_answers": 1,
-        },
-    )
-    assert das.status(execution_id)["status"] in (
-        "pending", "running", "completed"
+    das = DAS(_LIVE_URL, timeout=20.0)
+    answers = das.query(S.Similarity(V.a, V.b), max_answers=5)
+    assert answers, "the loaded knowledge base answered nothing"
+    assert all(answer.handles for answer in answers)
+    total = das.count(S.Similarity(V.a, V.b))
+    assert total >= len(answers) > 0
+    execution_id = das._start_query(
+        (S.Similarity(V.a, V.b),), False, False, None, {}
     )
     das.cancel(execution_id)
+    assert das.status(execution_id)["status"] in (
+        "pending", "running", "completed", "aborted"
+    )

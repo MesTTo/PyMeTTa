@@ -9,6 +9,16 @@ parameters validated server-side. DASSpace registers a connection as a
 read-only space provider, so match and joins over DAS answers run the
 engine's own unification. Loading knowledge is das-cli's job, and every
 write path says so instead of pretending.
+
+Two router dialects exist in the wild and both are spoken. Current
+sources take an enveloped {"command", "params"} request, MeTTa-text
+queries, and enveloped events; the deployed 1.2.0-rc images take a flat
+{"command_type", "command_text"} request, token-vector queries
+(LINK_TEMPLATE Expression ...), flat events whose answer chunks ride
+under "data", and answer handles without MeTTa text, verified against a
+live das-cli deployment. The dialect negotiates once per connection off
+the server's own 400 naming the missing legacy fields; anything else
+stays loud.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -61,17 +71,64 @@ def _render(value: Any) -> str:
     )
 
 
+def _has_var(value: Any) -> bool:
+    if isinstance(value, Var):
+        return True
+    if isinstance(value, Expr):
+        return any(_has_var(item) for item in value)
+    return False
+
+
+def _render_tokens(value: Any) -> str:
+    """The same pattern in DAS token-vector spelling, the legacy query
+    syntax the query agent walks as a prefix stack machine: a link with
+    any variable inside is a LINK_TEMPLATE, a fully ground link is a
+    LINK, a leaf symbol is NODE Symbol, a variable is VARIABLE. MeTTa
+    text patterns parse first so both input spellings serve both
+    dialects."""
+    if isinstance(value, str):
+        value = parse(value)
+    if isinstance(value, Var):
+        return f"VARIABLE {value.name}"
+    if isinstance(value, Sym):
+        return f"NODE Symbol {value.name}"
+    if isinstance(value, Gnd):
+        plain = value.value
+        if isinstance(plain, str):
+            return f'NODE Symbol "{plain}"'
+        if isinstance(plain, (int, float)) and not isinstance(plain, bool):
+            return f"NODE Symbol {plain}"
+        raise DASError(
+            f"{value!r} has no DAS token spelling; use symbols, strings, "
+            f"numbers, variables, and expressions"
+        )
+    if isinstance(value, Expr):
+        head = "LINK_TEMPLATE" if _has_var(value) else "LINK"
+        parts = [_render_tokens(item) for item in value]
+        return f"{head} Expression {len(parts)} " + " ".join(parts)
+    raise DASError(
+        f"{value!r} is not a DAS query pattern; pass atoms or MeTTa text"
+    )
+
+
 class DASAnswer:
     """One STI-ordered answer: variable bindings as petta atoms, the
-    matched expressions themselves, and the attention numbers."""
+    matched expressions themselves, the raw atom handles, and the
+    attention numbers. A router that maps answers back to MeTTa text
+    binds real terms; the deployed legacy routers answer handles only,
+    which arrive as string values under the same names."""
 
-    __slots__ = ("bindings", "expressions", "importance", "strength")
+    __slots__ = ("bindings", "expressions", "handles", "importance", "strength")
 
     def __init__(self, item: dict) -> None:
-        assignment = item.get("assignment_metta") or {}
+        self.handles = dict(item.get("assignment") or {})
+        metta_assignment = item.get("assignment_metta") or {}
         self.bindings = {
-            name: parse(text) for name, text in assignment.items()
+            name: parse(text) for name, text in metta_assignment.items()
         }
+        for name, handle in self.handles.items():
+            if name not in self.bindings:
+                self.bindings[name] = Gnd(handle)
         self.expressions = [
             parse(text)
             for group in item.get("metta_expressions") or []
@@ -99,6 +156,7 @@ class DAS:
     def __init__(self, url: str = "http://localhost:40009", timeout: float = 10.0):
         self._base = url.rstrip("/")
         self._timeout = float(timeout)
+        self._dialect: str | None = None
 
     # ------------------------------------------------------------- transport
 
@@ -165,13 +223,68 @@ class DAS:
             return False
 
     def execute(self, command: str, params: dict) -> str:
-        """Start any router command and answer its execution id. The
-        server validates parameters; unknown ones refuse loudly there."""
+        """Start any router command and answer its execution id, in the
+        current sources' enveloped shape. The server validates
+        parameters; unknown ones refuse loudly there. Legacy routers
+        serve query() and count(), which negotiate the dialect."""
         body = self._request(
             "POST", "/command-router/executions",
             {"command": command, "params": params},
         )
         return body["execution_id"]
+
+    def _start_query(self, patterns: tuple, count: bool, unique: bool,
+                     max_answers: int | None, extra: dict) -> str:
+        if self._dialect != "legacy":
+            body = {
+                "command": "query",
+                "params": self._query_params(
+                    patterns, count, unique, max_answers, extra
+                ),
+            }
+            try:
+                answer = self._request(
+                    "POST", "/command-router/executions", body
+                )
+                self._dialect = "modern"
+                return answer["execution_id"]
+            except DASError as error:
+                if self._dialect is None and "command_type" in str(error):
+                    self._dialect = "legacy"
+                else:
+                    raise
+        if unique:
+            raise DASError(
+                "unique= needs a current router; the connected one speaks "
+                "the legacy dialect without unique_assignment_flag"
+            )
+        tokens = [_render_tokens(pattern) for pattern in patterns]
+        text = tokens[0] if len(tokens) == 1 else (
+            f"AND {len(tokens)} " + " ".join(tokens)
+        )
+        body = {"command_type": "query", "command_text": text}
+        if count:
+            body["count_flag"] = True
+        if max_answers is not None:
+            body["max_answers"] = int(max_answers)
+        body.update(extra)
+        answer = self._request("POST", "/command-router/executions", body)
+        return answer["execution_id"]
+
+    def _answer_stream(self, execution_id: str) -> Iterator[tuple[str, Any]]:
+        """Both dialects' events as ('answers', items) and
+        ('status', payload) pairs."""
+        for event in self._events(execution_id):
+            if "command" in event:
+                body = event.get("params") or {}
+                if event["command"] == "query_answers":
+                    yield "answers", body.get("answers") or []
+                elif event["command"] == "execution_status":
+                    yield "status", body
+            elif "data" in event:
+                yield "answers", event.get("data") or []
+            elif "status" in event:
+                yield "status", event
 
     def status(self, execution_id: str) -> dict:
         return self._request(
@@ -206,43 +319,42 @@ class DAS:
     def query(self, *patterns: Any, max_answers: int | None = None,
               unique: bool = False, **extra: Any) -> list[DASAnswer]:
         """Run a pattern query and collect its STI-ordered answers.
-        Several patterns compose as (and ...), DAS's own query tree, so
-        the conjunction runs server-side. Extra keyword arguments pass
-        through to the router's query parameters verbatim."""
-        params = self._query_params(patterns, False, unique, max_answers, extra)
-        execution_id = self.execute("query", params)
+        Several patterns compose as one server-side conjunction, DAS's
+        own query tree. Extra keyword arguments pass through to the
+        router's query parameters verbatim."""
+        execution_id = self._start_query(
+            patterns, False, unique, max_answers, extra
+        )
         answers: list[DASAnswer] = []
-        for event in self._events(execution_id):
-            command = event.get("command")
-            body = event.get("params") or {}
-            if command == "query_answers":
-                for item in body.get("answers") or []:
-                    answers.append(DASAnswer(item))
-            elif command == "execution_status":
-                status = body.get("status")
-                if status == "error":
-                    raise DASError(
-                        f"DAS query failed: {body.get('message', 'no detail')}"
-                    )
-                if status in _TERMINAL:
-                    break
+        for kind, body in self._answer_stream(execution_id):
+            if kind == "answers":
+                answers.extend(DASAnswer(item) for item in body)
+                continue
+            status = body.get("status")
+            if status == "error":
+                raise DASError(
+                    f"DAS query failed: {body.get('message', 'no detail')}"
+                )
+            if status in _TERMINAL:
+                break
         return answers
 
     def count(self, *patterns: Any, **extra: Any) -> int:
         """The router's count mode: the server's own total, no answers
         shipped."""
-        params = self._query_params(patterns, True, False, None, extra)
-        execution_id = self.execute("query", params)
-        for event in self._events(execution_id):
-            body = event.get("params") or {}
-            if event.get("command") == "execution_status":
-                status = body.get("status")
-                if status == "error":
-                    raise DASError(
-                        f"DAS count failed: {body.get('message', 'no detail')}"
-                    )
-                if status in _TERMINAL:
-                    return int(body.get("total_items", 0))
+        execution_id = self._start_query(patterns, True, False, None, extra)
+        counted = 0
+        for kind, body in self._answer_stream(execution_id):
+            if kind == "answers":
+                counted += len(body)
+                continue
+            status = body.get("status")
+            if status == "error":
+                raise DASError(
+                    f"DAS count failed: {body.get('message', 'no detail')}"
+                )
+            if status in _TERMINAL:
+                return int(body.get("total_items", counted))
         raise DASError("the DAS answer stream closed before completing")
 
 
