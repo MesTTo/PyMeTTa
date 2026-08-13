@@ -285,3 +285,27 @@ def test_measure_helpers_round_trip(m):
     assert best == S.b
     (normalized,) = m.eval(expr(S["ws-normalize"], measure.ws((2.0, S.x), (6.0, S.y))))
     assert measure.pairs(normalized) == [(0.25, S.x), (0.75, S.y)]
+
+
+def test_rows_table_is_the_dataframe_shape(m):
+    m.add(S.Age(S.Tom, 62), S.Age(S.Bob, 40))
+    rows = m.query(S.Age(V.who, V.n))
+    table = rows.table()
+    assert table == {"who": ["Tom", "Bob"], "n": [62, 40]} or table == {
+        "who": ["Bob", "Tom"],
+        "n": [40, 62],
+    }
+
+
+def test_add_table_reads_any_tabular_source(m):
+    added = m.add_table("edge", {"src": [S.a, S.b], "dst": [S.b, S.c]})
+    assert added == 2
+    assert len(m.query(S.edge(V.x, V.y))) == 2
+
+    polars = pytest.importorskip("polars")
+    frame = polars.DataFrame({"name": ["ada", "bob"], "age": [36, 41]})
+    assert m.add_table("person", frame) == 2
+    rows = m.query(S.person(V.name, V.age))
+    assert {(r["name"], r.age) for r in rows} == {("ada", 36), ("bob", 41)}
+    with pytest.raises(TypeError):
+        m.add_table("bad", 7)

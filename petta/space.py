@@ -222,6 +222,40 @@ class MeTTa:
         else:
             self._rt.must("petta_py_add_many(Space, Ws)", Space=self._space, Ws=wires)
 
+    def add_table(self, head: Any, data: Any) -> int:
+        """Any tabular source as facts (head v1 .. vn); answers how many.
+
+            m.add_table("edge", polars_frame)         # or a pandas frame
+            m.add_table("edge", {"src": [...], "dst": [...]})
+            m.add_table("edge", [("a", "b"), ("b", "c")])
+
+        The source is read by the interface it offers, never by library:
+        iter_rows() (polars), itertuples() (pandas), a mapping of columns,
+        or any iterable of row sequences. The reverse direction is
+        rows.table(), the dict every DataFrame constructor takes."""
+        import collections.abc as _abc
+
+        head_atom = _to_atom(head)
+        if hasattr(data, "iter_rows"):
+            rows = data.iter_rows()
+        elif hasattr(data, "itertuples"):
+            rows = data.itertuples(index=False)
+        elif isinstance(data, _abc.Mapping):
+            rows = zip(*data.values())
+        elif isinstance(data, _abc.Iterable):
+            rows = iter(data)
+        else:
+            raise TypeError(
+                f"add_table reads iter_rows(), itertuples(), a mapping of "
+                f"columns, or an iterable of rows; "
+                f"{type(data).__name__} offers none of those"
+            )
+        facts = [
+            Expr([head_atom, *(encode(value) for value in row)]) for row in rows
+        ]
+        self.add(*facts)
+        return len(facts)
+
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: an equation removal reports
         whether it existed; a plain atom removal removes every copy."""

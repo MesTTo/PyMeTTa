@@ -86,6 +86,21 @@ class Rows(list):
 
         return [convert.build(value, cls) for value in self.column(column)]
 
+    def table(self) -> dict[str, list[Any]]:
+        """The columns as a dict of plain values, the one shape every
+        DataFrame constructor takes: pl.DataFrame(rows.table()),
+        pd.DataFrame(rows.table()). Grounded values unwrap to Python;
+        symbols and structure become their text."""
+        from .atoms import Gnd, decode
+
+        def plain(value: Any) -> Any:
+            return decode(value) if isinstance(value, Gnd) else str(value)
+
+        return {
+            name: [plain(row[i]) for row in self]
+            for i, name in enumerate(self.columns)
+        }
+
     def __repr__(self) -> str:
         header = ", ".join(self.columns)
         return f"Rows[{header}]({super().__repr__()})"
