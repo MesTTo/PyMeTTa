@@ -176,6 +176,7 @@ def test_why(m):
     assert "Missing" in m.why(S.Missing(V.x))
     m.add(S.Parent(S.a, S.b, S.c))
     assert "elements" in m.why(S.Parent(V.x,))
+    assert "did you mean car-atom?" in m.why(S["car-atmo"](S.value))
 
 
 def test_match_patterns_are_structural(m):

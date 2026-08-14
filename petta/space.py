@@ -1073,7 +1073,20 @@ class MeTTa:
                 f"no {name} atoms are stored here; {name} is a function, so its "
                 f"answers come from evaluation, not matching: try eval"
             )
-        return f"nothing here is headed by {name}, and no function has that name"
+        renamed = name.replace("_", "-")
+        if renamed != name and self.is_function_here(renamed):
+            return (
+                f"nothing here is headed by {name}, and no function has that name; "
+                f"did you mean {renamed}? define() reads underscores as hyphens"
+            )
+        from difflib import get_close_matches
+
+        close = get_close_matches(name, self.builtins(), n=1, cutoff=0.75)
+        suggestion = f"; did you mean {close[0]}?" if close else ""
+        return (
+            f"nothing here is headed by {name}, and no function has that name"
+            f"{suggestion}"
+        )
 
     # ------------------------------------------------------------ definitions
 
@@ -1087,13 +1100,14 @@ class MeTTa:
         against on any ground input.
 
             @m.define
-            def fact(n):
-                if n == 0:
-                    return 1
-                return n * fact(n - 1)
+            def add_one(n):
+                return n + 1
 
-            m.run("!(fact 5)")          # [[120]]
-            fact.py(5)                  # 120, ordinary Python
+            m.run("!(add-one 5)")       # [[6]]
+            add_one.py(5)               # 6, ordinary Python
+
+        The equation name follows the operation naming rule: underscores
+        in the Python name become hyphens in MeTTa.
 
         A generator compiles to nondeterminism (each yield one answer), a
         lambda to the engine's own |->, a comprehension to map-atom and

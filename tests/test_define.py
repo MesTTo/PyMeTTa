@@ -99,6 +99,18 @@ def test_lambda_is_first_class(m):
     assert m.run("!(dapply-twice 1)") == [[21]]
 
 
+def test_underscore_rename_is_exposed_and_diagnosed(m):
+    @m.define
+    def add_one(value):
+        return value + 1
+
+    assert m.run("!(add-one 5)") == [[6]]
+    assert m.run("!(add_one 5)") == [[S.add_one(5)]]
+    explanation = m.why(S.add_one(5))
+    assert "did you mean add-one?" in explanation
+    assert "underscores as hyphens" in explanation
+
+
 def test_comprehension_is_map_atom(m):
     @m.define
     def dtens(xs):
