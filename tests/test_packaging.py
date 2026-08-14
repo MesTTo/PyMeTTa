@@ -36,6 +36,7 @@ def test_optional_integrations_have_installable_extras():
     assert extras["orjson"] == ["orjson>=3.10,<4"]
     assert "pytest-xdist>=3.8,<4" in extras["test"]
     assert "pytest-xdist>=3.8,<4" in extras["checks"]
+    assert "pylint>=3.3,<4" in extras["checks"]
 
 
 def test_python_gate_groups_files_in_process_workers():
