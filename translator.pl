@@ -9,6 +9,8 @@
 %   - Branch-return merging preserves shared and pre-bound variables while
 %     restoring private tail returns [tested 2026-08-14:
 %     translator_branch_returns].
+%   - A typed function remains partially applicable until it has produced a
+%     return value [tested 2026-08-14: translator_typed_currying].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -456,13 +458,13 @@ build_call_or_partial_dl(Fun, AVs, Out, Goals0, Goals, Extra) :-
          append([Goal|Extra], Goals, Goals0)
     ; incomplete_application_kind(Fun, Arity, partial)
       -> Out = partial(Fun, AVs),
-         append(Extra, Goals, Goals0)
+         Goals0 = Goals
     ; Goals0 = [throw_function_overapplication(Fun, N)|Goals] ).
 
 %Type function call generation, returns function call plus typechecks for input and output:
 typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal) :-
     TypeChain = [->|Xs],
-    append(ArgTypes, [OutType], Xs),
+    append(ArgTypes, [OutType], Xs), !,
     translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
     ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
     append(GsH, GsT2, InnerTmp),
@@ -652,7 +654,7 @@ translate_args_dl([X|Xs], Goals0, Goals, [V|Vs]) :-
     translate_args_dl(Xs, AfterExpr, Goals, Vs).
 
 %Build A ; B ; C ... from a list:
-disj_list([G], G).
+disj_list([G], G) :- !.
 disj_list([G|Gs], (G ; R)) :- disj_list(Gs, R).
 
 %Build one disjunct per branch: (Conj, Out = Val):

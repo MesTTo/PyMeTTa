@@ -1,5 +1,8 @@
 % Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
 %   imports, function registration, and named-space execution context.
+% Guarantees:
+%   - get-metatype/2 classifies every Prolog term used as a MeTTa value
+%     [tested 2026-08-14: metta_metatypes].
 % Open Obligations:
 %   To Do: Resolve the remaining runtime findings in ai-prolog-review.md.
 %   Hacks: None
@@ -293,6 +296,7 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
+'get-metatype'(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
 
 'is-var'(A,R) :- var(A) -> R=true ; R=false.
 'is-ground'(A,R) :- ground(A) -> R=true ; R=false.
