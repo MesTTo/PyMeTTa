@@ -2,6 +2,9 @@
 instance wrapping with the effect convention, protocol typing and printing,
 py-field reasoning in both modes, the reflector registry, integrate() over
 modules, and a real third-party library (networkx) integrated in a page.
+Guarantees:
+  - dropping a space invalidates its integration installation records [tested
+    test_dropped_space_name_reinstalls_integrations]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -209,6 +212,35 @@ def test_integrate_module_protocol_and_idempotence(metta):
         assert len(calls) == 2
     finally:
         other.drop()
+
+
+def test_dropped_space_name_reinstalls_integrations(metta):
+    calls = []
+
+    class Reinstallable:
+        name = "space-reuse-probe"
+
+        def install(self, target):
+            calls.append(target.space_name)
+            target.add(S.integration_marker(len(calls)))
+
+    integration = Reinstallable()
+    space_name = "&integration_reuse_probe"
+    first = metta.space(space_name)
+    first.clear()
+    pi.integrate(first, integration)
+    assert first.query(S.integration_marker(V.value)).one().value == 1
+
+    first.drop()
+    assert (space_name, integration.name) not in pi.installed()
+
+    second = metta.space(space_name)
+    try:
+        pi.integrate(second, integration)
+        assert second.query(S.integration_marker(V.value)).one().value == 2
+        assert calls == [space_name, space_name]
+    finally:
+        second.drop()
 
 
 def test_facts_bulk_load(metta):
