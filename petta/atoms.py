@@ -157,7 +157,7 @@ class Box:
     def __copy__(self) -> Box:
         return self
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> Box:
+    def __deepcopy__(self, _memo: dict[int, Any]) -> Box:
         return self
 
     def __reduce__(self):
@@ -350,7 +350,7 @@ class Atom:
     def __copy__(self) -> Atom:
         return self
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> Atom:
+    def __deepcopy__(self, _memo: dict[int, Any]) -> Atom:
         return self
 
     def to_wire(self) -> list:

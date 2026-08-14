@@ -101,8 +101,6 @@ class Rows(UserList[Row]):
     projects a column, while integer and slice indexing follow a normal list.
     """
 
-    __slots__ = ("columns",)
-
     def __init__(
         self, columns: tuple[str, ...], rows: Iterable[tuple[Any, ...]]
     ) -> None:
