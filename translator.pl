@@ -24,7 +24,7 @@
 %   - Prolog import forms have exactly one translation
 %     [tested 2026-08-14: translator_prolog_imports].
 % Open Obligations:
-%   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
+%   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
@@ -531,10 +531,6 @@ translate_space_update_dl(Operation, [SpaceExpr, Atom], AfterHead, Goals,
 prolog_function_importer(import_prolog_functions_from_file).
 prolog_function_importer(import_prolog_functions_from_module).
 
-translate_prolog_import(Importer, [File, FunctionNames], GsH, Goals, Out) :-
-    append(GsH, AfterHead, Goals),
-    translate_prolog_import_dl(Importer, [File, FunctionNames], AfterHead, [], Out).
-
 translate_prolog_import_dl(Importer, [File, FunctionNames], Goals0, Goals, Out) :-
     atom(Importer),
     prolog_function_importer(Importer),
@@ -590,20 +586,12 @@ translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs]) :-
     translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs).
 
 %Handle data list:
-eval_data_term(X, [], X) :- (var(X); atomic(X)), !.
-eval_data_term([F|As], Goals, Val) :-
-    eval_data_term_dl([F|As], Goals, [], Val).
-
 eval_data_term_dl(X, Goals, Goals, X) :- (var(X); atomic(X)), !.
 eval_data_term_dl([F|As], Goals0, Goals, Val) :-
     ( atom(F), fun_here(F) -> translate_expr_dl([F|As], Goals0, Goals, Val)
                            ; eval_data_list_dl([F|As], Goals0, Goals, Val) ).
 
 %Handle data list entry:
-eval_data_list([], [], []).
-eval_data_list([E|Es], Goals, [V|Vs]) :-
-    eval_data_list_dl([E|Es], Goals, [], [V|Vs]).
-
 eval_data_list_dl([], Goals, Goals, []).
 eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
     ( is_list(E) -> eval_data_term_dl(E, Goals0, AfterEntry, V)
