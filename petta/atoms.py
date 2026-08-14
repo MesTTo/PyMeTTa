@@ -33,7 +33,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import collections.abc as _abc
 import math
 import numbers as _numbers
 import re
@@ -711,7 +710,7 @@ class Gnd(Atom):
         return "Grounded"
 
 
-class Expr(Atom):
+class Expr(Atom, Sequence[Atom]):
     """An expression: an ordered sequence of atoms. (likes Ada Coffee).
 
     Sequence-shaped, so Python's own idioms apply: expr[0] is car-atom,
@@ -862,10 +861,6 @@ class Expr(Atom):
     @property
     def args(self) -> tuple[Atom, ...]:
         return self.children[1:]
-
-
-# Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
-_abc.Sequence.register(Expr)
 
 
 # --------------------------------------------------------------------- encoding

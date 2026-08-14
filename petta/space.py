@@ -20,6 +20,9 @@ Guarantees:
     test_stream_pulls_rows_lazily_and_interleaves]
   - register_op and unregister_op are the paired operation lifecycle names
     [tested test_operation_registration_names_are_symmetric]
+  - define accepts source-bearing Python functions and refuses callable
+    objects before reading compiler metadata [tested
+    test_define_refuses_callable_objects]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -40,6 +43,7 @@ import os
 import stat
 import tempfile
 import time
+import types
 import warnings
 import weakref
 from pathlib import Path
@@ -1190,7 +1194,7 @@ class MeTTa:
 
     # ------------------------------------------------------------ definitions
 
-    def define(self, fn: Callable):
+    def define(self, fn: types.FunctionType):
         """Compile a Python function into MeTTa equations, decorator-style.
 
         Written for whoever is fluent in Python rather than s-expressions:
@@ -1215,6 +1219,10 @@ class MeTTa:
         the running space, lowercase free names in the pattern binding as
         variables.
         """
+        if not isinstance(fn, types.FunctionType):
+            raise TypeError(
+                f"define expects a Python function, got {type(fn).__name__}"
+            )
         from ._ops import REGISTRY
         from .define import (
             Defined,
@@ -1378,7 +1386,13 @@ class MeTTa:
             patterns=patterns, runtime_ops=compiled.runtime_ops,
         )
 
-    def type(self, cls: type | None = None, *, accessors: bool = True, methods: bool = True):
+    def type(
+        self,
+        cls: _builtins.type | None = None,
+        *,
+        accessors: bool = True,
+        methods: bool = True,
+    ):
         """Declare a Python class INTO this space, decorator-style: the
         (: ...) declarations land as atoms, an expression-image class
         (a dataclass, a NamedTuple) gains one accessor equation per
@@ -1407,7 +1421,7 @@ class MeTTa:
         """
         from . import convert as _convert
 
-        def apply(target: type) -> type:
+        def apply(target: _builtins.type) -> _builtins.type:
             registration = _convert.ensure_registered(target)
             for declaration in _convert.declarations(target):
                 self.add(declaration)

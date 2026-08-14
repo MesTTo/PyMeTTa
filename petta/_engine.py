@@ -409,7 +409,8 @@ class Runtime:
                     f"{_clean_message(classifier_error)}"
                 ) from exc
             if row is not None and row.get("truth") is not False:
-                error_type = _EXCEPTION_TYPES.get(row.get("Kind"))
+                kind = row.get("Kind")
+                error_type = _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
                 if error_type is not None:
                     raise error_type(message) from exc
         raise EngineError(message) from exc

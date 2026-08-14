@@ -25,7 +25,7 @@ from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
 import reprlib
-from typing import Any, overload
+from typing import Any, SupportsIndex, overload
 
 from ._config import config
 
@@ -103,7 +103,7 @@ class Rows(UserList[Row]):
     """
 
     def __init__(
-        self, columns: tuple[str, ...], rows: Iterable[tuple[Any, ...]]
+        self, columns: tuple[str, ...], rows: Iterable[Iterable[Any]]
     ) -> None:
         columns = tuple(columns)
         duplicates = [
@@ -130,35 +130,41 @@ class Rows(UserList[Row]):
         return _row_class(self.columns)(values)
 
     @overload
-    def __getitem__(self, key: int) -> Row: ...
+    def __getitem__(self, i: SupportsIndex) -> Row: ...
 
     @overload
-    def __getitem__(self, key: slice) -> Rows: ...
+    def __getitem__(self, i: slice[SupportsIndex | None]) -> Rows: ...
 
     @overload
-    def __getitem__(self, key: str) -> list[Any]: ...
+    def __getitem__(self, i: str) -> list[Any]: ...
 
-    def __getitem__(self, key: int | slice | str) -> Row | Rows | list[Any]:
-        if isinstance(key, str):
-            return self.column(key)
-        if isinstance(key, slice):
-            return Rows(self.columns, self.data[key])
-        return self.data[key]
+    def __getitem__(
+        self, i: SupportsIndex | slice[SupportsIndex | None] | str
+    ) -> Row | Rows | list[Any]:
+        if isinstance(i, str):
+            return self.column(i)
+        if isinstance(i, slice):
+            return Rows(self.columns, self.data[i])
+        return self.data[i]
 
-    def __setitem__(self, key: int | slice, value: Any) -> None:
-        if isinstance(key, slice):
-            self.data[key] = [self._coerce_row(row) for row in value]
+    def __setitem__(
+        self,
+        i: SupportsIndex | slice[SupportsIndex | None],
+        item: Iterable[Any] | Iterable[Iterable[Any]],
+    ) -> None:
+        if isinstance(i, slice):
+            self.data[i] = [self._coerce_row(row) for row in item]
         else:
-            self.data[key] = self._coerce_row(value)
+            self.data[i] = self._coerce_row(item)
 
-    def insert(self, index: int, row: Iterable[Any]) -> None:
-        self.data.insert(index, self._coerce_row(row))
+    def insert(self, i: int, item: Iterable[Any]) -> None:
+        self.data.insert(i, self._coerce_row(item))
 
-    def append(self, row: Iterable[Any]) -> None:
-        self.data.append(self._coerce_row(row))
+    def append(self, item: Iterable[Any]) -> None:
+        self.data.append(self._coerce_row(item))
 
-    def extend(self, rows: Iterable[Iterable[Any]]) -> None:
-        checked = [self._coerce_row(row) for row in rows]
+    def extend(self, other: Iterable[Iterable[Any]]) -> None:
+        checked = [self._coerce_row(row) for row in other]
         self.data.extend(checked)
 
     def copy(self) -> Rows:
@@ -189,10 +195,11 @@ class Rows(UserList[Row]):
         self.extend(self._addition_rows(other))
         return self
 
-    def __mul__(self, count: int) -> Rows:
-        return Rows(self.columns, self.data * count)
+    def __mul__(self, n: int) -> Rows:
+        return Rows(self.columns, self.data * n)
 
-    __rmul__ = __mul__
+    def __rmul__(self, n: int) -> Rows:
+        return self * n
 
     def column(self, name: str) -> list[Any]:
         index = self.columns.index(name)

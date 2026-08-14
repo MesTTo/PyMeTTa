@@ -8,6 +8,9 @@ turns an object into atoms plus the declarations that type them; build() is
 the missing reverse, rebuilding the object an answer describes. Type names
 have one owning class, and default expression images refuse state they cannot
 rebuild.
+Guarantees:
+  - malformed NamedTuple field metadata is refused before registration
+    [tested test_invalid_namedtuple_fields_are_refused]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -240,7 +243,15 @@ def _default_registration(cls: type) -> _Registration | None:
             _field_types(cls, names),
         )
     if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # NamedTuple
-        names = tuple(cls._fields)
+        raw_names = getattr(cls, "_fields")
+        if not (
+            isinstance(raw_names, tuple)
+            and all(isinstance(name, str) for name in raw_names)
+        ):
+            raise TypeError(
+                f"{cls.__name__} declares invalid NamedTuple fields: {raw_names!r}"
+            )
+        names = raw_names
         return _Registration(
             "expression",
             lambda obj: tuple(obj),

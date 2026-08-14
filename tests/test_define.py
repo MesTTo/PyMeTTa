@@ -561,3 +561,12 @@ def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
     assert dhazard_guard.py(2) == 3
     with pytest.raises(RuntimeError, match="match against the space"):
         dhazard_guard.py(0)
+
+
+def test_define_refuses_callable_objects(m):
+    class CallableObject:
+        def __call__(self, value):
+            return value
+
+    with pytest.raises(TypeError, match="define expects a Python function"):
+        m.define(CallableObject())

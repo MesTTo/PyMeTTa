@@ -367,8 +367,8 @@ def serve(
                 status,
             )
 
-        def log_message(self, *args: Any) -> None:
-            pass  # the suite is the log; a server for humans fronts this
+        def log_message(self, format: str, *args: Any) -> None:
+            logger.debug("remote HTTP: " + format, *args)
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     if ssl_context is not None:

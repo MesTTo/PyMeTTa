@@ -11,6 +11,9 @@ EmbeddingStore.matcher() (petta.arrays) is the semantic instance. The
 composition rule is mettabase's semmatch design: matchers compose through
 ordinary MeTTa evaluation and nondeterminism, structural match first or
 last or in between, never through new syntax.
+Guarantees:
+  - regex lexicons choose exactly one source mode, iterable or factory
+    [tested test_regex_lexicon_refuses_ambiguous_source]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,7 +23,8 @@ Open Obligations:
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from .atoms import Atom, Expr, Gnd, Sym, Var, decode, expr
 from .errors import PettaError
@@ -152,9 +156,17 @@ def install_regex(
         return 1.0 if compiled(text_of(query)).search(text_of(candidate)) else 0.0
 
     def generate(query: Any):
-        source = lexicon() if callable(lexicon) else lexicon
-        if source is None:
+        if lexicon is None:
             raise RuntimeError("regex generation requires a lexicon")
+        if isinstance(lexicon, Iterable):
+            if callable(lexicon):
+                raise TypeError(
+                    "a regex lexicon cannot be both callable and iterable; "
+                    "pass either its items or a zero-argument factory"
+                )
+            source = lexicon
+        else:
+            source = lexicon()
         pattern = compiled(text_of(query))
         for candidate in source:
             if pattern.search(text_of(candidate)):

@@ -320,6 +320,12 @@ def class_declarations(cls: type) -> list[Expr]:
     return list(convert.declarations(cls))
 
 
+def _callable_name(fn: Callable) -> str:
+    """A stable label for functions and callable objects."""
+    name = getattr(fn, "__name__", None)
+    return name if isinstance(name, str) and name else type(fn).__name__
+
+
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
     """The function's annotations as real types, never text: under
     `from __future__ import annotations` the raw __annotations__ are
@@ -332,14 +338,14 @@ def resolved_annotations(fn: Callable) -> dict[str, Any]:
         return typing.get_type_hints(fn)
     except Exception as exc:
         raise TypeError(
-            f"the annotations of {fn.__name__} do not resolve "
+            f"the annotations of {_callable_name(fn)} do not resolve "
             f"({exc}); a declared type must name something importable"
         ) from exc
 
 
 def _metta_name(fn: Callable, name: str | None) -> str:
     """The MeTTa spelling: underscores read as hyphens unless overridden."""
-    return name if name is not None else fn.__name__.replace("_", "-")
+    return name if name is not None else _callable_name(fn).replace("_", "-")
 
 
 def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
@@ -360,7 +366,7 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
             continue
         if p.kind is inspect.Parameter.KEYWORD_ONLY:
             raise TypeError(
-                f"cannot register {fn.__name__}: keyword-only parameter "
+                f"cannot register {_callable_name(fn)}: keyword-only parameter "
                 f"{p.name!r} is unreachable from a positional MeTTa call site"
             )
         params.append(p)
@@ -368,7 +374,7 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
         return sorted(set(explicit)), params
     if variadic:
         raise TypeError(
-            f"cannot register {fn.__name__}: *args has no single MeTTa call "
+            f"cannot register {_callable_name(fn)}: *args has no single MeTTa call "
             f"form; pass arities=[...] naming the argument counts to serve"
         )
     required = sum(1 for p in params if p.default is inspect.Parameter.empty)

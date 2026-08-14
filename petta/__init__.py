@@ -122,9 +122,12 @@ def backend_info() -> dict[str, str | None]:
     None until a MeTTa runtime exists.
     """
     janus_bridge = _engine.bridge()
-    swi_version_num = janus_bridge.query_once(
+    version_row = janus_bridge.query_once(
         "current_prolog_flag(version, SwiVersion)"
-    )["SwiVersion"]
+    )
+    if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
+        raise EngineError("janus did not report the running SWI-Prolog version")
+    swi_version_num = version_row["SwiVersion"]
     active = _engine.active_runtime()
     return {
         "petta": __version__,

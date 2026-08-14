@@ -276,3 +276,11 @@ def test_type_name_collision_is_refused_and_build_honors_requested_class():
     with pytest.raises(TypeError, match="belongs to .*not"):
         build(atom, second_cls)
     assert build(atom, first_cls) == first
+
+
+def test_invalid_namedtuple_fields_are_refused():
+    class InvalidTuple(tuple):
+        _fields = object()
+
+    with pytest.raises(TypeError, match="invalid NamedTuple fields"):
+        project(InvalidTuple())

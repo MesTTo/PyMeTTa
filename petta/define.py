@@ -185,7 +185,7 @@ class Compiled(NamedTuple):
 
 
 def compile_function(
-    fn: Callable,
+    fn: types.FunctionType,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
@@ -206,6 +206,10 @@ def compile_function(
     a call to it. `metta_name` is the equation's own name; it defaults to
     the Python name with underscores as hyphens, the operation rule.
     """
+    if not isinstance(fn, types.FunctionType):
+        raise TypeError(
+            f"define expects a Python function, got {type(fn).__name__}"
+        )
     try:
         source = textwrap.dedent(inspect.getsource(fn))
     except (OSError, TypeError) as exc:
@@ -385,7 +389,7 @@ def hazard_twin(
     return _guard_twin(unrunnable, name, params or [], patterns)
 
 
-def twin_dispatcher(fn: Callable) -> TwinDispatcher:
+def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
     """The dispatcher for fn's name in fn's module, created on first use and
     pushed into every twin-globals view of that module."""
     mid, name = id(fn.__globals__), fn.__name__
@@ -398,7 +402,7 @@ def twin_dispatcher(fn: Callable) -> TwinDispatcher:
 
 
 def _python_twin(
-    fn: Callable[..., Any], patterns: dict[str, Atom] | None = None
+    fn: types.FunctionType, patterns: dict[str, Atom] | None = None
 ) -> Callable[..., Any]:
     """One clause's Python twin, head guard included.
 
