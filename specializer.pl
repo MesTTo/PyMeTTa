@@ -4,6 +4,11 @@
 %   - Specializer assertions made while loading a source participate in source
 %     rollback [tested 2026-08-14:
 %     specializer:compound_partial_key_has_stable_anonymous_variables].
+%   - Concurrent translation creates one specialization for a function and
+%     normalized key [tested 2026-08-15:
+%     specializer:concurrent_translation_creates_one_specialization].
+% Guarded by: '$petta_specializer' serializes the existence check and the
+%   transaction that publishes a specialization.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -122,44 +127,57 @@ skip_same_binding(Pairs, _, _, Pairs).
 % key. MetaList already carries the explicit per-clause bindings.
 specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
                 HasDirectBenefit, SpecName, Arity) :-
-    ( ho_specialization(HV, SpecName)
-    ; ( register_fun(SpecName),
-        assertz(ho_specialization(HV, SpecName), SpecializationRef),
-        record_source_assertion(SpecializationRef),
-        register_arity(SpecName, Arity),
-        ( findall(TypeChain,
-                  catch_recover(type_declaration(HV, TypeChain), fail),
-                  TypeChains),
-          forall(member(TypeChain, TypeChains),
-                 add_sexp('&self', [':', SpecName, TypeChain])),
-          ( HasDirectBenefit == true
-            -> nb_setval('$petta_spec_needed', true)
-          ; true ),
-          maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
-                  ( Input = [=,[SpecName|ArgsNorm],BodyExpr],
-                    translate_clause(Input,Clause,false) ),
-                  MetaList, ClauseInfos),
-          nb_getval('$petta_spec_needed', true),
-          forall(member(clause_info(Input, Clause), ClauseInfos),
-                 ( asserta(Clause, Ref),
-                   record_source_assertion(Ref),
-                   assertz(translated_from(Ref, Input), SourceRef),
-                   record_source_assertion(SourceRef),
-                   add_sexp('&self', Input, SpaceRef),
-                   record_source_assertion(SpaceRef),
-                   format(atom(Label), "metta specialization (~w)", [SpecName]),
-                   maybe_print_compiled_clause(Label, Input, Clause) ))
-        -> true
-        ; ( silent(true) -> true
-          ; format("Not specialized ~w~n", [SpecName/Arity]) ),
-          forget_symbol(SpecName),
-          retractall(ho_specialization(HV, SpecName)),
-          ( ho_specialization_failed(HV, Arity, CleanBindSet)
-            -> true
-          ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet), FailedRef),
-            record_source_assertion(FailedRef) ),
-          fail ) ) ), !,
+    %The mutex must be acquired before transaction/1 takes its snapshot. If
+    %the order is reversed, a waiting transaction can still see the database
+    %from before the first worker committed and publish a duplicate.
+    with_mutex('$petta_specializer',
+               transaction(specialize_call_locked(
+                   HV, CleanBindSet, MetaList, HasDirectBenefit,
+                   SpecName, Arity, Outcome))),
+    Outcome == ready, !,
     specialization_goal(SpecName, AVs, Out, Goal).
+
+specialize_call_locked(HV, _, _, _, SpecName, _, ready) :-
+    ho_specialization(HV, SpecName), !.
+specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
+                       SpecName, Arity, Outcome) :-
+    register_fun(SpecName),
+    assertz(ho_specialization(HV, SpecName), SpecializationRef),
+    record_source_assertion(SpecializationRef),
+    register_arity(SpecName, Arity),
+    ( findall(TypeChain,
+              catch_recover(type_declaration(HV, TypeChain), fail),
+              TypeChains),
+      forall(member(TypeChain, TypeChains),
+             add_sexp('&self', [':', SpecName, TypeChain])),
+      ( HasDirectBenefit == true
+        -> nb_setval('$petta_spec_needed', true)
+      ; true ),
+      maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
+              ( Input = [=,[SpecName|ArgsNorm],BodyExpr],
+                translate_clause(Input,Clause,false) ),
+              MetaList, ClauseInfos),
+      nb_getval('$petta_spec_needed', true),
+      forall(member(clause_info(Input, Clause), ClauseInfos),
+             ( asserta(Clause, Ref),
+               record_source_assertion(Ref),
+               assertz(translated_from(Ref, Input), SourceRef),
+               record_source_assertion(SourceRef),
+               add_sexp('&self', Input, SpaceRef),
+               record_source_assertion(SpaceRef),
+               format(atom(Label), "metta specialization (~w)", [SpecName]),
+               maybe_print_compiled_clause(Label, Input, Clause) ))
+    -> Outcome = ready
+    ; ( silent(true) -> true
+      ; format("Not specialized ~w~n", [SpecName/Arity]) ),
+      forget_symbol(SpecName),
+      retractall(ho_specialization(HV, SpecName)),
+      ( ho_specialization_failed(HV, Arity, CleanBindSet)
+        -> true
+      ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet), FailedRef),
+        record_source_assertion(FailedRef) ),
+      Outcome = failed
+    ).
 
 specialization_goal(SpecName, AVs, Out, Goal) :-
     append(AVs, [Out], CallArgs),
