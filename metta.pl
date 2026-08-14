@@ -9,6 +9,9 @@
 %     [tested 2026-08-14: metta_builtin_outputs].
 %   - Function registration performed by a source load participates in that
 %     load's rollback [tested 2026-08-14: filereader_source_rollback].
+%   - Python source imports restore sibling modules and sys.path after setup
+%     or execution errors [tested 2026-08-14:
+%     metta_python_import_cleanup].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -587,42 +590,61 @@ python_sibling_module_names(ParentDir, ModuleNames) :-
 
 save_python_module(Name, module_state(Name, true, Module)) :-
     py_call(sys:modules:'__contains__'(Name), @(true)), !,
-    py_call(sys:modules:get(Name), Module),
-    py_call(sys:modules:pop(Name), _).
+    py_call(sys:modules:pop(Name), Module, [py_object(true)]).
 save_python_module(Name, module_state(Name, false, @(none))).
 
 restore_python_module(module_state(Name, true, Module)) :- !,
     py_call(sys:modules:'__setitem__'(Name, Module), _).
 restore_python_module(module_state(Name, false, _)) :-
-    catch(py_call(sys:modules:pop(Name), _), _, true).
+    clear_python_module(Name).
+
+clear_python_module(Name) :-
+    ( py_call(sys:modules:'__contains__'(Name), @(true))
+      -> py_call(sys:modules:pop(Name), _)
+       ; true ).
+
+with_saved_python_modules([], Goal) :-
+    call(Goal).
+with_saved_python_modules([Name|Names], Goal) :-
+    setup_call_cleanup(
+        save_python_module(Name, State),
+        with_saved_python_modules(Names, Goal),
+        restore_python_module(State)).
 
 load_python_source(CanonPath) :-
     python_module_names(CanonPath, ModuleKey, ModuleName),
     py_call(sys:path:copy(), PreviousPath),
     file_directory_name(CanonPath, ParentDir),
     python_sibling_module_names(ParentDir, SiblingNames),
-    maplist(save_python_module, SiblingNames, ModuleStates),
+    with_saved_python_modules(
+        SiblingNames,
+        load_python_source_in_context(CanonPath, ModuleKey, ModuleName,
+                                      ParentDir, PreviousPath)),
+    retractall(python_import_alias(ModuleName, _)),
+    assertz(python_import_alias(ModuleName, ModuleKey)).
+
+load_python_source_in_context(CanonPath, ModuleKey, ModuleName, ParentDir,
+                              PreviousPath) :-
+    catch(load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
+                             PreviousPath),
+          Error,
+          ( clear_python_module(ModuleKey),
+            throw(Error) )).
+
+load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
+                   PreviousPath) :-
     py_call(importlib:util:spec_from_file_location(ModuleKey, CanonPath), Spec),
     py_call(importlib:util:module_from_spec(Spec), Module),
     py_call(sys:modules:'__setitem__'(ModuleKey, Module), _),
     py_call(sys:modules:'__setitem__'(ModuleName, Module), _),
-    py_call(sys:path:insert(0, ParentDir), _),
-    catch(setup_call_cleanup(
-              true,
-              py_call(Spec:loader:exec_module(Module), _),
-              restore_python_import_context(ModuleStates, PreviousPath)),
-          Error,
-          ( catch(py_call(sys:modules:pop(ModuleKey), _), _, true),
-            throw(Error) )),
-    retractall(python_import_alias(ModuleName, _)),
-    assertz(python_import_alias(ModuleName, ModuleKey)).
+    setup_call_cleanup(
+        py_call(sys:path:insert(0, ParentDir), _),
+        py_call(Spec:loader:exec_module(Module), _),
+        restore_python_path(PreviousPath)).
 
-restore_python_import_context(ModuleStates, PreviousPath) :-
-    catch(( py_call(sys:path:clear(), _),
-            py_call(sys:path:extend(PreviousPath), _) ),
-          _,
-          true),
-    maplist(restore_python_module, ModuleStates).
+restore_python_path(PreviousPath) :-
+    py_call(sys:path:clear(), _),
+    py_call(sys:path:extend(PreviousPath), _).
 
 'import!'(Space, File, true) :- importer_helper(Space, File).
 importer_helper(Space, File) :-
