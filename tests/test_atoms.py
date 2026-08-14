@@ -14,7 +14,20 @@ from fractions import Fraction
 
 import pytest
 
-from petta import S, V, Expr, Gnd, Sym, Var, alpha_eq, encode, expr, unify, val, variables
+from petta import (
+    Expr,
+    Gnd,
+    S,
+    Sym,
+    V,
+    alpha_eq,
+    encode,
+    expr,
+    map_atoms,
+    unify,
+    val,
+    variables,
+)
 from petta.atoms import Box, from_wire, is_ground
 
 
@@ -23,6 +36,32 @@ def test_symbols_are_not_strings():
     assert S.foo != "foo"
     assert Gnd("foo") == "foo"
     assert S.foo != Gnd("foo")
+
+
+def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():
+    atom = S.outer(S.inner(S.before), S.keep)
+    assert map_atoms(atom, lambda node: node) is atom
+
+    mapped = map_atoms(
+        atom,
+        lambda node: S.after if node is S.before else node,
+    )
+    assert mapped == S.outer(S.inner(S.after), S.keep)
+
+
+def test_map_atoms_handles_depth_as_data_and_validates_transform_results():
+    atom = S.leaf
+    for _ in range(2_000):
+        atom = Expr([atom])
+
+    mapped = map_atoms(atom, lambda node: S.tip if node is S.leaf else node)
+    for _ in range(2_000):
+        assert isinstance(mapped, Expr)
+        mapped = mapped[0]
+    assert mapped is S.tip
+
+    with pytest.raises(TypeError, match="transform must return an Atom"):
+        map_atoms(S.leaf, lambda _node: None)
 
 
 def test_grounded_primitives_compare_as_their_value():

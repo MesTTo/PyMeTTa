@@ -17,7 +17,7 @@ import html
 from dataclasses import dataclass, field
 from typing import TypeGuard
 
-from .atoms import Atom, Expr, Gnd, Sym, Var
+from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms
 
 __all__ = ["Builtin", "Derivation", "Fact", "Step", "Truncated"]
 
@@ -154,7 +154,7 @@ def _pretty(atom: Atom) -> Atom:
     names = "abcdefghijklmnopqrstuvwxyz"
     mapping: dict[str, str] = {}
 
-    def walk(a: Atom) -> Atom:
+    def rename(a: Atom) -> Atom:
         if isinstance(a, Var):
             # Only machine names are renamed; a name the author wrote stays.
             if not a.name.startswith("_"):
@@ -164,11 +164,9 @@ def _pretty(atom: Atom) -> Atom:
                 fresh = names[index] if index < len(names) else f"v{index}"
                 mapping[a.name] = fresh
             return Var(mapping[a.name])
-        if isinstance(a, Expr):
-            return Expr([walk(c) for c in a.children])
         return a
 
-    return walk(atom)
+    return map_atoms(atom, rename)
 
 
 def _headed(e: Atom, name: str) -> TypeGuard[Expr]:

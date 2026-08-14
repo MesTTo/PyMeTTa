@@ -16,10 +16,10 @@ Open Obligations:
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping
 
-from .atoms import Atom, from_wire, unify
+from .atoms import Atom, Var, from_wire, map_atoms, unify
 
 __all__ = ["Subscription", "Event", "subscribe", "bridge"]
 
@@ -162,13 +162,12 @@ def atom_removed(space: str, wire: list) -> bool:
 
 
 def _instantiate(template: Atom, bindings: Mapping[str, Atom]) -> Atom:
-    from .atoms import Expr, Var
-
-    if isinstance(template, Var):
-        return bindings.get(template.name, template)
-    if isinstance(template, Expr):
-        return Expr([_instantiate(c, bindings) for c in template.children])
-    return template
+    return map_atoms(
+        template,
+        lambda atom: bindings.get(atom.name, atom)
+        if isinstance(atom, Var)
+        else atom,
+    )
 
 
 def bridge(source, pattern, target, template=None, on: str = "add") -> Subscription:

@@ -37,7 +37,7 @@ from http.client import HTTPException
 from typing import Any
 
 from ._network import HTTPEndpoint
-from .atoms import Atom, Expr, Gnd, Sym, Var, parse
+from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms, parse
 from .errors import PettaError
 from .foreign import SpaceProvider
 
@@ -424,8 +424,9 @@ class DASSpace(SpaceProvider):
 
 
 def _substitute(pattern: Atom, bindings: dict[str, Atom]) -> Atom:
-    if isinstance(pattern, Var):
-        return bindings.get(pattern.name, pattern)
-    if isinstance(pattern, Expr):
-        return Expr([_substitute(item, bindings) for item in pattern])
-    return pattern
+    return map_atoms(
+        pattern,
+        lambda atom: bindings.get(atom.name, atom)
+        if isinstance(atom, Var)
+        else atom,
+    )

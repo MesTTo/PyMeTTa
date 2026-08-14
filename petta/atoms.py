@@ -21,6 +21,8 @@ Guarantees:
   - Expr implements the Sequence methods promised by its virtual registration
     and equality short-circuits identical nodes [tested
     test_expr_sequence_index_and_count, test_expr_identity_equality]
+  - map_atoms transforms trees iteratively and validates every replacement
+    [tested test_map_atoms_handles_depth_as_data_and_validates_transform_results]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,9 +36,9 @@ import math
 import numbers as _numbers
 import re
 import weakref
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from functools import singledispatch
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 __all__ = [
     "Atom",
@@ -59,6 +61,7 @@ __all__ = [
     "unify",
     "variables",
     "is_ground",
+    "map_atoms",
     "register_object_repr",
     "register_object_repr_protocol",
 ]
@@ -1251,6 +1254,51 @@ def variables(atom: Atom) -> list[str]:
 def is_ground(atom: Atom) -> bool:
     """True when the atom carries no variables."""
     return not variables(atom)
+
+
+def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
+    """Transform every node in an atom tree, children before parents.
+
+    The walk is iterative, so nesting depth remains data rather than a Python
+    recursion limit. A no-op transform preserves each unchanged Expr object.
+    Nodes returned by transform are final for this pass and are not walked
+    again.
+    """
+    if not isinstance(atom, Atom):
+        raise TypeError(f"map_atoms expects an Atom, got {type(atom).__name__}")
+
+    stack: list[tuple[Atom, bool]] = [(atom, False)]
+    results: list[Atom] = []
+    while stack:
+        node, expanded = stack.pop()
+        if isinstance(node, Expr) and not expanded:
+            stack.append((node, True))
+            stack.extend((child, False) for child in reversed(node.children))
+            continue
+
+        candidate = node
+        if isinstance(node, Expr):
+            width = len(node.children)
+            mapped_children = tuple(results[-width:]) if width else ()
+            if width:
+                del results[-width:]
+            if any(
+                mapped is not original
+                for mapped, original in zip(
+                    mapped_children, node.children, strict=True
+                )
+            ):
+                candidate = Expr(mapped_children)
+
+        mapped = transform(candidate)
+        if not isinstance(mapped, Atom):
+            raise TypeError(
+                "map_atoms transform must return an Atom, got "
+                f"{type(mapped).__name__}"
+            )
+        results.append(mapped)
+
+    return results[0]
 
 
 # ----------------------------------------------------------------- equivalence

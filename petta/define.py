@@ -23,7 +23,7 @@ import types
 from collections.abc import Callable
 from typing import Any, NamedTuple, cast
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, encode
+from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
 __all__ = ["Defined", "compile_function"]
@@ -105,17 +105,15 @@ def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...
     """
     mapping: dict[str, str] = {}
 
-    def walk(atom: Atom) -> Atom:
+    def rename(atom: Atom) -> Atom:
         if isinstance(atom, Sym) and atom.name.startswith(f"{name}--"):
             if atom.name not in mapping:
                 stem = atom.name.rsplit("-", 1)[0]
                 mapping[atom.name] = f"{stem}-{len(mapping) + 1}"
             return Sym(mapping[atom.name])
-        if isinstance(atom, Expr):
-            return Expr([walk(c) for c in atom])
         return atom
 
-    return tuple(cast(Expr, walk(equation)) for equation in equations)
+    return tuple(cast(Expr, map_atoms(equation, rename)) for equation in equations)
 
 
 class Defined:
