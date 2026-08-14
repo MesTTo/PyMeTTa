@@ -1,8 +1,11 @@
-"""Purpose: verify the remote transport's boundary and authorization policy.
+"""Purpose: verify the remote transport's boundary, authorization, and lifecycle.
 Guarantees:
   - petta installs a NullHandler and reports transport lifecycle events only
     through configured logging [tested test_library_logging_is_opt_in,
     test_remote_transport_logs_operation_without_payload]
+  - server startup and shutdown expose attached-engine lifecycle failures
+    [tested test_remote_serve_reports_worker_startup_failure,
+    test_remote_close_waits_for_worker_detach]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,9 +13,11 @@ Open Obligations:
 """
 
 import logging
+import threading
 
 import pytest
 
+import petta
 import petta._network as network
 from petta import remote
 from petta.errors import PettaError
@@ -118,6 +123,54 @@ def test_remote_connect_refuses_embedded_credentials_without_echoing_them():
     with pytest.raises(PettaError, match="embedded credentials") as failure:
         remote.connect("https://operator:top-secret@example.test")
     assert "top-secret" not in str(failure.value)
+
+
+def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):
+    def fail_attach():
+        raise RuntimeError("injected remote attach failure")
+
+    monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
+
+    with pytest.raises(PettaError, match="injected remote attach failure"):
+        remote.serve(metta)
+
+
+def test_remote_close_waits_for_worker_detach(metta, monkeypatch):
+    original = petta.janus.detach_engine
+    detach_started = threading.Event()
+    release_detach = threading.Event()
+    detached = threading.Event()
+
+    def delayed_detach():
+        detach_started.set()
+        release_detach.wait(2.0)
+        original()
+        detached.set()
+
+    monkeypatch.setattr(petta.janus, "detach_engine", delayed_detach)
+    server = remote.serve(metta)
+    failures = []
+
+    def close():
+        try:
+            server.close(timeout=2.0)
+        except BaseException as exc:
+            failures.append(exc)
+
+    closer = threading.Thread(target=close)
+    closer.start()
+    try:
+        assert detach_started.wait(2.0)
+        assert closer.is_alive()
+    finally:
+        release_detach.set()
+        closer.join(2.0)
+
+    assert not failures
+    assert detached.is_set()
+    assert not closer.is_alive()
+    assert not server._worker.thread.is_alive()
+    server.close()
 
 
 @pytest.mark.parametrize("read_fails", [False, True])
