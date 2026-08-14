@@ -28,7 +28,7 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
     call.assert_called_once_with(
         [
             "swipl",
-            "--stack_limit=8g",
+            f"--stack_limit={cli.config.stack_limit}",
             "-q",
             "-s",
             str(main_file),

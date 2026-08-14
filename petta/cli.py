@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 from . import _resolve_petta_path
+from ._config import config
 
 
 def main(argv=None):
@@ -21,7 +22,7 @@ def main(argv=None):
     main_file = os.path.join(runtime_root, "src", "main.pl")
     command = [
         "swipl",
-        "--stack_limit=8g",
+        f"--stack_limit={config.stack_limit}",
         "-q",
         "-s",
         main_file,

@@ -148,7 +148,8 @@ class Runtime:
             if not pkg.CONSULTED:
                 if petta_path is None:
                     petta_path = pkg._resolve_petta_path()
-                self._consult_engine(pkg, petta_path)
+                with pkg.config._startup() as startup:
+                    self._consult_engine(pkg, petta_path, startup[0])
                 pkg.CONSULTED = True
             self.petta_path = petta_path
             self._janus = pkg.janus
@@ -168,30 +169,26 @@ class Runtime:
             self._consult_shim(pkg, petta_path)
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
-            # queued past 1.5s. With Prolog calling Python every 100,000
-            # inferences the same signal raises KeyboardInterrupt within
+            # queued past 1.5s. At the default 100,000-inference interval,
+            # the same signal raises KeyboardInterrupt within
             # ~10ms of engine time (this engine spins ~13M inferences/s),
             # and an interleaved A/B on a pure 3M-step loop measured parity
-            # with no heartbeat at all; 10,000 cost ~2% on that loop
+            # with no heartbeat at all; 10,000 cost ~2% on that loop.
+            # config.heartbeat_interval exposes that latency/cost tradeoff
             # (probes in ai-tmp/janus-probes/11_interrupt_heartbeat).
-            self._janus.heartbeat(100_000)
+            self._janus.heartbeat(pkg.config.heartbeat_interval)
 
     # ------------------------------------------------------------------ startup
 
-    def _consult_engine(self, pkg: Any, petta_path: str) -> None:
+    def _consult_engine(self, pkg: Any, petta_path: str, stack_limit: int) -> None:
         """Mirror of the legacy startup: stack limit, optional MORK, main.pl."""
         logger.debug("consulting the PeTTa engine from %s", petta_path)
         morklib = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
         janus = importlib.import_module("janus_swi")
-        janus.query_once(f"set_prolog_flag(stack_limit, {pkg.DEFAULT_STACK_LIMIT})")
+        janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         if os.path.exists(morklib):
             logger.debug("enabling the MORK backend")
-            orig = os.getcwd()
-            os.chdir(petta_path)
-            try:
-                janus.query_once("set_prolog_flag(argv, ['mork'])")
-            finally:
-                os.chdir(orig)
+            janus.query_once("set_prolog_flag(argv, ['mork'])")
         main_file = os.path.join(petta_path, "src", "main.pl")
         helper_file = os.path.join(petta_path, "python", "helper.pl")
         if not os.path.exists(main_file):

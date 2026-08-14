@@ -21,13 +21,14 @@ import os
 import sys
 import threading
 
+from ._config import Config, config
+
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 CONSULTED = False
 CONSULT_LOCK = threading.Lock()
 janus = None
-DEFAULT_STACK_LIMIT = 8_000_000_000
 
 # Whether shim.pl has been consulted; owned by petta._engine.
 _SHIM_LOADED = False
@@ -67,27 +68,25 @@ class PeTTa:
                     if petta_path is None:
                         petta_path = _resolve_petta_path()
                     morklib_file = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
-                    if os.path.exists(morklib_file):
-                        orig_dir = os.getcwd()
-                        os.chdir(petta_path)
+                    with config._startup() as startup:
+                        stack_limit, _heartbeat_interval = startup
                         janus = importlib.import_module("janus_swi")
-                        janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
-                        os.chdir(orig_dir)
-                        janus.query_once("set_prolog_flag(argv, ['mork'])")
-                    else:
-                        janus = importlib.import_module("janus_swi")
-                        janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
-                    main_file = os.path.join(petta_path, "src", "main.pl")
-                    helper_file = os.path.join(petta_path, "python", "helper.pl")
-                    if not os.path.exists(main_file):
-                        raise FileNotFoundError(
-                            f"PeTTa runtime not found under {petta_path!r} "
-                            f"(expected {main_file!r}). Set the PETTA_PATH "
-                            "environment variable or pass petta_path to point at "
-                            "a PeTTa checkout."
+                        janus.query_once(
+                            f"set_prolog_flag(stack_limit, {stack_limit})"
                         )
-                    janus.consult(main_file)
-                    janus.consult(helper_file)
+                        if os.path.exists(morklib_file):
+                            janus.query_once("set_prolog_flag(argv, ['mork'])")
+                        main_file = os.path.join(petta_path, "src", "main.pl")
+                        helper_file = os.path.join(petta_path, "python", "helper.pl")
+                        if not os.path.exists(main_file):
+                            raise FileNotFoundError(
+                                f"PeTTa runtime not found under {petta_path!r} "
+                                f"(expected {main_file!r}). Set the PETTA_PATH "
+                                "environment variable or pass petta_path to point at "
+                                "a PeTTa checkout."
+                            )
+                        janus.consult(main_file)
+                        janus.consult(helper_file)
                     CONSULTED = True
 
     def _run_helper(self, helper_name, argument):
@@ -198,6 +197,8 @@ def backend_info() -> dict[str, str | None]:
 __all__ = [
     # the legacy surface
     "PeTTa",
+    "Config",
+    "config",
     # atoms
     "Atom",
     "Sym",

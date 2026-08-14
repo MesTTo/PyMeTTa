@@ -27,9 +27,10 @@ from functools import lru_cache
 import reprlib
 from typing import Any, overload
 
+from ._config import config
+
 __all__ = ["Row", "Rows"]
 
-_DISPLAY_ROWS = 100
 _VALUE_REPR = reprlib.Repr()
 _VALUE_REPR.maxlevel = 4
 _VALUE_REPR.maxstring = 80
@@ -273,11 +274,11 @@ class Rows(UserList[Row]):
 
     def _repr_html_(self) -> str:
         """Notebook display: the columns as a header, one row per answer,
-        every cell escaped. Past 100 rows the tail is an explicit count,
-        never a silent cut."""
+        every cell escaped. Past config.display_rows the tail is an explicit
+        count, never a silent cut."""
         import html
 
-        shown = _DISPLAY_ROWS
+        shown = config.display_rows
         head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
         body = "".join(
             "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>"
@@ -297,9 +298,10 @@ class Rows(UserList[Row]):
     @reprlib.recursive_repr()
     def __repr__(self) -> str:
         header = ", ".join(self.columns)
-        body = ", ".join(repr(row) for row in self.data[:_DISPLAY_ROWS])
-        if len(self) > _DISPLAY_ROWS:
-            body += f", ... {len(self) - _DISPLAY_ROWS} more rows"
+        shown = config.display_rows
+        body = ", ".join(repr(row) for row in self.data[:shown])
+        if len(self) > shown:
+            body += f", ... {len(self) - shown} more rows"
         return f"Rows[{header}]([{body}])"
 
     def __iter__(self) -> Iterator[Row]:

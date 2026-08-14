@@ -15,8 +15,9 @@ import inspect
 from collections.abc import Iterable
 from typing import Any, Callable
 
-from .atoms import Atom, Expr, S, Sym, Var, expr
+from ._config import config
 from ._ops import REGISTRY, Operation
+from .atoms import Atom, Expr, S, Sym, Var, expr
 
 __all__ = [
     "register",
@@ -214,13 +215,6 @@ def _class_type_name(cls: type) -> str:
     return registration.type_name if registration is not None else cls.__name__
 
 
-#: The most superposed declarations one signature may expand to. The cross
-#: product of Union alternatives is the checker's own reading, but past
-#: this bound the expansion is a signature bug, not a type: six three-way
-#: Unions measured seconds of expansion for thousands of arrows.
-DECLARATION_LIMIT = 512
-
-
 def _add_unique(items: list, seen: set, atom: Atom) -> None:
     key = str(atom)
     if key not in seen:
@@ -229,14 +223,16 @@ def _add_unique(items: list, seen: set, atom: Atom) -> None:
 
 
 def _bounded_product(alternative_lists: list[list[Atom]], described: str):
+    """Expand Union alternatives up to the configured declaration limit."""
     import itertools
 
+    limit = config.declaration_limit
     total = 1
     for alternatives in alternative_lists:
         total *= max(1, len(alternatives))
-        if total > DECLARATION_LIMIT:
+        if total > limit:
             raise TypeError(
-                f"{described} expands to over {DECLARATION_LIMIT} superposed "
+                f"{described} expands to over {limit} superposed "
                 f"combinations; simplify the Unions, or register with "
                 f"typed=False and declare by hand"
             )
@@ -247,7 +243,7 @@ def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> 
     """Every (: name (-> ...)) atom a signature declares: the cross product
     of each argument's alternatives with the return's, one declaration per
     combination, superposing for the checker exactly as a Union reads,
-    refused past DECLARATION_LIMIT. NoneType leaves the return
+    refused past config.declaration_limit. NoneType leaves the return
     alternatives, because returning None answers nothing rather than a
     value; a return that was only None declares %Undefined%."""
     arg_lists = [type_atoms_for(a) for a in arg_annotations]
