@@ -16,7 +16,7 @@ import pickle
 
 import pytest
 
-from petta import Expr, S, V
+from petta import Expr, S
 from petta.lint import Finding
 
 

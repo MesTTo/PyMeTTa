@@ -47,25 +47,23 @@ from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
 from ._space_diagnostics import derivations, explain_no_match
 from ._space_execution import evaluate, profile_source, run_source, value_one
-from ._space_persistence import (
-    load_space,
-    raise_unsafe_text_symbol,
-    save_space,
-)
-from ._space_query import query_rows
 from ._space_objects import (
     Cursor,
     EngineProfile,
     Prepared,
     _Assuming,
     _EngineFunction,
-    _limits,
     _StatsBlock,
 )
+from ._space_persistence import (
+    load_space,
+    raise_unsafe_text_symbol,
+    save_space,
+)
+from ._space_query import query_rows
 from .atoms import (
     Atom,
     Expr,
-    Sym,
     Undefined,
     _to_atom,
     atom_from_wire,

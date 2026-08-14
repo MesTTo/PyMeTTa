@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import pytest
+
 import petta
 
 README = Path(__file__).resolve().parents[2] / "README.md"

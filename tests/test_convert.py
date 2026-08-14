@@ -17,7 +17,7 @@ from typing import NamedTuple
 
 import pytest
 
-from petta import S, V, Gnd, Sym, expr, val
+from petta import Gnd, S, Sym, V, expr, val
 from petta.convert import build, declarations, project, register_type
 
 
@@ -184,12 +184,11 @@ def test_pydantic_alias_fields_rebuild(metta):
 
 def test_parameterized_field_annotations_rebuild_nested_enums():
     from dataclasses import dataclass
-    from typing import Optional
 
     @dataclass
     class Palette:
         colours: list[Color]
-        favourite: Optional[Color]
+        favourite: Color | None
 
     projected = project(Palette([Color.red, Color.blue], Color.red))
     rebuilt = build(projected.atom, Palette)

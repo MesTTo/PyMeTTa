@@ -26,10 +26,10 @@ import math
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, decode, expr
+from .atoms import Gnd, Sym, Var, decode, expr
 from .errors import PettaError
 
-__all__ = ["matcher", "install_fuzzy", "install_regex", "text_of"]
+__all__ = ["install_fuzzy", "install_regex", "matcher", "text_of"]
 
 
 def text_of(value: Any) -> str:

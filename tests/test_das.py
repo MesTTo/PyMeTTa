@@ -11,7 +11,6 @@ Open Obligations:
   Future Enhancements: None
 """
 
-import json
 import logging
 import os
 
@@ -19,7 +18,7 @@ import pytest
 
 from petta import EngineError, PettaError, S, V, expr
 from petta.atoms import Gnd, parse
-from petta.das import DAS, DASAnswer, DASError, DASSpace
+from petta.das import DAS, DASError, DASSpace
 
 
 class ScriptedDAS(DAS):

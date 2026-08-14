@@ -21,10 +21,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
-import reprlib
 from typing import Any, SupportsIndex, overload
 
 from ._config import config

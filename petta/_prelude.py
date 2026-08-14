@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from .atoms import Expr, Gnd, Sym, Var
+from .atoms import Expr, Gnd, Sym
 
-__all__ = ["install", "NAMES", "pythonic"]
+__all__ = ["NAMES", "install", "pythonic"]
 
 NAMES = (
     "py-truthy",

@@ -70,7 +70,7 @@ def _set_future_result(future: asyncio.Future[None]) -> None:
 
 
 class _Request:
-    __slots__ = ("fn", "target", "loop", "future", "abandoned")
+    __slots__ = ("abandoned", "fn", "future", "loop", "target")
 
     def __init__(self, fn, target, loop, future) -> None:
         self.fn = fn
@@ -94,7 +94,7 @@ class _EngineThread:
     """
 
     def __init__(self) -> None:
-        self.work: "queue.Queue[_Request | None]" = queue.Queue()
+        self.work: queue.Queue[_Request | None] = queue.Queue()
         self.thread: threading.Thread | None = None
         self._transition = threading.Lock()
         self._state_lock = threading.Lock()
@@ -202,7 +202,7 @@ class _EngineThread:
             finally:
                 try:
                     janus.detach_engine()
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     # Any detachment failure makes the worker unusable.
                     with self._state_lock:
                         self._swi_thread = None
@@ -435,7 +435,7 @@ class AsyncMeTTa:
         self._owner = True
 
     @classmethod
-    def _sharing(cls, metta: MeTTa, worker: _EngineThread) -> "AsyncMeTTa":
+    def _sharing(cls, metta: MeTTa, worker: _EngineThread) -> AsyncMeTTa:
         shared = cls.__new__(cls)
         shared._m = metta
         shared._worker = worker
@@ -452,7 +452,7 @@ class AsyncMeTTa:
         """The wrapped synchronous space, for engine-thread work via call()."""
         return self._m
 
-    async def start(self) -> "AsyncMeTTa":
+    async def start(self) -> AsyncMeTTa:
         """Start the engine thread; connect() and `async with` call this."""
         if self._closed:
             raise PettaError("this AsyncMeTTa is closed")
@@ -660,7 +660,7 @@ class AsyncMeTTa:
     async def why(self, pattern: Any) -> str:
         return await self.call(lambda m: m.why(pattern))
 
-    async def space(self, name: str) -> "AsyncMeTTa":
+    async def space(self, name: str) -> AsyncMeTTa:
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
         a no-op and closing the owner ends them all."""
@@ -691,7 +691,7 @@ class AsyncMeTTa:
         if self._owner:
             self._worker.stop(timeout)
 
-    async def __aenter__(self) -> "AsyncMeTTa":
+    async def __aenter__(self) -> AsyncMeTTa:
         return await self.start()
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

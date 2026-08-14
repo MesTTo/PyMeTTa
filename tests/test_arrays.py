@@ -16,8 +16,14 @@ import pytest
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
 
-from petta import S, V, decode, expr, val  # noqa: E402
-from petta import arrays  # noqa: E402
+from petta import (  # noqa: E402
+    S,
+    V,
+    arrays,
+    decode,
+    expr,
+    val,
+)
 
 
 @pytest.fixture(scope="module")

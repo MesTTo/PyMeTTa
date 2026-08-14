@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 from .atoms import Atom, Expr, Var, _to_atom, atom_from_wire, map_atoms, unify
 
-__all__ = ["Subscription", "Event", "subscribe", "bridge"]
+__all__ = ["Event", "Subscription", "bridge", "subscribe"]
 
 
 @dataclass(frozen=True)

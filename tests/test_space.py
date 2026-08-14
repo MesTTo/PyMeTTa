@@ -9,7 +9,7 @@ Open Obligations:
 import pytest
 
 from petta import EngineError, MettaSyntaxError, S, V, decode, expr, parse, val
-from petta.atoms import Gnd, Sym
+from petta.atoms import Gnd
 
 
 @pytest.fixture()
@@ -207,6 +207,7 @@ def test_bare_atoms_are_refused_loudly(m):
     """A stored atom is a non-empty expression; anything else must error,
     never vanish: the silent write was a real bug this pins."""
     import pytest
+
     from petta import S
 
     with pytest.raises(TypeError):
@@ -287,6 +288,7 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 
 def test_runtime_refuses_a_second_tree(metta):
     import pytest
+
     from petta import MeTTa
 
     with pytest.raises(ValueError):

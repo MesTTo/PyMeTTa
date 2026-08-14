@@ -17,7 +17,8 @@ import pytest
 from petta import CompileError, S, expr
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings, strategies as st  # noqa: E402
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st
 
 
 @pytest.fixture()
@@ -214,15 +215,18 @@ def test_constructor_convention_capitalized_names(m):
 )
 def test_refusals_name_construct_and_line(m, source, needle):
     namespace = {}
-    exec(source, namespace)  # noqa: S102  building the test subject
+    exec(source, namespace)
     fn = namespace["f"]
     fn.__source_override = source
-    import petta.define as define_module
 
     with pytest.raises(CompileError) as excinfo:
         # inspect.getsource cannot see exec'd code; compile the AST path the
         # decorator uses by round-tripping through a real file.
-        import textwrap, tempfile, importlib.util, pathlib, sys  # noqa: E401
+        import importlib.util
+        import pathlib
+        import sys
+        import tempfile
+        import textwrap
 
         with tempfile.TemporaryDirectory() as d:
             p = pathlib.Path(d) / "snippet.py"
@@ -390,7 +394,7 @@ def test_loop_variable_read_after_for_is_refused(m):
         def dleak(xs):
             for x in xs:
                 pass
-            return x  # noqa: F821
+            return x
 
     assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(
         excinfo.value
@@ -504,7 +508,7 @@ def test_host_bindings_refuse_the_constructor_reading(m):
 
         @m.define
         def dthreshold(x):
-            return x + Threshold  # noqa: F821
+            return x + Threshold
 
     assert "module binding" in str(caught.value)
 
@@ -553,7 +557,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert m.value(daux_replace(3)) == 3
 
     @m.define
-    def daux_replace(n):  # noqa: F811
+    def daux_replace(n):
         total = 0
         while n > 0:
             total += 2
@@ -564,7 +568,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert daux_replace.py(3) == 6
 
     @m.define
-    def daux_replace(n):  # noqa: F811
+    def daux_replace(n):
         total = 0
         while n > 0:
             total += 2
@@ -587,7 +591,7 @@ def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):
     with pytest.raises(CompileError, match="earlier clause already answers"):
 
         @m.define
-        def dsubsumed(x=1, y=0):  # noqa: F811
+        def dsubsumed(x=1, y=0):
             return 20
 
     assert m.run("!(collapse (dsubsumed 1 0))") == [[expr(10)]]

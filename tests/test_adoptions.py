@@ -84,7 +84,8 @@ def test_comparison_terms_refuse_truthiness():
 
 
 def test_typevar_annotations_declare_parametrically(m):
-    from typing import Sequence, TypeVar
+    from collections.abc import Sequence
+    from typing import TypeVar
 
     A = TypeVar("A")
 
@@ -102,10 +103,9 @@ def test_typevar_annotations_declare_parametrically(m):
 
 
 def test_union_annotations_superpose_declarations(m):
-    from typing import Union
 
     @m.register_op(name="describe")
-    def describe(x: Union[int, str]) -> str:
+    def describe(x: int | str) -> str:
         return f"<{x}>"
 
     assert _arrows_of(m, "describe") == {
@@ -119,10 +119,9 @@ def test_union_annotations_superpose_declarations(m):
 
 
 def test_optional_return_declares_the_value_type(m):
-    from typing import Optional
 
     @m.register_op(name="lookup-age")
-    def lookup_age(name: str) -> Optional[int]:
+    def lookup_age(name: str) -> int | None:
         return {"ada": 36}.get(name)
 
     # Returning None answers nothing, so the declared return is Number.
@@ -132,7 +131,7 @@ def test_optional_return_declares_the_value_type(m):
 
 
 def test_callable_and_tuple_annotations_declare_structurally(m):
-    from typing import Callable
+    from collections.abc import Callable
 
     @m.register_op(name="fixed-point-of")
     def fixed_point_of(f: Callable[[int], int]) -> int:
@@ -264,7 +263,7 @@ def test_weighted_relation_takes_any_callable(m):
 
 
 def test_the_library_reflects_into_its_own_space(m):
-    from petta import MeTTa, REFLECTION_SPACE
+    from petta import REFLECTION_SPACE, MeTTa
 
     reflection = MeTTa(REFLECTION_SPACE)
 
@@ -291,7 +290,7 @@ def test_the_library_reflects_into_its_own_space(m):
 
 
 def test_reflection_facts_follow_a_dropped_space(metta):
-    from petta import MeTTa, REFLECTION_SPACE
+    from petta import REFLECTION_SPACE, MeTTa
 
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()
@@ -309,7 +308,7 @@ def test_reflection_facts_follow_a_dropped_space(metta):
 def test_metta_programs_steer_through_the_reflection_space(m):
     """Deeper control without forking: a Python subscription on &petta
     reacts to control atoms a MeTTa program writes there."""
-    from petta import MeTTa, REFLECTION_SPACE
+    from petta import REFLECTION_SPACE, MeTTa
 
     reflection = MeTTa(REFLECTION_SPACE)
     seen = []
@@ -327,7 +326,7 @@ def test_metta_programs_steer_through_the_reflection_space(m):
 
 
 def test_drop_cancels_the_spaces_subscriptions(metta):
-    from petta import MeTTa, REFLECTION_SPACE
+    from petta import REFLECTION_SPACE, MeTTa
 
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()

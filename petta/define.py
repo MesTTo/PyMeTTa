@@ -27,8 +27,6 @@ from ._define_loops import LoopCompilerMixin
 from ._define_statements import StatementCompilerMixin, _is_generator, _superpose
 from ._define_twins import (
     _python_twin,
-    hazard_twin,
-    twin_dispatcher,
 )
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
@@ -73,16 +71,16 @@ class Defined:
     """
 
     __slots__ = (
+        "__name__",
+        "__wrapped__",
+        "_py",
+        "body",
+        "doc",
         "name",
         "params",
         "patterns",
-        "body",
-        "_py",
-        "space",
-        "doc",
         "runtime_ops",
-        "__name__",
-        "__wrapped__",
+        "space",
     )
 
     def __init__(
@@ -289,7 +287,7 @@ class _Compiler(
         nondet: Callable[[str], bool] | None = None,
         aux: list | None = None,
         lifted: dict | None = None,
-        closer: Callable[["_Compiler"], Atom] | None = None,
+        closer: Callable[[_Compiler], Atom] | None = None,
         pyname: str | None = None,
         host: Callable[[str], bool] | None = None,
         runtime_ops: set[str] | None = None,
@@ -342,7 +340,7 @@ class _Compiler(
             return lifted[2]
         return self._given_nondet(called)
 
-    def _fork(self) -> "_Compiler":
+    def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
         forked = _Compiler(
             self.name,
@@ -361,7 +359,7 @@ class _Compiler(
         forked.closer_names = list(self.closer_names)
         return forked
 
-    def _inner(self, extra: list[str]) -> "_Compiler":
+    def _inner(self, extra: list[str]) -> _Compiler:
         """A compiler for a nested binder (lambda, comprehension): the outer
         scope plus the binder's own parameters, shadowing by name."""
         scope = dict(self.scope)
@@ -383,7 +381,7 @@ class _Compiler(
         inner.closer_names = list(self.closer_names)
         return inner
 
-    def _equation_compiler(self, params: list[str], closer=None) -> "_Compiler":
+    def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
         fresh variable namespace, shared aux and lifted registries."""
         return _Compiler(

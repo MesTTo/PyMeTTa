@@ -24,19 +24,20 @@ from __future__ import annotations
 
 import itertools
 import operator
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
-from .atoms import Atom, Expr, Gnd, S, Sym, Var, decode, expr, val
-from .errors import PettaError
 from . import integrate as _integrate
+from .atoms import Atom, Expr, Gnd, S, Var, decode, expr, val
+from .errors import PettaError
 
 __all__ = [
+    "ARRAY_OPS",
+    "EmbeddingStore",
+    "data_of",
     "install",
     "is_array",
     "namespace_of",
-    "EmbeddingStore",
-    "ARRAY_OPS",
-    "data_of",
 ]
 
 ARRAY_OPS: list[str] = []

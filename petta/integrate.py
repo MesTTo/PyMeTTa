@@ -17,30 +17,31 @@ from __future__ import annotations
 
 import importlib
 import inspect
+from collections.abc import Callable, Iterable
 from importlib import metadata
-from typing import Any, Callable, Iterable, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from . import convert
 from ._ops import PROTOCOL_TYPES
 from .atoms import Atom, Expr, S, Sym, encode, register_object_repr_protocol, val
 from .errors import PettaError
-from .foreign import SpaceProvider, register_provider, unregister_provider
+from .foreign import SpaceProvider
 
 __all__ = [
     "Integration",
-    "integrate",
-    "installed",
+    "SpaceProvider",
     "discover",
-    "module_ops",
-    "wrap_callable",
-    "wrap_object",
-    "register_type",
-    "register_object_type",
-    "register_reflector",
-    "reflect",
     "facts",
     "install_reflection_ops",
-    "SpaceProvider",
+    "installed",
+    "integrate",
+    "module_ops",
+    "reflect",
+    "register_object_type",
+    "register_reflector",
+    "register_type",
+    "wrap_callable",
+    "wrap_object",
 ]
 
 ENTRY_POINT_GROUP = "petta.integrations"

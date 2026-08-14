@@ -11,8 +11,9 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from .atoms import Atom, Box, Gnd, atom_from_wire, decode, encode
 from .errors import Decline

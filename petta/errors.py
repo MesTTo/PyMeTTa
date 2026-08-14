@@ -9,16 +9,16 @@ Open Obligations:
 from __future__ import annotations
 
 __all__ = [
-    "PettaError",
-    "MettaSyntaxError",
-    "EngineError",
-    "ResourceLimitError",
-    "TimeLimitError",
-    "InferenceLimitError",
-    "Interrupted",
+    "DECLINE",
     "CompileError",
     "Decline",
-    "DECLINE",
+    "EngineError",
+    "InferenceLimitError",
+    "Interrupted",
+    "MettaSyntaxError",
+    "PettaError",
+    "ResourceLimitError",
+    "TimeLimitError",
 ]
 
 

@@ -8,7 +8,6 @@ Open Obligations:
 """
 
 import json
-import sys
 import time
 
 from petta import MeTTa, S, remote

@@ -26,9 +26,10 @@ from __future__ import annotations
 import hmac
 import logging
 import threading
+from collections.abc import Callable, Iterator, Mapping
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, Iterator, Mapping
+from typing import Any
 
 from . import _json
 from ._engine import bridge
@@ -39,7 +40,7 @@ from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["serve", "connect", "attach", "RemoteSpace", "Server"]
+__all__ = ["RemoteSpace", "Server", "attach", "connect", "serve"]
 
 #: A transport: one callable taking (operation, payload dict) and answering
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
@@ -290,7 +291,7 @@ def serve(
     # calling convention, was observed to kill the process outright.
     import queue
 
-    work: "queue.Queue[tuple[str, dict, queue.SimpleQueue] | None]" = queue.Queue()
+    work: queue.Queue[tuple[str, dict, queue.SimpleQueue] | None] = queue.Queue()
 
     def worker() -> None:
         # A persistent engine makes this thread first-class for the
@@ -323,7 +324,7 @@ def serve(
     engine_thread.start()
 
     class Handler(BaseHTTPRequestHandler):
-        def do_POST(self) -> None:  # noqa: N802  (http.server's spelling)
+        def do_POST(self) -> None:
             length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
             headers: dict[str, str] = {}

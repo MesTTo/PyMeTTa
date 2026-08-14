@@ -11,15 +11,16 @@ Open Obligations:
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import example, given, settings, strategies as st  # noqa: E402
+from hypothesis import example, given, settings  # noqa: E402
+from hypothesis import strategies as st
 
 from petta import Expr, Gnd, S, Sym, Var, alpha_eq, expr, unify  # noqa: E402
-from petta.atoms import from_wire  # noqa: E402
 
 # The generators are the library's own public ones: petta.testing carries
 # the engine truths (readable names, boolean canonicalization, printer
 # limits) so users fuzz with exactly what this suite fuzzes with.
 from petta import testing as pt  # noqa: E402
+from petta.atoms import from_wire  # noqa: E402
 
 _name = pt.names()
 _numbers = pt.numbers()
@@ -119,7 +120,7 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     """Engine identification, pinned: the symbol true IS the boolean atom, so
     a Sym('true') crossing the boundary comes back as the boolean, exactly as
     a lowercase true in source reads as one."""
-    from petta import Gnd, Sym, parse
+    from petta import Gnd, parse
     from petta.atoms import from_wire
 
     rt = metta_session.runtime

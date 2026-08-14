@@ -12,8 +12,8 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterable
-from typing import Any, Callable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
@@ -21,16 +21,16 @@ from ._ops import REGISTRY, Operation
 from .atoms import Atom, Expr, S, Sym, Var, expr
 
 __all__ = [
-    "register",
-    "unregister",
+    "REFLECTION_SPACE",
+    "class_declarations",
+    "declaration_exprs",
     "metta_type_for",
+    "referenced_classes",
+    "register",
+    "registered",
     "type_atom_for",
     "type_atoms_for",
-    "declaration_exprs",
-    "referenced_classes",
-    "class_declarations",
-    "registered",
-    "REFLECTION_SPACE",
+    "unregister",
 ]
 
 #: The library's own space. Everything Python registers reflects here as
@@ -44,7 +44,7 @@ __all__ = [
 REFLECTION_SPACE = "&petta"
 
 
-def _op_facts(op: "Operation") -> list[Expr]:
+def _op_facts(op: Operation) -> list[Expr]:
     return [
         expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities
     ]
@@ -167,7 +167,7 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
                 _add_unique(alts, seen, atom)
         return alts
 
-    import collections.abc as abc
+    from collections import abc
 
     if origin is abc.Callable:
         args = typing.get_args(annotation)

@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-from petta import Atom, Decline, EngineError, Expr, S, V, Sym, expr, val
+from petta import Atom, Decline, EngineError, Expr, S, Sym, expr, val
 
 
 def unique(prefix: str) -> str:

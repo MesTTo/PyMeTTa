@@ -12,7 +12,7 @@ import math
 
 import pytest
 
-from petta import S, V, val, expr
+from petta import S, V, expr, val
 from petta import integrate as pi
 
 
