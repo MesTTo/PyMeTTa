@@ -17,6 +17,8 @@
 %     [tested 2026-08-14: translator_evaluation_errors].
 %   - Compiler diagnostics contain ANSI escapes only on terminal streams
 %     [tested 2026-08-14: translator_terminal_output].
+%   - Special forms dispatch through first-argument-indexed clauses
+%     [tested 2026-08-14: translator_special_dispatch].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -201,209 +203,7 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                                              HookCall =.. [HV|Args],
                                              call(HookCall),
                                              translate_expr_dl(Gs, AfterArgs, Goals, Out)
-        %--- Non-determinism ---:
-        ; HV == superpose, T = [Args], is_list(Args) -> build_superpose_branches(Args, Out, Branches),
-                                                        disj_list(Branches, Disj),
-                                                        AfterHead = [Disj|Goals]
-        ; HV == collapse, T = [E] -> translate_expr_to_conj(E, Conj, EV),
-                                     AfterHead = [findall(EV, Conj, Out)|Goals]
-        ; HV == cut, T = [] -> AfterHead = [(!)|Goals],
-                               Out = true
-        ; HV == test, T = [Expr, Expected] -> translate_expr_to_conj(Expr, Conj, Val),
-                                              Goal1 = ( findall(Val, Conj, Results),
-                                                        test_answer_value(Results, Actual) ),
-                                              AfterHead = [Goal1|AfterFindall],
-                                              translate_expr_dl(Expected, AfterFindall, BeforeTest, ExpVal),
-                                              BeforeTest = [test(Actual, ExpVal, Out)|Goals]
-        ; HV == 'test-no-answer', T = [Expr] -> translate_expr_to_conj(Expr, Conj, Val),
-                                                   AfterHead = [findall(Val, Conj, Results),
-                                                                'test-no-answer'(Results, Out)|Goals]
-        ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
-                                 AfterHead = [once(Conj)|Goals]
-        ; HV == hyperpose, T = [L]
-          -> ( nonvar(L), is_list(L)
-               -> build_hyperpose_branches(L, Branches),
-                  current_metta_module(Module),
-                  AfterHead = [concurrent_and(member((Goal,Res), Branches),
-                                              hyperpose_branch(Module, Goal, Res, Out))|Goals]
-               ; translate_expr_dl(L, AfterHead, BeforeHyperpose, LV),
-                 BeforeHyperpose = [hyperpose_runtime(LV, Out)|Goals] )
-        ; HV == with_mutex, T = [M,X] -> translate_expr_to_conj(X, Conj, Out),
-                                         AfterHead = [with_mutex(M,Conj)|Goals]
-        ; HV == transaction, T = [X] -> translate_expr_to_conj(X, Conj, Out),
-                                        AfterHead = [transaction(Conj)|Goals]
-        %--- Sequential execution ---:
-        ; HV == progn, T = [] -> Out = [],
-                                  AfterHead = Goals
-        ; HV == progn, T = Exprs -> translate_args_dl(Exprs, AfterHead, Goals, Outs),
-                                    last(Outs, Out),
-                                    true
-        ; HV == prog1, T = Exprs -> Exprs = [First|Rest],
-                                    translate_expr_dl(First, AfterHead, AfterFirst, Out),
-                                    translate_args_dl(Rest, AfterFirst, Goals, _)
-        %--- Conditionals ---:
-        ; HV == if, T = [Cond, Then] -> translate_expr_to_conj(Cond, ConC, Cv),
-                                        translate_expr_to_conj(Then, ConT, Tv),
-                                        build_branch(ConT, Tv, Out, BT),
-                                        ( ConC == true -> AfterHead = [(Cv == true -> BT)|Goals]
-                                                        ; AfterHead = [(ConC, (Cv == true -> BT))|Goals] )
-        ; HV == if, T = [Cond, Then, Else] -> translate_expr_to_conj(Cond, ConC, Cv),
-                                              translate_expr_to_conj(Then, ConT, Tv),
-                                              translate_expr_to_conj(Else, ConE, Ev),
-                                              build_branch(ConT, Tv, Out, BT),
-                                              build_branch(ConE, Ev, Out, BE),
-                                              ( ConC == true -> AfterHead = [(Cv == true -> BT ; BE)|Goals]
-                                                              ; AfterHead = [(ConC, (Cv == true -> BT ; BE))|Goals] )
-        ; HV == case, T = [KeyExpr, PairsExpr] -> ( select(Found0, PairsExpr, Rest0),
-                                                    subsumes_term(['Empty', _], Found0),
-                                                    Found0 = ['Empty', DefaultExpr],
-                                                    NormalCases = Rest0
-                                                    -> translate_expr_to_conj(KeyExpr, GkConj, Kv),
-                                                       translate_case(NormalCases, Kv, Out, CaseGoal, KeyGoal),
-                                                       translate_expr_to_conj(DefaultExpr, ConD, DOut),
-                                                       build_branch(ConD, DOut, Out, DefaultThen),
-                                                       Combined = ( (GkConj, CaseGoal) ;
-                                                                    \+ GkConj, DefaultThen ),
-                                                       append(KeyGoal, [Combined|Goals], AfterHead)
-                                                     ; translate_expr_dl(KeyExpr, AfterHead, AfterKey, Kv),
-                                                       translate_case(PairsExpr, Kv, Out, IfGoal, KeyGoal),
-                                                       append(KeyGoal, [IfGoal|Goals], AfterKey) )
-        %--- Short-circuit boolean operators ---:
-        ; HV == 'and-then', T = [A, B] -> translate_expr_to_conj(A, ConjA, Av),
-                                           translate_expr_to_conj(B, ConjB, Bv),
-                                           AfterHead = [(ConjA, (Av == true -> (ConjB, Out = Bv) ; Out = false))|Goals]
-        ; HV == 'or-else', T = [A, B] -> translate_expr_to_conj(A, ConjA, Av),
-                                          translate_expr_to_conj(B, ConjB, Bv),
-                                          AfterHead = [(ConjA, (Av == true -> Out = true ; (ConjB, Out = Bv)))|Goals]
-        %--- Unification constructs ---:
-        ; (HV == let ; HV == chain), T = [Pat, Val, In] -> AfterHead = [unify_with_occurs_check(Pv,V)|AfterUnify],
-                                                           translate_expr_dl(Pat, AfterUnify, AfterPat, Pv),
-                                                           translate_expr_dl(Val, AfterPat, AfterVal, V),
-                                                           translate_expr_dl(In, AfterVal, Goals, Out)
-        ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
-                                             translate_expr_dl(RecLet, AfterHead, Goals, Out)
-        ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Val),
-                                            AfterHead = [copy_term(Vars,[Con,Val],_,[Ncon,Out]),Ncon|Goals]
-        %--- Iterating over non-deterministic generators without reification ---:
-        ; HV == 'forall', T = [GF, TF]
-          -> ( is_list(GF) -> GF = [GFH|GFA],
-                              translate_expr(GFH, GsGFH, GFHV),
-                              translate_args(GFA, GsGFA, GFAv),
-                              append(GsGFH, GsGFA, GsGF),
-                              GenList = [GFHV|GFAv]
-                            ; translate_expr(GF, GsGF, GFHV),
-                              GenList = [GFHV] ),
-             TestList = [TFHV, V],
-             goals_list_to_conj(GsGF, GPre),
-             GenGoal = (GPre, reduce(GenList, V)),
-             translate_expr_dl(TF, AfterHead, BeforeForall, TFHV),
-             BeforeForall = [(forall(GenGoal, (reduce(TestList, Truth), Truth == true))
-                              -> Out = true ; Out = false)|Goals]
-        ; HV == 'foldall', T = [AF, GF, InitS]
-          -> translate_expr_to_conj(InitS, ConjInit, Init),
-             translate_expr_dl(AF, AfterHead, AfterAF, AFV),
-             ( GF = [M|_], (M==match ; M==let ; M=='let*') -> LambdaGF = ['|->', [], GF],
-                                                              translate_expr_dl(LambdaGF, AfterAF, AfterGF, GFHV),
-                                                              GenList = [GFHV]
-             ; is_list(GF) -> GF = [GFH|GFA],
-                              translate_expr_dl(GFH, AfterAF, AfterGFH, GFHV),
-                              translate_args_dl(GFA, AfterGFH, AfterGF, GFAv),
-                              GenList = [GFHV|GFAv]
-                            ; translate_expr_dl(GF, AfterAF, AfterGF, GFHV),
-                              GenList = [GFHV] ),
-             AfterGF = [ConjInit,
-                        foldall(agg_reduce(AFV, V), reduce(GenList, V), Init, Out)|Goals]
-        %--- Higher-order functions with pseudo-lambdas and lambdas ---:
-        ; HV == 'foldl-atom', T = [List, Init, AccVar, XVar, Body]
-          -> translate_expr_to_conj(List, ConjList, L),
-             translate_expr_to_conj(Init, ConjInit, InitV),
-             translate_expr_to_conj(Body, BodyConj, BG),
-             exclude(==(true), [ConjList, ConjInit], CleanConjs),
-             append(CleanConjs,
-                    [foldl([XVar, AccVar, NewAcc]>>(BodyConj, (number(BG) -> NewAcc is BG ; NewAcc = BG)),
-                           L, InitV, Out)|Goals],
-                    AfterHead)
-        ; HV == 'map-atom', T = [List, XVar, Body]
-          -> translate_expr_to_conj(List, ConjList, L),
-             translate_expr_to_conj(Body, BodyCallConj, BodyCall),
-             exclude(==(true), [ConjList], CleanConjs),
-             append(CleanConjs,
-                    [maplist([XVar, Y]>>(BodyCallConj, (number(BodyCall) -> Y is BodyCall ; Y = BodyCall)),
-                             L, Out)|Goals],
-                    AfterHead)
-        ; HV == 'filter-atom', T = [List, XVar, Cond]
-          -> translate_expr_to_conj(List, ConjList, L),
-             translate_expr_to_conj(Cond, CondConj, CondGoal),
-             exclude(==(true), [ConjList], CleanConjs),
-             append(CleanConjs,
-                    [include([XVar]>>(CondConj, CondGoal), L, Out)|Goals],
-                    AfterHead)
-        ; HV == '|->', T = [Args, Body] -> next_lambda_name(F),
-                                           % find free (non-argument) variables in Body
-                                           term_variables(Body, AllVars),
-                                           term_variables(Args, ArgVars),
-                                           exclude({ArgVars}/[V]>>memberchk_eq(V, ArgVars), AllVars, FreeVars),
-                                           append(FreeVars, Args, FullArgs),
-                                           % compile clause with all bound + free vars
-                                           translate_clause([=, [F|FullArgs], Body], Clause),
-                                           register_fun(F),
-                                           assertz(Clause),
-                                           format(atom(Label), "metta lambda (~w)", [F]),
-                                           maybe_print_compiled_clause(Label, ['|->', Args, Body], Clause),
-                                           length(FullArgs, N),
-                                           Arity is N + 1,
-                                           (arity(F, Arity) -> true ; assertz(arity(F, Arity))),
-                                           % emit closure capturing the environment (free vars)
-                                           ( FreeVars == [] -> Out = F
-                                                             ; Out = partial(F, FreeVars) ),
-                                           AfterHead = Goals
-        %--- Spaces ---:
-        ; ( HV == 'add-atom' ; HV == 'remove-atom' ), T = [Space,Atom] ->
-                                                                   translate_expr_dl(Space, AfterHead, BeforeSpaceOp, S),
-                                                                   Goal =.. [HV,S,Atom,Out],
-                                                                   BeforeSpaceOp = [Goal|Goals]
-        ; HV == match, T = [Space, Pattern, Body] -> translate_expr_dl(Space, AfterHead, BeforeMatch, S),
-                                                     BeforeMatch = [match(S, Pattern, Out, Out)|AfterMatch],
-                                                     translate_expr_dl(Body, AfterMatch, Goals, Out)
-        %--- Predicate to compiled goal ---:
-        ; HV == translatePredicate, T = [Expr] -> Expr = [S|Args],
-                                                  translate_args_dl(Args, AfterHead, BeforePredicate, ArgsOut),
-                                                  Goal =.. [S|ArgsOut],
-                                                  BeforePredicate = [Goal|Goals]
-        %--- Manual dispatch options: ---
-        %Generate a predicate call on compilation, translating Args for nesting:
-        ; HV == call,  T = [Expr] -> Expr = [F|Args],
-                                     translate_args_dl(Args, AfterHead, BeforeCall, ArgsOut),
-                                     append(ArgsOut, [Out], CallArgs),
-                                     Goal =.. [F|CallArgs],
-                                     BeforeCall = [Goal|Goals]
-        %Produce a dynamic dispatch, translating Args for nesting:
-        ; HV == reduce, T = [Expr] -> ( Expr == [] -> Out = [],
-                                                       AfterHead = Goals
-                                                   ; var(Expr) -> translate_expr_dl(Expr, AfterHead, BeforeReduce, ExprOut),
-                                                     BeforeReduce = [reduce(ExprOut, Out)|Goals]
-                                                   ; Expr = [F|Args],
-                                                     translate_args_dl(Args, AfterHead, BeforeReduce, ArgsOut),
-                                                     ExprOut = [F|ArgsOut],
-                                                     BeforeReduce = [reduce(ExprOut, Out)|Goals] )
-        %Invoke translator to evaluate MeTTa code as data/list:
-        ; HV == eval, T = [Arg] -> AfterHead = [eval(Arg, Out)|Goals]
-        %Force arg to remain data/list:
-        ; HV == quote, T = [Expr] -> Out = Expr,
-                                     AfterHead = Goals
-        ; HV == 'catch', T = [Expr] ->
-          translate_expr(Expr, GsExpr, ExprOut),
-          goals_list_to_conj(GsExpr, Conj),
-          %A program's own catch still cannot eat a control signal: an
-          %interrupt or limit caught here would make the program
-          %accidentally unstoppable, the reason KeyboardInterrupt lives
-          %outside Exception.
-          Goal = catch((Conj, Out = ExprOut),
-                       Exception,
-                       (control_exception(Exception) -> throw(Exception)
-                       ; Exception = error(Type, Ctx) -> Out = ['Error', Type, Ctx]
-                                                      ; Out = ['Error', Exception])),
-          AfterHead = [Goal|Goals]
+        ; atom(HV), translate_special_dl(HV, T, AfterHead, Goals, Out) -> true
         %The Prolog importer consumes its function-name list as data. Keeping
         %that argument literal makes its translation stable after those names
         %have become registered functions during an earlier space life.
@@ -441,6 +241,267 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
           %Unknown head (var/compound) => runtime dispatch:
           ; translate_args_dl(T, AfterHead, BeforeReduce, AVs),
             BeforeReduce = [reduce([HV|AVs], Out)|Goals] )).
+
+%First-argument indexing keeps each special form independent of the number of
+%other forms. A clause fails on an unsupported arity so ordinary function or
+%data dispatch can still handle that expression.
+translate_special_dl(superpose, [Args], AfterHead, Goals, Out) :-
+    is_list(Args),
+    build_superpose_branches(Args, Out, Branches),
+    disj_list(Branches, Disj),
+    AfterHead = [Disj|Goals].
+translate_special_dl(collapse, [Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, ExprValue),
+    AfterHead = [findall(ExprValue, Conj, Out)|Goals].
+translate_special_dl(cut, [], AfterHead, Goals, true) :-
+    AfterHead = [(!)|Goals].
+translate_special_dl(test, [Expr, Expected], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Value),
+    TestGoal = ( findall(Value, Conj, Results),
+                 test_answer_value(Results, Actual) ),
+    AfterHead = [TestGoal|AfterFindall],
+    translate_expr_dl(Expected, AfterFindall, BeforeTest, ExpectedValue),
+    BeforeTest = [test(Actual, ExpectedValue, Out)|Goals].
+translate_special_dl('test-no-answer', [Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Value),
+    AfterHead = [findall(Value, Conj, Results),
+                 'test-no-answer'(Results, Out)|Goals].
+translate_special_dl(once, [Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Out),
+    AfterHead = [once(Conj)|Goals].
+translate_special_dl(hyperpose, [List], AfterHead, Goals, Out) :-
+    ( nonvar(List), is_list(List)
+      -> build_hyperpose_branches(List, Branches),
+         current_metta_module(Module),
+         AfterHead = [concurrent_and(member((Goal, Result), Branches),
+                                     hyperpose_branch(Module, Goal, Result,
+                                                      Out))|Goals]
+      ; translate_expr_dl(List, AfterHead, BeforeHyperpose, ListValue),
+        BeforeHyperpose = [hyperpose_runtime(ListValue, Out)|Goals] ).
+translate_special_dl(with_mutex, [Mutex, Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Out),
+    AfterHead = [with_mutex(Mutex, Conj)|Goals].
+translate_special_dl(transaction, [Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Out),
+    AfterHead = [transaction(Conj)|Goals].
+
+translate_special_dl(progn, [], Goals, Goals, []).
+translate_special_dl(progn, Exprs, AfterHead, Goals, Out) :-
+    Exprs = [_|_],
+    translate_args_dl(Exprs, AfterHead, Goals, Outs),
+    last(Outs, Out).
+translate_special_dl(prog1, [First|Rest], AfterHead, Goals, Out) :-
+    translate_expr_dl(First, AfterHead, AfterFirst, Out),
+    translate_args_dl(Rest, AfterFirst, Goals, _).
+
+translate_special_dl(if, [Cond, Then], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Cond, CondConj, CondValue),
+    translate_expr_to_conj(Then, ThenConj, ThenValue),
+    build_branch(ThenConj, ThenValue, Out, ThenBranch),
+    ( CondConj == true
+      -> AfterHead = [(CondValue == true -> ThenBranch)|Goals]
+      ; AfterHead = [(CondConj,
+                      (CondValue == true -> ThenBranch))|Goals] ).
+translate_special_dl(if, [Cond, Then, Else], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Cond, CondConj, CondValue),
+    translate_expr_to_conj(Then, ThenConj, ThenValue),
+    translate_expr_to_conj(Else, ElseConj, ElseValue),
+    build_branch(ThenConj, ThenValue, Out, ThenBranch),
+    build_branch(ElseConj, ElseValue, Out, ElseBranch),
+    ( CondConj == true
+      -> AfterHead = [(CondValue == true -> ThenBranch ; ElseBranch)|Goals]
+      ; AfterHead = [(CondConj,
+                      (CondValue == true -> ThenBranch ; ElseBranch))|Goals] ).
+translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
+    ( select(Found, PairsExpr, Rest),
+      subsumes_term(['Empty', _], Found),
+      Found = ['Empty', DefaultExpr],
+      NormalCases = Rest
+      -> translate_expr_to_conj(KeyExpr, KeyConj, KeyValue),
+         translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
+         translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
+         build_branch(DefaultConj, DefaultValue, Out, DefaultBranch),
+         Combined = ( (KeyConj, CaseGoal) ;
+                      \+ KeyConj, DefaultBranch ),
+         append(KeyGoals, [Combined|Goals], AfterHead)
+      ; translate_expr_dl(KeyExpr, AfterHead, AfterKey, KeyValue),
+        translate_case(PairsExpr, KeyValue, Out, CaseGoal, KeyGoals),
+        append(KeyGoals, [CaseGoal|Goals], AfterKey) ).
+
+translate_special_dl('and-then', [A, B], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(A, ConjA, ValueA),
+    translate_expr_to_conj(B, ConjB, ValueB),
+    AfterHead = [(ConjA,
+                  (ValueA == true -> (ConjB, Out = ValueB)
+                                    ; Out = false))|Goals].
+translate_special_dl('or-else', [A, B], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(A, ConjA, ValueA),
+    translate_expr_to_conj(B, ConjB, ValueB),
+    AfterHead = [(ConjA,
+                  (ValueA == true -> Out = true
+                                    ; (ConjB, Out = ValueB)))|Goals].
+
+translate_special_dl(let, Args, AfterHead, Goals, Out) :-
+    translate_let_dl(Args, AfterHead, Goals, Out).
+translate_special_dl(chain, Args, AfterHead, Goals, Out) :-
+    translate_let_dl(Args, AfterHead, Goals, Out).
+translate_special_dl('let*', [Binds, Body], AfterHead, Goals, Out) :-
+    letstar_to_rec_let(Binds, Body, RecursiveLet),
+    translate_expr_dl(RecursiveLet, AfterHead, Goals, Out).
+translate_special_dl(sealed, [Vars, Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Value),
+    AfterHead = [copy_term(Vars, [Conj, Value], _, [CopiedConj, Out]),
+                 CopiedConj|Goals].
+
+translate_special_dl('forall', [Generator, Test], AfterHead, Goals, Out) :-
+    ( is_list(Generator)
+      -> Generator = [GeneratorHead|GeneratorArgs],
+         translate_expr(GeneratorHead, HeadGoals, GeneratorHeadValue),
+         translate_args(GeneratorArgs, ArgGoals, GeneratorArgValues),
+         append(HeadGoals, ArgGoals, GeneratorGoals),
+         GeneratorList = [GeneratorHeadValue|GeneratorArgValues]
+      ; translate_expr(Generator, GeneratorGoals, GeneratorHeadValue),
+        GeneratorList = [GeneratorHeadValue] ),
+    TestList = [TestHeadValue, GeneratedValue],
+    goals_list_to_conj(GeneratorGoals, GeneratorPrefix),
+    GeneratorGoal = (GeneratorPrefix,
+                     reduce(GeneratorList, GeneratedValue)),
+    translate_expr_dl(Test, AfterHead, BeforeForall, TestHeadValue),
+    BeforeForall = [(forall(GeneratorGoal,
+                            (reduce(TestList, Truth), Truth == true))
+                     -> Out = true
+                      ; Out = false)|Goals].
+translate_special_dl('foldall', [Accumulator, Generator, InitialExpr],
+                     AfterHead, Goals, Out) :-
+    translate_expr_to_conj(InitialExpr, InitialConj, Initial),
+    translate_expr_dl(Accumulator, AfterHead, AfterAccumulator,
+                      AccumulatorValue),
+    ( Generator = [Mode|_],
+      (Mode == match ; Mode == let ; Mode == 'let*')
+      -> Lambda = ['|->', [], Generator],
+         translate_expr_dl(Lambda, AfterAccumulator, AfterGenerator,
+                           GeneratorHeadValue),
+         GeneratorList = [GeneratorHeadValue]
+      ; is_list(Generator)
+      -> Generator = [GeneratorHead|GeneratorArgs],
+         translate_expr_dl(GeneratorHead, AfterAccumulator,
+                           AfterGeneratorHead, GeneratorHeadValue),
+         translate_args_dl(GeneratorArgs, AfterGeneratorHead,
+                           AfterGenerator, GeneratorArgValues),
+         GeneratorList = [GeneratorHeadValue|GeneratorArgValues]
+      ; translate_expr_dl(Generator, AfterAccumulator, AfterGenerator,
+                          GeneratorHeadValue),
+        GeneratorList = [GeneratorHeadValue] ),
+    AfterGenerator = [InitialConj,
+                      foldall(agg_reduce(AccumulatorValue, Value),
+                              reduce(GeneratorList, Value), Initial, Out)|Goals].
+
+translate_special_dl('foldl-atom', [ListExpr, InitialExpr, AccVar, ItemVar,
+                                    Body], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(ListExpr, ListConj, List),
+    translate_expr_to_conj(InitialExpr, InitialConj, Initial),
+    translate_expr_to_conj(Body, BodyConj, BodyValue),
+    exclude(==(true), [ListConj, InitialConj], PrefixGoals),
+    append(PrefixGoals,
+           [foldl([ItemVar, AccVar, Next]>>
+                      (BodyConj,
+                       (number(BodyValue) -> Next is BodyValue
+                                          ; Next = BodyValue)),
+                  List, Initial, Out)|Goals],
+           AfterHead).
+translate_special_dl('map-atom', [ListExpr, ItemVar, Body],
+                     AfterHead, Goals, Out) :-
+    translate_expr_to_conj(ListExpr, ListConj, List),
+    translate_expr_to_conj(Body, BodyConj, BodyValue),
+    exclude(==(true), [ListConj], PrefixGoals),
+    append(PrefixGoals,
+           [maplist([ItemVar, ItemOut]>>
+                        (BodyConj,
+                         (number(BodyValue) -> ItemOut is BodyValue
+                                            ; ItemOut = BodyValue)),
+                    List, Out)|Goals],
+           AfterHead).
+translate_special_dl('filter-atom', [ListExpr, ItemVar, Condition],
+                     AfterHead, Goals, Out) :-
+    translate_expr_to_conj(ListExpr, ListConj, List),
+    translate_expr_to_conj(Condition, CondConj, CondValue),
+    exclude(==(true), [ListConj], PrefixGoals),
+    append(PrefixGoals,
+           [include([ItemVar]>>(CondConj, CondValue), List, Out)|Goals],
+           AfterHead).
+translate_special_dl('|->', [Args, Body], AfterHead, Goals, Out) :-
+    next_lambda_name(Function),
+    term_variables(Body, AllVars),
+    term_variables(Args, ArgVars),
+    exclude({ArgVars}/[Var]>>memberchk_eq(Var, ArgVars), AllVars, FreeVars),
+    append(FreeVars, Args, FullArgs),
+    translate_clause([=, [Function|FullArgs], Body], Clause),
+    register_fun(Function),
+    assertz(Clause),
+    format(atom(Label), "metta lambda (~w)", [Function]),
+    maybe_print_compiled_clause(Label, ['|->', Args, Body], Clause),
+    length(FullArgs, InputArity),
+    Arity is InputArity + 1,
+    ( arity(Function, Arity) -> true ; assertz(arity(Function, Arity)) ),
+    ( FreeVars == [] -> Out = Function ; Out = partial(Function, FreeVars) ),
+    AfterHead = Goals.
+
+translate_special_dl('add-atom', Args, AfterHead, Goals, Out) :-
+    translate_space_update_dl('add-atom', Args, AfterHead, Goals, Out).
+translate_special_dl('remove-atom', Args, AfterHead, Goals, Out) :-
+    translate_space_update_dl('remove-atom', Args, AfterHead, Goals, Out).
+translate_special_dl(match, [SpaceExpr, Pattern, Body], AfterHead, Goals,
+                     Out) :-
+    translate_expr_dl(SpaceExpr, AfterHead, BeforeMatch, Space),
+    BeforeMatch = [match(Space, Pattern, Out, Out)|AfterMatch],
+    translate_expr_dl(Body, AfterMatch, Goals, Out).
+translate_special_dl(translatePredicate, [[Predicate|Args]], AfterHead, Goals,
+                     _Out) :-
+    translate_args_dl(Args, AfterHead, BeforePredicate, ArgValues),
+    Goal =.. [Predicate|ArgValues],
+    BeforePredicate = [Goal|Goals].
+translate_special_dl(call, [[Function|Args]], AfterHead, Goals, Out) :-
+    translate_args_dl(Args, AfterHead, BeforeCall, ArgValues),
+    append(ArgValues, [Out], CallArgs),
+    Goal =.. [Function|CallArgs],
+    BeforeCall = [Goal|Goals].
+translate_special_dl(reduce, [Expr], AfterHead, Goals, Out) :-
+    ( Expr == []
+      -> Out = [],
+         AfterHead = Goals
+      ; var(Expr)
+      -> translate_expr_dl(Expr, AfterHead, BeforeReduce, ExprValue),
+         BeforeReduce = [reduce(ExprValue, Out)|Goals]
+      ; Expr = [Function|Args],
+        translate_args_dl(Args, AfterHead, BeforeReduce, ArgValues),
+        ExprValue = [Function|ArgValues],
+        BeforeReduce = [reduce(ExprValue, Out)|Goals] ).
+translate_special_dl(eval, [Arg], AfterHead, Goals, Out) :-
+    AfterHead = [eval(Arg, Out)|Goals].
+translate_special_dl(quote, [Expr], Goals, Goals, Expr).
+translate_special_dl('catch', [Expr], AfterHead, Goals, Out) :-
+    translate_expr(Expr, ExprGoals, ExprOut),
+    goals_list_to_conj(ExprGoals, Conj),
+    CatchGoal = catch((Conj, Out = ExprOut),
+                      Exception,
+                      ( control_exception(Exception)
+                        -> throw(Exception)
+                        ; Exception = error(Type, Context)
+                        -> Out = ['Error', Type, Context]
+                        ; Out = ['Error', Exception] )),
+    AfterHead = [CatchGoal|Goals].
+
+translate_let_dl([Pattern, Value, In], AfterHead, Goals, Out) :-
+    AfterHead = [unify_with_occurs_check(PatternValue, ValueResult)|AfterUnify],
+    translate_expr_dl(Pattern, AfterUnify, AfterPattern, PatternValue),
+    translate_expr_dl(Value, AfterPattern, AfterValue, ValueResult),
+    translate_expr_dl(In, AfterValue, Goals, Out).
+
+translate_space_update_dl(Operation, [SpaceExpr, Atom], AfterHead, Goals,
+                          Out) :-
+    translate_expr_dl(SpaceExpr, AfterHead, BeforeOperation, Space),
+    Goal =.. [Operation, Space, Atom, Out],
+    BeforeOperation = [Goal|Goals].
 
 prolog_function_importer(import_prolog_functions_from_file).
 prolog_function_importer(import_prolog_functions_from_module).
