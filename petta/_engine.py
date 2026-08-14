@@ -2,6 +2,8 @@
 exactly once per process, serializes janus calls behind one lock, and turns
 Prolog exceptions into the library's own errors for both Python surfaces.
 Guarantees:
+  - importing petta does not import janus_swi until an engine-backed API is
+    used [tested test_package_import_does_not_require_janus]
   - Runtime classifies only the shim's exact reserved exception term shape
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
     test_reserved_exception_shape_maps_by_kind]
@@ -51,26 +53,32 @@ _FAILED = object()
 class JanusBridge(Protocol):
     """The janus operations PeTTa uses across the package."""
 
-    def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any: ...
+    def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any:
+        del fail
+        raise NotImplementedError
     def attach_engine(self) -> Any: ...
     def cmd(self, module: str, predicate: str, *inputs: Any) -> bool: ...
     def consult(self, path: str, data: str | None = None) -> Any: ...
     def detach_engine(self) -> Any: ...
     def engine(self) -> int: ...
-    def heartbeat(self, interval: int) -> Any: ...
+    def heartbeat(self, interval: int) -> Any:
+        del interval
+        raise NotImplementedError
     def prolog(self) -> Any: ...
     def query(self, goal: str, inputs: Mapping[str, Any] | None = None) -> Iterator[dict[str, Any]]: ...
     def query_once(
         self, goal: str, inputs: Mapping[str, Any] | None = None
     ) -> dict[str, Any] | None: ...
-    def version_str(self, version: int | None = None) -> str: ...
+    def version_str(self, version: int | None = None) -> str:
+        del version
+        raise NotImplementedError
 
 
 class _EngineState:
     """Mutable process singleton state, changed only under engine locks."""
 
     def __init__(self) -> None:
-        self.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+        self.janus: JanusBridge | None = None
         self.runtime: Runtime | None = None
 
 
@@ -95,8 +103,14 @@ def active_runtime() -> Runtime | None:
 
 
 def bridge() -> JanusBridge:
-    """Return the imported janus bridge without starting the PeTTa runtime."""
-    return _STATE.janus
+    """Import and return janus without starting the PeTTa runtime."""
+    janus = _STATE.janus
+    if janus is not None:
+        return janus
+    with _LOCK:
+        if _STATE.janus is None:
+            _STATE.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+        return _STATE.janus
 
 
 def _resolve_petta_path() -> str:
@@ -299,7 +313,7 @@ class Runtime:
         row = self.once(goal, **inputs)
         if not row:
             raise EngineError(
-                f"the engine refused {goal.split('(')[0]}: the goal failed "
+                f"the engine refused {goal.split('(', maxsplit=1)[0]}: the goal failed "
                 f"rather than erring, which for this entry point means the "
                 f"inputs were not accepted"
             )

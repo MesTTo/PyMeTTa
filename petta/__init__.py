@@ -2,6 +2,9 @@
 keeps its exact contract (swrite strings through helper.pl), and the rich
 surface lives beside it: atoms as Python values, the MeTTa runtime class,
 Python-backed MeTTa functions, structured queries and proof trees.
+Guarantees:
+  - importing petta and petta.cli does not require janus_swi until an
+    engine-backed API is used [tested test_package_import_does_not_require_janus]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,9 +27,6 @@ from ._version import __version__
 
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
-
-janus = _engine.bridge()
-
 
 class PeTTa:
     """The original thin wrapper: swrite strings in, swrite strings out.
@@ -61,6 +61,29 @@ class PeTTa:
         return self._run_helper("process_metta_string", metta_code)
 
 
+def __getattr__(name: str):
+    """Resolve the legacy janus module only when a caller asks for it."""
+    if name == "janus":
+        return _engine.bridge()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+from . import (  # noqa: E402
+    aio,
+    arrays,
+    convert,
+    das,
+    foreign,
+    integrate,
+    lint,
+    matching,
+    measure,
+    persistent,
+    remote,
+    testing,
+    trace,
+)
+from ._engine import engine_thread  # noqa: E402
 from .atoms import (  # noqa: E402
     Atom,
     Expr,
@@ -85,6 +108,8 @@ from .atoms import (  # noqa: E402
     var,
     variables,
 )
+from .casting import CastError, cast  # noqa: E402
+from .define import Defined  # noqa: E402
 from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
@@ -98,13 +123,6 @@ from .errors import (  # noqa: E402
     ResourceLimitError,
     TimeLimitError,
 )
-from .ops import REFLECTION_SPACE  # noqa: E402
-from .results import Row, Rows  # noqa: E402
-from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
-from . import aio, arrays, convert, das, foreign, integrate, lint, matching, measure, persistent, remote, testing, trace  # noqa: E402
-from .casting import CastError, cast  # noqa: E402
-from .define import Defined  # noqa: E402
-from ._engine import engine_thread  # noqa: E402
 from .foreign import (  # noqa: E402
     Adder,
     Clearer,
@@ -113,7 +131,11 @@ from .foreign import (  # noqa: E402
     Remover,
     SpaceProvider,
 )
+from .ops import REFLECTION_SPACE  # noqa: E402
+from .results import Row, Rows  # noqa: E402
+from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
+
 
 def backend_info() -> dict[str, str | None]:
     """Return backend versions and the PeTTa runtime tree in use.
