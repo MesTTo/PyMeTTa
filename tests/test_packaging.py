@@ -44,6 +44,12 @@ def test_python_gate_groups_files_in_process_workers():
     assert "-p no:benchmark -n auto --dist loadfile --max-worker-restart=0" in gate
 
 
+def test_dependency_audit_treats_tool_extras_as_development_dependencies():
+    deptry = _manifest()["tool"]["deptry"]
+    assert deptry["optional_dependencies_dev_groups"] == ["test", "checks"]
+    assert {"bench.py", "benchmarks"} <= set(deptry["extend_exclude"])
+
+
 def test_measure_integration_and_version_are_published_from_their_modules():
     manifest = _manifest()
     assert manifest["project"]["entry-points"]["petta.integrations"] == {
