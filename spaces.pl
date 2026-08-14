@@ -133,10 +133,10 @@ match_foreign(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',', !
                                                                  match_foreign(Space, [','|Tail], OutPattern, Result).
 match_foreign(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
                                                         metta_foreign_atoms(Space, PatternVar),
-                                                        \+ cyclic_term(OutPattern),
+                                                        acyclic_term(OutPattern),
                                                         Result = OutPattern.
 match_foreign(Space, Pattern, OutPattern, Result) :- metta_foreign_match(Space, Pattern),
-                                                     \+ cyclic_term(OutPattern),
+                                                     acyclic_term(OutPattern),
                                                      Result = OutPattern.
 
 %Native conjunctions call their space predicate directly. The recursive helper
@@ -146,23 +146,23 @@ match_native(_, LComma, OutPattern, Result) :- LComma == [','], !,
 match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
                                                                 var(Head), !,
                                                                 get_native_atom(Space, Head),
-                                                                \+ cyclic_term(OutPattern),
+                                                                acyclic_term(OutPattern),
                                                                 match_native(Space, [','|Tail], OutPattern, Result).
 match_native(Space, [Comma|[[Rel|PatArgs]|Tail]], OutPattern, Result) :- Comma == ',', !,
                                                                         Term =.. [Space, Rel | PatArgs],
                                                                         catch(Term, E, recover_failure(E)),
-                                                                        \+ cyclic_term(OutPattern),
+                                                                        acyclic_term(OutPattern),
                                                                         match_native(Space, [','|Tail], OutPattern, Result).
 
 %When the native pattern itself is a variable, enumerate all atoms.
 match_native(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
                                                        get_native_atom(Space, PatternVar),
-                                                       \+ cyclic_term(OutPattern),
+                                                       acyclic_term(OutPattern),
                                                        Result = OutPattern.
 
 match_native(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
                                                           catch(Term, E, recover_failure(E)),
-                                                          \+ cyclic_term(OutPattern),
+                                                          acyclic_term(OutPattern),
                                                           Result = OutPattern.
 
 'get-atoms'(Space, Pattern) :- nonvar(Space),

@@ -130,7 +130,7 @@ reduce([F|Args], Out) :- nonvar(F), atom(F),
                                                                      reduce([Base|NewArgs], Out)
                           ; % --- Case 3: leave unevaluated ---
                             Out = [F|Args],
-                            \+ cyclic_term(Out).
+                            acyclic_term(Out).
 
 %Calling reduce from aggregate function foldall needs this argument wrapping
 agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc).
@@ -256,7 +256,7 @@ translate_expr([H0|T0], Goals, Out) :-
         ; (HV == let ; HV == chain), T = [Pat, Val, In] -> translate_expr(Pat, Gp, Pv),
                                                            translate_expr(Val, Gv, V),
                                                            translate_expr(In,  Gi, Out),
-                                                           append([GsH,[(Pv=V)],Gp,Gv,Gi], Goals)
+                                                           append([GsH,[unify_with_occurs_check(Pv,V)],Gp,Gv,Gi], Goals)
         ; HV == 'let*', T = [Binds, Body] -> letstar_to_rec_let(Binds,Body,RecLet),
                                              translate_expr(RecLet,  Goals, Out)
         ; HV == sealed, T = [Vars, Expr] -> translate_expr_to_conj(Expr, Con, Val),

@@ -246,7 +246,7 @@ get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
 get_type_candidate(X, T) :- catch('&self'(':', X, T), E, recover_failure(E)),
-                            \+ cyclic_term(T).
+                            acyclic_term(T).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
 get_type_candidate_in(_, X, _) :- var(X), !.
