@@ -640,14 +640,15 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):
 
 
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
-    from petta import PettaError
-
     m.add_table("edge", [(i, i + 1) for i in range(50)])
     cursor = m.stream(S.edge(V.a, V.b))
     assert [tuple(r) for r in cursor] == [tuple(r) for r in m.query(S.edge(V.a, V.b))]
-    with pytest.raises(PettaError):
-        next(cursor)  # exhaustion closed it
-    cursor.close()  # and a second close is a no-op
+    with pytest.raises(StopIteration):
+        next(cursor)
+    assert list(cursor) == []
+    cursor.close()
+    assert list(cursor) == []
+    assert "exhausted" in repr(cursor)
 
 
 def test_stream_guard_and_per_pull_bounds(m):

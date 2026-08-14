@@ -14,9 +14,15 @@ Guarantees:
     accepts time and inference guards [tested
     test_depth_exhaustion_returns_a_partial_proof,
     test_unbounded_derivation_obeys_resource_guards]
+  - an exhausted Cursor keeps raising StopIteration, while an explicitly
+    closed Cursor refuses use [tested
+    test_stream_agrees_with_query_and_closes_on_exhaustion,
+    test_stream_pulls_rows_lazily_and_interleaves]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
+  - Cursor owns one engine query until exhaustion, close, or finalization
+    [tested test_stream_agrees_with_query_and_closes_on_exhaustion]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1536,13 +1542,24 @@ class _StatsBlock:
 
 class Cursor:
     """MeTTa.stream(): answers pulled one at a time from an engine-held
-    query. Iterate it, close() it, or leave its with-block; exhaustion
-    closes it by itself, a second close is a no-op, and a cursor dropped
-    unclosed is reaped by its finalizer. Rows carry the query's variable
-    names as columns, exactly as query()'s rows do.
+    query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
+    the engine and remains ordinary iterator exhaustion; explicit close is a
+    separate state that refuses further pulls. A cursor dropped unclosed is
+    reaped by its finalizer. Rows carry the query's variable names as columns,
+    exactly as query()'s rows do.
     """
 
-    __slots__ = ("columns", "_row_cls", "_timeout", "_rt", "_handle", "_closed", "_finalizer", "__weakref__")
+    __slots__ = (
+        "columns",
+        "_row_cls",
+        "_timeout",
+        "_rt",
+        "_handle",
+        "_closed",
+        "_exhausted",
+        "_finalizer",
+        "__weakref__",
+    )
 
     def __init__(
         self,
@@ -1573,6 +1590,7 @@ class Cursor:
             "petta_py_cursor_open", space.space_name, wires, guard, list(columns), steps
         )
         self._closed = False
+        self._exhausted = False
         # The finalizer is the last guard, not the contract: it destroys
         # the engine if a cursor is dropped unclosed, from whichever
         # thread collection runs on (cross-thread destroy is probed).
@@ -1591,6 +1609,8 @@ class Cursor:
         return self
 
     def __next__(self):
+        if self._exhausted:
+            raise StopIteration
         if self._closed:
             raise PettaError("this cursor is closed")
         if self._timeout is None:
@@ -1601,13 +1621,14 @@ class Cursor:
                 "petta_py_cursor_next", [self._handle],
             )
         if not answer:
-            self.close()
+            self._exhausted = True
+            self._finalizer()
             raise StopIteration
         return self._row_cls(from_wire(v) for v in answer[0])
 
     def close(self) -> None:
-        """Destroy the held engine; idempotent, and exhaustion calls it."""
-        if self._closed:
+        """Destroy the held engine; idempotent and distinct from exhaustion."""
+        if self._closed or self._exhausted:
             return
         self._closed = True
         self._finalizer()  # runs the reap exactly once; later GC is a no-op
@@ -1619,7 +1640,7 @@ class Cursor:
         self.close()
 
     def __repr__(self) -> str:
-        state = "closed" if self._closed else "open"
+        state = "closed" if self._closed else "exhausted" if self._exhausted else "open"
         return f"<cursor {state} -> {', '.join(self.columns)}>"
 
 
