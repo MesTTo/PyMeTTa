@@ -56,10 +56,22 @@ escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 %atom_string/2 first interned an atom for every string parsed, and the
 %library parses one per m.run(): 20000 distinct strings through
 %atom_string/2 left 9953 atoms behind, through atom_codes/2 none.
-sread(S, T) :- ( atom_codes(S, RawCodes),
-                 strip(RawCodes, outside, Cs),
-                 phrase(sexpr(T, [], _), Cs)
-               -> true ; format(atom(Msg), 'Parse error in form: ~w', [S]), throw(error(syntax_error(Msg), none)) ).
+sread(S, T) :- atom_codes(S, RawCodes),
+               strip(RawCodes, outside, Cs),
+               sread_codes(Cs, S, T).
+
+%As sread/2, for text whose ; comments a caller has already removed. The file
+%loader strips a whole source once before splitting it into forms and then
+%stripped each form again, so every character of every file was walked a
+%second time looking for comments that were no longer there.
+sread_stripped(S, T) :- atom_codes(S, Cs),
+                        sread_codes(Cs, S, T).
+
+sread_codes(Cs, Source, T) :-
+    ( phrase(sexpr(T, [], _), Cs)
+      -> true
+       ; format(atom(Msg), 'Parse error in form: ~w', [Source]),
+         throw(error(syntax_error(Msg), none)) ).
 
 %The reader and top-level loader share one string-aware comment pass. A
 %backslash escapes exactly the next character while inside a string.

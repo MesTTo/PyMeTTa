@@ -300,10 +300,12 @@ uses_as_data_args(F, Args) :- nonvar(Args),
                               ( uses_as_data(F, A) -> true ; uses_as_data_args(F, Rest) ).
 
 % First pass converts MeTTa to Prolog terms without mutating registration state.
-parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
+%parse_metta_source/2 has already run the comment pass over the whole source,
+%so these forms carry no comments and sread_stripped/2 does not look for any.
+parse_form(form(S), parsed(T, S, Term)) :- sread_stripped(S, Term),
                                            ( Term = [=, [F|_], _], atom(F) -> T=function
                                                                            ; T=expression ).
-parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
+parse_form(runnable(S), parsed(runnable, S, Term)) :- sread_stripped(S, Term).
 
 % process_form/3 is the direct-string path used by named Python spaces. File
 % loads use process_form/4 so source clauses compile once while their atoms are
