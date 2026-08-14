@@ -1,14 +1,33 @@
+% Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
+%   imports, function registration, and named-space execution context.
+% Guarantees:
+%   - get-metatype/2 classifies every Prolog term used as a MeTTa value
+%     [tested 2026-08-14: metta_metatypes].
+%   - Test assertions distinguish no answer from one empty-expression answer
+%     [tested 2026-08-14: translator_test_answers].
+%   - Runtime builtins reject prebound outputs that they would not produce
+%     [tested 2026-08-14: metta_builtin_outputs].
+%   - Function registration performed by a source load participates in that
+%     load's rollback [tested 2026-08-14: filereader_source_rollback].
+%   - Python source imports restore sibling modules and sys.path after setup
+%     or execution errors [tested 2026-08-14:
+%     metta_python_import_cleanup].
+% Open Obligations:
+%   To Do: None
+%   Hacks: None
+%   Future Enhancements: None
+
 %%%%%%%%%% Dependencies %%%%%%%%%%
-%Asserted at runtime (git imports, the CLI driver); declared so a
-%reference before the first assert fails instead of erring undefined.
-:- dynamic library_path/1, working_dir/1.
-library(X, Path) :- standard_library_path(Base), atomic_list_concat([Base, '/', X], Path).
-library(X, Y, Path) :- library_path(Base), atom_concat(_, X, Base), atomic_list_concat([Base, '/', Y], Path).
+library(X, Path) :- standard_library_path(Base),
+                    directory_file_path(Base, X, Path).
+library(X, Y, Path) :- git_library_path(X, Base),
+                       directory_file_path(Base, Y, Path).
 :- prolog_load_context(directory, Source),
    directory_file_path(Source, '..', Parent),
    directory_file_path(Parent, 'lib', LibPath),
    asserta(standard_library_path(LibPath)).
 :- autoload(library(uuid)).
+:- use_module(library(crypto)).
 :- use_module(library(random)).
 :- use_module(library(janus)).
 :- use_module(library(error)).
@@ -22,14 +41,14 @@ library(X, Y, Path) :- library_path(Base), atom_concat(_, X, Base), atomic_list_
 :- use_module(library(process)).
 :- use_module(library(filesex)).
 :- current_prolog_flag(argv, Argv),
-  ( member(mork, Argv) -> ensure_loaded([ext_points, parser, translator, specializer, filereader, '../mork_ffi/morkspaces', spaces, tracer])
-                        ; ensure_loaded([ext_points, parser, translator, specializer, filereader, spaces, tracer])).
+   ( member(mork, Argv) -> ensure_loaded([ext_points, parser, translator, specializer, filereader, '../lib/lib_gitimport', '../mork_ffi/morkspaces', spaces, tracer])
+                         ; ensure_loaded([ext_points, parser, translator, specializer, filereader, '../lib/lib_gitimport', spaces, tracer])).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Representation and parsing conversions: %%%
 id(X, X).
-repr(Term, R) :- swrite(Term, R).
+repr(Term, R) :- swrite(Term, Text), R = Text.
 repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, R) :- sread(Str, R).
 
@@ -62,13 +81,13 @@ exp(Arg,R) :- R is exp(Arg).
 '#min'(A, B, R) :- R #= min(A,B).
 '#max'(A, B, R) :- R #= max(A,B).
 '#<'(A, B, true)  :- A #< B, !.
-'#<'(_, _, false).
+'#<'(A, B, false) :- A #>= B.
 '#>'(A, B, true)  :- A #> B, !.
-'#>'(_, _, false).
+'#>'(A, B, false) :- A #=< B.
 '#='(A, B, true)  :- A #= B, !.
-'#='(_, _, false).
+'#='(A, B, false) :- A #\= B.
 '#\\='(A, B, true)  :- A #\= B, !.
-'#\\='(_, _, false).
+'#\\='(A, B, false) :- A #= B.
 'pow-math'(A, B, Out) :- Out is A ** B.
 'sqrt-math'(A, Out)   :- Out is sqrt(A).
 'abs-math'(A, Out)    :- Out is abs(A).
@@ -150,13 +169,17 @@ non_list(X) :- compound(X), X \= [_|_].
 'size-atom'(List, Size) :- non_list(List), !, Size = [].
 'size-atom'(List, Size) :- length(List, Size).
 'car-atom'([H|_], H) :- !.
-'car-atom'(_, []).
+'car-atom'(Term, []) :- \+ Term = [_|_].
 'cdr-atom'([_|T], T) :- !.
-'cdr-atom'(_, []).
+'cdr-atom'(Term, []) :- \+ Term = [_|_].
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
-'index-atom'(_, Index, _) :- nonvar(Index), \+ integer(Index), !, fail.
-'index-atom'(List, Index, Elem) :- nth0(Index, List, Elem).
+'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
+                                Elem = [].
+'index-atom'(List, Index, Elem) :- var(Index), !,
+                                  nth0(Index, List, Elem).
+'index-atom'(List, Index, Elem) :-
+    ( nth0(Index, List, Value) -> Elem = Value ; Elem = [] ).
 member(X, L, true) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
@@ -165,7 +188,7 @@ member_alpha(X, [H|_]) :- (var(X) -> var(H) ; true), X = H, !.
 member_alpha(X, [_|T]) :- member_alpha(X, T).
 
 'is-alpha-member'(X, List, true) :- member_alpha(X, List), !.
-'is-alpha-member'(_, _, false).
+'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
@@ -239,7 +262,7 @@ get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist('get-type', X, T).
 get_type_candidate(X, T) :- catch('&self'(':', X, T), E, recover_failure(E)),
-                            \+ cyclic_term(T).
+                            acyclic_term(T).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
 get_type_candidate_in(_, X, _) :- var(X), !.
@@ -286,6 +309,7 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
 'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
+'get-metatype'(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
 
 'is-var'(A,R) :- var(A) -> R=true ; R=false.
 'is-ground'(A,R) :- ground(A) -> R=true ; R=false.
@@ -293,6 +317,15 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 'is-space'(A,R) :- atom(A), atom_concat('&', _, A) -> R=true ; R=false.
 
 %%% Diagnostics / Testing: %%%
+:- multifile prolog:error_message//1.
+
+prolog:error_message(petta_test_failed(Actual, Expected)) -->
+    [ 'MeTTa test failed: ~p does not match ~p'-[Actual, Expected] ].
+prolog:error_message(petta_assertion_failed(Goal)) -->
+    [ 'MeTTa assertion failed: ~p'-[Goal] ].
+prolog:error_message(petta_test_no_answer) -->
+    [ 'MeTTa test expression produced no answer'-[] ].
+
 'println!'(Arg, true) :- swrite(Arg, RArg),
                          format('~w~n', [RArg]).
 
@@ -303,12 +336,24 @@ test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]),
-                  (A =@= B -> true ; halt(1)).
+                  ( A =@= B -> true
+                  ; throw(error(petta_test_failed(A, B),
+                                context(test/3, 'MeTTa test values differ'))) ).
+
+test_answer_value([], _) :-
+    throw(error(petta_test_no_answer,
+                context(test/3, 'expected a value but expression produced no answer'))).
+test_answer_value([Actual], Actual) :- !.
+test_answer_value(Results, Results).
+
+'test-no-answer'(Results, Out) :-
+    test(Results, [], Out).
 
 assert(Goal, true) :- ( call(Goal) -> true
                                     ; swrite(Goal, RG),
                                       format("Assertion failed: ~w~n", [RG]),
-                                      halt(1) ).
+                                      throw(error(petta_assertion_failed(Goal),
+                                                  context(assert/2, 'MeTTa assertion failed'))) ).
 
 %%% The running space: %%%
 % (context-space) answers the space whose module the current goal runs in,
@@ -336,6 +381,26 @@ py_arg_norm(true, '@'(true)) :- !.
 py_arg_norm(false, '@'(false)) :- !.
 py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
 py_arg_norm(X, X).
+
+:- dynamic python_import_alias/2.
+python_call_module(Name, ModuleKey) :- python_import_alias(Name, ModuleKey), !.
+python_call_module(Name, Name).
+bind_python_calls(Term, Term) :- var(Term), !.
+bind_python_calls(Term, Term) :- atomic(Term), !.
+bind_python_calls([Call, [Spec|Args]], ['py-call', [BoundSpec|BoundArgs]]) :-
+    Call == 'py-call', !,
+    bind_python_call_spec(Spec, BoundSpec),
+    maplist(bind_python_calls, Args, BoundArgs).
+bind_python_calls(Terms, BoundTerms) :-
+    maplist(bind_python_calls, Terms, BoundTerms).
+
+bind_python_call_spec(Spec, BoundSpec) :-
+    atom(Spec),
+    atomic_list_concat([Module, Function], '.', Spec),
+    Module \== '',
+    python_import_alias(Module, ModuleKey), !,
+    atomic_list_concat([ModuleKey, Function], '.', BoundSpec).
+bind_python_call_spec(Spec, Spec).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
                                         must_be(atom, A),
@@ -355,7 +420,8 @@ py_arg_norm(X, X).
                                              -> ( Args == []
                                                   -> compound_name_arguments(Call0, F, [])
                                                    ; Call0 =.. [F|Args] ),
-                                                py_call(M:Call0, R0, Opts), py_bool_norm(R0, Result)
+                                                python_call_module(M, PyModule),
+                                                py_call(PyModule:Call0, R0, Opts), py_bool_norm(R0, Result)
                                               ; ( Args == []                      % bare "fun"
                                                   -> compound_name_arguments(Call0, A, [])
                                                    ; Call0 =.. [A|Args] ),
@@ -367,7 +433,7 @@ py_arg_norm(X, X).
 'get-state'(Var, Value) :- nb_getval(Var, Value).
 
 %%% Eval: %%%
-eval(C, Out) :- translate_expr(C, Goals, Out),
+eval(C, Out) :- translate_runnable_expr(C, Goals, Out),
                 call_goals(Goals).
 
 call_goals([]).
@@ -427,120 +493,192 @@ ensure_metta_ext(Path, Path) :- file_name_extension(_, gz, Path), !.
 ensure_metta_ext(Path, Path) :- file_name_extension(_, metta, Path), !.
 ensure_metta_ext(Path, PathWithExt) :- file_name_extension(Path, metta, PathWithExt).
 
-import_file_string(File, File) :- string(File), !.
+current_working_dir(Base) :- working_dir(Base), !.
+current_working_dir(Base) :- absolute_file_name('.', Base, [file_type(directory)]).
+
+import_file_string(File, SFile) :- string(File), !, SFile = File.
 import_file_string(File, SFile) :- atom_string(File, SFile).
 
-resolve_metta_import_path(SFile, Base, CanonPath) :-
-    ( Candidate = SFile ; atomic_list_concat([Base, '/', SFile], Candidate) ),
-    ensure_metta_ext(Candidate, PathWithExt),
-    absolute_file_name(PathWithExt, CanonPath,
-                       [access(read), file_errors(fail)]), !.
-resolve_metta_import_path(SFile, _, _) :-
+python_import_file(File) :- import_file_string(File, SFile),
+                            file_name_extension(_, py, SFile).
+
+resolve_existing_import_path(Base, RequestedPath, CanonPath) :-
+    ( is_absolute_file_name(RequestedPath)
+      -> absolute_file_name(RequestedPath, CanonPath,
+                            [access(read), file_errors(fail)])
+       ; absolute_file_name(RequestedPath, CanonPath,
+                            [relative_to(Base), access(read), file_errors(fail)]) ),
+    !.
+
+throw_missing_import(File) :-
+    throw(error(existence_error(source_sink, File), context('import!', File))).
+
+resolve_metta_import_path(File, CanonPath) :-
+    import_file_string(File, SFile),
+    \+ python_import_file(SFile),
+    current_working_dir(Base),
     ensure_metta_ext(SFile, RequestedPath),
-    throw(error(existence_error(source_sink, RequestedPath),
-                context(RequestedPath, 'while importing file'))).
+    ( resolve_existing_import_path(Base, RequestedPath, CanonPath)
+      -> true
+       ; throw_missing_import(File) ).
 
-resolve_python_import_path(SFile, Base, CanonPath) :-
-    absolute_file_name(SFile, CanonPath,
-                       [relative_to(Base), access(read), file_errors(fail)]), !.
-resolve_python_import_path(SFile, _, _) :-
-    throw(error(existence_error(source_sink, SFile),
-                context(SFile, 'while importing file'))).
+resolve_python_import_path(File, CanonPath) :-
+    import_file_string(File, SFile),
+    python_import_file(SFile),
+    current_working_dir(Base),
+    ( resolve_existing_import_path(Base, SFile, CanonPath)
+      -> true
+       ; throw_missing_import(File) ).
 
-%The loaded marker is a clause owned by the target space. Its non-true body
-%keeps it out of get-atoms/2, while a space clear still retracts it with every
-%other Space/N clause. Thus one space life skips an already loaded canonical
-%file, a loading marker breaks cycles, and a cleared pooled name reloads all
-%forms in its next life.
-import_life_marker(_) :- fail.
+:- dynamic imported_metta_source/2.
 
-import_marker_head(Space, CanonPath, Head) :-
-    Head =.. [Space, '$petta_import'(CanonPath)].
+% A native space owns a hidden marker for each import in its current life.
+% Clearing the space removes these clauses, so a pooled name reloads its atoms
+% while compiled source clauses remain process-wide and are not duplicated.
+import_life_marker :- fail.
 
-import_marker_clause(Space, CanonPath, State, Ref) :-
-    import_marker_head(Space, CanonPath, Head),
-    clause(Head, import_life_marker(State), Ref).
+import_life_marker_head(Space, CanonPath, Head) :-
+    Head =.. [Space, '$petta_import', CanonPath].
 
-claim_import(Space, CanonPath, skip, _) :-
-    import_marker_clause(Space, CanonPath, loaded, _), !.
-claim_import(Space, CanonPath, skip, _) :-
-    import_marker_clause(Space, CanonPath, loading, _), !.
-claim_import(Space, CanonPath, load, Ref) :-
-    import_marker_head(Space, CanonPath, Head),
-    assertz((Head :- import_life_marker(loading)), Ref).
+import_life_loaded(Space, CanonPath) :-
+    atom(Space), !,
+    import_life_marker_head(Space, CanonPath, Head),
+    clause(Head, import_life_marker, _).
+import_life_loaded(_, _).
 
-erase_import_marker(Ref) :-
+assert_import_life_marker(Space, CanonPath, Ref) :-
+    atom(Space), !,
+    import_life_marker_head(Space, CanonPath, Head),
+    assertz((Head :- import_life_marker), Ref).
+assert_import_life_marker(_, _, none).
+
+erase_import_life_marker(none) :- !.
+erase_import_life_marker(Ref) :-
     ( clause_property(Ref, erased) -> true ; erase(Ref) ).
 
-mark_import_loaded(Space, CanonPath, LoadingRef) :-
-    erase_import_marker(LoadingRef),
-    import_marker_head(Space, CanonPath, Head),
-    assertz((Head :- import_life_marker(loaded))).
+run_with_import_life_marker(Space, CanonPath, Goal) :-
+    setup_call_catcher_cleanup(
+        assert_import_life_marker(Space, CanonPath, Ref),
+        once(Goal),
+        Catcher,
+        ( Catcher == exit -> true ; erase_import_life_marker(Ref) )).
 
-run_new_import(Space, CanonPath, LoadingRef, Goal) :-
-    catch(( once(Goal)
-            -> mark_import_loaded(Space, CanonPath, LoadingRef)
-             ; throw(error(import_error(loader_failed),
-                           context(CanonPath, 'import loader failed'))) ),
-          Error,
-          ( erase_import_marker(LoadingRef), throw(Error) )).
-
-:- meta_predicate import_once(+, +, 0).
+% Assert both markers before loading to break cycles. Retain them on success
+% and retract them on failure. The recursive mutex serializes the loader graph.
 import_once(Space, CanonPath, Goal) :-
-    claim_import(Space, CanonPath, Action, LoadingRef),
-    ( Action == skip -> true
-    ; run_new_import(Space, CanonPath, LoadingRef, Goal) ).
+    ( imported_metta_source(Space, CanonPath),
+      import_life_loaded(Space, CanonPath)
+      -> true
+       ; retractall(imported_metta_source(Space, CanonPath)),
+         run_with_loading_marker(
+             imported_metta_source(Space, CanonPath),
+             run_with_import_life_marker(Space, CanonPath, Goal)) ).
 
-rethrow_import_target_error(_, Error) :- control_exception(Error), !,
-                                         throw(Error).
-rethrow_import_target_error(_, Error) :-
-    Error = error(_, context(Source, _)),
-    ( atom(Source) ; string(Source) ),
-    exists_file(Source), !,
-    throw(Error).
-rethrow_import_target_error(CanonPath, error(Type, _)) :- !,
-    throw(error(Type, context(CanonPath, 'while importing file'))).
-rethrow_import_target_error(CanonPath, Error) :-
-    throw(error(import_error(Error), context(CanonPath, 'while importing file'))).
+python_module_names(CanonPath, ModuleKey, ModuleName) :-
+    crypto_data_hash(CanonPath, Hash, [algorithm(sha256)]),
+    atom_concat('_petta_import_', Hash, ModuleKey),
+    file_base_name(CanonPath, BaseName),
+    file_name_extension(ModuleName, _, BaseName).
 
-:- meta_predicate import_target(+, +, 0).
-import_target(Space, CanonPath, Goal) :-
-    catch(import_once(Space, CanonPath, Goal),
+python_sibling_module_names(ParentDir, ModuleNames) :-
+    directory_files(ParentDir, Entries),
+    findall(ModuleName,
+            ( member(Entry, Entries),
+              file_name_extension(ModuleName, py, Entry) ),
+            Names),
+    sort(Names, ModuleNames).
+
+save_python_module(Name, module_state(Name, true, Module)) :-
+    py_call(sys:modules:'__contains__'(Name), @(true)), !,
+    py_call(sys:modules:pop(Name), Module, [py_object(true)]).
+save_python_module(Name, module_state(Name, false, @(none))).
+
+restore_python_module(module_state(Name, true, Module)) :- !,
+    py_call(sys:modules:'__setitem__'(Name, Module), _).
+restore_python_module(module_state(Name, false, _)) :-
+    clear_python_module(Name).
+
+clear_python_module(Name) :-
+    ( py_call(sys:modules:'__contains__'(Name), @(true))
+      -> py_call(sys:modules:pop(Name), _)
+       ; true ).
+
+with_saved_python_modules([], Goal) :-
+    call(Goal).
+with_saved_python_modules([Name|Names], Goal) :-
+    setup_call_cleanup(
+        save_python_module(Name, State),
+        with_saved_python_modules(Names, Goal),
+        restore_python_module(State)).
+
+load_python_source(CanonPath) :-
+    python_module_names(CanonPath, ModuleKey, ModuleName),
+    py_call(sys:path:copy(), PreviousPath),
+    file_directory_name(CanonPath, ParentDir),
+    python_sibling_module_names(ParentDir, SiblingNames),
+    with_saved_python_modules(
+        SiblingNames,
+        load_python_source_in_context(CanonPath, ModuleKey, ModuleName,
+                                      ParentDir, PreviousPath)),
+    retractall(python_import_alias(ModuleName, _)),
+    assertz(python_import_alias(ModuleName, ModuleKey)).
+
+load_python_source_in_context(CanonPath, ModuleKey, ModuleName, ParentDir,
+                              PreviousPath) :-
+    catch(load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
+                             PreviousPath),
           Error,
-          rethrow_import_target_error(CanonPath, Error)).
+          ( clear_python_module(ModuleKey),
+            throw(Error) )).
 
-%Missing targets, loader failures, and loader errors name the target and
-%surface to the caller; none is a recovery case. A failed load clears its
-%loading marker so a corrected file can be retried. Control exceptions keep
-%flying unchanged.
+load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
+                   PreviousPath) :-
+    py_call(importlib:util:spec_from_file_location(ModuleKey, CanonPath), Spec),
+    py_call(importlib:util:module_from_spec(Spec), Module),
+    py_call(sys:modules:'__setitem__'(ModuleKey, Module), _),
+    py_call(sys:modules:'__setitem__'(ModuleName, Module), _),
+    setup_call_cleanup(
+        py_call(sys:path:insert(0, ParentDir), _),
+        py_call(Spec:loader:exec_module(Module), _),
+        restore_python_path(PreviousPath)).
+
+restore_python_path(PreviousPath) :-
+    py_call(sys:path:clear(), _),
+    py_call(sys:path:extend(PreviousPath), _).
+
 'import!'(Space, File, true) :- importer_helper(Space, File).
 importer_helper(Space, File) :-
-    import_file_string(File, SFile),
-    working_dir(Base),
-    ( file_name_extension(_, py, SFile)
-      -> resolve_python_import_path(SFile, Base, CanonPath),
-         file_directory_name(CanonPath, Dir),
-         file_base_name(CanonPath, BaseName),
-         file_name_extension(ModuleName, py, BaseName),
-         import_target(Space, CanonPath,
-                       ( py_call(sys:path:append(Dir), _),
-                         py_call(builtins:'__import__'(ModuleName), _) ))
-       ; resolve_metta_import_path(SFile, Base, CanonPath),
-         import_target(Space, CanonPath,
-                       transaction(load_metta_file(CanonPath, _, Space))) ).
+    with_mutex(metta_loader, importer_helper_impl(Space, File)).
+importer_helper_impl(Space, File) :-
+    ( python_import_file(File)
+      -> resolve_python_import_path(File, CanonPath),
+         import_once('$python', CanonPath, load_python_source(CanonPath))
+       ; resolve_metta_import_path(File, CanonPath),
+         import_once(Space, CanonPath,
+                     load_imported_metta_file(CanonPath, _, Space)) ).
 
 :- dynamic translator_rule/1.
 'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
                                       -> true ; assertz(translator_rule(HV)) ).
 
-'remove-translator-rule!'(HV, true) :- retractall(translator_rule(HV)).
+'remove-translator-rule!'(HV, true) :-
+    must_be(nonvar, HV),
+    retractall(translator_rule(HV)).
 
 %%% Registration: %%%
 :- dynamic fun/1, arity/2.
-register_fun(N) :- fun(N), !.
-register_fun(N) :- assertz(fun(N)),
-                   forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
-                          (arity(N, Arity) -> true ; assertz(arity(N, Arity)))).
+register_fun(N) :- must_be(atom, N),
+                   ( fun(N) -> true
+                   ; assertz(fun(N), Ref),
+                     record_source_assertion(Ref),
+                     forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
+                            register_arity(N, Arity)),
+                     repair_after_late_registration(N) ).
+
+%Record each callable arity once, even when a function has many equations.
+register_arity(N, Arity) :- ( arity(N, Arity) -> true
+                            ; assertz(arity(N, Arity), Ref),
+                              record_source_assertion(Ref) ).
 
 %The module whose equations are in scope while a term is compiled or run. The
 %default is user, so nothing changes for a program that only ever uses &self.
@@ -595,10 +733,13 @@ fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
 %whether *this* space defines a symbol rather than whether any space does.
 :- dynamic fun_in/2, fun_scoped/1.
 register_fun_in(Module, N) :- register_fun(N),
-                              ( fun_in(Module, N) -> true ; assertz(fun_in(Module, N)) ),
+                              ( fun_in(Module, N) -> true
+                              ; assertz(fun_in(Module, N), FunInRef),
+                                record_source_assertion(FunInRef) ),
                               ( Module == user -> true
                               ; fun_scoped(N) -> true
-                              ; assertz(fun_scoped(N)) ).
+                              ; assertz(fun_scoped(N), ScopedRef),
+                                record_source_assertion(ScopedRef) ).
 
 unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
                                 ( fun_in(Other, N), Other \== user
@@ -609,8 +750,9 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
-                          repr, repra, parse, 'println!', 'readln!', test, assert, 'mm2-exec', 'mork-add-atoms', 'mork-flush', atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, 'mm2-exec', 'mork-add-atoms', 'mork-flush', atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
+                          'git-import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','set_hook',

@@ -22,18 +22,10 @@ helper_restore_silent(some(Value)) :-
     retractall(silent(_)),
     assertz(silent(Value)).
 
-set_working_dir(load_metta_file, File) :-
-    file_directory_name(File, Dir),
-    retractall(working_dir(_)),
-    assertz(working_dir(Dir)),
-    !.
-set_working_dir(_, _).
-
 run_metta_helper(Verbose, Predicate, Arg, ResultsR) :-
     with_mutex(petta_helper_state,
         setup_call_cleanup(
             helper_set_silent(Verbose, Previous),
-            ( set_working_dir(Predicate, Arg),
-              call(Predicate, Arg, Results),
+            ( call(Predicate, Arg, Results),
               maplist(swrite, Results, ResultsR) ),
             helper_restore_silent(Previous))).
