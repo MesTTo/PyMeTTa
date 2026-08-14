@@ -18,6 +18,9 @@ Guarantees:
   - opaque grounded objects and their Box identity carriers refuse pickle
     because process-local identity cannot survive it [tested
     test_process_local_grounded_values_refuse_pickle]
+  - Expr implements the Sequence methods promised by its virtual registration
+    and equality short-circuits identical nodes [tested
+    test_expr_sequence_index_and_count, test_expr_identity_equality]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -400,6 +403,8 @@ class Sym(Atom):
         object.__setattr__(self, "name", str(name))
 
     def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
         if not isinstance(other, Atom):
             return NotImplemented
         return isinstance(other, Sym) and other.name == self.name
@@ -726,9 +731,13 @@ class Expr(Atom):
         stack: list[tuple[Expr, Expr]] = [(self, other)]
         while stack:
             a, b = stack.pop()
+            if a is b:
+                continue
             if len(a.children) != len(b.children):
                 return False
-            for x, y in zip(a.children, b.children, strict=True):
+            for x, y in zip(a.children, b.children):
+                if x is y:
+                    continue
                 if isinstance(x, Expr) and isinstance(y, Expr):
                     stack.append((x, y))
                 elif x != y:
@@ -801,6 +810,14 @@ class Expr(Atom):
 
     def __getitem__(self, i: int | slice) -> Any:
         return self.children[i]
+
+    def index(self, value: Atom, start: int = 0, stop: int | None = None) -> int:
+        if stop is None:
+            return self.children.index(value, start)
+        return self.children.index(value, start, stop)
+
+    def count(self, value: Atom) -> int:
+        return self.children.count(value)
 
     def __iter__(self) -> Iterator[Atom]:
         return iter(self.children)

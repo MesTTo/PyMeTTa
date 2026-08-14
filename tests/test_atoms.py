@@ -85,6 +85,22 @@ def test_expr_is_a_sequence():
             raise AssertionError("sequence pattern did not match")
 
 
+def test_expr_sequence_index_and_count():
+    atom = expr(S.f, S.a, S.b, S.a)
+    assert atom.index(S.a) == 1
+    assert atom.index(S.a, 2) == 3
+    assert atom.count(S.a) == 2
+    with pytest.raises(ValueError):
+        atom.index(S.missing)
+
+
+def test_expr_identity_equality():
+    shared = expr(S.node, S.leaf)
+    atom = expr(S.root, shared, shared)
+    assert atom == atom
+    assert atom == expr(S.root, shared, shared)
+
+
 def test_symbol_application_builds_expressions():
     assert S.Parent(S.Tom, S.Bob) == expr(S.Parent, S.Tom, S.Bob)
     assert S.f(1, "x") == expr(S.f, 1, "x")
