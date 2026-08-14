@@ -351,8 +351,14 @@ translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
          translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
          translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
          build_branch(DefaultConj, DefaultValue, Out, DefaultBranch),
-         Combined = ( (KeyConj, CaseGoal) ;
-                      \+ KeyConj, DefaultBranch ),
+         %The soft cut runs the key once. Writing this as
+         %`(KeyConj, CaseGoal) ; \+ KeyConj, DefaultBranch` evaluates the key a
+         %second time to decide the default, so a key with a side effect ran it
+         %twice and an expensive key cost twice as much. A hard `->` would run
+         %it once but commit to the first key value, which loses the other
+         %answers of a nondeterministic key such as (superpose (1 2)).
+         Combined = ( KeyConj *-> CaseGoal
+                    ; DefaultBranch ),
          append(KeyGoals, [Combined|Goals], AfterHead)
       ; translate_expr_dl(KeyExpr, AfterHead, AfterKey, KeyValue),
         translate_case(PairsExpr, KeyValue, Out, CaseGoal, KeyGoals),
