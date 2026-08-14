@@ -97,6 +97,27 @@ def explain_no_match(space: Any, pattern: Any) -> str:
     return _unstored_explanation(space, head.name)
 
 
+def strict_violation(space: Any, atom: Any) -> str | None:
+    """Say why one answer looks like silence, or None when it looks intended.
+
+    An unreduced call is a legitimate answer in MeTTa, so this reports only
+    the case with no innocent reading: an expression whose head names neither
+    a function nor anything stored here, which is what a typo produces. A
+    function that matched no clause answers nothing rather than answering
+    itself, so it never reaches here.
+    """
+    if not isinstance(atom, Expr) or not atom.children:
+        return None
+    head = atom.head
+    if not isinstance(head, Sym):
+        return None
+    if space.is_function(head.name) or space.is_function_here(head.name):
+        return None
+    if _stored_with_head(space, head.name):
+        return None
+    return f"{atom} came back unreduced: {_unstored_explanation(space, head.name)}"
+
+
 def _first_unmatched_pattern(space: Any, patterns: tuple[Atom, ...]) -> tuple[int, Atom] | None:
     for index, pattern in enumerate(patterns, start=1):
         if not space.query(pattern, limit=1):

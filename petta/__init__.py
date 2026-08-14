@@ -147,6 +147,7 @@ from .errors import (  # noqa: E402
     MettaSyntaxError,
     PettaError,
     ResourceLimitError,
+    StrictError,
     TimeLimitError,
 )
 from .foreign import (  # noqa: E402
@@ -231,6 +232,7 @@ __all__ = [
     "SpaceName",
     "SpaceProvider",
     "Step",
+    "StrictError",
     "Subscription",
     "Sym",
     "TimeLimitError",

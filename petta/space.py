@@ -33,6 +33,9 @@ Guarantees:
     test_cast_target_is_positional_only]
   - dropping a space releases its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - strict= refuses only silence, never a legitimate unreduced answer, and is
+    never the default [tested test_strict_refuses_a_typo_and_names_the_near_miss,
+    test_strict_accepts_answers_that_are_not_silence, test_strict_is_opt_in]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -48,7 +51,7 @@ import builtins as _builtins
 import os
 import types
 from collections import abc as _abc
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Literal, Self, TypeVar, overload
 
 from . import integrate as _integrate
@@ -56,7 +59,7 @@ from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
-from ._space_diagnostics import derivations, explain_no_match
+from ._space_diagnostics import derivations, explain_no_match, strict_violation
 from ._space_execution import evaluate, profile_source, run_source, value_one
 from ._space_objects import (
     Cursor,
@@ -83,7 +86,7 @@ from .atoms import (
 )
 from .casting import cast as _cast
 from .derivation import Derivation
-from .errors import EngineError
+from .errors import EngineError, StrictError
 from .foreign import (
     has_provider,
     register_provider,
@@ -230,6 +233,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: Literal[False] = False,
         atomic: bool = False,
+        strict: bool = False,
         speculative: bool = False,
     ) -> list[list[Atom]]: ...
 
@@ -243,6 +247,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: Literal[True],
         atomic: bool = False,
+        strict: bool = False,
         speculative: bool = False,
     ) -> tuple[list[list[Atom]], str]: ...
 
@@ -256,6 +261,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: bool,
         atomic: bool = False,
+        strict: bool = False,
         speculative: bool = False,
     ) -> list[list[Atom]] | tuple[list[list[Atom]], str]: ...
 
@@ -268,6 +274,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: bool = False,
         atomic: bool = False,
+        strict: bool = False,
         speculative: bool = False,
     ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
         """Run MeTTa source: one list of answers per ! directive.
@@ -300,8 +307,15 @@ class MeTTa:
         snapshot/1: the answers return and every write is discarded.
         Both cover engine state; a Python operation's side effects, and
         subscription callbacks already fired, stay where they happened.
+
+        `strict=True` raises StrictError when a directive answers nothing,
+        or answers an expression whose head names neither a function nor
+        anything stored here, which is what a typo produces. It is opt-in
+        and never the default, because keeping an unreduced term is the
+        point of the language; turn it on while learning or in a test, and
+        the message names the near miss.
         """
-        return run_source(
+        answered = run_source(
             self._rt,
             self._space,
             source,
@@ -312,6 +326,20 @@ class MeTTa:
             atomic=atomic,
             speculative=speculative,
         )
+        if strict:
+            groups = answered[0] if isinstance(answered, tuple) else answered
+            self._check_strict(groups)
+        return answered
+
+    def _check_strict(self, groups: Sequence[Sequence[Atom | Undefined]]) -> None:
+        """Refuse silence, once the caller has opted into being told."""
+        for position, group in enumerate(groups, start=1):
+            if not group:
+                raise StrictError("answered nothing", directive=position)
+            for atom in group:
+                complaint = strict_violation(self, atom)
+                if complaint is not None:
+                    raise StrictError(complaint, term=atom, directive=position)
 
     def profile(
         self,
@@ -619,6 +647,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: Literal[False] = False,
         residuals: bool = False,
+        strict: bool = False,
     ) -> list[Atom | Undefined]: ...
 
     @overload
@@ -630,6 +659,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: Literal[True],
         residuals: bool = False,
+        strict: bool = False,
     ) -> tuple[list[Atom | Undefined], str]: ...
 
     @overload
@@ -641,6 +671,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: bool,
         residuals: bool = False,
+        strict: bool = False,
     ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]: ...
 
     def eval(
@@ -651,6 +682,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: bool = False,
         residuals: bool = False,
+        strict: bool = False,
     ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
         """Evaluate a term, returning every answer.
 
@@ -670,9 +702,11 @@ class MeTTa:
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. With
         `capture=True` the return value is (answers, text), text being
-        everything the evaluation printed.
+        everything the evaluation printed. `strict=True` refuses silence
+        exactly as run() does, raising StrictError on no answers or on an
+        unreduced head that names nothing.
         """
-        return evaluate(
+        answered = evaluate(
             self._rt,
             self._space,
             target,
@@ -681,6 +715,9 @@ class MeTTa:
             capture=capture,
             residuals=residuals,
         )
+        if strict:
+            self._check_strict([answered[0] if isinstance(answered, tuple) else answered])
+        return answered
 
     def value(
         self,
