@@ -1,7 +1,6 @@
-"""Purpose: the engine bridge. Consults PeTTa and the shim exactly once per
-process, serializes janus calls behind one lock, and turns Prolog exceptions
-into the library's own errors. Coordinates with the legacy petta.PeTTa class
-through the package-level CONSULTED flag so both surfaces share one engine.
+"""Purpose: own the engine bootstrap and bridge. Consults PeTTa and the shim
+exactly once per process, serializes janus calls behind one lock, and turns
+Prolog exceptions into the library's own errors for both Python surfaces.
 Guarantees:
   - Runtime classifies only the shim's exact reserved exception term shape
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
@@ -21,9 +20,13 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, Iterator, NoReturn
+from pathlib import Path
+from typing import Any, NoReturn, Protocol, cast
 
+from . import _ops, _prelude
+from ._config import config
 from .errors import (
     EngineError,
     InferenceLimitError,
@@ -35,12 +38,43 @@ from .errors import (
 logger = logging.getLogger(__name__)
 
 _LOCK = threading.RLock()
+CONSULT_LOCK = threading.Lock()
+CONSULTED = threading.Event()
+_SHIM_LOADED = threading.Event()
 
 # The failure sentinel for the functional calling convention: a private
 # identity no predicate can answer, so a legitimate output is never
 # mistaken for failure.
 _FAILED = object()
-_RUNTIME: "Runtime | None" = None
+
+
+class JanusBridge(Protocol):
+    """The janus operations PeTTa uses across the package."""
+
+    def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any: ...
+    def attach_engine(self) -> Any: ...
+    def cmd(self, module: str, predicate: str, *inputs: Any) -> bool: ...
+    def consult(self, path: str, data: str | None = None) -> Any: ...
+    def detach_engine(self) -> Any: ...
+    def engine(self) -> int: ...
+    def heartbeat(self, interval: int) -> Any: ...
+    def prolog(self) -> Any: ...
+    def query(self, goal: str, inputs: Mapping[str, Any] | None = None) -> Iterator[dict[str, Any]]: ...
+    def query_once(
+        self, goal: str, inputs: Mapping[str, Any] | None = None
+    ) -> dict[str, Any] | None: ...
+    def version_str(self, version: int | None = None) -> str: ...
+
+
+class _EngineState:
+    """Mutable process singleton state, changed only under engine locks."""
+
+    def __init__(self) -> None:
+        self.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+        self.runtime: Runtime | None = None
+
+
+_STATE = _EngineState()
 
 _EXCEPTION_TYPES = {
     "syntax": MettaSyntaxError,
@@ -52,7 +86,30 @@ _EXCEPTION_TYPES = {
 
 def started() -> bool:
     """Whether a runtime exists, without starting one."""
-    return _RUNTIME is not None
+    return _STATE.runtime is not None
+
+
+def active_runtime() -> Runtime | None:
+    """Return the runtime when one exists, without starting it."""
+    return _STATE.runtime
+
+
+def bridge() -> JanusBridge:
+    """Return the imported janus bridge without starting the PeTTa runtime."""
+    return _STATE.janus
+
+
+def _resolve_petta_path() -> str:
+    """Locate the configured, bundled, or checkout PeTTa runtime tree."""
+    configured = os.environ.get("PETTA_PATH")
+    if configured:
+        return str(Path(configured).resolve())
+
+    package = Path(__file__).resolve().parent
+    bundled = package / "_runtime"
+    if (bundled / "src" / "main.pl").is_file():
+        return str(bundled)
+    return str(package.parents[1])
 
 
 @contextmanager
@@ -93,7 +150,7 @@ def engine_thread() -> Iterator[None]:
             ) from exc
 
 
-def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":
+def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
     """The process's runtime, started on first use.
 
     There is exactly one engine per process, so a later caller cannot have
@@ -101,17 +158,16 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":
     already consulted raises rather than being silently ignored. Verbosity
     is per-call state and simply applies.
     """
-    global _RUNTIME
     with _LOCK:
-        if _RUNTIME is None:
+        if _STATE.runtime is None:
             logger.debug("starting the shared PeTTa runtime")
-            _RUNTIME = Runtime(petta_path=petta_path, verbose=verbose)
+            _STATE.runtime = Runtime(petta_path=petta_path, verbose=verbose)
         else:
-            active = _RUNTIME.petta_path
+            active = _STATE.runtime.petta_path
             if (
                 petta_path is not None
                 and active is not None
-                and os.path.abspath(petta_path) != os.path.abspath(active)
+                and Path(petta_path).resolve() != Path(active).resolve()
             ):
                 raise ValueError(
                     f"the engine was consulted from {active!r} and cannot "
@@ -119,12 +175,12 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":
                     f"engine per process. Start a new process for a "
                     f"different tree."
                 )
-            if verbose != _RUNTIME.verbose:
-                _RUNTIME.verbose = verbose
-                _RUNTIME.once(
+            if verbose != _STATE.runtime.verbose:
+                _STATE.runtime.verbose = verbose
+                _STATE.runtime.once(
                     "petta_py_set_silent(S)", S="false" if verbose else "true"
                 )
-        return _RUNTIME
+        return _STATE.runtime
 
 
 def _clean_message(exc: BaseException) -> str:
@@ -141,18 +197,16 @@ class Runtime:
     """
 
     def __init__(self, petta_path: str | None = None, verbose: bool = False) -> None:
-        import petta as pkg
-
         self.verbose = bool(verbose)
-        with pkg.CONSULT_LOCK:
-            if not pkg.CONSULTED:
+        with CONSULT_LOCK:
+            if not CONSULTED.is_set():
                 if petta_path is None:
-                    petta_path = pkg._resolve_petta_path()
-                with pkg.config._startup() as startup:
-                    self._consult_engine(pkg, petta_path, startup[0])
-                pkg.CONSULTED = True
+                    petta_path = _resolve_petta_path()
+                with config._startup() as startup:
+                    _STATE.janus = self._consult_engine(petta_path, startup[0])
+                CONSULTED.set()
             self.petta_path = petta_path
-            self._janus = pkg.janus
+            self._janus = bridge()
             # The functional calling convention (apply_once, cmd) skips the
             # per-thread engine handling query_once performs: on a thread
             # with NO Prolog engine it aborts the PROCESS, observed and
@@ -162,11 +216,7 @@ class Runtime:
             # holding an attached engine; every other thread falls back to
             # the relational form with identical semantics.
             self._home_thread = threading.get_ident()
-            if self._janus is None:
-                # The legacy class consulted first through a mocked janus, or
-                # a test set CONSULTED by hand; import the real bridge.
-                self._janus = pkg.janus = importlib.import_module("janus_swi")
-            self._consult_shim(pkg, petta_path)
+            self._consult_shim()
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
             # queued past 1.5s. At the default 100,000-inference interval,
@@ -176,52 +226,49 @@ class Runtime:
             # with no heartbeat at all; 10,000 cost ~2% on that loop.
             # config.heartbeat_interval exposes that latency/cost tradeoff
             # (probes in ai-tmp/janus-probes/11_interrupt_heartbeat).
-            self._janus.heartbeat(pkg.config.heartbeat_interval)
+            self._janus.heartbeat(config.heartbeat_interval)
 
     # ------------------------------------------------------------------ startup
 
-    def _consult_engine(self, pkg: Any, petta_path: str, stack_limit: int) -> None:
+    def _consult_engine(self, petta_path: str, stack_limit: int) -> JanusBridge:
         """Mirror of the legacy startup: stack limit, optional MORK, main.pl."""
         logger.debug("consulting the PeTTa engine from %s", petta_path)
-        morklib = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
-        janus = importlib.import_module("janus_swi")
+        root = Path(petta_path)
+        morklib = root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+        janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
-        if os.path.exists(morklib):
+        if morklib.exists():
             logger.debug("enabling the MORK backend")
             janus.query_once("set_prolog_flag(argv, ['mork'])")
-        main_file = os.path.join(petta_path, "src", "main.pl")
-        helper_file = os.path.join(petta_path, "python", "helper.pl")
-        if not os.path.exists(main_file):
+        main_file = root / "src" / "main.pl"
+        helper_file = root / "python" / "helper.pl"
+        if not main_file.is_file():
             raise FileNotFoundError(
                 f"PeTTa runtime not found under {petta_path!r} (expected "
                 f"{main_file!r}). Set PETTA_PATH or pass petta_path."
             )
-        janus.consult(main_file)
-        if os.path.exists(helper_file):
-            janus.consult(helper_file)
-        pkg.janus = janus
+        janus.consult(str(main_file))
+        if helper_file.is_file():
+            janus.consult(str(helper_file))
         logger.debug("consulted the PeTTa engine")
+        return janus
 
-    def _consult_shim(self, pkg: Any, petta_path: str | None) -> None:
+    def _consult_shim(self) -> None:
         """Load shim.pl next to this file, and expose the ops module to janus."""
-        if getattr(pkg, "_SHIM_LOADED", False):
+        if _SHIM_LOADED.is_set():
             return
-        from . import _ops
-
         # janus reaches Python operations by importing petta_ops; the alias
         # makes that import resolve to the registry module.
         sys.modules.setdefault("petta_ops", _ops)
-        shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim.pl")
+        shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
         self._janus.query_once(
             "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
         )
-        pkg._SHIM_LOADED = True
+        _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
-        from . import _prelude
-
         _prelude.install(self)
         logger.debug("installed the Python bridge prelude")
 

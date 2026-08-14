@@ -15,42 +15,17 @@ Open Obligations:
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
 """
 
-import importlib
 import logging
-import os
 import sys
-import threading
 
+from . import _engine
 from ._config import Config, config
 from ._version import __version__
 
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-CONSULTED = False
-CONSULT_LOCK = threading.Lock()
-janus = None
-
-# Whether shim.pl has been consulted; owned by petta._engine.
-_SHIM_LOADED = False
-
-
-def _resolve_petta_path():
-    """Locate the PeTTa runtime tree (src/, lib/, python/helper.pl).
-
-    Prefers PETTA_PATH, then the runtime bundled in the installed package,
-    then the source-tree root (editable installs and checkouts).
-    """
-    env_path = os.environ.get("PETTA_PATH")
-    if env_path:
-        return os.path.abspath(env_path)
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    bundled = os.path.join(here, "_runtime")
-    if os.path.exists(os.path.join(bundled, "src", "main.pl")):
-        return bundled
-
-    return os.path.abspath(os.path.join(here, os.pardir, os.pardir))
+janus = _engine.bridge()
 
 
 class PeTTa:
@@ -61,37 +36,11 @@ class PeTTa:
     """
 
     def __init__(self, verbose=False, petta_path=None):
-        global CONSULTED, janus
         self.verbose = bool(verbose)
-        if not CONSULTED:
-            with CONSULT_LOCK:
-                if not CONSULTED:
-                    if petta_path is None:
-                        petta_path = _resolve_petta_path()
-                    morklib_file = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
-                    with config._startup() as startup:
-                        stack_limit, _heartbeat_interval = startup
-                        janus = importlib.import_module("janus_swi")
-                        janus.query_once(
-                            f"set_prolog_flag(stack_limit, {stack_limit})"
-                        )
-                        if os.path.exists(morklib_file):
-                            janus.query_once("set_prolog_flag(argv, ['mork'])")
-                        main_file = os.path.join(petta_path, "src", "main.pl")
-                        helper_file = os.path.join(petta_path, "python", "helper.pl")
-                        if not os.path.exists(main_file):
-                            raise FileNotFoundError(
-                                f"PeTTa runtime not found under {petta_path!r} "
-                                f"(expected {main_file!r}). Set the PETTA_PATH "
-                                "environment variable or pass petta_path to point at "
-                                "a PeTTa checkout."
-                            )
-                        janus.consult(main_file)
-                        janus.consult(helper_file)
-                    CONSULTED = True
+        self._runtime = _engine.runtime(petta_path=petta_path, verbose=self.verbose)
 
     def _run_helper(self, helper_name, argument):
-        result = janus.query_once(
+        result = self._runtime._janus.query_once(
             "run_metta_helper(Verbose, HelperName, Argument, Results)",
             {
                 "Verbose": "true" if self.verbose else "false",
@@ -172,13 +121,11 @@ def backend_info() -> dict[str, str | None]:
     This function does not start the PeTTa runtime. The petta_path value is
     None until a MeTTa runtime exists.
     """
-    from . import _engine
-
-    janus_bridge = importlib.import_module("janus_swi")
+    janus_bridge = _engine.bridge()
     swi_version_num = janus_bridge.query_once(
         "current_prolog_flag(version, SwiVersion)"
     )["SwiVersion"]
-    active_runtime = _engine._RUNTIME
+    active = _engine.active_runtime()
     return {
         "petta": __version__,
         "janus": janus_bridge.version_str(),
@@ -188,7 +135,7 @@ def backend_info() -> dict[str, str | None]:
             f"{sys.version_info.micro}"
         ),
         "petta_path": (
-            None if active_runtime is None else active_runtime.petta_path
+            None if active is None else active.petta_path
         ),
     }
 

@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from . import ops as _ops_module
-from ._engine import Runtime, runtime
+from ._engine import Runtime, bridge, runtime, started
 from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, variables
 from .derivation import Derivation
 from .errors import EngineError, PettaError
@@ -61,11 +61,9 @@ def current_space(default: str = "&self") -> str:
     an operation can behave per-space without the space being an argument.
     Outside any evaluation it answers the default.
     """
-    import petta as pkg
-
-    if pkg.janus is None:
+    if not started():
         return default
-    row = pkg.janus.query_once("current_metta_space(S)")
+    row = bridge().query_once("current_metta_space(S)")
     return str(row["S"]) if row else default
 
 # @define bookkeeping is keyed (space name, function name) process-wide,
@@ -1630,10 +1628,8 @@ class Cursor:
 
     @staticmethod
     def _reap(handle: Any) -> None:
-        import petta as pkg
-
         try:
-            pkg.janus.query_once("petta_py_cursor_close(E)", {"E": handle})
+            bridge().query_once("petta_py_cursor_close(E)", {"E": handle})
         except Exception:
             pass  # the engine is already gone, or the process is ending
 

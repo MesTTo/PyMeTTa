@@ -31,6 +31,7 @@ from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Iterator, Mapping
 
+from ._engine import bridge
 from ._network import HTTPEndpoint
 from .atoms import Atom, from_wire
 from .errors import PettaError
@@ -286,9 +287,8 @@ def serve(
         # engine: the fast calling convention works here, and the
         # per-call temporary attach cost disappears, the janus-documented
         # pattern for a thread that calls Prolog repeatedly.
-        import petta as pkg
-
-        pkg.janus.attach_engine()
+        janus = bridge()
+        janus.attach_engine()
         logger.debug("remote engine server worker attached a Prolog engine")
         try:
             while True:
@@ -306,7 +306,7 @@ def serve(
                     )
                     reply.put(("error", str(exc)))
         finally:
-            pkg.janus.detach_engine()
+            janus.detach_engine()
             logger.debug("remote engine server worker detached its Prolog engine")
 
     engine_thread = threading.Thread(target=worker, daemon=True)

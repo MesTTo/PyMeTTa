@@ -11,8 +11,6 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from types import SimpleNamespace
-
 import pytest
 
 import petta
@@ -119,11 +117,10 @@ def test_mork_startup_does_not_change_process_working_directory(monkeypatch, tmp
         raise AssertionError(f"engine startup changed directory to {path}")
 
     monkeypatch.setattr(_engine.os, "chdir", refuse_chdir)
-    package = SimpleNamespace(janus=None)
     runtime = _engine.Runtime.__new__(_engine.Runtime)
-    runtime._consult_engine(package, str(runtime_root), 64_000_000)
+    consulted = runtime._consult_engine(str(runtime_root), 64_000_000)
 
     assert "set_prolog_flag(stack_limit, 64000000)" in bridge.queries
     assert "set_prolog_flag(argv, ['mork'])" in bridge.queries
     assert bridge.consulted == [str(main_file)]
-    assert package.janus is bridge
+    assert consulted is bridge

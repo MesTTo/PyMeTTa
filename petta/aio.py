@@ -43,6 +43,7 @@ import weakref
 from collections.abc import Callable
 from typing import Any
 
+from ._engine import bridge
 from .errors import PettaError
 from .results import Rows
 from .space import MeTTa
@@ -124,11 +125,10 @@ class _EngineThread:
             # cost is gone. janus.engine() names this engine to
             # thread_signal, the address interrupt() throws at; a startup
             # failure is delivered to the awaiting start(), never hung on.
-            import petta as pkg
-
+            janus = bridge()
             try:
-                pkg.janus.attach_engine()
-                swi_thread = pkg.janus.engine()
+                janus.attach_engine()
+                swi_thread = janus.engine()
             except BaseException as exc:
                 # Bind to an ordinary local: Python deletes the except
                 # target when the block exits, and the deferred lambda
@@ -187,11 +187,11 @@ class _EngineThread:
                     finally:
                         with self._transition:
                             self._current = None
-                            self._drain(pkg)
+                            self._drain()
                     _deliver(request, outcome, failed=failed)
             finally:
                 try:
-                    pkg.janus.detach_engine()
+                    janus.detach_engine()
                 except Exception as exc:  # noqa: BLE001
                     # Any detachment failure makes the worker unusable.
                     with self._state_lock:
@@ -250,12 +250,12 @@ class _EngineThread:
                     return
             self._raise_state_locked()
 
-    def _drain(self, pkg) -> None:
+    def _drain(self) -> None:
         # One no-op engine call: a thread_signal throw that raced the end
         # of its goal fires here, inside the transition lock, and is
         # discarded as the stale stop it is.
         try:
-            pkg.janus.query_once("true")
+            bridge().query_once("true")
         except Exception:
             pass
 
@@ -263,8 +263,6 @@ class _EngineThread:
         """Signal the engine thread if `request` is the one running now,
         or if anything is running when request is None. Answers whether a
         signal was sent."""
-        import petta as pkg
-
         with self._state_lock:
             swi_thread = self._swi_thread
         with self._transition:
@@ -278,7 +276,7 @@ class _EngineThread:
             # query_once is safe from a bare foreign thread (the loop's),
             # and this bypasses the runtime lock on purpose: the running
             # goal holds that lock, and the signal is how it lets go.
-            pkg.janus.query_once(
+            bridge().query_once(
                 "thread_signal(T, throw(error(petta_py_exception(interrupted, none), "
                 "context(petta, interrupted))))",
                 {"T": swi_thread},

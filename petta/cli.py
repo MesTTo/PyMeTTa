@@ -9,8 +9,8 @@ import os
 import subprocess
 import sys
 
-from . import _resolve_petta_path
 from ._config import config
+from ._engine import _resolve_petta_path
 
 
 def main(argv=None):
