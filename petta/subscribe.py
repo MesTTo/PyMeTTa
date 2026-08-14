@@ -19,7 +19,9 @@ import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from .atoms import Atom, Expr, Var, _to_atom, atom_from_wire, map_atoms, unify
+from .atoms import Atom, Expr, Sym, Var, _to_atom, atom_from_wire, map_atoms, unify
+from .foreign import require_capability
+from .ops import _reflect_add, _reflect_remove
 
 __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 
@@ -65,8 +67,6 @@ class Subscription:
             _SUBSCRIPTIONS.remove(self)
         _sync_engine()
         if self._fact is not None and _RUNTIME is not None:
-            from .ops import _reflect_remove
-
             _reflect_remove(_RUNTIME, self._fact)
 
     def _deliver(self, event: Event) -> None:
@@ -113,8 +113,6 @@ def subscribe(
     global _RUNTIME
     if on not in ("add", "remove", "both"):
         raise ValueError(f"on must be add, remove or both, not {on!r}")
-    from .foreign import require_capability
-
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
     _RUNTIME = runtime
     subscription = Subscription(space, pattern, callback, on)
@@ -122,12 +120,7 @@ def subscribe(
     # cancel, so MeTTa programs see what Python is watching. The fact goes
     # in before the subscription activates: a watcher of &petta sees other
     # subscriptions arrive, never its own birth.
-    from .atoms import Expr, Sym
-    from .ops import _reflect_add
-
-    subscription._fact = Expr(
-        [Sym("subscription"), Sym(space), pattern, Sym(on)]
-    )
+    subscription._fact = Expr([Sym("subscription"), Sym(space), pattern, Sym(on)])
     _reflect_add(runtime, subscription._fact)
     with _REGISTRY_LOCK:
         _SUBSCRIPTIONS.append(subscription)
@@ -164,9 +157,7 @@ def atom_removed(space: str, wire: list) -> bool:
 def _instantiate(template: Atom, bindings: Mapping[str, Atom]) -> Atom:
     return map_atoms(
         template,
-        lambda atom: bindings.get(atom.name, atom)
-        if isinstance(atom, Var)
-        else atom,
+        lambda atom: bindings.get(atom.name, atom) if isinstance(atom, Var) else atom,
     )
 
 

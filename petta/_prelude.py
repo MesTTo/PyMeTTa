@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import ops as _ops_module
 from .atoms import Expr, Gnd, Sym
 
 __all__ = ["NAMES", "install", "pythonic"]
@@ -70,8 +71,7 @@ def install(runtime) -> None:
 
     def py_str_join(parts) -> str:
         return "".join(
-            p.name if isinstance(p, Sym) else str(p)
-            for p in (pythonic(c) for c in parts)
+            p.name if isinstance(p, Sym) else str(p) for p in (pythonic(c) for c in parts)
         )
 
     def py_in(item, container) -> bool:
@@ -107,8 +107,6 @@ def install(runtime) -> None:
             return v[lower:upper]
         raise TypeError(f"{v!r} is not sliceable")
 
-    from . import ops as _ops_module
-
     for fn, name, arities in (
         (py_truthy, "py-truthy", None),
         (py_eq, "py-eq", None),
@@ -123,6 +121,4 @@ def install(runtime) -> None:
         (py_at, "py-at", None),
         (py_slice, "py-slice", None),
     ):
-        _ops_module.register(
-            runtime, fn, name=name, typed=False, pass_atoms=True, arities=arities
-        )
+        _ops_module.register(runtime, fn, name=name, typed=False, pass_atoms=True, arities=arities)

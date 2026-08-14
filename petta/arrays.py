@@ -22,12 +22,16 @@ Open Obligations:
 
 from __future__ import annotations
 
+import importlib
 import itertools
 import operator
 from collections.abc import Iterator
 from typing import Any
 
 from . import integrate as _integrate
+from . import matching
+from ._ops import REGISTRY
+from ._optional import optional_module, require_module
 from .atoms import Atom, Expr, Gnd, S, Var, decode, expr, val
 from .errors import PettaError
 
@@ -71,10 +75,7 @@ def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
             raise RuntimeError("an argpartition namespace must also provide nonzero")
         better = [int(index) for index in nonzero(scores > threshold)[0]]
         needed = count - len(better)
-        tied = [
-            int(index)
-            for index in nonzero(scores == threshold)[0][:needed]
-        ]
+        tied = [int(index) for index in nonzero(scores == threshold)[0][:needed]]
         candidates = [*better, *tied]
     else:
         order = xp.argsort(scores)
@@ -95,9 +96,7 @@ def _alias_equation(name: str, library: str, arity: int) -> Expr:
 
 def _route_equation(alias: str, target: str, arity: int) -> Expr:
     variables = [Var(f"a{i}") for i in range(1, arity + 1)]
-    return Expr(
-        [S["="], Expr([S[alias], *variables]), Expr([S[target], *variables])]
-    )
+    return Expr([S["="], Expr([S[alias], *variables]), Expr([S[target], *variables])])
 
 
 def is_array(x: Any) -> bool:
@@ -106,15 +105,25 @@ def is_array(x: Any) -> bool:
 
 
 def _compat():
-    try:
-        import array_api_compat
-    except ImportError as exc:
-        raise PettaError(
-            "petta.arrays needs array-api-compat, the standard's "
-            "compatibility layer over NumPy, PyTorch, CuPy, JAX and Dask. "
-            "Install it with: pip install array-api-compat"
-        ) from exc
-    return array_api_compat
+    return require_module(
+        "array_api_compat",
+        "petta.arrays needs array-api-compat, the standard's compatibility "
+        "layer over NumPy, PyTorch, CuPy, JAX and Dask; install petta[arrays]",
+    )
+
+
+def _numpy():
+    return require_module(
+        "numpy",
+        "petta.arrays needs NumPy for default arrays and embedding storage; install petta[arrays]",
+    )
+
+
+def _faiss():
+    return require_module(
+        "faiss",
+        "the faiss embedding backend needs faiss-cpu; install petta[arrays]",
+    )
 
 
 def namespace_of(x: Any):
@@ -125,12 +134,9 @@ def namespace_of(x: Any):
 def _default_namespace(backend: Any):
     compat = _compat()
     if backend is None:
-        import numpy
-
+        numpy = _numpy()
         return compat.array_namespace(numpy.zeros(0))
     if isinstance(backend, str):
-        import importlib
-
         backend = importlib.import_module(backend)
     probe = backend.zeros(0) if hasattr(backend, "zeros") else backend.asarray([0])
     return compat.array_namespace(probe)
@@ -185,11 +191,7 @@ def install(m, default: Any = None) -> list[str]:
     registered: list[str] = []
 
     def op(fn, *, name: str, raw: bool = True, types: list[str] | None = None, **kw):
-        if (
-            m.is_function(name)
-            and name not in _known_ops()
-            and name not in _CONSTRUCTOR_NAMES
-        ):
+        if m.is_function(name) and name not in _known_ops() and name not in _CONSTRUCTOR_NAMES:
             raise PettaError(
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
@@ -200,8 +202,15 @@ def install(m, default: Any = None) -> list[str]:
         registered.append(name)
         return fn
 
-    def constructor(fn, *, name: str, arities: list[int] | None = None,
-                    raw: bool = True, types: list[str] | None = None, **kw):
+    def constructor(
+        fn,
+        *,
+        name: str,
+        arities: list[int] | None = None,
+        raw: bool = True,
+        types: list[str] | None = None,
+        **kw,
+    ):
         """A constructor registers per backend as name--library, and THIS
         space routes its bare name there through per-space equations, so
         the default is the space's, never the process's. Installing the
@@ -242,14 +251,13 @@ def install(m, default: Any = None) -> list[str]:
             return val(raw_data)
         return val(xp_default.asarray(raw_data, dtype=xp_default.float32))
 
-    constructor(make_tensor, name="tensor", raw=False, pass_atoms=True,
-                types=["%Undefined%", "DLTensor"])
+    constructor(
+        make_tensor, name="tensor", raw=False, pass_atoms=True, types=["%Undefined%", "DLTensor"]
+    )
 
     dims = [1, 2, 3, 4]
-    constructor(lambda *s: xp_default.zeros(tuple(int(d) for d in s)),
-                name="zeros", arities=dims)
-    constructor(lambda *s: xp_default.ones(tuple(int(d) for d in s)),
-                name="ones", arities=dims)
+    constructor(lambda *s: xp_default.zeros(tuple(int(d) for d in s)), name="zeros", arities=dims)
+    constructor(lambda *s: xp_default.ones(tuple(int(d) for d in s)), name="ones", arities=dims)
     constructor(_randn(xp_default), name="randn", arities=dims)
     constructor(lambda n: xp_default.arange(float(n)), name="arange-t")
     constructor(lambda n: xp_default.eye(int(n)), name="eye")
@@ -285,8 +293,11 @@ def install(m, default: Any = None) -> list[str]:
 
     # ------------------------------------------------------------------ shape
 
-    op(lambda a, *ds: namespace_of(a).reshape(a, tuple(int(d) for d in ds)),
-       name="reshape", arities=[2, 3, 4, 5])
+    op(
+        lambda a, *ds: namespace_of(a).reshape(a, tuple(int(d) for d in ds)),
+        name="reshape",
+        arities=[2, 3, 4, 5],
+    )
     op(lambda a, d0, d1: _swap(namespace_of(a), a, int(d0), int(d1)), name="t-transpose")
     op(lambda a, d: namespace_of(a).expand_dims(a, axis=int(d)), name="unsqueeze")
     op(lambda a, d: namespace_of(a).squeeze(a, axis=int(d)), name="squeeze")
@@ -305,8 +316,7 @@ def install(m, default: Any = None) -> list[str]:
 
     # ------------------------------------------------------------- reductions
 
-    op(lambda a: namespace_of(a).sum(a), name="t-sum",
-       types=["DLTensor", "%Undefined%"])
+    op(lambda a: namespace_of(a).sum(a), name="t-sum", types=["DLTensor", "%Undefined%"])
     op(lambda a: namespace_of(a).mean(a), name="t-mean")
     op(lambda a: namespace_of(a).max(a), name="t-max")
     op(lambda a: namespace_of(a).min(a), name="t-min")
@@ -363,8 +373,6 @@ def install(m, default: Any = None) -> list[str]:
 
     def convert(a, lib):
         """(t-as $x numpy): the same values in another library, via DLPack."""
-        import importlib
-
         target = importlib.import_module(str(lib))
         probe = target.zeros(0) if hasattr(target, "zeros") else target.asarray([0])
         return _compat().array_namespace(probe).from_dlpack(a)
@@ -382,13 +390,9 @@ def _randn(xp_default):
         dims = tuple(int(d) for d in shape)
         if hasattr(xp_default, "randn"):
             return xp_default.randn(*dims)
-        import importlib
-
         native = importlib.import_module(module)
         if hasattr(native, "random"):
-            return xp_default.asarray(
-                native.random.standard_normal(dims), dtype=xp_default.float32
-            )
+            return xp_default.asarray(native.random.standard_normal(dims), dtype=xp_default.float32)
         raise PettaError(f"{module} offers no normal sampler for randn")
 
     return randn
@@ -401,8 +405,6 @@ def _swap(xp, a, d0: int, d1: int):
 
 
 def _known_ops() -> set[str]:
-    from ._ops import REGISTRY
-
     return set(REGISTRY)
 
 
@@ -423,15 +425,11 @@ class EmbeddingStore:
     different space cannot retarget this store.
     """
 
-    def __init__(
-        self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"
-    ) -> None:
+    def __init__(self, m, name: str = "emb", mirror: bool = True, backend: str = "auto") -> None:
         if backend not in ("auto", "argsort", "faiss"):
-            raise PettaError(
-                f"backend is auto, argsort or faiss, not {backend!r}"
-            )
+            raise PettaError(f"backend is auto, argsort or faiss, not {backend!r}")
         if backend == "faiss":
-            import faiss  # noqa: F401  requested explicitly: fail here if absent
+            _faiss()
         self._m = m
         self._name = name
         self._mirror = mirror
@@ -489,19 +487,15 @@ class EmbeddingStore:
 
     def _checked_vector(self, vector: Any, *, copy: bool = False) -> Any:
         if not is_array(vector):
-            import numpy
-
+            numpy = _numpy()
             vector = numpy.asarray(vector, dtype=numpy.float32)
         if vector.ndim != 1:
             raise ValueError(
-                f"embedding vectors must be one-dimensional, got shape "
-                f"{tuple(vector.shape)}"
+                f"embedding vectors must be one-dimensional, got shape {tuple(vector.shape)}"
             )
         width = int(vector.shape[0])
         if self._width is not None and width != self._width:
-            raise ValueError(
-                f"embedding vector width must be {self._width}, got {width}"
-            )
+            raise ValueError(f"embedding vector width must be {self._width}, got {width}")
         xp = namespace_of(vector)
         if not bool(xp.all(xp.isfinite(vector))):
             raise ValueError("embedding vectors must contain only finite values")
@@ -547,12 +541,7 @@ class EmbeddingStore:
             return False
         if self._backend == "faiss":
             return True
-        try:
-            import faiss  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
+        return optional_module("faiss") is not None
 
     def ranked(self, query: Any, k: int):
         """(key atom, cosine) pairs best first: the raw retrieval every
@@ -574,22 +563,17 @@ class EmbeddingStore:
         xp, q = self._normalized_query(self._resolve(query))
         count = min(k, len(self._keys))
         if self._use_faiss():
-            import faiss
-            import numpy
-
+            faiss = _faiss()
+            numpy = _numpy()
             if self._index is None:
-                matrix = numpy.ascontiguousarray(
-                    numpy.asarray(self._matrix, dtype=numpy.float32)
-                )
+                matrix = numpy.ascontiguousarray(numpy.asarray(self._matrix, dtype=numpy.float32))
                 built_index = faiss.IndexFlatIP(matrix.shape[1])
                 built_index.add(matrix)
                 self._index = built_index
             index = self._index
             if index is None:
                 raise RuntimeError("FAISS index construction produced no index")
-            probe = numpy.ascontiguousarray(
-                numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
-            )
+            probe = numpy.ascontiguousarray(numpy.asarray(q, dtype=numpy.float32).reshape(1, -1))
             scores, indexes = index.search(probe, count)
             for score, index in zip(scores[0], indexes[0]):
                 yield self._keys[int(index)], round(float(score), 6)
@@ -614,7 +598,6 @@ class EmbeddingStore:
         candidate by cosine, (name $q $unbound) generates best first, both
         answering (score value) pairs for the measure algebra. The
         embedding-similarity move of neural theorem proving, packaged."""
-        from . import matching
 
         def score(query: Any, candidate: Any) -> float:
             a = self._resolve(query)
@@ -626,6 +609,4 @@ class EmbeddingStore:
         def generate(query: Any):
             yield from self.ranked(query, len(self._keys))
 
-        return matching.matcher(
-            self._m, name, score=score, generate=generate, threshold=threshold
-        )
+        return matching.matcher(self._m, name, score=score, generate=generate, threshold=threshold)

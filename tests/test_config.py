@@ -16,7 +16,7 @@ import pytest
 import petta
 from petta import Rows, _engine
 from petta._config import Config
-from petta.ops import _bounded_product
+from petta._type_annotations import _bounded_product
 
 
 def test_configuration_reads_and_validates_environment():

@@ -22,8 +22,11 @@ Open Obligations:
 
 from __future__ import annotations
 
+import difflib
 import math
+import re
 from collections.abc import Callable, Iterable
+from functools import lru_cache
 from typing import Any
 
 from .atoms import Gnd, Sym, Var, decode, expr
@@ -72,9 +75,7 @@ def matcher(
                     f"matcher has no generator; pass generate= to serve it"
                 )
             for value, degree in generate(_plain(query)):
-                degree = _bounded_degree(
-                    degree, f"matcher {name!r} generated degree"
-                )
+                degree = _bounded_degree(degree, f"matcher {name!r} generated degree")
                 if degree >= threshold:
                     yield expr(degree, value)
             return
@@ -93,13 +94,9 @@ def _bounded_degree(value: Any, boundary: str) -> float:
     try:
         degree = float(value)
     except (TypeError, ValueError):
-        raise ValueError(
-            f"{boundary} must be a finite number in [0, 1], got {value!r}"
-        ) from None
+        raise ValueError(f"{boundary} must be a finite number in [0, 1], got {value!r}") from None
     if not math.isfinite(degree) or not 0.0 <= degree <= 1.0:
-        raise ValueError(
-            f"{boundary} must be finite and in [0, 1], got {degree!r}"
-        )
+        raise ValueError(f"{boundary} must be finite and in [0, 1], got {degree!r}")
     return degree
 
 
@@ -113,12 +110,9 @@ def install_fuzzy(m, name: str = "fuzmatch", threshold: float = 0.0) -> str:
 
         m.run('!(fuzmatch "clase" "class")')        # (0.8 "class")
     """
-    import difflib
 
     def ratio(query: Any, candidate: Any) -> float:
-        return difflib.SequenceMatcher(
-            None, text_of(query), text_of(candidate)
-        ).ratio()
+        return difflib.SequenceMatcher(None, text_of(query), text_of(candidate)).ratio()
 
     return matcher(m, name, score=ratio, threshold=threshold)
 
@@ -145,12 +139,10 @@ def install_regex(
     inline flags like (?i) work. The pattern language is Python's,
     which agrees with lib_regex's PCRE2 on this searching subset.
     """
-    import re as _re
-    from functools import lru_cache
 
     @lru_cache(maxsize=256)
     def compiled(pattern: str):
-        return _re.compile(pattern)
+        return re.compile(pattern)
 
     def hit(query: Any, candidate: Any) -> float:
         return 1.0 if compiled(text_of(query)).search(text_of(candidate)) else 0.0

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import queue
 import threading
 from collections.abc import Callable, Iterator, Mapping
 from http.client import HTTPException
@@ -37,6 +38,7 @@ from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, atom_from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
+from .space import MeTTa
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +78,7 @@ class RemoteSpace(SpaceProvider):
         self._space = space
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
-        answer = self._transport(
-            "match", {"space": self._space, "pattern": pattern.to_wire()}
-        )
+        answer = self._transport("match", {"space": self._space, "pattern": pattern.to_wire()})
         for wire in answer["atoms"]:
             yield atom_from_wire(wire)
 
@@ -91,9 +91,7 @@ class RemoteSpace(SpaceProvider):
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
     def remove(self, atom: Atom) -> bool:
-        answer = self._transport(
-            "remove", {"space": self._space, "atom": atom.to_wire()}
-        )
+        answer = self._transport("remove", {"space": self._space, "atom": atom.to_wire()})
         return bool(answer.get("removed"))
 
 
@@ -147,9 +145,7 @@ def connect(
                 operation,
                 exc_info=True,
             )
-            raise PettaError(
-                f"the remote engine request {operation} failed: {exc}"
-            ) from exc
+            raise PettaError(f"the remote engine request {operation} failed: {exc}") from exc
         logger.debug(
             "remote engine operation %s answered with HTTP %d",
             operation,
@@ -160,8 +156,7 @@ def connect(
         except (UnicodeDecodeError, ValueError) as exc:
             detail = raw.decode("utf-8", "replace")[:200]
             raise PettaError(
-                f"the remote engine answered {status} {reason} with invalid JSON: "
-                f"{detail}"
+                f"the remote engine answered {status} {reason} with invalid JSON: {detail}"
             ) from exc
         if status >= 400:
             body = raw.decode("utf-8", "replace")
@@ -181,14 +176,10 @@ def connect(
 def attach(m, name: str, url_or_transport: Any, remote_space: str = "&self") -> RemoteSpace:
     """Register a remote engine's space here under a local name.
 
-        petta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
-        m.run('!(match &hq (users $id $n) $n)')
+    petta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
+    m.run('!(match &hq (users $id $n) $n)')
     """
-    transport = (
-        url_or_transport
-        if callable(url_or_transport)
-        else connect(url_or_transport)
-    )
+    transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
     provider = RemoteSpace(transport, remote_space)
     m.register_space(name, provider)
     return provider
@@ -198,7 +189,10 @@ class Server:
     """This engine's spaces, served. close() stops accepting."""
 
     def __init__(
-        self, httpd: ThreadingHTTPServer, thread: threading.Thread, work=None,
+        self,
+        httpd: ThreadingHTTPServer,
+        thread: threading.Thread,
+        work=None,
         scheme: str = "http",
     ) -> None:
         self._httpd = httpd
@@ -245,8 +239,6 @@ def serve(
     evaluation that is waiting on it. Two engines, two processes, is the
     deployment this exists for; in-process, spaces already share the
     engine and need no wire."""
-    from .space import MeTTa
-
     allowed = None if spaces is None else set(spaces)
 
     def space_of(payload: dict) -> MeTTa:
@@ -264,15 +256,10 @@ def serve(
                 using={"pat": pattern},
             )
             if len(groups) != 1 or len(groups[0]) != 1:
-                raise PettaError(
-                    "remote match returned an invalid collapse result: "
-                    f"{groups!r}"
-                )
+                raise PettaError(f"remote match returned an invalid collapse result: {groups!r}")
             group = groups[0][0]
             if not isinstance(group, Expr):
-                raise PettaError(
-                    f"remote match returned a non-expression collapse: {group!r}"
-                )
+                raise PettaError(f"remote match returned a non-expression collapse: {group!r}")
             atoms = list(group)
             return {"atoms": [a.to_wire() for a in atoms]}
         if operation == "atoms":
@@ -289,8 +276,6 @@ def serve(
     # a Prolog engine attached to a long-lived thread cheaply, where
     # attaching per handler thread is costly and, for the functional
     # calling convention, was observed to kill the process outright.
-    import queue
-
     work: queue.Queue[tuple[str, dict, queue.SimpleQueue] | None] = queue.Queue()
 
     def worker() -> None:
@@ -332,9 +317,7 @@ def serve(
                 key = name.lower()
                 headers[key] = f"{headers[key]}, {value}" if key in headers else value
             if not _is_authorized(headers, token, authorize):
-                logger.warning(
-                    "refused unauthorized remote engine operation %s", operation
-                )
+                logger.warning("refused unauthorized remote engine operation %s", operation)
                 body = _json.dumps({"error": "not authorized"})
                 self.send_response(401)
                 self.send_header("content-type", "application/json")

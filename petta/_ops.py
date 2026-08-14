@@ -18,7 +18,14 @@ from typing import Any
 from .atoms import Atom, Box, Gnd, atom_from_wire, decode, encode
 from .errors import Decline
 
-__all__ = ["REGISTRY", "Operation", "dispatch", "dispatch_many", "dispatch_raw", "dispatch_raw_many"]
+__all__ = [
+    "REGISTRY",
+    "Operation",
+    "dispatch",
+    "dispatch_many",
+    "dispatch_raw",
+    "dispatch_raw_many",
+]
 
 # The wire form the shim treats as failure rather than a value: the operation
 # looked at its arguments and answered nothing.
@@ -118,53 +125,6 @@ def dispatch_raw_many(name: str, args: list):
         yield _rebox(value)
 
 
-# ------------------------------------------------------------ foreign spaces
-#
-# The shim's foreign-space hooks and the protocol-type hook resolve through
-# this module, since petta_ops is the one name the Prolog side imports.
-
-def foreign_match(space, pattern_wire):
-    from .foreign import foreign_match as impl
-
-    return impl(space, pattern_wire)
-
-
-def foreign_atoms(space):
-    from .foreign import foreign_atoms as impl
-
-    return impl(space)
-
-
-def foreign_add(space, atom_wire):
-    from .foreign import foreign_add as impl
-
-    return impl(space, atom_wire)
-
-
-def foreign_remove(space, atom_wire):
-    from .foreign import foreign_remove as impl
-
-    return impl(space, atom_wire)
-
-
-def foreign_clear(space):
-    from .foreign import foreign_clear as impl
-
-    return impl(space)
-
-
-def atom_added(space, wire):
-    from .subscribe import atom_added as impl
-
-    return impl(space, wire)
-
-
-def atom_removed(space, wire):
-    from .subscribe import atom_removed as impl
-
-    return impl(space, wire)
-
-
 def type_names(obj: Any) -> list[str]:
     """Every type name an object carries, for the engine's typing bridge:
     its classes in resolution order short of object, then every satisfied
@@ -195,7 +155,6 @@ def extra_types(obj) -> list[str]:
             # A broken probe is the registrant's bug: surface it with the
             # protocol's name attached, never as a type quietly missing.
             raise RuntimeError(
-                f"the type predicate for protocol {name!r} raised on "
-                f"{type(obj).__name__}: {exc}"
+                f"the type predicate for protocol {name!r} raised on {type(obj).__name__}: {exc}"
             ) from exc
     return names

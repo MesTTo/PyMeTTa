@@ -39,9 +39,11 @@ from __future__ import annotations
 import builtins as _builtins
 import os
 import types
+from collections import abc as _abc
 from collections.abc import Callable
 from typing import Any, Literal, overload
 
+from . import integrate as _integrate
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
@@ -70,9 +72,15 @@ from .atoms import (
     encode,
     parse,
 )
+from .casting import cast as _cast
 from .derivation import Derivation
 from .errors import EngineError
+from .foreign import PROVIDERS, register_provider, require_capability, unregister_provider
+from .lint import lint as _lint
 from .results import Rows
+from .subscribe import _subscriptions_for
+from .subscribe import subscribe as _subscribe
+from .trace import trace as _trace
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
 
@@ -170,9 +178,6 @@ class MeTTa:
         never released. Subscriptions on the space cancel with it: a
         pooled name reused later must not deliver to the old life's
         watchers."""
-        from .foreign import PROVIDERS, unregister_provider
-        from .subscribe import _subscriptions_for
-
         for subscription in _subscriptions_for(self._space):
             subscription.cancel()
         if self._space in PROVIDERS:
@@ -373,8 +378,6 @@ class MeTTa:
         its own key order, and columns of unequal length are a hard error
         rather than a silent truncation. The reverse direction is
         rows.table(), the dict every DataFrame constructor takes."""
-        import collections.abc as _abc
-
         head_atom = _to_atom(head)
         if hasattr(data, "iter_rows"):
             rows = data.iter_rows()
@@ -420,8 +423,6 @@ class MeTTa:
         in scope, protocol types included. A refused cast raises
         petta.CastError naming the value's actual types, the loud
         spelling of what a typed call does silently."""
-        from .casting import cast as _cast
-
         return _cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
@@ -432,8 +433,6 @@ class MeTTa:
         wrap exists only while tracing, so untraced calls pay nothing.
         max_events bounds the recording, raising past it rather than
         accumulating a long run's trace without limit."""
-        from .trace import trace as _trace
-
         return _trace(self, source, max_events=max_events)
 
     def lint(self):
@@ -442,8 +441,6 @@ class MeTTa:
         duplicate equations, and references no function or fact carries.
         Answers petta.lint.Finding records, empty when nothing looks
         wrong."""
-        from .lint import lint as _lint
-
         return _lint(self)
 
     def digest(self) -> str:
@@ -453,8 +450,6 @@ class MeTTa:
         order and in any process. Two spaces agree on digest() exactly
         when save() would write the same content. Live host objects have
         no cross-process identity and are refused, like save()."""
-        from .foreign import require_capability
-
         require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
@@ -796,8 +791,6 @@ class MeTTa:
         for atoms that were never stored, since the engine's removal is
         retractall; re-check the space rather than trust the event.
         """
-        from .subscribe import subscribe as _subscribe
-
         return _subscribe(self._rt, self._space, _to_atom(pattern), callback, on)
 
     def prolog(self) -> None:
@@ -926,22 +919,16 @@ class MeTTa:
 
     def integrate(self, target: Any) -> str:
         """Install a library integration; see petta.integrate."""
-        from . import integrate as _integrate
-
         return _integrate.integrate(self, target)
 
     def register_space(self, name: str, provider: Any) -> Any:
         """A space answered by Python: matches, adds and removals route to
         the provider, so a table, a dataframe or a service is matchable the
         way stored atoms are. See petta.foreign.SpaceProvider."""
-        from .foreign import register_provider
-
         register_provider(self._rt, name, provider)
         return provider
 
     def unregister_space(self, name: str) -> None:
-        from .foreign import unregister_provider
-
         unregister_provider(self._rt, name)
 
     # ------------------------------------------------------------ interop

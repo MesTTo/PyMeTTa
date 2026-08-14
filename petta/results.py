@@ -21,13 +21,17 @@ Open Obligations:
 
 from __future__ import annotations
 
+import html
 import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
 from typing import Any, SupportsIndex, overload
 
+from . import convert
 from ._config import config
+from ._optional import require_module
+from .atoms import Gnd, decode
 
 __all__ = ["Row", "Rows"]
 
@@ -102,17 +106,11 @@ class Rows(UserList[Row]):
     projects a column, while integer and slice indexing follow a normal list.
     """
 
-    def __init__(
-        self, columns: tuple[str, ...], rows: Iterable[Iterable[Any]]
-    ) -> None:
+    def __init__(self, columns: tuple[str, ...], rows: Iterable[Iterable[Any]]) -> None:
         columns = tuple(columns)
-        duplicates = [
-            name for i, name in enumerate(columns) if name in columns[:i]
-        ]
+        duplicates = [name for i, name in enumerate(columns) if name in columns[:i]]
         if duplicates:
-            raise ValueError(
-                f"Rows column names must be unique; duplicate names: {duplicates}"
-            )
+            raise ValueError(f"Rows column names must be unique; duplicate names: {duplicates}")
         self.columns = columns
         checked = []
         for index, row in enumerate(rows):
@@ -124,8 +122,7 @@ class Rows(UserList[Row]):
         if len(values) != len(self.columns):
             location = f" row {index}" if index is not None else " row"
             raise ValueError(
-                f"Rows{location} has {len(values)} values for "
-                f"{len(self.columns)} columns"
+                f"Rows{location} has {len(values)} values for {len(self.columns)} columns"
             )
         return _row_class(self.columns)(values)
 
@@ -180,8 +177,7 @@ class Rows(UserList[Row]):
     def _addition_rows(self, other: Iterable[Iterable[Any]]) -> Iterable[Iterable[Any]]:
         if isinstance(other, Rows) and other.columns != self.columns:
             raise ValueError(
-                f"cannot combine Rows with columns {self.columns!r} and "
-                f"{other.columns!r}"
+                f"cannot combine Rows with columns {self.columns!r} and {other.columns!r}"
             )
         return other
 
@@ -224,8 +220,6 @@ class Rows(UserList[Row]):
     def build(self, column: str, cls: type) -> list[Any]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call."""
-        from . import convert
-
         return [convert.build(value, cls) for value in self.column(column)]
 
     def table(self) -> dict[str, list[Any]]:
@@ -233,48 +227,36 @@ class Rows(UserList[Row]):
         DataFrame constructor takes: pl.DataFrame(rows.table()),
         pd.DataFrame(rows.table()). Grounded values unwrap to Python;
         symbols and structure become their text."""
-        from .atoms import Gnd, decode
-
         if self and not self.columns:
             raise ValueError(
-                "table() cannot represent nonempty zero-column Rows as a "
-                "column mapping"
+                "table() cannot represent nonempty zero-column Rows as a column mapping"
             )
 
         def plain(value: Any) -> Any:
             return decode(value) if isinstance(value, Gnd) else str(value)
 
-        return {
-            name: [plain(row[i]) for row in self]
-            for i, name in enumerate(self.columns)
-        }
+        return {name: [plain(row[i]) for row in self] for i, name in enumerate(self.columns)}
 
     def to_df(self):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.
         pandas is the caller's dependency; its absence raises naming the
         need, and table() stays the constructor-agnostic shape."""
-        try:
-            import pandas
-        except ImportError as missing:
-            raise ImportError(
-                "to_df() builds a pandas DataFrame and pandas is not "
-                "installed; rows.table() is the plain dict any frame "
-                "constructor takes"
-            ) from missing
+        pandas = require_module(
+            "pandas",
+            "to_df() builds a pandas DataFrame and pandas is not installed; "
+            "rows.table() is the plain dict any frame constructor takes",
+        )
         if self and not self.columns:
             return pandas.DataFrame([{} for _ in self])
         return pandas.DataFrame(self.table())
 
     def to_pl(self):
         """The rows as a polars DataFrame; the polars twin of to_df()."""
-        try:
-            import polars
-        except ImportError as missing:
-            raise ImportError(
-                "to_pl() builds a polars DataFrame and polars is not "
-                "installed; rows.table() is the plain dict any frame "
-                "constructor takes"
-            ) from missing
+        polars = require_module(
+            "polars",
+            "to_pl() builds a polars DataFrame and polars is not installed; "
+            "rows.table() is the plain dict any frame constructor takes",
+        )
         if self and not self.columns:
             return polars.DataFrame([{} for _ in self])
         return polars.DataFrame(self.table())
@@ -283,8 +265,6 @@ class Rows(UserList[Row]):
         """Notebook display: the columns as a header, one row per answer,
         every cell escaped. Past config.display_rows the tail is an explicit
         count, never a silent cut."""
-        import html
-
         shown = config.display_rows
         head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
         body = "".join(

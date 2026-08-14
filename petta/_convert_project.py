@@ -27,8 +27,8 @@ from ._convert_registry import (
     constructor_for,
     ensure_registered,
 )
+from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, S, Sym, encode, val
-from .ops import type_atoms_for
 
 
 class Projected(NamedTuple):

@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
 
-from . import _ops, _prelude
+from . import _callbacks, _prelude
 from ._config import config
 from .errors import (
     EngineError,
@@ -56,6 +56,7 @@ class JanusBridge(Protocol):
     def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any:
         del fail
         raise NotImplementedError
+
     def attach_engine(self) -> Any: ...
     def cmd(self, module: str, predicate: str, *inputs: Any) -> bool: ...
     def consult(self, path: str, data: str | None = None) -> Any: ...
@@ -64,8 +65,11 @@ class JanusBridge(Protocol):
     def heartbeat(self, interval: int) -> Any:
         del interval
         raise NotImplementedError
+
     def prolog(self) -> Any: ...
-    def query(self, goal: str, inputs: Mapping[str, Any] | None = None) -> Iterator[dict[str, Any]]: ...
+    def query(
+        self, goal: str, inputs: Mapping[str, Any] | None = None
+    ) -> Iterator[dict[str, Any]]: ...
     def query_once(
         self, goal: str, inputs: Mapping[str, Any] | None = None
     ) -> dict[str, Any] | None: ...
@@ -159,9 +163,7 @@ def engine_thread() -> Iterator[None]:
         try:
             bridge.detach_engine()
         except Exception as exc:
-            raise EngineError(
-                "could not detach this thread's Prolog engine"
-            ) from exc
+            raise EngineError("could not detach this thread's Prolog engine") from exc
 
 
 def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
@@ -191,9 +193,7 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
                 )
             if verbose != _STATE.runtime.verbose:
                 _STATE.runtime.verbose = verbose
-                _STATE.runtime.once(
-                    "petta_py_set_silent(S)", S="false" if verbose else "true"
-                )
+                _STATE.runtime.once("petta_py_set_silent(S)", S="false" if verbose else "true")
         return _STATE.runtime
 
 
@@ -273,13 +273,11 @@ class Runtime:
             return
         # janus reaches Python operations by importing petta_ops; the alias
         # makes that import resolve to the registry module.
-        sys.modules.setdefault("petta_ops", _ops)
+        sys.modules.setdefault("petta_ops", _callbacks)
         shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
-        self._janus.query_once(
-            "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
-        )
+        self._janus.query_once("petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"})
         _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
@@ -348,9 +346,7 @@ class Runtime:
             return row.get("Out") if row else None
         with _LOCK:
             try:
-                value = self._janus.apply_once(
-                    "user", predicate, *inputs, fail=_FAILED
-                )
+                value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
             except Exception as exc:
                 self._raise(predicate, exc)
         return None if value is _FAILED else value

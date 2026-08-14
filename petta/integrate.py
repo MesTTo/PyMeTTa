@@ -15,6 +15,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import inspect
 from collections.abc import Callable, Iterable
@@ -23,7 +24,19 @@ from typing import Any, Protocol, runtime_checkable
 
 from . import convert
 from ._ops import PROTOCOL_TYPES
-from .atoms import Atom, Expr, S, Sym, encode, register_object_repr_protocol, val
+from .atoms import (
+    Atom,
+    Expr,
+    Gnd,
+    S,
+    Sym,
+    Var,
+    decode,
+    encode,
+    expr,
+    register_object_repr_protocol,
+    val,
+)
 from .errors import PettaError
 from .foreign import SpaceProvider
 
@@ -158,8 +171,7 @@ def module_ops(
             # arities are all reachable; keyword-only refusals propagate,
             # since inventing forms for them would fail at call time.
             spread = any(
-                p.kind is inspect.Parameter.VAR_POSITIONAL
-                for p in signature.parameters.values()
+                p.kind is inspect.Parameter.VAR_POSITIONAL for p in signature.parameters.values()
             )
         if spread:
             m.register_op(
@@ -218,9 +230,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
             ):
                 positional.append(parameter)
-        required = sum(
-            1 for p in positional if p.default is inspect.Parameter.empty
-        )
+        required = sum(1 for p in positional if p.default is inspect.Parameter.empty)
         if variadic:
             # Every count is reachable through *args; serve the common ones.
             arities = list(range(required, max(required + 1, 5)))
@@ -292,7 +302,9 @@ def register_repr(predicate: Callable[[Any], bool], formatter: Callable[[Any], s
 _REFLECTORS: list[tuple[Callable[[Any], bool], Callable[[Any, str, Any], int]]] = []
 
 
-def register_reflector(predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]) -> None:
+def register_reflector(
+    predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]
+) -> None:
     """fn(m, name, obj) writes facts about obj into m and returns the count."""
     _REFLECTORS.append((predicate, fn))
 
@@ -327,7 +339,6 @@ def install_reflection_ops(m) -> list[str]:
     enumerates the object's fields and yields (name value) pairs, one answer
     per field, which is the mode a function cannot offer and a relation can.
     """
-    from .atoms import Gnd, Var, decode, expr
 
     def py_attr(obj, name):
         target = decode(obj) if isinstance(obj, Gnd) else obj
@@ -357,8 +368,6 @@ def install_reflection_ops(m) -> list[str]:
 
 
 def _field_names(obj: Any) -> list[str]:
-    import dataclasses
-
     if dataclasses.is_dataclass(obj):
         return [f.name for f in dataclasses.fields(obj)]
     if hasattr(obj, "_fields"):

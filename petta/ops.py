@@ -12,13 +12,23 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Any
 
-from ._config import config
-from ._convert_registry import _lookup as _lookup_conversion
+from . import convert
 from ._ops import REGISTRY, Operation
-from .atoms import Atom, Expr, S, Sym, Var, expr
+from ._type_annotations import (
+    callable_name as _callable_name,
+)
+from ._type_annotations import (
+    declaration_exprs,
+    metta_type_for,
+    referenced_classes,
+    resolved_annotations,
+    type_atom_for,
+    type_atoms_for,
+)
+from .atoms import Expr, S, expr
 
 __all__ = [
     "REFLECTION_SPACE",
@@ -45,21 +55,15 @@ REFLECTION_SPACE = "&petta"
 
 
 def _op_facts(op: Operation) -> list[Expr]:
-    return [
-        expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities
-    ]
+    return [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
 
 
 def _reflect_add(runtime, atom: Expr) -> None:
-    runtime.must(
-        "petta_py_add(Space, W)", Space=REFLECTION_SPACE, W=atom.to_wire()
-    )
+    runtime.must("petta_py_add(Space, W)", Space=REFLECTION_SPACE, W=atom.to_wire())
 
 
 def _reflect_remove(runtime, atom: Expr) -> None:
-    runtime.once(
-        "petta_py_remove(Space, W, _)", Space=REFLECTION_SPACE, W=atom.to_wire()
-    )
+    runtime.once("petta_py_remove(Space, W, _)", Space=REFLECTION_SPACE, W=atom.to_wire())
 
 
 # Declarations are shared: two signatures naming Point both need
@@ -74,9 +78,7 @@ def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
     if count == 0:
-        runtime.must(
-            "petta_py_add(Space, W)", Space=space, W=declaration.to_wire()
-        )
+        runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
     _DECLARATION_REFS[key] = count + 1
 
 
@@ -85,226 +87,9 @@ def _release_declaration(runtime, space: str, declaration: Expr) -> None:
     count = _DECLARATION_REFS.get(key, 0)
     if count <= 1:
         _DECLARATION_REFS.pop(key, None)
-        runtime.once(
-            "petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire()
-        )
+        runtime.once("petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
     else:
         _DECLARATION_REFS[key] = count - 1
-
-# Python annotation -> MeTTa type name. Everything else is %Undefined%,
-# matching what the engine says about an undeclared value.
-_TYPE_NAMES: list[tuple[type, str]] = [
-    (bool, "Bool"),  # before int: bool is an int in Python, not in MeTTa
-    (int, "Number"),
-    (float, "Number"),
-    (str, "String"),
-]
-
-
-def metta_type_for(annotation: Any) -> str:
-    """The MeTTa type a Python annotation names."""
-    if annotation is inspect.Parameter.empty or annotation is Any:
-        return "%Undefined%"
-    if annotation in (Atom, Expr, Sym, Var):
-        return "Atom"
-    for py, name in _TYPE_NAMES:
-        if annotation is py:
-            return name
-    return "%Undefined%"
-
-
-def type_atom_for(annotation: Any) -> Atom:
-    """The annotation as one atom; the first alternative when several
-    superpose. type_atoms_for is the full mapping."""
-    return type_atoms_for(annotation)[0]
-
-
-def type_atoms_for(annotation: Any) -> list[Atom]:
-    """Every MeTTa type an annotation names, mapped by the representation
-    its values take when they cross. Alternatives superpose the way the
-    checker already treats multiple declarations, so a Union contributes
-    one atom per member and the checker collects. The cases:
-
-    - a TypeVar becomes the engine's own type VARIABLE, so
-      head(items: Sequence[A]) -> A is (-> Expression $a) and the checker
-      propagates the binding per call;
-    - Union[A, B] and A | B answer both members' atoms;
-    - Optional[T] is Union[T, None], and None crosses as a NoneType handle,
-      so it answers T's atoms plus NoneType (the declaration builder drops
-      NoneType from return position, where returning None answers nothing);
-    - Callable[[A, B], R] is the arrow (-> A B R), the type a declared
-      function symbol itself answers to get-type;
-    - tuple[A, B] is the elementwise (A B), which is get-type's own answer
-      for a raw pair; tuple[A, ...] and other Sequences are Expression;
-    - a class names its declared type, the name get-type answers for its
-      instances, whether they cross as constructor terms or as handles;
-    - an abstract origin whose values have no one representation stays
-      %Undefined%, the engine's own spelling for uncommitted."""
-    import typing
-
-    if annotation is inspect.Parameter.empty or annotation is Any or annotation is object:
-        return [S["%Undefined%"]]
-    if annotation is None or annotation is type(None):
-        return [S.NoneType]
-    origin = typing.get_origin(annotation)
-    if origin is typing.Annotated:
-        # Metadata is not type: Annotated[int, Meta] is Number.
-        return type_atoms_for(typing.get_args(annotation)[0])
-    if isinstance(annotation, typing.TypeVar):
-        return [Var(annotation.__name__.lower())]
-    if origin is None:
-        if isinstance(annotation, type) and metta_type_for(annotation) == "%Undefined%":
-            return [S[_class_type_name(annotation)]]
-        return [S[metta_type_for(annotation)]]
-
-    import types as _types
-
-    if origin in (typing.Union, _types.UnionType):
-        alts: list[Atom] = []
-        seen: set[str] = set()
-        for member in typing.get_args(annotation):
-            for atom in type_atoms_for(member):
-                _add_unique(alts, seen, atom)
-        return alts
-
-    from collections import abc
-
-    if origin is abc.Callable:
-        args = typing.get_args(annotation)
-        if not args or args[0] is Ellipsis:
-            return [S["%Undefined%"]]
-        arg_lists, ret = list(args[0]), args[1]
-        arrows: list[Atom] = []
-        seen = set()
-        for combo in _bounded_product(
-            [type_atoms_for(a) for a in arg_lists] + [type_atoms_for(ret)],
-            f"the Callable annotation {annotation!r}",
-        ):
-            _add_unique(arrows, seen, Expr([S["->"], *combo]))
-        return arrows
-    if origin is tuple:
-        args = typing.get_args(annotation)
-        if args and args[-1] is Ellipsis:
-            return [S.Expression]
-        shapes: list[Atom] = []
-        seen = set()
-        for combo in _bounded_product(
-            [type_atoms_for(a) for a in args],
-            f"the tuple annotation {annotation!r}",
-        ):
-            _add_unique(shapes, seen, Expr(list(combo)))
-        return shapes
-    if isinstance(origin, type):
-        if issubclass(origin, abc.Mapping):
-            if not inspect.isabstract(origin):
-                return [S[_class_type_name(origin)]]
-            return [S["%Undefined%"]]
-        if origin is list or issubclass(origin, abc.Sequence):
-            return [S.Expression]
-        if not inspect.isabstract(origin):
-            return [S[_class_type_name(origin)]]
-    return [S["%Undefined%"]]
-
-
-def _class_type_name(cls: type) -> str:
-    """The MeTTa name a class's instances answer to get-type: the
-    registered spelling when the translator knows the class, its own
-    name otherwise."""
-    registration = _lookup_conversion(cls)
-    return registration.type_name if registration is not None else cls.__name__
-
-
-def _add_unique(items: list, seen: set, atom: Atom) -> None:
-    key = str(atom)
-    if key not in seen:
-        seen.add(key)
-        items.append(atom)
-
-
-def _bounded_product(alternative_lists: list[list[Atom]], described: str):
-    """Expand Union alternatives up to the configured declaration limit."""
-    import itertools
-
-    limit = config.declaration_limit
-    total = 1
-    for alternatives in alternative_lists:
-        total *= max(1, len(alternatives))
-        if total > limit:
-            raise TypeError(
-                f"{described} expands to over {limit} superposed "
-                f"combinations; simplify the Unions, or register with "
-                f"typed=False and declare by hand"
-            )
-    return itertools.product(*alternative_lists)
-
-
-def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> list[Expr]:
-    """Every (: name (-> ...)) atom a signature declares: the cross product
-    of each argument's alternatives with the return's, one declaration per
-    combination, superposing for the checker exactly as a Union reads,
-    refused past config.declaration_limit. NoneType leaves the return
-    alternatives, because returning None answers nothing rather than a
-    value; a return that was only None declares %Undefined%."""
-    arg_lists = [type_atoms_for(a) for a in arg_annotations]
-    ret_alts = [t for t in type_atoms_for(ret_annotation) if t != S.NoneType]
-    if not ret_alts:
-        ret_alts = [S["%Undefined%"]]
-    out: list[Expr] = []
-    seen: set[str] = set()
-    for combo in _bounded_product(
-        arg_lists + [ret_alts], f"the signature of {name}"
-    ):
-        _add_unique(out, seen, expr(S[":"], S[name], Expr([S["->"], *combo])))
-    return out
-
-
-def referenced_classes(annotations: Iterable[Any]) -> list[type]:
-    """Every user class an annotation tree mentions, so registration can
-    declare the types it references: a type in MeTTa is a declaration, and
-    a signature naming Point should make (: Point ...) exist rather than
-    leave the name dangling."""
-    import typing
-
-    found: list[type] = []
-
-    def collect(cls: Any) -> None:
-        if (
-            isinstance(cls, type)
-            and metta_type_for(cls) == "%Undefined%"
-            and not inspect.isabstract(cls)
-            and cls.__module__ not in ("builtins",)
-            and cls not in found
-        ):
-            found.append(cls)
-
-    def walk(annotation: Any) -> None:
-        if annotation is None or annotation is type(None):
-            return
-        if annotation is inspect.Parameter.empty or annotation is Any or annotation is object:
-            return
-        if isinstance(annotation, type):
-            collect(annotation)
-            return
-        origin = typing.get_origin(annotation)
-        if origin is typing.Annotated:
-            # Only the type half: Annotated metadata is not a value type.
-            walk(typing.get_args(annotation)[0])
-            return
-        # A parameterized generic whose declaration names its origin class
-        # (GenericBox[int] declares GenericBox) must make that class exist.
-        collect(origin)
-        for arg in typing.get_args(annotation):
-            if arg is Ellipsis:
-                continue
-            if isinstance(arg, (list, tuple)):
-                for inner in arg:
-                    walk(inner)
-            else:
-                walk(arg)
-
-    for annotation in annotations:
-        walk(annotation)
-    return found
 
 
 def class_declarations(cls: type) -> list[Expr]:
@@ -314,32 +99,7 @@ def class_declarations(cls: type) -> list[Expr]:
     class needs NO declaration: its instances already answer the class
     name to get-type through the engine's MRO typing bridge, so emitting
     one would only restate what the engine figures out on its own."""
-    from . import convert
-
     return list(convert.declarations(cls))
-
-
-def _callable_name(fn: Callable) -> str:
-    """A stable label for functions and callable objects."""
-    name = getattr(fn, "__name__", None)
-    return name if isinstance(name, str) and name else type(fn).__name__
-
-
-def resolved_annotations(fn: Callable) -> dict[str, Any]:
-    """The function's annotations as real types, never text: under
-    `from __future__ import annotations` the raw __annotations__ are
-    strings, which would all read as %Undefined% and silently drop the
-    declared types. Unresolvable annotations are a hard error naming the
-    function."""
-    import typing
-
-    try:
-        return typing.get_type_hints(fn)
-    except Exception as exc:
-        raise TypeError(
-            f"the annotations of {_callable_name(fn)} do not resolve "
-            f"({exc}); a declared type must name something importable"
-        ) from exc
 
 
 def _metta_name(fn: Callable, name: str | None) -> str:
@@ -429,9 +189,7 @@ def register(
     # touched); declaration and reflection writes follow with a rollback
     # that restores the previous registration whole, and the Python
     # registry commits last.
-    declarations = (
-        tuple(_type_declarations(metta_name, params, fn)) if typed and params else ()
-    )
+    declarations = tuple(_type_declarations(metta_name, params, fn)) if typed and params else ()
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
@@ -500,12 +258,8 @@ def unregister(runtime, name: str) -> None:
     registration added, so nothing keeps describing a function that no
     longer exists."""
     op = REGISTRY.get(name)
-    for arity_row in list(
-        runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name)
-    ):
-        runtime.must(
-            "petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"]
-        )
+    for arity_row in list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name)):
+        runtime.must("petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:
         for declaration in op.declarations:
             _release_declaration(runtime, op.space or "&self", declaration)
