@@ -2,7 +2,8 @@
 %   escapes, and semicolon comments outside strings.
 % Guarantees:
 %   - sread/2 and the file loader apply the same semicolon-comment rules
-%     [tested 2026-08-14: parser_comments].
+%     without a comment-stripping prepass [tested 2026-08-15:
+%     parser_comments, filereader_comments].
 %   - swrite/2 names variables by first occurrence, independent of SWI's
 %     process-local variable identifiers [tested 2026-08-14:
 %     parser_stable_variables].
@@ -51,21 +52,13 @@ escape_quotes([0'\t|T], [0'\\,0't|R]) :- !, escape_quotes(T, R).
 escape_quotes([0'\r|T], [0'\\,0'r|R]) :- !, escape_quotes(T, R).
 escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 
-%Read S string or atom, extract codes, and apply DCG (parsing).
+%Read S string or atom, extract codes, and apply the parsing DCG.
 %atom_codes/2 reads the text of a string directly. Going through
 %atom_string/2 first interned an atom for every string parsed, and the
 %library parses one per m.run(): 20000 distinct strings through
 %atom_string/2 left 9953 atoms behind, through atom_codes/2 none.
-sread(S, T) :- atom_codes(S, RawCodes),
-               strip(RawCodes, outside, Cs),
+sread(S, T) :- atom_codes(S, Cs),
                sread_codes(Cs, S, T).
-
-%As sread/2, for text whose ; comments a caller has already removed. The file
-%loader strips a whole source once before splitting it into forms and then
-%stripped each form again, so every character of every file was walked a
-%second time looking for comments that were no longer there.
-sread_stripped(S, T) :- atom_codes(S, Cs),
-                        sread_codes(Cs, S, T).
 
 sread_codes(Cs, Source, T) :-
     ( phrase(sexpr(T, [], _), Cs)
@@ -73,24 +66,27 @@ sread_codes(Cs, Source, T) :-
        ; format(atom(Msg), 'Parse error in form: ~w', [Source]),
          throw(error(syntax_error(Msg), none)) ).
 
-%The reader and top-level loader share one string-aware comment pass. A
-%backslash escapes exactly the next character while inside a string.
+%The top-level form scanner uses the same string and comment states as the
+%token grammar. A backslash escapes exactly the next string character.
 string_state(outside, 0'", string) :- !.
+string_state(outside, 0';, comment) :- !.
 string_state(string, 0'\\, escaped) :- !.
 string_state(string, 0'", outside) :- !.
 string_state(escaped, _, string) :- !.
+string_state(comment, 0'\n, outside) :- !.
+string_state(comment, _, comment) :- !.
 string_state(State, _, State).
 
-strip([], _, []).
-strip([0'\n|R], State, [0'\n|O]) :- !,
-    string_state(State, 0'\n, State1),
-    strip(R, State1, O).
-strip([0';|R], outside, Out) :- !,
-    ( append(_, [0'\n|Rest], R) -> strip([0'\n|Rest], outside, Out)
-                                   ; Out = [] ).
-strip([C|R], State, [C|O]) :-
-    string_state(State, C, State1),
-    strip(R, State1, O).
+%Semicolon comments are inter-token layout. Keeping them in the DCG avoids a
+%separate source-sized code list before parsing. These clauses combine blank
+%and comment scanning so the ordinary no-comment path has no wrapper grammar.
+metta_layout --> ";", !, metta_comment_body, metta_layout.
+metta_layout --> [C], { code_type(C, space) }, !, metta_layout.
+metta_layout --> [].
+
+metta_comment_body --> "\n", !.
+metta_comment_body --> eos, !.
+metta_comment_body --> [_], metta_comment_body.
 
 %An S-Expression is a parentheses-nesting of S-Expressions that are either
 %numbers, variables, strings, or atoms. Surrounding whitespace is skipped once
@@ -98,10 +94,10 @@ strip([C|R], State, [C|O]) :-
 %every clause, reading an atom, the commonest token, rescanned the same
 %whitespace five times because the four alternatives ahead of it each skipped
 %it before failing.
-sexpr(T,E0,E) --> blanks, sexpr_token(T,E0,E), blanks.
+sexpr(T,E0,E) --> metta_layout, sexpr_token(T,E0,E), metta_layout.
 
 sexpr_token(S,E,E)  --> string_lit(S), !.
-sexpr_token(T,E0,E) --> "(", blanks, seq(T,E0,E), blanks, ")", !.
+sexpr_token(T,E0,E) --> "(", metta_layout, seq(T,E0,E), metta_layout, ")", !.
 sexpr_token(N,E,E)  --> number(N), number_ends, !.
 sexpr_token(V,E0,E) --> var_symbol(V,E0,E), !.
 sexpr_token(A,E,E)  --> atom_symbol(A).
@@ -119,6 +115,7 @@ number_terminator(0')).
 number_terminator(0'\t).
 number_terminator(0'\n).
 number_terminator(0'\r).
+number_terminator(0';).
 
 %Recursive processing of S-Expressions within S-Expressions. sexpr//3 has
 %already consumed the whitespace after its own token, so this does not repeat it:

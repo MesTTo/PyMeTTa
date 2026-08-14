@@ -135,10 +135,10 @@ petta_py_control_exception(
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
-% The engine's own pipeline is strip/3, top_forms//2, parse_form/2 then
-% process_form/3, and process_metta_string/3 flattens every directive's answers
-% into one list at the end. These entry points run the identical pipeline and
-% keep the grouping instead: one answer list per ! directive, in source order.
+% The engine's own pipeline is parse_metta_source/2 then process_form/3, and
+% process_metta_string/3 flattens every directive's answers into one list at
+% the end. These entry points run the identical pipeline and keep the grouping
+% instead: one answer list per ! directive, in source order.
 
 %Reader failures use the reserved petta_py_exception/2 envelope, so the
 %Python side classifies the thrown term rather than hunting arbitrary text.
@@ -151,10 +151,7 @@ petta_py_tag_reader(Goal) :-
 petta_py_run(Source, Space, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    string_codes(S, Cs),
-    strip(Cs, outside, Codes),
-    petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
-                          maplist(parse_form, Forms, Parsed) )),
+    petta_py_tag_reader(parse_metta_source(S, Parsed)),
     petta_py_process_forms(Parsed, Space, Groups), !.
 
 %The CLI asserts working_dir/1 from the file it loads, and import! reads it
@@ -172,10 +169,7 @@ petta_py_ensure_working_dir :-
 petta_py_run_using(Source, Space, Pairs, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    string_codes(S, Cs),
-    strip(Cs, outside, Codes),
-    petta_py_tag_reader(( phrase(top_forms(Forms, 1), Codes),
-                          maplist(parse_form, Forms, Parsed0) )),
+    petta_py_tag_reader(parse_metta_source(S, Parsed0)),
     maplist(petta_py_using_pair, Pairs, Bindings),
     maplist(petta_py_substitute_form(Bindings), Parsed0, Parsed),
     petta_py_process_forms(Parsed, Space, Groups), !.

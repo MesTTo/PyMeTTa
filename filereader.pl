@@ -4,8 +4,11 @@
 %   - A parsed form that cannot translate is not reported as a syntax error
 %     [tested 2026-08-14: filereader_translation_errors].
 %   - top_forms//2 ignores comment text and keeps parentheses inside escaped
-%     string quotes inside their form [tested 2026-08-14:
+%     string quotes inside their form [tested 2026-08-15:
 %     filereader_form_splitter].
+%   - parse_metta_source/2 consumes comments in its grammars without building a
+%     stripped source copy [measured: 7,736,802 versus 8,874,582 inferences for
+%     twenty parses of 48,786 codes, 2026-08-15].
 %   - Loader diagnostics contain ANSI escapes only on terminal streams
 %     [tested 2026-08-14: filereader_terminal_output].
 %   - A failed source load removes compiler metadata and generated predicates,
@@ -183,8 +186,7 @@ prepare_metta_source(S, ParsedForms) :-
     acquire_declared_dependencies(ParsedForms).
 
 parse_metta_source(S, ParsedForms) :-
-    string_codes(S, Cs),
-    strip(Cs, outside, Codes),
+    string_codes(S, Codes),
     phrase(top_forms(Forms, 1), Codes),
     maplist(parse_form, Forms, ParsedForms).
 
@@ -300,12 +302,10 @@ uses_as_data_args(F, Args) :- nonvar(Args),
                               ( uses_as_data(F, A) -> true ; uses_as_data_args(F, Rest) ).
 
 % First pass converts MeTTa to Prolog terms without mutating registration state.
-%parse_metta_source/2 has already run the comment pass over the whole source,
-%so these forms carry no comments and sread_stripped/2 does not look for any.
-parse_form(form(S), parsed(T, S, Term)) :- sread_stripped(S, Term),
+parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
                                            ( Term = [=, [F|_], _], atom(F) -> T=function
                                                                            ; T=expression ).
-parse_form(runnable(S), parsed(runnable, S, Term)) :- sread_stripped(S, Term).
+parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 
 % process_form/3 is the direct-string path used by named Python spaces. File
 % loads use process_form/4 so source clauses compile once while their atoms are
@@ -402,9 +402,21 @@ print_function_form(FormStr, Ref) :-
     ansi_format([fg(green)], "~@", [portray_clause(current_output, Show)]),
     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^^~n", []).
 
-%Like blanks but counts newlines:
-newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
-newlines(C, C) --> blanks.
+%Top-level comments are layout too. Count their terminating newline for source
+%diagnostics while consuming their text without constructing another code list.
+source_layout(LC0, LC2) --> ";", !, source_comment(LC0, LC2).
+source_layout(LC0, LC2) --> "\n", !,
+                             { LC1 is LC0 + 1 },
+                             source_layout(LC1, LC2).
+source_layout(LC0, LC2) --> [C], { code_type(C, space) }, !,
+                             source_layout(LC0, LC2).
+source_layout(LC, LC) --> [].
+
+source_comment(LC0, LC2) --> "\n", !,
+                              { LC1 is LC0 + 1 },
+                              source_layout(LC1, LC2).
+source_comment(LC, LC) --> eos, !.
+source_comment(LC0, LC2) --> [_], source_comment(LC0, LC2).
 
 %Collect characters until all parentheses are balanced (depth 0), accumulating codes, and also counting newlines:
 grab_until_balanced(D, Acc, Cs, LC0, LC2, State) --> [C],
@@ -432,10 +444,13 @@ read_balanced_form(LC, _, _) -->
     { format(atom(Msg), "missing ')', starting at line ~w:~n~s", [LC, Rest]),
       throw(error(syntax_error(Msg), none)) }.
 
-top_forms([],_) --> blanks, eos.
-top_forms([Term|Fs], LC0) --> newlines(LC0, LC1),
-                              ( "!" -> {Tag = runnable} ; {Tag = form} ),
-                              read_form_open(LC1),
-                              read_balanced_form(LC1, Cs, LC2),
-                              { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
-                              top_forms(Fs, LC2).
+top_forms(Forms, LC0) --> source_layout(LC0, LC1),
+                          top_forms_after_layout(Forms, LC1).
+
+top_forms_after_layout([], _) --> eos.
+top_forms_after_layout([Term|Fs], LC1) -->
+    ( "!" -> {Tag = runnable} ; {Tag = form} ),
+    read_form_open(LC1),
+    read_balanced_form(LC1, Cs, LC2),
+    { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
+    top_forms(Fs, LC2).
