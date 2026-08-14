@@ -9,6 +9,8 @@ Guarantees:
     columns [tested test_rows_sequence_operations_preserve_columns]
   - every mutation validates row width and preserves the named Row type
     [tested test_rows_mutations_preserve_invariants]
+  - Row and Rows pickle through stable module-level rebuild functions rather
+    than dynamic class names [tested test_rows_copy_and_pickle_protocols]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -65,11 +67,18 @@ class Row(tuple):
     def asdict(self) -> dict[str, Any]:
         return dict(zip(type(self)._columns, self))
 
+    def __reduce__(self):
+        return _restore_row, (type(self)._columns, tuple(self))
+
 
 @lru_cache(maxsize=256)
 def _row_class(columns: tuple[str, ...]) -> type[Row]:
     cls = type("Row", (Row,), {"__slots__": (), "_columns": columns})
     return cls
+
+
+def _restore_row(columns: tuple[str, ...], values: tuple[Any, ...]) -> Row:
+    return _row_class(columns)(values)
 
 
 class Rows(UserList[Row]):
@@ -142,6 +151,13 @@ class Rows(UserList[Row]):
 
     def copy(self) -> Rows:
         return Rows(self.columns, self.data)
+
+    def __copy__(self) -> Rows:
+        return self.copy()
+
+    def __reduce__(self):
+        values = [tuple(row) for row in self.data]
+        return Rows, (self.columns, values)
 
     def _addition_rows(self, other: Iterable[Iterable[Any]]) -> Iterable[Iterable[Any]]:
         if isinstance(other, Rows) and other.columns != self.columns:

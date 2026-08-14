@@ -5,6 +5,10 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import copy
+import multiprocessing
+import pickle
+from concurrent.futures import ProcessPoolExecutor
 from decimal import Decimal
 from fractions import Fraction
 
@@ -91,6 +95,40 @@ def test_atoms_are_immutable():
         S.foo.name = "bar"
     with pytest.raises(AttributeError):
         expr(S.a).children = ()
+
+
+@pytest.mark.parametrize(
+    "atom",
+    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+)
+def test_atoms_copy_by_identity(atom):
+    assert copy.copy(atom) is atom
+    assert copy.deepcopy(atom) is atom
+
+
+@pytest.mark.parametrize(
+    "atom",
+    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+)
+def test_atoms_pickle_by_value(atom):
+    restored = pickle.loads(pickle.dumps(atom))
+    assert restored == atom
+    assert type(restored) is type(atom)
+
+
+def test_process_local_grounded_values_refuse_pickle():
+    value = object()
+    for identity_value in (Gnd(value), Box(value)):
+        with pytest.raises(TypeError, match="process-local.*identity"):
+            pickle.dumps(identity_value)
+
+
+def test_atoms_cross_a_spawned_process_boundary():
+    atom = expr(S.edge, S.Ada, Gnd(3))
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
+        restored = pool.submit(pickle.loads, pickle.dumps(atom)).result(timeout=15)
+    assert restored == atom
 
 
 def test_printing_is_source_spelling():

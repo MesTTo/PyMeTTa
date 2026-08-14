@@ -1,10 +1,13 @@
-"""Purpose: the Rows container's interop surface: DataFrame conversions
-with named-need refusals when the library is absent, and notebook display.
+"""Purpose: the Rows container's sequence, copy, pickle, DataFrame, and
+notebook interop surface, including named dependency refusals.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+import copy
+import pickle
 
 import pytest
 
@@ -114,6 +117,26 @@ def test_rows_mutations_preserve_invariants():
     with pytest.raises(ValueError, match="1 values for 2 columns"):
         rows.extend([("valid", 89), ("bad",)])
     assert rows == before
+
+
+def test_rows_copy_and_pickle_protocols():
+    rows = Rows(("name", "atom"), [("Ada", S.person(S.Ada))])
+    for restored in (copy.copy(rows), copy.deepcopy(rows)):
+        assert isinstance(restored, Rows)
+        assert restored == rows
+        assert restored.columns == rows.columns
+        assert restored is not rows
+        assert restored[0].atom is rows[0].atom
+
+    restored = pickle.loads(pickle.dumps(rows))
+    assert isinstance(restored, Rows)
+    assert restored == rows
+    assert restored.columns == rows.columns
+    assert restored[0].atom == rows[0].atom
+
+    row = pickle.loads(pickle.dumps(rows[0]))
+    assert row == rows[0]
+    assert row._columns == rows.columns
 
 
 def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():

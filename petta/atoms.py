@@ -12,6 +12,12 @@ Guarantees:
     test_numpy_scalars_are_engine_numbers]
   - decoded symbol and variable interning stays bounded while repeated recent
     names retain identity [tested test_wire_intern_tables_are_bounded]
+  - immutable atoms return themselves from copy and deepcopy; serializable
+    atoms rebuild without mutating slots [tested test_atoms_copy_by_identity,
+    test_atoms_pickle_by_value, test_atoms_cross_a_spawned_process_boundary]
+  - opaque grounded objects and their Box identity carriers refuse pickle
+    because process-local identity cannot survive it [tested
+    test_process_local_grounded_values_refuse_pickle]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -144,6 +150,19 @@ class Box:
 
     def __repr__(self) -> str:
         return f"Box({self.value!r})"
+
+    def __copy__(self) -> Box:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Box:
+        return self
+
+    def __reduce__(self):
+        raise TypeError(
+            "a petta Box carries process-local object identity and cannot be "
+            "pickled; serialize the underlying value explicitly if identity "
+            "is not part of its meaning"
+        )
 
 
 # id(value) -> weakref to the box carrying it; see Box's docstring.
@@ -325,6 +344,12 @@ class Atom:
     def __delattr__(self, *_: Any) -> None:
         raise AttributeError("atoms are immutable")
 
+    def __copy__(self) -> Atom:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Atom:
+        return self
+
     def to_wire(self) -> list:
         raise NotImplementedError
 
@@ -382,6 +407,9 @@ class Sym(Atom):
     def __hash__(self) -> int:
         return hash(("sym", self.name))
 
+    def __reduce__(self):
+        return _wire_sym, (self.name,)
+
     def __str__(self) -> str:
         return self.name
 
@@ -422,6 +450,9 @@ class Var(Atom):
 
     def __hash__(self) -> int:
         return hash(("var", self.name))
+
+    def __reduce__(self):
+        return _wire_var, (self.name,)
 
     def __str__(self) -> str:
         return f"${self.name}"
@@ -473,6 +504,14 @@ class Gnd(Atom):
         if _is_primitive(self.value):
             return hash(self.value)
         return hash(("gnd", id(self.value)))
+
+    def __reduce__(self):
+        if not _is_primitive(self.value):
+            raise TypeError(
+                "a grounded opaque object has process-local identity and "
+                "cannot be pickled; encode a stable value instead"
+            )
+        return Gnd, (self.value,)
 
     # Grounded values are VALUES throughout: comparisons answer booleans
     # (engine-exactly) and arithmetic computes, so an answer post-processes
@@ -716,6 +755,9 @@ class Expr(Atom):
                 value = hash(("expr", tuple(hash(c) for c in node.children)))
                 object.__setattr__(node, "_hash", value)
         return self._hash
+
+    def __reduce__(self):
+        return Expr, (self.children,)
 
     def __str__(self) -> str:
         # Iterative: deep expressions are ordinary data here, and a printer
