@@ -1,3 +1,10 @@
+% Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
+%   imports, function registration, and named-space execution context.
+% Open Obligations:
+%   To Do: Resolve the remaining runtime findings in ai-prolog-review.md.
+%   Hacks: None
+%   Future Enhancements: None
+
 %%%%%%%%%% Dependencies %%%%%%%%%%
 %Asserted at runtime (git imports, the CLI driver); declared so a
 %reference before the first assert fails instead of erring undefined.
@@ -293,6 +300,13 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 'is-space'(A,R) :- atom(A), atom_concat('&', _, A) -> R=true ; R=false.
 
 %%% Diagnostics / Testing: %%%
+:- multifile prolog:error_message//1.
+
+prolog:error_message(petta_test_failed(Actual, Expected)) -->
+    [ 'MeTTa test failed: ~p does not match ~p'-[Actual, Expected] ].
+prolog:error_message(petta_assertion_failed(Goal)) -->
+    [ 'MeTTa assertion failed: ~p'-[Goal] ].
+
 'println!'(Arg, true) :- swrite(Arg, RArg),
                          format('~w~n', [RArg]).
 
@@ -303,12 +317,15 @@ test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
                   swrite(B, RB),
                   format("is ~w, should ~w. ~w ~n", [RA, RB, E]),
-                  (A =@= B -> true ; halt(1)).
+                  ( A =@= B -> true
+                  ; throw(error(petta_test_failed(A, B),
+                                context(test/3, 'MeTTa test values differ'))) ).
 
 assert(Goal, true) :- ( call(Goal) -> true
                                     ; swrite(Goal, RG),
                                       format("Assertion failed: ~w~n", [RG]),
-                                      halt(1) ).
+                                      throw(error(petta_assertion_failed(Goal),
+                                                  context(assert/2, 'MeTTa assertion failed'))) ).
 
 %%% The running space: %%%
 % (context-space) answers the space whose module the current goal runs in,
