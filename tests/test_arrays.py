@@ -33,8 +33,10 @@ def am(metta):
 
 
 def test_numpy_flows_through_the_same_ops(am):
-    r = am.run("!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
-               "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))")
+    r = am.run(
+        "!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
+        "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))"
+    )
     assert r == [[expr(expr(58.0, 64.0), expr(139.0, 154.0))]]
     assert am.run("!(t-shape (zeros 2 3))") == [[expr(2, 3)]]
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
@@ -79,7 +81,7 @@ def test_cross_library_conversion_via_dlpack(am):
     space = am.fresh_space()
     space.add(S.np_vec(val(numpy.array([1.0, 2.0], dtype=numpy.float32))))
     (group,) = space.run(
-        '!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))'
+        "!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))"
     )
     assert "float32" in str(group[0])
 
@@ -121,6 +123,29 @@ def test_top_indices_match_full_order_and_stabilize_ties():
     assert arrays._top_indices(xp, ties, 2) == [1, 2]
     assert arrays._top_indices(xp, ties, 0) == []
     assert arrays._top_indices(xp, ties, len(ties)) == [1, 2, 3, 0, 4]
+
+
+def test_array_protocol_registration_is_idempotent(monkeypatch):
+    import threading
+
+    calls = []
+    monkeypatch.setattr(arrays, "_PROTOCOLS_REGISTERED", threading.Event())
+    monkeypatch.setattr(arrays, "_PROTOCOLS_LOCK", threading.Lock())
+    monkeypatch.setattr(
+        arrays._integrate,
+        "register_object_type",
+        lambda *args: calls.append(("type", args)),
+    )
+    monkeypatch.setattr(
+        arrays._integrate,
+        "register_repr",
+        lambda *args: calls.append(("repr", args)),
+    )
+
+    arrays._register_protocols()
+    arrays._register_protocols()
+
+    assert [kind for kind, _ in calls] == ["type", "repr"]
 
 
 def test_same_named_embedding_stores_route_per_space(metta):

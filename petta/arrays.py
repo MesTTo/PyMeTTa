@@ -14,6 +14,9 @@ Guarantees:
   - _top_indices uses 35.26% fewer instructions than the prior full sort for
     500 top-10 selections from 100,000 scores [measured 2026-08-14: minimum
     of three perf stat instructions:u runs]
+Guarded by:
+  - _PROTOCOLS_LOCK serializes one-time protocol registration
+    [tested test_array_protocol_registration_is_idempotent]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +28,7 @@ from __future__ import annotations
 import importlib
 import itertools
 import operator
+import threading
 from collections.abc import Iterator
 from typing import Any
 
@@ -45,7 +49,8 @@ __all__ = [
 ]
 
 ARRAY_OPS: list[str] = []
-_PROTOCOLS_REGISTERED = False
+_PROTOCOLS_REGISTERED = threading.Event()
+_PROTOCOLS_LOCK = threading.Lock()
 
 # Constructor names aliased per space: the operation registers once per
 # backend under name--lib, and each installed space carries equations
@@ -147,22 +152,21 @@ def _describe(x: Any) -> str:
     dtype = str(x.dtype)
     dtype = dtype[dtype.rfind(".") + 1 :]
     shape = "x".join(str(d) for d in x.shape) or "scalar"
-    try:
-        device = str(compat.device(x))
-    except Exception:
-        device = "?"
+    device = str(compat.device(x))
     grad = " grad" if getattr(x, "requires_grad", False) else ""
     return f"<{type(x).__name__} {shape} {dtype} {device}{grad}>"
 
 
 def _register_protocols() -> None:
     """DLTensor typing and protocol printing, once per process."""
-    global _PROTOCOLS_REGISTERED
-    if _PROTOCOLS_REGISTERED:
+    if _PROTOCOLS_REGISTERED.is_set():
         return
-    _integrate.register_object_type(is_array, "DLTensor")
-    _integrate.register_repr(is_array, _describe)
-    _PROTOCOLS_REGISTERED = True
+    with _PROTOCOLS_LOCK:
+        if _PROTOCOLS_REGISTERED.is_set():
+            return
+        _integrate.register_object_type(is_array, "DLTensor")
+        _integrate.register_repr(is_array, _describe)
+        _PROTOCOLS_REGISTERED.set()
 
 
 def data_of(a: Any) -> Any:
@@ -191,7 +195,11 @@ def install(m, default: Any = None) -> list[str]:
     registered: list[str] = []
 
     def op(fn, *, name: str, raw: bool = True, types: list[str] | None = None, **kw):
-        if m.is_function(name) and name not in _known_ops() and name not in _CONSTRUCTOR_NAMES:
+        if (
+            m.is_function(name)
+            and name not in _known_ops()
+            and name not in _CONSTRUCTOR_NAMES
+        ):
             raise PettaError(
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
@@ -252,12 +260,22 @@ def install(m, default: Any = None) -> list[str]:
         return val(xp_default.asarray(raw_data, dtype=xp_default.float32))
 
     constructor(
-        make_tensor, name="tensor", raw=False, pass_atoms=True, types=["%Undefined%", "DLTensor"]
+        make_tensor,
+        name="tensor",
+        raw=False,
+        pass_atoms=True,
+        types=["%Undefined%", "DLTensor"],
     )
 
     dims = [1, 2, 3, 4]
-    constructor(lambda *s: xp_default.zeros(tuple(int(d) for d in s)), name="zeros", arities=dims)
-    constructor(lambda *s: xp_default.ones(tuple(int(d) for d in s)), name="ones", arities=dims)
+    constructor(
+        lambda *s: xp_default.zeros(tuple(int(d) for d in s)),
+        name="zeros",
+        arities=dims,
+    )
+    constructor(
+        lambda *s: xp_default.ones(tuple(int(d) for d in s)), name="ones", arities=dims
+    )
     constructor(_randn(xp_default), name="randn", arities=dims)
     constructor(lambda n: xp_default.arange(float(n)), name="arange-t")
     constructor(lambda n: xp_default.eye(int(n)), name="eye")
@@ -298,7 +316,10 @@ def install(m, default: Any = None) -> list[str]:
         name="reshape",
         arities=[2, 3, 4, 5],
     )
-    op(lambda a, d0, d1: _swap(namespace_of(a), a, int(d0), int(d1)), name="t-transpose")
+    op(
+        lambda a, d0, d1: _swap(namespace_of(a), a, int(d0), int(d1)),
+        name="t-transpose",
+    )
     op(lambda a, d: namespace_of(a).expand_dims(a, axis=int(d)), name="unsqueeze")
     op(lambda a, d: namespace_of(a).squeeze(a, axis=int(d)), name="squeeze")
     op(lambda a, i: a[int(i)], name="t-index")
@@ -316,7 +337,11 @@ def install(m, default: Any = None) -> list[str]:
 
     # ------------------------------------------------------------- reductions
 
-    op(lambda a: namespace_of(a).sum(a), name="t-sum", types=["DLTensor", "%Undefined%"])
+    op(
+        lambda a: namespace_of(a).sum(a),
+        name="t-sum",
+        types=["DLTensor", "%Undefined%"],
+    )
     op(lambda a: namespace_of(a).mean(a), name="t-mean")
     op(lambda a: namespace_of(a).max(a), name="t-max")
     op(lambda a: namespace_of(a).min(a), name="t-min")
@@ -354,7 +379,7 @@ def install(m, default: Any = None) -> list[str]:
     # The input stays undeclared on purpose: a reduction's answer is a 0-d
     # array in some libraries and a scalar in others (NumPy answers a
     # float32, which speaks no DLPack), and both read out through float().
-    op(lambda a: float(a), name="t-item", types=["%Undefined%", "Number"])
+    op(float, name="t-item", types=["%Undefined%", "Number"])
 
     def tolist(a) -> Any:
         data = decode(a)
@@ -392,7 +417,9 @@ def _randn(xp_default):
             return xp_default.randn(*dims)
         native = importlib.import_module(module)
         if hasattr(native, "random"):
-            return xp_default.asarray(native.random.standard_normal(dims), dtype=xp_default.float32)
+            return xp_default.asarray(
+                native.random.standard_normal(dims), dtype=xp_default.float32
+            )
         raise PettaError(f"{module} offers no normal sampler for randn")
 
     return randn
@@ -425,7 +452,9 @@ class EmbeddingStore:
     different space cannot retarget this store.
     """
 
-    def __init__(self, m, name: str = "emb", mirror: bool = True, backend: str = "auto") -> None:
+    def __init__(
+        self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"
+    ) -> None:
         if backend not in ("auto", "argsort", "faiss"):
             raise PettaError(f"backend is auto, argsort or faiss, not {backend!r}")
         if backend == "faiss":
@@ -445,7 +474,7 @@ class EmbeddingStore:
 
         def embed(key):
             atom = key if isinstance(key, Atom) else S[str(key)]
-            for stored, vector in zip(self._keys, self._vectors):
+            for stored, vector in zip(self._keys, self._vectors, strict=True):
                 if stored == atom:
                     return val(vector)
             return None
@@ -454,7 +483,9 @@ class EmbeddingStore:
         internal_knn = f"{name}--store-{serial}-knn"
         internal_embed = f"{name}--store-{serial}-embed"
         m.register_op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
-        m.register_op(embed, name=internal_embed, raw=False, typed=False, pass_atoms=True)
+        m.register_op(
+            embed, name=internal_embed, raw=False, typed=False, pass_atoms=True
+        )
 
         key = (m.space_name, name)
         previous = _SPACE_STORES.get(key)
@@ -495,7 +526,9 @@ class EmbeddingStore:
             )
         width = int(vector.shape[0])
         if self._width is not None and width != self._width:
-            raise ValueError(f"embedding vector width must be {self._width}, got {width}")
+            raise ValueError(
+                f"embedding vector width must be {self._width}, got {width}"
+            )
         xp = namespace_of(vector)
         if not bool(xp.all(xp.isfinite(vector))):
             raise ValueError("embedding vectors must contain only finite values")
@@ -515,7 +548,7 @@ class EmbeddingStore:
 
     def vector_for(self, key: Any) -> Any:
         atom = key if isinstance(key, Atom) else S[str(key)]
-        for stored, vector in zip(self._keys, self._vectors):
+        for stored, vector in zip(self._keys, self._vectors, strict=True):
             if stored == atom:
                 return vector
         raise KeyError(f"no embedding stored for {atom}")
@@ -566,16 +599,20 @@ class EmbeddingStore:
             faiss = _faiss()
             numpy = _numpy()
             if self._index is None:
-                matrix = numpy.ascontiguousarray(numpy.asarray(self._matrix, dtype=numpy.float32))
+                matrix = numpy.ascontiguousarray(
+                    numpy.asarray(self._matrix, dtype=numpy.float32)
+                )
                 built_index = faiss.IndexFlatIP(matrix.shape[1])
                 built_index.add(matrix)
                 self._index = built_index
             index = self._index
             if index is None:
                 raise RuntimeError("FAISS index construction produced no index")
-            probe = numpy.ascontiguousarray(numpy.asarray(q, dtype=numpy.float32).reshape(1, -1))
+            probe = numpy.ascontiguousarray(
+                numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
+            )
             scores, indexes = index.search(probe, count)
-            for score, index in zip(scores[0], indexes[0]):
+            for score, index in zip(scores[0], indexes[0], strict=True):
                 yield self._keys[int(index)], round(float(score), 6)
             return
         scores = self._matrix @ q
@@ -609,4 +646,6 @@ class EmbeddingStore:
         def generate(query: Any):
             yield from self.ranked(query, len(self._keys))
 
-        return matching.matcher(self._m, name, score=score, generate=generate, threshold=threshold)
+        return matching.matcher(
+            self._m, name, score=score, generate=generate, threshold=threshold
+        )
