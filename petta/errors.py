@@ -15,6 +15,7 @@ __all__ = [
     "EngineError",
     "InferenceLimitError",
     "Interrupted",
+    "MettaOperationError",
     "MettaSyntaxError",
     "PettaError",
     "ResourceLimitError",
@@ -36,6 +37,32 @@ class EngineError(PettaError):
     The original janus exception rides along as __cause__, so nothing is
     hidden; the message here is the engine's, trimmed of janus framing.
     """
+
+
+class MettaOperationError(EngineError):
+    """A builtin refused a value, naming the operation the source wrote.
+
+    The engine keeps the ISO formal term and adds the written operation, so
+    the parts arrive as data: `operation` is what to look for in the source,
+    `kind` is the formal's functor, and `expected` and `culprit` carry the
+    type and the offending value when the formal is a type error. Catching
+    EngineError still catches this.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        operation: str,
+        kind: str,
+        expected: object | None = None,
+        culprit: object | None = None,
+    ):
+        super().__init__(message)
+        self.operation = operation
+        self.kind = kind
+        self.expected = expected
+        self.culprit = culprit
 
 
 class ResourceLimitError(EngineError):

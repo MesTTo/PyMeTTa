@@ -143,6 +143,7 @@ from .errors import (  # noqa: E402
     EngineError,
     InferenceLimitError,
     Interrupted,
+    MettaOperationError,
     MettaSyntaxError,
     PettaError,
     ResourceLimitError,
@@ -214,6 +215,7 @@ __all__ = [
     # runtime
     "MeTTa",
     "MettaName",
+    "MettaOperationError",
     "MettaSyntaxError",
     # the legacy surface
     "PeTTa",

@@ -43,6 +43,7 @@ from .errors import (
     EngineError,
     InferenceLimitError,
     Interrupted,
+    MettaOperationError,
     MettaSyntaxError,
     TimeLimitError,
 )
@@ -440,7 +441,33 @@ class Runtime:
                     if error_type is MettaSyntaxError and isinstance(detail, str):
                         message = detail
                     raise error_type(message) from exc
+            self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
+
+    def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
+        """Raise MettaOperationError when the term names a MeTTa operation."""
+        try:
+            row = self._janus.query_once(
+                "petta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
+                {"Error": term},
+            )
+        except self._janus.PrologError as classifier_error:
+            raise EngineError(
+                f"{message}; the operation classifier failed: "
+                f"{_clean_message(classifier_error)}"
+            ) from exc
+        if row is None or row.get("truth") is False:
+            return
+        operation, kind = row.get("Operation"), row.get("Kind")
+        if not isinstance(operation, str) or not isinstance(kind, str):
+            return
+        raise MettaOperationError(
+            message,
+            operation=operation,
+            kind=kind,
+            expected=row.get("Expected"),
+            culprit=row.get("Culprit"),
+        ) from exc
 
     # ------------------------------------------------------------------- helpers
 

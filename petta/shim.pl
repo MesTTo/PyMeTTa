@@ -10,6 +10,10 @@
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_exception_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
+%   - petta_py_operation_error/5 reports a builtin refusal as its written
+%     operation, formal functor, expected type and culprit, and every value it
+%     yields is one Janus can carry [tested
+%     test_operation_error_carries_its_parts]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -132,6 +136,36 @@ petta_py_exception_info(
 
 petta_py_exception_kind(Error, Kind) :-
     petta_py_exception_info(Error, Kind, _).
+
+%The engine names the written MeTTa operation in the context of a builtin's
+%error, so the Python side reads that name from the term rather than from the
+%rendered text. Only a type_error carries an expected type and a culprit; any
+%other formal reports its own functor with both unbound, which crosses as None.
+petta_py_operation_error(error(Formal, context(Operation, Message)),
+                         Operation, Kind, Expected, Culprit) :-
+    atom(Operation),
+    petta_py_operation_message(Message),
+    nonvar(Formal),
+    petta_py_operation_formal(Formal, Kind, Expected0, Culprit0),
+    petta_py_operation_value(Expected0, Expected),
+    petta_py_operation_value(Culprit0, Culprit).
+
+%janus carries atomics and lists of them; any other compound would raise
+%`Domain error: py_term expected` while binding the output, which would turn a
+%user's type error into a classifier failure. Such a culprit crosses as its
+%written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs.
+petta_py_operation_value(Term, none) :- var(Term), !.
+petta_py_operation_value(Term, Term) :- atomic(Term), !.
+petta_py_operation_value(Term, Value) :- is_list(Term), !,
+                                         maplist(petta_py_operation_value, Term, Value).
+petta_py_operation_value(Term, Text) :- term_to_atom(Term, Text).
+
+petta_py_operation_message('while evaluating MeTTa operation').
+petta_py_operation_message('invalid MeTTa operation argument').
+
+petta_py_operation_formal(type_error(Expected, Culprit), type_error,
+                          Expected, Culprit) :- !.
+petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
 
 petta_py_control_exception(inference_limit_exceeded).
 petta_py_control_exception(time_limit_exceeded).

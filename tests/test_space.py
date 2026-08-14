@@ -9,7 +9,18 @@ Open Obligations:
 import pytest
 
 import petta
-from petta import EngineError, MeTTa, MettaSyntaxError, S, V, decode, expr, parse, val
+from petta import (
+    EngineError,
+    MeTTa,
+    MettaOperationError,
+    MettaSyntaxError,
+    S,
+    V,
+    decode,
+    expr,
+    parse,
+    val,
+)
 from petta.atoms import Gnd
 
 
@@ -49,6 +60,44 @@ def test_run_unknown_function_error_is_loud(metta):
     # the CLI dies on it; nothing is swallowed.
     with pytest.raises(EngineError):
         metta.run("!(+ 1 (no-such-function-anywhere 2))")
+
+
+@pytest.mark.parametrize(
+    ("source", "operation", "expected", "culprit"),
+    [
+        ("!(+ 1 a)", "+", "evaluable", "a/0"),
+        ("!(< 1 a)", "<", "evaluable", "a/0"),
+        ("!(min-atom (a b))", "min-atom", "number", "a"),
+        ("!(and true 5)", "and", "boolean", 5),
+        ("!(reduce a)", "reduce", "list", "a"),
+        ("!(change-state! (State 5) 6)", "change-state!", "atom", ["State", 5]),
+    ],
+)
+def test_operation_error_carries_its_parts(metta, source, operation, expected, culprit):
+    # The engine names the written operation in the error term, so the parts
+    # arrive as data rather than as text a caller would have to parse.
+    with pytest.raises(MettaOperationError) as failure:
+        metta.run(source)
+    assert failure.value.operation == operation
+    assert failure.value.kind == "type_error"
+    assert failure.value.expected == expected
+    assert failure.value.culprit == culprit
+    assert isinstance(failure.value, EngineError)
+    assert "classifier failed" not in str(failure.value)
+
+
+def test_engine_error_without_an_operation_stays_plain(metta):
+    # A missing import carries an operation name in its context too, but it is
+    # not a builtin refusing a value, so classification must not claim it.
+    with pytest.raises(EngineError) as failure:
+        metta.run('!(import! &self "definitely-not-here.metta")')
+    assert not isinstance(failure.value, MettaOperationError)
+
+
+def test_reserved_kinds_win_over_operation_classification(metta):
+    with pytest.raises(MettaSyntaxError) as failure:
+        metta.run("! (broken")
+    assert not isinstance(failure.value, MettaOperationError)
 
 
 def test_add_query_atoms(m):
