@@ -8,6 +8,10 @@ transport method carrying {space, pattern} and answering atoms) and
 metta-wam's metta_server, translated onto petta's own SpaceProvider
 protocol; the engine keeps unification for itself, so a remote answer is
 speed and reach, never trust.
+Guarantees:
+  - serve compares Bearer credentials with hmac.compare_digest before
+    consulting the authorization callback [tested
+    test_bearer_token_uses_constant_time_comparison]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +20,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import hmac
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -32,6 +37,19 @@ __all__ = ["serve", "connect", "attach", "RemoteSpace", "Server"]
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
 #: callable with the same contract, the DAS gateway's own injection seam.
 Transport = Callable[[str, dict], dict]
+
+
+def _is_authorized(
+    headers: Mapping[str, str],
+    token: str | None,
+    authorize: Callable[[Mapping[str, str]], bool] | None,
+) -> bool:
+    """Check the fixed Bearer credential before the general policy hook."""
+    if token is not None:
+        supplied = headers.get("authorization", "")
+        if not hmac.compare_digest(supplied, f"Bearer {token}"):
+            return False
+    return authorize is None or authorize(headers)
 
 
 class RemoteSpace(SpaceProvider):
@@ -252,19 +270,11 @@ def serve(
     engine_thread = threading.Thread(target=worker, daemon=True)
     engine_thread.start()
 
-    def authorized(headers: Mapping[str, str]) -> bool:
-        if token is not None:
-            if headers.get("authorization") != f"Bearer {token}":
-                return False
-        if authorize is not None and not authorize(headers):
-            return False
-        return True
-
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:  # noqa: N802  (http.server's spelling)
             length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
-            if not authorized(self.headers):
+            if not _is_authorized(self.headers, token, authorize):
                 body = json.dumps({"error": "not authorized"}).encode("utf-8")
                 self.send_response(401)
                 self.send_header("content-type", "application/json")
