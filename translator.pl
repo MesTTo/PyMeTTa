@@ -11,6 +11,8 @@
 %     translator_branch_returns].
 %   - A typed function remains partially applicable until it has produced a
 %     return value [tested 2026-08-14: translator_typed_currying].
+%   - Empty special-form inputs have explicit identity or failure semantics
+%     [tested 2026-08-14: translator_empty_forms].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -119,6 +121,7 @@ throw_function_overapplication(Fun, ActualInputArity) :-
 % reduce/2 came back as a partial application instead of running: `(map-atom
 % (1 2 3) double)` answered `((partial double (1)) ...)`. A builtin still
 % resolves, through the module's own inheritance from user.
+reduce([], []) :- !.
 reduce([F|Args], Out) :- nonvar(F), atom(F),
                          ( fun(F), \+ fun_scoped(F) -> Module = user
                          ; current_metta_module(Module), fun_here_in(Module, F) )
@@ -224,6 +227,8 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
         ; HV == transaction, T = [X] -> translate_expr_to_conj(X, Conj, Out),
                                         AfterHead = [transaction(Conj)|Goals]
         %--- Sequential execution ---:
+        ; HV == progn, T = [] -> Out = [],
+                                  AfterHead = Goals
         ; HV == progn, T = Exprs -> translate_args_dl(Exprs, AfterHead, Goals, Outs),
                                     last(Outs, Out),
                                     true
@@ -367,7 +372,9 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                                      Goal =.. [F|CallArgs],
                                      BeforeCall = [Goal|Goals]
         %Produce a dynamic dispatch, translating Args for nesting:
-        ; HV == reduce, T = [Expr] -> ( var(Expr) -> translate_expr_dl(Expr, AfterHead, BeforeReduce, ExprOut),
+        ; HV == reduce, T = [Expr] -> ( Expr == [] -> Out = [],
+                                                       AfterHead = Goals
+                                                   ; var(Expr) -> translate_expr_dl(Expr, AfterHead, BeforeReduce, ExprOut),
                                                      BeforeReduce = [reduce(ExprOut, Out)|Goals]
                                                    ; Expr = [F|Args],
                                                      translate_args_dl(Args, AfterHead, BeforeReduce, ArgsOut),
@@ -512,7 +519,8 @@ eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
     eval_data_list_dl(Es, AfterEntry, Goals, Vs).
 
 
-%Convert let* to recusrive let:
+%Convert let* to recursive let:
+letstar_to_rec_let([], Body, Body) :- !.
 letstar_to_rec_let([[Pat,Val]],Body,[let,Pat,Val,Body]).
 letstar_to_rec_let([[Pat,Val]|Rest],Body,[let,Pat,Val,Out]) :- letstar_to_rec_let(Rest,Body,Out).
 
@@ -635,6 +643,7 @@ mbr_advance_args(I, N, T, P0, P) :-
     mbr_advance_args(I1, N, T, P1, P).
 
 %Translate case expression recursively into nested if:
+translate_case([], _, _, fail, []) :- !.
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
                                                       constrain_args(K, Kc, Gc),
                                                       build_branch(ConV, VOut, Out, Then),
@@ -654,6 +663,7 @@ translate_args_dl([X|Xs], Goals0, Goals, [V|Vs]) :-
     translate_args_dl(Xs, AfterExpr, Goals, Vs).
 
 %Build A ; B ; C ... from a list:
+disj_list([], fail) :- !.
 disj_list([G], G) :- !.
 disj_list([G|Gs], (G ; R)) :- disj_list(Gs, R).
 

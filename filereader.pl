@@ -1,5 +1,8 @@
 % Purpose: read MeTTa source, split it into complete top-level forms, and
 % dispatch each parsed form to the evaluator.
+% Guarantees:
+%   - A parsed form that cannot translate is not reported as a syntax error
+%     [tested 2026-08-14: filereader_translation_errors].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -13,6 +16,11 @@
 %the first function ever compiles (a virgin-engine remove-atom read it
 %undefined and crashed).
 :- dynamic translated_from/2.
+
+:- multifile prolog:error_message//1.
+
+prolog:error_message(petta_translation_failed(Form)) -->
+    [ 'Could not translate MeTTa form: ~p'-[Form] ].
 :- current_prolog_flag(argv, Args), ( (memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args))
                                       -> assertz(silent(true)) ; assertz(silent(false)) ).
 
@@ -85,7 +93,9 @@ process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term
                                                                                      ( Body == true -> Show = Head; Show = (Head :- Body) ),
                                                                                      portray_clause(current_output, Show),
                                                                                      format("\e[33m^^^^^^^^^^^^^^^^^^^^^^\e[0m~n") ).
-process_form(_, In, _) :- format(atom(Msg), "failed to process form: ~w", [In]), throw(error(syntax_error(Msg), none)).
+process_form(_, In, _) :-
+    throw(error(petta_translation_failed(In),
+                context(process_form/3, 'could not translate MeTTa form'))).
 
 %Like blanks but counts newlines:
 newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
