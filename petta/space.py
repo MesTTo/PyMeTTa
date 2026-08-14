@@ -51,12 +51,12 @@ from ._space_persistence import (
     raise_unsafe_text_symbol,
     save_space,
 )
+from ._space_query import query_rows
 from ._space_objects import (
     Cursor,
     EngineProfile,
     Prepared,
     _Assuming,
-    _column_names,
     _EngineFunction,
     _limits,
     _StatsBlock,
@@ -524,25 +524,15 @@ class MeTTa:
 
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
-        if limit is not None and limit <= 0:
-            raise ValueError(f"limit must be positive, got {limit}")
-        atoms = [_to_atom(p) for p in patterns]
-        columns = _column_names(atoms)
-        wires = [a.to_wire() for a in atoms]
-        if where is not None:
-            pred = "petta_py_query_guarded_all"
-            ins = [self._space, wires, _to_atom(where).to_wire(), columns, limit or 0]
-        elif limit is not None:
-            pred, ins = "petta_py_query_limit_all", [self._space, wires, columns, limit]
-        else:
-            pred, ins = "petta_py_query_all", [self._space, wires, columns]
-        limits = _limits(timeout, inferences)
-        if limits is None:
-            answered = self._rt.apply_must(pred, *ins)
-        else:
-            answered = self._rt.apply_must("petta_py_limited", *limits, pred, ins)
-        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
-        return Rows(tuple(columns), decoded)
+        return query_rows(
+            self._rt,
+            self._space,
+            patterns,
+            where=where,
+            limit=limit,
+            timeout=timeout,
+            inferences=inferences,
+        )
 
     def stream(
         self,
