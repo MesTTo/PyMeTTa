@@ -159,6 +159,100 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     return declared
 
 
+def _operation_kind(fn: Callable, raw: bool) -> str:
+    many = inspect.isgeneratorfunction(fn)
+    return {
+        (False, False): "det",
+        (False, True): "many",
+        (True, False): "raw_det",
+        (True, True): "raw_many",
+    }[(raw, many)]
+
+
+def _operation_declarations(
+    name: str,
+    params: list[inspect.Parameter],
+    fn: Callable,
+    typed: bool,
+) -> tuple[Expr, ...]:
+    if not typed or not params:
+        return ()
+    return tuple(_type_declarations(name, params, fn))
+
+
+def _rollback_registration(
+    runtime: Any,
+    operation: Operation,
+    previous: Operation | None,
+    retained: list[Expr],
+    added_facts: list[Expr],
+) -> None:
+    for fact in added_facts:
+        _reflect_remove(runtime, fact)
+    for declaration in retained:
+        _release_declaration(runtime, operation.space or "&self", declaration)
+    if previous is not None:
+        runtime.must(
+            "petta_py_register_op_set(Name, Arities, Kind)",
+            Name=previous.name,
+            Arities=list(previous.arities or (previous.arity,)),
+            Kind=previous.kind,
+        )
+        return
+    for arity in operation.arities:
+        runtime.must(
+            "petta_py_unregister_op(Name, Arity)",
+            Name=operation.name,
+            Arity=arity,
+        )
+
+
+def _register_transaction(
+    runtime: Any,
+    operation: Operation,
+    previous: Operation | None,
+) -> tuple[list[Expr], list[Expr]]:
+    """Publish one complete operation surface or restore its previous life."""
+    new_facts = _op_facts(operation)
+    old_facts = _op_facts(previous) if previous is not None else []
+    runtime.must(
+        "petta_py_register_op_set(Name, Arities, Kind)",
+        Name=operation.name,
+        Arities=list(operation.arities),
+        Kind=operation.kind,
+    )
+    retained: list[Expr] = []
+    added_facts: list[Expr] = []
+    try:
+        for declaration in operation.declarations:
+            _retain_declaration(runtime, operation.space or "&self", declaration)
+            retained.append(declaration)
+        for fact in new_facts:
+            if fact not in old_facts:
+                _reflect_add(runtime, fact)
+                added_facts.append(fact)
+    except BaseException:
+        _rollback_registration(runtime, operation, previous, retained, added_facts)
+        raise
+    return new_facts, old_facts
+
+
+def _retire_previous(
+    runtime: Any,
+    previous: Operation | None,
+    new_facts: list[Expr],
+    old_facts: list[Expr],
+    fallback_space: str,
+) -> None:
+    if previous is None:
+        return
+    for fact in old_facts:
+        if fact not in new_facts:
+            _reflect_remove(runtime, fact)
+    for declaration in previous.declarations:
+        _release_declaration(runtime, previous.space or fallback_space, declaration)
+
+
 def register(
     runtime,
     fn: Callable,
@@ -180,8 +274,7 @@ def register(
     """
     metta_name = _metta_name(fn, name)
     arities, params = _arities(fn, arities)
-    many = inspect.isgeneratorfunction(fn)
-    kind = ("raw_many" if many else "raw_det") if raw else ("many" if many else "det")
+    kind = _operation_kind(fn, raw)
     # Everything computable is computed BEFORE the engine changes: a
     # refusing annotation or an over-expanded Union leaves nothing half
     # registered. Then the engine registers every arity in one checked
@@ -189,7 +282,7 @@ def register(
     # touched); declaration and reflection writes follow with a rollback
     # that restores the previous registration whole, and the Python
     # registry commits last.
-    declarations = tuple(_type_declarations(metta_name, params, fn)) if typed and params else ()
+    declarations = _operation_declarations(metta_name, params, fn, typed)
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
@@ -201,54 +294,12 @@ def register(
         declarations=declarations,
         arities=tuple(arities),
     )
-    new_facts = _op_facts(operation)
-    old_facts = _op_facts(previous) if previous is not None else []
-    runtime.must(
-        "petta_py_register_op_set(Name, Arities, Kind)",
-        Name=metta_name,
-        Arities=list(arities),
-        Kind=kind,
-    )
-    retained: list[Expr] = []
-    added_facts: list[Expr] = []
-    try:
-        for declaration in declarations:
-            _retain_declaration(runtime, space, declaration)
-            retained.append(declaration)
-        for fact in new_facts:
-            if fact not in old_facts:
-                _reflect_add(runtime, fact)
-                added_facts.append(fact)
-    except BaseException:
-        for fact in added_facts:
-            _reflect_remove(runtime, fact)
-        for declaration in retained:
-            _release_declaration(runtime, space, declaration)
-        if previous is not None:
-            runtime.must(
-                "petta_py_register_op_set(Name, Arities, Kind)",
-                Name=previous.name,
-                Arities=list(previous.arities or (previous.arity,)),
-                Kind=previous.kind,
-            )
-        else:
-            for arity in arities:
-                runtime.must(
-                    "petta_py_unregister_op(Name, Arity)",
-                    Name=metta_name,
-                    Arity=arity,
-                )
-        raise
+    new_facts, old_facts = _register_transaction(runtime, operation, previous)
     # Committed: the previous life retires, shared pieces surviving. Facts
     # equal in both lives were never re-added, so they are not removed;
     # declarations release through the refcount, staying while any other
     # owner still declares them.
-    if previous is not None:
-        for fact in old_facts:
-            if fact not in new_facts:
-                _reflect_remove(runtime, fact)
-        for declaration in previous.declarations:
-            _release_declaration(runtime, previous.space or space, declaration)
+    _retire_previous(runtime, previous, new_facts, old_facts, space)
     REGISTRY[metta_name] = operation
     return fn
 
