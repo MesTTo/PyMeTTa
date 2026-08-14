@@ -16,7 +16,7 @@ Open Obligations:
 
 import logging
 import threading
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPException
 
 import pytest
 
@@ -106,6 +106,12 @@ def test_remote_connect_refuses_credentials_over_http(headers):
 def test_remote_connect_accepts_http_and_https_urls():
     assert callable(remote.connect("http://example.test/api/"))
     assert callable(remote.connect("https://example.test/api/", token="secret"))
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
+def test_network_clients_refuse_invalid_timeouts(timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        remote.connect("http://example.test", timeout=timeout)
 
 
 @pytest.mark.parametrize(
@@ -220,17 +226,29 @@ def test_remote_server_rejects_malformed_request_bodies(
         server.close()
 
 
-@pytest.mark.parametrize("read_fails", [False, True])
-def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails):
+@pytest.mark.parametrize(
+    ("read_fails", "oversized"),
+    [(False, False), (True, False), (False, True)],
+)
+def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, oversized):
     class Response:
         status = 200
         reason = "OK"
         closed = False
 
-        def read(self):
+        def __init__(self):
+            self._body = b"12345" if oversized else b"{}"
+            self._offset = 0
+
+        def getheader(self, _name):
+            return None
+
+        def read(self, amount):
             if read_fails:
                 raise OSError("injected read failure")
-            return b"{}"
+            chunk = self._body[self._offset : self._offset + amount]
+            self._offset += len(chunk)
+            return chunk
 
         def close(self):
             self.closed = True
@@ -257,6 +275,8 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails):
 
     connection = Connection()
     monkeypatch.setattr(network, "HTTPConnection", lambda *args, **kwargs: connection)
+    if oversized:
+        monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 4)
     endpoint = network.HTTPEndpoint(
         "http://example.test/api",
         subject="test",
@@ -265,6 +285,9 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails):
 
     if read_fails:
         with pytest.raises(OSError, match="injected read failure"):
+            endpoint.request("GET", "/probe", timeout=1.0)
+    elif oversized:
+        with pytest.raises(HTTPException, match="response body exceeds"):
             endpoint.request("GET", "/probe", timeout=1.0)
     else:
         assert endpoint.request("GET", "/probe", timeout=1.0) == (

@@ -234,6 +234,12 @@ def test_das_accepts_http_and_https_urls():
     assert DAS("https://example.test/api/")._base == "https://example.test/api"
 
 
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
+def test_das_refuses_invalid_timeouts(timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        DAS("http://example.test", timeout=timeout)
+
+
 def test_plain_http_error_body_is_reported(monkeypatch):
     das = DAS("http://scripted")
     monkeypatch.setattr(

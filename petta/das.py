@@ -42,7 +42,7 @@ from http.client import HTTPException
 from typing import Any
 
 from . import _json
-from ._network import HTTPEndpoint
+from ._network import HTTPEndpoint, validated_timeout
 from ._optional import optional_module
 from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms, parse
 from .errors import PettaError
@@ -171,7 +171,7 @@ class DAS:
     def __init__(self, url: str = "http://localhost:40009", timeout: float = 10.0):
         self._endpoint = HTTPEndpoint(url, subject="DAS command router", error_type=DASError)
         self._base = self._endpoint.url
-        self._timeout = float(timeout)
+        self._timeout = validated_timeout(timeout, subject="DAS timeout")
         self._dialect: str | None = None
 
     # ------------------------------------------------------------- transport

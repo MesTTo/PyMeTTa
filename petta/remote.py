@@ -45,7 +45,7 @@ from typing import Any
 
 from . import _json
 from ._engine import bridge
-from ._network import HTTPEndpoint
+from ._network import HTTPEndpoint, validated_timeout
 from .atoms import Atom, Expr, atom_from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
@@ -170,6 +170,7 @@ def connect(
         error_type=PettaError,
         ssl_context=ssl_context,
     )
+    timeout = validated_timeout(timeout, subject="remote engine timeout")
     has_credentials = token is not None or any(
         name.lower() == "authorization" for name in headers or ()
     )
