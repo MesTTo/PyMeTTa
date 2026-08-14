@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import PettaError, S, V, expr, val
+from petta import CastError, PettaError, S, Sym, V, expr, val
 from petta import integrate as pi
 
 
@@ -94,6 +94,49 @@ def test_register_repr_protocol(metta):
     pi.register_repr(lambda x: hasattr(x, "__len__") and type(x).__name__ == "Sized",
                      lambda x: f"<Sized of {len(x)}>")
     assert "Sized of 7" in repr(val(Sized()))
+
+
+def test_protocol_and_reflector_registrations_can_be_removed(metta):
+    class ExtensionTarget:
+        pass
+
+    target = ExtensionTarget()
+
+    def type_predicate(value):
+        return isinstance(value, ExtensionTarget)
+
+    def repr_predicate(value):
+        return isinstance(value, ExtensionTarget)
+
+    def formatter(_value):
+        return "<extension target>"
+
+    def reflector(m, name, _value):
+        return pi.facts(m, [S.reflected(Sym(name))])
+
+    pi.register_object_type(type_predicate, "ExtensionTargetProtocol")
+    pi.register_repr(repr_predicate, formatter)
+    pi.register_reflector(type_predicate, reflector)
+    try:
+        assert metta.cast(target, "ExtensionTargetProtocol") is target
+        assert str(val(target)) == "<extension target>"
+        assert pi.reflect(metta, "registered", target) == 1
+    finally:
+        pi.unregister_reflector(type_predicate, reflector)
+        pi.unregister_repr(repr_predicate, formatter)
+        pi.unregister_object_type(type_predicate, "ExtensionTargetProtocol")
+
+    with pytest.raises(CastError):
+        metta.cast(target, "ExtensionTargetProtocol")
+    assert str(val(target)) == "<ExtensionTarget>"
+    with pytest.raises(PettaError, match="no reflector claims ExtensionTarget"):
+        pi.reflect(metta, "removed", target)
+    with pytest.raises(KeyError, match="ExtensionTargetProtocol"):
+        pi.unregister_object_type(type_predicate, "ExtensionTargetProtocol")
+    with pytest.raises(KeyError, match="protocol repr"):
+        pi.unregister_repr(repr_predicate, formatter)
+    with pytest.raises(KeyError, match="reflector"):
+        pi.unregister_reflector(type_predicate, reflector)
 
 
 def test_py_field_reasons_in_both_modes(metta):

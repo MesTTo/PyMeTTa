@@ -11,6 +11,14 @@ Assumes:
   - inspect.signature reports unsupported callables with TypeError and
     unavailable signatures with ValueError [source 2026-08-14:
     https://docs.python.org/3/library/inspect.html#inspect.signature]
+Guarantees:
+  - protocol type, formatter, conversion, and reflector registrations have
+    exact removal counterparts [tested
+    test_protocol_and_reflector_registrations_can_be_removed,
+    test_type_registration_can_be_removed_and_its_name_reclaimed]
+Guarded by:
+  - _REFLECTOR_LOCK protects reflector registrations [tested
+    test_protocol_and_reflector_registrations_can_be_removed]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,12 +30,13 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import inspect
+import threading
 from collections.abc import Callable, Iterable
 from importlib import metadata
 from typing import Any, Protocol, runtime_checkable
 
 from . import convert
-from ._ops import PROTOCOL_TYPES
+from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
     Expr,
@@ -39,6 +48,7 @@ from .atoms import (
     encode,
     expr,
     register_object_repr_protocol,
+    unregister_object_repr_protocol,
     val,
 )
 from .errors import PettaError
@@ -57,6 +67,10 @@ __all__ = [
     "register_object_type",
     "register_reflector",
     "register_type",
+    "unregister_object_type",
+    "unregister_reflector",
+    "unregister_repr",
+    "unregister_type",
     "wrap_callable",
     "wrap_object",
 ]
@@ -309,6 +323,7 @@ def _effect(fn: Callable) -> Callable:
 # The four-image translator is part of the integration surface; re-exported
 # so an integration is written against one namespace.
 register_type = convert.register_type
+unregister_type = convert.unregister_type
 
 
 def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
@@ -317,7 +332,12 @@ def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
 
         register_object_type(lambda x: hasattr(x, "__dlpack__"), "DLTensor")
     """
-    PROTOCOL_TYPES.append((predicate, name))
+    register_protocol_type(predicate, name)
+
+
+def unregister_object_type(predicate: Callable[[Any], bool], name: str) -> None:
+    """Remove the latest exact protocol type registration."""
+    unregister_protocol_type(predicate, name)
 
 
 def register_repr(predicate: Callable[[Any], bool], formatter: Callable[[Any], str]) -> None:
@@ -325,23 +345,47 @@ def register_repr(predicate: Callable[[Any], bool], formatter: Callable[[Any], s
     register_object_repr_protocol(predicate, formatter)
 
 
+def unregister_repr(
+    predicate: Callable[[Any], bool], formatter: Callable[[Any], str]
+) -> None:
+    """Remove the latest exact protocol formatter registration."""
+    unregister_object_repr_protocol(predicate, formatter)
+
+
 # ----------------------------------------------------------------- reflection
 
 # (predicate, reflector) pairs: a reflector lowers one object's structure
 # into facts. Libraries register theirs; reflect() dispatches.
 _REFLECTORS: list[tuple[Callable[[Any], bool], Callable[[Any, str, Any], int]]] = []
+_REFLECTOR_LOCK = threading.RLock()
 
 
 def register_reflector(
     predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]
 ) -> None:
     """fn(m, name, obj) writes facts about obj into m and returns the count."""
-    _REFLECTORS.append((predicate, fn))
+    with _REFLECTOR_LOCK:
+        _REFLECTORS.append((predicate, fn))
+
+
+def unregister_reflector(
+    predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]
+) -> None:
+    """Remove the latest reflector matching both callables exactly."""
+    with _REFLECTOR_LOCK:
+        for index in range(len(_REFLECTORS) - 1, -1, -1):
+            registered_predicate, registered_fn = _REFLECTORS[index]
+            if registered_predicate is predicate and registered_fn is fn:
+                _REFLECTORS.pop(index)
+                return
+    raise KeyError("no reflector is registered for those exact callables")
 
 
 def reflect(m, name: str, obj: Any) -> int:
     """Lower an object's structure into facts, by whichever reflector claims it."""
-    for predicate, fn in _REFLECTORS:
+    with _REFLECTOR_LOCK:
+        registrations = tuple(_REFLECTORS)
+    for predicate, fn in registrations:
         if predicate(obj):
             return fn(m, name, obj)
     raise PettaError(

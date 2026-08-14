@@ -3,6 +3,9 @@ Guarantees:
   - public names preserve the petta.convert import surface after directional
     module cuts [tested test_build_reverses_the_projection,
     test_registered_custom_type_round_trips]
+  - type registrations can be removed without leaving constructor or name
+    ownership behind [tested
+    test_type_registration_can_be_removed_and_its_name_reclaimed]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,6 +18,7 @@ from ._convert_registry import (
     IMAGES,
     ensure_registered,
     register_type,
+    unregister_type,
 )
 from ._convert_registry import (
     _is_plain_class as _registry_is_plain_class,
@@ -32,4 +36,5 @@ __all__ = [
     "ensure_registered",
     "project",
     "register_type",
+    "unregister_type",
 ]

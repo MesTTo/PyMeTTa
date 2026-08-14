@@ -6,6 +6,11 @@ Importable as petta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested test_public_context_types_are_distinct]
+  - protocol type registrations can be removed by exact identity [tested
+    test_protocol_and_reflector_registrations_can_be_removed]
+Guarded by:
+  - _PROTOCOL_TYPES_LOCK protects protocol type registrations [tested
+    test_protocol_and_reflector_registrations_can_be_removed]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -14,6 +19,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -147,11 +153,31 @@ def type_names(obj: Any) -> list[str]:
 # shim's py_object_extra_type/2 bridge.
 
 PROTOCOL_TYPES: list[tuple[Any, str]] = []
+_PROTOCOL_TYPES_LOCK = threading.RLock()
+
+
+def register_protocol_type(predicate: Callable[[Any], bool], name: str) -> None:
+    """Register one predicate and public type-name pair."""
+    with _PROTOCOL_TYPES_LOCK:
+        PROTOCOL_TYPES.append((predicate, name))
+
+
+def unregister_protocol_type(predicate: Callable[[Any], bool], name: str) -> None:
+    """Remove the latest exact predicate and type-name registration."""
+    with _PROTOCOL_TYPES_LOCK:
+        for index in range(len(PROTOCOL_TYPES) - 1, -1, -1):
+            registered_predicate, registered_name = PROTOCOL_TYPES[index]
+            if registered_predicate is predicate and registered_name == name:
+                PROTOCOL_TYPES.pop(index)
+                return
+    raise KeyError(f"no object type protocol {name!r} uses that predicate")
 
 
 def extra_types(obj) -> list[str]:
     names = []
-    for predicate, name in PROTOCOL_TYPES:
+    with _PROTOCOL_TYPES_LOCK:
+        registrations = tuple(PROTOCOL_TYPES)
+    for predicate, name in registrations:
         try:
             if predicate(obj):
                 names.append(name)

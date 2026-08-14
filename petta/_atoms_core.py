@@ -11,6 +11,8 @@ Guarantees:
   - wire and object identity caches are bounded or weak and synchronized
     [tested test_wire_intern_tables_are_bounded,
     test_atom_identity_caches_are_thread_safe]
+  - object formatters can be removed by their exact registration identity
+    [tested test_object_repr_registrations_can_be_removed_exactly]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -186,12 +188,37 @@ def register_object_repr(kind: type, fn: Callable[[Any], str]) -> None:
         _OBJECT_REPRS[kind] = fn
 
 
+def unregister_object_repr(kind: type) -> None:
+    """Remove the formatter registered for one exact type.
+
+    Raises KeyError when the type has no formatter, so cleanup cannot appear
+    to succeed while leaving a different registration live.
+    """
+    with _STATE_LOCK:
+        if kind not in _OBJECT_REPRS:
+            raise KeyError(f"no object repr is registered for {kind.__qualname__}")
+        del _OBJECT_REPRS[kind]
+
+
 def register_object_repr_protocol(
     predicate: Callable[[Any], bool], fn: Callable[[Any], str]
 ) -> None:
     """Teach grounded values satisfying a predicate how to print."""
     with _STATE_LOCK:
         _PROTOCOL_REPRS.append((predicate, fn))
+
+
+def unregister_object_repr_protocol(
+    predicate: Callable[[Any], bool], fn: Callable[[Any], str]
+) -> None:
+    """Remove the latest protocol formatter matching both callables."""
+    with _STATE_LOCK:
+        for index in range(len(_PROTOCOL_REPRS) - 1, -1, -1):
+            registered_predicate, registered_fn = _PROTOCOL_REPRS[index]
+            if registered_predicate is predicate and registered_fn is fn:
+                _PROTOCOL_REPRS.pop(index)
+                return
+    raise KeyError("no protocol repr is registered for those exact callables")
 
 
 def _object_str(value: Any) -> str:

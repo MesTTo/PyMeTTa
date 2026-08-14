@@ -9,6 +9,8 @@ Guarantees:
     test_optional_surfaces_load_only_when_requested]
   - contextual name and save-format types are available at package level
     [tested test_public_context_types_are_distinct]
+  - atom formatter registrations have public removal counterparts [tested
+    test_object_repr_registrations_can_be_removed_exactly]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -125,6 +127,8 @@ from .atoms import (  # noqa: E402
     register_object_repr_protocol,
     sym,
     unify,
+    unregister_object_repr,
+    unregister_object_repr_protocol,
     val,
     var,
     variables,
@@ -265,6 +269,8 @@ __all__ = [
     "testing",
     "trace",
     "unify",
+    "unregister_object_repr",
+    "unregister_object_repr_protocol",
     "val",
     "var",
     "variables",

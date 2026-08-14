@@ -18,7 +18,14 @@ from typing import NamedTuple
 import pytest
 
 from petta import Gnd, S, Sym, V, expr, val
-from petta.convert import _is_plain_class, build, declarations, project, register_type
+from petta.convert import (
+    _is_plain_class,
+    build,
+    declarations,
+    project,
+    register_type,
+    unregister_type,
+)
 
 
 class Color(Enum):
@@ -109,6 +116,46 @@ def test_registered_custom_type_round_trips():
     atom = project(Interval(1, 5)).atom
     assert atom == expr(S.Interval, 1, 5)
     assert build(atom) == Interval(1, 5)
+
+
+def test_type_registration_can_be_removed_and_its_name_reclaimed():
+    class FirstConversion:
+        def __init__(self, value):
+            self.value = value
+
+    class SecondConversion:
+        def __init__(self, value):
+            self.value = value
+
+    register_type(
+        FirstConversion,
+        name="RemovableConversionProbe",
+        to_atom=lambda value: (value.value,),
+        from_atom=FirstConversion,
+        fields=("value",),
+    )
+    atom = project(FirstConversion(7)).atom
+    rebuilt = build(atom)
+    assert isinstance(rebuilt, FirstConversion) and rebuilt.value == 7
+    unregister_type(FirstConversion)
+
+    unregistered = FirstConversion(7)
+    assert project(unregistered).atom == val(unregistered)
+    register_type(
+        SecondConversion,
+        name="RemovableConversionProbe",
+        to_atom=lambda value: (value.value,),
+        from_atom=SecondConversion,
+        fields=("value",),
+    )
+    try:
+        rebuilt = build(project(SecondConversion(9)).atom)
+        assert isinstance(rebuilt, SecondConversion) and rebuilt.value == 9
+    finally:
+        unregister_type(SecondConversion)
+
+    with pytest.raises(KeyError, match="FirstConversion"):
+        unregister_type(FirstConversion)
 
 
 def test_metta_dunder_hooks_work_unregistered():
