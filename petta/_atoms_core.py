@@ -80,19 +80,22 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     opaque object is itself alone."""
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
-    if isinstance(mine, bool) or isinstance(theirs, bool):
-        return type(mine) is type(theirs) and mine == theirs
-    if isinstance(mine, float) and isinstance(theirs, float):
-        if math.isnan(mine) or math.isnan(theirs):
-            return math.isnan(mine) and math.isnan(theirs)
-        if mine == theirs == 0.0:
-            return math.copysign(1.0, mine) == math.copysign(1.0, theirs)
+    if type(mine) is not type(theirs):
+        return False
+    if isinstance(mine, float):
+        return _float_equal(mine, theirs)
+    if _is_primitive(mine):
         return mine == theirs
-    if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
-        return type(mine) is type(theirs) and mine == theirs
-    if _is_primitive(mine) and _is_primitive(theirs):
-        return type(mine) is type(theirs) and mine == theirs
     return mine is theirs
+
+
+def _float_equal(mine: float, theirs: float) -> bool:
+    """Engine equality for same-type floats, including NaN and signed zero."""
+    if math.isnan(mine) or math.isnan(theirs):
+        return math.isnan(mine) and math.isnan(theirs)
+    if mine == theirs == 0.0:
+        return math.copysign(1.0, mine) == math.copysign(1.0, theirs)
+    return mine == theirs
 
 
 _STATE_LOCK = threading.RLock()
@@ -704,10 +707,8 @@ class Expr(Atom):
         object.__setattr__(self, "_hash", None)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Atom):
-            return NotImplemented
         if not isinstance(other, Expr):
-            return False
+            return NotImplemented
         # Iterative: nested tuple equality would recurse to the term's
         # depth, and depth is data here.
         stack: list[tuple[Expr, Expr]] = [(self, other)]
@@ -740,12 +741,9 @@ class Expr(Atom):
                 stack.extend(c for c in node.children if isinstance(c, Expr) and c._hash is None)
         for node in reversed(order):
             if node._hash is None:
-                value = hash(("expr", tuple(hash(c) for c in node.children)))
+                value = hash(("expr", tuple(hash(child) for child in node.children)))
                 object.__setattr__(node, "_hash", value)
-        result = self._hash
-        if result is None:
-            raise RuntimeError("expression hash construction produced no value")
-        return result
+        return cast(int, self._hash)
 
     def __reduce__(self):
         return Expr, (self.children,)

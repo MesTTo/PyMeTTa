@@ -157,6 +157,22 @@ def is_ground(atom: Atom) -> bool:
     return not variables(atom)
 
 
+def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:
+    """Rebuild one expression only when a mapped child changed identity."""
+    if not isinstance(node, Expr):
+        return node
+    width = len(node.children)
+    mapped_children = tuple(results[-width:]) if width else ()
+    if width:
+        del results[-width:]
+    if any(
+        mapped is not original
+        for mapped, original in zip(mapped_children, node.children, strict=True)
+    ):
+        return Expr(mapped_children)
+    return node
+
+
 def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
     """Transform every node in an atom tree, children before parents.
 
@@ -177,19 +193,7 @@ def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
             stack.extend((child, False) for child in reversed(node.children))
             continue
 
-        candidate = node
-        if isinstance(node, Expr):
-            width = len(node.children)
-            mapped_children = tuple(results[-width:]) if width else ()
-            if width:
-                del results[-width:]
-            if any(
-                mapped is not original
-                for mapped, original in zip(mapped_children, node.children, strict=True)
-            ):
-                candidate = Expr(mapped_children)
-
-        mapped = transform(candidate)
+        mapped = transform(_mapped_candidate(node, results))
         if not isinstance(mapped, Atom):
             raise TypeError(f"map_atoms transform must return an Atom, got {type(mapped).__name__}")
         results.append(mapped)
