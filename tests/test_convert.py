@@ -18,7 +18,7 @@ from typing import NamedTuple
 import pytest
 
 from petta import Gnd, S, Sym, V, expr, val
-from petta.convert import build, declarations, project, register_type
+from petta.convert import _is_plain_class, build, declarations, project, register_type
 
 
 class Color(Enum):
@@ -183,8 +183,6 @@ def test_pydantic_alias_fields_rebuild(metta):
 
 
 def test_parameterized_field_annotations_rebuild_nested_enums():
-    from dataclasses import dataclass
-
     @dataclass
     class Palette:
         colours: list[Color]
@@ -198,8 +196,6 @@ def test_parameterized_field_annotations_rebuild_nested_enums():
 
 
 def test_plain_class_detection_never_mistakes_a_generic_alias_for_a_class():
-    from petta.convert import _is_plain_class
-
     assert _is_plain_class(list) is True
     assert _is_plain_class(list[Color]) is False
 
@@ -274,9 +270,9 @@ def test_type_name_collision_is_refused_and_build_honors_requested_class():
     first = first_cls(7)
     atom = project(first).atom
 
-    with pytest.raises(ValueError, match="type name 'ConversionCollision'.*already"):
+    with pytest.raises(ValueError, match=r"type name 'ConversionCollision'.*already"):
         project(second_cls("later"))
-    with pytest.raises(TypeError, match="belongs to .*not"):
+    with pytest.raises(TypeError, match=r"belongs to .*not"):
         build(atom, second_cls)
     assert build(atom, first_cls) == first
 

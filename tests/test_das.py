@@ -18,7 +18,7 @@ import pytest
 
 from petta import EngineError, PettaError, S, V, expr
 from petta.atoms import Gnd, parse
-from petta.das import DAS, DASError, DASSpace
+from petta.das import DAS, DASError, DASSpace, _render_tokens
 
 
 class ScriptedDAS(DAS):
@@ -279,8 +279,6 @@ def test_legacy_dialect_negotiates_tokens_and_handle_answers():
 
 
 def test_token_rendering_distinguishes_ground_links_from_templates():
-    from petta.das import _render_tokens
-
     assert _render_tokens(S.f(S.g(S.a), V.x)) == (
         "LINK_TEMPLATE Expression 3 NODE Symbol f "
         "LINK Expression 2 NODE Symbol g NODE Symbol a VARIABLE x"

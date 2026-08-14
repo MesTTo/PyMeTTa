@@ -101,5 +101,5 @@ def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):
         Mock(side_effect=FileNotFoundError("swipl")),
     )
 
-    with pytest.raises(FileNotFoundError, match="SWI-Prolog.*swipl.*PATH"):
+    with pytest.raises(FileNotFoundError, match=r"SWI-Prolog.*swipl.*PATH"):
         cli.main([])

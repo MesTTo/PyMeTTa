@@ -10,15 +10,21 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import importlib.util
+import sys
+import tempfile
+import textwrap
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 
-from petta import CompileError, S, expr
+from petta import CompileError, EngineError, S, expr
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st
+given = hypothesis.given
+settings = hypothesis.settings
+st = hypothesis.strategies
 
 
 @pytest.fixture()
@@ -222,14 +228,8 @@ def test_refusals_name_construct_and_line(m, source, needle):
     with pytest.raises(CompileError) as excinfo:
         # inspect.getsource cannot see exec'd code; compile the AST path the
         # decorator uses by round-tripping through a real file.
-        import importlib.util
-        import pathlib
-        import sys
-        import tempfile
-        import textwrap
-
         with tempfile.TemporaryDirectory() as d:
-            p = pathlib.Path(d) / "snippet.py"
+            p = Path(d) / "snippet.py"
             p.write_text(textwrap.dedent(source))
             spec = importlib.util.spec_from_file_location("snippet", p)
             module = importlib.util.module_from_spec(spec)
@@ -392,9 +392,9 @@ def test_loop_variable_read_after_for_is_refused(m):
 
         @m.define
         def dleak(xs):
-            for x in xs:
+            for _x in xs:
                 pass
-            return x
+            return _x
 
     assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(
         excinfo.value
@@ -414,8 +414,6 @@ def test_engine_functions_feel_like_python(m):
     triple = m.fn("dtriple")
     assert triple(14) == 42
     assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
-    from petta import EngineError
-
     with pytest.raises(EngineError):
         m.fn("superpose")(expr(1, 2))  # two answers is not one
 
@@ -530,16 +528,24 @@ def test_twin_refuses_engine_only_bodies(m):
 
 
 def test_same_head_redefinition_replaces(m):
-    @m.define
-    def dvalue():
-        return 1
+    def install_first_definition():
+        @m.define
+        def dvalue():
+            return 1
 
+        return dvalue
+
+    install_first_definition()
     assert m.run("!(dvalue)") == [[1]]
 
-    @m.define
-    def dvalue():
-        return 2
+    def install_replacement_definition():
+        @m.define
+        def dvalue():
+            return 2
 
+        return dvalue
+
+    dvalue = install_replacement_definition()
     # The notebook reading: one head, the newest body, exactly one answer.
     assert m.run("!(collapse (dvalue))") == [[expr(2)]]
     assert dvalue.py() == 2

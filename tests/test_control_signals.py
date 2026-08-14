@@ -11,6 +11,9 @@ Open Obligations:
 
 import pytest
 
+import petta
+from petta import EngineError, InferenceLimitError, TimeLimitError
+
 
 @pytest.fixture()
 def m(metta):
@@ -22,8 +25,6 @@ def test_control_signals_pass_through_recovery_catches(m):
     """A swallowed limit signal DISARMED the budget before the fix,
     measured as six million inferences spent under a thousand-step bound
     when the raise landed inside a recovery catch mid-translation."""
-    from petta import InferenceLimitError, TimeLimitError
-
     m.run("(= (deep-spin $n) (if (== $n 0) done (deep-spin (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.eval("(== (deep-spin 3000000) done)", inferences=1_000)
@@ -48,8 +49,6 @@ def test_control_signals_pass_through_recovery_catches(m):
     ],
 )
 def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
-    import petta
-
     error_type = getattr(petta, error_name)
     with pytest.raises(error_type):
         m.runtime.must("petta_py_raise(Kind, detail)", Kind=kind)
@@ -65,8 +64,6 @@ def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
     ],
 )
 def test_exception_names_nested_in_other_terms_stay_engine_errors(m, sentinel):
-    from petta import EngineError
-
     with pytest.raises(EngineError) as failure:
         m.runtime.must(f"throw(error(type_error({sentinel}, oops), none))")
     assert type(failure.value) is EngineError

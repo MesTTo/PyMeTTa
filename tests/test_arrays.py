@@ -11,12 +11,12 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import inspect
+import threading
+
 import pytest
 
-numpy = pytest.importorskip("numpy")
-pytest.importorskip("array_api_compat")
-
-from petta import (  # noqa: E402
+from petta import (
     S,
     V,
     arrays,
@@ -24,6 +24,9 @@ from petta import (  # noqa: E402
     expr,
     val,
 )
+
+numpy = pytest.importorskip("numpy")
+pytest.importorskip("array_api_compat")
 
 
 @pytest.fixture(scope="module")
@@ -77,7 +80,7 @@ def test_protocol_printing_covers_any_library(am):
 
 
 def test_cross_library_conversion_via_dlpack(am):
-    torch = pytest.importorskip("torch")
+    pytest.importorskip("torch")
     space = am.fresh_space()
     space.add(S.np_vec(val(numpy.array([1.0, 2.0], dtype=numpy.float32))))
     (group,) = space.run(
@@ -126,8 +129,6 @@ def test_top_indices_match_full_order_and_stabilize_ties():
 
 
 def test_array_protocol_registration_is_idempotent(monkeypatch):
-    import threading
-
     calls = []
     monkeypatch.setattr(arrays, "_PROTOCOLS_REGISTERED", threading.Event())
     monkeypatch.setattr(arrays, "_PROTOCOLS_LOCK", threading.Lock())
@@ -211,7 +212,5 @@ def test_embedding_store_requires_one_width_and_positive_integer_k(metta):
 
 def test_arrays_layer_is_torch_free():
     """The module must not import torch anywhere, even lazily by name."""
-    import inspect
-
     source = inspect.getsource(arrays)
     assert "import torch" not in source

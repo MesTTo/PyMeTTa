@@ -8,7 +8,8 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError, MettaSyntaxError, S, V, decode, expr, parse, val
+import petta
+from petta import EngineError, MeTTa, MettaSyntaxError, S, V, decode, expr, parse, val
 from petta.atoms import Gnd
 
 
@@ -144,8 +145,6 @@ def test_fact_isolation_between_spaces(metta):
 
 
 def test_default_metta_handles_share_the_self_space():
-    from petta import MeTTa
-
     first, second = MeTTa(), MeTTa()
     shared = S["shared-default-handle"](S.value)
     first.add(shared)
@@ -156,8 +155,6 @@ def test_default_metta_handles_share_the_self_space():
 
 
 def test_space_name_validation():
-    from petta import MeTTa
-
     with pytest.raises(ValueError):
         MeTTa("kb")
 
@@ -206,10 +203,6 @@ def test_match_patterns_are_structural(m):
 def test_bare_atoms_are_refused_loudly(m):
     """A stored atom is a non-empty expression; anything else must error,
     never vanish: the silent write was a real bug this pins."""
-    import pytest
-
-    from petta import S
-
     with pytest.raises(TypeError):
         m.add(S.bare)
     with pytest.raises(TypeError):
@@ -232,8 +225,6 @@ def test_remove_reports_presence_and_removes_every_duplicate(m):
 
 def test_object_identity_survives_the_boundary(m):
     """One live object is one box everywhere: stored, found, removed."""
-    from petta import S, V, val
-
     class Thing:
         pass
 
@@ -248,8 +239,6 @@ def test_object_identity_survives_the_boundary(m):
 
 def test_anonymous_variables_do_not_join(m):
     """Two underscores are two fresh variables, exactly as parsed $_ $_."""
-    from petta import S, V
-
     m.add(S.duo(S.a, S.a), S.duo(S.a, S.b))
     assert len(m.query(S.duo(V._, V._))) == 2
     # And the anonymous variable never becomes a column.
@@ -266,8 +255,6 @@ def test_fresh_spaces_drop_and_names_recycle(metta):
     with metta.fresh_space() as again:
         assert again.space_name == first
         assert len(again) == 0
-    import pytest
-
     with pytest.raises(TypeError):
         with metta:
             pass
@@ -278,8 +265,6 @@ def test_load_restores_the_working_directory(metta, tmp_path):
     process's directory back afterwards, so later runs are untouched."""
     inner = tmp_path / "prog.metta"
     inner.write_text("!(+ 1 1)\n")
-    import petta
-
     before = petta.janus.query_once("working_dir(D)")
     metta.load(str(inner))
     after = petta.janus.query_once("working_dir(D)")
@@ -287,9 +272,5 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 
 
 def test_runtime_refuses_a_second_tree(metta):
-    import pytest
-
-    from petta import MeTTa
-
     with pytest.raises(ValueError):
         MeTTa(petta_path="/definitely/not/this/tree")

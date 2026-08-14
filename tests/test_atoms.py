@@ -23,6 +23,7 @@ from petta import (
     S,
     Sym,
     V,
+    _engine,
     alpha_eq,
     encode,
     expr,
@@ -31,7 +32,20 @@ from petta import (
     val,
     variables,
 )
-from petta.atoms import Box, atom_from_wire, from_wire, is_ground
+from petta.atoms import (
+    _NAMESPACE_CACHE_MAX,
+    _WIRE_CACHE_FAST_MAX,
+    _WIRE_CACHE_MAX,
+    _WIRE_SYMS,
+    _WIRE_SYMS_FAST,
+    _WIRE_VARS,
+    _WIRE_VARS_FAST,
+    Box,
+    atom_from_wire,
+    boxed,
+    from_wire,
+    is_ground,
+)
 
 
 def test_symbols_are_not_strings():
@@ -79,7 +93,8 @@ def test_grounded_primitives_compare_as_their_value():
 def test_grounded_hash_agrees_with_equality():
     assert hash(Gnd(3)) == hash(3)
     assert {Gnd(3), 3} == {3}
-    assert Gnd("a") in {"a"}
+    strings = {"a"}
+    assert Gnd("a") in strings
 
 
 def test_numpy_scalars_are_engine_numbers(metta):
@@ -139,7 +154,8 @@ def test_expr_sequence_index_and_count():
 def test_expr_identity_equality():
     shared = expr(S.node, S.leaf)
     atom = expr(S.root, shared, shared)
-    assert atom == atom
+    same = atom
+    assert atom == same
     assert atom == expr(S.root, shared, shared)
 
 
@@ -177,7 +193,7 @@ def test_atoms_pickle_by_value(atom):
 def test_process_local_grounded_values_refuse_pickle():
     value = object()
     for identity_value in (Gnd(value), Box(value)):
-        with pytest.raises(TypeError, match="process-local.*identity"):
+        with pytest.raises(TypeError, match=r"process-local.*identity"):
             pickle.dumps(identity_value)
 
 
@@ -260,15 +276,6 @@ def test_wire_round_trip():
 
 
 def test_wire_intern_tables_are_bounded():
-    from petta.atoms import (
-        _WIRE_CACHE_FAST_MAX,
-        _WIRE_CACHE_MAX,
-        _WIRE_SYMS,
-        _WIRE_SYMS_FAST,
-        _WIRE_VARS,
-        _WIRE_VARS_FAST,
-    )
-
     for cache in (_WIRE_SYMS, _WIRE_SYMS_FAST, _WIRE_VARS, _WIRE_VARS_FAST):
         cache.clear()
 
@@ -344,16 +351,12 @@ def test_ground_equality_is_the_engines():
 def test_boxes_intern_per_object_identity():
     """One live object always crosses as one box, so stored and queried
     meet in the same reference; a dead object costs nothing after."""
-    from petta.atoms import boxed
-
     thing = object()
     assert boxed(thing) is boxed(thing)
     assert boxed(thing).value is thing
 
 
 def test_atom_identity_caches_are_thread_safe():
-    from petta.atoms import boxed
-
     thing = object()
     with ThreadPoolExecutor(max_workers=8) as workers:
         boxes = list(workers.map(boxed, [thing] * 64))
@@ -364,8 +367,6 @@ def test_atom_identity_caches_are_thread_safe():
 
 
 def test_namespace_cache_is_bounded():
-    from petta.atoms import _NAMESPACE_CACHE_MAX
-
     for index in range(_NAMESPACE_CACHE_MAX + 50):
         S[f"namespace-{index}"]
     cache = object.__getattribute__(S, "_cache")
@@ -374,8 +375,6 @@ def test_namespace_cache_is_bounded():
 
 
 def test_namespace_completion_surfaces_engine_errors(monkeypatch):
-    from petta import _engine
-
     monkeypatch.setattr(_engine, "started", lambda: True)
 
     def fail_runtime():
@@ -389,8 +388,6 @@ def test_namespace_completion_surfaces_engine_errors(monkeypatch):
 def test_deep_terms_cross_and_print():
     """Depth is data: the codec and the printer take 5000 levels without
     meeting Python's recursion ceiling."""
-    from petta.atoms import from_wire
-
     atom = Gnd(1)
     for _ in range(5000):
         atom = expr(S.wrap, atom)
@@ -400,8 +397,6 @@ def test_deep_terms_cross_and_print():
 
 
 def test_malformed_wire_is_refused():
-    from petta.atoms import from_wire
-
     for bad in (["b", "garbage"], ["n", "123"], ["s", 123], ["e", 5], ["zz", 1]):
         with pytest.raises(ValueError):
             from_wire(bad)

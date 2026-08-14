@@ -11,10 +11,21 @@ import asyncio
 import gc
 import inspect
 import logging
+import time
 
 import pytest
 
-from petta import S, V
+import petta
+from petta import (
+    Interrupted,
+    MeTTa,
+    MettaSyntaxError,
+    PettaError,
+    S,
+    TimeLimitError,
+    V,
+    aio,
+)
 
 
 @pytest.fixture()
@@ -24,8 +35,6 @@ def m(metta):
 
 
 def test_aio_mirrors_the_surface(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.add(S.edge(1, 2), S.edge(2, 3))
@@ -41,8 +50,6 @@ def test_aio_mirrors_the_surface(m):
 
 
 def test_aio_keeps_the_loop_live_while_the_engine_spins(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run("(= (aio-spin $n) (if (== $n 0) done (aio-spin (- $n 1))))")
@@ -67,8 +74,6 @@ def test_aio_keeps_the_loop_live_while_the_engine_spins(m):
 
 
 def test_aio_carries_bounds_and_errors_across_threads(m):
-    from petta import MettaSyntaxError, TimeLimitError, aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -87,8 +92,6 @@ def test_aio_carries_bounds_and_errors_across_threads(m):
 
 
 def test_aio_spaces_borrow_the_owners_thread(m):
-    from petta import MeTTa, PettaError, aio
-
     async def go():
         am = await aio.connect(metta=m)
         nested = await am.space("&aio-borrowed")
@@ -110,8 +113,6 @@ def test_aio_spaces_borrow_the_owners_thread(m):
 
 
 def test_aio_interrupt_stops_the_running_evaluation(m):
-    from petta import Interrupted, aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -129,10 +130,6 @@ def test_aio_interrupt_stops_the_running_evaluation(m):
 
 
 def test_aio_timeout_cancellation_stops_the_engine(m):
-    import time
-
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -152,8 +149,6 @@ def test_aio_timeout_cancellation_stops_the_engine(m):
 
 
 def test_aio_cancelled_while_queued_never_runs(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -177,8 +172,6 @@ def test_aio_cancelled_while_queued_never_runs(m):
 
 
 def test_aio_exposes_every_plain_request_response_method():
-    from petta import aio
-
     expected = {
         "fresh_space",
         "drop",
@@ -244,8 +237,6 @@ def test_aio_exposes_every_plain_request_response_method():
 
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=metta.fresh_space()) as am:
             parsed = await am.parse("(aio-forward value)")
@@ -299,9 +290,6 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
 
 
 def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
-    import petta
-    from petta import PettaError, aio
-
     def fail_attach():
         raise RuntimeError("round2 attach failed")
 
@@ -312,9 +300,9 @@ def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
         with pytest.raises(RuntimeError, match="round2 attach failed"):
             await broken.start()
         assert "failed" in repr(broken)
-        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
             await broken.start()
-        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
             await broken.count()
         await broken.aclose()
         assert "closed" in repr(broken)
@@ -323,8 +311,6 @@ def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
 
 
 def test_aio_borrowed_space_refuses_after_owner_closes(metta):
-    from petta import PettaError, aio
-
     async def go():
         owner = await aio.connect(metta=metta)
         borrowed = await owner.space("&aio-closed-borrower")
@@ -338,8 +324,6 @@ def test_aio_borrowed_space_refuses_after_owner_closes(metta):
 
 
 def test_aio_close_interrupts_work(m):
-    from petta import Interrupted, PettaError, aio
-
     async def go():
         am = await aio.connect(metta=m)
         await am.run(
@@ -363,8 +347,6 @@ def test_aio_close_interrupts_work(m):
 
 
 def test_aio_leak_warns_and_stop_joins(m):
-    from petta import aio
-
     async def open_connection():
         am = await aio.connect(metta=m)
         await am.count()
@@ -382,8 +364,6 @@ def test_aio_leak_warns_and_stop_joins(m):
 
 
 def test_aio_shutdown_handler_stops_forgotten_workers(m):
-    from petta import aio
-
     async def open_connection():
         return await aio.connect(metta=m)
 
@@ -395,8 +375,6 @@ def test_aio_shutdown_handler_stops_forgotten_workers(m):
 
 
 def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
-    from petta import aio
-
     stopped = []
 
     class BrokenWorker:
@@ -421,8 +399,6 @@ def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
 
 
 def test_aio_logs_worker_attachment_and_shutdown(m, caplog):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             assert await am.count() == 0

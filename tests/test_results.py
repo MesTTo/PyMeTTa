@@ -7,6 +7,8 @@ Open Obligations:
 """
 
 import copy
+import importlib.util
+import operator
 import pickle
 
 import pytest
@@ -35,9 +37,7 @@ def test_rows_to_pl_builds_the_polars_frame(m):
 def test_rows_to_df_builds_or_names_the_need(m):
     m.add_table("score", [("ada", 3)])
     rows = m.query(S.score(V.who, V.points))
-    try:
-        import pandas  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec("pandas") is None:
         with pytest.raises(ImportError, match="pandas"):
             rows.to_df()
     else:
@@ -72,7 +72,7 @@ def test_rows_repr_is_bounded_and_recursive():
 
 
 def test_rows_reject_duplicate_columns_and_wrong_row_widths():
-    with pytest.raises(ValueError, match="duplicate.*x"):
+    with pytest.raises(ValueError, match=r"duplicate.*x"):
         Rows(("x", "x"), [(1, 2)])
     with pytest.raises(ValueError, match="row 0 has 1 values for 2 columns"):
         Rows(("x", "y"), [(1,)])
@@ -96,8 +96,8 @@ def test_rows_sequence_operations_preserve_columns():
     for derived in (
         rows[:1],
         rows.copy(),
-        rows + [("Cid", 8)],
-        [("Cid", 8)] + rows,
+        operator.add(rows, [("Cid", 8)]),
+        operator.add([("Cid", 8)], rows),
         rows * 2,
         2 * rows,
     ):

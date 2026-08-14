@@ -10,10 +10,15 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import dataclasses
+from collections.abc import Callable, Sequence
+from typing import Annotated, Generic, TypeVar
+
 import pytest
 
-from petta import S, V, expr
+from petta import REFLECTION_SPACE, MeTTa, S, V, alpha_eq, expr, measure, val
 from petta.atoms import Expr, Gnd, Var
+from petta.ops import referenced_classes, type_atoms_for
 
 
 @pytest.fixture()
@@ -46,15 +51,13 @@ def test_operators_build_terms_on_variables_and_symbols():
     assert (V.x + 1 <= V.y) == expr(S["<="], expr(S["+"], V.x, 1), V.y)
     assert V.x.eq(3) == expr(S["=="], V.x, 3)
     assert (V.a % 2) == expr(S["%"], V.a, 2)
-    assert (V.x ** 2) == expr(S["pow-math"], V.x, 2)
+    assert (V.x**2) == expr(S["pow-math"], V.x, 2)
     assert (V.a @ V.b) == expr(S["matmul"], V.a, V.b)
 
 
 def test_boolean_operators_compose_guards():
     guard = (V.age >= 18) & (V.age <= 40)
-    assert guard == expr(
-        S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40)
-    )
+    assert guard == expr(S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40))
     assert (V.a | V.b) == expr(S["or"], V.a, V.b)
     assert (V.a ^ V.b) == expr(S["xor"], V.a, V.b)
     assert ~V.ok == expr(S["not"], V.ok)
@@ -84,20 +87,13 @@ def test_comparison_terms_refuse_truthiness():
 
 
 def test_typevar_annotations_declare_parametrically(m):
-    from collections.abc import Sequence
-    from typing import TypeVar
-
     A = TypeVar("A")
 
     @m.register_op(name="first-of")
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
-    declaration = expr(
-        S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a"))
-    )
-    from petta import alpha_eq
-
+    declaration = expr(S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a")))
     assert any(alpha_eq(a, declaration) for a in m.atoms())
     assert m.run("!(first-of (7 8 9))") == [[7]]
 
@@ -131,8 +127,6 @@ def test_optional_return_declares_the_value_type(m):
 
 
 def test_callable_and_tuple_annotations_declare_structurally(m):
-    from collections.abc import Callable
-
     @m.register_op(name="fixed-point-of")
     def fixed_point_of(f: Callable[[int], int]) -> int:
         raise NotImplementedError
@@ -149,10 +143,6 @@ def test_callable_and_tuple_annotations_declare_structurally(m):
 
 
 def test_class_annotations_declare_the_class(m):
-    import dataclasses
-
-    from petta import val
-
     @dataclasses.dataclass
     class Particle:
         mass: float
@@ -170,17 +160,13 @@ def test_class_annotations_declare_the_class(m):
 
 
 def test_type_decorator_declares_field_types(m):
-    import dataclasses
-
     @m.type
     @dataclasses.dataclass
     class DeclaredPoint:
         x: float
         y: float
 
-    assert _arrows_of(m, "DeclaredPoint") == {
-        "(-> Number Number DeclaredPoint)"
-    }
+    assert _arrows_of(m, "DeclaredPoint") == {"(-> Number Number DeclaredPoint)"}
 
 
 # --------------------------------------------------- guarded bounded query
@@ -195,9 +181,7 @@ def test_query_where_guard_and_limit(m):
     adults = m.query(S.person(V.name, V.age), where=V.age >= 18)
     assert {str(r.name) for r in adults} == {"ada", "cyd"}
     # Guards compose with the boolean operators, the engine reading them.
-    mid = m.query(
-        S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40)
-    )
+    mid = m.query(S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40))
     assert {str(r.name) for r in mid} == {"ada"}
     assert len(m.query(S.person(V.name, V.age), limit=2)) == 2
     with pytest.raises(ValueError):
@@ -240,8 +224,6 @@ def test_prepared_query_with_given(m):
 
 
 def test_weighted_relation_takes_any_callable(m):
-    from petta import measure
-
     measure.install(m)
 
     def mood_weights(day):
@@ -263,8 +245,6 @@ def test_weighted_relation_takes_any_callable(m):
 
 
 def test_the_library_reflects_into_its_own_space(m):
-    from petta import REFLECTION_SPACE, MeTTa
-
     reflection = MeTTa(REFLECTION_SPACE)
 
     @m.register_op(name="reflect-probe")
@@ -290,8 +270,6 @@ def test_the_library_reflects_into_its_own_space(m):
 
 
 def test_reflection_facts_follow_a_dropped_space(metta):
-    from petta import REFLECTION_SPACE, MeTTa
-
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()
 
@@ -308,13 +286,9 @@ def test_reflection_facts_follow_a_dropped_space(metta):
 def test_metta_programs_steer_through_the_reflection_space(m):
     """Deeper control without forking: a Python subscription on &petta
     reacts to control atoms a MeTTa program writes there."""
-    from petta import REFLECTION_SPACE, MeTTa
-
     reflection = MeTTa(REFLECTION_SPACE)
     seen = []
-    sub = reflection.subscribe(
-        S.control(V.knob, V.value), lambda e: seen.append(e)
-    )
+    sub = reflection.subscribe(S.control(V.knob, V.value), lambda e: seen.append(e))
     try:
         m.run("!(add-atom &petta (control verbosity 2))")
         assert len(seen) == 1
@@ -326,8 +300,6 @@ def test_metta_programs_steer_through_the_reflection_space(m):
 
 
 def test_drop_cancels_the_spaces_subscriptions(metta):
-    from petta import REFLECTION_SPACE, MeTTa
-
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()
     name = space.space_name
@@ -342,8 +314,6 @@ def test_drop_cancels_the_spaces_subscriptions(metta):
 
 
 def test_shared_class_declarations_survive_one_unregister(m):
-    import dataclasses
-
     @dataclasses.dataclass
     class SharedReview:
         stars: float
@@ -366,8 +336,6 @@ def test_shared_class_declarations_survive_one_unregister(m):
 
 
 def test_registration_failure_leaves_nothing_half_registered(m):
-    from petta import REFLECTION_SPACE, MeTTa, V
-
     class Unresolvable:
         pass
 
@@ -383,11 +351,10 @@ def test_registration_failure_leaves_nothing_half_registered(m):
 
 
 def test_union_expansion_is_bounded(m):
-    from typing import Union
+    U = int | str | bool
 
-    U = Union[int, str, bool]
-
-    def wide(a: U, b: U, c: U, d: U, e: U, f: U) -> U:
+    # Five inputs plus the return type produce 3**6 alternatives, over 512.
+    def wide(a: U, b: U, c: U, d: U, e: U) -> U:
         return a
 
     with pytest.raises(TypeError):
@@ -396,10 +363,6 @@ def test_union_expansion_is_bounded(m):
 
 
 def test_annotated_and_generic_annotations_map_faithfully(m):
-    from typing import Annotated, Generic, TypeVar
-
-    from petta.ops import referenced_classes, type_atoms_for
-
     class Meta:
         pass
 

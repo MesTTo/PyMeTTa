@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
+import subprocess
+import sys
+import textwrap
 
 import pytest
 
@@ -68,7 +72,7 @@ def test_journal_replays_every_supported_native(tmp_path):
     # On this engine the symbol true IS the boolean atom; every crossing
     # canonicalizes, and the journal follows the engine, so a stored
     # Sym('true') replays as the boolean, exactly like parse("true").
-    expected = facts[:6] + [S.fact(True), S.fact(False)]
+    expected = [*facts[:6], S.fact(True), S.fact(False)]
     first = PersistentFactSpace(journal, {"fact": 1})
     try:
         for fact in facts:
@@ -94,7 +98,7 @@ def test_schema_and_native_refusals_name_the_offender(tmp_path):
             space.add(S.edge(val(object()), S.b))
         with pytest.raises(PettaError, match=r"argument 1 \(\$x\) is not ground"):
             space.add(S.edge(V.x, S.b))
-        with pytest.raises(PettaError, match="argument 1 .* is not a number"):
+        with pytest.raises(PettaError, match=r"argument 1 .* is not a number"):
             space.add(S.edge(S.node(S.a), S.b))
     finally:
         space.close()
@@ -170,12 +174,6 @@ def test_sync_mode_is_validated():
 
 def _crash_writer(journal, sync_mode, checkpoint):
     """Run a subprocess that adds facts and dies by SIGKILL, no cleanup."""
-    import os
-    import signal
-    import subprocess
-    import sys
-    import textwrap
-
     program = textwrap.dedent(
         f"""
         import os, signal
@@ -276,18 +274,18 @@ def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         space.add(first)
-        os.replace(journal, saved)
+        journal.replace(saved)
         journal.mkdir()
         with pytest.raises(EngineError, match="source_sink"):
             space.add(rejected)
         assert list(space.atoms()) == [first]
-        with pytest.raises(PettaError, match="unusable for writes.*earlier add"):
+        with pytest.raises(PettaError, match=r"unusable for writes.*earlier add"):
             space.add(S.edge(S.e, S.f))
     finally:
         if journal.is_dir():
             journal.rmdir()
         if saved.exists():
-            os.replace(saved, journal)
+            saved.replace(journal)
         space.close()
 
     reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -306,7 +304,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
     try:
         for fact in facts:
             space.add(fact)
-        os.replace(journal, saved)
+        journal.replace(saved)
         journal.mkdir()
         with pytest.raises(EngineError, match="source_sink"):
             if operation == "remove":
@@ -320,7 +318,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
         if journal.is_dir():
             journal.rmdir()
         if saved.exists():
-            os.replace(saved, journal)
+            saved.replace(journal)
         space.close()
 
     reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")

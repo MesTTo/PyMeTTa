@@ -7,13 +7,13 @@ Open Obligations:
 
 import pytest
 
+from petta import Gnd
+from petta import testing as pt
+from petta.atoms import from_wire
+
 pytest.importorskip("numpy")
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given  # noqa: E402
-
-from petta import Gnd  # noqa: E402
-from petta import testing as pt
-from petta.atoms import from_wire  # noqa: E402
+given = hypothesis.given
 
 
 @given(pt.numpy_scalars())

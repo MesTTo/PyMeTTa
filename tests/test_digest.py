@@ -71,5 +71,5 @@ def test_digest_refuses_live_objects(metta):
 def test_digest_refuses_symbols_without_round_trip_text(metta, name):
     with metta.fresh_space() as m:
         m.add(S.container(S[name]))
-        with pytest.raises(ValueError, match="symbol.*round-trip text spelling"):
+        with pytest.raises(ValueError, match=r"symbol.*round-trip text spelling"):
             m.digest()

@@ -9,6 +9,8 @@ Open Obligations:
 """
 
 import math
+import types
+from dataclasses import dataclass
 
 import pytest
 
@@ -69,8 +71,6 @@ def test_register_repr_protocol(metta):
 
 
 def test_py_field_reasons_in_both_modes(metta):
-    from dataclasses import dataclass
-
     @dataclass
     class Config:
         depth: int
@@ -123,8 +123,6 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):
 
 
 def test_integrate_module_protocol_and_idempotence(metta):
-    import types
-
     calls = []
     fake = types.SimpleNamespace(
         __name__="fake_integration", install_petta=lambda m: calls.append(m)

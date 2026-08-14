@@ -9,13 +9,42 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import dataclasses
+import difflib
+import enum
 import gc
+import json
+import os
+import shutil
+import ssl
+import subprocess
+import sys
 import threading
+import time
+from pathlib import Path
 
 import pytest
 
-from petta import S, V, expr
+from petta import (
+    EngineError,
+    InferenceLimitError,
+    PettaError,
+    ResourceLimitError,
+    S,
+    TimeLimitError,
+    V,
+    bridge,
+    convert,
+    expr,
+    matching,
+    measure,
+    remote,
+    val,
+)
+from petta.arrays import EmbeddingStore
 from petta.atoms import Expr, Gnd, Sym, Var
+from petta.integrate import install_reflection_ops
+from petta.subscribe import atom_added
 
 hypothesis = pytest.importorskip("hypothesis")
 
@@ -55,8 +84,6 @@ def test_subscription_queue_mode_drains(m):
 
 
 def test_subscription_queue_is_thread_safe(m):
-    from petta.subscribe import atom_added
-
     subscription = m.subscribe(S.concurrent(V.value))
     complete = threading.Event()
     collected = []
@@ -124,8 +151,6 @@ def test_subscription_fires_for_engine_side_writes(m):
 
 
 def test_custom_matcher_scores_and_generates(m):
-    from petta import matching
-
     lexicon = ["class", "clause", "close"]
 
     def score(query, candidate):
@@ -144,24 +169,17 @@ def test_custom_matcher_scores_and_generates(m):
 
 
 def test_fuzzy_matcher_is_difflib(m):
-    from petta import matching
-
     matching.install_fuzzy(m, name="fz-match")
     (answer,) = m.run('!(fz-match "kitten" "sitting")')[0]
-    import difflib
-
     expected = difflib.SequenceMatcher(None, "kitten", "sitting").ratio()
     assert float(answer[0]) == pytest.approx(expected)
     # Score-only matcher says so when asked to generate.
-    from petta.errors import EngineError
-
     with pytest.raises(EngineError):
         m.run("!(fz-match cat $unbound)")
 
 
 def test_embedding_store_is_a_semantic_matcher(m):
     numpy = pytest.importorskip("numpy")
-    from petta.arrays import EmbeddingStore
 
     store = EmbeddingStore(m, name="sem", mirror=False)
     store.add(S.dog, numpy.array([1.0, 0.0]))
@@ -179,7 +197,6 @@ def test_embedding_store_is_a_semantic_matcher(m):
 def test_faiss_and_argsort_rank_identically(m):
     numpy = pytest.importorskip("numpy")
     pytest.importorskip("faiss")
-    from petta.arrays import EmbeddingStore
 
     plain = EmbeddingStore(m, name="rk-a", mirror=False, backend="argsort")
     accel = EmbeddingStore(m, name="rk-b", mirror=False, backend="faiss")
@@ -192,7 +209,7 @@ def test_faiss_and_argsort_rank_identically(m):
     slow = [(str(k), s) for k, s in plain.ranked(query, 10)]
     fast = [(str(k), s) for k, s in accel.ranked(query, 10)]
     assert [k for k, _ in slow] == [k for k, _ in fast]
-    for (_, a), (_, b) in zip(slow, fast):
+    for (_, a), (_, b) in zip(slow, fast, strict=False):
         assert a == pytest.approx(b, abs=1e-5)
 
 
@@ -200,10 +217,6 @@ def test_faiss_and_argsort_rank_identically(m):
 
 
 def test_type_declares_class_with_accessors(m):
-    import dataclasses
-
-    from petta import convert
-
     @m.type
     @dataclasses.dataclass
     class Song:
@@ -220,8 +233,6 @@ def test_type_declares_class_with_accessors(m):
 
 
 def test_type_declares_enum_members(m):
-    import enum
-
     @m.type
     class DeclaredMood(enum.Enum):
         Calm = 1
@@ -234,8 +245,6 @@ def test_type_declares_enum_members(m):
 
 
 def test_run_using_names_host_values(m):
-    from petta.integrate import install_reflection_ops
-
     install_reflection_ops(m)
 
     class Graph:
@@ -269,8 +278,6 @@ def test_save_and_load_round_trip(metta, tmp_path):
 
 
 def test_save_refuses_live_objects(m):
-    from petta import val
-
     m.add(S.holds(val(object())))
     with pytest.raises(ValueError):
         m.save("/dev/null")
@@ -280,8 +287,6 @@ def test_save_refuses_live_objects(m):
 
 
 def test_measure_helpers_round_trip(m):
-    from petta import measure
-
     measure.install(m)
     weighted = measure.ws((0.25, S.a), (0.75, S.b))
     (best,) = m.eval(expr(S["ws-best"], weighted))
@@ -294,10 +299,7 @@ def test_rows_table_is_the_dataframe_shape(m):
     m.add(S.Age(S.Tom, 62), S.Age(S.Bob, 40))
     rows = m.query(S.Age(V.who, V.n))
     table = rows.table()
-    assert table == {"who": ["Tom", "Bob"], "n": [62, 40]} or table == {
-        "who": ["Bob", "Tom"],
-        "n": [40, 62],
-    }
+    assert table in ({"who": ["Tom", "Bob"], "n": [62, 40]}, {"who": ["Bob", "Tom"], "n": [40, 62]})
 
 
 def test_add_table_reads_any_tabular_source(m):
@@ -321,8 +323,6 @@ def test_add_table_refuses_ragged_columns(m):
 
 
 def test_value_answers_the_one_answer(m):
-    from petta.errors import EngineError
-
     assert m.value("(+ 1 2)") == 3 and isinstance(m.value("(+ 1 2)"), int)
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
     assert m.value(S.fact(5)) == 120
@@ -373,8 +373,6 @@ def test_atoms_destructure_with_match_statements(m):
 
 
 def test_bridge_rules_connect_spaces(metta):
-    from petta import bridge
-
     src = metta.fresh_space()
     dst = metta.fresh_space()
     rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
@@ -393,15 +391,6 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
     """The other engine is a PROCESS, as deployment means it: a subprocess
     serves one space, this engine attaches it, and one local match joins
     remote rows with local facts across the wire."""
-    import json
-    import os
-    import subprocess
-    import sys
-    from pathlib import Path
-
-    from petta import remote
-    from petta.errors import PettaError
-
     script = Path(__file__).parent / "data" / "remote_server.py"
     child = subprocess.Popen(
         [sys.executable, str(script)],
@@ -444,10 +433,6 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
 
 
 def test_type_methods_run_on_terms_and_handles(m):
-    import dataclasses
-
-    from petta import convert
-
     @m.type
     @dataclasses.dataclass
     class MethodPoint:
@@ -474,14 +459,10 @@ def test_type_methods_run_on_terms_and_handles(m):
     )[0]
     assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
     # A live handle works through the same methods.
-    from petta import val
-
     assert m.eval(expr(S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0)))) == [5.0]
 
 
 def test_enum_members_match_in_metta(m):
-    import enum
-
     @m.type
     class MatchingMood(enum.Enum):
         Calm = 1
@@ -495,9 +476,6 @@ def test_enum_members_match_in_metta(m):
 
 
 def test_remote_auth_token_and_hook_requires_tls(metta):
-    from petta import remote
-    from petta.errors import PettaError
-
     served = metta.fresh_space()
     served.add(S.fact(1))
     server = remote.serve(
@@ -515,13 +493,6 @@ def test_remote_auth_token_and_hook_requires_tls(metta):
 
 
 def test_remote_serves_tls(metta, tmp_path):
-    import shutil
-    import ssl
-    import subprocess
-
-    from petta import remote
-    from petta.errors import PettaError
-
     if shutil.which("openssl") is None:
         pytest.skip("openssl is not installed")
     key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
@@ -591,10 +562,6 @@ def test_remote_serves_tls(metta, tmp_path):
 
 
 def test_run_time_limit_raises_and_is_prompt(m):
-    import time
-
-    from petta import TimeLimitError
-
     m.run("(= (spin-a $n) (if (== $n 0) done (spin-a (- $n 1))))")
     started = time.perf_counter()
     with pytest.raises(TimeLimitError):
@@ -603,8 +570,6 @@ def test_run_time_limit_raises_and_is_prompt(m):
 
 
 def test_inference_limit_raises_under_the_shared_parent(m):
-    from petta import InferenceLimitError, ResourceLimitError
-
     m.run("(= (spin-b $n) (if (== $n 0) done (spin-b (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.run("!(spin-b 100000000)", inferences=10_000)
@@ -613,8 +578,6 @@ def test_inference_limit_raises_under_the_shared_parent(m):
 
 
 def test_limits_leave_finished_work_standing(m):
-    from petta import TimeLimitError
-
     m.run("(= (spin-c $n) (if (== $n 0) done (spin-c (- $n 1))))")
     with pytest.raises(TimeLimitError):
         m.run("(landed first) !(spin-c 100000000)", timeout=0.05)
@@ -622,8 +585,6 @@ def test_limits_leave_finished_work_standing(m):
 
 
 def test_limits_on_query_eval_value_and_prepared(m):
-    from petta import InferenceLimitError
-
     m.add_table("edge", [(i, i + 1) for i in range(200)])
     rows = m.query(
         S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000
@@ -657,8 +618,6 @@ def test_run_capture_collects_printed_output(m):
 
 
 def test_capture_composes_with_limits(m):
-    from petta import TimeLimitError
-
     groups, text = m.run("!(println! bounded)", capture=True, timeout=5.0)
     assert "bounded" in text and len(groups) == 1
     m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
@@ -687,8 +646,6 @@ def test_stats_block_counts_the_work(m):
 
 
 def test_stream_pulls_rows_lazily_and_interleaves(m):
-    from petta import PettaError
-
     m.add_table("edge", [(i, i + 1) for i in range(500)])
     with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
         first = next(rows)
@@ -723,8 +680,6 @@ def test_abandoned_stream_warns_before_reaping(m):
 
 
 def test_stream_guard_and_per_pull_bounds(m):
-    from petta import InferenceLimitError
-
     m.add_table("edge", [(i, i + 1) for i in range(100)])
     with m.stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
         assert [r.a for r in rows] == list(range(90, 100))
@@ -740,8 +695,6 @@ def test_stream_guard_and_per_pull_bounds(m):
 
 
 def test_atomic_run_commits_or_rolls_back_whole(m):
-    from petta import EngineError, expr
-
     with pytest.raises(EngineError):
         m.run("(kept fact) !(/ 1 0)", atomic=True)
     assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
@@ -750,8 +703,6 @@ def test_atomic_run_commits_or_rolls_back_whole(m):
 
 
 def test_speculative_run_answers_and_discards(m):
-    from petta import expr
-
     groups = m.run("(ghost fact) !(+ 2 2)", speculative=True)
     assert groups[-1] == [4]
     assert expr(S.ghost, S.fact) not in m
@@ -777,8 +728,6 @@ def test_profile_counts_samples_on_real_work(m):
 
 
 def test_regex_matcher_is_the_crisp_lexical_modality(m):
-    from petta import matching
-
     matching.install_regex(m, name="rxm-t", lexicon=["alpha", "beta", "abbey"])
     (matches,) = m.eval('(collapse (rxm-t "^a" $w))')
     assert sorted(pair[1].value for pair in matches) == ["abbey", "alpha"]

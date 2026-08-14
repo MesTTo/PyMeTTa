@@ -13,7 +13,7 @@ Open Obligations:
 
 import pytest
 
-from petta import CastError, Gnd, S, V, cast
+from petta import CastError, Gnd, S, V, cast, integrate
 
 
 @pytest.fixture()
@@ -64,8 +64,6 @@ def test_unchecked_targets_pass_unchecked(m):
 
 
 def test_protocol_types_duck_through_the_type_system(m, metta):
-    from petta import integrate
-
     integrate.register_object_type(lambda x: hasattr(x, "quack"), "Ducky")
 
     class Quacks:
