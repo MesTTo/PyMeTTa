@@ -1,7 +1,7 @@
 """Purpose: expose Python engine callbacks under the petta_ops import name.
 Guarantees:
   - the callback facade owns no registry state and delegates to its owning
-    modules [tested test_import_contracts]
+    modules [tested test_callback_facade_owns_no_state_and_delegates]
 Open Obligations:
   To Do: None
   Hacks: None
