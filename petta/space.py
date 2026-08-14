@@ -76,7 +76,7 @@ from .casting import cast as _cast
 from .derivation import Derivation
 from .errors import EngineError
 from .foreign import (
-    PROVIDERS,
+    has_provider,
     register_provider,
     require_capability,
     unregister_provider,
@@ -185,7 +185,7 @@ class MeTTa:
         watchers."""
         for subscription in _subscriptions_for(self._space):
             subscription.cancel()
-        if self._space in PROVIDERS:
+        if has_provider(self._space):
             unregister_provider(self._rt, self._space)
         self.clear()
         if self._space != "&self":

@@ -12,6 +12,7 @@ from typing import Any, ClassVar
 
 import pytest
 
+import petta.foreign as foreign_module
 from petta import (
     Adder,
     Clearer,
@@ -202,3 +203,36 @@ def test_provider_collision_is_refused(metta):
         metta.register_space("&col", first)
     finally:
         metta.unregister_space("&col")
+
+
+def test_provider_registration_is_transactional():
+    class Empty(SpaceProvider):
+        def atoms(self):
+            return iter(())
+
+    class Runtime:
+        fail = False
+
+        def must(self, _goal, **_inputs):
+            if self.fail:
+                raise RuntimeError("injected provider boundary failure")
+            return {"truth": True}
+
+    provider = Empty()
+    name = f"&provider-transaction-test-{id(provider)}"
+    runtime = Runtime()
+    try:
+        runtime.fail = True
+        with pytest.raises(RuntimeError, match="injected provider boundary failure"):
+            foreign_module.register_provider(runtime, name, provider)
+        assert name not in foreign_module.PROVIDERS
+
+        runtime.fail = False
+        foreign_module.register_provider(runtime, name, provider)
+        runtime.fail = True
+        with pytest.raises(RuntimeError, match="injected provider boundary failure"):
+            foreign_module.unregister_provider(runtime, name)
+        assert foreign_module.PROVIDERS[name] is provider
+    finally:
+        runtime.fail = False
+        foreign_module.unregister_provider(runtime, name)

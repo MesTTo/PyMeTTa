@@ -10,6 +10,11 @@ Guarantees:
     operations are refused [tested test_capabilities_follow_implemented_methods]
   - providers may decline one concrete request through should_run before its
     operation executes [tested test_provider_can_decline_one_request]
+  - provider registration changes Python state only after the engine accepts
+    the same change [tested test_provider_registration_is_transactional]
+Guarded by:
+  - _PROVIDER_LOCK serializes library registration and provider lookups
+    [tested test_provider_registration_is_transactional]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +23,9 @@ Open Obligations:
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import threading
+from collections.abc import Iterator, Mapping
+from types import MappingProxyType
 from typing import Any, Protocol, cast, runtime_checkable
 
 from .atoms import Atom, atom_from_wire, encode
@@ -32,6 +39,7 @@ __all__ = [
     "Matcher",
     "Remover",
     "SpaceProvider",
+    "has_provider",
     "register_provider",
     "require_capability",
     "unregister_provider",
@@ -113,9 +121,23 @@ class SpaceProvider:
         return self.can_run(capability, **request)
 
 
-# space name (with &) -> provider; consulted by the shim's foreign hooks
-# through the petta_ops module functions below.
-PROVIDERS: dict[str, SpaceProvider] = {}
+# Space name (with &) -> provider; consulted by the shim's foreign hooks
+# through the petta_ops module functions below. The public view is read-only
+# so registration cannot bypass the engine transaction or its lock.
+_PROVIDERS: dict[str, SpaceProvider] = {}
+PROVIDERS: Mapping[str, SpaceProvider] = MappingProxyType(_PROVIDERS)
+_PROVIDER_LOCK = threading.RLock()
+
+
+def _provider(space: str) -> SpaceProvider:
+    with _PROVIDER_LOCK:
+        return _PROVIDERS[space]
+
+
+def has_provider(space: str) -> bool:
+    """Whether a Python provider currently owns the space."""
+    with _PROVIDER_LOCK:
+        return space in _PROVIDERS
 
 
 def _require_provider(
@@ -150,7 +172,8 @@ def require_capability(
     **request: Any,
 ) -> None:
     """Refuse an operation before it creates partial state or enters Prolog."""
-    provider = PROVIDERS.get(space)
+    with _PROVIDER_LOCK:
+        provider = _PROVIDERS.get(space)
     if provider is None:
         return
     _require_provider(provider, space, capability, operation, **request)
@@ -159,20 +182,22 @@ def require_capability(
 def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
     if not name.startswith("&"):
         raise ValueError(f"a space name starts with &; got {name!r}")
-    holder = PROVIDERS.get(name)
-    if holder is not None and holder is not provider:
-        raise ValueError(
-            f"{name} already has a provider ({type(holder).__name__}); "
-            f"unregister it first, or pick another name. Replacing silently "
-            f"would leave the old owner holding a dead registration."
-        )
-    PROVIDERS[name] = provider
-    runtime.must("petta_py_register_foreign(Space)", Space=name)
+    with _PROVIDER_LOCK:
+        holder = _PROVIDERS.get(name)
+        if holder is not None and holder is not provider:
+            raise ValueError(
+                f"{name} already has a provider ({type(holder).__name__}); "
+                f"unregister it first, or pick another name. Replacing silently "
+                f"would leave the old owner holding a dead registration."
+            )
+        runtime.must("petta_py_register_foreign(Space)", Space=name)
+        _PROVIDERS[name] = provider
 
 
 def unregister_provider(runtime, name: str) -> None:
-    PROVIDERS.pop(name, None)
-    runtime.must("petta_py_unregister_foreign(Space)", Space=name)
+    with _PROVIDER_LOCK:
+        runtime.must("petta_py_unregister_foreign(Space)", Space=name)
+        _PROVIDERS.pop(name, None)
 
 
 # ------------------------------------------------- called from the shim
@@ -180,7 +205,7 @@ def unregister_provider(runtime, name: str) -> None:
 
 def foreign_match(space: str, pattern_wire: list):
     """Generator the shim's py_iter enumerates: candidate atoms, encoded."""
-    provider = PROVIDERS[space]
+    provider = _provider(space)
     pattern = atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
     if isinstance(provider, Matcher):
@@ -194,14 +219,14 @@ def foreign_match(space: str, pattern_wire: list):
 
 
 def foreign_atoms(space: str):
-    provider = PROVIDERS[space]
+    provider = _provider(space)
     _require_provider(provider, space, "enumerate", "get-atoms")
     for atom in cast(Enumerable, provider).atoms():
         yield encode(atom).to_wire()
 
 
 def foreign_add(space: str, atom_wire: list) -> bool:
-    provider = PROVIDERS[space]
+    provider = _provider(space)
     atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "add", "add-atom", atom=atom)
     cast(Adder, provider).add(atom)
@@ -209,14 +234,14 @@ def foreign_add(space: str, atom_wire: list) -> bool:
 
 
 def foreign_remove(space: str, atom_wire: list) -> bool:
-    provider = PROVIDERS[space]
+    provider = _provider(space)
     atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "remove", "remove-atom", atom=atom)
     return bool(cast(Remover, provider).remove(atom))
 
 
 def foreign_clear(space: str) -> bool:
-    provider = PROVIDERS[space]
+    provider = _provider(space)
     _require_provider(provider, space, "clear", "clear")
     cast(Clearer, provider).clear()
     return True
