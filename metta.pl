@@ -395,14 +395,24 @@ py_arg_norm(X, X).
 :- dynamic python_import_alias/2.
 python_call_module(Name, ModuleKey) :- python_import_alias(Name, ModuleKey), !.
 python_call_module(Name, Name).
-bind_python_calls(Term, Term) :- var(Term), !.
-bind_python_calls(Term, Term) :- atomic(Term), !.
-bind_python_calls([Call, [Spec|Args]], ['py-call', [BoundSpec|BoundArgs]]) :-
+%The rewrite below only ever changes a spec that python_import_alias/2 names,
+%so with no alias registered it is the identity, and its whole effect is to
+%rebuild the term through maplist/3. The loader runs it over every form it
+%reads, which measured at 71 inferences per form on a program that never
+%touches Python. Ask first.
+bind_python_calls(Term, Bound) :-
+    ( python_import_alias(_, _)
+      -> bind_python_calls_(Term, Bound)
+       ; Bound = Term ).
+
+bind_python_calls_(Term, Term) :- var(Term), !.
+bind_python_calls_(Term, Term) :- atomic(Term), !.
+bind_python_calls_([Call, [Spec|Args]], ['py-call', [BoundSpec|BoundArgs]]) :-
     Call == 'py-call', !,
     bind_python_call_spec(Spec, BoundSpec),
-    maplist(bind_python_calls, Args, BoundArgs).
-bind_python_calls(Terms, BoundTerms) :-
-    maplist(bind_python_calls, Terms, BoundTerms).
+    maplist(bind_python_calls_, Args, BoundArgs).
+bind_python_calls_(Terms, BoundTerms) :-
+    maplist(bind_python_calls_, Terms, BoundTerms).
 
 bind_python_call_spec(Spec, BoundSpec) :-
     atom(Spec),
