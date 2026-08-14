@@ -15,10 +15,14 @@ Open Obligations:
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
 """
 
+import importlib
+import logging
 import os
 import sys
 import threading
-import importlib
+
+# A library stays silent until its host configures the petta logger.
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 CONSULTED = False
 CONSULT_LOCK = threading.Lock()

@@ -31,6 +31,7 @@ Open Obligations:
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from http.client import HTTPException
 from typing import Any
@@ -39,6 +40,8 @@ from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, Gnd, Sym, Var, parse
 from .errors import PettaError
 from .foreign import SpaceProvider
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["DAS", "DASAnswer", "DASError", "DASSpace"]
 
@@ -169,6 +172,7 @@ class DAS:
 
     def _request(self, method: str, path: str, body: dict | None = None) -> Any:
         data = None if body is None else json.dumps(body).encode("utf8")
+        logger.debug("sending DAS %s %s", method, path)
         try:
             status, _reason, raw = self._endpoint.request(
                 method,
@@ -178,9 +182,13 @@ class DAS:
                 timeout=self._timeout,
             )
         except (HTTPException, OSError) as exc:
+            logger.warning(
+                "DAS %s %s failed during transport", method, path, exc_info=True
+            )
             raise DASError(
                 f"no DAS command router at {self._base}: {exc}"
             ) from exc
+        logger.debug("DAS %s %s answered with HTTP %d", method, path, status)
         text = raw.decode("utf8", "replace" if status >= 400 else "strict")
         if status >= 400:
             raise DASError(
@@ -208,6 +216,7 @@ class DAS:
             f"{ws_base}/command-router/ws/{execution_id}",
             timeout=self._timeout,
         )
+        logger.debug("connected DAS event stream for execution %s", execution_id)
         from websocket import WebSocketConnectionClosedException
 
         try:
@@ -221,11 +230,17 @@ class DAS:
             # handling decides whether the answer set was complete.
             return
         except Exception as exc:
+            logger.warning(
+                "DAS event stream for execution %s failed",
+                execution_id,
+                exc_info=True,
+            )
             raise DASError(
                 f"the DAS event stream broke mid-query: {exc}"
             ) from exc
         finally:
             connection.close()
+            logger.debug("closed DAS event stream for execution %s", execution_id)
 
     # --------------------------------------------------------------- surface
 
@@ -234,6 +249,7 @@ class DAS:
         try:
             return self._request("GET", "/ping") == "PONG!"
         except DASError:
+            logger.debug("DAS ping failed", exc_info=True)
             return False
 
     def execute(self, command: str, params: dict) -> str:
@@ -265,6 +281,7 @@ class DAS:
             except DASError as error:
                 if self._dialect is None and "command_type" in str(error):
                     self._dialect = "legacy"
+                    logger.info("DAS command router uses the legacy query dialect")
                 else:
                     raise
         if unique:

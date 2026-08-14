@@ -32,8 +32,9 @@ Open Obligations:
 
 from __future__ import annotations
 
-import atexit
 import asyncio
+import atexit
+import logging
 import math
 import queue
 import threading
@@ -45,6 +46,8 @@ from typing import Any
 from .errors import PettaError
 from .results import Rows
 from .space import MeTTa
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["AsyncMeTTa", "connect"]
 
@@ -132,6 +135,7 @@ class _EngineThread:
                 # would find the name unbound instead of the exception.
                 with self._state_lock:
                     self._fail_locked(exc)
+                logger.exception("AsyncMeTTa worker could not attach its engine")
                 failure = exc
                 try:
                     loop.call_soon_threadsafe(
@@ -146,6 +150,7 @@ class _EngineThread:
                 self._swi_thread = swi_thread
                 if self._state == "starting":
                     self._state = "live"
+            logger.debug("AsyncMeTTa worker attached a Prolog engine")
             try:
                 loop.call_soon_threadsafe(
                     lambda: started.done() or started.set_result(None)
@@ -192,6 +197,7 @@ class _EngineThread:
                     with self._state_lock:
                         self._swi_thread = None
                         self._fail_locked(exc)
+                    logger.exception("AsyncMeTTa worker could not detach its engine")
                 else:
                     with self._state_lock:
                         self._swi_thread = None
@@ -201,9 +207,11 @@ class _EngineThread:
                             self._fail_locked(
                                 RuntimeError("the worker thread stopped unexpectedly")
                             )
+                    logger.debug("AsyncMeTTa worker detached its Prolog engine")
                 _forget_worker(self)
 
         self.thread = threading.Thread(target=worker, name="petta-aio", daemon=True)
+        logger.debug("starting AsyncMeTTa worker thread")
         _remember_worker(self)
         try:
             self.thread.start()
@@ -217,6 +225,11 @@ class _EngineThread:
     def _fail_locked(self, cause: BaseException) -> None:
         self._failure = cause
         self._state = "failed"
+        logger.error(
+            "AsyncMeTTa worker entered failed state: %s: %s",
+            type(cause).__name__,
+            cause,
+        )
 
     def _raise_state_locked(self) -> None:
         if self._state == "failed":
@@ -270,6 +283,7 @@ class _EngineThread:
                 "context(petta, interrupted))))",
                 {"T": swi_thread},
             )
+            logger.debug("sent an interrupt to the AsyncMeTTa worker")
             return True
 
     def close_soon(self) -> threading.Thread | None:
@@ -301,6 +315,8 @@ class _EngineThread:
                 PettaError("AsyncMeTTa closed before this request ran"),
                 failed=True,
             )
+        if pending:
+            logger.debug("rejected %d queued AsyncMeTTa request(s)", len(pending))
         return thread
 
     def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
@@ -315,6 +331,7 @@ class _EngineThread:
         thread.join(timeout)
         if thread.is_alive():
             self.interrupt_if_running(None)
+            logger.error("AsyncMeTTa worker exceeded its stop timeout")
             raise TimeoutError(
                 f"AsyncMeTTa worker did not stop within {timeout:g} seconds"
             )
@@ -353,6 +370,8 @@ def _forget_worker(worker: _EngineThread) -> None:
 def _shutdown_workers() -> None:
     with _LIVE_WORKERS_LOCK:
         workers = tuple(_LIVE_WORKERS)
+    if workers:
+        logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
     failures = []
     for worker in workers:
         try:
@@ -382,7 +401,7 @@ def _deliver(request: _Request, payload, *, failed: bool) -> None:
     except RuntimeError:
         # The loop closed while the engine worked: the coroutine that
         # asked no longer exists, so there is nowhere to deliver to.
-        pass
+        logger.warning("could not deliver an AsyncMeTTa result: event loop closed")
 
 
 class AsyncMeTTa:

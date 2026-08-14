@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import logging
 import threading
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,6 +35,8 @@ from ._network import HTTPEndpoint
 from .atoms import Atom, from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["serve", "connect", "attach", "RemoteSpace", "Server"]
 
@@ -127,6 +130,7 @@ def connect(
         sent.update(headers)
 
     def transport(operation: str, payload: dict) -> dict:
+        logger.debug("sending remote engine operation %s", operation)
         try:
             status, reason, raw = endpoint.request(
                 "POST",
@@ -136,9 +140,19 @@ def connect(
                 timeout=timeout,
             )
         except (HTTPException, OSError) as exc:
+            logger.warning(
+                "remote engine operation %s failed during transport",
+                operation,
+                exc_info=True,
+            )
             raise PettaError(
                 f"the remote engine request {operation} failed: {exc}"
             ) from exc
+        logger.debug(
+            "remote engine operation %s answered with HTTP %d",
+            operation,
+            status,
+        )
         try:
             body = raw.decode("utf-8")
             answer = json.loads(body)
@@ -197,6 +211,7 @@ class Server:
         self._thread.join(timeout=10)
         if self._work is not None:
             self._work.put(None)
+        logger.debug("stopped remote engine server on %s:%d", self.host, self.port)
 
 
 def serve(
@@ -274,16 +289,25 @@ def serve(
         import petta as pkg
 
         pkg.janus.attach_engine()
-        while True:
-            item = work.get()
-            if item is None:
-                pkg.janus.detach_engine()
-                return
-            operation, payload, reply = item
-            try:
-                reply.put(("ok", handle(operation, payload)))
-            except Exception as exc:
-                reply.put(("error", str(exc)))
+        logger.debug("remote engine server worker attached a Prolog engine")
+        try:
+            while True:
+                item = work.get()
+                if item is None:
+                    return
+                operation, payload, reply = item
+                try:
+                    reply.put(("ok", handle(operation, payload)))
+                except Exception as exc:
+                    logger.warning(
+                        "remote engine operation %s failed",
+                        operation,
+                        exc_info=True,
+                    )
+                    reply.put(("error", str(exc)))
+        finally:
+            pkg.janus.detach_engine()
+            logger.debug("remote engine server worker detached its Prolog engine")
 
     engine_thread = threading.Thread(target=worker, daemon=True)
     engine_thread.start()
@@ -293,6 +317,9 @@ def serve(
             length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
             if not _is_authorized(self.headers, token, authorize):
+                logger.warning(
+                    "refused unauthorized remote engine operation %s", operation
+                )
                 body = json.dumps({"error": "not authorized"}).encode("utf-8")
                 self.send_response(401)
                 self.send_header("content-type", "application/json")
@@ -308,6 +335,11 @@ def serve(
                 answer = value if kind == "ok" else {"error": value}
                 status = 200 if kind == "ok" else 400
             except Exception as exc:
+                logger.warning(
+                    "remote engine HTTP handler rejected operation %s",
+                    operation,
+                    exc_info=True,
+                )
                 answer, status = {"error": str(exc)}, 400
             body = json.dumps(answer).encode("utf-8")
             self.send_response(status)
@@ -315,6 +347,11 @@ def serve(
             self.send_header("content-length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            logger.debug(
+                "served remote engine operation %s with HTTP %d",
+                operation,
+                status,
+            )
 
         def log_message(self, *args: Any) -> None:
             pass  # the suite is the log; a server for humans fronts this
@@ -324,4 +361,6 @@ def serve(
         httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    return Server(httpd, thread, work, scheme="https" if ssl_context else "http")
+    server = Server(httpd, thread, work, scheme="https" if ssl_context else "http")
+    logger.debug("started remote engine server on %s", server.url)
+    return server

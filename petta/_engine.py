@@ -17,6 +17,7 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import sys
 import threading
@@ -30,6 +31,8 @@ from .errors import (
     MettaSyntaxError,
     TimeLimitError,
 )
+
+logger = logging.getLogger(__name__)
 
 _LOCK = threading.RLock()
 
@@ -101,6 +104,7 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":
     global _RUNTIME
     with _LOCK:
         if _RUNTIME is None:
+            logger.debug("starting the shared PeTTa runtime")
             _RUNTIME = Runtime(petta_path=petta_path, verbose=verbose)
         else:
             active = _RUNTIME.petta_path
@@ -176,10 +180,12 @@ class Runtime:
 
     def _consult_engine(self, pkg: Any, petta_path: str) -> None:
         """Mirror of the legacy startup: stack limit, optional MORK, main.pl."""
+        logger.debug("consulting the PeTTa engine from %s", petta_path)
         morklib = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
         janus = importlib.import_module("janus_swi")
         janus.query_once(f"set_prolog_flag(stack_limit, {pkg.DEFAULT_STACK_LIMIT})")
         if os.path.exists(morklib):
+            logger.debug("enabling the MORK backend")
             orig = os.getcwd()
             os.chdir(petta_path)
             try:
@@ -197,6 +203,7 @@ class Runtime:
         if os.path.exists(helper_file):
             janus.consult(helper_file)
         pkg.janus = janus
+        logger.debug("consulted the PeTTa engine")
 
     def _consult_shim(self, pkg: Any, petta_path: str | None) -> None:
         """Load shim.pl next to this file, and expose the ops module to janus."""
@@ -208,6 +215,7 @@ class Runtime:
         # makes that import resolve to the registry module.
         sys.modules.setdefault("petta_ops", _ops)
         shim = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim.pl")
+        logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
         self._janus.query_once(
             "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
@@ -218,6 +226,7 @@ class Runtime:
         from . import _prelude
 
         _prelude.install(self)
+        logger.debug("installed the Python bridge prelude")
 
     # -------------------------------------------------------------------- calls
 

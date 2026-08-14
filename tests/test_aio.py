@@ -10,6 +10,7 @@ Open Obligations:
 import asyncio
 import gc
 import inspect
+import logging
 
 import pytest
 
@@ -399,3 +400,17 @@ def test_aio_shutdown_handler_stops_forgotten_workers(m):
     aio._shutdown_workers()
     assert thread is not None
     assert not thread.is_alive()
+
+
+def test_aio_logs_worker_attachment_and_shutdown(m, caplog):
+    from petta import aio
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            assert await am.count() == 0
+
+    with caplog.at_level(logging.DEBUG, logger="petta.aio"):
+        asyncio.run(go())
+
+    assert "worker attached a Prolog engine" in caplog.text
+    assert "worker detached its Prolog engine" in caplog.text

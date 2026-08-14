@@ -9,6 +9,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import logging
 import os
 
 import pytest
@@ -329,7 +330,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
         reopened.close()
 
 
-def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path):
+def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):
     journal = tmp_path / "terminal-tail.db"
     prefix_facts = [S.edge(S.a, S.b), S.edge(S.b, S.c)]
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -344,13 +345,16 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path):
     with journal.open("ab") as stream:
         stream.write(incomplete_tail)
 
-    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    with caplog.at_level(logging.WARNING, logger="petta.persistent"):
+        recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         assert list(recovered.atoms()) == prefix_facts
     finally:
         recovered.close()
     assert journal.read_bytes() == complete_prefix
     assert (tmp_path / "terminal-tail.db.tail").read_bytes() == incomplete_tail
+    assert "recovered persistent journal" in caplog.text
+    assert "truncating at byte" in caplog.text
 
 
 def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):

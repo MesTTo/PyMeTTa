@@ -12,6 +12,7 @@ Open Obligations:
 """
 
 import json
+import logging
 import os
 
 import pytest
@@ -195,6 +196,19 @@ def test_plain_http_error_body_is_reported(monkeypatch):
     )
     with pytest.raises(DASError, match=r"500.*router failure"):
         das._request("GET", "/probe")
+
+
+def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):
+    das = DAS("http://scripted")
+    monkeypatch.setattr(
+        type(das._endpoint),
+        "request",
+        lambda self, *args, **kwargs: (200, "OK", b'{"ready": true}'),
+    )
+    with caplog.at_level(logging.DEBUG, logger="petta.das"):
+        assert das._request("GET", "/probe") == {"ready": True}
+    assert "sending DAS GET /probe" in caplog.text
+    assert "answered with HTTP 200" in caplog.text
 
 
 def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import itertools
+import logging
 import os
 import threading
 from collections.abc import Iterator, Mapping
@@ -24,6 +25,8 @@ from ._engine import Runtime, runtime
 from .atoms import Atom, Expr, Gnd, Sym, from_wire, is_ground
 from .errors import EngineError, PettaError
 from .foreign import SpaceProvider
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["PersistentFactSpace"]
 
@@ -144,9 +147,13 @@ def _acquire_module(
     with _STATE_LOCK:
         available = _MODULE_POOL.get(key)
         if available:
-            return available.pop(), key, False
+            module = available.pop()
+            logger.debug("reusing persistent module %s", module)
+            return module, key, False
         identifier = next(_MODULE_IDS)
-    return f"petta_persistent_{digest}_{identifier}", key, True
+    module = f"petta_persistent_{digest}_{identifier}"
+    logger.debug("allocating persistent module %s", module)
+    return module, key, True
 
 
 def _return_module(key: tuple[tuple[str, int], ...], module: str) -> None:
@@ -538,6 +545,7 @@ class PersistentFactSpace(SpaceProvider):
             self._closed = True
             self._release_path()
             self._release_module()
+            logger.debug("closed persistent journal %s", self._path)
 
     def _validate_or_repair_tail(self) -> None:
         """Validate the journal or remove one incomplete final record.
@@ -556,6 +564,10 @@ class PersistentFactSpace(SpaceProvider):
             )
             return
         except PettaError as validation_error:
+            logger.debug(
+                "persistent journal validation failed; inspecting its tail",
+                exc_info=True,
+            )
             try:
                 contents = self._path.read_bytes()
             except OSError as read_error:
@@ -654,6 +666,14 @@ class PersistentFactSpace(SpaceProvider):
                 {"File": str(self._path)},
                 require_open=False,
             )
+            logger.warning(
+                "recovered persistent journal %s by saving %d terminal bytes "
+                "to %s and truncating at byte %d",
+                self._path,
+                len(tail),
+                backup,
+                boundary,
+            )
 
     def _write_call(
         self,
@@ -676,6 +696,11 @@ class PersistentFactSpace(SpaceProvider):
                 self._write_failure = (
                     f"{helper} operation failed and journal consistency could "
                     f"not be proved: {type(exc).__name__}: {exc}"
+                )
+                logger.exception(
+                    "persistent %s failed for %s; later writes are refused",
+                    helper,
+                    self._path,
                 )
                 raise
 
@@ -792,3 +817,4 @@ class PersistentFactSpace(SpaceProvider):
             return
         _return_module(self._module_key, self._module)
         self._module_released = True
+        logger.debug("returned persistent module %s to its schema pool", self._module)

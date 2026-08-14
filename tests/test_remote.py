@@ -1,15 +1,45 @@
 """Purpose: verify the remote transport's boundary and authorization policy.
+Guarantees:
+  - petta installs a NullHandler and reports transport lifecycle events only
+    through configured logging [tested test_library_logging_is_opt_in,
+    test_remote_transport_logs_operation_without_payload]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import logging
+
 import pytest
 
 import petta._network as network
 from petta import remote
 from petta.errors import PettaError
+
+
+def test_library_logging_is_opt_in():
+    assert any(
+        isinstance(handler, logging.NullHandler)
+        for handler in logging.getLogger("petta").handlers
+    )
+
+
+def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):
+    transport = remote.connect("http://example.test/api")
+
+    def request(*args, **kwargs):
+        return 200, "OK", b'{"atoms": []}'
+
+    monkeypatch.setattr(network.HTTPEndpoint, "request", request)
+    sensitive_value = "payload-must-not-be-logged"
+    with caplog.at_level(logging.DEBUG, logger="petta.remote"):
+        assert transport("match", {"value": sensitive_value}) == {"atoms": []}
+
+    text = caplog.text
+    assert "sending remote engine operation match" in text
+    assert "answered with HTTP 200" in text
+    assert sensitive_value not in text
 
 
 def test_bearer_token_uses_constant_time_comparison(monkeypatch):
