@@ -11,6 +11,8 @@ Open Obligations:
 
 import pytest
 
+from petta import Expr, S, V
+
 
 @pytest.fixture()
 def m(metta):
@@ -94,3 +96,50 @@ def test_possibly_undefined_reference_is_labeled_a_heuristic(m):
     findings = m.lint()
     assert _kinds(findings) == ["possibly-undefined-reference"]
     assert "heuristic" in findings[0].detail
+
+
+def test_variable_arguments_do_not_hide_undefined_references(m):
+    m.run("(= (variable-caller $x) (no-variable-fn $x))")
+    findings = m.lint()
+    assert _kinds(findings) == ["possibly-undefined-reference"]
+    assert findings[0].subject == "no-variable-fn"
+
+
+def test_each_extra_duplicate_equation_is_reported(m):
+    for variable in ("x", "y", "z"):
+        m.run(f"(= (three-copies ${variable}) (+ ${variable} 1))")
+    duplicates = [
+        finding for finding in m.lint()
+        if finding.kind == "duplicate-equation"
+    ]
+    assert len(duplicates) == 2
+
+
+def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):
+    m.run(
+        "(= (cached-target $x) $x)"
+        "(= (cached-caller $x) (and (cached-target $x) (cached-target $x)))"
+    )
+    runtime_type = type(m.runtime)
+    original = runtime_type.once
+    queries = []
+
+    def counted(runtime, goal, **bindings):
+        if bindings.get("F") == "cached-target":
+            queries.append(goal)
+        return original(runtime, goal, **bindings)
+
+    monkeypatch.setattr(runtime_type, "once", counted)
+    assert m.lint() == []
+    assert len([goal for goal in queries if "fun(F)" in goal]) == 1
+    arity_queries = [goal for goal in queries if "findall" in goal]
+    assert arity_queries == ["findall(_A, arity(F, _A), L)"]
+
+
+def test_lint_walks_deep_expression_trees_iteratively(m):
+    body = S.leaf
+    for _ in range(2_000):
+        body = Expr([S.nested, body])
+    m.add(Expr([S["="], Expr([S.deep_lint]), body]))
+    findings = m.lint()
+    assert any(finding.subject == "nested" for finding in findings)
