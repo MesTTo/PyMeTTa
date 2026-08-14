@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import importlib
 import threading
-from contextlib import suppress
 from typing import Any
 
 from ._atoms_core import Sym
@@ -45,8 +44,10 @@ class _Namespace:
         if name.startswith("__"):
             raise AttributeError(name)
         cache = object.__getattribute__(self, "_cache")
-        with suppress(KeyError):
+        try:
             return cache[name]
+        except KeyError:
+            pass
         lock = object.__getattribute__(self, "_lock")
         with lock:
             hit = cache.get(name)
