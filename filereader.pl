@@ -127,11 +127,23 @@ grab_until_balanced(D, Acc, Cs, LC0, LC2, State) --> [C],
                                     ; grab_until_balanced(D1,Acc1,Cs,LC1,LC2,State1) ).
 
 %Read a balanced (...) block if available, turn into string, then continue with rest, ignoring comments:
+read_form_open(_) --> "(", !.
+read_form_open(LC) -->
+    string_without("\n", Rest),
+    { format(atom(Msg), "expected '(' or '!(', line ~w:~n~s", [LC, Rest]),
+      throw(error(syntax_error(Msg), none)) }.
+
+read_balanced_form(LC, Cs, LC2) -->
+    grab_until_balanced(1, [0'(], Cs, LC, LC2, outside), !.
+read_balanced_form(LC, _, _) -->
+    string_without("\n", Rest),
+    { format(atom(Msg), "missing ')', starting at line ~w:~n~s", [LC, Rest]),
+      throw(error(syntax_error(Msg), none)) }.
+
 top_forms([],_) --> blanks, eos.
 top_forms([Term|Fs], LC0) --> newlines(LC0, LC1),
                               ( "!" -> {Tag = runnable} ; {Tag = form} ),
-                              ( "(" -> [] ; string_without("\n", Rest), { format(atom(Msg), "expected '(' or '!(', line ~w:~n~s", [LC1, Rest]), throw(error(syntax_error(Msg), none)) } ),
-                              ( grab_until_balanced(1, [0'(], Cs, LC1, LC2, outside)
-                                -> { true } ; string_without("\n", Rest), { format(atom(Msg), "missing ')', starting at line ~w:~n~s", [LC1, Rest]), throw(error(syntax_error(Msg), none)) } ),
+                              read_form_open(LC1),
+                              read_balanced_form(LC1, Cs, LC2),
                               { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
                               top_forms(Fs, LC2).

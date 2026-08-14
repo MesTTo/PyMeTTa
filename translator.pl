@@ -213,7 +213,7 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; %Known function => direct call:
           ( is_list(T),
-            ( atom(HV), fun_here(HV), Fun = HV, IsPartial = false
+            ( atom(HV), fun_here(HV), Fun = HV, IsPartial = false, Bound = []
             ; compound(HV), HV = partial(Fun, Bound), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
             -> findall(TypeChain, catch_recover(type_declaration(Fun, TypeChain), fail), TypeChains),
