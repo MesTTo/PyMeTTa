@@ -19,7 +19,7 @@
       "wall_seconds_per_operation": 3.28091299161315e-06
     },
     "direct-join": {
-      "inferences": 280302,
+      "inferences": 280310,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.78302382169037e-06
@@ -39,7 +39,7 @@
       "wall_seconds_per_operation": 7.741356699261814e-05
     },
     "loop-1m": {
-      "inferences": 5000987,
+      "inferences": 5000989,
       "operations": 1000000,
       "unit": "iterations",
       "wall_seconds_per_operation": 9.513080096803606e-08
@@ -57,55 +57,55 @@
       "wall_seconds_per_operation": 7.45732057839632e-06
     },
     "prepared-join": {
-      "inferences": 280302,
+      "inferences": 280310,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.8308916356174156e-06
     },
     "query-2k-rows": {
-      "inferences": 561107,
+      "inferences": 521145,
       "operations": 40000,
       "unit": "rows",
       "wall_seconds_per_operation": 2.0797247299924494e-06
     },
     "query-limit-guarded": {
-      "inferences": 83109,
+      "inferences": 78307,
       "operations": 5000,
       "unit": "rows",
       "wall_seconds_per_operation": 2.0604806020855903e-06
     },
     "query-limit-plain": {
-      "inferences": 80409,
+      "inferences": 75607,
       "operations": 5000,
       "unit": "rows",
       "wall_seconds_per_operation": 1.9979908131062986e-06
     },
     "query-where": {
-      "inferences": 690593,
+      "inferences": 650751,
       "operations": 10160,
       "unit": "rows",
       "wall_seconds_per_operation": 5.481676766868886e-06
     },
     "register-op": {
-      "inferences": 51907,
+      "inferences": 47607,
       "operations": 100,
       "unit": "registrations",
       "wall_seconds_per_operation": 0.00011055343085899949
     },
     "run-source": {
-      "inferences": 481023,
+      "inferences": 483023,
       "operations": 1000,
       "unit": "directives",
       "wall_seconds_per_operation": 0.00011902688606642186
     },
     "save-load-fast": {
-      "inferences": 5783330,
+      "inferences": 5723339,
       "operations": 20001,
       "unit": "atoms",
       "wall_seconds_per_operation": 1.3796682617386862e-05
     },
     "save-load-metta": {
-      "inferences": 13213914,
+      "inferences": 13173932,
       "operations": 20001,
       "unit": "atoms",
       "wall_seconds_per_operation": 2.2809381439032467e-05
@@ -125,7 +125,7 @@
       "wall_seconds_per_operation": 2.7933047502301635e-06
     },
     "weighted-relation": {
-      "inferences": 640525,
+      "inferences": 642523,
       "operations": 500,
       "unit": "evaluations",
       "wall_seconds_per_operation": 6.723001785576344e-05
