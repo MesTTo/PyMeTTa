@@ -1,10 +1,20 @@
 % Purpose: compile MeTTa expressions and equations into executable Prolog,
 %   including dynamic dispatch, control forms, higher-order calls, and
 %   branch-return optimization.
+% Assumes:
+%   - merge_branch_returns/3 does not bind variable keys until its assoc
+%     lookups finish [source 2026-08-14:
+%     https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl].
+% Guarantees:
+%   - Branch-return merging preserves shared and pre-bound variables while
+%     restoring private tail returns [tested 2026-08-14:
+%     translator_branch_returns].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
 %   Future Enhancements: None
+
+:- use_module(library(assoc)).
 
 % Function source retained for higher-order specialization. Each equation is
 % one independently indexed fact, so compiling a new equation does not copy
@@ -502,55 +512,102 @@ build_branch(Con, Val, Out, (Val = Out, Con)).
 
 %Restore last-call optimization where it is safe: a branch ending with the
 %runtime unification (Out = V) keeps a tail-recursive loop from running in
-%constant stack, since the recursive call is no longer last. When V occurs
-%nowhere in the head or outside this branch, and occurs before the final
-%unification inside the branch, it is private to the branch. Binding V to Out
-%at translate time is then sound and removes the trailing unification. The
-%branch's real last goal returns to tail position, including when a nested
-%conditional produces V in more than one alternative.
-merge_branch_returns(Head, Body0, Body) :- mbr_goal(Body0, Head, Body0, Body).
+%constant stack, since the recursive call is no longer last. The first pass
+%records each variable's total occurrences and first/last traversal positions.
+%The second pass knows each branch's position interval, so two AVL lookups prove
+%that V is absent from the head, confined to this branch, and produced before
+%the final unification. No branch re-scans the whole clause.
+%
+%Unbound variables are valid assoc keys while their standard-order relation is
+%unchanged. All return bindings are therefore delayed until every lookup has
+%finished: https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl
+merge_branch_returns(Head, Body0, Body) :-
+    empty_assoc(Empty),
+    mbr_collect_stats(Head, 0, _HeadEnd, Empty, HeadStats),
+    mbr_collect_stats(Body0, 0, End, Empty, Stats),
+    mbr_goal(Body0, HeadStats, Stats, 0, WalkEnd, Body, Bindings, []),
+    WalkEnd =:= End,
+    mbr_bind_returns(Bindings).
 
-mbr_goal((A , B), H, W, (A1 , B1)) :- !, mbr_goal(A, H, W, A1), mbr_goal(B, H, W, B1).
-mbr_goal((C -> T ; E), H, W, (C -> T1 ; E1)) :- !, mbr_branch(T, H, W, T1),
-                                                   mbr_branch(E, H, W, E1).
-mbr_goal((A ; B), H, W, (A1 ; B1)) :- !, mbr_goal(A, H, W, A1), mbr_goal(B, H, W, B1).
-mbr_goal((C -> T), H, W, (C -> T1)) :- !, mbr_branch(T, H, W, T1).
-mbr_goal(G, _, _, G).
+mbr_goal((A , B), H, Stats, P0, P, (A1 , B1), Bs0, Bs) :- !,
+    mbr_goal(A, H, Stats, P0, P1, A1, Bs0, Bs1),
+    mbr_goal(B, H, Stats, P1, P, B1, Bs1, Bs).
+mbr_goal((C -> T ; E), H, Stats, P0, P, (C -> T1 ; E1), Bs0, Bs) :- !,
+    mbr_advance_term(C, P0, P1),
+    mbr_branch(T, H, Stats, P1, P2, T1, Bs0, Bs1),
+    mbr_branch(E, H, Stats, P2, P, E1, Bs1, Bs).
+mbr_goal((A ; B), H, Stats, P0, P, (A1 ; B1), Bs0, Bs) :- !,
+    mbr_goal(A, H, Stats, P0, P1, A1, Bs0, Bs1),
+    mbr_goal(B, H, Stats, P1, P, B1, Bs1, Bs).
+mbr_goal((C -> T), H, Stats, P0, P, (C -> T1), Bs0, Bs) :- !,
+    mbr_advance_term(C, P0, P1),
+    mbr_branch(T, H, Stats, P1, P, T1, Bs0, Bs).
+mbr_goal(G, _, _, P0, P, G, Bs, Bs) :-
+    mbr_advance_term(G, P0, P).
 
-mbr_branch(B0, H, W, B) :-
-    ( mbr_split(B0, Prefix, (Out = V)),
-      var(V), var(Out), V \== Out,
-      %Private means absent from the head, confined to this branch in the
-      %whole body, and produced inside this branch's own goals. A variable
-      %bound before the branch fails the confinement test, since aliasing it
-      %would let another arm corrupt it.
-      mbr_count(H, V, 0, 0),
-      mbr_count(B0, V, 0, BranchCount),
-      mbr_count(W, V, 0, WholeCount),
-      WholeCount =:= BranchCount,
-      mbr_count(Prefix, V, 0, PrefixCount),
-      PrefixCount > 0
-      -> V = Out,
-         mbr_goal(Prefix, H, W, B)
-    ; mbr_goal(B0, H, W, B) ).
+mbr_branch(B0, H, Stats, P0, P, B, Bs0, Bs) :-
+    mbr_goal(B0, H, Stats, P0, P, B1, Bs0, Bs1),
+    ( mbr_merge_candidate(B0, H, Stats, P0, P, V, Out)
+      -> mbr_split(B1, B, _),
+         Bs1 = [V-Out|Bs]
+    ; B = B1,
+      Bs1 = Bs ).
+
+mbr_merge_candidate(B0, HeadStats, Stats, P0, P, V, Out) :-
+    mbr_split(B0, _Prefix, (Out = V)),
+    var(V),
+    var(Out),
+    V \== Out,
+    \+ get_assoc(V, HeadStats, _),
+    get_assoc(V, Stats, var_stat(Count, First, Last)),
+    Count > 1,
+    First >= P0,
+    Last < P.
+
+mbr_bind_returns([]).
+mbr_bind_returns([V-Out|Bindings]) :-
+    V = Out,
+    mbr_bind_returns(Bindings).
 
 %Split a conjunction into everything-but-last and its last conjunct:
 mbr_split((A , B), Prefix, Last) :- !,
     ( mbr_split(B, P1, Last), ( P1 == true -> Prefix = A ; Prefix = (A , P1) ) ).
 mbr_split(G, true, G).
 
-%Count occurrences of one variable in a term, by identity:
-mbr_count(T, V, C0, C) :- ( T == V -> C is C0 + 1
-                          ; var(T) -> C = C0
-                          ; compound(T) -> functor(T, _, N),
-                                           mbr_count_args(1, N, T, V, C0, C)
-                          ; C = C0 ).
+%Collect every variable's occurrence count and traversal interval in one pass.
+mbr_collect_stats(T, P0, P, Stats0, Stats) :-
+    ( var(T)
+      -> ( get_assoc(T, Stats0, var_stat(Count0, First, _))
+           -> Count is Count0 + 1,
+              put_assoc(T, Stats0, var_stat(Count, First, P0), Stats)
+         ; put_assoc(T, Stats0, var_stat(1, P0, P0), Stats) ),
+         P is P0 + 1
+    ; compound(T)
+      -> functor(T, _, N),
+         mbr_collect_stats_args(1, N, T, P0, P, Stats0, Stats)
+    ; P = P0,
+      Stats = Stats0 ).
 
-mbr_count_args(I, N, _, _, C, C) :- I > N, !.
-mbr_count_args(I, N, T, V, C0, C) :- arg(I, T, A),
-                                     mbr_count(A, V, C0, C1),
-                                     I1 is I + 1,
-                                     mbr_count_args(I1, N, T, V, C1, C).
+mbr_collect_stats_args(I, N, _, P, P, Stats, Stats) :- I > N, !.
+mbr_collect_stats_args(I, N, T, P0, P, Stats0, Stats) :-
+    arg(I, T, Arg),
+    mbr_collect_stats(Arg, P0, P1, Stats0, Stats1),
+    I1 is I + 1,
+    mbr_collect_stats_args(I1, N, T, P1, P, Stats1, Stats).
+
+%Advance over the same depth-first variable positions without rebuilding the
+%association. This pass also reconstructs only the control nodes it changes.
+mbr_advance_term(T, P0, P) :-
+    ( var(T) -> P is P0 + 1
+    ; compound(T) -> functor(T, _, N), mbr_advance_args(1, N, T, P0, P)
+    ; P = P0 ).
+
+mbr_advance_args(I, N, _, P, P) :- I > N, !.
+mbr_advance_args(I, N, T, P0, P) :-
+    arg(I, T, Arg),
+    mbr_advance_term(Arg, P0, P1),
+    I1 is I + 1,
+    mbr_advance_args(I1, N, T, P1, P).
 
 %Translate case expression recursively into nested if:
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
