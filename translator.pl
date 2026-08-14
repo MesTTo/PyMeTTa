@@ -1,3 +1,11 @@
+% Purpose: compile MeTTa expressions and equations into executable Prolog,
+%   including dynamic dispatch, control forms, higher-order calls, and
+%   branch-return optimization.
+% Open Obligations:
+%   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
+%   Hacks: None
+%   Future Enhancements: None
+
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 constrain_args([F, A, B], Out, Goals) :- nonvar(F),
@@ -167,7 +175,9 @@ translate_expr([H0|T0], Goals, Out) :-
         ; HV == hyperpose, T = [L]
           -> ( nonvar(L), is_list(L)
                -> build_hyperpose_branches(L, Branches),
-                  append(GsH, [concurrent_and(member((Goal,Res), Branches), (call(Goal), Out = Res))], Goals)
+                  current_metta_module(Module),
+                  append(GsH, [concurrent_and(member((Goal,Res), Branches),
+                                                    hyperpose_branch(Module, Goal, Res, Out))], Goals)
                ; translate_expr(L, GsL, LV),
                  append(GsH, GsL, Inner),
                  append(Inner, [hyperpose_runtime(LV, Out)], Goals) )
@@ -549,9 +559,23 @@ build_hyperpose_branches([], []).
 build_hyperpose_branches([E|Es], [(Goal, Res)|Bs]) :- translate_expr_to_conj(E, Goal, Res),
                                                       build_hyperpose_branches(Es, Bs).
 
+%Run each branch under the module captured by the caller. SWI global variables
+%are thread-local, so a concurrent_and/2 worker otherwise defaults to user and
+%cannot resolve functions compiled into a named space.
+hyperpose_branch(Module, Goal, Res, Out) :-
+    with_metta_module(Module, (call(Module:Goal), Out = Res)).
+
 %Runtime hyperpose path for variable/computed list arguments.
-hyperpose_runtime(Exprs, Out) :- is_list(Exprs),
-                                 concurrent_and(member(Expr, Exprs), eval(Expr, Out)).
+hyperpose_runtime(Exprs, Out) :-
+    is_list(Exprs),
+    current_metta_module(Module),
+    concurrent_and(member(Expr, Exprs),
+                   hyperpose_eval(Module, Expr, Out)).
+
+hyperpose_eval(Module, Expr, Out) :-
+    with_metta_module(Module,
+                      ( translate_expr(Expr, Goals, Out),
+                        call_goals_in_(Module, Goals) )).
 
 %Like membercheck but with direct equality rather than unification
 memberchk_eq(V, [H|_]) :- V == H, !.
