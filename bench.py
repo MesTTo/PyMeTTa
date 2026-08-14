@@ -66,6 +66,19 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--compare-wall", action="store_true")
     parser.add_argument("--json", type=Path)
     parser.add_argument("--timeout", type=float, default=120.0)
+    parser.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="omit this benchmark; repeatable",
+    )
+    parser.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="run every selected case and report all failures at the end, "
+        "instead of stopping at the first",
+    )
     return parser
 
 
@@ -152,17 +165,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.timeout <= 0:
         parser.error("--timeout must be positive")
 
-    unknown = sorted(set(arguments.names) - CASES.keys())
+    unknown = sorted((set(arguments.names) | set(arguments.skip)) - CASES.keys())
     if unknown:
         parser.error(f"unknown benchmark {', '.join(unknown)}; use --list for valid names")
 
     directory = Path(__file__).resolve().parent
-    selected = arguments.names or sorted(CASES)
+    selected = [
+        name for name in (arguments.names or sorted(CASES))
+        if name not in set(arguments.skip)
+    ]
+    if not selected:
+        parser.error("every selected benchmark was skipped")
+    # A skip is a hole in the evidence, so say so rather than let a green run
+    # read as full coverage.
+    if arguments.skip:
+        print(f"skipping {', '.join(sorted(set(arguments.skip)))}")
     json_target = arguments.json
     if arguments.update_baseline and json_target is None and not arguments.counter_only:
         json_target = directory / "benchmarks" / "pytest-baseline.json"
 
     context = multiprocessing.get_context("spawn")
+    failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="petta-benchmark-json-") as temporary:
         json_paths: list[Path] = []
         for index, name in enumerate(selected):
@@ -189,18 +212,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if process.is_alive():
                     process.kill()
                     process.join()
-                raise TimeoutError(
+                message = (
                     f"benchmark {name} exceeded its {arguments.timeout:g} second limit"
                 )
+                if not arguments.keep_going:
+                    raise TimeoutError(message)
+                failures.append(message)
+                continue
             if process.exitcode != 0:
-                raise RuntimeError(
+                message = (
                     f"benchmark {name} process exited with status {process.exitcode}"
                 )
+                if not arguments.keep_going:
+                    raise RuntimeError(message)
+                failures.append(message)
+                continue
             if json_path is not None:
                 json_paths.append(json_path)
         if json_target is not None:
             _write_merged_json(json_paths, json_target)
             print(f"wrote benchmark data to {json_target}")
+    if failures:
+        print(f"\n{len(failures)} of {len(selected)} benchmarks failed:")
+        for message in failures:
+            print(f"  {message}")
+        return 1
     return 0
 
 
