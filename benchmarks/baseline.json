@@ -1,44 +1,44 @@
 {
   "benchmarks": {
     "add-batch": {
-      "inferences": 86018,
+      "inferences": 62027,
       "operations": 2000,
       "unit": "atoms",
       "wall_seconds_per_operation": 2.5735434610396623e-06
     },
     "add-single": {
-      "inferences": 82007,
+      "inferences": 74007,
       "operations": 2000,
       "unit": "atoms",
       "wall_seconds_per_operation": 3.833017544820905e-06
     },
     "add-table-rows": {
-      "inferences": 104089,
+      "inferences": 80085,
       "operations": 2000,
       "unit": "rows",
       "wall_seconds_per_operation": 3.28091299161315e-06
     },
     "alpha-unique": {
-      "inferences": 3750777,
+      "inferences": 3850768,
       "instruction_noise_percent": 1.0,
-      "instructions": 4726847929,
+      "instructions": 4758015856,
       "operations": 50000,
       "unit": "terms",
       "wall_seconds_per_operation": 2.957344460301101e-06
     },
     "direct-join": {
       "inference_slope": {
-        "delta_inferences": 1345470,
+        "delta_inferences": 1297444,
         "large_operations": 49975,
         "small_operations": 1999
       },
-      "inferences": 280310,
+      "inferences": 270305,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.78302382169037e-06
     },
     "eval-arith": {
-      "inferences": 172011,
+      "inferences": 172009,
       "operations": 2000,
       "unit": "evaluations",
       "wall_seconds_per_operation": 6.401210906915367e-06
@@ -46,7 +46,7 @@
     "json-wire": {
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 3788755253,
+      "instructions": 3753315597,
       "operations": 2000,
       "unit": "payload round-trips",
       "wall_seconds_per_operation": 7.741356699261814e-05
@@ -59,19 +59,19 @@
       },
       "inferences": 8000413,
       "instruction_noise_percent": 1.0,
-      "instructions": 4217524663,
+      "instructions": 4433498838,
       "operations": 1000000,
       "unit": "iterations",
       "wall_seconds_per_operation": 2.1706230309791863e-07
     },
     "loop-1m": {
-      "inferences": 5000989,
+      "inferences": 5000812,
       "operations": 1000000,
       "unit": "iterations",
       "wall_seconds_per_operation": 9.513080096803606e-08
     },
     "op-encoded": {
-      "inferences": 214013,
+      "inferences": 214011,
       "operations": 2000,
       "unit": "evaluations",
       "wall_seconds_per_operation": 9.811793919652701e-06
@@ -84,19 +84,19 @@
     },
     "prepared-join": {
       "inference_slope": {
-        "delta_inferences": 1345470,
+        "delta_inferences": 1297444,
         "large_operations": 49975,
         "small_operations": 1999
       },
-      "inferences": 280310,
+      "inferences": 270305,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.8308916356174156e-06
     },
     "py-method-call": {
-      "inferences": 2330097,
+      "inferences": 2300097,
       "instruction_noise_percent": 1.0,
-      "instructions": 1869010003,
+      "instructions": 1828026371,
       "operations": 10000,
       "unit": "calls",
       "wall_seconds_per_operation": 1.0144315101206303e-05
@@ -120,47 +120,47 @@
       "wall_seconds_per_operation": 1.9979908131062986e-06
     },
     "query-where": {
-      "inferences": 650751,
+      "inferences": 648231,
       "operations": 10160,
       "unit": "rows",
       "wall_seconds_per_operation": 5.481676766868886e-06
     },
     "register-op": {
-      "inferences": 47607,
+      "inferences": 46407,
       "operations": 100,
       "unit": "registrations",
       "wall_seconds_per_operation": 0.00011055343085899949
     },
     "run-source": {
-      "inferences": 483023,
+      "inferences": 334017,
       "operations": 1000,
       "unit": "directives",
       "wall_seconds_per_operation": 0.00011902688606642186
     },
     "save-load-fast": {
-      "inferences": 5723339,
+      "inferences": 5643143,
       "operations": 20001,
       "unit": "atoms",
       "wall_seconds_per_operation": 1.3796682617386862e-05
     },
     "save-load-metta": {
-      "inferences": 13173932,
+      "inferences": 9002149,
       "operations": 20001,
       "unit": "atoms",
       "wall_seconds_per_operation": 2.2809381439032467e-05
     },
     "sort-atom": {
-      "inferences": 1400181,
+      "inferences": 1400178,
       "instruction_noise_percent": 1.0,
-      "instructions": 4502600332,
+      "instructions": 4480483185,
       "operations": 100000,
       "unit": "terms",
       "wall_seconds_per_operation": 2.009731971193105e-06
     },
     "source-load": {
-      "inferences": 7084961,
+      "inferences": 6921403,
       "instruction_noise_percent": 1.0,
-      "instructions": 4344240369,
+      "instructions": 4248161895,
       "operations": 1000,
       "unit": "forms",
       "wall_seconds_per_operation": 0.0001865763661917299
@@ -176,13 +176,13 @@
     "space-name": {
       "inferences": 2280095,
       "instruction_noise_percent": 1.0,
-      "instructions": 2556526696,
+      "instructions": 2551779767,
       "operations": 30000,
       "unit": "calls",
       "wall_seconds_per_operation": 4.320945761476954e-06
     },
     "subscribe-tax": {
-      "inferences": 86018,
+      "inferences": 62041,
       "operations": 2000,
       "unit": "atoms",
       "wall_seconds_per_operation": 2.682138467207551e-06
@@ -196,7 +196,7 @@
       "wall_seconds_per_operation": 2.7933047502301635e-06
     },
     "weighted-relation": {
-      "inferences": 642523,
+      "inferences": 483523,
       "operations": 500,
       "unit": "evaluations",
       "wall_seconds_per_operation": 6.723001785576344e-05
@@ -204,7 +204,7 @@
     "wire-codec": {
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 3536885108,
+      "instructions": 3528692549,
       "operations": 504000,
       "unit": "atom round-trips",
       "wall_seconds_per_operation": 3.075987162504582e-07
