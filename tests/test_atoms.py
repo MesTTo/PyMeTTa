@@ -28,7 +28,7 @@ from petta import (
     val,
     variables,
 )
-from petta.atoms import Box, from_wire, is_ground
+from petta.atoms import Box, atom_from_wire, from_wire, is_ground
 
 
 def test_symbols_are_not_strings():
@@ -367,6 +367,11 @@ def test_malformed_wire_is_refused():
     for bad in (["b", "garbage"], ["n", "123"], ["s", 123], ["e", 5], ["zz", 1]):
         with pytest.raises(ValueError):
             from_wire(bad)
+
+
+def test_atom_from_wire_rejects_undefined_truth():
+    with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
+        atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
 
 
 def test_anonymous_variable_is_fresh_per_occurrence():

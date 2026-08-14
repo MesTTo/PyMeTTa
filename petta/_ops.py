@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from .atoms import Atom, Box, Gnd, decode, encode, from_wire
+from .atoms import Atom, Box, Gnd, atom_from_wire, decode, encode
 from .errors import Decline
 
 __all__ = ["REGISTRY", "Operation", "dispatch", "dispatch_many", "dispatch_raw", "dispatch_raw_many"]
@@ -42,7 +42,7 @@ REGISTRY: dict[str, Operation] = {}
 
 
 def _decode_arg(wire: Any, pass_atoms: bool) -> Any:
-    atom = from_wire(wire)
+    atom = atom_from_wire(wire)
     if pass_atoms:
         return atom
     # Grounded values unwrap to Python; symbols, variables and expressions

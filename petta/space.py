@@ -45,7 +45,20 @@ from typing import Any, Callable, Iterable
 
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
-from .atoms import Atom, Expr, Sym, Var, alpha_eq, encode, from_wire, parse, variables
+from .atoms import (
+    Atom,
+    Expr,
+    Sym,
+    Undefined,
+    Var,
+    _to_atom,
+    alpha_eq,
+    atom_from_wire,
+    encode,
+    from_wire,
+    parse,
+    variables,
+)
 from .derivation import Derivation
 from .errors import EngineError, PettaError
 from .results import Rows, _row_class
@@ -72,15 +85,6 @@ def current_space(default: str = "&self") -> str:
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
-
-
-def _to_atom(value: Any) -> Atom:
-    """Accept an Atom, MeTTa source text, or an encodable Python value."""
-    if isinstance(value, Atom):
-        return value
-    if isinstance(value, str):
-        return parse(value)
-    return encode(value)
 
 
 def _to_stored_atom(value: Any) -> Expr:
@@ -322,9 +326,9 @@ class MeTTa:
             out = row.get("Out", [])
         if capture:
             groups_wire, text = out
-            groups = [[from_wire(w) for w in group] for group in groups_wire]
+            groups = [[atom_from_wire(w) for w in group] for group in groups_wire]
             return groups, text
-        return [[from_wire(w) for w in group] for group in out]
+        return [[atom_from_wire(w) for w in group] for group in out]
 
     def profile(
         self,
@@ -354,7 +358,7 @@ class MeTTa:
             T=seconds, I=steps, P="petta_py_profiled", Ins=[pred, ins],
         )
         out, samples, ticks, nodes = row["Out"]
-        groups = [[from_wire(w) for w in group] for group in out]
+        groups = [[atom_from_wire(w) for w in group] for group in out]
         return groups, EngineProfile(samples, ticks, nodes)
 
     def save(self, path: str | os.PathLike[str], format: str = "metta") -> int:
@@ -393,13 +397,13 @@ class MeTTa:
                     )
                 kind, value = result
                 if kind == "object":
-                    atom = from_wire(value)
+                    atom = atom_from_wire(value)
                     raise ValueError(
                         f"{atom} carries a live Python object; a file cannot "
                         f"hold it. Remove it, or persist its data explicitly."
                     )
                 if kind == "symbol":
-                    _raise_unsafe_text_symbol(from_wire(value), "save")
+                    _raise_unsafe_text_symbol(atom_from_wire(value), "save")
                 if kind != "saved":
                     raise EngineError(
                         f"petta_py_fast_save returned an unknown result: {result!r}"
@@ -433,7 +437,7 @@ class MeTTa:
         row = self._rt.must(
             "petta_py_load(File, Space, Groups)", File=file, Space=self._space
         )
-        return [[from_wire(w) for w in group] for group in row.get("Groups", [])]
+        return [[atom_from_wire(w) for w in group] for group in row.get("Groups", [])]
 
     def _load_fast(self, path: str) -> list[list[Atom]]:
         """Validate a trusted cache header, then let the engine read it."""
@@ -564,13 +568,13 @@ class MeTTa:
         removed = self._rt.apply_must(
             "petta_py_remove", self._space, _to_stored_atom(atom).to_wire()
         )
-        result = from_wire(removed)
+        result = atom_from_wire(removed)
         return bool(getattr(result, "value", True))
 
     def atoms(self) -> list[Atom]:
         """Every stored atom in this space."""
         wires = self._rt.apply_must("petta_py_atoms", self._space)
-        return [from_wire(w) for w in wires]
+        return [atom_from_wire(w) for w in wires]
 
     def count(self) -> int:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
@@ -626,14 +630,14 @@ class MeTTa:
             )
         kind, value = result
         if kind == "object":
-            atom = from_wire(value)
+            atom = atom_from_wire(value)
             raise ValueError(
                 f"{atom} carries a live Python object; it has no "
                 f"cross-process identity to digest. Remove it, or digest "
                 f"its data explicitly."
             )
         if kind == "symbol":
-            _raise_unsafe_text_symbol(from_wire(value), "digest")
+            _raise_unsafe_text_symbol(atom_from_wire(value), "digest")
         if kind != "digest":
             raise EngineError(
                 f"petta_py_digest returned an unknown result: {result!r}"
@@ -730,7 +734,7 @@ class MeTTa:
             answered = self._rt.apply_must(pred, *ins)
         else:
             answered = self._rt.apply_must("petta_py_limited", *limits, pred, ins)
-        decoded = [tuple(from_wire(v) for v in r) for r in answered]
+        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
         return Rows(tuple(columns), decoded)
 
     def stream(
@@ -792,7 +796,7 @@ class MeTTa:
         inferences: int | None = None,
         capture: bool = False,
         residuals: bool = False,
-    ) -> list[Atom] | tuple[list[Atom], str]:
+    ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
         """Evaluate a term, returning every answer.
 
         This is what !(...) runs, minus the printing: the engine's
@@ -853,7 +857,7 @@ class MeTTa:
                 f"got {len(answers)}; use eval() for any number"
             )
         answer = answers[0]
-        from .atoms import Gnd, Undefined, decode
+        from .atoms import Gnd, decode
 
         if isinstance(answer, Undefined):
             raise EngineError(
@@ -1035,7 +1039,7 @@ class MeTTa:
                 -1 if depth is None else depth,
             ],
         )
-        return [Derivation.from_atom(from_wire(r["Tree"])) for r in rows]
+        return [Derivation.from_atom(atom_from_wire(r["Tree"])) for r in rows]
 
     def why(self, pattern: Any) -> str:
         """Why a pattern matches nothing here, in words.
@@ -1652,7 +1656,7 @@ class Cursor:
             self._exhausted = True
             self._finalizer()
             raise StopIteration
-        return self._row_cls(from_wire(v) for v in answer[0])
+        return self._row_cls(atom_from_wire(v) for v in answer[0])
 
     def close(self) -> None:
         """Destroy the held engine; idempotent and distinct from exhaustion."""
@@ -1764,7 +1768,7 @@ class Prepared:
             answered = rt.apply_must(pred, *ins)
         else:
             answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
-        decoded = [tuple(from_wire(v) for v in r) for r in answered]
+        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 
     def __repr__(self) -> str:

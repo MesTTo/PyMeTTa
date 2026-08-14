@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any, Protocol, runtime_checkable
 
-from .atoms import Atom, encode, from_wire
+from .atoms import Atom, atom_from_wire, encode
 from .errors import PettaError
 
 __all__ = [
@@ -180,7 +180,7 @@ def unregister_provider(runtime, name: str) -> None:
 def foreign_match(space: str, pattern_wire: list):
     """Generator the shim's py_iter enumerates: candidate atoms, encoded."""
     provider = PROVIDERS[space]
-    pattern = from_wire(pattern_wire)
+    pattern = atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
     candidates = (
         provider.match(pattern)
@@ -201,7 +201,7 @@ def foreign_atoms(space: str):
 
 def foreign_add(space: str, atom_wire: list) -> bool:
     provider = PROVIDERS[space]
-    atom = from_wire(atom_wire)
+    atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "add", "add-atom", atom=atom)
     assert isinstance(provider, Adder)
     provider.add(atom)
@@ -210,7 +210,7 @@ def foreign_add(space: str, atom_wire: list) -> bool:
 
 def foreign_remove(space: str, atom_wire: list) -> bool:
     provider = PROVIDERS[space]
-    atom = from_wire(atom_wire)
+    atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "remove", "remove-atom", atom=atom)
     assert isinstance(provider, Remover)
     return bool(provider.remove(atom))

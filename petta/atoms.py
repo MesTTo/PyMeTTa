@@ -23,6 +23,8 @@ Guarantees:
     test_expr_sequence_index_and_count, test_expr_identity_equality]
   - map_atoms transforms trees iteratively and validates every replacement
     [tested test_map_atoms_handles_depth_as_data_and_validates_transform_results]
+  - atom-only wire boundaries reject undefined evaluation wrappers [tested
+    test_atom_from_wire_rejects_undefined_truth]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -56,6 +58,7 @@ __all__ = [
     "encode",
     "decode",
     "from_wire",
+    "atom_from_wire",
     "parse",
     "alpha_eq",
     "unify",
@@ -325,16 +328,16 @@ class Atom:
     def __invert__(self) -> "Expr":
         return Expr([Sym("not"), self])
 
-    def __lt__(self, other: Any) -> "Expr":
+    def __lt__(self, other: Any) -> "Expr | bool":
         return self._build("<", other)
 
-    def __le__(self, other: Any) -> "Expr":
+    def __le__(self, other: Any) -> "Expr | bool":
         return self._build("<=", other)
 
-    def __gt__(self, other: Any) -> "Expr":
+    def __gt__(self, other: Any) -> "Expr | bool":
         return self._build(">", other)
 
-    def __ge__(self, other: Any) -> "Expr":
+    def __ge__(self, other: Any) -> "Expr | bool":
         return self._build(">=", other)
 
     def eq(self, other: Any) -> "Expr":
@@ -719,6 +722,7 @@ class Expr(Atom):
     __slots__ = ("children", "_hash")
     __match_args__ = ("children",)
     children: tuple[Atom, ...]
+    _hash: int | None
 
     def __init__(self, children: Sequence[Atom]) -> None:
         object.__setattr__(self, "children", tuple(children))
@@ -766,7 +770,10 @@ class Expr(Atom):
             if node._hash is None:
                 value = hash(("expr", tuple(hash(c) for c in node.children)))
                 object.__setattr__(node, "_hash", value)
-        return self._hash
+        result = self._hash
+        if result is None:
+            raise RuntimeError("expression hash construction produced no value")
+        return result
 
     def __reduce__(self):
         return Expr, (self.children,)
@@ -928,7 +935,7 @@ class _PendingExpr:
     __slots__ = ("items", "built")
 
     def __init__(self) -> None:
-        self.items: list = []
+        self.items: list[Atom | _PendingExpr] = []
         self.built: Expr | None = None
 
 
@@ -1029,7 +1036,7 @@ class Undefined:
 
     __slots__ = ("value", "why", "residual")
 
-    def __init__(self, value: Any, why: str, residual: str | None = None) -> None:
+    def __init__(self, value: Atom, why: str, residual: str | None = None) -> None:
         self.value = value
         self.why = why
         self.residual = residual
@@ -1058,7 +1065,7 @@ class Undefined:
         return f"Undefined({self.value!r}, why={self.why!r})"
 
 
-def from_wire(wire: Any) -> Atom:
+def from_wire(wire: Any) -> Atom | Undefined:
     """Rebuild an atom from the tagged wire form janus delivered.
 
     Iterative, because expression depth is data and must not meet Python's
@@ -1073,7 +1080,7 @@ def from_wire(wire: Any) -> Atom:
         and wire[0] == "u"
     ):
         residual = wire[3] if len(wire) == 4 else None
-        return Undefined(from_wire(wire[1]), str(wire[2]), residual)
+        return Undefined(atom_from_wire(wire[1]), str(wire[2]), residual)
     if not isinstance(wire, (list, tuple)) or len(wire) != 2:
         raise ValueError(f"malformed wire term: {wire!r}")
     if wire[0] != "e":
@@ -1123,15 +1130,29 @@ def from_wire(wire: Any) -> Atom:
     # Children are discovered after their parents, so building in reverse
     # discovery order builds every nested expression before its holder.
     for pending in reversed(pendings):
-        pending.built = Expr(
-            [
-                item.built if isinstance(item, _PendingExpr) else item
-                for item in pending.items
-            ]
-        )
+        built_children: list[Atom] = []
+        for item in pending.items:
+            if isinstance(item, _PendingExpr):
+                if item.built is None:
+                    raise RuntimeError("wire decoding found an unbuilt child expression")
+                built_children.append(item.built)
+            else:
+                built_children.append(item)
+        pending.built = Expr(built_children)
     if root.built is None:
         raise RuntimeError("wire decoding built no root expression")
     return root.built
+
+
+def atom_from_wire(wire: Any) -> Atom:
+    """Decode a wire value where the protocol requires a definite atom."""
+    value = from_wire(wire)
+    if isinstance(value, Undefined):
+        raise ValueError(
+            "undefined truth is valid only as a complete evaluation answer, "
+            "not where the wire protocol requires an atom"
+        )
+    return value
 
 
 # ----------------------------------------------------------------- constructors
@@ -1231,7 +1252,16 @@ def parse(source: str) -> Atom:
     from ._engine import runtime
 
     row = runtime().once("petta_py_parse(Src, W)", Src=source)
-    return from_wire(row["W"])
+    return atom_from_wire(row["W"])
+
+
+def _to_atom(value: Any) -> Atom:
+    """Accept an Atom, MeTTa source text, or an encodable Python value."""
+    if isinstance(value, Atom):
+        return value
+    if isinstance(value, str):
+        return parse(value)
+    return encode(value)
 
 
 # ------------------------------------------------------------------ inspection

@@ -19,7 +19,7 @@ import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from .atoms import Atom, Var, from_wire, map_atoms, unify
+from .atoms import Atom, Expr, Var, _to_atom, atom_from_wire, map_atoms, unify
 
 __all__ = ["Subscription", "Event", "subscribe", "bridge"]
 
@@ -46,7 +46,7 @@ class Subscription:
     on: str  # "add" | "remove" | "both"
     _queue: list[Event] = field(default_factory=list)
     _active: bool = True
-    _fact: Atom | None = None  # the reflection atom in &petta, if any
+    _fact: Expr | None = None  # the reflection atom in &petta, if any
 
     def drain(self) -> list[Event]:
         """Every queued event, oldest first; the queue empties."""
@@ -139,7 +139,7 @@ def subscribe(
 
 
 def _dispatch(action: str, space: str, wire: list) -> bool:
-    atom = from_wire(wire)
+    atom = atom_from_wire(wire)
     for subscription in _subscriptions_for(space):
         if subscription.on != "both" and subscription.on != action:
             continue
@@ -185,8 +185,6 @@ def bridge(source, pattern, target, template=None, on: str = "add") -> Subscript
     query, delivered inside the write that triggered it; target needs
     only add and remove, so a remote.attach()ed space bridges across
     engines identically."""
-    from .space import _to_atom
-
     shape = _to_atom(pattern)
     built = shape if template is None else _to_atom(template)
 

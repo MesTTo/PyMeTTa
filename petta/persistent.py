@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from ._engine import Runtime, runtime
-from .atoms import Atom, Expr, Gnd, Sym, from_wire, is_ground
+from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire, is_ground
 from .errors import EngineError, PettaError
 from .foreign import SpaceProvider
 
@@ -722,7 +722,7 @@ class PersistentFactSpace(SpaceProvider):
         facts = []
         for wire in wires:
             try:
-                fact = from_wire(wire)
+                fact = atom_from_wire(wire)
             except (TypeError, ValueError) as exc:
                 raise PettaError(
                     f"persistent journal {self._path} returned malformed fact "

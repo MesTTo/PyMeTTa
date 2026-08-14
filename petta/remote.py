@@ -33,7 +33,7 @@ from typing import Any, Callable, Iterator, Mapping
 
 from ._engine import bridge
 from ._network import HTTPEndpoint
-from .atoms import Atom, from_wire
+from .atoms import Atom, atom_from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
 
@@ -79,12 +79,12 @@ class RemoteSpace(SpaceProvider):
             "match", {"space": self._space, "pattern": pattern.to_wire()}
         )
         for wire in answer["atoms"]:
-            yield from_wire(wire)
+            yield atom_from_wire(wire)
 
     def atoms(self) -> Iterator[Atom]:
         answer = self._transport("atoms", {"space": self._space})
         for wire in answer["atoms"]:
-            yield from_wire(wire)
+            yield atom_from_wire(wire)
 
     def add(self, atom: Atom) -> None:
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
@@ -256,7 +256,7 @@ def serve(
     def handle(operation: str, payload: dict) -> dict:
         if operation == "match":
             space = space_of(payload)
-            pattern = from_wire(payload["pattern"])
+            pattern = atom_from_wire(payload["pattern"])
             (answers,) = space.run(
                 "!(collapse (match (context-space) pat pat))",
                 using={"pat": pattern},
@@ -267,10 +267,10 @@ def serve(
         if operation == "atoms":
             return {"atoms": [a.to_wire() for a in space_of(payload).atoms()]}
         if operation == "add":
-            space_of(payload).add(from_wire(payload["atom"]))
+            space_of(payload).add(atom_from_wire(payload["atom"]))
             return {"added": True}
         if operation == "remove":
-            removed = space_of(payload).remove(from_wire(payload["atom"]))
+            removed = space_of(payload).remove(atom_from_wire(payload["atom"]))
             return {"removed": removed}
         raise PettaError(f"unknown operation {operation!r}")
 
