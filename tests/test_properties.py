@@ -11,7 +11,7 @@ Open Obligations:
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings, strategies as st  # noqa: E402
+from hypothesis import example, given, settings, strategies as st  # noqa: E402
 
 from petta import Expr, Gnd, S, Sym, Var, alpha_eq, expr, unify  # noqa: E402
 from petta.atoms import from_wire  # noqa: E402
@@ -45,6 +45,18 @@ def test_engine_wire_round_trip(metta_session, atom):
     assert alpha_eq(from_wire(row["W2"]), atom)
 
 
+# Counterexamples this project already paid for, pinned so they run on every
+# invocation instead of when the generator happens to rediscover them. The
+# newline is the one that mattered: swrite emitted it raw, the MORK bridge
+# splits dumps on newlines, and the fuzz round read that back as corruption.
+# The other four are the rest of hyperon's five string escapes, which the
+# reader decodes and the printer therefore has to emit.
+@example(atom=Gnd("line one\nline two"))
+@example(atom=Gnd("a\tb"))
+@example(atom=Gnd('say "hi"'))
+@example(atom=Gnd("back\\slash"))
+@example(atom=Gnd("carriage\rreturn"))
+@example(atom=expr(S.s, Gnd("nested\nnewline")))
 @given(_atoms())
 @settings(max_examples=60, deadline=None)
 def test_print_then_parse_agrees_with_the_engine(metta_session, atom):
