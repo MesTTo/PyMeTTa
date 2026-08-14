@@ -19,19 +19,21 @@ import builtins as _builtins
 import inspect as _inspect
 import threading
 import types
+from functools import partial
 from typing import Any
 
 from . import convert as _convert
 from . import ops as _ops_module
 from ._define_twins import (
     append_twin_clause,
-    hazard_twin,
     replace_twin_clause,
+    select_clause_twin,
     twin_dispatcher,
 )
 from ._ops import REGISTRY
 from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
 from .define import (
+    Compiled,
     Defined,
     canonical_aux_set,
     compile_function,
@@ -70,52 +72,24 @@ def install_define(space: Any, fn: types.FunctionType):
         return _install_define_locked(space, fn)
 
 
-def _install_define_locked(space: Any, fn: types.FunctionType):
-    """Compile a Python function into MeTTa equations, decorator-style.
+def _is_nondeterministic(space: Any, called: str) -> bool:
+    """Whether a registered operation or compiled definition has many answers."""
+    for spelling in (called, called.replace("_", "-")):
+        operation = REGISTRY.get(spelling)
+        if operation is not None and operation.kind in ("many", "raw_many"):
+            return True
+        if (space.space_name, spelling) in _DEFINED_GENERATORS:
+            return True
+    return False
 
-    Written for whoever is fluent in Python rather than s-expressions:
-    the body is read as syntax and lowered deterministically, refusals
-    name the construct, the line and what to write instead, and the
-    original stays reachable as .py, a twin the equations can be checked
-    against on any ground input.
 
-        @m.define
-        def add_one(n):
-            return n + 1
-
-        m.run("!(add-one 5)")       # [[6]]
-        add_one.py(5)               # 6, ordinary Python
-
-    The equation name follows the operation naming rule: underscores
-    in the Python name become hyphens in MeTTa.
-
-    A generator compiles to nondeterminism (each yield one answer), a
-    lambda to the engine's own |->, a comprehension to map-atom and
-    filter-atom, and match(Pattern(x, y), template) to a match against
-    the running space, lowercase free names in the pattern binding as
-    variables.
-    """
-    if not isinstance(fn, types.FunctionType):
-        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
-
-    def nondet(called: str) -> bool:
-        for spelling in (called, called.replace("_", "-")):
-            operation = REGISTRY.get(spelling)
-            if operation is not None and operation.kind in ("many", "raw_many"):
-                return True
-            if (space.space_name, spelling) in _DEFINED_GENERATORS:
-                return True
-        return False
-
-    # The equation's name follows the operation rule: underscores read
-    # as hyphens, one policy across both decorators.
-    name = fn.__name__.replace("_", "-")
-    compiled = compile_function(fn, known=space.is_function, nondet=nondet, metta_name=name)
-    params, patterns, body = compiled.params, compiled.patterns, compiled.body
-    # Clause stacking is per (space, name), process-wide: equations live
-    # in the space, not in whichever MeTTa instance happened to add them.
-    earlier = _DEFINE_CLAUSES.setdefault((space.space_name, name), [])
-    first_clause = not earlier
+def _validate_clause_order(
+    space: Any,
+    name: str,
+    patterns: dict[str, Atom],
+    earlier: list[dict[str, Any]],
+) -> None:
+    """Refuse collisions and clauses hidden by an earlier Python head."""
     if not earlier and space.is_function_here(name):
         raise CompileError(
             f"{name!r} is already a function this space answers (an "
@@ -144,6 +118,151 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
                 f"put the more specific clause first",
                 construct="clause order",
             )
+
+
+def _same_clause(clause: dict[str, Any], canonical: tuple[Expr, ...], name: str) -> bool:
+    old_equations = (clause["equation"], *clause.get("aux", ()))
+    old_canonical = canonical_aux_set(old_equations, name)
+    return len(old_canonical) == len(canonical) and all(
+        alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
+    )
+
+
+def _locate_clause(
+    earlier: list[dict[str, Any]],
+    patterns: dict[str, Atom],
+    canonical: tuple[Expr, ...],
+    name: str,
+) -> tuple[bool, int | None]:
+    """Return whether the clause is identical and which matching head it replaces."""
+    replaced = None
+    for position, clause in enumerate(earlier):
+        if _same_clause(clause, canonical, name):
+            return True, None
+        if clause["patterns"] == patterns:
+            replaced = position
+    return False, replaced
+
+
+def _defined_result(
+    space: Any,
+    name: str,
+    compiled: Compiled,
+    body: Atom,
+    dispatcher: Any,
+) -> Defined:
+    return Defined(
+        name,
+        compiled.params,
+        body,
+        dispatcher,
+        space,
+        patterns=compiled.patterns,
+        runtime_ops=compiled.runtime_ops,
+    )
+
+
+def _store_clause(
+    space: Any,
+    earlier: list[dict[str, Any]],
+    *,
+    patterns: dict[str, Atom],
+    equation: Expr,
+    compiled: Compiled,
+    dispatcher: Any,
+    clause_twin: Any,
+    replaced: int | None,
+) -> None:
+    record = {
+        "patterns": patterns.copy(),
+        "equation": equation,
+        "aux": tuple(compiled.aux),
+    }
+    if replaced is None:
+        earlier.append(record)
+        append_twin_clause(dispatcher, clause_twin)
+    else:
+        space.remove(earlier[replaced]["equation"])
+        for helper_equation in earlier[replaced].get("aux", ()):
+            space.remove(helper_equation)
+        earlier[replaced] = record
+        replace_twin_clause(dispatcher, replaced, clause_twin)
+    for helper_equation in compiled.aux:
+        space.add(helper_equation)
+    space.add(equation)
+
+
+def _reflect_definition(space: Any, name: str) -> None:
+    space.runtime.must(
+        "petta_py_add(Space, W)",
+        Space=_ops_module.REFLECTION_SPACE,
+        W=Expr([Sym("defined"), Sym(space.space_name), Sym(name)]).to_wire(),
+    )
+
+
+def _declare_definition(
+    space: Any,
+    fn: types.FunctionType,
+    name: str,
+    params: list[str],
+) -> None:
+    annotated = resolved_annotations(fn)
+    key = (space.space_name, name)
+    if not any(label != "return" for label in annotated) or _DECLARED_DEFINES.get(key):
+        return
+    annotations = [annotated.get(param, _inspect.Parameter.empty) for param in params]
+    ret_annotation = annotated.get("return", _inspect.Parameter.empty)
+    for declaration in declaration_exprs(name, annotations, ret_annotation):
+        space.add(declaration)
+    for cls in referenced_classes([*annotations, ret_annotation]):
+        for extra in class_declarations(cls):
+            space.add(extra)
+    _DECLARED_DEFINES[key] = True
+
+
+def _install_define_locked(space: Any, fn: types.FunctionType):
+    """Compile a Python function into MeTTa equations, decorator-style.
+
+    Written for whoever is fluent in Python rather than s-expressions:
+    the body is read as syntax and lowered deterministically, refusals
+    name the construct, the line and what to write instead, and the
+    original stays reachable as .py, a twin the equations can be checked
+    against on any ground input.
+
+        @m.define
+        def add_one(n):
+            return n + 1
+
+        m.run("!(add-one 5)")       # [[6]]
+        add_one.py(5)               # 6, ordinary Python
+
+    The equation name follows the operation naming rule: underscores
+    in the Python name become hyphens in MeTTa.
+
+    A generator compiles to nondeterminism (each yield one answer), a
+    lambda to the engine's own |->, a comprehension to map-atom and
+    filter-atom, and match(Pattern(x, y), template) to a match against
+    the running space, lowercase free names in the pattern binding as
+    variables.
+    """
+    if not isinstance(fn, types.FunctionType):
+        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
+
+    # The equation's name follows the operation rule: underscores read
+    # as hyphens, one policy across both decorators.
+    name = fn.__name__.replace("_", "-")
+    compiled = compile_function(
+        fn,
+        known=space.is_function,
+        nondet=partial(_is_nondeterministic, space),
+        metta_name=name,
+    )
+    params, patterns, body = compiled.params, compiled.patterns, compiled.body
+    # Clause stacking is per (space, name), process-wide: equations live
+    # in the space, not in whichever MeTTa instance happened to add them.
+    earlier = _DEFINE_CLAUSES.setdefault((space.space_name, name), [])
+    first_clause = not earlier
+    _validate_clause_order(space, name, patterns, earlier)
     # MeTTa equations are alternatives, and a Python author stacking
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
@@ -157,87 +276,38 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
     # change must replace the old clause and its old helpers.
     equations = (equation, *compiled.aux)
     canonical = canonical_aux_set(equations, name)
-    clause_twin = (
-        hazard_twin(name, compiled.hazards, patterns, params) if compiled.hazards else compiled.twin
+    clause_twin = select_clause_twin(
+        name,
+        compiled.twin,
+        compiled.hazards,
+        patterns,
+        params,
     )
-    replaced = None
-    for position, clause in enumerate(earlier):
-        old_equations = (clause["equation"], *clause.get("aux", ()))
-        old_canonical = canonical_aux_set(old_equations, name)
-        if len(old_canonical) == len(canonical) and all(
-            alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
-        ):
-            # The identical clause again, a re-run cell or module
-            # reload: adding it would duplicate answers, so it stands.
-            return Defined(
-                name,
-                params,
-                body,
-                dispatcher,
-                space,
-                patterns=patterns,
-                runtime_ops=compiled.runtime_ops,
-            )
-        if clause["patterns"] == patterns:
-            replaced = position
-    if replaced is not None:
-        # The same head with a new body is a redefinition of that
-        # clause, the notebook reading; the old equation goes, the new
-        # one takes its place in both the space and the twin dispatch.
-        space.remove(earlier[replaced]["equation"])
-        for helper_equation in earlier[replaced].get("aux", ()):
-            space.remove(helper_equation)
-        earlier[replaced] = {
-            "patterns": patterns.copy(),
-            "equation": equation,
-            "aux": tuple(compiled.aux),
-        }
-        replace_twin_clause(dispatcher, replaced, clause_twin)
-    else:
-        earlier.append(
-            {
-                "patterns": patterns.copy(),
-                "equation": equation,
-                "aux": tuple(compiled.aux),
-            }
-        )
-        append_twin_clause(dispatcher, clause_twin)
-    for helper_equation in compiled.aux:
-        space.add(helper_equation)
-    space.add(equation)
+    duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
+    defined = _defined_result(space, name, compiled, body, dispatcher)
+    if duplicate:
+        # A re-run cell or module reload must not duplicate answers.
+        return defined
+    _store_clause(
+        space,
+        earlier,
+        patterns=patterns,
+        equation=equation,
+        compiled=compiled,
+        dispatcher=dispatcher,
+        clause_twin=clause_twin,
+        replaced=replaced,
+    )
     if first_clause:
         # The function reflects into the library's own space, one fact
         # per (space, name), following the space through clear().
-        space.runtime.must(
-            "petta_py_add(Space, W)",
-            Space=_ops_module.REFLECTION_SPACE,
-            W=Expr([Sym("defined"), Sym(space.space_name), Sym(name)]).to_wire(),
-        )
+        _reflect_definition(space, name)
     # Annotations declare the type, exactly as they do for operations,
     # once per name so stacked clauses do not repeat the declaration.
-    annotated = resolved_annotations(fn)
-    if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get(
-        (space.space_name, name)
-    ):
-        annotations = [annotated.get(p, _inspect.Parameter.empty) for p in params]
-        ret_annotation = annotated.get("return", _inspect.Parameter.empty)
-        for declaration in declaration_exprs(name, annotations, ret_annotation):
-            space.add(declaration)
-        for cls in referenced_classes([*annotations, ret_annotation]):
-            for extra in class_declarations(cls):
-                space.add(extra)
-        _DECLARED_DEFINES[(space.space_name, name)] = True
+    _declare_definition(space, fn, name, params)
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.space_name, name))
-    return Defined(
-        name,
-        params,
-        body,
-        dispatcher,
-        space,
-        patterns=patterns,
-        runtime_ops=compiled.runtime_ops,
-    )
+    return defined
 
 
 def install_type(

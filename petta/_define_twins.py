@@ -99,6 +99,19 @@ def hazard_twin(
     return _guard_twin(unrunnable, name, params or [], patterns)
 
 
+def select_clause_twin(
+    name: str,
+    twin: Callable[..., Any],
+    hazards: frozenset[str],
+    patterns: dict[str, Atom],
+    params: list[str],
+) -> Callable[..., Any]:
+    """Choose the runnable twin or a precise engine-only refusal."""
+    if hazards:
+        return hazard_twin(name, hazards, patterns, params)
+    return twin
+
+
 def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
     """The dispatcher for fn's name in fn's module, created on first use and
     pushed into every twin-globals view of that module."""
