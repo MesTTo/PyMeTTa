@@ -5,6 +5,9 @@
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
 %   - Removing one scoped get-type rule keeps sibling extension rules visible
 %     [tested 2026-08-15: spaces_type_extensions].
+%   - Clearing a native space clears its import life without making wildcard
+%     atom removal touch that life [tested 2026-08-15:
+%     filereader_import_lifecycle].
 %   - Dynamic function registration is atomic and failed source loads remove
 %     its asserted compiler state [tested 2026-08-14:
 %     spaces_registration_atomicity, filereader_source_rollback].
@@ -247,7 +250,8 @@ native_expression_recover(E) :- recover_failure(E).
 clear_native_atoms(Space) :- forall(( current_predicate(Space/Arity),
                                       functor(Head, Space, Arity) ),
                                     retractall(Head)),
-                             retractall(native_scalar(Space, _)).
+                             retractall(native_scalar(Space, _)),
+                             retractall(import_life(Space, _, _)).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
 get_native_atom(Space, Pattern) :- current_predicate(Space/Arity),

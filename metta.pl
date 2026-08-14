@@ -4,6 +4,9 @@
 %   - get-type/2 returns each derived type once, while has_type/2 uses one
 %     witness for a fixed expected type [tested 2026-08-15:
 %     metta_type_answers, translator_typed_checks].
+%   - Import lifecycle state is separate from atom storage, so wildcard atom
+%     removal cannot make a loaded source run twice [tested 2026-08-15:
+%     filereader_import_lifecycle].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
@@ -623,45 +626,51 @@ resolve_python_import_path(File, CanonPath) :-
        ; throw_missing_import(File) ).
 
 :- dynamic imported_metta_source/2.
+:- dynamic import_life/3.
 
-% A native space owns a hidden marker for each import in its current life.
-% Clearing the space removes these clauses, so a pooled name reloads its atoms
-% while compiled source clauses remain process-wide and are not duplicated.
-import_life_marker :- fail.
-
-import_life_marker_head(Space, CanonPath, Head) :-
-    Head =.. [Space, '$petta_import', CanonPath].
-
-import_life_loaded(Space, CanonPath) :-
+%Import state cannot live as a clause of the space predicate: wildcard
+%remove-atom retracts every unifying clause, including rules. Loading is
+%visible while recursive imports run so cycles terminate; success changes the
+%state to loaded. A full space clear owns removal of both states.
+import_life_current(Space, CanonPath) :-
     atom(Space), !,
-    import_life_marker_head(Space, CanonPath, Head),
-    clause(Head, import_life_marker, _).
-import_life_loaded(_, _).
+    import_life(Space, CanonPath, _).
+import_life_current(_, _).
 
 assert_import_life_marker(Space, CanonPath, Ref) :-
     atom(Space), !,
-    import_life_marker_head(Space, CanonPath, Head),
-    assertz((Head :- import_life_marker), Ref).
+    assertz(import_life(Space, CanonPath, loading), Ref).
 assert_import_life_marker(_, _, none).
 
 erase_import_life_marker(none) :- !.
 erase_import_life_marker(Ref) :-
     ( clause_property(Ref, erased) -> true ; erase(Ref) ).
 
+finish_import_life(_, _, none, _) :- !.
+finish_import_life(Space, CanonPath, Ref, exit) :- !,
+    erase_import_life_marker(Ref),
+    assertz(import_life(Space, CanonPath, loaded)).
+finish_import_life(_, _, Ref, _) :-
+    erase_import_life_marker(Ref).
+
 run_with_import_life_marker(Space, CanonPath, Goal) :-
     setup_call_catcher_cleanup(
         assert_import_life_marker(Space, CanonPath, Ref),
         once(Goal),
         Catcher,
-        ( Catcher == exit -> true ; erase_import_life_marker(Ref) )).
+        finish_import_life(Space, CanonPath, Ref, Catcher)).
+
+clear_import_life(Space, CanonPath) :-
+    ( atom(Space) -> retractall(import_life(Space, CanonPath, _)) ; true ).
 
 % Assert both markers before loading to break cycles. Retain them on success
 % and retract them on failure. The recursive mutex serializes the loader graph.
 import_once(Space, CanonPath, Goal) :-
     ( imported_metta_source(Space, CanonPath),
-      import_life_loaded(Space, CanonPath)
+      import_life_current(Space, CanonPath)
       -> true
        ; retractall(imported_metta_source(Space, CanonPath)),
+         clear_import_life(Space, CanonPath),
          run_with_loading_marker(
              imported_metta_source(Space, CanonPath),
              run_with_import_life_marker(Space, CanonPath, Goal)) ).
