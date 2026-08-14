@@ -20,7 +20,7 @@ import inspect
 import textwrap
 import types
 from collections.abc import Callable
-from typing import Any, NamedTuple, cast
+from typing import Any, NamedTuple, TypeVar, cast
 
 from ._define_expression import ExpressionCompilerMixin
 from ._define_loops import LoopCompilerMixin
@@ -32,6 +32,24 @@ from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
 __all__ = ["Defined", "compile_function"]
+
+_T = TypeVar("_T")
+
+
+def _provided(value: _T | None, default: _T) -> _T:
+    return default if value is None else value
+
+
+def _never(_name: str) -> bool:
+    return False
+
+
+def _builtins_namespace() -> dict[str, Any]:
+    return __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+
+
+def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
+    return params.copy() if isinstance(params, dict) else {param: param for param in params}
 
 
 def canonical_aux(equation: Expr, name: str) -> Expr:
@@ -306,38 +324,32 @@ class _Compiler(
         # The Python spelling of the definition's own name, for recursion
         # written the way the author wrote it; self.name is the MeTTa one.
         self.pyname = pyname or name
-        self._builtins = (
-            __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
-        )
+        self._builtins = _builtins_namespace()
         # Whether an identifier resolves to a host binding (a global or a
         # closure cell): a capitalized name that does is a module constant,
         # not a data constructor, and compiles to a refusal.
-        self.host = host or (lambda _: False)
+        self.host = _provided(host, _never)
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
-        self.runtime_ops: set[str] = runtime_ops if runtime_ops is not None else set()
-        self.hazards: set[str] = hazards if hazards is not None else set()
-        self.scope: dict[str, str] = (
-            dict(params) if isinstance(params, dict) else {p: p for p in params}
-        )
+        self.runtime_ops: set[str] = _provided(runtime_ops, set())
+        self.hazards: set[str] = _provided(hazards, set())
+        self.scope = _initial_scope(params)
         self.known = known
         # Whether a name is known to answer nondeterministically (a compiled
         # generator or a generator operation): iterating one binds the call
         # directly, since the call itself is the fork.
-        self._given_nondet = nondet or (lambda _: False)
+        self._given_nondet = _provided(nondet, _never)
         # Every variable name any compiler of this definition has minted;
         # shared across forks so two branches never mint the same fresh name.
-        self.used: set[str] = used if used is not None else set(self.scope.values())
+        self.used: set[str] = _provided(used, set(self.scope.values()))
         # Auxiliary equations this definition grows: loop helpers and lifted
         # inner definitions, shared by every compiler of the definition.
-        self.aux: list[Expr] = aux if aux is not None else []
+        self.aux: list[Expr] = _provided(aux, [])
         # Python name -> (equation name, lifted outer names, is_generator)
         # for inner defs; a call site prepends the lifted names' CURRENT
         # variables, which is Python's own late binding, resolved per call.
-        self.lifted: dict[str, tuple[str, list[str], bool]] = (
-            lifted if lifted is not None else {}
-        )
+        self.lifted: dict[str, tuple[str, list[str], bool]] = _provided(lifted, {})
         # What a block falling off its end means: None is the function-level
         # reading (a missing return is a refusal); a loop body's closer
         # builds the recursive call from the scope at that point.
