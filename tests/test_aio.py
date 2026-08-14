@@ -416,6 +416,16 @@ def test_aio_shutdown_handler_stops_forgotten_workers(m):
     assert not thread.is_alive()
 
 
+def test_aio_empty_shutdown_does_not_import_janus(monkeypatch):
+    def fail_bridge():
+        raise ModuleNotFoundError("No module named 'janus_swi'")
+
+    monkeypatch.setattr(aio, "_LIVE_WORKERS", [])
+    monkeypatch.setattr(aio, "bridge", fail_bridge)
+
+    aio._shutdown_workers()
+
+
 def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
     stopped = []
 

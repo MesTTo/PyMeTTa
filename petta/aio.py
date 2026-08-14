@@ -21,6 +21,8 @@ Guarantees:
     test_aio_shutdown_handler_stops_forgotten_workers]
   - interpreter shutdown attempts every worker and reports all expected
     stop failures together [tested test_aio_shutdown_handler_attempts_every_worker]
+  - interpreter shutdown without live workers does not initialize the
+    optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -417,8 +419,9 @@ def _forget_worker(worker: _EngineThread) -> None:
 def _shutdown_workers() -> None:
     with _LIVE_WORKERS_LOCK:
         workers = tuple(_LIVE_WORKERS)
-    if workers:
-        logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
+    if not workers:
+        return
+    logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
     failures: list[Exception] = []
     shutdown_errors = (
         PettaError,
