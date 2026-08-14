@@ -1,4 +1,7 @@
 """Purpose: unit tests for the atom model and wire encoding, engine-free.
+Owns:
+  - test_atom_identity_caches_are_thread_safe joins every cache worker
+    before checking identity [tested test_atom_identity_caches_are_thread_safe]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -8,7 +11,7 @@ Open Obligations:
 import copy
 import multiprocessing
 import pickle
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from decimal import Decimal
 from fractions import Fraction
 
@@ -346,6 +349,41 @@ def test_boxes_intern_per_object_identity():
     thing = object()
     assert boxed(thing) is boxed(thing)
     assert boxed(thing).value is thing
+
+
+def test_atom_identity_caches_are_thread_safe():
+    from petta.atoms import boxed
+
+    thing = object()
+    with ThreadPoolExecutor(max_workers=8) as workers:
+        boxes = list(workers.map(boxed, [thing] * 64))
+        symbols = list(workers.map(from_wire, [["s", "threaded"]] * 64))
+
+    assert all(box is boxes[0] for box in boxes)
+    assert all(symbol is symbols[0] for symbol in symbols)
+
+
+def test_namespace_cache_is_bounded():
+    from petta.atoms import _NAMESPACE_CACHE_MAX
+
+    for index in range(_NAMESPACE_CACHE_MAX + 50):
+        S[f"namespace-{index}"]
+    cache = object.__getattribute__(S, "_cache")
+    assert len(cache) == _NAMESPACE_CACHE_MAX
+    assert S["namespace-recent"] is S["namespace-recent"]
+
+
+def test_namespace_completion_surfaces_engine_errors(monkeypatch):
+    from petta import _engine
+
+    monkeypatch.setattr(_engine, "started", lambda: True)
+
+    def fail_runtime():
+        raise RuntimeError("completion engine failed")
+
+    monkeypatch.setattr(_engine, "runtime", fail_runtime)
+    with pytest.raises(RuntimeError, match="completion engine failed"):
+        S._ipython_key_completions_()
 
 
 def test_deep_terms_cross_and_print():
