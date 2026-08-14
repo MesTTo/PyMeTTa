@@ -20,8 +20,9 @@ import dataclasses
 import itertools
 import sys
 import typing
-from enum import Enum
-from typing import Any, Callable, NamedTuple
+from collections.abc import Iterable
+from enum import Enum, EnumType
+from typing import Any, Callable, NamedTuple, cast
 
 from .atoms import Atom, Expr, Gnd, S, Sym, decode, encode, val
 
@@ -191,7 +192,8 @@ def _default_registration(cls: type) -> _Registration | None:
     # subclass can exist, and the library keeps zero dependency on it.
     pydantic = sys.modules.get("pydantic")
     if pydantic is not None and issubclass(cls, pydantic.BaseModel):
-        names = tuple(cls.model_fields.keys())
+        model_cls: Any = cls
+        names = tuple(model_cls.model_fields.keys())
 
         def pydantic_parts(obj: Any) -> tuple[Any, ...]:
             extras = getattr(obj, "__pydantic_extra__", None)
@@ -211,7 +213,7 @@ def _default_registration(cls: type) -> _Registration | None:
             # with an alias validates under the alias in the constructor,
             # while projection read the ATTRIBUTE names, and by_name lets
             # the attribute names validate directly.
-            lambda *parts: cls.model_validate(
+            lambda *parts: model_cls.model_validate(
                 dict(zip(names, parts)), by_name=True
             ),
             cls.__name__,
@@ -339,7 +341,11 @@ def _project_symbol(value: Any, cls: type, registration: _Registration) -> Proje
         member = Sym(value.name)
         type_name = registration.type_name
         decls = [Expr([S[":"], Sym(type_name), S.Type])]
-        decls.extend(Expr([S[":"], Sym(m.name), Sym(type_name)]) for m in cls)
+        enum_cls = cast(EnumType, cls)
+        decls.extend(
+            Expr([S[":"], Sym(member.name), Sym(type_name)])
+            for member in cast(Iterable[Enum], enum_cls)
+        )
         return Projected(member, tuple(decls))
     text = str(value)
     return Projected(
@@ -424,13 +430,14 @@ def declarations(cls: type) -> tuple[Expr, ...]:
         decls = [Expr([S[":"], Sym(type_name), S.Type])]
         decls.extend(Expr([S[":"], Sym(m.name), Sym(type_name)]) for m in cls)
         return tuple(decls)
-    registration = _lookup(cls)
-    if registration is None:
-        registration = _default_registration(cls)
-        if registration is not None:
-            _record_registration(cls, registration)
-    if registration is None or registration.image != "expression":
+    found = _lookup(cls)
+    if found is None:
+        found = _default_registration(cls)
+        if found is not None:
+            _record_registration(cls, found)
+    if found is None or found.image != "expression":
         return ()
+    registration = found
     from .ops import type_atoms_for
 
     fields = registration.fields or ()

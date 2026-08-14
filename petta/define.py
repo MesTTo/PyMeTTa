@@ -246,6 +246,7 @@ def compile_function(
         host=host,
     )
     generator = _is_generator(definition)
+    body: Atom
     if generator:
         # A generator is nondeterminism: each yield is one answer, which is
         # exactly what superpose spells; branches contribute their own
@@ -268,7 +269,7 @@ def compile_function(
 
 def _is_generator(node: ast.FunctionDef) -> bool:
     """Whether THIS function yields: a nested def's yields are its own."""
-    stack = list(node.body)
+    stack: list[ast.AST] = list(node.body)
     while stack:
         sub = stack.pop()
         if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
@@ -936,6 +937,7 @@ class _Compiler(ast.NodeVisitor):
         self.lifted[node.name] = (mangled, lifted, generator)
 
         inner = self._equation_compiler(lifted + params)
+        body: Atom
         if generator:
             body = _superpose(inner.yield_answers(node.body))
         else:
@@ -1534,20 +1536,27 @@ class _Compiler(ast.NodeVisitor):
             value = self.expression(piece.value)
             if piece.format_spec is not None:
                 spec = piece.format_spec
-                if not (
-                    isinstance(spec, ast.JoinedStr)
-                    and all(
-                        isinstance(s, ast.Constant) and isinstance(s.value, str)
-                        for s in spec.values
-                    )
-                ):
+                if not isinstance(spec, ast.JoinedStr):
                     raise CompileError(
                         "a computed f-string format spec has no lowering; "
                         "write the spec literally, as in {x:.2f}",
                         construct="f-string",
                         line=node.lineno,
                     )
-                literal = "".join(s.value for s in spec.values)
+                literal_parts: list[str] = []
+                for format_piece in spec.values:
+                    if not (
+                        isinstance(format_piece, ast.Constant)
+                        and isinstance(format_piece.value, str)
+                    ):
+                        raise CompileError(
+                            "a computed f-string format spec has no lowering; "
+                            "write the spec literally, as in {x:.2f}",
+                            construct="f-string",
+                            line=node.lineno,
+                        )
+                    literal_parts.append(format_piece.value)
+                literal = "".join(literal_parts)
                 self.runtime_ops.add("py-format")
                 parts.append(Expr([Sym("py-format"), value, Gnd(literal)]))
             elif piece.conversion == ord("r"):

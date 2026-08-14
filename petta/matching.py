@@ -153,6 +153,8 @@ def install_regex(
 
     def generate(query: Any):
         source = lexicon() if callable(lexicon) else lexicon
+        if source is None:
+            raise RuntimeError("regex generation requires a lexicon")
         pattern = compiled(text_of(query))
         for candidate in source:
             if pattern.search(text_of(candidate)):

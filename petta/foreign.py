@@ -182,11 +182,12 @@ def foreign_match(space: str, pattern_wire: list):
     provider = PROVIDERS[space]
     pattern = atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
-    candidates = (
-        provider.match(pattern)
-        if isinstance(provider, Matcher)
-        else provider.atoms()
-    )
+    if isinstance(provider, Matcher):
+        candidates = provider.match(pattern)
+    elif isinstance(provider, Enumerable):
+        candidates = provider.atoms()
+    else:
+        raise RuntimeError("validated match provider has no candidate source")
     for candidate in candidates:
         yield encode(candidate).to_wire()
 
