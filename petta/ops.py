@@ -16,6 +16,7 @@ from collections.abc import Iterable
 from typing import Any, Callable
 
 from ._config import config
+from ._convert_registry import _lookup as _lookup_conversion
 from ._ops import REGISTRY, Operation
 from .atoms import Atom, Expr, S, Sym, Var, expr
 
@@ -209,9 +210,7 @@ def _class_type_name(cls: type) -> str:
     """The MeTTa name a class's instances answer to get-type: the
     registered spelling when the translator knows the class, its own
     name otherwise."""
-    from . import convert
-
-    registration = convert._lookup(cls)
+    registration = _lookup_conversion(cls)
     return registration.type_name if registration is not None else cls.__name__
 
 

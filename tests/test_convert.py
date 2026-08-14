@@ -1,12 +1,16 @@
 """Purpose: the four-image translator: defaults on sight, registration in
 the pytree shape, typed declarations, lossless rebuilds, and explicit
 refusals for unrepresentable state and type-name collisions.
+Owns:
+  - test_registration_collisions_are_serialized joins both registry workers
+    before checking the unique owner [tested test_registration_collisions_are_serialized]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, make_dataclass
 from enum import Enum
 from typing import NamedTuple
@@ -284,3 +288,39 @@ def test_invalid_namedtuple_fields_are_refused():
 
     with pytest.raises(TypeError, match="invalid NamedTuple fields"):
         project(InvalidTuple())
+
+def test_registration_collisions_are_serialized():
+    first = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
+    second = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
+
+    def attempt(cls):
+        try:
+            register_type(cls)
+        except ValueError:
+            return "collision"
+        return "owner"
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        outcomes = sorted(workers.map(attempt, (first, second)))
+
+    assert outcomes == ["collision", "owner"]
+
+
+def test_union_build_selects_by_shape_and_surfaces_reverse_errors():
+    assert build(Gnd(3), str | int) == 3
+
+    class BrokenReverse:
+        pass
+
+    def reject(_value):
+        raise TypeError("selected reverse failed")
+
+    register_type(
+        BrokenReverse,
+        name="BrokenReverseProbe",
+        to_atom=lambda value: (value,),
+        from_atom=reject,
+        fields=("value",),
+    )
+    with pytest.raises(TypeError, match="selected reverse failed"):
+        build(expr(S.BrokenReverseProbe, 1), BrokenReverse | str)

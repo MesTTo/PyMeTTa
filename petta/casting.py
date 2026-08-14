@@ -23,8 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._convert_registry import _is_plain_class
 from .atoms import Atom, Gnd, Sym, atom_from_wire, encode, parse
-from .convert import _is_plain_class
 from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
