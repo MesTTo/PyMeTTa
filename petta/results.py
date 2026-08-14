@@ -15,6 +15,8 @@ Guarantees:
     the omitted row count [tested test_rows_repr_is_bounded_and_recursive]
   - Rows.build preserves its requested class as the list element type [tested
     test_target_type_overloads_preserve_the_requested_class]
+  - Rows.to_dicts returns one Python-native mapping per row, including empty
+    mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,7 +35,7 @@ from typing import Any, Self, SupportsIndex, TypeVar, overload
 from . import convert
 from ._config import config
 from ._optional import require_module
-from .atoms import Gnd, decode
+from .atoms import Atom, Gnd, decode
 
 __all__ = ["Row", "Rows"]
 
@@ -42,6 +44,13 @@ _VALUE_REPR.maxlevel = 4
 _VALUE_REPR.maxstring = 80
 _VALUE_REPR.maxother = 120
 _BuildT = TypeVar("_BuildT")
+
+
+def _plain(value: Any) -> Any:
+    """Decode a ground value and spell symbolic structure as source text."""
+    if isinstance(value, Gnd):
+        return decode(value)
+    return str(value) if isinstance(value, Atom) else value
 
 
 class Row(tuple):
@@ -226,6 +235,16 @@ class Rows(UserList[Row]):
         two-way translator: typed rows, one call."""
         return [convert.build(value, cls) for value in self.column(column)]
 
+    def to_dicts(self) -> list[dict[str, Any]]:
+        """Return one Python-native column-to-value mapping per row."""
+        return [
+            {
+                name: _plain(value)
+                for name, value in zip(self.columns, row, strict=True)
+            }
+            for row in self
+        ]
+
     def table(self) -> dict[str, list[Any]]:
         """The columns as a dict of plain values, the one shape every
         DataFrame constructor takes: pl.DataFrame(rows.table()),
@@ -236,11 +255,9 @@ class Rows(UserList[Row]):
                 "table() cannot represent nonempty zero-column Rows as a column mapping"
             )
 
-        def plain(value: Any) -> Any:
-            return decode(value) if isinstance(value, Gnd) else str(value)
-
         return {
-            name: [plain(row[i]) for row in self] for i, name in enumerate(self.columns)
+            name: [_plain(row[i]) for row in self]
+            for i, name in enumerate(self.columns)
         }
 
     def to_df(self):

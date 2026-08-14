@@ -1,5 +1,8 @@
-"""Purpose: the Rows container's sequence, copy, pickle, DataFrame, and
-notebook interop surface, including named dependency refusals.
+"""Purpose: the Rows container's sequence, copy, pickle, record, DataFrame,
+and notebook interop surface, including named dependency refusals.
+Guarantees:
+  - Rows.to_dicts returns one Python-native mapping per row and preserves
+    zero-column row counts [tested test_rows_to_dicts_returns_plain_records]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,6 +45,19 @@ def test_rows_to_df_builds_or_names_the_need(m):
             rows.to_df()
     else:
         assert rows.to_df()["points"].tolist() == [3]
+
+
+def test_rows_to_dicts_returns_plain_records(m):
+    m.add_table("score", [("ada", 3), ("bob", 5)])
+    rows = m.query(S.score(V.who, V.points))
+    assert rows.to_dicts() == [
+        {"who": "ada", "points": 3},
+        {"who": "bob", "points": 5},
+    ]
+    assert Rows((), [(), ()]).to_dicts() == [{}, {}]
+    native = Rows(("who", "points"), [("ada", 3)])
+    assert native.to_dicts() == [{"who": "ada", "points": 3}]
+    assert native.table() == {"who": ["ada"], "points": [3]}
 
 
 def test_rows_render_as_an_html_table():
