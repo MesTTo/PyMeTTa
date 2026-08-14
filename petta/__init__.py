@@ -5,6 +5,8 @@ Python-backed MeTTa functions, structured queries and proof trees.
 Guarantees:
   - importing petta and petta.cli does not require janus_swi until an
     engine-backed API is used [tested test_package_import_does_not_require_janus]
+  - optional integration modules load only when requested [tested
+    test_optional_surfaces_load_only_when_requested]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,6 +20,7 @@ Open Obligations:
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
 """
 
+import importlib
 import logging
 import sys
 
@@ -27,6 +30,19 @@ from ._version import __version__
 
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+_LAZY_MODULES = frozenset(
+    {
+        "aio",
+        "arrays",
+        "das",
+        "matching",
+        "measure",
+        "persistent",
+        "remote",
+        "testing",
+    }
+)
 
 
 class PeTTa:
@@ -63,25 +79,26 @@ class PeTTa:
 
 
 def __getattr__(name: str):
-    """Resolve the legacy janus module only when a caller asks for it."""
+    """Resolve optional modules and the Janus bridge only when requested."""
     if name == "janus":
         return _engine.bridge()
+    if name in _LAZY_MODULES:
+        module = importlib.import_module(f".{name}", __name__)
+        globals()[name] = module
+        return module
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+def __dir__() -> list[str]:
+    """Include lazy public modules in package discovery."""
+    return sorted(globals().keys() | _LAZY_MODULES | {"janus"})
+
+
 from . import (  # noqa: E402
-    aio,
-    arrays,
     convert,
-    das,
     foreign,
     integrate,
     lint,
-    matching,
-    measure,
-    persistent,
-    remote,
-    testing,
     trace,
 )
 from ._engine import engine_thread  # noqa: E402
