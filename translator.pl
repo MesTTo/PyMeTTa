@@ -19,6 +19,8 @@
 %     [tested 2026-08-14: translator_terminal_output].
 %   - Special forms dispatch through first-argument-indexed clauses
 %     [tested 2026-08-14: translator_special_dispatch].
+%   - Higher-arity dynamic calls bypass the operator-table lookup
+%     [tested 2026-08-14: tests/performance/reduce_dispatch.pl].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -139,7 +141,7 @@ reduce([F|Args], Out) :- nonvar(F), atom(F),
                             Arity is N + 1,
                             ( ( Module == user -> current_predicate(F/Arity)
                                                ; current_predicate(Module:F/Arity) ),
-                              \+ (current_op(_, _, F), Arity =< 2)
+                              \+ (Arity =< 2, current_op(_, _, F))
                               -> resolve_memoization(F, Args, Out, Goal),
                                  ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
                                  call(CallGoal)
