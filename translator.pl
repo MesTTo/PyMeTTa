@@ -439,10 +439,7 @@ translate_special_dl('foldl-atom', [ListExpr, InitialExpr, AccVar, ItemVar,
     translate_expr_to_conj(Body, BodyConj, BodyValue),
     exclude(==(true), [ListConj, InitialConj], PrefixGoals),
     append(PrefixGoals,
-           [foldl([ItemVar, AccVar, Next]>>
-                      (BodyConj,
-                       (number(BodyValue) -> Next is BodyValue
-                                          ; Next = BodyValue)),
+           [foldl([ItemVar, AccVar, Next]>>(BodyConj, Next = BodyValue),
                   List, Initial, Out)|Goals],
            AfterHead).
 translate_special_dl('map-atom', [ListExpr, ItemVar, Body],
@@ -451,10 +448,7 @@ translate_special_dl('map-atom', [ListExpr, ItemVar, Body],
     translate_expr_to_conj(Body, BodyConj, BodyValue),
     exclude(==(true), [ListConj], PrefixGoals),
     append(PrefixGoals,
-           [maplist([ItemVar, ItemOut]>>
-                        (BodyConj,
-                         (number(BodyValue) -> ItemOut is BodyValue
-                                            ; ItemOut = BodyValue)),
+           [maplist([ItemVar, ItemOut]>>(BodyConj, ItemOut = BodyValue),
                     List, Out)|Goals],
            AfterHead).
 translate_special_dl('filter-atom', [ListExpr, ItemVar, Condition],
