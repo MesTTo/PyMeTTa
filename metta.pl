@@ -758,14 +758,14 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
-                          '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
+                          '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
-                          repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, 'mm2-exec', 'mork-add-atoms', 'mork-flush', atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'git-import!',
-                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space', 'get-mettatype',
-                          decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,
-                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','set_hook',
+                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
+                          decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', sread, cons, reverse,
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
@@ -773,3 +773,14 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
                           import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
                           'add-translator-rule!', 'remove-translator-rule!', argv]).
+
+%The mork bridge's builtins come with morkspaces, which loads only in mork
+%mode, so their registration is gated the same way. Registering a name whose
+%predicate is absent records no arity, and incomplete_application_kind/3 reads
+%"no arity" as "not applied far enough": every call to it then compiled to a
+%partial application, so (mm2-exec &mork 1) answered (partial mm2-exec (&mork
+%1)) instead of running or failing.
+:- current_prolog_flag(argv, Argv),
+   ( member(mork, Argv)
+     -> maplist(register_fun, ['mm2-exec', 'mork-add-atoms', 'mork-flush'])
+      ; true ).
