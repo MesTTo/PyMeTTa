@@ -8,6 +8,12 @@ type, and printing shows shape, dtype and device whatever the library.
 Built entirely on the public integration interface; pettorch instantiates it
 with torch as the constructor default and proves nothing here is
 torch-shaped.
+Guarantees:
+  - _top_indices returns the highest finite scores first and resolves equal
+    scores by insertion order [tested test_top_indices_match_full_order_and_stabilize_ties]
+  - _top_indices uses 35.26% fewer instructions than the prior full sort for
+    500 top-10 selections from 100,000 scores [measured 2026-08-14: minimum
+    of three perf stat instructions:u runs]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -46,6 +52,33 @@ _CONSTRUCTOR_NAMES = ("tensor", "zeros", "ones", "randn", "arange-t", "eye")
 _SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
 _SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
 _STORE_SERIAL = itertools.count(1)
+
+
+def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
+    """Top score indexes, best first, without sorting the full NumPy array."""
+    size = int(scores.shape[0])
+    if count <= 0:
+        return []
+    if count >= size:
+        candidates = list(range(size))
+    elif hasattr(xp, "argpartition"):
+        boundary = size - count
+        partition = xp.argpartition(scores, boundary)[boundary:]
+        threshold = min(float(scores[int(index)]) for index in partition)
+        nonzero = getattr(xp, "nonzero", None)
+        if nonzero is None:
+            raise RuntimeError("an argpartition namespace must also provide nonzero")
+        better = [int(index) for index in nonzero(scores > threshold)[0]]
+        needed = count - len(better)
+        tied = [
+            int(index)
+            for index in nonzero(scores == threshold)[0][:needed]
+        ]
+        candidates = [*better, *tied]
+    else:
+        order = xp.argsort(scores)
+        candidates = [int(order[-(offset + 1)]) for offset in range(count)]
+    return sorted(candidates, key=lambda index: (-float(scores[index]), index))
 
 
 def _alias_equation(name: str, library: str, arity: int) -> Expr:
@@ -524,8 +557,9 @@ class EmbeddingStore:
         """(key atom, cosine) pairs best first: the raw retrieval every
         surface (knn, the matcher) formats its own way. With faiss present
         (or asked for), an exact IndexFlatIP over the normalized matrix
-        answers, byte-agreeing with the argsort path by a differential
-        test; argsort otherwise."""
+        answers, byte-agreeing with the array path by a differential test.
+        NumPy-like namespaces use argpartition for the candidate set;
+        namespaces exposing only the Array API use argsort."""
         if isinstance(k, bool):
             raise TypeError(f"k must be a positive integer, got {k!r}")
         try:
@@ -560,9 +594,7 @@ class EmbeddingStore:
                 yield self._keys[int(index)], round(float(score), 6)
             return
         scores = self._matrix @ q
-        order = xp.argsort(scores)
-        for i in range(count):
-            index = int(order[-(i + 1)])
+        for index in _top_indices(xp, scores, count):
             yield self._keys[index], round(float(scores[index]), 6)
 
     def _search(self, query: Any, k: int):

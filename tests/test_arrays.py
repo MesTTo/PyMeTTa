@@ -103,6 +103,20 @@ def test_embedding_store_runs_on_numpy(am):
     assert scores == sorted(scores, reverse=True)
 
 
+def test_top_indices_match_full_order_and_stabilize_ties():
+    xp = arrays.namespace_of(numpy.array([0.0]))
+    scores = numpy.random.default_rng(7).normal(size=10_000)
+    expected = sorted(
+        range(len(scores)), key=lambda index: (-float(scores[index]), index)
+    )[:25]
+    assert arrays._top_indices(xp, scores, 25) == expected
+
+    ties = numpy.array([0.5, 1.0, 1.0, 1.0, 0.1])
+    assert arrays._top_indices(xp, ties, 2) == [1, 2]
+    assert arrays._top_indices(xp, ties, 0) == []
+    assert arrays._top_indices(xp, ties, len(ties)) == [1, 2, 3, 0, 4]
+
+
 def test_same_named_embedding_stores_route_per_space(metta):
     with metta.fresh_space() as left, metta.fresh_space() as right:
         left_store = arrays.EmbeddingStore(left, name="shared-emb")
