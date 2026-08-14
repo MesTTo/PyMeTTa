@@ -38,17 +38,19 @@ from __future__ import annotations
 
 import builtins as _builtins
 import os
-import stat
-import tempfile
 import types
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any, Literal, overload
 
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
 from ._space_execution import evaluate, profile_source, run_source, value_one
+from ._space_persistence import (
+    load_space,
+    raise_unsafe_text_symbol,
+    save_space,
+)
 from ._space_objects import (
     Cursor,
     EngineProfile,
@@ -100,48 +102,6 @@ def _to_stored_atom(value: Any) -> Expr:
             f"Wrap a bare value in structure, as in (value {atom})."
         )
     return atom
-
-
-def _open_maybe_gz(path: str | os.PathLike[str], mode: str):
-    """Open a save or load path, gzip-compressed when it ends .gz. The
-    engine side mirrors this with zlib's gzopen, so both readers accept
-    either writer's files."""
-    file = os.fspath(path)
-    if file.endswith(".gz"):
-        import gzip
-
-        return gzip.open(file, mode)
-    return open(file, mode)
-
-
-def _temporary_sibling(target: Path) -> Path:
-    """Create an exclusive temporary file beside target.
-
-    A sibling keeps the later replacement on one filesystem. The suffix is
-    retained because .gz selects the compressed writer on both sides of the
-    bridge.
-    """
-    descriptor, name = tempfile.mkstemp(
-        prefix=".petta-save-", suffix=target.suffix, dir=target.parent
-    )
-    os.close(descriptor)
-    temporary = Path(name)
-    if target.exists():
-        temporary.chmod(stat.S_IMODE(target.stat().st_mode))
-    return temporary
-
-
-def _sync_and_replace(temporary: Path, target: Path) -> None:
-    """Make temporary durable, replace target, then persist the directory."""
-    with temporary.open("rb") as handle:
-        os.fsync(handle.fileno())
-    os.replace(temporary, target)
-    if os.name == "posix":
-        descriptor = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
 
 
 class MeTTa:
@@ -371,46 +331,7 @@ class MeTTa:
         atomically replaces the target, so a failed save leaves the old file
         intact. Atoms carrying live host objects cannot survive either file
         and are refused."""
-        if format not in ("metta", "fast"):
-            raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
-        atoms = self.atoms()
-        for atom in atoms:
-            if not _serializable(atom):
-                raise ValueError(
-                    f"{atom} carries a live Python object; a file cannot "
-                    f"hold it. Remove it, or persist its data explicitly."
-                )
-            bad = _unsafe_text_symbol(atom)
-            if bad is not None:
-                _raise_unsafe_text_symbol(bad, "save")
-        target = Path(path)
-        temporary = _temporary_sibling(target)
-        try:
-            if format == "fast":
-                result = self._rt.apply_must("petta_py_fast_save", str(temporary), self._space)
-                if not isinstance(result, list) or len(result) != 2:
-                    raise EngineError(f"petta_py_fast_save returned an invalid result: {result!r}")
-                kind, value = result
-                if kind == "object":
-                    atom = atom_from_wire(value)
-                    raise ValueError(
-                        f"{atom} carries a live Python object; a file cannot "
-                        f"hold it. Remove it, or persist its data explicitly."
-                    )
-                if kind == "symbol":
-                    _raise_unsafe_text_symbol(atom_from_wire(value), "save")
-                if kind != "saved":
-                    raise EngineError(f"petta_py_fast_save returned an unknown result: {result!r}")
-                count = int(value)
-            else:
-                with _open_maybe_gz(temporary, "wt") as handle:
-                    for atom in atoms:
-                        handle.write(f"{atom}\n")
-                count = len(atoms)
-            _sync_and_replace(temporary, target)
-            return count
-        finally:
-            temporary.unlink(missing_ok=True)
+        return save_space(self._rt, self._space, self.atoms(), path, format)
 
     def load(self, path: str | os.PathLike[str]) -> list[list[Atom]]:
         """Add a text program or trusted fast cache to this space.
@@ -419,78 +340,7 @@ class MeTTa:
         Use clear() first or load into fresh_space() when replacement is wanted.
         A .gz path is detected and read through the decompressed bytes.
         """
-        file = str(path)
-        try:
-            with _open_maybe_gz(file, "rb") as handle:
-                is_fast = handle.read(len(b"PETTA-CACHE\t")) == b"PETTA-CACHE\t"
-        except OSError:
-            is_fast = False
-        if is_fast:
-            return self._load_fast(file)
-        row = self._rt.must("petta_py_load(File, Space, Groups)", File=file, Space=self._space)
-        return [[atom_from_wire(w) for w in group] for group in row.get("Groups", [])]
-
-    def _load_fast(self, path: str) -> list[list[Atom]]:
-        """Validate a trusted cache header, then let the engine read it."""
-        import re
-
-        expected_text = self._rt.apply_must("petta_py_fast_header")
-        expected_fields = str(expected_text).encode("ascii").split(b"\t")
-        try:
-            with _open_maybe_gz(path, "rb") as handle:
-                actual = handle.readline(512)
-        except OSError as exc:
-            raise EngineError(
-                f"cannot read the fast cache header from {path!r}: {exc}; "
-                f"re-save the cache from its source data"
-            ) from exc
-
-        def reject(reason: str) -> EngineError:
-            return EngineError(
-                f"cannot load fast cache {path!r}: {reason}; re-save it with "
-                f"this PeTTa and SWI-Prolog version"
-            )
-
-        if not actual.endswith(b"\n"):
-            raise reject("the header is truncated or malformed")
-        fields = actual[:-1].split(b"\t")
-        if len(fields) != 5:
-            raise reject("the header is malformed")
-        if fields[0] != expected_fields[0]:
-            raise reject("the cache marker is invalid")
-        if fields[1] != expected_fields[1]:
-            raise reject(f"magic tag {fields[1]!r} does not match {expected_fields[1]!r}")
-        if fields[2] != expected_fields[2]:
-            raise reject(f"format version {fields[2]!r} does not match {expected_fields[2]!r}")
-        if fields[3] != expected_fields[3]:
-            raise reject(
-                f"SWI-Prolog version {fields[3]!r} does not match the running "
-                f"version {expected_fields[3]!r}"
-            )
-        if not re.fullmatch(rb"[0-9a-f]{64}", fields[4]):
-            raise reject("the integrity hash is malformed")
-        try:
-            self._rt.do_must("petta_py_fast_load", path, self._space)
-        except EngineError as exc:
-            message = str(exc)
-            if not any(
-                tag in message
-                for tag in (
-                    "petta_fast_header_mismatch",
-                    "petta_fast_integrity_header",
-                    "petta_fast_integrity_mismatch",
-                    "petta_fast_read_failed",
-                    "petta_fast_payload_not_atom_list",
-                )
-            ):
-                raise EngineError(
-                    f"fast load failed while adding atoms from {path!r}: {exc}"
-                ) from exc
-            raise EngineError(
-                f"fast load failed for {path!r}: {exc}. The cache is corrupt "
-                f"or incomplete; re-save it from the source data."
-            ) from exc
-        return []
+        return load_space(self._rt, self._space, path)
 
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
@@ -619,7 +469,7 @@ class MeTTa:
                 f"its data explicitly."
             )
         if kind == "symbol":
-            _raise_unsafe_text_symbol(atom_from_wire(value), "digest")
+            raise_unsafe_text_symbol(atom_from_wire(value), "digest")
         if kind != "digest":
             raise EngineError(f"petta_py_digest returned an unknown result: {result!r}")
         return str(value)
@@ -1151,38 +1001,3 @@ class MeTTa:
     def runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
-
-
-def _serializable(atom: Atom) -> bool:
-    from .atoms import Gnd
-
-    stack = [atom]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, Gnd) and not isinstance(current.value, (bool, int, float, str)):
-            return False
-        if isinstance(current, Expr):
-            stack.extend(current.children)
-    return True
-
-
-def _unsafe_text_symbol(atom: Atom) -> Sym | None:
-    stack = [atom]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, Sym) and any(
-            character.isspace() or character in '()"' for character in current.name
-        ):
-            return current
-        if isinstance(current, Expr):
-            stack.extend(reversed(current.children))
-    return None
-
-
-def _raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
-    name = symbol.name if isinstance(symbol, Sym) else str(symbol)
-    raise ValueError(
-        f"{operation} cannot write symbol {name!r} as MeTTa text: symbol "
-        f"names containing whitespace, parentheses, or quotes have no "
-        f"round-trip text spelling"
-    )
