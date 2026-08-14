@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import S, V, expr, val
+from petta import PettaError, S, V, expr, val
 from petta import integrate as pi
 
 
@@ -24,6 +24,32 @@ def test_module_ops_bulk_registers_a_stdlib_module(metta):
     assert metta.run("!(sqrt 16.0)") == [[4.0]]
     assert metta.run("!(gcd 12 18)") == [[6]]
     assert metta.run("!(comb 5 2)") == [[10]]
+
+
+def test_uninspectable_callable_errors_are_classified(metta):
+    class Uninspectable:
+        @property
+        def __signature__(self):
+            raise TypeError("unsupported callable type")
+
+        def __call__(self, value):
+            return value
+
+    target = Uninspectable()
+    module = types.SimpleNamespace(__name__="uninspectable", target=target)
+    assert pi.module_ops(metta, module, ["target"]) == ["target"]
+    assert metta.run("!(target 7)") == [[7]]
+    with pytest.raises(PettaError, match=r"pass arities=\[\.\.\.\]") as caught:
+        pi.wrap_callable(metta, "strict-target", target)
+    assert isinstance(caught.value.__cause__, TypeError)
+
+
+def test_wrap_callable_rejects_required_keyword_only_parameters(metta):
+    def target(value, *, required):
+        return value + required
+
+    with pytest.raises(PettaError, match="required keyword-only parameter 'required'"):
+        pi.wrap_callable(metta, "keyword-only", target)
 
 
 def test_wrap_object_methods_with_effect_convention(metta):

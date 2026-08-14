@@ -7,6 +7,10 @@ from a module, an instance's methods as operations, protocol-based typing
 and printing, two-way value translation, structure reflected into facts,
 spaces backed by the library's own storage, and reflective py-field
 reasoning over any object.
+Assumes:
+  - inspect.signature reports unsupported callables with TypeError and
+    unavailable signatures with ValueError [source 2026-08-14:
+    https://docs.python.org/3/library/inspect.html#inspect.signature]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -126,6 +130,60 @@ def discover(m) -> list[str]:
 # ----------------------------------------------------------------- operations
 
 
+def _module_callable_names(module: Any) -> list[str]:
+    return [
+        name
+        for name, value in vars(module).items()
+        if not name.startswith("_") and callable(value) and not inspect.isclass(value)
+    ]
+
+
+def _require_callable(module: Any, pyname: str) -> Callable:
+    target = getattr(module, pyname)
+    if not callable(target):
+        raise PettaError(f"{module.__name__}.{pyname} is not callable")
+    return target
+
+
+def _operation_name(pyname: str, prefix: str | None, rename: dict[str, str]) -> str:
+    name = rename.get(pyname, pyname.replace("_", "-"))
+    return f"{prefix}{name}" if prefix else name
+
+
+def _spreads_positional_calls(target: Callable) -> bool:
+    """Whether module_ops must expose the conventional zero-to-four arities."""
+    try:
+        signature = inspect.signature(target)
+    except (TypeError, ValueError):
+        # A C callable or unsupported callable type has no trustworthy
+        # signature. The bulk helper serves its conventional common arities.
+        return True
+    return any(
+        parameter.kind is inspect.Parameter.VAR_POSITIONAL
+        for parameter in signature.parameters.values()
+    )
+
+
+def _register_module_callable(
+    m: Any,
+    target: Callable,
+    name: str,
+    *,
+    raw: bool,
+    typed: bool,
+) -> None:
+    if _spreads_positional_calls(target):
+        m.register_op(
+            _spread(target),
+            name=name,
+            raw=raw,
+            typed=False,
+            arities=[0, 1, 2, 3, 4],
+        )
+        return
+    m.register_op(target, name=name, raw=raw, typed=typed)
+
+
 def module_ops(
     m,
     module: Any,
@@ -145,44 +203,13 @@ def module_ops(
     overrides per function. Callables only; anything else named raises.
     """
     if names is None:
-        names = [
-            n
-            for n, v in vars(module).items()
-            if not n.startswith("_") and callable(v) and not inspect.isclass(v)
-        ]
+        names = _module_callable_names(module)
     registered = []
     rename = rename or {}
     for pyname in names:
-        fn = getattr(module, pyname)
-        if not callable(fn):
-            raise PettaError(f"{module.__name__}.{pyname} is not callable")
-        metta_name = rename.get(pyname, pyname.replace("_", "-"))
-        if prefix:
-            metta_name = f"{prefix}{metta_name}"
-        spread = False
-        try:
-            signature = inspect.signature(fn)
-        except ValueError:
-            # No introspectable signature (a C builtin): every call form is
-            # plausible, so the common arities serve.
-            spread = True
-        else:
-            # A variadic callable accepts every count, so the common
-            # arities are all reachable; keyword-only refusals propagate,
-            # since inventing forms for them would fail at call time.
-            spread = any(
-                p.kind is inspect.Parameter.VAR_POSITIONAL for p in signature.parameters.values()
-            )
-        if spread:
-            m.register_op(
-                _spread(fn),
-                name=metta_name,
-                raw=raw,
-                typed=False,
-                arities=[0, 1, 2, 3, 4],
-            )
-        else:
-            m.register_op(fn, name=metta_name, raw=raw, typed=typed)
+        target = _require_callable(module, pyname)
+        metta_name = _operation_name(pyname, prefix, rename)
+        _register_module_callable(m, target, metta_name, raw=raw, typed=typed)
         registered.append(metta_name)
     return registered
 
@@ -195,6 +222,39 @@ def _spread(fn: Callable) -> Callable:
     return call
 
 
+def _callable_arities(name: str, target: Callable) -> list[int]:
+    """Derive every reachable positional arity from one callable signature."""
+    try:
+        signature = inspect.signature(target)
+    except (TypeError, ValueError) as exc:
+        raise PettaError(
+            f"{name}: the callable's signature is not inspectable, so "
+            f"its call forms cannot be derived; pass arities=[...]"
+        ) from exc
+    positional = []
+    variadic = False
+    for parameter in signature.parameters.values():
+        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+            variadic = True
+        elif parameter.kind is inspect.Parameter.KEYWORD_ONLY and (
+            parameter.default is inspect.Parameter.empty
+        ):
+            raise PettaError(
+                f"{name}: required keyword-only parameter "
+                f"{parameter.name!r} is unreachable from a positional "
+                f"MeTTa call site"
+            )
+        elif parameter.kind in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        ):
+            positional.append(parameter)
+    required = sum(1 for parameter in positional if parameter.default is inspect.Parameter.empty)
+    if variadic:
+        return list(range(required, max(required + 1, 5)))
+    return list(range(required, len(positional) + 1))
+
+
 def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None = None):
     """One callable, any callable, as a MeTTa function under a chosen name.
 
@@ -205,37 +265,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     call forms with arities=[...] rather than being served invented ones.
     """
     if arities is None:
-        try:
-            signature = inspect.signature(target)
-        except ValueError as exc:
-            raise PettaError(
-                f"{name}: the callable's signature is not inspectable, so "
-                f"its call forms cannot be derived; pass arities=[...]"
-            ) from exc
-        positional = []
-        variadic = False
-        for parameter in signature.parameters.values():
-            if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-                variadic = True
-            elif parameter.kind is inspect.Parameter.KEYWORD_ONLY and (
-                parameter.default is inspect.Parameter.empty
-            ):
-                raise PettaError(
-                    f"{name}: required keyword-only parameter "
-                    f"{parameter.name!r} is unreachable from a positional "
-                    f"MeTTa call site"
-                )
-            elif parameter.kind in (
-                inspect.Parameter.POSITIONAL_ONLY,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            ):
-                positional.append(parameter)
-        required = sum(1 for p in positional if p.default is inspect.Parameter.empty)
-        if variadic:
-            # Every count is reachable through *args; serve the common ones.
-            arities = list(range(required, max(required + 1, 5)))
-        else:
-            arities = list(range(required, len(positional) + 1))
+        arities = _callable_arities(name, target)
 
     def call(*xs):
         return target(*xs)
