@@ -10,6 +10,8 @@
 %   - Host failures from builtins retain their ISO error class and name the
 %     written MeTTa operation [tested 2026-08-15:
 %     metta_operation_errors, translator_evaluation_errors].
+%   - is-alpha-member/3 tests unifiability without retaining bindings in its
+%     arguments [tested 2026-08-15: metta_alpha_membership].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
@@ -278,10 +280,13 @@ member(X, L, true) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
 
+%"Alpha" is historical. This predicate tests unifiability, with a bare query
+%variable matching only a variable list element. Double negation at the public
+%boundary keeps that test's bindings private; it is deliberately not =@=/2.
 member_alpha(X, [H|_]) :- (var(X) -> var(H) ; true), X = H, !.
 member_alpha(X, [_|T]) :- member_alpha(X, T).
 
-'is-alpha-member'(X, List, true) :- member_alpha(X, List), !.
+'is-alpha-member'(X, List, true) :- \+ \+ member_alpha(X, List), !.
 'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
