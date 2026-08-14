@@ -5,6 +5,8 @@
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
 %     [tested 2026-08-14: translator_test_answers].
+%   - Runtime builtins reject prebound outputs that they would not produce
+%     [tested 2026-08-14: metta_builtin_outputs].
 % Open Obligations:
 %   To Do: Resolve the remaining runtime findings in ai-prolog-review.md.
 %   Hacks: None
@@ -41,7 +43,7 @@ library(X, Y, Path) :- library_path(Base), atom_concat(_, X, Base), atomic_list_
 
 %%% Representation and parsing conversions: %%%
 id(X, X).
-repr(Term, R) :- swrite(Term, R).
+repr(Term, R) :- swrite(Term, Text), R = Text.
 repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, R) :- sread(Str, R).
 
@@ -74,13 +76,13 @@ exp(Arg,R) :- R is exp(Arg).
 '#min'(A, B, R) :- R #= min(A,B).
 '#max'(A, B, R) :- R #= max(A,B).
 '#<'(A, B, true)  :- A #< B, !.
-'#<'(_, _, false).
+'#<'(A, B, false) :- A #>= B.
 '#>'(A, B, true)  :- A #> B, !.
-'#>'(_, _, false).
+'#>'(A, B, false) :- A #=< B.
 '#='(A, B, true)  :- A #= B, !.
-'#='(_, _, false).
+'#='(A, B, false) :- A #\= B.
 '#\\='(A, B, true)  :- A #\= B, !.
-'#\\='(_, _, false).
+'#\\='(A, B, false) :- A #= B.
 'pow-math'(A, B, Out) :- Out is A ** B.
 'sqrt-math'(A, Out)   :- Out is sqrt(A).
 'abs-math'(A, Out)    :- Out is abs(A).
@@ -162,9 +164,9 @@ non_list(X) :- compound(X), X \= [_|_].
 'size-atom'(List, Size) :- non_list(List), !, Size = [].
 'size-atom'(List, Size) :- length(List, Size).
 'car-atom'([H|_], H) :- !.
-'car-atom'(_, []).
+'car-atom'(Term, []) :- \+ Term = [_|_].
 'cdr-atom'([_|T], T) :- !.
-'cdr-atom'(_, []).
+'cdr-atom'(Term, []) :- \+ Term = [_|_].
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
@@ -181,7 +183,7 @@ member_alpha(X, [H|_]) :- (var(X) -> var(H) ; true), X = H, !.
 member_alpha(X, [_|T]) :- member_alpha(X, T).
 
 'is-alpha-member'(X, List, true) :- member_alpha(X, List), !.
-'is-alpha-member'(_, _, false).
+'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
