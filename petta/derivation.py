@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import html
 import string
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TypeGuard
 
@@ -179,46 +180,49 @@ def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
     )
 
 
+def _step_node(node: Expr) -> Step:
+    if len(node) < 3:
+        raise ValueError(
+            f"malformed step node {node}: expected "
+            f"(step (call Call Out) Equation Child...)"
+        )
+    call_expr = node[1]
+    if not (_headed(call_expr, "call") and len(call_expr) == 3):
+        raise ValueError(f"malformed call node {call_expr}: expected (call Call Out)")
+    call, out = call_expr[1], call_expr[2]
+    children = tuple(_node(child) for child in node.children[3:])
+    return Step(call=call, answer=out, equation=node[2], children=children)
+
+
+def _fact_node(node: Expr) -> Fact:
+    if len(node) != 3:
+        raise ValueError(f"malformed fact node {node}: expected (fact Space Atom)")
+    space = node[1]
+    name = space.name if isinstance(space, Sym) else str(space)
+    return Fact(space=name, atom=node[2])
+
+
+def _text_node(
+    node: Expr,
+    name: str,
+    constructor: Callable[[str], Node],
+) -> Node:
+    if len(node) != 2:
+        raise ValueError(f"malformed {name} node {node}: expected ({name} Text)")
+    payload = node[1]
+    text = payload.value if isinstance(payload, Gnd) else str(payload)
+    return constructor(str(text))
+
+
 def _node(e: Atom) -> Node:
     if _headed(e, "step"):
-        if len(e) < 3:
-            raise ValueError(
-                f"malformed step node {e}: expected "
-                f"(step (call Call Out) Equation Child...)"
-            )
-        call_expr = e[1]  # (call (f args...) Out)
-        if not (_headed(call_expr, "call") and len(call_expr) == 3):
-            raise ValueError(
-                f"malformed call node {call_expr}: expected (call Call Out)"
-            )
-        call, out = call_expr[1], call_expr[2]
-        equation = e[2]
-        children = tuple(_node(c) for c in e.children[3:])
-        return Step(call=call, answer=out, equation=equation, children=children)
+        return _step_node(e)
     if _headed(e, "fact"):
-        if len(e) != 3:
-            raise ValueError(
-                f"malformed fact node {e}: expected (fact Space Atom)"
-            )
-        space = e[1]
-        name = space.name if isinstance(space, Sym) else str(space)
-        return Fact(space=name, atom=e[2])
+        return _fact_node(e)
     if _headed(e, "builtin"):
-        if len(e) != 2:
-            raise ValueError(
-                f"malformed builtin node {e}: expected (builtin Text)"
-            )
-        payload = e[1]
-        text = payload.value if isinstance(payload, Gnd) else str(payload)
-        return Builtin(text=str(text))
+        return _text_node(e, "builtin", Builtin)
     if _headed(e, "truncated"):
-        if len(e) != 2:
-            raise ValueError(
-                f"malformed truncated node {e}: expected (truncated Text)"
-            )
-        payload = e[1]
-        text = payload.value if isinstance(payload, Gnd) else str(payload)
-        return Truncated(text=str(text))
+        return _text_node(e, "truncated", Truncated)
     raise ValueError(
         f"malformed derivation node {e}: expected step, fact, builtin, or truncated"
     )
