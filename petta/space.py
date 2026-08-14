@@ -48,6 +48,7 @@ from typing import Any, Literal, overload
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
+from ._space_execution import evaluate, profile_source, run_source, value_one
 from ._space_objects import (
     Cursor,
     EngineProfile,
@@ -66,7 +67,6 @@ from .atoms import (
     _to_atom,
     atom_from_wire,
     encode,
-    from_wire,
     parse,
 )
 from .derivation import Derivation
@@ -239,13 +239,6 @@ class MeTTa:
 
     # ----------------------------------------------------------------- running
 
-    def _run_target(self, source: str, using: dict[str, Any] | None) -> tuple[str, list]:
-        """The (entry point, inputs) pair a run of this source crosses as."""
-        if not using:
-            return "petta_py_run", [source, self._space]
-        pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
-        return "petta_py_run_using", [source, self._space, pairs]
-
     @overload
     def run(
         self,
@@ -327,39 +320,17 @@ class MeTTa:
         Both cover engine state; a Python operation's side effects, and
         subscription callbacks already fired, stay where they happened.
         """
-        if atomic and speculative:
-            raise ValueError(
-                "atomic= and speculative= are exclusive: one commits the "
-                "run's writes whole, the other discards them whole"
-            )
-        pred, ins = self._run_target(source, using)
-        limits = _limits(timeout, inferences)
-        if limits is None and not (capture or atomic or speculative):
-            names = ["Src", "Space"] if not using else ["Src", "Space", "Pairs"]
-            goal = f"{pred}({', '.join(names)}, Groups)"
-            row = self._rt.must(goal, **dict(zip(names, ins)))
-            out = row.get("Groups", [])
-        else:
-            if atomic:
-                pred, ins = "petta_py_atomic", [pred, ins]
-            elif speculative:
-                pred, ins = "petta_py_speculative", [pred, ins]
-            if capture:
-                pred, ins = "petta_py_captured", [pred, ins]
-            seconds, steps = limits if limits is not None else (-1.0, -1)
-            row = self._rt.must(
-                "petta_py_limited(T, I, P, Ins, Out)",
-                T=seconds,
-                I=steps,
-                P=pred,
-                Ins=ins,
-            )
-            out = row.get("Out", [])
-        if capture:
-            groups_wire, text = out
-            groups = [[atom_from_wire(w) for w in group] for group in groups_wire]
-            return groups, text
-        return [[atom_from_wire(w) for w in group] for group in out]
+        return run_source(
+            self._rt,
+            self._space,
+            source,
+            using,
+            timeout=timeout,
+            inferences=inferences,
+            capture=capture,
+            atomic=atomic,
+            speculative=speculative,
+        )
 
     def profile(
         self,
@@ -382,18 +353,14 @@ class MeTTa:
         Profiling changes execution; it is a debugging surface, not a
         mode to leave on.
         """
-        pred, ins = self._run_target(source, using)
-        seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-        row = self._rt.must(
-            "petta_py_limited(T, I, P, Ins, Out)",
-            T=seconds,
-            I=steps,
-            P="petta_py_profiled",
-            Ins=[pred, ins],
+        return profile_source(
+            self._rt,
+            self._space,
+            source,
+            using,
+            timeout=timeout,
+            inferences=inferences,
         )
-        out, samples, ticks, nodes = row["Out"]
-        groups = [[atom_from_wire(w) for w in group] for group in out]
-        return groups, EngineProfile(samples, ticks, nodes)
 
     def save(self, path: str | os.PathLike[str], format: str = "metta") -> int:
         """Write every stored atom of this space, equations included, as
@@ -841,21 +808,15 @@ class MeTTa:
         `capture=True` the return value is (answers, text), text being
         everything the evaluation printed.
         """
-        entry = "petta_py_eval_res_all" if residuals else "petta_py_eval_all"
-        pred, ins = entry, [self._space, _to_atom(target).to_wire()]
-        limits = _limits(timeout, inferences)
-        if limits is None and not capture:
-            wires = self._rt.apply_must(pred, *ins)
-        else:
-            if capture:
-                pred, ins = "petta_py_captured", [pred, ins]
-            seconds, steps = limits if limits is not None else (-1.0, -1)
-            out = self._rt.apply_must("petta_py_limited", seconds, steps, pred, ins)
-            if capture:
-                wires, text = out
-                return [from_wire(w) for w in wires], text
-            wires = out
-        return [from_wire(w) for w in wires]
+        return evaluate(
+            self._rt,
+            self._space,
+            target,
+            timeout,
+            inferences,
+            capture=capture,
+            residuals=residuals,
+        )
 
     def value(
         self,
@@ -875,22 +836,7 @@ class MeTTa:
         symbols and structure stay atoms. eval() is the spelling for any
         number of answers, and carries the same timeout/inferences bounds."""
         answers = self.eval(target, timeout=timeout, inferences=inferences)
-        if len(answers) != 1:
-            raise EngineError(
-                f"value({_to_atom(target)}) expected exactly one answer, "
-                f"got {len(answers)}; use eval() for any number"
-            )
-        answer = answers[0]
-        from .atoms import Gnd, decode
-
-        if isinstance(answer, Undefined):
-            raise EngineError(
-                f"value({_to_atom(target)}) answered with undefined truth "
-                f"({answer.why}); a caller asking for THE value has "
-                f"asserted a definite one exists. eval() carries the "
-                f"third truth value."
-            )
-        return decode(answer) if isinstance(answer, Gnd) else answer
+        return value_one(target, answers)
 
     def stats(self) -> _StatsBlock:
         """The engine's own counters over a with-block, as deltas.
