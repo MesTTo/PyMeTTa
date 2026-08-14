@@ -8,6 +8,9 @@ event loop, never parallel evaluation. interrupt() stops the running
 evaluation through the engine's own thread_signal, the sqlite3 reading,
 and a cancelled task fires it on its own call, so asyncio timeouts stop
 the engine instead of abandoning it.
+Guarantees:
+  - interrupt_if_running throws the same reserved structured exception as
+    shim resource guards [tested test_aio_interrupt_stops_the_running_evaluation]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -205,7 +208,8 @@ class _EngineThread:
             # and this bypasses the runtime lock on purpose: the running
             # goal holds that lock, and the signal is how it lets go.
             pkg.janus.query_once(
-                "thread_signal(T, throw(petta_py_interrupted))",
+                "thread_signal(T, throw(error(petta_py_exception(interrupted, none), "
+                "context(petta, interrupted))))",
                 {"T": self._swi_thread},
             )
             return True

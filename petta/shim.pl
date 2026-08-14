@@ -3,6 +3,9 @@
 %   functions (deterministic and nondeterministic), evaluation, and proof-tree
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   src/main.pl; only adds predicates, never redefines engine ones.
+% Guarantees:
+%   - petta_py_raise/2 reserves one exact exception shape for Python-side
+%     classification [tested test_reserved_exception_shape_maps_by_kind]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -116,10 +119,19 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 %
 % Some exceptions are control signals rather than errors; converting one into a
 % value would swallow the very signal its thrower waits for.
+petta_py_raise(Kind, Detail) :-
+    throw(error(petta_py_exception(Kind, Detail), context(petta, Kind))).
+
+petta_py_exception_kind(
+    error(petta_py_exception(Kind, _), context(petta, _)), Kind) :-
+    memberchk(Kind, [syntax, time_limit, inference_limit, interrupted]).
+
 petta_py_control_exception(inference_limit_exceeded).
 petta_py_control_exception(time_limit_exceeded).
 petta_py_control_exception('$aborted').
 petta_py_control_exception(error(resource_error(_), _)).
+petta_py_control_exception(
+    error(petta_py_exception(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
@@ -128,14 +140,12 @@ petta_py_control_exception(error(resource_error(_), _)).
 % into one list at the end. These entry points run the identical pipeline and
 % keep the grouping instead: one answer list per ! directive, in source order.
 
-%Reader failures carry their own functor, petta_syntax_error/1, so the
-%Python side classifies by structure rather than by hunting the words
-%"syntax error" in arbitrary messages (a SQL error saying them is not a
-%MeTTa reader refusal).
+%Reader failures use the reserved petta_py_exception/2 envelope, so the
+%Python side classifies the thrown term rather than hunting arbitrary text.
 petta_py_tag_reader(Goal) :-
     catch(Goal, Caught,
           ( ( Caught = error(syntax_error(M), _) ; Caught = syntax_error(M) )
-            -> throw(error(petta_syntax_error(M), none))
+            -> petta_py_raise(syntax, M)
           ; throw(Caught) )).
 
 petta_py_run(Source, Space, Groups) :-
@@ -218,9 +228,8 @@ petta_py_load(File, Space, Groups) :-
 % current output. Both name their target as data, a listed entry point plus
 % its input list and one output, so they compose by listing
 % petta_py_captured as itself wrappable: limited over captured is a capture
-% inside a limit. Exceeding a guard throws a functor of its own
-% (petta_py_time_limit / petta_py_inference_limit), the petta_syntax_error
-% pattern: the Python side classifies structurally, never by message text.
+% inside a limit. Exceeding a guard throws the reserved exception envelope;
+% the Python side classifies its exact shape, never its rendered text.
 % A guard that stops a goal stops it mid-way, so writes it already made
 % stand, the honest semantics of every timeout.
 
@@ -254,11 +263,11 @@ petta_py_guarded(TimeS, Inf, Goal) :-
     ( TimeS < 0 -> Timed = Goal
     ; Timed = catch(call_with_time_limit(TimeS, Goal),
                     time_limit_exceeded,
-                    throw(error(petta_py_time_limit(TimeS), none))) ),
+                    petta_py_raise(time_limit, TimeS)) ),
     ( Inf < 0 -> call(Timed)
     ; call_with_inference_limit(Timed, Inf, Result),
       ( Result == inference_limit_exceeded
-        -> throw(error(petta_py_inference_limit(Inf), none))
+        -> petta_py_raise(inference_limit, Inf)
       ; true ) ).
 
 petta_py_captured(Pred, Ins, [Out, Text]) :-
@@ -318,7 +327,7 @@ petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Inf, prolog(E
     ( Inf < 0 -> Bounded = Goal
     ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
                   ( Result == inference_limit_exceeded
-                    -> throw(error(petta_py_inference_limit(Inf), none))
+                    -> petta_py_raise(inference_limit, Inf)
                   ; true ) )
     ),
     engine_create(Row, Bounded, Engine).
@@ -368,7 +377,7 @@ petta_py_parse(Source, Tagged) :-
     ( phrase(sexpr(Term, [], VarMap), Cs)
       -> petta_py_encode_named(Term, VarMap, Tagged)
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
-      throw(error(petta_syntax_error(Msg), none)) ).
+      petta_py_raise(syntax, Msg) ).
 
 %Print a tagged term the way PeTTa prints it:
 petta_py_swrite(Tagged, String) :-

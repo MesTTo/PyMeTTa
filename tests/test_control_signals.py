@@ -36,3 +36,37 @@ def test_control_signals_pass_through_recovery_catches(m):
     # Real errors still take the recovery: catch answers its Error term.
     (answer,) = m.eval("(catch (/ 1 0))")
     assert str(answer).startswith("(Error ")
+
+
+@pytest.mark.parametrize(
+    ("kind", "error_name"),
+    [
+        ("syntax", "MettaSyntaxError"),
+        ("time_limit", "TimeLimitError"),
+        ("inference_limit", "InferenceLimitError"),
+        ("interrupted", "Interrupted"),
+    ],
+)
+def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
+    import petta
+
+    error_type = getattr(petta, error_name)
+    with pytest.raises(error_type):
+        m.runtime.must("petta_py_raise(Kind, detail)", Kind=kind)
+
+
+@pytest.mark.parametrize(
+    "sentinel",
+    [
+        "petta_syntax_error",
+        "petta_py_time_limit",
+        "petta_py_inference_limit",
+        "petta_py_interrupted",
+    ],
+)
+def test_exception_names_nested_in_other_terms_stay_engine_errors(m, sentinel):
+    from petta import EngineError
+
+    with pytest.raises(EngineError) as failure:
+        m.runtime.must(f"throw(error(type_error({sentinel}, oops), none))")
+    assert type(failure.value) is EngineError

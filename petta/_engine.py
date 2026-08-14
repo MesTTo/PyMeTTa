@@ -2,6 +2,10 @@
 process, serializes janus calls behind one lock, and turns Prolog exceptions
 into the library's own errors. Coordinates with the legacy petta.PeTTa class
 through the package-level CONSULTED flag so both surfaces share one engine.
+Guarantees:
+  - Runtime classifies only the shim's exact reserved exception term shape
+    [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
+    test_reserved_exception_shape_maps_by_kind]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,6 +35,13 @@ _LOCK = threading.RLock()
 # mistaken for failure.
 _FAILED = object()
 _RUNTIME: "Runtime | None" = None
+
+_EXCEPTION_TYPES = {
+    "syntax": MettaSyntaxError,
+    "time_limit": TimeLimitError,
+    "inference_limit": InferenceLimitError,
+    "interrupted": Interrupted,
+}
 
 
 def started() -> bool:
@@ -292,18 +303,21 @@ class Runtime:
 
     def _raise(self, goal: str, exc: BaseException) -> NoReturn:
         message = _clean_message(exc)
-        # Reader refusals arrive tagged with their own functor by the shim
-        # (petta_py_tag_reader), so classification is structural: a SQL
-        # error that happens to say "syntax error" stays an EngineError.
-        # The resource guards tag the same way (petta_py_limited).
-        if "petta_syntax_error" in message:
-            raise MettaSyntaxError(message) from exc
-        if "petta_py_time_limit" in message:
-            raise TimeLimitError(message) from exc
-        if "petta_py_inference_limit" in message:
-            raise InferenceLimitError(message) from exc
-        if "petta_py_interrupted" in message:
-            raise Interrupted(message) from exc
+        term = getattr(exc, "term", None)
+        if term is not None:
+            try:
+                row = self._janus.query_once(
+                    "petta_py_exception_kind(Error, Kind)", {"Error": term}
+                )
+            except Exception as classifier_error:
+                raise EngineError(
+                    f"{message}; the exception classifier failed: "
+                    f"{_clean_message(classifier_error)}"
+                ) from exc
+            if row is not None and row.get("truth") is not False:
+                error_type = _EXCEPTION_TYPES.get(row.get("Kind"))
+                if error_type is not None:
+                    raise error_type(message) from exc
         raise EngineError(message) from exc
 
     # ------------------------------------------------------------------- helpers
