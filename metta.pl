@@ -550,7 +550,9 @@ importer_helper(Space, File) :-
 'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
                                       -> true ; assertz(translator_rule(HV)) ).
 
-'remove-translator-rule!'(HV, true) :- retractall(translator_rule(HV)).
+'remove-translator-rule!'(HV, true) :-
+    must_be(nonvar, HV),
+    retractall(translator_rule(HV)).
 
 %%% Registration: %%%
 :- dynamic fun/1, arity/2.
