@@ -554,10 +554,15 @@ importer_helper(Space, File) :-
 
 %%% Registration: %%%
 :- dynamic fun/1, arity/2.
-register_fun(N) :- fun(N), !.
-register_fun(N) :- assertz(fun(N)),
-                   forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
-                          (arity(N, Arity) -> true ; assertz(arity(N, Arity)))).
+register_fun(N) :- must_be(atom, N),
+                   ( fun(N) -> true
+                   ; assertz(fun(N)),
+                     forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
+                            register_arity(N, Arity)) ).
+
+%Record each callable arity once, even when a function has many equations.
+register_arity(N, Arity) :- ( arity(N, Arity) -> true
+                            ; assertz(arity(N, Arity)) ).
 
 %The module whose equations are in scope while a term is compiled or run. The
 %default is user, so nothing changes for a program that only ever uses &self.

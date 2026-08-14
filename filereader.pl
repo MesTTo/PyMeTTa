@@ -57,7 +57,7 @@ process_metta_string(S, Results, Space) :- string_codes(S, Cs),
 
 %First pass to convert MeTTa to Prolog Terms and register functions:
 parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
-                                           ( Term = [=, [F|W], _], atom(F) -> register_fun(F), length(W, N), Arity is N + 1, assertz(arity(F,Arity)), T=function
+                                           ( Term = [=, [F|W], _], atom(F) -> register_fun(F), length(W, N), Arity is N + 1, register_arity(F, Arity), T=function
                                                                             ; T=expression ).
 parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 

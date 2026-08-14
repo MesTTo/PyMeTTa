@@ -52,21 +52,29 @@ metta_add_atom(Space, Term, true) :- metta_foreign_space(Space), !,
 
 %Add a function atom:
 metta_add_atom(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
-                                     add_sexp(Space, Term),
+                                     must_be(atom, FAtom),
                                      space_module(Space, Module),
-                                     register_fun_in(Module, FAtom),
-                                     length(W, N),
-                                     Arity is N + 1,
-                                     assertz(arity(FAtom,Arity)),
-                                     once(with_metta_module(Module, translate_clause(Term, Clause))),
-                                     assertz(Module:Clause, Ref),
-                                     assertz(translated_from(Ref, Term)),
-                                     forall(metta_on_function_changed(FAtom), true),
-                                     invalidate_specializations(FAtom),
-                                     maybe_print_compiled_clause("added function", Term, Clause).
+                                     transaction(add_function_atom(Space, Module,
+                                                                   Term, FAtom, W)).
 
 %Add an atom to the space:
 metta_add_atom(Space, Term, true) :- add_sexp(Space, Term).
+
+%Compile and register a dynamic equation as one database transaction. A
+%translation or change-hook error therefore leaves no stored atom, function
+%marker, arity, meta-clause, or executable clause behind.
+add_function_atom(Space, Module, Term, FAtom, W) :-
+    add_sexp(Space, Term),
+    register_fun_in(Module, FAtom),
+    length(W, N),
+    Arity is N + 1,
+    register_arity(FAtom, Arity),
+    once(with_metta_module(Module, translate_clause(Term, Clause))),
+    assertz(Module:Clause, Ref),
+    assertz(translated_from(Ref, Term)),
+    forall(metta_on_function_changed(FAtom), true),
+    invalidate_specializations(FAtom),
+    maybe_print_compiled_clause("added function", Term, Clause).
 
 'remove-atom'(Space, Term, Removed) :- metta_remove_atom(Space, Term, Removed).
 
