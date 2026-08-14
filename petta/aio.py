@@ -16,6 +16,8 @@ Guarantees:
   - an abandoned live owner emits ResourceWarning and registered workers
     detach during interpreter shutdown [tested test_aio_leak_warns_and_stop_joins,
     test_aio_shutdown_handler_stops_forgotten_workers]
+  - interpreter shutdown attempts every worker and reports all expected
+    stop failures together [tested test_aio_shutdown_handler_attempts_every_worker]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -41,7 +43,7 @@ import threading
 import warnings
 import weakref
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Self
 
 from ._engine import bridge
 from .errors import PettaError
@@ -57,9 +59,7 @@ _LIVE_WORKERS: weakref.WeakSet[_EngineThread] = weakref.WeakSet()
 _LIVE_WORKERS_LOCK = threading.Lock()
 
 
-def _set_future_exception(
-    future: asyncio.Future[None], failure: BaseException
-) -> None:
+def _set_future_exception(future: asyncio.Future[None], failure: BaseException) -> None:
     if not future.done():
         future.set_exception(failure)
 
@@ -115,7 +115,8 @@ class _EngineThread:
                 self._fail_locked(RuntimeError("the worker thread stopped"))
             if self._state == "starting":
                 started = self._startup
-                assert started is not None
+                if started is None:
+                    raise RuntimeError("starting AsyncMeTTa has no startup future")
                 launch = False
             elif self._state in ("failed", "closing", "closed"):
                 self._raise_state_locked()
@@ -125,7 +126,8 @@ class _EngineThread:
                 self._state = "starting"
                 launch = True
 
-        assert started is not None
+        if started is None:
+            raise RuntimeError("AsyncMeTTa startup did not create a future")
         if not launch:
             await started
             return
@@ -150,9 +152,7 @@ class _EngineThread:
                 logger.exception("AsyncMeTTa worker could not attach its engine")
                 failure = exc
                 try:
-                    loop.call_soon_threadsafe(
-                        _set_future_exception, started, failure
-                    )
+                    loop.call_soon_threadsafe(_set_future_exception, started, failure)
                 finally:
                     _forget_worker(self)
                 return
@@ -181,9 +181,7 @@ class _EngineThread:
                     if closing:
                         _deliver(
                             request,
-                            PettaError(
-                                "AsyncMeTTa closed before this request ran"
-                            ),
+                            PettaError("AsyncMeTTa closed before this request ran"),
                             failed=True,
                         )
                         continue
@@ -244,9 +242,7 @@ class _EngineThread:
     def _raise_state_locked(self) -> None:
         if self._state == "failed":
             cause = self._failure
-            detail = (
-                f": {type(cause).__name__}: {cause}" if cause is not None else ""
-            )
+            detail = f": {type(cause).__name__}: {cause}" if cause is not None else ""
             raise PettaError(f"AsyncMeTTa worker failed{detail}") from cause
         raise PettaError(f"AsyncMeTTa worker is {self._state}")
 
@@ -264,10 +260,11 @@ class _EngineThread:
         # One no-op engine call: a thread_signal throw that raced the end
         # of its goal fires here, inside the transition lock, and is
         # discarded as the stale stop it is.
+        janus = bridge()
         try:
-            bridge().query_once("true")
-        except Exception:
-            pass
+            janus.query_once("true")
+        except janus.PrologError as exc:
+            logger.debug("discarded a stale AsyncMeTTa interrupt: %s", exc)
 
     def interrupt_if_running(self, request: _Request | None) -> bool:
         """Signal the engine thread if `request` is the one running now,
@@ -359,9 +356,7 @@ class _EngineThread:
 def _close_timeout(timeout: float) -> float:
     value = float(timeout)
     if not math.isfinite(value) or value <= 0:
-        raise ValueError(
-            f"close timeout must be finite and positive, got {timeout!r}"
-        )
+        raise ValueError(f"close timeout must be finite and positive, got {timeout!r}")
     return value
 
 
@@ -380,16 +375,23 @@ def _shutdown_workers() -> None:
         workers = tuple(_LIVE_WORKERS)
     if workers:
         logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
-    failures = []
+    failures: list[Exception] = []
+    shutdown_errors = (
+        PettaError,
+        RuntimeError,
+        TimeoutError,
+        bridge().PrologError,
+    )
     for worker in workers:
         try:
             worker.stop()
-        except BaseException as exc:
+        except shutdown_errors as exc:
             failures.append(exc)
     if failures:
-        raise RuntimeError(
-            f"failed to stop {len(failures)} AsyncMeTTa worker(s) at exit"
-        ) from failures[0]
+        raise ExceptionGroup(
+            f"failed to stop {len(failures)} AsyncMeTTa worker(s) at exit",
+            failures,
+        )
 
 
 atexit.register(_shutdown_workers)
@@ -452,7 +454,7 @@ class AsyncMeTTa:
         """The wrapped synchronous space, for engine-thread work via call()."""
         return self._m
 
-    async def start(self) -> AsyncMeTTa:
+    async def start(self) -> Self:
         """Start the engine thread; connect() and `async with` call this."""
         if self._closed:
             raise PettaError("this AsyncMeTTa is closed")
@@ -603,9 +605,7 @@ class AsyncMeTTa:
         inferences: int | None = None,
     ) -> Any:
         return await self.call(
-            lambda m: m.profile(
-                source, using, timeout=timeout, inferences=inferences
-            )
+            lambda m: m.profile(source, using, timeout=timeout, inferences=inferences)
         )
 
     async def parse(self, source: str) -> Any:
@@ -691,7 +691,7 @@ class AsyncMeTTa:
         if self._owner:
             self._worker.stop(timeout)
 
-    async def __aenter__(self) -> AsyncMeTTa:
+    async def __aenter__(self) -> Self:
         return await self.start()
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
@@ -706,10 +706,10 @@ class AsyncMeTTa:
             and worker.thread.is_alive()
         ):
             warnings.warn(
-                "an open AsyncMeTTa was discarded; use async with, "
-                "await aclose(), or stop()",
+                "an open AsyncMeTTa was discarded; use async with, await aclose(), or stop()",
                 ResourceWarning,
                 source=self,
+                stacklevel=2,
             )
 
     def __repr__(self) -> str:

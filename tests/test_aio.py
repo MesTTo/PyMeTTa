@@ -45,9 +45,7 @@ def test_aio_keeps_the_loop_live_while_the_engine_spins(m):
 
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
-            await am.run(
-                "(= (aio-spin $n) (if (== $n 0) done (aio-spin (- $n 1))))"
-            )
+            await am.run("(= (aio-spin $n) (if (== $n 0) done (aio-spin (- $n 1))))")
             ticks = 0
 
             async def ticker():
@@ -141,9 +139,7 @@ def test_aio_timeout_cancellation_stops_the_engine(m):
                 "(= (aio-spin-d $n) (if (== $n 0) done (aio-spin-d (- $n 1))))"
             )
             with pytest.raises(TimeoutError):
-                await asyncio.wait_for(
-                    am.eval("(aio-spin-d 2000000000)"), timeout=0.2
-                )
+                await asyncio.wait_for(am.eval("(aio-spin-d 2000000000)"), timeout=0.2)
             # The cancellation interrupted the engine: were the spin still
             # holding the worker, this next call would wait minutes.
             t0 = time.perf_counter()
@@ -269,8 +265,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
             assert isinstance(await am.trace("!(+ 2 3)"), list)
 
             await am.run(
-                "(aio-proof fact)\n"
-                "(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
+                "(aio-proof fact)\n(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
             )
             assert await am.derivation(S["aio-prove"]())
             partial = await am.derivation(
@@ -348,12 +343,9 @@ def test_aio_close_interrupts_work(m):
     async def go():
         am = await aio.connect(metta=m)
         await am.run(
-            "(= (aio-close-spin $n) "
-            "(if (== $n 0) done (aio-close-spin (- $n 1))))"
+            "(= (aio-close-spin $n) (if (== $n 0) done (aio-close-spin (- $n 1))))"
         )
-        running = asyncio.create_task(
-            am.eval("(aio-close-spin 2000000000)")
-        )
+        running = asyncio.create_task(am.eval("(aio-close-spin 2000000000)"))
         queued = asyncio.create_task(am.add(S.never_after_close(1)))
         await asyncio.sleep(0.1)
 
@@ -400,6 +392,32 @@ def test_aio_shutdown_handler_stops_forgotten_workers(m):
     aio._shutdown_workers()
     assert thread is not None
     assert not thread.is_alive()
+
+
+def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
+    from petta import aio
+
+    stopped = []
+
+    class BrokenWorker:
+        def __init__(self, name):
+            self.name = name
+
+        def stop(self):
+            stopped.append(self.name)
+            raise RuntimeError(f"cannot stop {self.name}")
+
+    workers = [BrokenWorker("first"), BrokenWorker("second")]
+    monkeypatch.setattr(aio, "_LIVE_WORKERS", workers)
+
+    with pytest.raises(ExceptionGroup, match="failed to stop 2") as caught:
+        aio._shutdown_workers()
+
+    assert stopped == ["first", "second"]
+    assert [str(error) for error in caught.value.exceptions] == [
+        "cannot stop first",
+        "cannot stop second",
+    ]
 
 
 def test_aio_logs_worker_attachment_and_shutdown(m, caplog):

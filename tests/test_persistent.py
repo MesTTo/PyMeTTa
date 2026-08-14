@@ -415,3 +415,26 @@ def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
         assert second._module == first_module
     finally:
         second.close()
+
+
+def test_constructor_failure_releases_path_and_unattached_module(tmp_path, monkeypatch):
+    journal = tmp_path / "constructor-rollback.db"
+    original = PersistentFactSpace._validate_or_repair_tail
+    attempted_modules = []
+
+    def fail_once(space):
+        attempted_modules.append(space._module)
+        if len(attempted_modules) == 1:
+            raise RuntimeError("validation probe failed")
+        return original(space)
+
+    monkeypatch.setattr(PersistentFactSpace, "_validate_or_repair_tail", fail_once)
+
+    with pytest.raises(RuntimeError, match="validation probe failed"):
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+
+    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert attempted_modules == [recovered._module, recovered._module]
+    finally:
+        recovered.close()

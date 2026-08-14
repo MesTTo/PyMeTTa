@@ -4,6 +4,17 @@ every change through library(persistency), and replays the journal when a
 new provider attaches to the same path. On attach, an incomplete final
 record is copied to ``<journal>.tail`` and removed only when every earlier
 newline-terminated record validates. Earlier corruption is refused.
+Guarantees:
+  - constructor failure releases its path claim and any unattached reusable
+    module [tested test_constructor_failure_releases_path_and_unattached_module]
+Owns:
+  - PersistentFactSpace owns one process path claim, one generated module,
+    and one journal attachment until close or constructor rollback [tested
+    test_detached_modules_are_reused_without_weakening_path_claims]
+Guarded by:
+  - _STATE_LOCK protects active paths and the module pool; each provider's
+    _call_lock serializes journal operations [tested
+    test_detached_modules_are_reused_without_weakening_path_claims]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,6 +29,7 @@ import logging
 import os
 import threading
 from collections.abc import Iterator, Mapping
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -89,8 +101,7 @@ def _validated_schema(schema: Mapping[str, int]) -> dict[str, int]:
             raise ValueError(f"schema head {head!r} contains a null byte")
         if isinstance(arity, bool) or not isinstance(arity, int) or arity < 0:
             raise ValueError(
-                f"schema arity for {head!r} must be a non-negative integer, "
-                f"got {arity!r}"
+                f"schema arity for {head!r} must be a non-negative integer, got {arity!r}"
             )
         if (head, arity) in _PERSISTENCY_API:
             raise ValueError(
@@ -438,13 +449,13 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             if self._path in _ACTIVE_PATHS:
                 raise PettaError(
-                    f"persistent journal {self._path} is already attached in "
-                    "this process"
+                    f"persistent journal {self._path} is already attached in this process"
                 )
             _ACTIVE_PATHS.add(self._path)
             self._claimed = True
 
-        try:
+        with ExitStack() as rollback:
+            rollback.callback(self._release_path)
             self._module, self._module_key, is_new = _acquire_module(
                 self._path, self._schema
             )
@@ -463,31 +474,24 @@ class PersistentFactSpace(SpaceProvider):
                 )
                 try:
                     self._janus.consult(f"{self._module}.pl", data=source)
-                except Exception as exc:
+                except self._janus.PrologError as exc:
                     self._runtime._raise(
                         f"consult persistent module {self._module}", exc
                     )
             self._module_loaded = True
-            self._validate_or_repair_tail()
-            self._call(
-                "attach",
-                "File, Sync",
-                {"File": str(self._path), "Sync": self._sync_mode},
-                require_open=False,
-            )
-        except BaseException as exc:
-            if self._module_loaded:
-                try:
-                    self._call("close", require_open=False)
-                except BaseException as cleanup_error:
-                    exc.add_note(
-                        f"persistent module cleanup also failed: {cleanup_error}"
-                    )
-                else:
-                    self._release_module()
-            self._release_path()
-            raise
-        self._closed = False
+            with ExitStack() as unattached:
+                unattached.callback(self._release_module)
+                self._validate_or_repair_tail()
+                self._call(
+                    "attach",
+                    "File, Sync",
+                    {"File": str(self._path), "Sync": self._sync_mode},
+                    require_open=False,
+                )
+                unattached.pop_all()
+            rollback.callback(self._rollback_attachment)
+            self._closed = False
+            rollback.pop_all()
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
         if (
@@ -600,8 +604,7 @@ class PersistentFactSpace(SpaceProvider):
                 status = status_row.get("Status")
                 if not isinstance(status, str):
                     raise EngineError(
-                        f"persistent journal tail inspection returned an "
-                        f"invalid status: {status!r}"
+                        f"persistent journal tail inspection returned an invalid status: {status!r}"
                     )
                 tail_status = status
             if tail_status != "incomplete":
@@ -731,8 +734,7 @@ class PersistentFactSpace(SpaceProvider):
                 fact = atom_from_wire(wire)
             except (TypeError, ValueError) as exc:
                 raise PettaError(
-                    f"persistent journal {self._path} returned malformed fact "
-                    f"wire {wire!r}"
+                    f"persistent journal {self._path} returned malformed fact wire {wire!r}"
                 ) from exc
             if not isinstance(fact, Expr):
                 raise PettaError(
@@ -759,8 +761,7 @@ class PersistentFactSpace(SpaceProvider):
         expected = self._schema[head]
         if len(atom.args) != expected:
             raise PettaError(
-                f"cannot {verb} {atom}: {head!r} has arity {expected}, "
-                f"got {len(atom.args)}"
+                f"cannot {verb} {atom}: {head!r} has arity {expected}, got {len(atom.args)}"
             )
 
         wires = []
@@ -817,6 +818,10 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             _ACTIVE_PATHS.discard(self._path)
         self._claimed = False
+
+    def _rollback_attachment(self) -> None:
+        self._call("close", require_open=False)
+        self._release_module()
 
     def _release_module(self) -> None:
         if not self._module_loaded or self._module_released:

@@ -9,6 +9,10 @@ Guarantees:
     test_reserved_exception_shape_maps_by_kind]
   - engine_thread attaches only a bare foreign thread and detaches exactly
     the engine it attached [tested test_engine_thread_owns_only_its_attachment]
+Guarded by:
+  - _LOCK serializes runtime creation and Janus calls; CONSULT_LOCK and
+    the startup events publish completed consultation [tested
+    test_define_from_two_threads_is_serialized]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -52,6 +56,8 @@ _FAILED = object()
 
 class JanusBridge(Protocol):
     """The janus operations PeTTa uses across the package."""
+
+    PrologError: type[Exception]
 
     def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any:
         del fail
@@ -193,7 +199,9 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
                 )
             if verbose != _STATE.runtime.verbose:
                 _STATE.runtime.verbose = verbose
-                _STATE.runtime.once("petta_py_set_silent(S)", S="false" if verbose else "true")
+                _STATE.runtime.once(
+                    "petta_py_set_silent(S)", S="false" if verbose else "true"
+                )
         return _STATE.runtime
 
 
@@ -277,7 +285,9 @@ class Runtime:
         shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
-        self._janus.query_once("petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"})
+        self._janus.query_once(
+            "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
+        )
         _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
@@ -297,7 +307,7 @@ class Runtime:
         with _LOCK:
             try:
                 row = self._janus.query_once(goal, inputs)
-            except Exception as exc:  # janus.PrologError and friends
+            except self._janus.PrologError as exc:
                 self._raise(goal, exc)
             if row is None or row.get("truth") is False:
                 return {}
@@ -324,10 +334,7 @@ class Runtime:
         threads abort the process on apply_once and cmd, measured."""
         if threading.get_ident() == self._home_thread:
             return True
-        try:
-            return int(self._janus.engine()) >= 0
-        except Exception:
-            return False
+        return self._janus.engine() >= 0
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
@@ -342,12 +349,12 @@ class Runtime:
         if not self._fast_ok():
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join([*names, 'Out'])})"
-            row = self.once(goal, **dict(zip(names, inputs)))
+            row = self.once(goal, **dict(zip(names, inputs, strict=True)))
             return row.get("Out") if row else None
         with _LOCK:
             try:
                 value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
-            except Exception as exc:
+            except self._janus.PrologError as exc:
                 self._raise(predicate, exc)
         return None if value is _FAILED else value
 
@@ -372,11 +379,11 @@ class Runtime:
         if not self._fast_ok():
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join(names)})" if names else predicate
-            return bool(self.once(goal, **dict(zip(names, inputs))))
+            return bool(self.once(goal, **dict(zip(names, inputs, strict=True))))
         with _LOCK:
             try:
                 truth = self._janus.cmd("user", predicate, *inputs)
-            except Exception as exc:
+            except self._janus.PrologError as exc:
                 self._raise(predicate, exc)
         return truth is True
 
@@ -401,7 +408,7 @@ class Runtime:
         with _LOCK:
             try:
                 rows = list(self._janus.query(goal, inputs))
-            except Exception as exc:
+            except self._janus.PrologError as exc:
                 self._raise(goal, exc)
         return iter(rows)
 
@@ -413,14 +420,16 @@ class Runtime:
                 row = self._janus.query_once(
                     "petta_py_exception_kind(Error, Kind)", {"Error": term}
                 )
-            except Exception as classifier_error:
+            except self._janus.PrologError as classifier_error:
                 raise EngineError(
                     f"{message}; the exception classifier failed: "
                     f"{_clean_message(classifier_error)}"
                 ) from exc
             if row is not None and row.get("truth") is not False:
                 kind = row.get("Kind")
-                error_type = _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
+                error_type = (
+                    _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
+                )
                 if error_type is not None:
                     raise error_type(message) from exc
         raise EngineError(message) from exc
