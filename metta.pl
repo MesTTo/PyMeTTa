@@ -3,6 +3,8 @@
 % Guarantees:
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
+%   - Test assertions distinguish no answer from one empty-expression answer
+%     [tested 2026-08-14: translator_test_answers].
 % Open Obligations:
 %   To Do: Resolve the remaining runtime findings in ai-prolog-review.md.
 %   Hacks: None
@@ -165,8 +167,12 @@ non_list(X) :- compound(X), X \= [_|_].
 'cdr-atom'(_, []).
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
-'index-atom'(_, Index, _) :- nonvar(Index), \+ integer(Index), !, fail.
-'index-atom'(List, Index, Elem) :- nth0(Index, List, Elem).
+'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
+                                Elem = [].
+'index-atom'(List, Index, Elem) :- var(Index), !,
+                                  nth0(Index, List, Elem).
+'index-atom'(List, Index, Elem) :-
+    ( nth0(Index, List, Value) -> Elem = Value ; Elem = [] ).
 member(X, L, true) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
@@ -310,6 +316,8 @@ prolog:error_message(petta_test_failed(Actual, Expected)) -->
     [ 'MeTTa test failed: ~p does not match ~p'-[Actual, Expected] ].
 prolog:error_message(petta_assertion_failed(Goal)) -->
     [ 'MeTTa assertion failed: ~p'-[Goal] ].
+prolog:error_message(petta_test_no_answer) -->
+    [ 'MeTTa test expression produced no answer'-[] ].
 
 'println!'(Arg, true) :- swrite(Arg, RArg),
                          format('~w~n', [RArg]).
@@ -324,6 +332,15 @@ test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   ( A =@= B -> true
                   ; throw(error(petta_test_failed(A, B),
                                 context(test/3, 'MeTTa test values differ'))) ).
+
+test_answer_value([], _) :-
+    throw(error(petta_test_no_answer,
+                context(test/3, 'expected a value but expression produced no answer'))).
+test_answer_value([Actual], Actual) :- !.
+test_answer_value(Results, Results).
+
+'test-no-answer'(Results, Out) :-
+    test(Results, [], Out).
 
 assert(Goal, true) :- ( call(Goal) -> true
                                     ; swrite(Goal, RG),
@@ -637,7 +654,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
 :- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, sqrt, exp, log, cos, sin,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
-                          repr, repra, parse, 'println!', 'readln!', test, assert, 'mm2-exec', 'mork-add-atoms', 'mork-flush', atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, 'mm2-exec', 'mork-add-atoms', 'mork-flush', atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space', 'get-mettatype',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', concat, sread, cons, reverse,

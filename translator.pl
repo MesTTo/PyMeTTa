@@ -207,11 +207,13 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                                Out = true
         ; HV == test, T = [Expr, Expected] -> translate_expr_to_conj(Expr, Conj, Val),
                                               Goal1 = ( findall(Val, Conj, Results),
-                                                        (Results = [Actual] -> true
-                                                                             ; Actual = Results ) ),
+                                                        test_answer_value(Results, Actual) ),
                                               AfterHead = [Goal1|AfterFindall],
                                               translate_expr_dl(Expected, AfterFindall, BeforeTest, ExpVal),
                                               BeforeTest = [test(Actual, ExpVal, Out)|Goals]
+        ; HV == 'test-no-answer', T = [Expr] -> translate_expr_to_conj(Expr, Conj, Val),
+                                                   AfterHead = [findall(Val, Conj, Results),
+                                                                'test-no-answer'(Results, Out)|Goals]
         ; HV == once, T = [X] -> translate_expr_to_conj(X, Conj, Out),
                                  AfterHead = [once(Conj)|Goals]
         ; HV == hyperpose, T = [L]
