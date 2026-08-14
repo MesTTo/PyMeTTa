@@ -1,6 +1,10 @@
 % Purpose: store MeTTa atoms, compile equations into per-space modules, and
 %   route matching to native and foreign space providers.
 % Guarantees:
+%   - Every native space stores its atoms in a private data module that does
+%     not inherit user predicates [tested: spaces_storage_modules].
+%   - Five 2,000-row native joins take 270305 direct and 270307 prepared
+%     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
 %   - Removing one scoped get-type rule keeps sibling extension rules visible
@@ -11,17 +15,69 @@
 %   - Dynamic function registration is atomic and failed source loads remove
 %     its asserted compiler state [tested 2026-08-14:
 %     spaces_registration_atomicity, filereader_source_rollback].
+% Guarded by: '$petta_native_storage' serializes private module creation and
+%   publication in native_storage_module_cache/2.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
+% Storage modules are separate from execution modules. They inherit nothing,
+% so a user predicate cannot appear as a space atom, and unknown arities fail
+% without a catch on the indexed read path. The fixed prefix maps every space
+% atom injectively to one module name.
+native_storage_module(Space, Module) :-
+    atom_concat('$petta_atoms:', Space, Module).
+
+:- dynamic native_storage_module_cache/2.
+:- dynamic petta_py_add_hooks_idle/1.
+
+native_storage_ready(Module) :-
+    current_predicate(Module:'$petta_native_storage'/0),
+    predicate_property(Module:'$petta_native_storage', dynamic),
+    \+ predicate_property(Module:'$petta_native_storage',
+                           imported_from(_)).
+
+native_storage_module_ready(Space, Module) :-
+    native_storage_module_cache(Space, Module).
+
+ensure_native_storage_module(Space, Module) :-
+    native_storage_module_cache(Space, Module), !.
+ensure_native_storage_module(Space, Module) :-
+    native_storage_module(Space, Module),
+    with_mutex('$petta_native_storage',
+               ensure_native_storage_module_locked(Space, Module)).
+
+ensure_native_storage_module_locked(Space, Module) :-
+    native_storage_module_cache(Space, Module), !.
+ensure_native_storage_module_locked(Space, Module) :-
+    native_storage_ready(Module), !,
+    assertz(native_storage_module_cache(Space, Module)).
+ensure_native_storage_module_locked(Space, Module) :-
+    ( current_module(Module)
+      -> throw(error(permission_error(create, native_space_storage, Module),
+                     context(ensure_native_storage_module/2,
+                             'the reserved storage module name is already in use')))
+    ; set_prolog_flag(Module:unknown, fail),
+      dynamic(Module:'$petta_native_storage'/0),
+      assertz(native_storage_module_cache(Space, Module)) ).
+
+%The dynamic marker and module properties survive transaction rollback even
+%when its cache fact does not. A later write can therefore recover the cache
+%instead of finding a stranded reserved module name [tested:
+%spaces_registration:rolled_back_first_write_keeps_storage_reusable].
+:- ensure_native_storage_module('&self', _).
+:- dynamic '$petta_atoms:&self':'&self'/3.
+
 % Return the asserted clause reference so a source load can roll back every
 % atom it added if a later form fails.
 add_sexp(Space, Term) :- add_sexp(Space, Term, _).
-add_sexp(Space, [Rel|Args], Ref) :- !,
-                                    Term =.. [Space, Rel | Args],
-                                    assertz(Term, Ref).
+add_sexp(Space, Term, Ref) :- ensure_native_storage_module(Space, Module),
+                              add_sexp_in(Module, Space, Term, Ref).
+
+add_sexp_in(Module, Space, [Rel|Args], Ref) :- !,
+                                               Term =.. [Space, Rel | Args],
+                                               assertz(Module:Term, Ref).
 %A scalar or empty expression cannot be a plain Space(Term) fact, because that
 %is already the encoding of the singleton expression (Term). It gets its own
 %predicate rather than a marked rule inside the space: a marked rule makes
@@ -29,18 +85,22 @@ add_sexp(Space, [Rel|Args], Ref) :- !,
 %through clause/2, which walks the clause list instead of using SWI's clause
 %indexing. Measured on examples/spaces/matespace.metta, that cost 15.3x,
 %99.5 billion instructions against 1,520 billion. Keeping scalars in
-%native_scalar/2 leaves expressions as facts a direct indexed call reaches,
-%and indexes the scalars on their space in turn.
-add_sexp(Space, Atom, Ref) :- assertz(native_scalar(Space, Atom), Ref).
+%the private scalar predicate leaves expressions as facts a direct indexed
+%call reaches.
+add_sexp_in(Module, _, Atom, Ref) :-
+    assertz(Module:'$petta_native_scalar'(Atom), Ref).
 
 %Remove every atom that unifies with the requested value. Expressions and
 %scalars live in different predicates, so neither erases the other.
 remove_sexp(Space, [Rel|Args]) :- !,
-                                  Term =.. [Space, Rel | Args],
-                                  retractall(Term).
-remove_sexp(Space, Atom) :- retractall(native_scalar(Space, Atom)).
-
-:- dynamic native_scalar/2.
+                                  ( native_storage_module_ready(Space, Module)
+                                    -> Term =.. [Space, Rel | Args],
+                                       retractall(Module:Term)
+                                     ; true ).
+remove_sexp(Space, Atom) :-
+    ( native_storage_module_ready(Space, Module)
+      -> retractall(Module:'$petta_native_scalar'(Atom))
+    ; true ).
 
 %Which module a space's compiled clauses live in. &self keeps using the default
 %module, so every existing program compiles and runs exactly as before; any other
@@ -49,10 +109,6 @@ remove_sexp(Space, Atom) :- retractall(native_scalar(Space, Atom)).
 %module falls back to user, so builtins and library functions still reach.
 space_module('&self', user) :- !.
 space_module(Space, Space).
-
-%The shared space's storage predicate, asserted by writes; declared so
-%a read on a virgin engine fails cleanly instead of erring undefined.
-:- dynamic '&self'/3.
 
 %Whether any module still holds a clause for a function. `user` is always
 %checked, because a function read from a file is compiled by process_form/3
@@ -84,18 +140,40 @@ metta_add_atom(Space, Term, true) :- metta_foreign_space(Space), !,
 metta_add_atom(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                      must_be(atom, FAtom),
                                      space_module(Space, Module),
-                                     transaction(add_function_atom(Space, Module,
-                                                                   Term, FAtom, W)).
+                                     ensure_native_storage_module(Space, Storage),
+                                     transaction(add_function_atom(
+                                         Storage, Space, Module,
+                                         Term, FAtom, W)).
 
 %Add an atom to the space:
 metta_add_atom(Space, Term, true) :- add_sexp(Space, Term, Ref),
                                      record_source_assertion(Ref).
 
+%A native batch containing no equations and no observer for this space can
+%resolve its storage module once. Equation batches and observed writes keep
+%using add-atom/3 so registration and per-atom events retain their ordinary
+%behavior.
+metta_add_hooks_idle(_) :-
+    \+ metta_atom_hook_clause(added, _), !.
+metta_add_hooks_idle(Space) :-
+    petta_py_add_hooks_idle(Space).
+
+metta_add_atoms(Space, Terms) :-
+    \+ metta_foreign_space(Space),
+    metta_add_hooks_idle(Space),
+    \+ ( member(Term, Terms), Term = [=, [_|_], _] ), !,
+    ensure_native_storage_module(Space, Storage),
+    forall(member(Term, Terms),
+           ( add_sexp_in(Storage, Space, Term, Ref),
+             record_source_assertion(Ref) )).
+metta_add_atoms(Space, Terms) :-
+    forall(member(Term, Terms), 'add-atom'(Space, Term, _)).
+
 %Compile and register a dynamic equation as one database transaction. A
 %translation or change-hook error therefore leaves no stored atom, function
 %marker, arity, meta-clause, or executable clause behind.
-add_function_atom(Space, Module, Term, FAtom, W) :-
-    add_sexp(Space, Term, SpaceRef),
+add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
+    add_sexp_in(Storage, Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     register_fun_in(Module, FAtom),
     length(W, N),
@@ -154,11 +232,13 @@ match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
 %own provider clause sees it.
 match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
                                              nonvar(Space),
-                                             current_predicate(Space/_), !,
-                                             match_native(Space, Pattern, OutPattern, Result).
+                                             native_storage_module_cache(Space, Module), !,
+                                             match_native(Module, Space, Pattern, OutPattern, Result).
 match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',', !,
                                              match_routed(Space, Pattern, OutPattern, Result).
-match(Space, Pattern, OutPattern, Result) :- match_native(Space, Pattern, OutPattern, Result).
+match(Space, Pattern, OutPattern, Result) :-
+    native_storage_module_cache(Space, Module),
+    match_native(Module, Space, Pattern, OutPattern, Result).
 
 match_routed(_, LComma, OutPattern, Result) :- LComma == [','], !,
                                                Result = OutPattern.
@@ -183,59 +263,51 @@ match_foreign(Space, Pattern, OutPattern, Result) :- metta_foreign_match(Space, 
 
 %Native conjunctions call their space predicate directly. The recursive helper
 %keeps the provider decision outside the candidate loop.
-match_native(_, LComma, OutPattern, Result) :- LComma == [','], !,
-                                               Result = OutPattern.
-match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
-                                                                var(Head), !,
-                                                                get_native_atom(Space, Head),
-                                                                acyclic_term(OutPattern),
-                                                                match_native(Space, [','|Tail], OutPattern, Result).
-match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
-                                                                ( Head == [] ; \+ is_list(Head) ), !,
-                                                                get_native_scalar_atom(Space, Head),
-                                                                acyclic_term(OutPattern),
-                                                                match_native(Space, [','|Tail], OutPattern, Result).
-match_native(Space, [Comma|[[Rel|PatArgs]|Tail]], OutPattern, Result) :- Comma == ',', !,
-                                                                        native_expression(Space, Rel, PatArgs),
+match_native(_, _, LComma, OutPattern, Result) :- LComma == [','], !,
+                                                  Result = OutPattern.
+match_native(Module, Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
+                                                                        var(Head), !,
+                                                                        get_native_atom(Module, Space, Head),
                                                                         acyclic_term(OutPattern),
-                                                                        match_native(Space, [','|Tail], OutPattern, Result).
+                                                                        match_native(Module, Space, [','|Tail], OutPattern, Result).
+match_native(Module, Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
+                                                                        ( Head == [] ; \+ is_list(Head) ), !,
+                                                                        get_native_scalar_atom_in(Module, Head),
+                                                                        acyclic_term(OutPattern),
+                                                                        match_native(Module, Space, [','|Tail], OutPattern, Result).
+match_native(Module, Space, [Comma|[[Rel|PatArgs]|Tail]], OutPattern, Result) :- Comma == ',', !,
+                                                                                native_expression(Module, Space, Rel, PatArgs),
+                                                                                acyclic_term(OutPattern),
+                                                                                match_native(Module, Space, [','|Tail], OutPattern, Result).
 
 %When the native pattern itself is a variable, enumerate all atoms.
-match_native(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
-                                                       get_native_atom(Space, PatternVar),
-                                                       acyclic_term(OutPattern),
-                                                       Result = OutPattern.
+match_native(Module, Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
+                                                               get_native_atom(Module, Space, PatternVar),
+                                                               acyclic_term(OutPattern),
+                                                               Result = OutPattern.
 
-match_native(Space, Pattern, OutPattern, Result) :-
+match_native(Module, _, Pattern, OutPattern, Result) :-
     ( Pattern == [] ; \+ is_list(Pattern) ), !,
-    get_native_scalar_atom(Space, Pattern),
+    get_native_scalar_atom_in(Module, Pattern),
     acyclic_term(OutPattern),
     Result = OutPattern.
 
-match_native(Space, [Rel|PatArgs], OutPattern, Result) :- native_expression(Space, Rel, PatArgs),
-                                                          acyclic_term(OutPattern),
-                                                          Result = OutPattern.
+match_native(Module, Space, [Rel|PatArgs], OutPattern, Result) :- native_expression(Module, Space, Rel, PatArgs),
+                                                                  acyclic_term(OutPattern),
+                                                                  Result = OutPattern.
 
-%Read one stored expression. Calling the space predicate directly is what uses
-%SWI's clause indexing, but calling an undefined predicate raises
-%existence_error, and throwing plus catching costs about fourteen times a plain
-%failure (measured on this engine: 57.5 inferences per call against 4). An
-%empty space is exactly that case and a fresh space answers every match that
-%way, so check that the predicate exists first. The check is cheap, and the
-%call is then both indexed and exception-free.
-native_expression(Space, Rel, PatArgs) :- Term =.. [Space, Rel | PatArgs],
-                                          catch(Term, E, native_expression_recover(E)).
+%Read one stored expression through its private module. The module's unknown
+%flag is fail, so a virgin arity fails directly and this indexed path needs no
+%exception handler.
+native_expression('&self', Rel, PatArgs) :- !,
+    native_expression('$petta_atoms:&self', '&self', Rel, PatArgs).
+native_expression(Space, Rel, PatArgs) :-
+    native_storage_module_ready(Space, Module),
+    native_expression(Module, Space, Rel, PatArgs).
 
-%A space that never stored this arity has no predicate for it, and calling an
-%undefined predicate raises, which costs about fourteen times a plain failure
-%(measured on this engine: 57.5 inferences per call against 4). Declaring it
-%dynamic on the first miss turns every later call on that arity into that plain
-%failure, so the common path, where the predicate exists, carries no guard and
-%pays nothing. Any other error still travels the ordinary recovery.
-native_expression_recover(error(existence_error(procedure, PI), _)) :- !,
-                                                                       dynamic(PI),
-                                                                       fail.
-native_expression_recover(E) :- recover_failure(E).
+native_expression(Module, Space, Rel, PatArgs) :-
+    Term =.. [Space, Rel | PatArgs],
+    call(Module:Term).
 
 'get-atoms'(Space, Pattern) :- nonvar(Space),
                                metta_foreign_space(Space), !,
@@ -247,17 +319,31 @@ native_expression_recover(E) :- recover_failure(E).
 %Drop every atom a space holds. Expressions and scalars live in different
 %predicates, so a caller that wipes only the space predicate would leave the
 %scalars standing and a pooled name's next life would inherit them.
-clear_native_atoms(Space) :- forall(( current_predicate(Space/Arity),
-                                      functor(Head, Space, Arity) ),
-                                    retractall(Head)),
-                             retractall(native_scalar(Space, _)),
-                             retractall(import_life(Space, _, _)).
+clear_native_atoms(Space) :-
+    ( native_storage_module_ready(Space, Module)
+      -> forall(( current_predicate(Module:Space/Arity),
+                  functor(Head, Space, Arity) ),
+                retractall(Module:Head)),
+         retractall(Module:'$petta_native_scalar'(_))
+    ; true ),
+    retractall(import_life(Space, _, _)).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
-get_native_atom(Space, Pattern) :- current_predicate(Space/Arity),
-                                   functor(Head, Space, Arity),
-                                   clause(Head, true),
-                                   Head =.. [Space | Pattern].
-get_native_atom(Space, Pattern) :- get_native_scalar_atom(Space, Pattern).
+get_native_atom(Space, Pattern) :-
+    native_storage_module_ready(Space, Module),
+    get_native_atom(Module, Space, Pattern).
 
-get_native_scalar_atom(Space, Pattern) :- native_scalar(Space, Pattern).
+get_native_atom(Module, Space, Pattern) :-
+    current_predicate(Module:Space/Arity),
+    functor(Head, Space, Arity),
+    clause(Module:Head, true),
+    Head =.. [Space | Pattern].
+get_native_atom(Module, _, Pattern) :-
+    get_native_scalar_atom_in(Module, Pattern).
+
+get_native_scalar_atom(Space, Pattern) :-
+    native_storage_module_ready(Space, Module),
+    get_native_scalar_atom_in(Module, Pattern).
+
+get_native_scalar_atom_in(Module, Pattern) :-
+    Module:'$petta_native_scalar'(Pattern).

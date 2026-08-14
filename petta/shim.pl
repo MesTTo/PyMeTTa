@@ -6,6 +6,8 @@
 % Guarantees:
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - Engine atom hooks exist only while a Python space subscription exists
+%     [tested: test_subscription_hooks_follow_the_active_space_set]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -397,7 +399,7 @@ petta_py_add_many(Space, TaggedList) :-
     maplist(petta_py_decode_for_add, TaggedList, Terms),
     ( current_predicate(mork_space_name/2), mork_space_name(Space, _)
       -> 'mork-add-atoms'(Space, Terms, _)
-    ; forall(member(Term, Terms), 'add-atom'(Space, Term, _)) ).
+    ; metta_add_atoms(Space, Terms) ).
 
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
@@ -499,9 +501,7 @@ petta_py_next_space(Name) :-
 
 petta_py_space_untouched(Name) :-
     \+ petta_py_foreign(Name),
-    \+ ( current_predicate(Name/Arity),
-         functor(Head, Name, Arity),
-         clause(Head, _, _) ).
+    \+ get_native_atom(Name, _).
 
 %Release a space: everything cleared, the name pooled for reuse.
 petta_py_release_space(Name0) :-
@@ -1035,33 +1035,68 @@ petta_py_unregister_foreign(Space0) :-
 %
 % Standing queries: when Python has subscribers, every space write crosses
 % to petta_ops for pattern matching and callbacks, synchronously, inside
-% the write. The guard is one dynamic fact PER SUBSCRIBED SPACE, first-arg
-% indexed, so a write to any unwatched space pays a single failed lookup
-% and never crosses to Python; the global-flag version taxed every write
-% in the process 2.3x once any subscription existed, measured.
+% the write. The hook clauses exist only while at least one space is watched.
+% Their guard is one dynamic fact per subscribed space, first-arg indexed, so
+% an unwatched space never crosses to Python while another space is watched.
 
 :- multifile metta_on_atom_added/2.
 :- multifile metta_on_atom_removed/2.
 :- dynamic petta_py_subscribed_space/1.
+:- dynamic petta_py_subscription_hook_ref/2.
 
-metta_on_atom_added(Space, Term) :-
+petta_py_notify_atom_added(Space, Term) :-
     atom(Space),
     petta_py_subscribed_space(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:atom_added(SpaceStr, W), _).
 
-metta_on_atom_removed(Space, Term) :-
+petta_py_notify_atom_removed(Space, Term) :-
     atom(Space),
     petta_py_subscribed_space(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:atom_removed(SpaceStr, W), _).
 
+petta_py_install_subscription_hook(Kind) :-
+    petta_py_subscription_hook_ref(Kind, Ref),
+    \+ clause_property(Ref, erased), !.
+petta_py_install_subscription_hook(added) :-
+    retractall(petta_py_subscription_hook_ref(added, _)),
+    assertz((metta_on_atom_added(Space, Term) :-
+                petta_py_notify_atom_added(Space, Term)), Ref),
+    assertz(petta_py_subscription_hook_ref(added, Ref)).
+petta_py_install_subscription_hook(removed) :-
+    retractall(petta_py_subscription_hook_ref(removed, _)),
+    assertz((metta_on_atom_removed(Space, Term) :-
+                petta_py_notify_atom_removed(Space, Term)), Ref),
+    assertz(petta_py_subscription_hook_ref(removed, Ref)).
+
+petta_py_remove_subscription_hooks :-
+    forall(retract(petta_py_subscription_hook_ref(_, Ref)),
+           ( clause_property(Ref, erased) -> true ; erase(Ref) )).
+
+%The native batch writer may skip per-atom hook dispatch only when this
+%unwatched space has the subscription hook as its sole added-atom handler.
+petta_py_add_hooks_idle(Space) :-
+    \+ petta_py_subscribed_space(Space),
+    petta_py_subscription_hook_ref(added, SubscriptionRef),
+    findall(Ref, metta_atom_hook_clause(added, Ref), [OnlyRef]),
+    OnlyRef == SubscriptionRef.
+
 petta_py_subscriptions(Spaces) :-
+    maplist(atom_string, SpaceAtoms, Spaces),
+    with_mutex('$petta_py_subscriptions',
+               petta_py_subscriptions_locked(SpaceAtoms)).
+
+petta_py_subscriptions_locked(SpaceAtoms) :-
     retractall(petta_py_subscribed_space(_)),
-    forall(member(S, Spaces),
-           ( atom_string(A, S), assertz(petta_py_subscribed_space(A)) )).
+    forall(member(Space, SpaceAtoms),
+           assertz(petta_py_subscribed_space(Space))),
+    ( SpaceAtoms == []
+      -> petta_py_remove_subscription_hooks
+    ; petta_py_install_subscription_hook(added),
+      petta_py_install_subscription_hook(removed) ).
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %

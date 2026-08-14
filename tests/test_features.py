@@ -3,6 +3,9 @@ standing queries, first-class custom matchers, Python types declared into
 spaces with field accessors, host values named in source, persistence,
 typed rows, and the fast Python soft-scorer held equal to the MeTTa one by
 differential fuzz.
+Guarantees:
+  - subscription hook clauses track whether the active space set is empty
+    [tested: test_subscription_hooks_follow_the_active_space_set]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -216,6 +219,22 @@ def test_subscription_callback_fires_inside_the_write(m):
         sub.cancel()
     m.add(S.order(3))
     assert len(seen) == 2  # cancelled means cancelled
+
+
+def test_subscription_hooks_follow_the_active_space_set(m):
+    def installed(kind):
+        return bool(m._rt.once(f"petta_py_subscription_hook_ref({kind}, _)"))
+
+    assert not installed("added")
+    assert not installed("removed")
+    subscription = m.subscribe(S.hook_lifecycle(V.value))
+    try:
+        assert installed("added")
+        assert installed("removed")
+    finally:
+        subscription.cancel()
+    assert not installed("added")
+    assert not installed("removed")
 
 
 def test_subscription_queue_mode_drains(m):

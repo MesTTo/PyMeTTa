@@ -28,6 +28,9 @@
 %     [tested 2026-08-14: tests/performance/reduce_dispatch.pl].
 %   - Prolog import forms have exactly one translation
 %     [tested 2026-08-14: translator_prolog_imports].
+%   - Space-headed translatePredicate forms use the space provider instead of
+%     a predicate inherited from user [tested:
+%     translator_special_dispatch:space_predicates_use_space_storage].
 %   - Source-load rollback removes retained metadata, generated lambdas, and
 %     symbol-head notes [tested 2026-08-14: filereader_source_rollback].
 % Open Obligations:
@@ -515,7 +518,7 @@ translate_special_dl(match, [SpaceExpr, Pattern, Body], AfterHead, Goals,
 translate_special_dl(translatePredicate, [[Predicate|Args]], AfterHead, Goals,
                      _Out) :-
     translate_args_dl(Args, AfterHead, BeforePredicate, ArgValues),
-    Goal =.. [Predicate|ArgValues],
+    metta_predicate_goal([Predicate|ArgValues], Goal),
     BeforePredicate = [Goal|Goals].
 translate_special_dl(call, [[Function|Args]], AfterHead, Goals, Out) :-
     translate_args_dl(Args, AfterHead, BeforeCall, ArgValues),

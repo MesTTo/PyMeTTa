@@ -253,8 +253,8 @@ specializable_arg(Arg) :- nonvar(Arg),
                           ( fun(Arg) ; Arg = partial(_, _) ).
 
 %Forget function symbol:
-forget_symbol(Name) :- retractall('&self'(=, [Name|_], _)),
-                       retractall('&self'(:, Name, _)),
+forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
+                       remove_sexp('&self', [':', Name, _]),
                        findall(Ref, ( current_predicate(Name/A), functor(H, Name, A), clause(H, _, Ref) ), Refs),
                        forall(member(R, Refs), erase(R)),
                        forall(metta_on_function_removed(Name), true),

@@ -363,10 +363,11 @@ type_declaration_in(user, X, T) :- !, match('&self', [':', X, T], T, _).
 type_declaration_in(Module, X, T) :- (   match(Module, [':', X, T], T, _)
                                      ;   match('&self', [':', X, T], T, _) ).
 
-%&self is always the engine's native space. Keeping its lookup direct avoids
-%the provider and module-dispatch layers on every recursive type probe.
+%&self is always the engine's native space. Its fixed private storage module
+%keeps this recursive type probe on a compiled direct call, with no provider
+%dispatch or exception handler.
 get_function_type([F|Args], T) :- nonvar(F),
-                                  catch('&self'(':', F, [->|Ts]), E, recover_failure(E)),
+                                  '$petta_atoms:&self':'&self'(':', F, [->|Ts]),
                                   append(As,[T],Ts),
                                   maplist(has_type_in(user), Args, As).
 get_function_type_in(Module, [F|Args], T) :- Module \== user,
@@ -453,7 +454,7 @@ get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist(has_type_in(user), X, T).
-get_type_candidate(X, T) :- catch('&self'(':', X, T), E, recover_failure(E)),
+get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
@@ -704,7 +705,15 @@ import_prolog_function(N, true) :- register_fun(N).
 %already is user, so this states that behaviour rather than adding a rule.
 consult_global(File) :- user:consult(File).
 use_module_global(File) :- user:use_module(File).
-'Predicate'([F|Args], Term) :- Term =.. [F|Args].
+%A predicate term headed by a space is a provider query, not a raw Prolog
+%call into the module where native atoms happen to be stored. Other heads keep
+%the Prolog interop constructor's original meaning.
+metta_predicate_goal([Space|Pattern],
+                     match(Space, Pattern, matched, matched)) :-
+    atom(Space), atom_concat('&', _, Space), !.
+metta_predicate_goal([F|Args], Term) :- Term =.. [F|Args].
+
+'Predicate'(Parts, Term) :- metta_predicate_goal(Parts, Term).
 callPredicate(G, true) :- call(G).
 assertzPredicate(G, true) :- assertz(G).
 assertaPredicate(G, true) :- asserta(G).
