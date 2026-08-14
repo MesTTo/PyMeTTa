@@ -1,5 +1,8 @@
 """Purpose: pin the single package manifest, optional extras, entry points,
 and version source that wheel builds publish.
+Guarantees:
+  - release history and citation metadata exist and enter source archives
+    [tested test_release_and_citation_metadata_ship_in_source_archives]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,6 +29,23 @@ def test_package_and_tools_share_one_manifest():
     assert project["name"] == "petta"
     assert project["dynamic"] == ["version"]
     assert project["requires-python"] == ">=3.11"
+    assert project["urls"] == {
+        "Homepage": "https://github.com/trueagi-io/PeTTa",
+        "Repository": "https://github.com/trueagi-io/PeTTa",
+        "Issues": "https://github.com/trueagi-io/PeTTa/issues",
+    }
+
+
+def test_release_and_citation_metadata_ship_in_source_archives():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+    source_manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+
+    assert "## [Unreleased]" in changelog
+    assert "## [1.0.5] - 2026-03-02" in changelog
+    assert citation.startswith("cff-version: 1.2.0\n")
+    assert 'repository-code: "https://github.com/trueagi-io/PeTTa"' in citation
+    assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
 
 
 def test_optional_integrations_have_installable_extras():
