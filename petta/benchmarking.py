@@ -5,6 +5,9 @@ Guarantees:
   - engine regressions are decided by the minimum of three inference counts;
     wall time is recorded for advice only [tested
     test_baseline_rejects_inference_regressions_and_accepts_improvements]
+  - counter slopes compare the inference growth between two fixed workload
+    sizes, with fresh state at each point [tested
+    test_benchmark_counter_slope_uses_fresh_state_and_gates_growth]
   - perf instruction measurements fail loudly when perf or its event output
     fails [tested test_measure_instructions_parses_perf_csv]
 Owns:
@@ -101,6 +104,101 @@ def _compare_counter(
     return observed
 
 
+def _counter_samples(
+    operation: Callable[[Any], int],
+    *,
+    operations: int,
+    setup: Callable[[], Any],
+    teardown: Callable[[Any], None],
+    engine: Callable[[Any], Any],
+) -> list[int]:
+    samples = []
+    for _ in range(_COUNTER_SAMPLES):
+        state = setup()
+        try:
+            with engine(state).stats() as stats:
+                completed = operation(state)
+            if completed != operations:
+                raise AssertionError(
+                    f"counter sample completed {completed} operations, expected {operations}"
+                )
+            samples.append(stats.inferences)
+        finally:
+            teardown(state)
+    return samples
+
+
+def _required_counter_observation(name: str, samples: Sequence[int]) -> tuple[list[int], int]:
+    values, observed = _counter_observation(name, samples)
+    if values is None or observed is None:
+        raise RuntimeError(f"{name} lost its required inference samples")
+    return values, observed
+
+
+def _counter_slope_observation(
+    name: str,
+    small_operations: int,
+    large_operations: int,
+    small_samples: Sequence[int],
+    large_samples: Sequence[int],
+) -> tuple[list[int], list[int], int]:
+    if small_operations <= 0 or large_operations <= small_operations:
+        raise ValueError("counter slope needs positive operation counts in increasing order")
+    small_values, small = _required_counter_observation(f"{name} small", small_samples)
+    large_values, large = _required_counter_observation(f"{name} large", large_samples)
+    observed = large - small
+    if observed < 0:
+        raise ValueError(
+            f"{name} inference count fell from {small} to {large} as the workload grew"
+        )
+    return small_values, large_values, observed
+
+
+def _counter_slope_case(
+    document: Mapping[str, Any], name: str, unit: str
+) -> dict[str, Any]:
+    case = document["benchmarks"].get(name)
+    if case is None:
+        raise KeyError(f"benchmark {name!r} has no counter observation")
+    if case.get("unit") != unit:
+        raise AssertionError(f"{name} unit changed from {case.get('unit')!r} to {unit!r}")
+    return case
+
+
+def _compare_counter_slope(
+    name: str,
+    expected: Any,
+    *,
+    small_operations: int,
+    large_operations: int,
+    small_values: list[int],
+    large_values: list[int],
+    observed: int,
+) -> int:
+    if not isinstance(expected, dict):
+        raise AssertionError(f"{name} has no valid inference slope baseline")
+    if expected.get("small_operations") != small_operations:
+        raise AssertionError(
+            f"{name} slope small operation count changed from "
+            f"{expected.get('small_operations')!r} to {small_operations}"
+        )
+    if expected.get("large_operations") != large_operations:
+        raise AssertionError(
+            f"{name} slope large operation count changed from "
+            f"{expected.get('large_operations')!r} to {large_operations}"
+        )
+    baseline = expected.get("delta_inferences")
+    if isinstance(baseline, bool) or not isinstance(baseline, int) or baseline < 0:
+        raise AssertionError(f"{name} has an invalid inference slope baseline")
+    if observed > baseline + _COUNTER_TOLERANCE:
+        raise AssertionError(
+            f"{name} inference slope regression: {large_values!r} minus "
+            f"{small_values!r} has minimum growth {observed}, baseline {baseline} "
+            f"plus the {_COUNTER_TOLERANCE} inference allowance"
+        )
+    return observed
+
+
 def _instruction_observation(
     name: str,
     samples: Sequence[int],
@@ -161,7 +259,8 @@ class BenchmarkBaseline:
             self._document: dict[str, Any] = {
                 "schema": _SCHEMA,
                 "counter_policy": (
-                    "stats().inferences minimum of three decides; wall time advises"
+                    "stats().inferences minimum of three and fixed two-point growth "
+                    "slopes decide; wall time advises"
                 ),
                 "instruction_policy": (
                     "perf instructions:u minimum of three, one percent noise allowance"
@@ -208,6 +307,42 @@ class BenchmarkBaseline:
 
         expected = self._case(name, unit=unit, operations=operations)
         return _compare_counter(name, expected, sample_values, observed)
+
+    def observe_counter_slope(
+        self,
+        name: str,
+        *,
+        unit: str,
+        small_operations: int,
+        large_operations: int,
+        small_samples: Sequence[int],
+        large_samples: Sequence[int],
+    ) -> int:
+        """Record or compare inference growth between two workload sizes."""
+        small_values, large_values, observed = _counter_slope_observation(
+            name,
+            small_operations,
+            large_operations,
+            small_samples,
+            large_samples,
+        )
+        case = _counter_slope_case(self._document, name, unit)
+        if self.update:
+            case["inference_slope"] = {
+                "small_operations": small_operations,
+                "large_operations": large_operations,
+                "delta_inferences": observed,
+            }
+            return observed
+        return _compare_counter_slope(
+            name,
+            case.get("inference_slope"),
+            small_operations=small_operations,
+            large_operations=large_operations,
+            small_values=small_values,
+            large_values=large_values,
+            observed=observed,
+        )
 
     def validate_case(self, name: str, *, unit: str, operations: int) -> None:
         """Check metadata when a wall-only run deliberately skips counters."""
@@ -311,15 +446,13 @@ def benchmark_case(
 
     samples: list[int] | None = None
     if engine is not None and baseline.compare_counters:
-        samples = []
-        for _ in range(_COUNTER_SAMPLES):
-            state = setup()
-            try:
-                with engine(state).stats() as stats:
-                    checked(state)
-                samples.append(stats.inferences)
-            finally:
-                teardown(state)
+        samples = _counter_samples(
+            checked,
+            operations=operations,
+            setup=setup,
+            teardown=teardown,
+            engine=engine,
+        )
 
     if baseline.compare_counters:
         inference_min = baseline.observe_counter(
@@ -351,6 +484,46 @@ def benchmark_case(
         baseline.observe_wall(name, seconds_per_operation)
         benchmark.extra_info["wall_seconds_per_operation"] = seconds_per_operation
     return result
+
+
+def benchmark_counter_slope(
+    baseline: BenchmarkBaseline,
+    *,
+    name: str,
+    unit: str,
+    small_operations: int,
+    small_operation: Callable[[Any], int],
+    large_operations: int,
+    large_operation: Callable[[Any], int],
+    setup: Callable[[], Any],
+    teardown: Callable[[Any], None],
+    engine: Callable[[Any], Any],
+) -> int | None:
+    """Gate inference growth between two fixed workload sizes."""
+    if not baseline.compare_counters:
+        return None
+    small_samples = _counter_samples(
+        small_operation,
+        operations=small_operations,
+        setup=setup,
+        teardown=teardown,
+        engine=engine,
+    )
+    large_samples = _counter_samples(
+        large_operation,
+        operations=large_operations,
+        setup=setup,
+        teardown=teardown,
+        engine=engine,
+    )
+    return baseline.observe_counter_slope(
+        name,
+        unit=unit,
+        small_operations=small_operations,
+        large_operations=large_operations,
+        small_samples=small_samples,
+        large_samples=large_samples,
+    )
 
 
 def _instruction_request(
@@ -501,6 +674,7 @@ def _run_perf(
 __all__ = [
     "BenchmarkBaseline",
     "benchmark_case",
+    "benchmark_counter_slope",
     "count_atoms",
     "measure_instructions",
 ]

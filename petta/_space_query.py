@@ -6,6 +6,8 @@ Guarantees:
     decoding [tested test_query_where_guard_and_limit]
   - non-positive limits fail before an engine call [tested
     test_limit_validation_refuses_nonsense]
+  - eager Rows retain normalized query context for why() [tested
+    test_query_rows_explain_empty_results]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,24 +18,25 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._api_types import SpaceName
 from ._engine import Runtime
 from ._space_objects import _column_names, _limits
 from .atoms import Atom, _to_atom, atom_from_wire
-from .results import Rows
+from .results import Rows, _QueryContext
 
 
 def _query_target(
-    space: str,
+    space: SpaceName,
     wires: list[Any],
     columns: list[str],
-    where: Any | None,
+    where: Atom | None,
     limit: int | None,
 ) -> tuple[str, list[Any]]:
     if where is not None:
         return "petta_py_query_guarded_all", [
             space,
             wires,
-            _to_atom(where).to_wire(),
+            where.to_wire(),
             columns,
             limit or 0,
         ]
@@ -44,7 +47,7 @@ def _query_target(
 
 def query_rows(
     rt: Runtime,
-    space: str,
+    space: SpaceName,
     patterns: tuple[Any, ...],
     *,
     where: Any | None,
@@ -55,16 +58,21 @@ def query_rows(
     """Execute one eager query and decode its rows."""
     _validate_limit(limit)
     atoms: list[Atom] = [_to_atom(pattern) for pattern in patterns]
+    guard = None if where is None else _to_atom(where)
     columns = _column_names(atoms)
     predicate, inputs = _query_target(
         space,
         [atom.to_wire() for atom in atoms],
         columns,
-        where,
+        guard,
         limit,
     )
     answered = _execute_query(rt, predicate, inputs, _limits(timeout, inferences))
-    return Rows(tuple(columns), _decode_rows(answered))
+    return Rows(
+        tuple(columns),
+        _decode_rows(answered),
+        _query=_QueryContext(space, tuple(atoms), guard),
+    )
 
 
 def _validate_limit(limit: int | None) -> None:

@@ -1,7 +1,10 @@
-"""Purpose: compare engine-free workloads with committed perf counters.
+"""Purpose: compare Python and primitive-heavy engine workloads with committed
+perf counters.
 Guarantees:
   - each decision uses the minimum of at least three instructions:u samples
     [tested test_measure_instructions_parses_perf_csv]
+  - the inventory reaches every primitive class named by the round-3 review
+    [tested test_instruction_inventory_covers_primitive_heavy_engine_paths]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,15 +16,15 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from benchmarks.pure import _CASES
 from petta.testing import BenchmarkBaseline, measure_instructions
-
-_CASES = ("json-wire", "term-operators", "wire-codec")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Measure selected cases and update or compare their counters."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("cases", nargs="*", choices=_CASES, default=_CASES)
+    names = tuple(sorted(_CASES))
+    parser.add_argument("cases", nargs="*", choices=names, default=names)
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--update", action="store_true")
     arguments = parser.parse_args(argv)

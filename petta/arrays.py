@@ -14,6 +14,8 @@ Guarantees:
   - _top_indices uses 35.26% fewer instructions than the prior full sort for
     500 top-10 selections from 100,000 scores [measured 2026-08-14: minimum
     of three perf stat instructions:u runs]
+  - the fixed public constructor vocabulary is marked immutable to type
+    checkers [tested test_policy_constants_are_final]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -30,7 +32,7 @@ import itertools
 import operator
 import threading
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Final
 
 from . import integrate as _integrate
 from . import matching
@@ -58,7 +60,14 @@ _PROTOCOLS_LOCK = threading.Lock()
 # default libraries coexist and a later install never retargets an earlier
 # space's constructors. Reinstalling a space with another default replaces
 # ITS aliases; (space, name) -> (library, arities) records what to remove.
-_CONSTRUCTOR_NAMES = ("tensor", "zeros", "ones", "randn", "arange-t", "eye")
+_CONSTRUCTOR_NAMES: Final[tuple[str, ...]] = (
+    "tensor",
+    "zeros",
+    "ones",
+    "randn",
+    "arange-t",
+    "eye",
+)
 _SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
 _SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
 _STORE_SERIAL = itertools.count(1)

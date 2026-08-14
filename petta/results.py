@@ -1,7 +1,8 @@
 """Purpose: query results as rows. A Rows is a mutable sequence of Row tuples, one per
 answer, with the query's variable names as columns and attribute access per
 column, so rows drop into unpacking, DataFrame constructors and pattern
-matching without a helper in between.
+matching without a helper in between. Eager query results retain their
+patterns so an empty result can explain itself on demand.
 Guarantees:
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
@@ -13,6 +14,12 @@ Guarantees:
     than dynamic class names [tested test_rows_copy_and_pickle_protocols]
   - terminal representations bound both rows and individual values and state
     the omitted row count [tested test_rows_repr_is_bounded_and_recursive]
+  - Rows.build preserves its requested class as the list element type [tested
+    test_target_type_overloads_preserve_the_requested_class]
+  - Rows.to_dicts returns one Python-native mapping per row, including empty
+    mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
+  - eager query results explain empty pattern, join, and guard outcomes [tested
+    test_query_rows_explain_empty_results]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,12 +33,13 @@ import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
-from typing import Any, Self, SupportsIndex, overload
+from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
 
 from . import convert
+from ._api_types import SpaceName
 from ._config import config
 from ._optional import require_module
-from .atoms import Gnd, decode
+from .atoms import Atom, Gnd, decode
 
 __all__ = ["Row", "Rows"]
 
@@ -39,6 +47,20 @@ _VALUE_REPR = reprlib.Repr()
 _VALUE_REPR.maxlevel = 4
 _VALUE_REPR.maxstring = 80
 _VALUE_REPR.maxother = 120
+_BuildT = TypeVar("_BuildT")
+
+
+class _QueryContext(NamedTuple):
+    space: SpaceName
+    patterns: tuple[Atom, ...]
+    where: Atom | None
+
+
+def _plain(value: Any) -> Any:
+    """Decode a ground value and spell symbolic structure as source text."""
+    if isinstance(value, Gnd):
+        return decode(value)
+    return str(value) if isinstance(value, Atom) else value
 
 
 class Row(tuple):
@@ -99,6 +121,14 @@ def _restore_row(columns: tuple[str, ...], values: tuple[Any, ...]) -> Row:
     return _row_class(columns)(values)
 
 
+def _restore_rows(
+    columns: tuple[str, ...],
+    values: list[tuple[Any, ...]],
+    query: _QueryContext | None,
+) -> Rows:
+    return Rows(columns, values, _query=query)
+
+
 class Rows(UserList[Row]):
     """Every answer to a query, in the order the engine produced them.
 
@@ -106,7 +136,13 @@ class Rows(UserList[Row]):
     projects a column, while integer and slice indexing follow a normal list.
     """
 
-    def __init__(self, columns: tuple[str, ...], rows: Iterable[Iterable[Any]]) -> None:
+    def __init__(
+        self,
+        columns: tuple[str, ...],
+        rows: Iterable[Iterable[Any]],
+        *,
+        _query: _QueryContext | None = None,
+    ) -> None:
         columns = tuple(columns)
         duplicates = [name for i, name in enumerate(columns) if name in columns[:i]]
         if duplicates:
@@ -114,6 +150,7 @@ class Rows(UserList[Row]):
                 f"Rows column names must be unique; duplicate names: {duplicates}"
             )
         self.columns = columns
+        self._query = _query
         checked = [self._coerce_row(row, index=index) for index, row in enumerate(rows)]
         super().__init__(checked)
 
@@ -165,14 +202,14 @@ class Rows(UserList[Row]):
         self.data.extend(checked)
 
     def copy(self) -> Rows:
-        return Rows(self.columns, self.data)
+        return Rows(self.columns, self.data, _query=self._query)
 
     def __copy__(self) -> Rows:
         return self.copy()
 
     def __reduce__(self):
         values = [tuple(row) for row in self.data]
-        return Rows, (self.columns, values)
+        return _restore_rows, (self.columns, values, self._query)
 
     def _addition_rows(self, other: Iterable[Iterable[Any]]) -> Iterable[Iterable[Any]]:
         if isinstance(other, Rows) and other.columns != self.columns:
@@ -218,10 +255,48 @@ class Rows(UserList[Row]):
             )
         return self[0]
 
-    def build(self, column: str, cls: type) -> list[Any]:
+    def why(self) -> str:
+        """Explain why this eager query returned no rows.
+
+        The explanation reads the space's current state. A nonempty result
+        has nothing to explain, and a manually constructed or transformed
+        Rows has no query to inspect, so both uses fail loudly.
+        """
+        if self:
+            raise ValueError(
+                f"why() explains an empty query; this one returned {len(self)} row(s)"
+            )
+        if self._query is None:
+            raise TypeError(
+                "why() needs the query() result that retained its patterns; "
+                "this Rows was constructed or transformed independently"
+            )
+        # Import after package initialization to break results -> space ->
+        # results while keeping the retained context serializable.
+        from ._space_diagnostics import explain_empty_query  # noqa: PLC0415
+        from .space import MeTTa  # noqa: PLC0415
+
+        context = self._query
+        return explain_empty_query(
+            MeTTa(context.space),
+            context.patterns,
+            context.where,
+        )
+
+    def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call."""
         return [convert.build(value, cls) for value in self.column(column)]
+
+    def to_dicts(self) -> list[dict[str, Any]]:
+        """Return one Python-native column-to-value mapping per row."""
+        return [
+            {
+                name: _plain(value)
+                for name, value in zip(self.columns, row, strict=True)
+            }
+            for row in self
+        ]
 
     def table(self) -> dict[str, list[Any]]:
         """The columns as a dict of plain values, the one shape every
@@ -233,11 +308,9 @@ class Rows(UserList[Row]):
                 "table() cannot represent nonempty zero-column Rows as a column mapping"
             )
 
-        def plain(value: Any) -> Any:
-            return decode(value) if isinstance(value, Gnd) else str(value)
-
         return {
-            name: [plain(row[i]) for row in self] for i, name in enumerate(self.columns)
+            name: [_plain(row[i]) for row in self]
+            for i, name in enumerate(self.columns)
         }
 
     def to_df(self):
@@ -280,9 +353,14 @@ class Rows(UserList[Row]):
             if len(self) > shown
             else ""
         )
+        caption = (
+            "<caption>No rows. Call <code>rows.why()</code> to explain.</caption>"
+            if not self and self._query is not None
+            else ""
+        )
         return (
             "<table style='font-family: monospace; border-collapse: collapse;'>"
-            f"<thead><tr>{head}</tr></thead><tbody>{body}{rest}</tbody></table>"
+            f"{caption}<thead><tr>{head}</tr></thead><tbody>{body}{rest}</tbody></table>"
         )
 
     @reprlib.recursive_repr()
@@ -292,6 +370,8 @@ class Rows(UserList[Row]):
         body = ", ".join(repr(row) for row in self.data[:shown])
         if len(self) > shown:
             body += f", ... {len(self) - shown} more rows"
+        if not self and self._query is not None:
+            return f"Rows[{header}]([]; no rows, call .why())"
         return f"Rows[{header}]([{body}])"
 
     def __iter__(self) -> Iterator[Row]:

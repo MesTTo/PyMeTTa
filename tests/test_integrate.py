@@ -2,6 +2,9 @@
 instance wrapping with the effect convention, protocol typing and printing,
 py-field reasoning in both modes, the reflector registry, integrate() over
 modules, and a real third-party library (networkx) integrated in a page.
+Guarantees:
+  - dropping a space invalidates its integration installation records [tested
+    test_dropped_space_name_reinstalls_integrations]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -14,7 +17,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import PettaError, S, V, expr, val
+from petta import CastError, PettaError, S, Sym, V, expr, val
 from petta import integrate as pi
 
 
@@ -96,6 +99,49 @@ def test_register_repr_protocol(metta):
     assert "Sized of 7" in repr(val(Sized()))
 
 
+def test_protocol_and_reflector_registrations_can_be_removed(metta):
+    class ExtensionTarget:
+        pass
+
+    target = ExtensionTarget()
+
+    def type_predicate(value):
+        return isinstance(value, ExtensionTarget)
+
+    def repr_predicate(value):
+        return isinstance(value, ExtensionTarget)
+
+    def formatter(_value):
+        return "<extension target>"
+
+    def reflector(m, name, _value):
+        return pi.facts(m, [S.reflected(Sym(name))])
+
+    pi.register_object_type(type_predicate, "ExtensionTargetProtocol")
+    pi.register_repr(repr_predicate, formatter)
+    pi.register_reflector(type_predicate, reflector)
+    try:
+        assert metta.cast(target, "ExtensionTargetProtocol") is target
+        assert str(val(target)) == "<extension target>"
+        assert pi.reflect(metta, "registered", target) == 1
+    finally:
+        pi.unregister_reflector(type_predicate, reflector)
+        pi.unregister_repr(repr_predicate, formatter)
+        pi.unregister_object_type(type_predicate, "ExtensionTargetProtocol")
+
+    with pytest.raises(CastError):
+        metta.cast(target, "ExtensionTargetProtocol")
+    assert str(val(target)) == "<ExtensionTarget>"
+    with pytest.raises(PettaError, match="no reflector claims ExtensionTarget"):
+        pi.reflect(metta, "removed", target)
+    with pytest.raises(KeyError, match="ExtensionTargetProtocol"):
+        pi.unregister_object_type(type_predicate, "ExtensionTargetProtocol")
+    with pytest.raises(KeyError, match="protocol repr"):
+        pi.unregister_repr(repr_predicate, formatter)
+    with pytest.raises(KeyError, match="reflector"):
+        pi.unregister_reflector(type_predicate, reflector)
+
+
 def test_py_field_reasons_in_both_modes(metta):
     @dataclass
     class Config:
@@ -166,6 +212,35 @@ def test_integrate_module_protocol_and_idempotence(metta):
         assert len(calls) == 2
     finally:
         other.drop()
+
+
+def test_dropped_space_name_reinstalls_integrations(metta):
+    calls = []
+
+    class Reinstallable:
+        name = "space-reuse-probe"
+
+        def install(self, target):
+            calls.append(target.space_name)
+            target.add(S.integration_marker(len(calls)))
+
+    integration = Reinstallable()
+    space_name = "&integration_reuse_probe"
+    first = metta.space(space_name)
+    first.clear()
+    pi.integrate(first, integration)
+    assert first.query(S.integration_marker(V.value)).one().value == 1
+
+    first.drop()
+    assert (space_name, integration.name) not in pi.installed()
+
+    second = metta.space(space_name)
+    try:
+        pi.integrate(second, integration)
+        assert second.query(S.integration_marker(V.value)).one().value == 2
+        assert calls == [space_name, space_name]
+    finally:
+        second.drop()
 
 
 def test_facts_bulk_load(metta):

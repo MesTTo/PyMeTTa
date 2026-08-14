@@ -7,6 +7,9 @@ Guarantees:
     test_init_false_dataclass_requires_an_explicit_reverse]
   - concurrent collisions produce one owner and one loud refusal [tested
     test_registration_collisions_are_serialized]
+  - unregister_type removes the exact class, its constructor, and its public
+    type-name claim atomically [tested
+    test_type_registration_can_be_removed_and_its_name_reclaimed]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -102,6 +105,23 @@ def register_type(
     )
     _record_registration(cls, registration)
     return cls
+
+
+def unregister_type(cls: type) -> None:
+    """Remove one exact class registration and release its public name.
+
+    Raises KeyError when cls has no explicit or memoized registration.
+    Existing projected atoms remain atoms, but an untyped build no longer
+    selects this class until it is registered again.
+    """
+    with _REGISTRY_LOCK:
+        registration = _REGISTRY.get(cls)
+        if registration is None:
+            raise KeyError(f"{_class_label(cls)} is not registered")
+        _discard_old_constructor(cls, registration)
+        if _TYPE_OWNERS.get(registration.type_name) is cls:
+            del _TYPE_OWNERS[registration.type_name]
+        del _REGISTRY[cls]
 
 
 def ensure_registered(cls: type) -> _Registration:

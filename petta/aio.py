@@ -23,6 +23,12 @@ Guarantees:
     stop failures together [tested test_aio_shutdown_handler_attempts_every_worker]
   - interpreter shutdown without live workers does not initialize the
     optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
+  - async names and save formats retain the synchronous surface's contextual
+    types [tested test_public_context_types_are_distinct]
+  - async cast preserves a concrete target class as its static return type and
+    keeps the target positional-only [tested
+    test_target_type_overloads_preserve_the_requested_class,
+    test_cast_target_is_positional_only]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -48,9 +54,11 @@ import threading
 import warnings
 import weakref
 from collections.abc import Callable
-from typing import Any, Self
+from typing import Any, Final, Self, TypeVar, overload
 
+from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
 from ._engine import bridge, runtime
+from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
 from .space import MeTTa
@@ -59,9 +67,10 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["AsyncMeTTa", "connect"]
 
-DEFAULT_CLOSE_TIMEOUT = 10.0
+DEFAULT_CLOSE_TIMEOUT: Final[float] = 10.0
 _LIVE_WORKERS: weakref.WeakSet[_EngineThread] = weakref.WeakSet()
 _LIVE_WORKERS_LOCK = threading.Lock()
+_CastT = TypeVar("_CastT")
 
 
 def _set_future_exception(future: asyncio.Future[None], failure: BaseException) -> None:
@@ -477,7 +486,12 @@ class AsyncMeTTa:
     stops working for a listener that is gone.
     """
 
-    def __init__(self, space: str = "&self", *, metta: MeTTa | None = None) -> None:
+    def __init__(
+        self,
+        space: SpaceName = _DEFAULT_SPACE,
+        *,
+        metta: MeTTa | None = None,
+    ) -> None:
         self._m = metta if metta is not None else MeTTa(space)
         self._worker = _EngineThread()
         self._closed = False
@@ -493,7 +507,7 @@ class AsyncMeTTa:
         return shared
 
     @property
-    def space_name(self) -> str:
+    def space_name(self) -> SpaceName:
         return self._m.space_name
 
     @property
@@ -565,7 +579,7 @@ class AsyncMeTTa:
         """Load source or a fast cache into this space on the worker."""
         return await self.call(lambda m: m.load(path))
 
-    async def save(self, path: str, format: str = "metta") -> int:
+    async def save(self, path: str, format: SaveFormat = "metta") -> int:
         """Save this space and return the number of stored atoms."""
         return await self.call(lambda m: m.save(path, format=format))
 
@@ -674,7 +688,13 @@ class AsyncMeTTa:
         """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
 
-    async def cast(self, value: Any, type_: Any) -> Any:
+    @overload
+    async def cast(self, value: Any, type_: type[_CastT], /) -> _CastT: ...
+
+    @overload
+    async def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
+
+    async def cast(self, value: Any, type_: Any, /) -> Any:
         """Check and narrow a value through the engine type system."""
         return await self.call(lambda m: m.cast(value, type_))
 
@@ -690,7 +710,7 @@ class AsyncMeTTa:
         """Return the stable content digest for this space."""
         return await self.call(lambda m: m.digest())
 
-    async def unregister_op(self, name: str) -> None:
+    async def unregister_op(self, name: MettaName) -> None:
         """Remove every registered operation overload under a name."""
         return await self.call(lambda m: m.unregister_op(name))
 
@@ -700,15 +720,15 @@ class AsyncMeTTa:
         """Return the names of engine builtins."""
         return await self.call(lambda m: m.builtins())
 
-    async def is_function(self, name: str) -> bool:
+    async def is_function(self, name: MettaName) -> bool:
         """Report whether a function is visible from this space."""
         return await self.call(lambda m: m.is_function(name))
 
-    async def is_function_here(self, name: str) -> bool:
+    async def is_function_here(self, name: MettaName) -> bool:
         """Report whether this space defines a function itself."""
         return await self.call(lambda m: m.is_function_here(name))
 
-    async def arities(self, name: str) -> list[int]:
+    async def arities(self, name: MettaName) -> list[int]:
         """Return the registered arities for a function name."""
         return await self.call(lambda m: m.arities(name))
 
@@ -734,7 +754,7 @@ class AsyncMeTTa:
         """Explain why a pattern is not currently reducible."""
         return await self.call(lambda m: m.why(pattern))
 
-    async def space(self, name: str) -> AsyncMeTTa:
+    async def space(self, name: SpaceName) -> AsyncMeTTa:
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
         a no-op and closing the owner ends them all."""
@@ -791,7 +811,11 @@ class AsyncMeTTa:
         return f"AsyncMeTTa({self._m.space_name!r}, {state})"
 
 
-async def connect(space: str = "&self", *, metta: MeTTa | None = None) -> AsyncMeTTa:
+async def connect(
+    space: SpaceName = _DEFAULT_SPACE,
+    *,
+    metta: MeTTa | None = None,
+) -> AsyncMeTTa:
     """An AsyncMeTTa with its engine thread already running, aiosqlite's
     own naming for the entry point."""
     return await AsyncMeTTa(space, metta=metta).start()

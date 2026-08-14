@@ -3,6 +3,8 @@ Guarantees:
   - both package paths resolve package and registry-bearing submodules to
     canonical petta objects [tested test_legacy_package_path_aliases_canonical_modules,
     test_legacy_path_can_be_imported_first]
+  - importing petta alone leaves optional integrations unloaded [tested
+    test_optional_surfaces_load_only_when_requested]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +24,7 @@ def test_legacy_package_path_aliases_canonical_modules():
 
     assert legacy is canonical
     assert importlib.import_module("python.petta.atoms") is canonical.atoms
+    assert importlib.import_module("python.petta.aio") is canonical.aio
     assert importlib.import_module("python.petta.subscribe") is canonical.subscribe
 
 
@@ -33,11 +36,41 @@ legacy = importlib.import_module('python.petta')
 canonical = importlib.import_module('petta')
 assert legacy is canonical
 assert importlib.import_module('python.petta.atoms') is canonical.atoms
+assert importlib.import_module('python.petta.aio') is canonical.aio
 assert importlib.import_module('python.petta.subscribe') is canonical.subscribe
 """
     environment = os.environ | {
         "PYTHONPATH": os.pathsep.join((str(root / "python"), str(root)))
     }
+    subprocess.run(
+        [sys.executable, "-c", source],
+        cwd=root,
+        env=environment,
+        check=True,
+    )
+
+
+def test_optional_surfaces_load_only_when_requested():
+    root = Path(__file__).resolve().parents[2]
+    source = """
+import importlib
+import sys
+
+import petta
+
+lazy = {
+    'aio', 'arrays', 'das', 'matching', 'measure', 'persistent', 'remote', 'testing'
+}
+assert all(f'petta.{name}' not in sys.modules for name in lazy)
+assert 'asyncio' not in sys.modules
+assert 'urllib.request' not in sys.modules
+
+for name in lazy:
+    exposed = getattr(petta, name)
+    assert exposed is importlib.import_module(f'petta.{name}')
+assert lazy <= set(dir(petta))
+"""
+    environment = os.environ | {"PYTHONPATH": str(root / "python")}
     subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,

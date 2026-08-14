@@ -1,4 +1,10 @@
-"""Purpose: run one engine-free workload for perf instructions:u.
+"""Purpose: run one benchmark workload for perf instructions:u.
+Guarantees:
+  - setup and teardown stay outside perf's controlled measurement interval
+    [tested test_perf_workload_setup_and_teardown_stay_outside_control]
+Owns:
+  - main releases the selected workload after success or failure
+    [tested test_perf_workload_teardown_runs_after_failure]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -7,8 +13,20 @@ Open Obligations:
 
 import argparse
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
+from benchmarks.engine_workloads import (
+    EngineCase,
+    alpha_unique_case,
+    close_engine_case,
+    digest_case,
+    let_heavy,
+    let_space,
+    py_method_case,
+    sort_atom_case,
+    source_load_case,
+    space_name_case,
+)
 from benchmarks.workloads import (
     json_payload,
     json_wire,
@@ -17,18 +35,47 @@ from benchmarks.workloads import (
     wire_codec,
 )
 
-
-def _wire_codec():
-    return wire_codec(wire_atom())
+PerfCase = tuple[Callable[[], int], Callable[[], None]]
 
 
-def _json_wire():
-    return json_wire(json_payload())
+def _no_teardown() -> None:
+    pass
+
+
+def _wire_codec() -> PerfCase:
+    atom = wire_atom()
+    return lambda: wire_codec(atom), _no_teardown
+
+
+def _json_wire() -> PerfCase:
+    payload = json_payload()
+    return lambda: json_wire(payload), _no_teardown
+
+
+def _term_operators() -> PerfCase:
+    return term_operators, _no_teardown
+
+
+def _engine_case(factory: Callable[[], EngineCase]) -> PerfCase:
+    state = factory()
+    return state[1], lambda: close_engine_case(state)
+
+
+def _let_heavy() -> PerfCase:
+    space = let_space()
+    return lambda: let_heavy(space), space.drop
 
 
 _CASES = {
+    "alpha-unique": lambda: _engine_case(alpha_unique_case),
     "json-wire": _json_wire,
-    "term-operators": term_operators,
+    "let-heavy": _let_heavy,
+    "py-method-call": lambda: _engine_case(py_method_case),
+    "sort-atom": lambda: _engine_case(sort_atom_case),
+    "source-load": lambda: _engine_case(source_load_case),
+    "space-digest": lambda: _engine_case(digest_case),
+    "space-name": lambda: _engine_case(space_name_case),
+    "term-operators": _term_operators,
     "wire-codec": _wire_codec,
 }
 
@@ -74,8 +121,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("case", choices=sorted(_CASES))
     parser.add_argument("--controlled", action="store_true")
     arguments = parser.parse_args(argv)
-    operation = _CASES[arguments.case]
-    completed = _controlled(operation) if arguments.controlled else operation()
+    operation, teardown = _CASES[arguments.case]()
+    try:
+        completed = _controlled(operation) if arguments.controlled else operation()
+    finally:
+        teardown()
     if completed <= 0:
         raise AssertionError(f"{arguments.case} completed no operations")
     return 0

@@ -12,6 +12,25 @@ Open Obligations:
 
 from tempfile import TemporaryDirectory
 
+from benchmarks.engine_workloads import (
+    ALPHA_TERMS,
+    DIGEST_ATOMS,
+    LET_ITERATIONS,
+    LET_SLOPE_SMALL,
+    METHOD_CALLS,
+    SORT_TERMS,
+    SOURCE_FORMS,
+    SPACE_NAME_CALLS,
+    alpha_unique_case,
+    close_engine_case,
+    digest_case,
+    let_heavy,
+    let_space,
+    py_method_case,
+    sort_atom_case,
+    source_load_case,
+    space_name_case,
+)
 from benchmarks.workloads import (
     JSON_TRIPS,
     TERM_COUNT,
@@ -23,7 +42,7 @@ from benchmarks.workloads import (
     wire_codec,
 )
 from petta import MeTTa, S, V, expr, measure
-from petta.testing import benchmark_case, count_atoms
+from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
 
@@ -34,6 +53,30 @@ def _empty_space():
 
 def _drop(space):
     space.drop()
+
+
+def _engine_workload_case(
+    benchmark,
+    baseline,
+    *,
+    name,
+    unit,
+    operations,
+    factory,
+):
+    return benchmark_case(
+        benchmark,
+        baseline,
+        name=name,
+        unit=unit,
+        operations=operations,
+        operation=lambda state: state[1](),
+        setup=factory,
+        teardown=close_engine_case,
+        engine=lambda state: state[0],
+        rounds=3,
+        warmup_rounds=1,
+    )
 
 
 def _space_with_edges():
@@ -197,6 +240,34 @@ def test_loop_million(benchmark, inference_baseline):
     )
 
 
+def test_let_heavy(benchmark, inference_baseline):
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="let-heavy",
+        unit="iterations",
+        operations=LET_ITERATIONS,
+        operation=let_heavy,
+        setup=let_space,
+        teardown=_drop,
+        engine=lambda space: space,
+        rounds=3,
+        warmup_rounds=1,
+    )
+    benchmark_counter_slope(
+        inference_baseline,
+        name="let-heavy",
+        unit="iterations",
+        small_operations=LET_SLOPE_SMALL,
+        small_operation=lambda space: let_heavy(space, LET_SLOPE_SMALL),
+        large_operations=LET_ITERATIONS,
+        large_operation=let_heavy,
+        setup=let_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
 def test_wire_codec(benchmark, inference_baseline):
     operations = WIRE_TRIPS * count_atoms(wire_atom())
 
@@ -298,13 +369,14 @@ def _drop_pair(state):
     state[0].drop()
 
 
+def _prepared_join(state, repeats):
+    _space, prepared = state
+    return sum(len(prepared.solve()) for _ in range(repeats))
+
+
 def test_prepared_join(benchmark, inference_baseline):
     repeats = 5
     rows = _ROWS - 1
-
-    def operation(state):
-        _space, prepared = state
-        return sum(len(prepared.solve()) for _ in range(repeats))
 
     benchmark_case(
         benchmark,
@@ -312,19 +384,32 @@ def test_prepared_join(benchmark, inference_baseline):
         name="prepared-join",
         unit="rows",
         operations=repeats * rows,
-        operation=operation,
+        operation=lambda state: _prepared_join(state, repeats),
+        setup=_prepared_join_space,
+        teardown=_drop_pair,
+        engine=lambda state: state[0],
+    )
+    benchmark_counter_slope(
+        inference_baseline,
+        name="prepared-join",
+        unit="rows",
+        small_operations=rows,
+        small_operation=lambda state: _prepared_join(state, 1),
+        large_operations=25 * rows,
+        large_operation=lambda state: _prepared_join(state, 25),
         setup=_prepared_join_space,
         teardown=_drop_pair,
         engine=lambda state: state[0],
     )
 
 
+def _direct_join(space, repeats):
+    return sum(len(space.query(S.edge(V.a, V.b), S.edge(V.b, V.c))) for _ in range(repeats))
+
+
 def test_direct_join(benchmark, inference_baseline):
     repeats = 5
     rows = _ROWS - 1
-
-    def operation(space):
-        return sum(len(space.query(S.edge(V.a, V.b), S.edge(V.b, V.c))) for _ in range(repeats))
 
     benchmark_case(
         benchmark,
@@ -332,7 +417,19 @@ def test_direct_join(benchmark, inference_baseline):
         name="direct-join",
         unit="rows",
         operations=repeats * rows,
-        operation=operation,
+        operation=lambda space: _direct_join(space, repeats),
+        setup=_space_with_edges,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+    benchmark_counter_slope(
+        inference_baseline,
+        name="direct-join",
+        unit="rows",
+        small_operations=rows,
+        small_operation=lambda space: _direct_join(space, 1),
+        large_operations=25 * rows,
+        large_operation=lambda space: _direct_join(space, 25),
         setup=_space_with_edges,
         teardown=_drop,
         engine=lambda space: space,
@@ -495,6 +592,72 @@ def test_subscription_tax(benchmark, inference_baseline):
         setup=_subscribed_spaces,
         teardown=_drop_subscribed,
         engine=lambda state: state[0],
+    )
+
+
+def test_alpha_unique(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="alpha-unique",
+        unit="terms",
+        operations=ALPHA_TERMS,
+        factory=alpha_unique_case,
+    )
+
+
+def test_space_digest(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="space-digest",
+        unit="atoms",
+        operations=DIGEST_ATOMS,
+        factory=digest_case,
+    )
+
+
+def test_py_method_call(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="py-method-call",
+        unit="calls",
+        operations=METHOD_CALLS,
+        factory=py_method_case,
+    )
+
+
+def test_sort_atom(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="sort-atom",
+        unit="terms",
+        operations=SORT_TERMS,
+        factory=sort_atom_case,
+    )
+
+
+def test_source_load(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="source-load",
+        unit="forms",
+        operations=SOURCE_FORMS,
+        factory=source_load_case,
+    )
+
+
+def test_space_name(benchmark, inference_baseline):
+    _engine_workload_case(
+        benchmark,
+        inference_baseline,
+        name="space-name",
+        unit="calls",
+        operations=SPACE_NAME_CALLS,
+        factory=space_name_case,
     )
 
 

@@ -1,5 +1,10 @@
-"""Purpose: the Rows container's sequence, copy, pickle, DataFrame, and
-notebook interop surface, including named dependency refusals.
+"""Purpose: the Rows container's sequence, copy, pickle, record, DataFrame,
+and notebook interop surface, including named dependency refusals.
+Guarantees:
+  - Rows.to_dicts returns one Python-native mapping per row and preserves
+    zero-column row counts [tested test_rows_to_dicts_returns_plain_records]
+  - eager query results explain empty pattern, join, and guard outcomes [tested
+    test_query_rows_explain_empty_results]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,6 +47,49 @@ def test_rows_to_df_builds_or_names_the_need(m):
             rows.to_df()
     else:
         assert rows.to_df()["points"].tolist() == [3]
+
+
+def test_rows_to_dicts_returns_plain_records(m):
+    m.add_table("score", [("ada", 3), ("bob", 5)])
+    rows = m.query(S.score(V.who, V.points))
+    assert rows.to_dicts() == [
+        {"who": "ada", "points": 3},
+        {"who": "bob", "points": 5},
+    ]
+    assert Rows((), [(), ()]).to_dicts() == [{}, {}]
+    native = Rows(("who", "points"), [("ada", 3)])
+    assert native.to_dicts() == [{"who": "ada", "points": 3}]
+    assert native.table() == {"who": ["ada"], "points": [3]}
+
+
+def test_query_rows_explain_empty_results(m):
+    m.add(
+        S.Parent(S.Tom, S.Bob),
+        S.edge(S.a, S.b),
+        S.edge(S.c, S.d),
+        S.age(S.Ada, 12),
+    )
+
+    missing = m.query(S.Parent(S.Missing, V.child))
+    assert "none unifies" in missing.why()
+    assert "why()" in repr(missing)
+    assert "rows.why()" in missing._repr_html_()
+    assert "none unifies" in copy.copy(missing).why()
+    assert "none unifies" in copy.deepcopy(missing).why()
+    assert "none unifies" in pickle.loads(pickle.dumps(missing)).why()
+
+    joined = m.query(S.edge(V.left, V.middle), S.edge(V.middle, V.right))
+    assert "shared variable binding" in joined.why()
+
+    guarded = m.query(S.age(S.Ada, V.years), where=V.years >= 18)
+    assert "where guard" in guarded.why()
+
+    with pytest.raises(ValueError, match="returned 1 row"):
+        m.query(S.Parent(S.Tom, V.child)).why()
+    with pytest.raises(TypeError, match=r"query\(\)"):
+        Rows(("value",), []).why()
+    with pytest.raises(TypeError, match="transformed"):
+        missing[:].why()
 
 
 def test_rows_render_as_an_html_table():

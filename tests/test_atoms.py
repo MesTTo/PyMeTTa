@@ -45,6 +45,10 @@ from petta.atoms import (
     boxed,
     from_wire,
     is_ground,
+    register_object_repr,
+    register_object_repr_protocol,
+    unregister_object_repr,
+    unregister_object_repr_protocol,
 )
 
 
@@ -53,6 +57,39 @@ def test_symbols_are_not_strings():
     assert S.foo != "foo"
     assert Gnd("foo") == "foo"
     assert S.foo != Gnd("foo")
+
+
+def test_object_repr_registrations_can_be_removed_exactly():
+    class RenderedByClass:
+        pass
+
+    class RenderedByProtocol:
+        pass
+
+    def class_formatter(_value):
+        return "<class formatter>"
+
+    def predicate(value):
+        return isinstance(value, RenderedByProtocol)
+
+    def protocol_formatter(_value):
+        return "<protocol formatter>"
+
+    register_object_repr(RenderedByClass, class_formatter)
+    register_object_repr_protocol(predicate, protocol_formatter)
+    try:
+        assert str(val(RenderedByClass())) == "<class formatter>"
+        assert str(val(RenderedByProtocol())) == "<protocol formatter>"
+    finally:
+        unregister_object_repr(RenderedByClass)
+        unregister_object_repr_protocol(predicate, protocol_formatter)
+
+    assert str(val(RenderedByClass())) == "<RenderedByClass>"
+    assert str(val(RenderedByProtocol())) == "<RenderedByProtocol>"
+    with pytest.raises(KeyError, match="RenderedByClass"):
+        unregister_object_repr(RenderedByClass)
+    with pytest.raises(KeyError, match="protocol repr"):
+        unregister_object_repr_protocol(predicate, protocol_formatter)
 
 
 def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():

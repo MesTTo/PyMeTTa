@@ -2,6 +2,9 @@
 signature for arities (defaults yield several), auto-detects nondeterminism
 (a generator function is one), derives a MeTTa type declaration from the
 annotations, and registers the whole thing with the engine through shim.pl.
+Guarantees:
+  - registration distinguishes a MeTTa function name from its declaration
+    space [tested test_public_context_types_are_distinct]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +19,7 @@ from collections.abc import Callable
 from typing import Any
 
 from . import convert
+from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
     callable_name as _callable_name,
@@ -102,9 +106,9 @@ def class_declarations(cls: type) -> list[Expr]:
     return list(convert.declarations(cls))
 
 
-def _metta_name(fn: Callable, name: str | None) -> str:
+def _metta_name(fn: Callable, name: MettaName | None) -> MettaName:
     """The MeTTa spelling: underscores read as hyphens unless overridden."""
-    return name if name is not None else _callable_name(fn).replace("_", "-")
+    return name if name is not None else MettaName(_callable_name(fn).replace("_", "-"))
 
 
 def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
@@ -257,11 +261,11 @@ def register(
     runtime,
     fn: Callable,
     *,
-    name: str | None = None,
+    name: MettaName | None = None,
     typed: bool = True,
     raw: bool = False,
     pass_atoms: bool = False,
-    space: str = "&self",
+    space: SpaceName = _DEFAULT_SPACE,
     arities: list[int] | None = None,
 ) -> Callable:
     """Make fn callable from MeTTa. Returns fn unchanged.
@@ -304,7 +308,7 @@ def register(
     return fn
 
 
-def unregister(runtime, name: str) -> None:
+def unregister(runtime, name: MettaName) -> None:
     """Remove every arity of a registered operation, and every declaration
     registration added, so nothing keeps describing a function that no
     longer exists."""
