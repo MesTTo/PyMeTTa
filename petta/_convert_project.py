@@ -74,8 +74,12 @@ def _project_direct(value: Any) -> Projected | None:
 
 def _project_sequence(value: list[Any] | tuple[Any, ...]) -> Projected:
     parts = [project(item) for item in value]
-    declarations = [declaration for part in parts for declaration in part.declarations]
-    return Projected(Expr([part.atom for part in parts]), _dedup(declarations))
+    projected_declarations = [
+        declaration for part in parts for declaration in part.declarations
+    ]
+    return Projected(
+        Expr([part.atom for part in parts]), _dedup(projected_declarations)
+    )
 
 
 def _project_object(value: Any) -> Projected:

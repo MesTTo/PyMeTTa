@@ -148,9 +148,9 @@ def engine_thread() -> Iterator[None]:
     engine. A bare foreign thread gets one engine and releases it on exit,
     including exceptional exit.
     """
-    bridge = runtime()._janus
+    janus = runtime()._janus
     try:
-        already_attached = bridge.engine() >= 0
+        already_attached = janus.engine() >= 0
     except Exception as exc:
         raise EngineError("could not inspect this thread's Prolog engine") from exc
     if already_attached:
@@ -159,19 +159,19 @@ def engine_thread() -> Iterator[None]:
 
     attached = False
     try:
-        bridge.attach_engine()
+        janus.attach_engine()
         attached = True
-        if bridge.engine() < 0:
+        if janus.engine() < 0:
             raise RuntimeError("janus did not attach a Prolog engine")
     except Exception as exc:
         if attached:
-            bridge.detach_engine()
+            janus.detach_engine()
         raise EngineError("could not attach a Prolog engine to this thread") from exc
     try:
         yield
     finally:
         try:
-            bridge.detach_engine()
+            janus.detach_engine()
         except Exception as exc:
             raise EngineError("could not detach this thread's Prolog engine") from exc
 
