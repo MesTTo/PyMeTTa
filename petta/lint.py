@@ -122,7 +122,7 @@ def lint(space) -> list[Finding]:
         inputs = _arrow_inputs(signature)
         if inputs is None:
             continue
-        if name not in defined_here and not _is_function(runtime, name):
+        if name not in defined_here and not space.is_function_here(name):
             findings.append(Finding(
                 "declared-but-undefined", name,
                 f"declared {signature} but nothing defines it; every call "

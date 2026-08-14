@@ -39,6 +39,18 @@ def test_declared_but_undefined(m):
     assert findings[0].subject == "ghost-fn"
 
 
+def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta):
+    with metta.fresh_space() as defining, metta.fresh_space() as declaring:
+        defining.run("(= (cross-space-only $x) $x)")
+        declaring.run("(: cross-space-only (-> Number Number))")
+
+        assert declaring.is_function("cross-space-only") is True
+        assert declaring.is_function_here("cross-space-only") is False
+        findings = declaring.lint()
+        assert _kinds(findings) == ["declared-but-undefined"]
+        assert findings[0].subject == "cross-space-only"
+
+
 def test_arrow_arity_against_equations(m):
     m.run("(: two-face (-> Number Number Number)) (= (two-face $x) $x)")
     findings = m.lint()
