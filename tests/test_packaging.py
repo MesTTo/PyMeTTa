@@ -34,6 +34,13 @@ def test_optional_integrations_have_installable_extras():
     assert extras["das"] == ["websocket-client"]
     assert set(extras["dataframes"]) == {"pandas", "polars"}
     assert extras["orjson"] == ["orjson>=3.10,<4"]
+    assert "pytest-xdist>=3.8,<4" in extras["test"]
+    assert "pytest-xdist>=3.8,<4" in extras["checks"]
+
+
+def test_python_gate_groups_files_in_process_workers():
+    gate = (ROOT / "check.sh").read_text(encoding="utf-8")
+    assert "-p no:benchmark -n auto --dist loadfile --max-worker-restart=0" in gate
 
 
 def test_measure_integration_and_version_are_published_from_their_modules():
