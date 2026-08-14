@@ -1,0 +1,549 @@
+"""Purpose: calibrated Python-surface performance cases with exact units.
+Guarantees:
+  - compared cases use identical corpus sizes, limits, and operation units
+    [tested benchmark baseline]
+  - every mutable engine case receives a fresh space outside its measured
+    window [tested benchmark_case]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+from tempfile import TemporaryDirectory
+
+from benchmarks.workloads import (
+    JSON_TRIPS,
+    TERM_COUNT,
+    WIRE_TRIPS,
+    json_payload,
+    json_wire,
+    term_operators,
+    wire_atom,
+    wire_codec,
+)
+from petta import MeTTa, S, V, expr, measure
+from petta.testing import benchmark_case, count_atoms
+
+_ROWS = 2_000
+
+
+def _empty_space():
+    return MeTTa().fresh_space()
+
+
+def _drop(space):
+    space.drop()
+
+
+def _space_with_edges():
+    space = _empty_space()
+    space.add(*(S.edge(i, i + 1) for i in range(_ROWS)))
+    return space
+
+
+def test_add_single(benchmark, inference_baseline):
+    def operation(space):
+        for index in range(_ROWS):
+            space.add(S.n(index))
+        return _ROWS
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="add-single",
+        unit="atoms",
+        operations=_ROWS,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_add_batch(benchmark, inference_baseline):
+    def operation(space):
+        space.add(*(S.n(index) for index in range(_ROWS)))
+        return _ROWS
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="add-batch",
+        unit="atoms",
+        operations=_ROWS,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_query_rows(benchmark, inference_baseline):
+    repeats = 20
+
+    def operation(space):
+        return sum(len(space.query(S.edge(V.a, V.b))) for _ in range(repeats))
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="query-2k-rows",
+        unit="rows",
+        operations=repeats * _ROWS,
+        operation=operation,
+        setup=_space_with_edges,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_eval_arithmetic(benchmark, inference_baseline):
+    def operation(space):
+        for index in range(_ROWS):
+            space.eval(expr(S["+"], index, 1))
+        return _ROWS
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="eval-arith",
+        unit="evaluations",
+        operations=_ROWS,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def _operation_space(name, *, raw):
+    space = _empty_space()
+
+    @space.register_op(name=name, raw=raw, typed=False)
+    def addition(left, right):
+        return left + right
+
+    return space
+
+
+def _drop_operation_space(name):
+    def teardown(space):
+        space.unregister_op(name)
+        space.drop()
+
+    return teardown
+
+
+def _eval_registered(space, name):
+    for index in range(_ROWS):
+        space.eval(expr(S[name], index, 1))
+    return _ROWS
+
+
+def test_raw_operation(benchmark, inference_baseline):
+    name = "benchmark-raw-operation"
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="op-raw",
+        unit="evaluations",
+        operations=_ROWS,
+        operation=lambda space: _eval_registered(space, name),
+        setup=lambda: _operation_space(name, raw=True),
+        teardown=_drop_operation_space(name),
+        engine=lambda space: space,
+    )
+
+
+def test_encoded_operation(benchmark, inference_baseline):
+    name = "benchmark-encoded-operation"
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="op-encoded",
+        unit="evaluations",
+        operations=_ROWS,
+        operation=lambda space: _eval_registered(space, name),
+        setup=lambda: _operation_space(name, raw=False),
+        teardown=_drop_operation_space(name),
+        engine=lambda space: space,
+    )
+
+
+def _countdown_space():
+    space = _empty_space()
+    space.run("(= (benchmark-countdown $n) (if (> $n 0) (benchmark-countdown (- $n 1)) done))")
+    return space
+
+
+def test_loop_million(benchmark, inference_baseline):
+    def operation(space):
+        assert space.run("!(benchmark-countdown 1000000)") == [[S.done]]
+        return 1_000_000
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="loop-1m",
+        unit="iterations",
+        operations=1_000_000,
+        operation=operation,
+        setup=_countdown_space,
+        teardown=_drop,
+        engine=lambda space: space,
+        rounds=3,
+        warmup_rounds=1,
+    )
+
+
+def test_wire_codec(benchmark, inference_baseline):
+    operations = WIRE_TRIPS * count_atoms(wire_atom())
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="wire-codec",
+        unit="atom round-trips",
+        operations=operations,
+        operation=wire_codec,
+        setup=wire_atom,
+        teardown=lambda _atom: None,
+        engine=None,
+    )
+
+
+def test_json_wire(benchmark, inference_baseline):
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="json-wire",
+        unit="payload round-trips",
+        operations=JSON_TRIPS,
+        operation=json_wire,
+        setup=json_payload,
+        teardown=lambda _payload: None,
+        engine=None,
+    )
+
+
+def test_run_source(benchmark, inference_baseline):
+    repeats = 1_000
+
+    def operation(space):
+        for _ in range(repeats):
+            space.run("!(+ 1 2)")
+        return repeats
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="run-source",
+        unit="directives",
+        operations=repeats,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_term_operators(benchmark, inference_baseline):
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="term-operators",
+        unit="terms",
+        operations=TERM_COUNT,
+        operation=lambda _state: term_operators(),
+        setup=lambda: None,
+        teardown=lambda _state: None,
+        engine=None,
+    )
+
+
+def _people_space():
+    space = _empty_space()
+    space.add(*(S.person(S[f"p{i}"], i % 90) for i in range(_ROWS)))
+    return space
+
+
+def test_query_where(benchmark, inference_baseline):
+    repeats = 20
+    expected_rows = 508
+    guard = (V.age >= 18) & (V.age <= 40)
+
+    def operation(space):
+        return sum(len(space.query(S.person(V.name, V.age), where=guard)) for _ in range(repeats))
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="query-where",
+        unit="rows",
+        operations=repeats * expected_rows,
+        operation=operation,
+        setup=_people_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def _prepared_join_space():
+    space = _space_with_edges()
+    return space, space.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c))
+
+
+def _drop_pair(state):
+    state[0].drop()
+
+
+def test_prepared_join(benchmark, inference_baseline):
+    repeats = 5
+    rows = _ROWS - 1
+
+    def operation(state):
+        _space, prepared = state
+        return sum(len(prepared.solve()) for _ in range(repeats))
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="prepared-join",
+        unit="rows",
+        operations=repeats * rows,
+        operation=operation,
+        setup=_prepared_join_space,
+        teardown=_drop_pair,
+        engine=lambda state: state[0],
+    )
+
+
+def test_direct_join(benchmark, inference_baseline):
+    repeats = 5
+    rows = _ROWS - 1
+
+    def operation(space):
+        return sum(len(space.query(S.edge(V.a, V.b), S.edge(V.b, V.c))) for _ in range(repeats))
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="direct-join",
+        unit="rows",
+        operations=repeats * rows,
+        operation=operation,
+        setup=_space_with_edges,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def _limited_query(space, *, guarded):
+    kwargs = {"timeout": 30.0, "inferences": 50_000_000} if guarded else {}
+    return len(space.query(S.edge(V.a, V.b), limit=50, **kwargs))
+
+
+def _query_limit_case(benchmark, baseline, *, name, guarded):
+    repeats = 100
+
+    def operation(space):
+        return sum(_limited_query(space, guarded=guarded) for _ in range(repeats))
+
+    return benchmark_case(
+        benchmark,
+        baseline,
+        name=name,
+        unit="rows",
+        operations=repeats * 50,
+        operation=operation,
+        setup=_space_with_edges,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_query_limit_plain(benchmark, inference_baseline):
+    _query_limit_case(
+        benchmark,
+        inference_baseline,
+        name="query-limit-plain",
+        guarded=False,
+    )
+
+
+def test_query_limit_guarded(benchmark, inference_baseline):
+    _query_limit_case(
+        benchmark,
+        inference_baseline,
+        name="query-limit-guarded",
+        guarded=True,
+    )
+
+
+def test_add_table_rows(benchmark, inference_baseline):
+    rows = [(index, index + 1) for index in range(_ROWS)]
+
+    def operation(space):
+        return space.add_table("edge", rows)
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="add-table-rows",
+        unit="rows",
+        operations=_ROWS,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def _weighted_space():
+    space = _empty_space()
+    measure.install(space)
+    measure.weighted_relation(
+        space,
+        "benchmark-mood",
+        lambda _day: [0.25, 0.75],
+        [S.calm, S.tense],
+    )
+    return space
+
+
+def _drop_weighted(space):
+    space.unregister_op("benchmark-mood")
+    space.drop()
+
+
+def test_weighted_relation(benchmark, inference_baseline):
+    repeats = 500
+
+    def operation(space):
+        for _ in range(repeats):
+            space.run("!(ws-best (collapse (benchmark-mood today)))")
+        return repeats
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="weighted-relation",
+        unit="evaluations",
+        operations=repeats,
+        operation=operation,
+        setup=_weighted_space,
+        teardown=_drop_weighted,
+        engine=lambda space: space,
+    )
+
+
+def test_register_operation(benchmark, inference_baseline):
+    registrations = 100
+
+    def operation(space):
+        for index in range(registrations):
+            name = f"benchmark-register-{index}"
+
+            def identity(value: int) -> int:
+                return value
+
+            space.register_op(identity, name=name)
+            space.unregister_op(name)
+        return registrations
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="register-op",
+        unit="registrations",
+        operations=registrations,
+        operation=operation,
+        setup=_empty_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def _subscribed_spaces():
+    watched = _empty_space()
+    target = _empty_space()
+    subscription = watched.subscribe(S.never(V.x))
+    return target, watched, subscription
+
+
+def _drop_subscribed(state):
+    target, watched, subscription = state
+    subscription.cancel()
+    target.drop()
+    watched.drop()
+
+
+def test_subscription_tax(benchmark, inference_baseline):
+    def operation(state):
+        target, _watched, _subscription = state
+        target.add(*(S.n(index) for index in range(_ROWS)))
+        return _ROWS
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="subscribe-tax",
+        unit="atoms",
+        operations=_ROWS,
+        operation=operation,
+        setup=_subscribed_spaces,
+        teardown=_drop_subscribed,
+        engine=lambda state: state[0],
+    )
+
+
+def _save_state(format):
+    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    source = _empty_space()
+    target = _empty_space()
+    source.add(*(S["benchmark-save-node"](i, i + 1) for i in range(20_000)))
+    source.run("(= (benchmark-save-next $x) (+ $x 1))")
+    return directory, source, target, f"{directory.name}/roundtrip.{format}", format
+
+
+def _drop_save_state(state):
+    directory, source, target, _path, _format = state
+    source.drop()
+    target.drop()
+    directory.cleanup()
+
+
+def _save_load(state):
+    _directory, source, target, path, format = state
+    saved = source.save(path, format=format)
+    groups = target.load(path)
+    if saved != 20_001 or groups or target.count() != 20_001:
+        raise AssertionError(f"{format} did not round-trip 20,001 atoms")
+    if target.run("!(benchmark-save-next 41)") != [[42]]:
+        raise AssertionError(f"{format} lost the stored equation")
+    return saved
+
+
+def _save_case(benchmark, baseline, format):
+    return benchmark_case(
+        benchmark,
+        baseline,
+        name=f"save-load-{format}",
+        unit="atoms",
+        operations=20_001,
+        operation=_save_load,
+        setup=lambda: _save_state(format),
+        teardown=_drop_save_state,
+        engine=lambda state: state[1],
+        rounds=3,
+        warmup_rounds=1,
+    )
+
+
+def test_save_load_metta(benchmark, inference_baseline):
+    _save_case(benchmark, inference_baseline, "metta")
+
+
+def test_save_load_fast(benchmark, inference_baseline):
+    _save_case(benchmark, inference_baseline, "fast")

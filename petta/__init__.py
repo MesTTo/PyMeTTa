@@ -2,6 +2,9 @@
 keeps its exact contract (swrite strings through helper.pl), and the rich
 surface lives beside it: atoms as Python values, the MeTTa runtime class,
 Python-backed MeTTa functions, structured queries and proof trees.
+Guarantees:
+  - importing petta and petta.cli does not require janus_swi until an
+    engine-backed API is used [tested test_package_import_does_not_require_janus]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,36 +18,15 @@ Open Obligations:
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
 """
 
-import os
+import logging
 import sys
-import threading
-import importlib
 
-CONSULTED = False
-CONSULT_LOCK = threading.Lock()
-janus = None
-DEFAULT_STACK_LIMIT = 8_000_000_000
+from . import _engine
+from ._config import Config, config
+from ._version import __version__
 
-# Whether shim.pl has been consulted; owned by petta._engine.
-_SHIM_LOADED = False
-
-
-def _resolve_petta_path():
-    """Locate the PeTTa runtime tree (src/, lib/, python/helper.pl).
-
-    Prefers PETTA_PATH, then the runtime bundled in the installed package,
-    then the source-tree root (editable installs and checkouts).
-    """
-    env_path = os.environ.get("PETTA_PATH")
-    if env_path:
-        return os.path.abspath(env_path)
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    bundled = os.path.join(here, "_runtime")
-    if os.path.exists(os.path.join(bundled, "src", "main.pl")):
-        return bundled
-
-    return os.path.abspath(os.path.join(here, os.pardir, os.pardir))
+# A library stays silent until its host configures the petta logger.
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class PeTTa:
@@ -55,39 +37,11 @@ class PeTTa:
     """
 
     def __init__(self, verbose=False, petta_path=None):
-        global CONSULTED, janus
         self.verbose = bool(verbose)
-        if not CONSULTED:
-            with CONSULT_LOCK:
-                if not CONSULTED:
-                    if petta_path is None:
-                        petta_path = _resolve_petta_path()
-                    morklib_file = os.path.join(petta_path, "mork_ffi", "target", "release", "libmork_ffi.so")
-                    if os.path.exists(morklib_file):
-                        orig_dir = os.getcwd()
-                        os.chdir(petta_path)
-                        janus = importlib.import_module("janus_swi")
-                        janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
-                        os.chdir(orig_dir)
-                        janus.query_once("set_prolog_flag(argv, ['mork'])")
-                    else:
-                        janus = importlib.import_module("janus_swi")
-                        janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
-                    main_file = os.path.join(petta_path, "src", "main.pl")
-                    helper_file = os.path.join(petta_path, "python", "helper.pl")
-                    if not os.path.exists(main_file):
-                        raise FileNotFoundError(
-                            f"PeTTa runtime not found under {petta_path!r} "
-                            f"(expected {main_file!r}). Set the PETTA_PATH "
-                            "environment variable or pass petta_path to point at "
-                            "a PeTTa checkout."
-                        )
-                    janus.consult(main_file)
-                    janus.consult(helper_file)
-                    CONSULTED = True
+        self._runtime = _engine.runtime(petta_path=petta_path, verbose=self.verbose)
 
     def _run_helper(self, helper_name, argument):
-        result = janus.query_once(
+        result = self._runtime._janus.query_once(
             "run_metta_helper(Verbose, HelperName, Argument, Results)",
             {
                 "Verbose": "true" if self.verbose else "false",
@@ -108,6 +62,29 @@ class PeTTa:
         return self._run_helper("process_metta_string", metta_code)
 
 
+def __getattr__(name: str):
+    """Resolve the legacy janus module only when a caller asks for it."""
+    if name == "janus":
+        return _engine.bridge()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+from . import (  # noqa: E402
+    aio,
+    arrays,
+    convert,
+    das,
+    foreign,
+    integrate,
+    lint,
+    matching,
+    measure,
+    persistent,
+    remote,
+    testing,
+    trace,
+)
+from ._engine import engine_thread  # noqa: E402
 from .atoms import (  # noqa: E402
     Atom,
     Expr,
@@ -122,6 +99,7 @@ from .atoms import (  # noqa: E402
     encode,
     expr,
     is_ground,
+    map_atoms,
     parse,
     register_object_repr,
     register_object_repr_protocol,
@@ -131,7 +109,9 @@ from .atoms import (  # noqa: E402
     var,
     variables,
 )
-from .derivation import Builtin, Derivation, Fact, Step  # noqa: E402
+from .casting import CastError, cast  # noqa: E402
+from .define import Defined  # noqa: E402
+from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
     CompileError,
@@ -144,16 +124,18 @@ from .errors import (  # noqa: E402
     ResourceLimitError,
     TimeLimitError,
 )
+from .foreign import (  # noqa: E402
+    Adder,
+    Clearer,
+    Enumerable,
+    Matcher,
+    Remover,
+    SpaceProvider,
+)
 from .ops import REFLECTION_SPACE  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
-from . import aio, arrays, convert, das, foreign, integrate, lint, matching, measure, persistent, remote, testing, trace  # noqa: E402
-from .casting import CastError, cast  # noqa: E402
-from .define import Defined  # noqa: E402
-from .foreign import SpaceProvider  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
-
-__version__ = "0.2.0"
 
 
 def backend_info() -> dict[str, str | None]:
@@ -162,99 +144,105 @@ def backend_info() -> dict[str, str | None]:
     This function does not start the PeTTa runtime. The petta_path value is
     None until a MeTTa runtime exists.
     """
-    from . import _engine
-
-    janus_bridge = importlib.import_module("janus_swi")
-    swi_version_num = janus_bridge.query_once(
-        "current_prolog_flag(version, SwiVersion)"
-    )["SwiVersion"]
-    active_runtime = _engine._RUNTIME
+    janus_bridge = _engine.bridge()
+    version_row = janus_bridge.query_once("current_prolog_flag(version, SwiVersion)")
+    if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
+        raise EngineError("janus did not report the running SWI-Prolog version")
+    swi_version_num = version_row["SwiVersion"]
+    active = _engine.active_runtime()
     return {
         "petta": __version__,
         "janus": janus_bridge.version_str(),
         "swi_prolog": janus_bridge.version_str(swi_version_num),
         "python": (
-            f"{sys.version_info.major}.{sys.version_info.minor}."
-            f"{sys.version_info.micro}"
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         ),
-        "petta_path": (
-            None if active_runtime is None else active_runtime.petta_path
-        ),
+        "petta_path": (None if active is None else active.petta_path),
     }
 
 
 __all__ = [
-    # the legacy surface
-    "PeTTa",
+    "DECLINE",
+    "REFLECTION_SPACE",
+    "Adder",
     # atoms
     "Atom",
-    "Sym",
-    "Var",
-    "Gnd",
-    "Expr",
-    "Undefined",
-    "S",
-    "V",
-    "sym",
-    "var",
-    "val",
-    "expr",
-    "encode",
-    "decode",
-    "parse",
-    "alpha_eq",
-    "unify",
-    "variables",
-    "is_ground",
-    "register_object_repr",
-    "cast",
-    "CastError",
-    # runtime
-    "MeTTa",
-    "Prepared",
-    "Cursor",
-    "EngineProfile",
-    "Rows",
-    "Row",
-    "REFLECTION_SPACE",
-    # diagnostics
-    "backend_info",
-    "Derivation",
-    "Step",
-    "Fact",
     "Builtin",
-    # errors
-    "PettaError",
-    "EngineError",
-    "ResourceLimitError",
-    "TimeLimitError",
-    "InferenceLimitError",
-    "Interrupted",
-    "MettaSyntaxError",
+    "CastError",
+    "Clearer",
     "CompileError",
+    "Config",
+    "Cursor",
     "Decline",
-    "DECLINE",
-    # the general integration surface
-    "integrate",
-    "convert",
-    "arrays",
-    "foreign",
-    "matching",
-    "measure",
-    "SpaceProvider",
     "Defined",
-    "register_object_repr_protocol",
+    "Derivation",
+    "EngineError",
+    "EngineProfile",
+    "Enumerable",
     # standing queries and contexts
     "Event",
+    "Expr",
+    "Fact",
+    "Gnd",
+    "InferenceLimitError",
+    "Interrupted",
+    "Matcher",
+    # runtime
+    "MeTTa",
+    "MettaSyntaxError",
+    # the legacy surface
+    "PeTTa",
+    # errors
+    "PettaError",
+    "Prepared",
+    "Remover",
+    "ResourceLimitError",
+    "Row",
+    "Rows",
+    "S",
+    "SpaceProvider",
+    "Step",
     "Subscription",
-    "bridge",
-    "remote",
+    "Sym",
+    "TimeLimitError",
+    "Truncated",
+    "Undefined",
+    "V",
+    "Var",
+    "__version__",
     "aio",
+    "alpha_eq",
+    "arrays",
+    # diagnostics
+    "backend_info",
+    "bridge",
+    "cast",
+    "config",
+    "convert",
+    "current_space",
     "das",
+    "decode",
+    "encode",
+    "engine_thread",
+    "expr",
+    "foreign",
+    # the general integration surface
+    "integrate",
+    "is_ground",
     "lint",
+    "map_atoms",
+    "matching",
+    "measure",
+    "parse",
     "persistent",
+    "register_object_repr",
+    "register_object_repr_protocol",
+    "remote",
+    "sym",
     "testing",
     "trace",
-    "current_space",
-    "__version__",
+    "unify",
+    "val",
+    "var",
+    "variables",
 ]

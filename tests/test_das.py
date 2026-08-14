@@ -5,21 +5,25 @@ completion carries "total_items", errors carry "message"), answers read
 back as petta atoms, and a DASSpace registered on a real engine joins
 DAS candidates with native facts through the engine's own unification.
 A live-router test runs only when PETTA_DAS_URL answers ping.
+Guarantees:
+  - incomplete and aborted answer streams never return partial data [tested
+    test_query_and_count_require_completed_terminal_event]
+  - a terminal event closes its event iterator before query returns [tested
+    test_completed_query_closes_its_event_stream]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-import json
+import logging
 import os
-from io import BytesIO
 
 import pytest
 
 from petta import EngineError, PettaError, S, V, expr
 from petta.atoms import Gnd, parse
-from petta.das import DAS, DASAnswer, DASError, DASSpace
+from petta.das import DAS, DASError, DASSpace, _render_tokens
 
 
 class ScriptedDAS(DAS):
@@ -115,6 +119,49 @@ def test_error_status_raises_with_the_servers_message():
         das.query(S.f(V.x))
 
 
+def test_query_and_count_require_completed_terminal_event():
+    partial = {
+        "command": "query_answers",
+        "params": {"answers": [_answer_item('"partial"', "(f partial)")]},
+    }
+    with pytest.raises(DASError, match="query stream closed before completing"):
+        ScriptedDAS([partial]).query(S.f(V.x))
+    with pytest.raises(DASError, match="answer stream closed before completing"):
+        ScriptedDAS([partial]).count(S.f(V.x))
+
+    aborted = {
+        "command": "execution_status",
+        "params": {"status": "aborted", "message": "worker stopped"},
+    }
+    with pytest.raises(DASError, match=r"query was aborted.*worker stopped"):
+        ScriptedDAS([aborted]).query(S.f(V.x))
+    with pytest.raises(DASError, match=r"count was aborted.*worker stopped"):
+        ScriptedDAS([aborted]).count(S.f(V.x))
+
+
+def test_completed_query_closes_its_event_stream(monkeypatch):
+    class TrackedStream:
+        def __init__(self):
+            self._events = iter([("status", _COMPLETED["params"])])
+            self.closed = False
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return next(self._events)
+
+        def close(self):
+            self.closed = True
+
+    das = ScriptedDAS([])
+    stream = TrackedStream()
+    monkeypatch.setattr(das, "_answer_stream", lambda _execution_id: stream)
+
+    assert das.query(S.f(V.x)) == []
+    assert stream.closed
+
+
 def test_count_answers_the_servers_total():
     das = ScriptedDAS([
         {
@@ -154,10 +201,10 @@ def test_das_space_joins_with_native_facts(metta):
         assert groups == [[expr(S.monkey, S.jungle)]]
         # Direct provider calls raise DASError; through the engine the
         # refusal crosses janus and surfaces as EngineError, the provider
-        # convention, still carrying the message.
+        # convention, still naming the unsupported operation.
         with pytest.raises(DASError, match="read-only"):
             DASSpace(das).add(S.f(S.a))
-        with pytest.raises(EngineError, match="read-only"):
+        with pytest.raises(EngineError, match="does not implement add"):
             space.add(S.f(S.a))
     finally:
         metta.unregister_space("&das-scripted")
@@ -168,33 +215,53 @@ def test_ping_is_false_when_nothing_listens():
     assert DAS("http://127.0.0.1:9", timeout=0.5).ping() is False
 
 
-def test_plain_http_error_body_is_closed_after_reading(monkeypatch):
-    from urllib.error import HTTPError
+@pytest.mark.parametrize(
+    ("url", "scheme"),
+    [
+        ("file:///etc/passwd", "file"),
+        ("ftp://example.test/data", "ftp"),
+        ("data:text/plain,secret", "data"),
+        ("example.test/api", "<missing>"),
+    ],
+)
+def test_das_refuses_non_http_urls(url, scheme):
+    with pytest.raises(DASError, match=scheme):
+        DAS(url)
 
-    import petta.das as das_module
 
-    class TrackedHTTPError(HTTPError):
-        was_closed = False
+def test_das_accepts_http_and_https_urls():
+    assert DAS("http://example.test/api/")._base == "http://example.test/api"
+    assert DAS("https://example.test/api/")._base == "https://example.test/api"
 
-        def close(self):
-            self.was_closed = True
-            super().close()
 
-    failure = TrackedHTTPError(
-        "http://scripted/probe",
-        500,
-        "failure",
-        {},
-        BytesIO(b"router failure"),
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
+def test_das_refuses_invalid_timeouts(timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        DAS("http://example.test", timeout=timeout)
+
+
+def test_plain_http_error_body_is_reported(monkeypatch):
+    das = DAS("http://scripted")
+    monkeypatch.setattr(
+        type(das._endpoint),
+        "request",
+        lambda self, *args, **kwargs: (500, "failure", b"router failure"),
     )
+    with pytest.raises(DASError, match=r"500.*router failure"):
+        das._request("GET", "/probe")
 
-    def refuse(request, timeout):
-        raise failure
 
-    monkeypatch.setattr(das_module, "urlopen", refuse)
-    with pytest.raises(DASError, match="500.*router failure"):
-        DAS("http://scripted")._request("GET", "/probe")
-    assert failure.was_closed
+def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):
+    das = DAS("http://scripted")
+    monkeypatch.setattr(
+        type(das._endpoint),
+        "request",
+        lambda self, *args, **kwargs: (200, "OK", b'{"ready": true}'),
+    )
+    with caplog.at_level(logging.DEBUG, logger="petta.das"):
+        assert das._request("GET", "/probe") == {"ready": True}
+    assert "sending DAS GET /probe" in caplog.text
+    assert "answered with HTTP 200" in caplog.text
 
 
 def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
@@ -202,12 +269,12 @@ def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
     metta.register_space(name, DASSpace(ScriptedDAS([_COMPLETED])))
     try:
         space = metta.space(name)
-        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
             space.lint()
-        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
             space.digest()
         with pytest.raises(
-            PettaError, match="DASSpace.*no event source.*refuses writes"
+            PettaError, match=r"DASSpace.*no event source.*subscription"
         ):
             space.subscribe(S.watched(V.x))
     finally:
@@ -266,8 +333,6 @@ def test_legacy_dialect_negotiates_tokens_and_handle_answers():
 
 
 def test_token_rendering_distinguishes_ground_links_from_templates():
-    from petta.das import _render_tokens
-
     assert _render_tokens(S.f(S.g(S.a), V.x)) == (
         "LINK_TEMPLATE Expression 3 NODE Symbol f "
         "LINK Expression 2 NODE Symbol g NODE Symbol a VARIABLE x"
@@ -277,12 +342,17 @@ def test_token_rendering_distinguishes_ground_links_from_templates():
 _LIVE_URL = os.environ.get("PETTA_DAS_URL", "http://localhost:40009")
 
 
-@pytest.mark.skipif(
-    not DAS(_LIVE_URL, timeout=1.0).ping(),
-    reason=f"no DAS command router answering at {_LIVE_URL}",
-)
-def test_live_router_round_trip():
-    das = DAS(_LIVE_URL, timeout=20.0)
+@pytest.fixture(scope="module")
+def live_das():
+    pytest.importorskip("websocket")
+    das = DAS(_LIVE_URL, timeout=1.0)
+    if not das.ping():
+        pytest.skip(f"no DAS command router answering at {_LIVE_URL}")
+    return DAS(_LIVE_URL, timeout=20.0)
+
+
+def test_live_router_round_trip(live_das):
+    das = live_das
     answers = das.query(S.Similarity(V.a, V.b), max_answers=5)
     assert answers, "the loaded knowledge base answered nothing"
     assert all(answer.handles for answer in answers)

@@ -1,23 +1,76 @@
 """Purpose: the Python-to-MeTTa compiler: lowerings run against the engine,
 refusals name construct and line, helper-bearing redefinitions replace as a
 unit, and guarded Python twins agree with equations on ground inputs.
+Owns:
+  - test_define_from_two_threads_is_serialized joins both definition workers
+    before examining their equations [tested test_define_from_two_threads_is_serialized]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import importlib.util
+import sys
+import tempfile
+import textwrap
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
 import pytest
 
-from petta import CompileError, S, expr
+from petta import CompileError, EngineError, S, expr
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings, strategies as st  # noqa: E402
+given = hypothesis.given
+settings = hypothesis.settings
+st = hypothesis.strategies
 
 
 @pytest.fixture()
 def m(metta):
     return metta.fresh_space()
+
+
+def twin_base_probe(value):
+    return value + 1
+
+
+def twin_base_replacement(value):
+    return value + 10
+
+
+def twin_user_probe(value):
+    return twin_base_probe(value) * 2
+
+
+def test_define_from_two_threads_is_serialized(m):
+    def thread_left(value):
+        return value + 1
+
+    def thread_right(value):
+        return value * 2
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        left, right = workers.map(m.define, (thread_left, thread_right))
+
+    assert m.eval(left(4)) == [5]
+    assert m.eval(right(4)) == [8]
+
+
+def test_existing_twin_sees_later_redefinition(m):
+    m.define(twin_base_probe)
+    twin_user = m.define(twin_user_probe)
+    assert twin_user.py(3) == 8
+
+    original_name = twin_base_replacement.__name__
+    twin_base_replacement.__name__ = twin_base_probe.__name__
+    try:
+        m.define(twin_base_replacement)
+    finally:
+        twin_base_replacement.__name__ = original_name
+
+    assert twin_user.py(3) == 26
 
 
 def test_recursion_compiles_and_runs(m):
@@ -99,6 +152,18 @@ def test_lambda_is_first_class(m):
     assert m.run("!(dapply-twice 1)") == [[21]]
 
 
+def test_underscore_rename_is_exposed_and_diagnosed(m):
+    @m.define
+    def add_one(value):
+        return value + 1
+
+    assert m.run("!(add-one 5)") == [[6]]
+    assert m.run("!(add_one 5)") == [[S.add_one(5)]]
+    explanation = m.why(S.add_one(5))
+    assert "did you mean add-one?" in explanation
+    assert "underscores as hyphens" in explanation
+
+
 def test_comprehension_is_map_atom(m):
     @m.define
     def dtens(xs):
@@ -156,18 +221,15 @@ def test_constructor_convention_capitalized_names(m):
 )
 def test_refusals_name_construct_and_line(m, source, needle):
     namespace = {}
-    exec(source, namespace)  # noqa: S102  building the test subject
+    exec(source, namespace)
     fn = namespace["f"]
     fn.__source_override = source
-    import petta.define as define_module
 
     with pytest.raises(CompileError) as excinfo:
         # inspect.getsource cannot see exec'd code; compile the AST path the
         # decorator uses by round-tripping through a real file.
-        import textwrap, tempfile, importlib.util, pathlib, sys  # noqa: E401
-
         with tempfile.TemporaryDirectory() as d:
-            p = pathlib.Path(d) / "snippet.py"
+            p = Path(d) / "snippet.py"
             p.write_text(textwrap.dedent(source))
             spec = importlib.util.spec_from_file_location("snippet", p)
             module = importlib.util.module_from_spec(spec)
@@ -330,9 +392,9 @@ def test_loop_variable_read_after_for_is_refused(m):
 
         @m.define
         def dleak(xs):
-            for x in xs:
+            for _x in xs:
                 pass
-            return x  # noqa: F821
+            return _x
 
     assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(
         excinfo.value
@@ -352,8 +414,6 @@ def test_engine_functions_feel_like_python(m):
     triple = m.fn("dtriple")
     assert triple(14) == 42
     assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
-    from petta import EngineError
-
     with pytest.raises(EngineError):
         m.fn("superpose")(expr(1, 2))  # two answers is not one
 
@@ -446,7 +506,7 @@ def test_host_bindings_refuse_the_constructor_reading(m):
 
         @m.define
         def dthreshold(x):
-            return x + Threshold  # noqa: F821
+            return x + Threshold
 
     assert "module binding" in str(caught.value)
 
@@ -468,16 +528,24 @@ def test_twin_refuses_engine_only_bodies(m):
 
 
 def test_same_head_redefinition_replaces(m):
-    @m.define
-    def dvalue():
-        return 1
+    def install_first_definition():
+        @m.define
+        def dvalue():
+            return 1
 
+        return dvalue
+
+    install_first_definition()
     assert m.run("!(dvalue)") == [[1]]
 
-    @m.define
-    def dvalue():
-        return 2
+    def install_replacement_definition():
+        @m.define
+        def dvalue():
+            return 2
 
+        return dvalue
+
+    dvalue = install_replacement_definition()
     # The notebook reading: one head, the newest body, exactly one answer.
     assert m.run("!(collapse (dvalue))") == [[expr(2)]]
     assert dvalue.py() == 2
@@ -495,7 +563,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert m.value(daux_replace(3)) == 3
 
     @m.define
-    def daux_replace(n):  # noqa: F811
+    def daux_replace(n):
         total = 0
         while n > 0:
             total += 2
@@ -506,7 +574,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert daux_replace.py(3) == 6
 
     @m.define
-    def daux_replace(n):  # noqa: F811
+    def daux_replace(n):
         total = 0
         while n > 0:
             total += 2
@@ -529,7 +597,7 @@ def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):
     with pytest.raises(CompileError, match="earlier clause already answers"):
 
         @m.define
-        def dsubsumed(x=1, y=0):  # noqa: F811
+        def dsubsumed(x=1, y=0):
             return 20
 
     assert m.run("!(collapse (dsubsumed 1 0))") == [[expr(10)]]
@@ -549,3 +617,12 @@ def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
     assert dhazard_guard.py(2) == 3
     with pytest.raises(RuntimeError, match="match against the space"):
         dhazard_guard.py(0)
+
+
+def test_define_refuses_callable_objects(m):
+    class CallableObject:
+        def __call__(self, value):
+            return value
+
+    with pytest.raises(TypeError, match="define expects a Python function"):
+        m.define(CallableObject())

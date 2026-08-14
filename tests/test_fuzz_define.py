@@ -187,7 +187,7 @@ def loop_block(draw, scope: list, indent: str):
         lines.append(
             f"{indent}for {counter} in {_tuple_literal(draw, 0, 4)}:"
         )
-        body_scope = list(scope) + [counter]
+        body_scope = [*list(scope), counter]
         lines.extend(draw(assignments(body_scope, inner, draw(st.integers(1, 2)))))
         # Neither the loop variable nor a body-first binding survives the
         # loop: reading either after it is refused (or unbound in Python).

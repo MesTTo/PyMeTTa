@@ -3,6 +3,9 @@
 %   functions (deterministic and nondeterministic), evaluation, and proof-tree
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   src/main.pl; only adds predicates, never redefines engine ones.
+% Guarantees:
+%   - petta_py_raise/2 reserves one exact exception shape for Python-side
+%     classification [tested test_reserved_exception_shape_maps_by_kind]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -116,10 +119,19 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 %
 % Some exceptions are control signals rather than errors; converting one into a
 % value would swallow the very signal its thrower waits for.
+petta_py_raise(Kind, Detail) :-
+    throw(error(petta_py_exception(Kind, Detail), context(petta, Kind))).
+
+petta_py_exception_kind(
+    error(petta_py_exception(Kind, _), context(petta, _)), Kind) :-
+    memberchk(Kind, [syntax, time_limit, inference_limit, interrupted]).
+
 petta_py_control_exception(inference_limit_exceeded).
 petta_py_control_exception(time_limit_exceeded).
 petta_py_control_exception('$aborted').
 petta_py_control_exception(error(resource_error(_), _)).
+petta_py_control_exception(
+    error(petta_py_exception(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
@@ -128,14 +140,12 @@ petta_py_control_exception(error(resource_error(_), _)).
 % into one list at the end. These entry points run the identical pipeline and
 % keep the grouping instead: one answer list per ! directive, in source order.
 
-%Reader failures carry their own functor, petta_syntax_error/1, so the
-%Python side classifies by structure rather than by hunting the words
-%"syntax error" in arbitrary messages (a SQL error saying them is not a
-%MeTTa reader refusal).
+%Reader failures use the reserved petta_py_exception/2 envelope, so the
+%Python side classifies the thrown term rather than hunting arbitrary text.
 petta_py_tag_reader(Goal) :-
     catch(Goal, Caught,
           ( ( Caught = error(syntax_error(M), _) ; Caught = syntax_error(M) )
-            -> throw(error(petta_syntax_error(M), none))
+            -> petta_py_raise(syntax, M)
           ; throw(Caught) )).
 
 petta_py_run(Source, Space, Groups) :-
@@ -218,9 +228,8 @@ petta_py_load(File, Space, Groups) :-
 % current output. Both name their target as data, a listed entry point plus
 % its input list and one output, so they compose by listing
 % petta_py_captured as itself wrappable: limited over captured is a capture
-% inside a limit. Exceeding a guard throws a functor of its own
-% (petta_py_time_limit / petta_py_inference_limit), the petta_syntax_error
-% pattern: the Python side classifies structurally, never by message text.
+% inside a limit. Exceeding a guard throws the reserved exception envelope;
+% the Python side classifies its exact shape, never its rendered text.
 % A guard that stops a goal stops it mid-way, so writes it already made
 % stand, the honest semantics of every timeout.
 
@@ -236,6 +245,7 @@ petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
+petta_py_wrappable(petta_py_derivation).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
     ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),
@@ -254,11 +264,11 @@ petta_py_guarded(TimeS, Inf, Goal) :-
     ( TimeS < 0 -> Timed = Goal
     ; Timed = catch(call_with_time_limit(TimeS, Goal),
                     time_limit_exceeded,
-                    throw(error(petta_py_time_limit(TimeS), none))) ),
+                    petta_py_raise(time_limit, TimeS)) ),
     ( Inf < 0 -> call(Timed)
     ; call_with_inference_limit(Timed, Inf, Result),
       ( Result == inference_limit_exceeded
-        -> throw(error(petta_py_inference_limit(Inf), none))
+        -> petta_py_raise(inference_limit, Inf)
       ; true ) ).
 
 petta_py_captured(Pred, Ins, [Out, Text]) :-
@@ -318,7 +328,7 @@ petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Inf, prolog(E
     ( Inf < 0 -> Bounded = Goal
     ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
                   ( Result == inference_limit_exceeded
-                    -> throw(error(petta_py_inference_limit(Inf), none))
+                    -> petta_py_raise(inference_limit, Inf)
                   ; true ) )
     ),
     engine_create(Row, Bounded, Engine).
@@ -368,7 +378,7 @@ petta_py_parse(Source, Tagged) :-
     ( phrase(sexpr(Term, [], VarMap), Cs)
       -> petta_py_encode_named(Term, VarMap, Tagged)
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
-      throw(error(petta_syntax_error(Msg), none)) ).
+      petta_py_raise(syntax, Msg) ).
 
 %Print a tagged term the way PeTTa prints it:
 petta_py_swrite(Tagged, String) :-
@@ -397,8 +407,16 @@ petta_py_add_many(Space, TaggedList) :-
 
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
+    ( metta_foreign_space(Space)
+      -> Existed = provider
+    ; copy_term(Term, Pattern),
+      ( once(('get-atoms'(Space, Stored), Stored = Pattern)) -> Existed = true
+      ; Existed = false ) ),
     'remove-atom'(Space, Term, Removed0),
-    petta_py_encode(Removed0, Removed).
+    ( Existed == provider -> Verdict = Removed0
+    ; Removed0 == false -> Verdict = false
+    ; Verdict = Existed ),
+    petta_py_encode(Verdict, Removed).
 
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
@@ -831,11 +849,13 @@ petta_py_arities(Name0, As) :-
 
 %%%%%%%%%% Derivation trees %%%%%%%%%%
 %
-% The classic three-clause proof-tree meta-interpreter, rendered in MeTTa
-% terms: every compiled clause remembers its source equation through
-% translated_from/2, so each node names the equation that fired, a stored atom
-% is a leaf, and a builtin call is an opaque leaf. Depth-bounded, because a
-% meta-interpreted search should fail loudly rather than loop silently.
+% The classic proof-tree meta-interpreter, rendered in MeTTa terms: every
+% compiled clause remembers its source equation through translated_from/2,
+% so each node names the equation that fired, a stored atom is a leaf, and a
+% builtin call is an opaque leaf. Control constructs recurse into the branch
+% they execute. A finite depth emits a truncated node rather than claiming no
+% proof. Negative depth means unbounded; Python puts that search behind the
+% same time and inference guards as evaluation.
 
 petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_decode_shared(Tagged, Term, _),
@@ -847,12 +867,51 @@ petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_in_module(Module, petta_py_solve(Module, Goal, Depth, Tree)),
     petta_py_encode_tree(Tree, [F|Args], Out, TreeTagged).
 
-petta_py_solve(_, _, D, _) :- D =< 0, !, fail.
-petta_py_solve(_, true, _, []) :- !.
-petta_py_solve(M, (A, B), D, Tree) :- !,
-    petta_py_solve(M, A, D, TA),
-    petta_py_solve(M, B, D, TB),
-    append(TA, TB, Tree).
+petta_py_solve(M, Goal, D, Tree) :-
+    petta_py_solve_(M, Goal, D, Tree, _).
+
+petta_py_solve_(_, Goal, 0, [truncated(Goal)], truncated) :- !.
+petta_py_solve_(_, true, _, [], complete) :- !.
+petta_py_solve_(M, (If -> Then ; Else), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+      -> ( IfStatus == truncated
+           -> Tree = IfTree, Status = truncated
+         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+           append(IfTree, ThenTree, Tree) )
+    ; petta_py_solve_(M, Else, D, Tree, Status) ).
+petta_py_solve_(M, (If -> Then), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+      -> ( IfStatus == truncated
+           -> Tree = IfTree, Status = truncated
+         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+           append(IfTree, ThenTree, Tree) )
+    ; fail ).
+petta_py_solve_(M, (A ; B), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, A, D, Tree, Status)
+    ; petta_py_solve_(M, B, D, Tree, Status) ).
+petta_py_solve_(M, (A, B), D, Tree, Status) :- !,
+    petta_py_solve_(M, A, D, TA, SA),
+    ( SA == truncated
+      -> Tree = TA, Status = truncated
+    ; petta_py_solve_(M, B, D, TB, Status),
+      append(TA, TB, Tree) ).
+petta_py_solve_(M, call(A), D, Tree, Status) :- !,
+    petta_py_solve_(M, A, D, Tree, Status).
+petta_py_solve_(M, once(A), D, Tree, Status) :- !,
+    once(petta_py_solve_(M, A, D, Tree, Status)).
+petta_py_solve_(M, \+ A, D, Tree, Status) :- !,
+    ( once(petta_py_solve_(M, A, D, TA, SA))
+      -> ( SA == truncated
+           -> Tree = TA, Status = truncated
+         ; fail )
+    ; Tree = [builtin(\+ A)], Status = complete ).
+petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status) :- !,
+    findall([Template, SubTree, SubStatus],
+            petta_py_solve_(M, Goal, D, SubTree, SubStatus),
+            Results),
+    petta_py_findall_results(Results, Values, Tree, Status),
+    ( Status == complete -> List = Values ; true ).
+
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is
 %called whole and appears as one leaf, so the tree stays in MeTTa terms. The
@@ -861,18 +920,29 @@ petta_py_solve(M, (A, B), D, Tree) :- !,
 %clause INSPECTION is guarded (an uninspectable goal is an opaque leaf); a
 %body or builtin that ERRS propagates, because (/ 1 0) failing into "no
 %proof" would be a lie about why:
-petta_py_solve(M, Goal, D, Tree) :-
+petta_py_solve_(M, Goal, D, Tree, Status) :-
     \+ predicate_property(M:Goal, built_in),
     catch_recover(clause(M:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
-      -> D1 is D - 1,
-         petta_py_solve(M, Body, D1, Sub),
+      -> petta_py_next_depth(D, D1),
+         petta_py_solve_(M, Body, D1, Sub, Status),
          Tree = [step(Goal, Source, Sub)]
     ; call(M:Body),
-      petta_py_leaf(Goal, Tree) ).
-petta_py_solve(M, Goal, _, [builtin(Goal)]) :-
+      petta_py_leaf(Goal, Tree),
+      Status = complete ).
+petta_py_solve_(M, Goal, _, [builtin(Goal)], complete) :-
     predicate_property(M:Goal, built_in), !,
     call(M:Goal).
+
+petta_py_findall_results([], [], [], complete).
+petta_py_findall_results(
+    [[Value, SubTree, SubStatus]|Results], [Value|Values], Tree, Status) :-
+    petta_py_findall_results(Results, Values, RestTree, RestStatus),
+    append(SubTree, RestTree, Tree),
+    ( SubStatus == truncated -> Status = truncated ; Status = RestStatus ).
+
+petta_py_next_depth(D, D) :- D < 0, !.
+petta_py_next_depth(D, D1) :- D1 is D - 1.
 
 %A match over a space names the atom it found; anything else names its goal:
 petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
@@ -884,7 +954,8 @@ petta_py_leaf(Goal, [builtin(Goal)]).
 
 %The tree crosses as nested tagged expressions:
 %  (derivation Conclusion Steps...) with each step
-%  (step Conclusion (= Head Body) Substeps...) or (fact Atom) or (builtin Text).
+%  (step Conclusion (= Head Body) Substeps...), (fact Atom), (builtin Text),
+%  or (truncated Goal).
 petta_py_encode_tree(Steps, Root, Out, ["e", [["s", "derivation"], RootE | StepEs]]) :-
     petta_py_encode([Root, '=', Out], ["e", [R, _, O]]),
     RootE = ["e", [["s", "answer"], R, O]],
@@ -899,6 +970,8 @@ petta_py_encode_step(fact(Space, Fact), ["e", [["s", "fact"], SpaceE, FactE]]) :
     petta_py_encode(Space, SpaceE),
     petta_py_encode(Fact, FactE).
 petta_py_encode_step(builtin(Goal), ["e", [["s", "builtin"], ["g", Text]]]) :-
+    term_string(Goal, Text).
+petta_py_encode_step(truncated(Goal), ["e", [["s", "truncated"], ["g", Text]]]) :-
     term_string(Goal, Text).
 
 %A compiled goal f(A1..An,Out) renders as the call (f A1..An) with its answer:
@@ -1112,11 +1185,13 @@ petta_py_fast_has_object(Term) :-
 
 %Symbols have no quoted text form in MeTTa. These characters either split a
 %token or change the form's structure, so every swrite-based seam refuses them.
+%token//1 owns the parser's delimiter rule. Quotes need an explicit check
+%because an embedded quote remains part of token//1's atom token.
 petta_py_unsafe_symbol(Symbol) :- atom(Symbol),
                                   atom_codes(Symbol, Codes),
-                                  member(Code, Codes),
-                                  ( code_type(Code, space)
-                                  ; memberchk(Code, [0'(, 0'), 0'"]) ), !.
+                                  Codes = [_|_],
+                                  ( memberchk(0'", Codes)
+                                  ; \+ phrase(token(_), Codes) ), !.
 petta_py_bad_text_symbol(Term, Term) :- petta_py_unsafe_symbol(Term), !.
 petta_py_bad_text_symbol(Term, Bad) :-
     compound(Term),

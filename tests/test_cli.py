@@ -6,11 +6,35 @@ Open Obligations:
 """
 
 import os
+import subprocess
+import sys
 from unittest.mock import Mock
 
 import pytest
 
 from petta import cli
+
+
+def test_package_import_does_not_require_janus():
+    program = (
+        "import importlib\n"
+        "real_import_module = importlib.import_module\n"
+        "def guarded_import_module(name, package=None):\n"
+        "    if name == 'janus_swi':\n"
+        "        raise AssertionError('janus_swi imported during package import')\n"
+        "    return real_import_module(name, package)\n"
+        "importlib.import_module = guarded_import_module\n"
+        "import petta\n"
+        "import petta.cli\n"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", program],
+        capture_output=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+        text=True,
+        timeout=30,
+    )
+    assert done.returncode == 0, done.stderr
 
 
 def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
@@ -28,7 +52,7 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
     call.assert_called_once_with(
         [
             "swipl",
-            "--stack_limit=8g",
+            f"--stack_limit={cli.config.stack_limit}",
             "-q",
             "-s",
             str(main_file),
@@ -77,5 +101,5 @@ def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):
         Mock(side_effect=FileNotFoundError("swipl")),
     )
 
-    with pytest.raises(FileNotFoundError, match="SWI-Prolog.*swipl.*PATH"):
+    with pytest.raises(FileNotFoundError, match=r"SWI-Prolog.*swipl.*PATH"):
         cli.main([])

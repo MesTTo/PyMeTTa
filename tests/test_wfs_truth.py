@@ -13,6 +13,7 @@ Open Obligations:
 
 import pytest
 
+import petta as pkg
 from petta import EngineError, PettaError
 from petta.atoms import Undefined
 
@@ -25,8 +26,6 @@ def m(metta):
 
 @pytest.fixture(scope="module")
 def wfs_program(metta):
-    import petta as pkg
-
     pkg.janus.consult(
         "wfs_truth_test.pl",
         data=(

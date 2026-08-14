@@ -9,6 +9,7 @@ Open Obligations:
 import math
 
 import pytest
+
 from petta import EngineError, S, matching
 
 
@@ -42,3 +43,20 @@ def test_matcher_validates_every_generated_degree(metta, degree):
     )
     with pytest.raises(EngineError, match=r"finite.*\[0, 1\]"):
         metta.run(f"!(collapse ({name} query $answer))")
+
+
+def test_regex_lexicon_refuses_ambiguous_source(metta):
+    class AmbiguousLexicon:
+        def __iter__(self):
+            return iter(("alpha",))
+
+        def __call__(self):
+            return ("alpha",)
+
+    matching.install_regex(
+        metta,
+        name="ambiguous-regex-source",
+        lexicon=AmbiguousLexicon(),
+    )
+    with pytest.raises(EngineError, match="both callable and iterable"):
+        metta.run('!(collapse (ambiguous-regex-source "a" $answer))')

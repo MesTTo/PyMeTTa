@@ -6,11 +6,15 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import gzip
 import re
+from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
 from petta import EngineError, S, V, backend_info, val
+from petta import _space_persistence as persistence_module
 
 
 @pytest.fixture()
@@ -22,10 +26,7 @@ def m(metta):
 def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):
     path = tmp_path / "knowledge.petta-fast"
     with metta.fresh_space() as source, metta.fresh_space() as loaded:
-        source.run(
-            "(fast-io-fact alpha) (fast-io-fact beta) "
-            "(= (fast-io-next $x) (+ $x 1))"
-        )
+        source.run("(fast-io-fact alpha) (fast-io-fact beta) (= (fast-io-next $x) (+ $x 1))")
         assert source.save(path, format="fast") == 3
         assert loaded.load(path) == []
         assert [row.x for row in loaded.query(S["fast-io-fact"](V.x))] == [
@@ -64,19 +65,26 @@ def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):
         assert loaded.query(S.h(V.value))[0].value.value == 'a"b'
 
 
+@pytest.mark.parametrize("suffix", [".metta", ".metta.gz"])
+def test_text_save_uses_utf8_for_plain_and_gzip_files(metta, tmp_path, suffix):
+    path = tmp_path / f"unicode{suffix}"
+    with metta.fresh_space() as source:
+        source.add(S.text("é字"))
+        assert source.save(path) == 1
+
+    raw = gzip.decompress(path.read_bytes()) if suffix.endswith(".gz") else path.read_bytes()
+    assert raw == b'(text "\xc3\xa9\xe5\xad\x97")\n'
+
+
 def test_escaped_quote_runs_directly(metta):
     with metta.fresh_space() as space:
-        assert space.run(
-            '(= (quote-id $x) $x)\n!(quote-id "a\\"b")'
-        ) == [['a"b']]
+        assert space.run('(= (quote-id $x) $x)\n!(quote-id "a\\"b")') == [['a"b']]
 
 
 def test_comments_remain_outside_escaped_string_state(metta):
     with metta.fresh_space() as space:
         assert space.run(
-            '; leading comment\n'
-            '(escaped-text "a\\"; ) b") ; trailing comment\n'
-            '!(+ 1 2)'
+            '; leading comment\n(escaped-text "a\\"; ) b") ; trailing comment\n!(+ 1 2)'
         ) == [[3]]
         assert space.query(S["escaped-text"](V.value))[0].value.value == 'a"; ) b'
 
@@ -94,14 +102,97 @@ def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
 
 @pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
 @pytest.mark.parametrize("format", ["metta", "fast"])
-def test_save_refuses_symbols_without_round_trip_text(
-    m, tmp_path, name, format
-):
+def test_save_refuses_symbols_without_round_trip_text(m, tmp_path, name, format):
     path = tmp_path / f"unsafe-{format}"
     m.add(S.container(S[name]))
-    with pytest.raises(ValueError, match="symbol.*round-trip text spelling"):
+    with pytest.raises(ValueError, match=r"symbol.*round-trip text spelling"):
         m.save(path, format=format)
     assert not path.exists()
+
+
+@pytest.mark.parametrize("format", ["metta", "fast"])
+@pytest.mark.parametrize("suffix", [".data", ".data.gz"])
+def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, suffix):
+    target = tmp_path / f"knowledge{suffix}"
+    target.write_bytes(b"old data stays\n")
+    m.add(S.new(S.data))
+
+    def fail_replace(source, destination):
+        assert Path(source).parent == target.parent
+        assert Path(source) != target
+        assert Path(destination) == target
+        raise OSError("injected replacement failure")
+
+    monkeypatch.setattr(persistence_module.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="injected replacement failure"):
+        m.save(target, format=format)
+
+    assert target.read_bytes() == b"old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+@pytest.mark.parametrize("format", ["metta", "fast"])
+def test_save_validation_preserves_existing_file(m, tmp_path, format):
+    target = tmp_path / "knowledge.data"
+    target.write_bytes(b"old data stays\n")
+    m.add(S.holds(val(object())))
+
+    with pytest.raises(ValueError, match="live Python object"):
+        m.save(target, format=format)
+
+    assert target.read_bytes() == b"old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatch):
+    target = tmp_path / "knowledge.metta"
+    target.write_text("old data stays\n")
+    m.add(S.first(S.value), S.second(S.value))
+    real_open = persistence_module._open_maybe_gz
+
+    @contextmanager
+    def failing_open(path, mode):
+        assert Path(path) != target
+        with real_open(path, mode) as handle:
+            writes = 0
+
+            class FailingHandle:
+                def write(self, text):
+                    nonlocal writes
+                    writes += 1
+                    if writes == 2:
+                        raise OSError("injected write failure")
+                    return handle.write(text)
+
+            yield FailingHandle()
+
+    monkeypatch.setattr(persistence_module, "_open_maybe_gz", failing_open)
+    with pytest.raises(OSError, match="injected write failure"):
+        m.save(target)
+
+    assert target.read_text() == "old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):
+    target = tmp_path / "knowledge.metta"
+    m.add(S.synced(S.value))
+    events = []
+    real_replace = persistence_module.os.replace
+
+    def record_fsync(descriptor):
+        events.append("fsync")
+
+    def record_replace(source, destination):
+        events.append("replace")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(persistence_module.os, "fsync", record_fsync)
+    monkeypatch.setattr(persistence_module.os, "replace", record_replace)
+    assert m.save(target) == 1
+
+    assert events[0:2] == ["fsync", "replace"]
+    assert target.read_text() == "(synced value)\n"
 
 
 def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):
@@ -124,9 +215,7 @@ def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):
     ("field", "replacement", "message"),
     [(1, b"PETTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
 )
-def test_fast_load_refuses_other_incompatible_headers(
-    m, tmp_path, field, replacement, message
-):
+def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replacement, message):
     path = tmp_path / f"wrong-header-{field}.fast"
     m.save(path, format="fast")
     header = path.read_bytes().split(b"\n", 1)[0]
@@ -179,9 +268,7 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):
                 S.two,
             ]
             assert target.run("!(gz-next 41)") == [[42]]
-        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [
-            [True]
-        ]
+        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[True]]
         assert [row.x for row in imported.query(S["gz-fact"](V.x))] == [
             S.one,
             S.two,
@@ -203,9 +290,7 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):
     data = path.read_bytes()
     assert data.startswith(b"PETTA-CACHE\tPETTA-FAST\t2\t")
     header = data.split(b"\n", 1)[0] + b"\n"
-    assert re.fullmatch(
-        rb"PETTA-CACHE\tPETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header
-    )
+    assert re.fullmatch(rb"PETTA-CACHE\tPETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
     assert header[:-1].split(b"\t")[3].decode() == backend_info()["swi_prolog"]
 
 
@@ -230,25 +315,22 @@ def test_flipped_payload_byte_refuses_before_reading(metta, tmp_path):
 
 
 try:
-    from hypothesis import HealthCheck, given, settings, strategies as st
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
 except ModuleNotFoundError:
     pass
 else:
+
     @settings(
         max_examples=30,
         deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
-    @given(
-        st.lists(st.integers(-1_000_000, 1_000_000), max_size=40, unique=True)
-    )
+    @given(st.lists(st.integers(-1_000_000, 1_000_000), max_size=40, unique=True))
     def test_fast_round_trip_preserves_generated_fact_lists(metta, tmp_path, values):
         path = tmp_path / "generated.fast"
         with metta.fresh_space() as source, metta.fresh_space() as target:
             source.add(*(S["generated-value"](value) for value in values))
             assert source.save(path, format="fast") == len(values)
             assert target.load(path) == []
-            assert [
-                int(row.value)
-                for row in target.query(S["generated-value"](V.value))
-            ] == values
+            assert [int(row.value) for row in target.query(S["generated-value"](V.value))] == values

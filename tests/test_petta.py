@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -12,8 +13,10 @@ def test_run_helper_binds_verbose_atom(
     monkeypatch, petta_module, verbose, expected_binding
 ):
     query_once = Mock(return_value={"Results": []})
-    monkeypatch.setattr(petta_module, "CONSULTED", True)
-    monkeypatch.setattr(petta_module, "janus", Mock(query_once=query_once))
+    fake_runtime = SimpleNamespace(_janus=Mock(query_once=query_once))
+    monkeypatch.setattr(
+        petta_module._engine, "runtime", Mock(return_value=fake_runtime)
+    )
 
     petta_module.PeTTa(verbose=verbose).process_metta_string("!(+ 1 1)")
 

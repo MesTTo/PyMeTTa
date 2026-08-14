@@ -10,10 +10,15 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import dataclasses
+from collections.abc import Callable, Sequence
+from typing import Annotated, Generic, TypeVar
+
 import pytest
 
-from petta import S, V, expr
+from petta import REFLECTION_SPACE, MeTTa, S, V, alpha_eq, expr, measure, val
 from petta.atoms import Expr, Gnd, Var
+from petta.ops import referenced_classes, type_atoms_for
 
 
 @pytest.fixture()
@@ -46,15 +51,13 @@ def test_operators_build_terms_on_variables_and_symbols():
     assert (V.x + 1 <= V.y) == expr(S["<="], expr(S["+"], V.x, 1), V.y)
     assert V.x.eq(3) == expr(S["=="], V.x, 3)
     assert (V.a % 2) == expr(S["%"], V.a, 2)
-    assert (V.x ** 2) == expr(S["pow-math"], V.x, 2)
+    assert (V.x**2) == expr(S["pow-math"], V.x, 2)
     assert (V.a @ V.b) == expr(S["matmul"], V.a, V.b)
 
 
 def test_boolean_operators_compose_guards():
     guard = (V.age >= 18) & (V.age <= 40)
-    assert guard == expr(
-        S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40)
-    )
+    assert guard == expr(S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40))
     assert (V.a | V.b) == expr(S["or"], V.a, V.b)
     assert (V.a ^ V.b) == expr(S["xor"], V.a, V.b)
     assert ~V.ok == expr(S["not"], V.ok)
@@ -84,28 +87,21 @@ def test_comparison_terms_refuse_truthiness():
 
 
 def test_typevar_annotations_declare_parametrically(m):
-    from typing import Sequence, TypeVar
-
     A = TypeVar("A")
 
-    @m.op(name="first-of")
+    @m.register_op(name="first-of")
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
-    declaration = expr(
-        S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a"))
-    )
-    from petta import alpha_eq
-
+    declaration = expr(S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a")))
     assert any(alpha_eq(a, declaration) for a in m.atoms())
     assert m.run("!(first-of (7 8 9))") == [[7]]
 
 
 def test_union_annotations_superpose_declarations(m):
-    from typing import Union
 
-    @m.op(name="describe")
-    def describe(x: Union[int, str]) -> str:
+    @m.register_op(name="describe")
+    def describe(x: int | str) -> str:
         return f"<{x}>"
 
     assert _arrows_of(m, "describe") == {
@@ -119,10 +115,9 @@ def test_union_annotations_superpose_declarations(m):
 
 
 def test_optional_return_declares_the_value_type(m):
-    from typing import Optional
 
-    @m.op(name="lookup-age")
-    def lookup_age(name: str) -> Optional[int]:
+    @m.register_op(name="lookup-age")
+    def lookup_age(name: str) -> int | None:
         return {"ada": 36}.get(name)
 
     # Returning None answers nothing, so the declared return is Number.
@@ -132,15 +127,13 @@ def test_optional_return_declares_the_value_type(m):
 
 
 def test_callable_and_tuple_annotations_declare_structurally(m):
-    from typing import Callable
-
-    @m.op(name="fixed-point-of")
+    @m.register_op(name="fixed-point-of")
     def fixed_point_of(f: Callable[[int], int]) -> int:
         raise NotImplementedError
 
     assert _arrows_of(m, "fixed-point-of") == {"(-> (-> Number Number) Number)"}
 
-    @m.op(name="swap")
+    @m.register_op(name="swap")
     def swap(pair: tuple[int, str]) -> tuple[str, int]:
         a, b = pair
         return (b, a)
@@ -150,16 +143,12 @@ def test_callable_and_tuple_annotations_declare_structurally(m):
 
 
 def test_class_annotations_declare_the_class(m):
-    import dataclasses
-
-    from petta import val
-
     @dataclasses.dataclass
     class Particle:
         mass: float
         velocity: float
 
-    @m.op(name="momentum")
+    @m.register_op(name="momentum")
     def momentum(p: Particle) -> float:
         return p.mass * p.velocity
 
@@ -171,17 +160,13 @@ def test_class_annotations_declare_the_class(m):
 
 
 def test_type_decorator_declares_field_types(m):
-    import dataclasses
-
     @m.type
     @dataclasses.dataclass
     class DeclaredPoint:
         x: float
         y: float
 
-    assert _arrows_of(m, "DeclaredPoint") == {
-        "(-> Number Number DeclaredPoint)"
-    }
+    assert _arrows_of(m, "DeclaredPoint") == {"(-> Number Number DeclaredPoint)"}
 
 
 # --------------------------------------------------- guarded bounded query
@@ -196,9 +181,7 @@ def test_query_where_guard_and_limit(m):
     adults = m.query(S.person(V.name, V.age), where=V.age >= 18)
     assert {str(r.name) for r in adults} == {"ada", "cyd"}
     # Guards compose with the boolean operators, the engine reading them.
-    mid = m.query(
-        S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40)
-    )
+    mid = m.query(S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40))
     assert {str(r.name) for r in mid} == {"ada"}
     assert len(m.query(S.person(V.name, V.age), limit=2)) == 2
     with pytest.raises(ValueError):
@@ -241,8 +224,6 @@ def test_prepared_query_with_given(m):
 
 
 def test_weighted_relation_takes_any_callable(m):
-    from petta import measure
-
     measure.install(m)
 
     def mood_weights(day):
@@ -264,17 +245,15 @@ def test_weighted_relation_takes_any_callable(m):
 
 
 def test_the_library_reflects_into_its_own_space(m):
-    from petta import MeTTa, REFLECTION_SPACE
-
     reflection = MeTTa(REFLECTION_SPACE)
 
-    @m.op(name="reflect-probe")
+    @m.register_op(name="reflect-probe")
     def reflect_probe(x: int) -> int:
         return x
 
     rows = reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
     assert [(r.arity, str(r.kind)) for r in rows] == [(1, "det")]
-    m.unregister("reflect-probe")
+    m.unregister_op("reflect-probe")
     assert not reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
 
     @m.define
@@ -291,8 +270,6 @@ def test_the_library_reflects_into_its_own_space(m):
 
 
 def test_reflection_facts_follow_a_dropped_space(metta):
-    from petta import MeTTa, REFLECTION_SPACE
-
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()
 
@@ -309,13 +286,9 @@ def test_reflection_facts_follow_a_dropped_space(metta):
 def test_metta_programs_steer_through_the_reflection_space(m):
     """Deeper control without forking: a Python subscription on &petta
     reacts to control atoms a MeTTa program writes there."""
-    from petta import MeTTa, REFLECTION_SPACE
-
     reflection = MeTTa(REFLECTION_SPACE)
     seen = []
-    sub = reflection.subscribe(
-        S.control(V.knob, V.value), lambda e: seen.append(e)
-    )
+    sub = reflection.subscribe(S.control(V.knob, V.value), lambda e: seen.append(e))
     try:
         m.run("!(add-atom &petta (control verbosity 2))")
         assert len(seen) == 1
@@ -327,8 +300,6 @@ def test_metta_programs_steer_through_the_reflection_space(m):
 
 
 def test_drop_cancels_the_spaces_subscriptions(metta):
-    from petta import MeTTa, REFLECTION_SPACE
-
     reflection = MeTTa(REFLECTION_SPACE)
     space = metta.fresh_space()
     name = space.space_name
@@ -343,32 +314,28 @@ def test_drop_cancels_the_spaces_subscriptions(metta):
 
 
 def test_shared_class_declarations_survive_one_unregister(m):
-    import dataclasses
-
     @dataclasses.dataclass
     class SharedReview:
         stars: float
 
-    @m.op(name="rate-one")
+    @m.register_op(name="rate-one")
     def rate_one(r: SharedReview) -> float:
         return r.stars
 
-    @m.op(name="rate-two")
+    @m.register_op(name="rate-two")
     def rate_two(r: SharedReview) -> float:
         return r.stars * 2
 
     constructor = "(-> Number SharedReview)"
     assert _arrows_of(m, "SharedReview") == {constructor}
-    m.unregister("rate-one")
+    m.unregister_op("rate-one")
     # The other owner still declares the class.
     assert _arrows_of(m, "SharedReview") == {constructor}
-    m.unregister("rate-two")
+    m.unregister_op("rate-two")
     assert _arrows_of(m, "SharedReview") == set()
 
 
 def test_registration_failure_leaves_nothing_half_registered(m):
-    from petta import REFLECTION_SPACE, MeTTa, V
-
     class Unresolvable:
         pass
 
@@ -376,7 +343,7 @@ def test_registration_failure_leaves_nothing_half_registered(m):
         return 1
 
     with pytest.raises(TypeError):
-        m.op(bad, name="bad-op")
+        m.register_op(bad, name="bad-op")
     reflection = MeTTa(REFLECTION_SPACE)
     assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
@@ -384,23 +351,18 @@ def test_registration_failure_leaves_nothing_half_registered(m):
 
 
 def test_union_expansion_is_bounded(m):
-    from typing import Union
+    U = int | str | bool
 
-    U = Union[int, str, bool]
-
-    def wide(a: U, b: U, c: U, d: U, e: U, f: U) -> U:
+    # Five inputs plus the return type produce 3**6 alternatives, over 512.
+    def wide(a: U, b: U, c: U, d: U, e: U) -> U:
         return a
 
     with pytest.raises(TypeError):
-        m.op(wide, name="wide-op")
+        m.register_op(wide, name="wide-op")
     assert not m.is_function("wide-op")
 
 
 def test_annotated_and_generic_annotations_map_faithfully(m):
-    from typing import Annotated, Generic, TypeVar
-
-    from petta.ops import referenced_classes, type_atoms_for
-
     class Meta:
         pass
 

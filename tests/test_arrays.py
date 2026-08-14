@@ -11,13 +11,22 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import inspect
+import threading
+
 import pytest
+
+from petta import (
+    S,
+    V,
+    arrays,
+    decode,
+    expr,
+    val,
+)
 
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
-
-from petta import S, V, decode, expr, val  # noqa: E402
-from petta import arrays  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -27,8 +36,10 @@ def am(metta):
 
 
 def test_numpy_flows_through_the_same_ops(am):
-    r = am.run("!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
-               "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))")
+    r = am.run(
+        "!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
+        "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))"
+    )
     assert r == [[expr(expr(58.0, 64.0), expr(139.0, 154.0))]]
     assert am.run("!(t-shape (zeros 2 3))") == [[expr(2, 3)]]
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
@@ -69,11 +80,11 @@ def test_protocol_printing_covers_any_library(am):
 
 
 def test_cross_library_conversion_via_dlpack(am):
-    torch = pytest.importorskip("torch")
+    pytest.importorskip("torch")
     space = am.fresh_space()
     space.add(S.np_vec(val(numpy.array([1.0, 2.0], dtype=numpy.float32))))
     (group,) = space.run(
-        '!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))'
+        "!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))"
     )
     assert "float32" in str(group[0])
 
@@ -101,6 +112,41 @@ def test_embedding_store_runs_on_numpy(am):
     assert [p[0] for p in pairs] == [S.dog, S.cat]
     scores = [float(p[1]) for p in pairs]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_top_indices_match_full_order_and_stabilize_ties():
+    xp = arrays.namespace_of(numpy.array([0.0]))
+    scores = numpy.random.default_rng(7).normal(size=10_000)
+    expected = sorted(
+        range(len(scores)), key=lambda index: (-float(scores[index]), index)
+    )[:25]
+    assert arrays._top_indices(xp, scores, 25) == expected
+
+    ties = numpy.array([0.5, 1.0, 1.0, 1.0, 0.1])
+    assert arrays._top_indices(xp, ties, 2) == [1, 2]
+    assert arrays._top_indices(xp, ties, 0) == []
+    assert arrays._top_indices(xp, ties, len(ties)) == [1, 2, 3, 0, 4]
+
+
+def test_array_protocol_registration_is_idempotent(monkeypatch):
+    calls = []
+    monkeypatch.setattr(arrays, "_PROTOCOLS_REGISTERED", threading.Event())
+    monkeypatch.setattr(arrays, "_PROTOCOLS_LOCK", threading.Lock())
+    monkeypatch.setattr(
+        arrays._integrate,
+        "register_object_type",
+        lambda *args: calls.append(("type", args)),
+    )
+    monkeypatch.setattr(
+        arrays._integrate,
+        "register_repr",
+        lambda *args: calls.append(("repr", args)),
+    )
+
+    arrays._register_protocols()
+    arrays._register_protocols()
+
+    assert [kind for kind, _ in calls] == ["type", "repr"]
 
 
 def test_same_named_embedding_stores_route_per_space(metta):
@@ -166,7 +212,5 @@ def test_embedding_store_requires_one_width_and_positive_integer_k(metta):
 
 def test_arrays_layer_is_torch_free():
     """The module must not import torch anywhere, even lazily by name."""
-    import inspect
-
     source = inspect.getsource(arrays)
     assert "import torch" not in source

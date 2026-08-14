@@ -8,8 +8,9 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError, MettaSyntaxError, S, V, decode, expr, parse, val
-from petta.atoms import Gnd, Sym
+import petta
+from petta import EngineError, MeTTa, MettaSyntaxError, S, V, decode, expr, parse, val
+from petta.atoms import Gnd
 
 
 @pytest.fixture()
@@ -65,6 +66,18 @@ def test_query_projection_and_column(m):
     rows = m.query(S.age(V.who, V.years))
     assert set(rows.column("who")) == {S.Ada, S.Bob}
     assert sorted(rows.column("years"), key=int) == [36, 41]
+
+
+def test_query_surfaces_share_column_order(m):
+    patterns = (
+        S.left(V.first, V.second, V.first, V._),
+        S.right(V.third, V.second),
+    )
+    expected = ("first", "second", "third")
+    assert m.query(*patterns).columns == expected
+    assert m.prepare(*patterns).columns == expected
+    with m.stream(*patterns) as cursor:
+        assert cursor.columns == expected
 
 
 def test_atoms_count_contains_remove_clear(m):
@@ -131,9 +144,17 @@ def test_fact_isolation_between_spaces(metta):
     assert len(b.query(S.fact(V.x))) == 0
 
 
-def test_space_name_validation():
-    from petta import MeTTa
+def test_default_metta_handles_share_the_self_space():
+    first, second = MeTTa(), MeTTa()
+    shared = S["shared-default-handle"](S.value)
+    first.add(shared)
+    try:
+        assert shared in second
+    finally:
+        first.remove(shared)
 
+
+def test_space_name_validation():
     with pytest.raises(ValueError):
         MeTTa("kb")
 
@@ -145,6 +166,18 @@ def test_load_runs_a_file(metta, tmp_path):
     assert groups == [[5]]
 
 
+def test_load_adds_to_existing_space(m, tmp_path):
+    path = tmp_path / "additive.metta"
+    path.write_text("(loaded-copy value)\n")
+
+    m.add(S.existing(S.value))
+    m.load(path)
+    m.load(path)
+
+    assert m.count() == 3
+    assert len(m.query(S["loaded-copy"](V.value))) == 2
+
+
 def test_why(m):
     m.add(S.Parent(S.Tom, S.Bob))
     text = m.why(S.Parent(S.Nobody, V.x))
@@ -152,6 +185,7 @@ def test_why(m):
     assert "Missing" in m.why(S.Missing(V.x))
     m.add(S.Parent(S.a, S.b, S.c))
     assert "elements" in m.why(S.Parent(V.x,))
+    assert "did you mean car-atom?" in m.why(S["car-atmo"](S.value))
 
 
 def test_match_patterns_are_structural(m):
@@ -167,21 +201,30 @@ def test_match_patterns_are_structural(m):
 
 
 def test_bare_atoms_are_refused_loudly(m):
-    """A stored atom is an expression; anything else must error, never
-    vanish: the silent write was a real bug this pins."""
-    import pytest
-    from petta import S
-
+    """A stored atom is a non-empty expression; anything else must error,
+    never vanish: the silent write was a real bug this pins."""
     with pytest.raises(TypeError):
         m.add(S.bare)
     with pytest.raises(TypeError):
         m.add(7)
+    with pytest.raises(TypeError, match="non-empty expression"):
+        m.add(expr())
+    with pytest.raises(TypeError, match="non-empty expression"):
+        m.remove(expr())
+
+
+def test_remove_reports_presence_and_removes_every_duplicate(m):
+    atom = S.duplicate(S.value)
+
+    assert m.remove(atom) is False
+    m.add(atom, atom)
+    assert m.remove(atom) is True
+    assert atom not in m
+    assert m.remove(atom) is False
 
 
 def test_object_identity_survives_the_boundary(m):
     """One live object is one box everywhere: stored, found, removed."""
-    from petta import S, V, val
-
     class Thing:
         pass
 
@@ -196,8 +239,6 @@ def test_object_identity_survives_the_boundary(m):
 
 def test_anonymous_variables_do_not_join(m):
     """Two underscores are two fresh variables, exactly as parsed $_ $_."""
-    from petta import S, V
-
     m.add(S.duo(S.a, S.a), S.duo(S.a, S.b))
     assert len(m.query(S.duo(V._, V._))) == 2
     # And the anonymous variable never becomes a column.
@@ -214,8 +255,6 @@ def test_fresh_spaces_drop_and_names_recycle(metta):
     with metta.fresh_space() as again:
         assert again.space_name == first
         assert len(again) == 0
-    import pytest
-
     with pytest.raises(TypeError):
         with metta:
             pass
@@ -226,8 +265,6 @@ def test_load_restores_the_working_directory(metta, tmp_path):
     process's directory back afterwards, so later runs are untouched."""
     inner = tmp_path / "prog.metta"
     inner.write_text("!(+ 1 1)\n")
-    import petta
-
     before = petta.janus.query_once("working_dir(D)")
     metta.load(str(inner))
     after = petta.janus.query_once("working_dir(D)")
@@ -235,8 +272,5 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 
 
 def test_runtime_refuses_a_second_tree(metta):
-    import pytest
-    from petta import MeTTa
-
     with pytest.raises(ValueError):
         MeTTa(petta_path="/definitely/not/this/tree")

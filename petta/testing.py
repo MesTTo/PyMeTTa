@@ -14,29 +14,39 @@ Open Obligations:
 
 from __future__ import annotations
 
+from ._optional import require_module
 from .atoms import Expr, Gnd, Sym, Var
+from .benchmarking import (
+    BenchmarkBaseline,
+    benchmark_case,
+    count_atoms,
+    measure_instructions,
+)
 
 __all__ = [
-    "names",
-    "symbols",
-    "variables",
-    "numbers",
-    "texts",
-    "grounded",
+    "BenchmarkBaseline",
     "atoms",
+    "benchmark_case",
+    "count_atoms",
     "expressions",
+    "grounded",
+    "measure_instructions",
+    "names",
+    "numbers",
+    "numpy_scalars",
+    "symbols",
+    "texts",
+    "variables",
 ]
 
 
 def _st():
-    try:
-        from hypothesis import strategies
-    except ImportError as missing:
-        raise ImportError(
-            "petta.testing generates atoms with hypothesis, which is not "
-            "installed; pip install hypothesis (or petta[test])"
-        ) from missing
-    return strategies
+    hypothesis = require_module(
+        "hypothesis",
+        "petta.testing generates atoms with hypothesis, which is not installed; "
+        "install petta[test]",
+    )
+    return hypothesis.strategies
 
 
 def names():
@@ -48,14 +58,13 @@ def names():
     (fresh at every occurrence by contract, so it never shares)."""
     st = _st()
     return st.text(
-        alphabet=st.sampled_from(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"
-        ),
+        alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"),
         min_size=1,
         max_size=12,
     ).filter(
-        lambda s: s[0] not in "$&-<>=+*?0123456789"
-        and s not in ("True", "False", "true", "false", "_")
+        lambda s: (
+            s[0] not in "$&-<>=+*?0123456789" and s not in ("True", "False", "true", "false", "_")
+        )
     )
 
 
@@ -77,6 +86,25 @@ def numbers():
     return st.one_of(
         st.integers(min_value=-(2**62), max_value=2**62),
         st.floats(allow_nan=False, allow_infinity=False, width=64),
+    )
+
+
+def numpy_scalars():
+    """NumPy integer and real scalar values accepted by PeTTa's Number type.
+
+    NumPy is optional. Install ``petta[arrays,test]`` before requesting this
+    strategy.
+    """
+    st = _st()
+    np = require_module(
+        "numpy",
+        "petta.testing.numpy_scalars requires numpy; install petta[arrays,test]",
+    )
+    return st.one_of(
+        st.integers(-(2**31), 2**31 - 1).map(np.int32),
+        st.integers(-(2**62), 2**62).map(np.int64),
+        st.floats(allow_nan=False, allow_infinity=False, width=32).map(np.float32),
+        st.floats(allow_nan=False, allow_infinity=False, width=64).map(np.float64),
     )
 
 
@@ -123,6 +151,6 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
 
 
 def expressions(max_leaves: int = 8, *, ground: bool = False):
-    """Expression-rooted atoms, the shape spaces store."""
+    """Non-empty expression-rooted atoms, the shape spaces store."""
     st = _st()
-    return st.lists(atoms(max_leaves, ground=ground), max_size=4).map(Expr)
+    return st.lists(atoms(max_leaves, ground=ground), min_size=1, max_size=4).map(Expr)

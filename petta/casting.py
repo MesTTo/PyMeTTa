@@ -23,7 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .atoms import Atom, Gnd, Sym, encode, from_wire, parse
+from ._convert_registry import _is_plain_class
+from .atoms import Atom, Gnd, Sym, atom_from_wire, encode, parse
 from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
@@ -51,7 +52,7 @@ def _type_atom(type_: Any) -> Atom:
         return type_
     if isinstance(type_, str):
         return parse(type_)
-    if isinstance(type_, type):
+    if _is_plain_class(type_):
         for spelled, name in _PYTHON_SPELLINGS:
             if type_ is spelled:
                 return Sym(name)
@@ -87,7 +88,7 @@ def cast(space, value: Any, type_: Any) -> Any:
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)
-    candidates = ", ".join(str(from_wire(t)) for t in answered[1])
+    candidates = ", ".join(str(atom_from_wire(t)) for t in answered[1])
     raise CastError(
         f"{atom} does not admit type {target} in {space._space}: "
         f"its types are {candidates}"

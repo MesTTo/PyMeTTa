@@ -9,10 +9,12 @@ Open Obligations:
 """
 
 import math
+import types
+from dataclasses import dataclass
 
 import pytest
 
-from petta import S, V, val, expr
+from petta import PettaError, S, V, expr, val
 from petta import integrate as pi
 
 
@@ -22,6 +24,32 @@ def test_module_ops_bulk_registers_a_stdlib_module(metta):
     assert metta.run("!(sqrt 16.0)") == [[4.0]]
     assert metta.run("!(gcd 12 18)") == [[6]]
     assert metta.run("!(comb 5 2)") == [[10]]
+
+
+def test_uninspectable_callable_errors_are_classified(metta):
+    class Uninspectable:
+        @property
+        def __signature__(self):
+            raise TypeError("unsupported callable type")
+
+        def __call__(self, value):
+            return value
+
+    target = Uninspectable()
+    module = types.SimpleNamespace(__name__="uninspectable", target=target)
+    assert pi.module_ops(metta, module, ["target"]) == ["target"]
+    assert metta.run("!(target 7)") == [[7]]
+    with pytest.raises(PettaError, match=r"pass arities=\[\.\.\.\]") as caught:
+        pi.wrap_callable(metta, "strict-target", target)
+    assert isinstance(caught.value.__cause__, TypeError)
+
+
+def test_wrap_callable_rejects_required_keyword_only_parameters(metta):
+    def target(value, *, required):
+        return value + required
+
+    with pytest.raises(PettaError, match="required keyword-only parameter 'required'"):
+        pi.wrap_callable(metta, "keyword-only", target)
 
 
 def test_wrap_object_methods_with_effect_convention(metta):
@@ -69,8 +97,6 @@ def test_register_repr_protocol(metta):
 
 
 def test_py_field_reasons_in_both_modes(metta):
-    from dataclasses import dataclass
-
     @dataclass
     class Config:
         depth: int
@@ -123,8 +149,6 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):
 
 
 def test_integrate_module_protocol_and_idempotence(metta):
-    import types
-
     calls = []
     fake = types.SimpleNamespace(
         __name__="fake_integration", install_petta=lambda m: calls.append(m)
@@ -169,7 +193,7 @@ def test_networkx_integrates_in_a_page(metta):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
         return expr(*(S[n] for n in names))
 
-    space.op(shortest_path, name="nx-path", raw=False, typed=False)
+    space.register_op(shortest_path, name="nx-path", raw=False, typed=False)
     # And both compose with reasoning:
     assert space.run("!(nx-path a c)") == [[expr(S.a, S.b, S.c)]]
     rows = space.query(S.nx_edge(S.a, V.to, V.w))

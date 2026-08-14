@@ -8,11 +8,25 @@ Open Obligations:
 """
 
 import asyncio
+import gc
 import inspect
+import logging
+import threading
+import time
 
 import pytest
 
-from petta import S, V
+import petta
+from petta import (
+    Interrupted,
+    MeTTa,
+    MettaSyntaxError,
+    PettaError,
+    S,
+    TimeLimitError,
+    V,
+    aio,
+)
 
 
 @pytest.fixture()
@@ -22,8 +36,6 @@ def m(metta):
 
 
 def test_aio_mirrors_the_surface(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.add(S.edge(1, 2), S.edge(2, 3))
@@ -39,13 +51,9 @@ def test_aio_mirrors_the_surface(m):
 
 
 def test_aio_keeps_the_loop_live_while_the_engine_spins(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
-            await am.run(
-                "(= (aio-spin $n) (if (== $n 0) done (aio-spin (- $n 1))))"
-            )
+            await am.run("(= (aio-spin $n) (if (== $n 0) done (aio-spin (- $n 1))))")
             ticks = 0
 
             async def ticker():
@@ -67,8 +75,6 @@ def test_aio_keeps_the_loop_live_while_the_engine_spins(m):
 
 
 def test_aio_carries_bounds_and_errors_across_threads(m):
-    from petta import MettaSyntaxError, TimeLimitError, aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -87,8 +93,6 @@ def test_aio_carries_bounds_and_errors_across_threads(m):
 
 
 def test_aio_spaces_borrow_the_owners_thread(m):
-    from petta import MeTTa, PettaError, aio
-
     async def go():
         am = await aio.connect(metta=m)
         nested = await am.space("&aio-borrowed")
@@ -110,8 +114,6 @@ def test_aio_spaces_borrow_the_owners_thread(m):
 
 
 def test_aio_interrupt_stops_the_running_evaluation(m):
-    from petta import Interrupted, aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -128,20 +130,55 @@ def test_aio_interrupt_stops_the_running_evaluation(m):
     assert asyncio.run(go()) == 2
 
 
+def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):
+    original = petta.janus.query_once
+    unexpected_waiting = threading.Event()
+    release_unexpected = threading.Event()
+    injected = iter(
+        (
+            "error(petta_py_exception(interrupted, none), context(petta, interrupted))",
+            "error(unexpected_drain, context(test, drain))",
+        )
+    )
+
+    def inject(goal, inputs=None):
+        if goal == "true" and (error := next(injected, None)) is not None:
+            if "unexpected_drain" in error:
+                unexpected_waiting.set()
+                if not release_unexpected.wait(2.0):
+                    raise RuntimeError("the drain test did not release its worker")
+            return original(f"throw({error})")
+        return original(goal, inputs)
+
+    monkeypatch.setattr(petta.janus, "query_once", inject)
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            assert await am.count() == 0
+            running = asyncio.create_task(am.count())
+            assert await asyncio.to_thread(unexpected_waiting.wait, 2.0)
+            queued = asyncio.create_task(am.count())
+            await asyncio.sleep(0)
+            release_unexpected.set()
+            with pytest.raises(petta.EngineError, match="unexpected_drain"):
+                await asyncio.wait_for(running, timeout=2.0)
+            with pytest.raises(PettaError, match="failed before this request ran"):
+                await asyncio.wait_for(queued, timeout=2.0)
+            assert "failed" in repr(am)
+            with pytest.raises(PettaError, match=r"failed.*unexpected_drain"):
+                await am.count()
+
+    asyncio.run(go())
+
+
 def test_aio_timeout_cancellation_stops_the_engine(m):
-    import time
-
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
                 "(= (aio-spin-d $n) (if (== $n 0) done (aio-spin-d (- $n 1))))"
             )
             with pytest.raises(TimeoutError):
-                await asyncio.wait_for(
-                    am.eval("(aio-spin-d 2000000000)"), timeout=0.2
-                )
+                await asyncio.wait_for(am.eval("(aio-spin-d 2000000000)"), timeout=0.2)
             # The cancellation interrupted the engine: were the spin still
             # holding the worker, this next call would wait minutes.
             t0 = time.perf_counter()
@@ -154,8 +191,6 @@ def test_aio_timeout_cancellation_stops_the_engine(m):
 
 
 def test_aio_cancelled_while_queued_never_runs(m):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.run(
@@ -179,8 +214,6 @@ def test_aio_cancelled_while_queued_never_runs(m):
 
 
 def test_aio_exposes_every_plain_request_response_method():
-    from petta import aio
-
     expected = {
         "fresh_space",
         "drop",
@@ -190,7 +223,7 @@ def test_aio_exposes_every_plain_request_response_method():
         "trace",
         "lint",
         "digest",
-        "unregister",
+        "unregister_op",
         "builtins",
         "is_function",
         "is_function_here",
@@ -202,11 +235,50 @@ def test_aio_exposes_every_plain_request_response_method():
     signature = inspect.signature(aio.AsyncMeTTa.save)
     assert list(signature.parameters) == ["self", "path", "format"]
     assert signature.parameters["format"].default == "metta"
+    derivation = inspect.signature(aio.AsyncMeTTa.derivation)
+    assert list(derivation.parameters) == [
+        "self",
+        "target",
+        "depth",
+        "timeout",
+        "inferences",
+    ]
+    assert derivation.parameters["depth"].default is None
+    assert list(inspect.signature(aio.AsyncMeTTa.run).parameters) == [
+        "self",
+        "source",
+        "using",
+        "timeout",
+        "inferences",
+        "capture",
+        "atomic",
+        "speculative",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.query).parameters) == [
+        "self",
+        "patterns",
+        "where",
+        "limit",
+        "timeout",
+        "inferences",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [
+        "self",
+        "target",
+        "timeout",
+        "inferences",
+        "capture",
+        "residuals",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.value).parameters) == [
+        "self",
+        "target",
+        "timeout",
+        "inferences",
+    ]
 
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
-    from petta import aio
-
     async def go():
         async with aio.AsyncMeTTa(metta=metta.fresh_space()) as am:
             parsed = await am.parse("(aio-forward value)")
@@ -226,20 +298,23 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
             assert isinstance(await am.trace("!(+ 2 3)"), list)
 
             await am.run(
-                "(aio-proof fact)\n"
-                "(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
+                "(aio-proof fact)\n(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
             )
             assert await am.derivation(S["aio-prove"]())
+            partial = await am.derivation(
+                S["aio-prove"](), depth=1, timeout=5.0, inferences=100_000
+            )
+            assert partial and not partial[0].complete
 
             await am.call(
-                lambda sync: sync.op(
+                lambda sync: sync.register_op(
                     lambda value: value,
                     name="aio-unregister-target",
                     typed=False,
                 )
             )
             assert await am.is_function("aio-unregister-target")
-            await am.unregister("aio-unregister-target")
+            await am.unregister_op("aio-unregister-target")
             assert not await am.is_function("aio-unregister-target")
 
             path = tmp_path / "aio.fast"
@@ -257,9 +332,6 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
 
 
 def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
-    import petta
-    from petta import PettaError, aio
-
     def fail_attach():
         raise RuntimeError("round2 attach failed")
 
@@ -270,9 +342,9 @@ def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
         with pytest.raises(RuntimeError, match="round2 attach failed"):
             await broken.start()
         assert "failed" in repr(broken)
-        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
             await broken.start()
-        with pytest.raises(PettaError, match="failed.*round2 attach failed"):
+        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
             await broken.count()
         await broken.aclose()
         assert "closed" in repr(broken)
@@ -281,8 +353,6 @@ def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
 
 
 def test_aio_borrowed_space_refuses_after_owner_closes(metta):
-    from petta import PettaError, aio
-
     async def go():
         owner = await aio.connect(metta=metta)
         borrowed = await owner.space("&aio-closed-borrower")
@@ -293,3 +363,100 @@ def test_aio_borrowed_space_refuses_after_owner_closes(metta):
 
     asyncio.run(go())
     metta.space("&aio-closed-borrower").drop()
+
+
+def test_aio_close_interrupts_work(m):
+    async def go():
+        am = await aio.connect(metta=m)
+        await am.run(
+            "(= (aio-close-spin $n) (if (== $n 0) done (aio-close-spin (- $n 1))))"
+        )
+        running = asyncio.create_task(am.eval("(aio-close-spin 2000000000)"))
+        queued = asyncio.create_task(am.add(S.never_after_close(1)))
+        await asyncio.sleep(0.1)
+
+        await am.aclose(timeout=2.0)
+
+        with pytest.raises(Interrupted):
+            await running
+        with pytest.raises(PettaError, match="closed before this request ran"):
+            await queued
+        assert am._worker.thread is not None
+        assert not am._worker.thread.is_alive()
+        assert not m.query(S.never_after_close(V.value))
+
+    asyncio.run(go())
+
+
+def test_aio_leak_warns_and_stop_joins(m):
+    async def open_connection():
+        am = await aio.connect(metta=m)
+        await am.count()
+        return am
+
+    am = asyncio.run(open_connection())
+    worker = am._worker
+    with pytest.warns(ResourceWarning, match="open AsyncMeTTa"):
+        del am
+        gc.collect()
+
+    worker.stop(timeout=2.0)
+    assert worker.thread is not None
+    assert not worker.thread.is_alive()
+
+
+def test_aio_shutdown_handler_stops_forgotten_workers(m):
+    async def open_connection():
+        return await aio.connect(metta=m)
+
+    am = asyncio.run(open_connection())
+    thread = am._worker.thread
+    aio._shutdown_workers()
+    assert thread is not None
+    assert not thread.is_alive()
+
+
+def test_aio_empty_shutdown_does_not_import_janus(monkeypatch):
+    def fail_bridge():
+        raise ModuleNotFoundError("No module named 'janus_swi'")
+
+    monkeypatch.setattr(aio, "_LIVE_WORKERS", [])
+    monkeypatch.setattr(aio, "bridge", fail_bridge)
+
+    aio._shutdown_workers()
+
+
+def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
+    stopped = []
+
+    class BrokenWorker:
+        def __init__(self, name):
+            self.name = name
+
+        def stop(self):
+            stopped.append(self.name)
+            raise RuntimeError(f"cannot stop {self.name}")
+
+    workers = [BrokenWorker("first"), BrokenWorker("second")]
+    monkeypatch.setattr(aio, "_LIVE_WORKERS", workers)
+
+    with pytest.raises(ExceptionGroup, match="failed to stop 2") as caught:
+        aio._shutdown_workers()
+
+    assert stopped == ["first", "second"]
+    assert [str(error) for error in caught.value.exceptions] == [
+        "cannot stop first",
+        "cannot stop second",
+    ]
+
+
+def test_aio_logs_worker_attachment_and_shutdown(m, caplog):
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            assert await am.count() == 0
+
+    with caplog.at_level(logging.DEBUG, logger="petta.aio"):
+        asyncio.run(go())
+
+    assert "worker attached a Prolog engine" in caplog.text
+    assert "worker detached its Prolog engine" in caplog.text

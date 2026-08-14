@@ -13,7 +13,7 @@ Open Obligations:
 
 import pytest
 
-from petta import CastError, Gnd, S, V, cast
+from petta import CastError, Gnd, S, V, cast, integrate
 
 
 @pytest.fixture()
@@ -64,8 +64,6 @@ def test_unchecked_targets_pass_unchecked(m):
 
 
 def test_protocol_types_duck_through_the_type_system(m, metta):
-    from petta import integrate
-
     integrate.register_object_type(lambda x: hasattr(x, "quack"), "Ducky")
 
     class Quacks:
@@ -92,6 +90,11 @@ def test_declarations_are_space_relative(metta):
 def test_the_module_function_takes_the_space_first(m):
     assert cast(m, 3, "Number") == 3
     assert issubclass(CastError, TypeError)
+
+
+def test_parameterized_generic_is_not_accepted_as_a_cast_class(m):
+    with pytest.raises(TypeError, match="cast target must be"):
+        m.cast([1, 2, 3], list[int])
 
 
 def test_ground_atoms_narrow_to_their_python_values(m):

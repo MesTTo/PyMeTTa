@@ -9,7 +9,13 @@ Open Obligations:
 
 from __future__ import annotations
 
+import logging
 import os
+import signal
+import stat
+import subprocess
+import sys
+import textwrap
 
 import pytest
 
@@ -67,7 +73,7 @@ def test_journal_replays_every_supported_native(tmp_path):
     # On this engine the symbol true IS the boolean atom; every crossing
     # canonicalizes, and the journal follows the engine, so a stored
     # Sym('true') replays as the boolean, exactly like parse("true").
-    expected = facts[:6] + [S.fact(True), S.fact(False)]
+    expected = [*facts[:6], S.fact(True), S.fact(False)]
     first = PersistentFactSpace(journal, {"fact": 1})
     try:
         for fact in facts:
@@ -93,7 +99,7 @@ def test_schema_and_native_refusals_name_the_offender(tmp_path):
             space.add(S.edge(val(object()), S.b))
         with pytest.raises(PettaError, match=r"argument 1 \(\$x\) is not ground"):
             space.add(S.edge(V.x, S.b))
-        with pytest.raises(PettaError, match="argument 1 .* is not a number"):
+        with pytest.raises(PettaError, match=r"argument 1 .* is not a number"):
             space.add(S.edge(S.node(S.a), S.b))
     finally:
         space.close()
@@ -169,12 +175,6 @@ def test_sync_mode_is_validated():
 
 def _crash_writer(journal, sync_mode, checkpoint):
     """Run a subprocess that adds facts and dies by SIGKILL, no cleanup."""
-    import os
-    import signal
-    import subprocess
-    import sys
-    import textwrap
-
     program = textwrap.dedent(
         f"""
         import os, signal
@@ -275,18 +275,18 @@ def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         space.add(first)
-        os.replace(journal, saved)
+        journal.replace(saved)
         journal.mkdir()
         with pytest.raises(EngineError, match="source_sink"):
             space.add(rejected)
         assert list(space.atoms()) == [first]
-        with pytest.raises(PettaError, match="unusable for writes.*earlier add"):
+        with pytest.raises(PettaError, match=r"unusable for writes.*earlier add"):
             space.add(S.edge(S.e, S.f))
     finally:
         if journal.is_dir():
             journal.rmdir()
         if saved.exists():
-            os.replace(saved, journal)
+            saved.replace(journal)
         space.close()
 
     reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -305,7 +305,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
     try:
         for fact in facts:
             space.add(fact)
-        os.replace(journal, saved)
+        journal.replace(saved)
         journal.mkdir()
         with pytest.raises(EngineError, match="source_sink"):
             if operation == "remove":
@@ -319,7 +319,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
         if journal.is_dir():
             journal.rmdir()
         if saved.exists():
-            os.replace(saved, journal)
+            saved.replace(journal)
         space.close()
 
     reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -329,7 +329,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
         reopened.close()
 
 
-def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path):
+def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):
     journal = tmp_path / "terminal-tail.db"
     prefix_facts = [S.edge(S.a, S.b), S.edge(S.b, S.c)]
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -344,13 +344,40 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path):
     with journal.open("ab") as stream:
         stream.write(incomplete_tail)
 
-    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    with caplog.at_level(logging.WARNING, logger="petta.persistent"):
+        recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         assert list(recovered.atoms()) == prefix_facts
     finally:
         recovered.close()
     assert journal.read_bytes() == complete_prefix
     assert (tmp_path / "terminal-tail.db.tail").read_bytes() == incomplete_tail
+    assert "recovered persistent journal" in caplog.text
+    assert "truncating at byte" in caplog.text
+
+
+def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):
+    journal = tmp_path / "durable-tail.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.a, S.b))
+    space.close()
+    with journal.open("ab") as stream:
+        stream.write(b"assert(edge(c,")
+
+    synced = []
+    real_fsync = os.fsync
+
+    def record_fsync(descriptor):
+        mode = os.fstat(descriptor).st_mode
+        synced.append("directory" if stat.S_ISDIR(mode) else "file")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr("petta.persistent.os.fsync", record_fsync)
+    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    recovered.close()
+
+    expected = ["file", "directory", "file"] if os.name == "posix" else ["file", "file"]
+    assert synced == expected
 
 
 def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):
@@ -396,6 +423,27 @@ def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):
     assert caught.value.__cause__ is not None
 
 
+def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeypatch):
+    journal = tmp_path / "invalid-tail-status.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    with journal.open("ab") as stream:
+        stream.write(b"assert(edge(c,")
+
+    original_call = PersistentFactSpace._call
+
+    def invalid_tail_status(self, action, *args, **kwargs):
+        if action == "tail_status":
+            return {"Status": object()}
+        return original_call(self, action, *args, **kwargs)
+
+    monkeypatch.setattr(PersistentFactSpace, "_call", invalid_tail_status)
+    with pytest.raises(EngineError, match="invalid status") as caught:
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    assert isinstance(caught.value.__cause__, PettaError)
+
+
 def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
     journal = tmp_path / "module-pool.db"
     first = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -411,3 +459,26 @@ def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
         assert second._module == first_module
     finally:
         second.close()
+
+
+def test_constructor_failure_releases_path_and_unattached_module(tmp_path, monkeypatch):
+    journal = tmp_path / "constructor-rollback.db"
+    original = PersistentFactSpace._validate_or_repair_tail
+    attempted_modules = []
+
+    def fail_once(space):
+        attempted_modules.append(space._module)
+        if len(attempted_modules) == 1:
+            raise RuntimeError("validation probe failed")
+        return original(space)
+
+    monkeypatch.setattr(PersistentFactSpace, "_validate_or_repair_tail", fail_once)
+
+    with pytest.raises(RuntimeError, match="validation probe failed"):
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+
+    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert attempted_modules == [recovered._module, recovered._module]
+    finally:
+        recovered.close()

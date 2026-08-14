@@ -1,6 +1,10 @@
 """Purpose: proof trees as Python objects. Parses the (derivation ...) atoms
 the shim's meta-interpreter produces into a tree of steps, facts and builtin
-leaves, and renders it as indented text or notebook HTML.
+leaves, records finite-depth truncation without confusing it with no proof,
+and renders the result as indented text or notebook HTML.
+Guarantees:
+  - Derivation.complete is false exactly when a Truncated node occurs
+    [tested test_depth_exhaustion_returns_a_partial_proof]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,12 +14,14 @@ Open Obligations:
 from __future__ import annotations
 
 import html
+import string
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TypeGuard, Union
+from typing import TypeGuard
 
-from .atoms import Atom, Expr, Gnd, Sym
+from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms
 
-__all__ = ["Derivation", "Step", "Fact", "Builtin"]
+__all__ = ["Builtin", "Derivation", "Fact", "Step", "Truncated"]
 
 
 @dataclass(frozen=True)
@@ -40,13 +46,23 @@ class Builtin:
 
 
 @dataclass(frozen=True)
+class Truncated:
+    """A finite proof budget ended before this engine goal was explained."""
+
+    text: str
+
+    def render(self, indent: int) -> str:
+        return f"{'  ' * indent}truncated {self.text}"
+
+
+@dataclass(frozen=True)
 class Step:
     """One equation firing: the call it answered and the equation used."""
 
     call: Atom
     answer: Atom
     equation: Atom
-    children: tuple["Node", ...] = field(default_factory=tuple)
+    children: tuple[Node, ...] = field(default_factory=tuple)
 
     def render(self, indent: int) -> str:
         pad = "  " * indent
@@ -58,7 +74,7 @@ class Step:
         return "\n".join(lines)
 
 
-Node = Union[Step, Fact, Builtin]
+Node = Step | Fact | Builtin | Truncated
 
 
 @dataclass(frozen=True)
@@ -75,7 +91,7 @@ class Derivation:
     children: tuple[Node, ...]
 
     @staticmethod
-    def from_atom(tree: Atom) -> "Derivation":
+    def from_atom(tree: Atom) -> Derivation:
         """Parse the (derivation (answer Call Out) Steps...) atom."""
         if not (
             isinstance(tree, Expr)
@@ -111,6 +127,16 @@ class Derivation:
                 seen.append(n.equation)
         return seen
 
+    @property
+    def truncations(self) -> list[Truncated]:
+        """Every point where a finite depth stopped this proof walk."""
+        return [n for n in _walk(self.children) if isinstance(n, Truncated)]
+
+    @property
+    def complete(self) -> bool:
+        """Whether the tree explains the proof without a depth cutoff."""
+        return not self.truncations
+
     def __str__(self) -> str:
         lines = [f"{self.call} = {self.answer}"]
         lines.extend(c.render(1) for c in self.children)
@@ -127,13 +153,11 @@ def _pretty(atom: Atom) -> Atom:
     them to $a, $b, ... in appearance order. The stored tree keeps the
     originals, so nothing downstream loses the real identity.
     """
-    from .atoms import Expr as E, Var as Vr
-
-    names = "abcdefghijklmnopqrstuvwxyz"
+    names = string.ascii_lowercase
     mapping: dict[str, str] = {}
 
-    def walk(a: Atom) -> Atom:
-        if isinstance(a, Vr):
+    def rename(a: Atom) -> Atom:
+        if isinstance(a, Var):
             # Only machine names are renamed; a name the author wrote stays.
             if not a.name.startswith("_"):
                 return a
@@ -141,12 +165,10 @@ def _pretty(atom: Atom) -> Atom:
                 index = len(mapping)
                 fresh = names[index] if index < len(names) else f"v{index}"
                 mapping[a.name] = fresh
-            return Vr(mapping[a.name])
-        if isinstance(a, E):
-            return E([walk(c) for c in a.children])
+            return Var(mapping[a.name])
         return a
 
-    return walk(atom)
+    return map_atoms(atom, rename)
 
 
 def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
@@ -158,40 +180,51 @@ def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
     )
 
 
+def _step_node(node: Expr) -> Step:
+    if len(node) < 3:
+        raise ValueError(
+            f"malformed step node {node}: expected "
+            f"(step (call Call Out) Equation Child...)"
+        )
+    call_expr = node[1]
+    if not (_headed(call_expr, "call") and len(call_expr) == 3):
+        raise ValueError(f"malformed call node {call_expr}: expected (call Call Out)")
+    call, out = call_expr[1], call_expr[2]
+    children = tuple(_node(child) for child in node.children[3:])
+    return Step(call=call, answer=out, equation=node[2], children=children)
+
+
+def _fact_node(node: Expr) -> Fact:
+    if len(node) != 3:
+        raise ValueError(f"malformed fact node {node}: expected (fact Space Atom)")
+    space = node[1]
+    name = space.name if isinstance(space, Sym) else str(space)
+    return Fact(space=name, atom=node[2])
+
+
+def _text_node(
+    node: Expr,
+    name: str,
+    constructor: Callable[[str], Node],
+) -> Node:
+    if len(node) != 2:
+        raise ValueError(f"malformed {name} node {node}: expected ({name} Text)")
+    payload = node[1]
+    text = payload.value if isinstance(payload, Gnd) else str(payload)
+    return constructor(str(text))
+
+
 def _node(e: Atom) -> Node:
     if _headed(e, "step"):
-        if len(e) < 3:
-            raise ValueError(
-                f"malformed step node {e}: expected "
-                f"(step (call Call Out) Equation Child...)"
-            )
-        call_expr = e[1]  # (call (f args...) Out)
-        if not (_headed(call_expr, "call") and len(call_expr) == 3):
-            raise ValueError(
-                f"malformed call node {call_expr}: expected (call Call Out)"
-            )
-        call, out = call_expr[1], call_expr[2]
-        equation = e[2]
-        children = tuple(_node(c) for c in e.children[3:])
-        return Step(call=call, answer=out, equation=equation, children=children)
+        return _step_node(e)
     if _headed(e, "fact"):
-        if len(e) != 3:
-            raise ValueError(
-                f"malformed fact node {e}: expected (fact Space Atom)"
-            )
-        space = e[1]
-        name = space.name if isinstance(space, Sym) else str(space)
-        return Fact(space=name, atom=e[2])
+        return _fact_node(e)
     if _headed(e, "builtin"):
-        if len(e) != 2:
-            raise ValueError(
-                f"malformed builtin node {e}: expected (builtin Text)"
-            )
-        payload = e[1]
-        text = payload.value if isinstance(payload, Gnd) else str(payload)
-        return Builtin(text=str(text))
+        return _text_node(e, "builtin", Builtin)
+    if _headed(e, "truncated"):
+        return _text_node(e, "truncated", Truncated)
     raise ValueError(
-        f"malformed derivation node {e}: expected step, fact, or builtin"
+        f"malformed derivation node {e}: expected step, fact, builtin, or truncated"
     )
 
 

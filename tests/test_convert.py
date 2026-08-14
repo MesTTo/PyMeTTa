@@ -1,20 +1,24 @@
 """Purpose: the four-image translator: defaults on sight, registration in
 the pytree shape, typed declarations, lossless rebuilds, and explicit
 refusals for unrepresentable state and type-name collisions.
+Owns:
+  - test_registration_collisions_are_serialized joins both registry workers
+    before checking the unique owner [tested test_registration_collisions_are_serialized]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, make_dataclass
 from enum import Enum
 from typing import NamedTuple
 
 import pytest
 
-from petta import S, V, Gnd, Sym, expr, val
-from petta.convert import build, declarations, project, register_type
+from petta import Gnd, S, Sym, V, expr, val
+from petta.convert import _is_plain_class, build, declarations, project, register_type
 
 
 class Color(Enum):
@@ -179,19 +183,21 @@ def test_pydantic_alias_fields_rebuild(metta):
 
 
 def test_parameterized_field_annotations_rebuild_nested_enums():
-    from dataclasses import dataclass
-    from typing import Optional
-
     @dataclass
     class Palette:
         colours: list[Color]
-        favourite: Optional[Color]
+        favourite: Color | None
 
     projected = project(Palette([Color.red, Color.blue], Color.red))
     rebuilt = build(projected.atom, Palette)
     assert rebuilt == Palette([Color.red, Color.blue], Color.red)
     assert isinstance(rebuilt.colours[0], Color)
     assert isinstance(rebuilt.favourite, Color)
+
+
+def test_plain_class_detection_never_mistakes_a_generic_alias_for_a_class():
+    assert _is_plain_class(list) is True
+    assert _is_plain_class(list[Color]) is False
 
 
 def test_enum_typed_field_uses_the_enum_in_constructor_declarations():
@@ -264,8 +270,52 @@ def test_type_name_collision_is_refused_and_build_honors_requested_class():
     first = first_cls(7)
     atom = project(first).atom
 
-    with pytest.raises(ValueError, match="type name 'ConversionCollision'.*already"):
+    with pytest.raises(ValueError, match=r"type name 'ConversionCollision'.*already"):
         project(second_cls("later"))
-    with pytest.raises(TypeError, match="belongs to .*not"):
+    with pytest.raises(TypeError, match=r"belongs to .*not"):
         build(atom, second_cls)
     assert build(atom, first_cls) == first
+
+
+def test_invalid_namedtuple_fields_are_refused():
+    class InvalidTuple(tuple):
+        _fields = object()
+
+    with pytest.raises(TypeError, match="invalid NamedTuple fields"):
+        project(InvalidTuple())
+
+def test_registration_collisions_are_serialized():
+    first = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
+    second = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
+
+    def attempt(cls):
+        try:
+            register_type(cls)
+        except ValueError:
+            return "collision"
+        return "owner"
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        outcomes = sorted(workers.map(attempt, (first, second)))
+
+    assert outcomes == ["collision", "owner"]
+
+
+def test_union_build_selects_by_shape_and_surfaces_reverse_errors():
+    assert build(Gnd(3), str | int) == 3
+
+    class BrokenReverse:
+        pass
+
+    def reject(_value):
+        raise TypeError("selected reverse failed")
+
+    register_type(
+        BrokenReverse,
+        name="BrokenReverseProbe",
+        to_atom=lambda value: (value,),
+        from_atom=reject,
+        fields=("value",),
+    )
+    with pytest.raises(TypeError, match="selected reverse failed"):
+        build(expr(S.BrokenReverseProbe, 1), BrokenReverse | str)

@@ -9,12 +9,46 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import dataclasses
+import difflib
+import enum
+import gc
+import importlib
+import json
+import os
+import shutil
+import ssl
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
 import pytest
 
-from petta import S, V, expr
+from petta import (
+    EngineError,
+    InferenceLimitError,
+    PettaError,
+    ResourceLimitError,
+    S,
+    TimeLimitError,
+    V,
+    bridge,
+    convert,
+    expr,
+    matching,
+    measure,
+    remote,
+    val,
+)
+from petta.arrays import EmbeddingStore
 from petta.atoms import Expr, Gnd, Sym, Var
+from petta.integrate import install_reflection_ops
+from petta.subscribe import Event, atom_added
 
 hypothesis = pytest.importorskip("hypothesis")
+subscribe_module = importlib.import_module("petta.subscribe")
 
 
 @pytest.fixture()
@@ -24,6 +58,151 @@ def m(metta):
 
 
 # ----------------------------------------------------------- subscriptions
+
+
+class _SubscriptionRuntime:
+    def __init__(self):
+        self.facts = []
+        self.published = []
+        self.sync_failures = 0
+        self.remove_failure = False
+        self.removed = threading.Event()
+
+    def must(self, goal, **inputs):
+        assert goal == "petta_py_subscriptions(Spaces)"
+        self.published.append(list(inputs["Spaces"]))
+        if self.sync_failures:
+            self.sync_failures -= 1
+            raise RuntimeError("injected subscription sync failure")
+        return {"truth": True}
+
+    def do(self, predicate, *inputs):
+        assert predicate == "petta_py_contains"
+        space, wire = inputs
+        assert space == "&petta"
+        return any(fact.to_wire() == wire for fact in self.facts)
+
+
+def _script_subscription_boundaries(monkeypatch):
+    runtime = _SubscriptionRuntime()
+    registry = subscribe_module._SubscriptionRegistry()
+
+    def reflect_add(active_runtime, fact):
+        assert active_runtime is runtime
+        runtime.facts.append(fact)
+
+    def reflect_remove(active_runtime, fact):
+        assert active_runtime is runtime
+        runtime.facts[:] = [current for current in runtime.facts if current != fact]
+        runtime.removed.set()
+        if runtime.remove_failure:
+            runtime.remove_failure = False
+            raise RuntimeError("injected reflection removal failure")
+
+    monkeypatch.setattr(subscribe_module, "_REGISTRY", registry)
+    monkeypatch.setattr(subscribe_module, "_reflect_add", reflect_add)
+    monkeypatch.setattr(subscribe_module, "_reflect_remove", reflect_remove)
+    return runtime, registry
+
+
+def test_subscription_lifecycle_rolls_back_failed_boundaries(monkeypatch):
+    runtime, registry = _script_subscription_boundaries(monkeypatch)
+    runtime.sync_failures = 1
+    with pytest.raises(RuntimeError, match="injected subscription sync failure"):
+        subscribe_module.subscribe(runtime, "&fault", S.item)
+    assert registry.for_space("&fault") == ()
+    assert runtime.facts == []
+    assert runtime.published == [["&fault"], []]
+
+    first = subscribe_module.subscribe(runtime, "&fault", S.item)
+    second = subscribe_module.subscribe(runtime, "&fault", S.item)
+    assert len(runtime.facts) == 1
+    second.cancel()
+    assert registry.for_space("&fault") == (first,)
+    assert len(runtime.facts) == 1
+
+    runtime.sync_failures = 1
+    with pytest.raises(RuntimeError, match="injected subscription sync failure"):
+        first.cancel()
+    assert first._active is True
+    assert registry.for_space("&fault") == (first,)
+    assert runtime.published[-2:] == [[], ["&fault"]]
+
+    runtime.remove_failure = True
+    with pytest.raises(RuntimeError, match="injected reflection removal failure"):
+        first.cancel()
+    assert first._active is True
+    assert registry.for_space("&fault") == (first,)
+    assert len(runtime.facts) == 1
+    assert runtime.published[-2:] == [[], ["&fault"]]
+
+    first.cancel()
+    assert registry.for_space("&fault") == ()
+    assert runtime.facts == []
+
+
+def test_stale_subscription_snapshot_cannot_deliver_after_cancel(monkeypatch):
+    runtime, registry = _script_subscription_boundaries(monkeypatch)
+    seen = []
+    subscription = subscribe_module.subscribe(runtime, "&stale", S.item, seen.append)
+    stale_snapshot = registry.for_space("&stale")
+    subscription.cancel()
+
+    stale_snapshot[0]._deliver(Event("add", "&stale", S.item, {}))
+
+    assert seen == []
+
+
+def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):
+    runtime, _registry = _script_subscription_boundaries(monkeypatch)
+    entered = threading.Event()
+    release = threading.Event()
+    cancel_complete = threading.Event()
+
+    def callback(_event):
+        entered.set()
+        release.wait()
+
+    subscription = subscribe_module.subscribe(runtime, "&inflight", S.item, callback)
+    event = Event("add", "&inflight", S.item, {})
+    delivery = threading.Thread(target=subscription._deliver, args=(event,))
+
+    def cancel():
+        subscription.cancel()
+        cancel_complete.set()
+
+    cancellation = threading.Thread(target=cancel)
+    delivery.start()
+    assert entered.wait(timeout=2.0)
+    cancellation.start()
+    try:
+        assert runtime.removed.wait(timeout=2.0)
+        cancellation.join(timeout=0.1)
+        assert cancellation.is_alive()
+    finally:
+        release.set()
+        delivery.join(timeout=2.0)
+        cancellation.join(timeout=2.0)
+
+    assert cancel_complete.is_set()
+    assert not delivery.is_alive()
+    assert not cancellation.is_alive()
+
+
+def test_identical_subscriptions_share_one_reflection_fact(m):
+    reflection = m.space("&petta")
+    first = m.subscribe(S.identical(V.value))
+    second = m.subscribe(S.identical(V.value))
+    descriptor = S.subscription(S[m.space_name], V.pattern, V.on)
+    try:
+        assert len(reflection.query(descriptor)) == 1
+        second.cancel()
+        assert len(reflection.query(descriptor)) == 1
+        first.cancel()
+        assert not reflection.query(descriptor)
+    finally:
+        first.cancel()
+        second.cancel()
 
 
 def test_subscription_callback_fires_inside_the_write(m):
@@ -51,6 +230,58 @@ def test_subscription_queue_mode_drains(m):
         sub.cancel()
 
 
+def test_subscription_queue_is_thread_safe(m):
+    subscription = m.subscribe(S.concurrent(V.value))
+    complete = threading.Event()
+    collected = []
+
+    def produce(offset):
+        for value in range(offset, offset + 100):
+            atom_added(m.space_name, S.concurrent(value).to_wire())
+
+    def drain():
+        while not complete.is_set():
+            collected.extend(subscription.drain())
+        collected.extend(subscription.drain())
+
+    consumer = threading.Thread(target=drain)
+    producers = [
+        threading.Thread(target=produce, args=(start,)) for start in range(0, 400, 100)
+    ]
+    consumer.start()
+    for producer in producers:
+        producer.start()
+    for producer in producers:
+        producer.join()
+    complete.set()
+    consumer.join()
+    subscription.cancel()
+
+    assert sorted(event.bindings["value"].value for event in collected) == list(
+        range(400)
+    )
+
+
+def test_subscription_cancel_is_thread_safe(m):
+    subscription = m.subscribe(S.concurrent_cancel(V.value))
+    failures = []
+
+    def cancel():
+        try:
+            subscription.cancel()
+        except Exception as error:
+            failures.append(error)
+
+    threads = [threading.Thread(target=cancel) for _ in range(20)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert failures == []
+    assert subscription._active is False
+
+
 def test_subscription_fires_for_engine_side_writes(m):
     """add-atom from RUNNING MeTTa reaches the standing query too: the
     write funnel is the engine's own."""
@@ -67,8 +298,6 @@ def test_subscription_fires_for_engine_side_writes(m):
 
 
 def test_custom_matcher_scores_and_generates(m):
-    from petta import matching
-
     lexicon = ["class", "clause", "close"]
 
     def score(query, candidate):
@@ -87,24 +316,17 @@ def test_custom_matcher_scores_and_generates(m):
 
 
 def test_fuzzy_matcher_is_difflib(m):
-    from petta import matching
-
     matching.install_fuzzy(m, name="fz-match")
     (answer,) = m.run('!(fz-match "kitten" "sitting")')[0]
-    import difflib
-
     expected = difflib.SequenceMatcher(None, "kitten", "sitting").ratio()
     assert float(answer[0]) == pytest.approx(expected)
     # Score-only matcher says so when asked to generate.
-    from petta.errors import EngineError
-
     with pytest.raises(EngineError):
         m.run("!(fz-match cat $unbound)")
 
 
 def test_embedding_store_is_a_semantic_matcher(m):
     numpy = pytest.importorskip("numpy")
-    from petta.arrays import EmbeddingStore
 
     store = EmbeddingStore(m, name="sem", mirror=False)
     store.add(S.dog, numpy.array([1.0, 0.0]))
@@ -122,7 +344,6 @@ def test_embedding_store_is_a_semantic_matcher(m):
 def test_faiss_and_argsort_rank_identically(m):
     numpy = pytest.importorskip("numpy")
     pytest.importorskip("faiss")
-    from petta.arrays import EmbeddingStore
 
     plain = EmbeddingStore(m, name="rk-a", mirror=False, backend="argsort")
     accel = EmbeddingStore(m, name="rk-b", mirror=False, backend="faiss")
@@ -135,7 +356,7 @@ def test_faiss_and_argsort_rank_identically(m):
     slow = [(str(k), s) for k, s in plain.ranked(query, 10)]
     fast = [(str(k), s) for k, s in accel.ranked(query, 10)]
     assert [k for k, _ in slow] == [k for k, _ in fast]
-    for (_, a), (_, b) in zip(slow, fast):
+    for (_, a), (_, b) in zip(slow, fast, strict=False):
         assert a == pytest.approx(b, abs=1e-5)
 
 
@@ -143,10 +364,6 @@ def test_faiss_and_argsort_rank_identically(m):
 
 
 def test_type_declares_class_with_accessors(m):
-    import dataclasses
-
-    from petta import convert
-
     @m.type
     @dataclasses.dataclass
     class Song:
@@ -158,17 +375,11 @@ def test_type_declares_class_with_accessors(m):
     assert m.run('!(Song-year (Song "Hallelujah" 1984))') == [[1984]]
     # And back into Python, typed rows in one call.
     rows = m.query(V.s)
-    songs = [
-        s
-        for s in rows.build("s", Song)
-        if isinstance(s, Song)
-    ]
+    songs = [s for s in rows.build("s", Song) if isinstance(s, Song)]
     assert songs == [Song("Hallelujah", 1984)]
 
 
 def test_type_declares_enum_members(m):
-    import enum
-
     @m.type
     class DeclaredMood(enum.Enum):
         Calm = 1
@@ -181,8 +392,6 @@ def test_type_declares_enum_members(m):
 
 
 def test_run_using_names_host_values(m):
-    from petta.integrate import install_reflection_ops
-
     install_reflection_ops(m)
 
     class Graph:
@@ -216,8 +425,6 @@ def test_save_and_load_round_trip(metta, tmp_path):
 
 
 def test_save_refuses_live_objects(m):
-    from petta import val
-
     m.add(S.holds(val(object())))
     with pytest.raises(ValueError):
         m.save("/dev/null")
@@ -227,8 +434,6 @@ def test_save_refuses_live_objects(m):
 
 
 def test_measure_helpers_round_trip(m):
-    from petta import measure
-
     measure.install(m)
     weighted = measure.ws((0.25, S.a), (0.75, S.b))
     (best,) = m.eval(expr(S["ws-best"], weighted))
@@ -241,10 +446,7 @@ def test_rows_table_is_the_dataframe_shape(m):
     m.add(S.Age(S.Tom, 62), S.Age(S.Bob, 40))
     rows = m.query(S.Age(V.who, V.n))
     table = rows.table()
-    assert table == {"who": ["Tom", "Bob"], "n": [62, 40]} or table == {
-        "who": ["Bob", "Tom"],
-        "n": [40, 62],
-    }
+    assert table in ({"who": ["Tom", "Bob"], "n": [62, 40]}, {"who": ["Bob", "Tom"], "n": [40, 62]})
 
 
 def test_add_table_reads_any_tabular_source(m):
@@ -268,16 +470,14 @@ def test_add_table_refuses_ragged_columns(m):
 
 
 def test_value_answers_the_one_answer(m):
-    from petta.errors import EngineError
-
     assert m.value("(+ 1 2)") == 3 and isinstance(m.value("(+ 1 2)"), int)
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
     assert m.value(S.fact(5)) == 120
     with pytest.raises(EngineError):
-        m.value("(superpose (1 2))")     # two answers is not a value
+        m.value("(superpose (1 2))")  # two answers is not a value
     with pytest.raises(EngineError):
         m.run("(= (nothing) (empty))")
-        m.value(S.nothing())             # no answer is not a value either
+        m.value(S.nothing())  # no answer is not a value either
 
 
 def test_rows_first_and_one(m):
@@ -285,7 +485,7 @@ def test_rows_first_and_one(m):
     assert m.query(S.town(V.x)).first() is None
     assert m.query(S.city(V.x)).first() is not None
     with pytest.raises(ValueError):
-        m.query(S.city(V.x)).one()       # two rows
+        m.query(S.city(V.x)).one()  # two rows
     m.remove(S.city(S.perth))
     assert str(m.query(S.city(V.x)).one().x) == "sydney"
 
@@ -320,8 +520,6 @@ def test_atoms_destructure_with_match_statements(m):
 
 
 def test_bridge_rules_connect_spaces(metta):
-    from petta import bridge
-
     src = metta.fresh_space()
     dst = metta.fresh_space()
     rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
@@ -340,15 +538,6 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
     """The other engine is a PROCESS, as deployment means it: a subprocess
     serves one space, this engine attaches it, and one local match joins
     remote rows with local facts across the wire."""
-    import json
-    import os
-    import subprocess
-    import sys
-    from pathlib import Path
-
-    from petta import remote
-    from petta.errors import PettaError
-
     script = Path(__file__).parent / "data" / "remote_server.py"
     child = subprocess.Popen(
         [sys.executable, str(script)],
@@ -368,8 +557,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
         # And joins with local facts in ONE match, the multi-context point.
         local.run("(vip 1)")
         (group,) = local.run(
-            "!(collapse (match (context-space) (vip $id)"
-            " (match &hq (users $id $n) $n)))"
+            "!(collapse (match (context-space) (vip $id) (match &hq (users $id $n) $n)))"
         )
         assert group == [expr("Ada")]
         # Writes cross too, and the remote engine answers them back.
@@ -392,10 +580,6 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
 
 
 def test_type_methods_run_on_terms_and_handles(m):
-    import dataclasses
-
-    from petta import convert
-
     @m.type
     @dataclasses.dataclass
     class MethodPoint:
@@ -403,7 +587,7 @@ def test_type_methods_run_on_terms_and_handles(m):
         y: float
 
         def norm(self) -> float:
-            return (self.x ** 2 + self.y ** 2) ** 0.5
+            return (self.x**2 + self.y**2) ** 0.5
 
         def scaled(self, k: float) -> "MethodPoint":
             return MethodPoint(self.x * k, self.y * k)
@@ -411,9 +595,7 @@ def test_type_methods_run_on_terms_and_handles(m):
     assert m.run("!(MethodPoint-norm (MethodPoint 3.0 4.0))") == [[5.0]]
     # A method answering the class answers a constructor TERM: MeTTa keeps
     # matching it, and Python builds it back as the object it is.
-    (scaled,) = m.run(
-        "!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)"
-    )[0]
+    (scaled,) = m.run("!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)")[0]
     assert scaled == expr(S.MethodPoint, 6.0, 8.0)
     assert convert.build(scaled, MethodPoint) == MethodPoint(6.0, 8.0)
     # An equation over the constructor is a method written in MeTTa, on
@@ -424,14 +606,10 @@ def test_type_methods_run_on_terms_and_handles(m):
     )[0]
     assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
     # A live handle works through the same methods.
-    from petta import val
-
     assert m.eval(expr(S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0)))) == [5.0]
 
 
 def test_enum_members_match_in_metta(m):
-    import enum
-
     @m.type
     class MatchingMood(enum.Enum):
         Calm = 1
@@ -444,10 +622,7 @@ def test_enum_members_match_in_metta(m):
     assert m.run("!(get-type Storm)") == [[S.MatchingMood]]
 
 
-def test_remote_auth_token_and_hook(metta):
-    from petta import remote
-    from petta.errors import PettaError
-
+def test_remote_auth_token_and_hook_requires_tls(metta):
     served = metta.fresh_space()
     served.add(S.fact(1))
     server = remote.serve(
@@ -457,37 +632,36 @@ def test_remote_auth_token_and_hook(metta):
         authorize=lambda headers: headers.get("x-tenant") == "acme",
     )
     try:
-        good = remote.connect(
-            server.url, token="s3cret", headers={"x-tenant": "acme"}
-        )
-        assert list(remote.RemoteSpace(good, served.space_name).atoms())
-        with pytest.raises(PettaError):
-            bad_token = remote.connect(
-                server.url, token="wrong", headers={"x-tenant": "acme"}
-            )
-            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
-        with pytest.raises(PettaError):
-            no_tenant = remote.connect(server.url, token="s3cret")
-            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
+        with pytest.raises(PettaError, match="credentials require an https URL"):
+            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
     finally:
         server.close()
         served.drop()
 
 
 def test_remote_serves_tls(metta, tmp_path):
-    import shutil
-    import ssl
-    import subprocess
-
-    from petta import remote
-
     if shutil.which("openssl") is None:
         pytest.skip("openssl is not installed")
     key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
     subprocess.run(
-        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", str(key),
-         "-out", str(cert), "-days", "1", "-nodes", "-subj", "/CN=localhost"],
-        check=True, capture_output=True,
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            str(key),
+            "-out",
+            str(cert),
+            "-days",
+            "1",
+            "-nodes",
+            "-subj",
+            "/CN=localhost",
+        ],
+        check=True,
+        capture_output=True,
     )
     server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     server_context.load_cert_chain(cert, key)
@@ -497,13 +671,35 @@ def test_remote_serves_tls(metta, tmp_path):
     served = metta.fresh_space()
     served.add(S.tls(S.ok))
     server = remote.serve(
-        metta, spaces=[served.space_name], ssl_context=server_context
+        metta,
+        spaces=[served.space_name],
+        token="s3cret",
+        authorize=lambda headers: headers.get("x-tenant") == "acme",
+        ssl_context=server_context,
     )
     try:
         assert server.url.startswith("https://")
-        transport = remote.connect(server.url, ssl_context=client_context)
+        transport = remote.connect(
+            server.url,
+            token="s3cret",
+            headers={"x-tenant": "acme"},
+            ssl_context=client_context,
+        )
         atoms = list(remote.RemoteSpace(transport, served.space_name).atoms())
         assert atoms == [expr(S.tls, S.ok)]
+        with pytest.raises(PettaError, match="not authorized"):
+            bad_token = remote.connect(
+                server.url,
+                token="wrong",
+                headers={"x-tenant": "acme"},
+                ssl_context=client_context,
+            )
+            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
+        with pytest.raises(PettaError, match="not authorized"):
+            no_tenant = remote.connect(
+                server.url, token="s3cret", ssl_context=client_context
+            )
+            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
     finally:
         server.close()
         served.drop()
@@ -513,10 +709,6 @@ def test_remote_serves_tls(metta, tmp_path):
 
 
 def test_run_time_limit_raises_and_is_prompt(m):
-    import time
-
-    from petta import TimeLimitError
-
     m.run("(= (spin-a $n) (if (== $n 0) done (spin-a (- $n 1))))")
     started = time.perf_counter()
     with pytest.raises(TimeLimitError):
@@ -525,8 +717,6 @@ def test_run_time_limit_raises_and_is_prompt(m):
 
 
 def test_inference_limit_raises_under_the_shared_parent(m):
-    from petta import InferenceLimitError, ResourceLimitError
-
     m.run("(= (spin-b $n) (if (== $n 0) done (spin-b (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.run("!(spin-b 100000000)", inferences=10_000)
@@ -535,8 +725,6 @@ def test_inference_limit_raises_under_the_shared_parent(m):
 
 
 def test_limits_leave_finished_work_standing(m):
-    from petta import TimeLimitError
-
     m.run("(= (spin-c $n) (if (== $n 0) done (spin-c (- $n 1))))")
     with pytest.raises(TimeLimitError):
         m.run("(landed first) !(spin-c 100000000)", timeout=0.05)
@@ -544,8 +732,6 @@ def test_limits_leave_finished_work_standing(m):
 
 
 def test_limits_on_query_eval_value_and_prepared(m):
-    from petta import InferenceLimitError
-
     m.add_table("edge", [(i, i + 1) for i in range(200)])
     rows = m.query(
         S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000
@@ -579,8 +765,6 @@ def test_run_capture_collects_printed_output(m):
 
 
 def test_capture_composes_with_limits(m):
-    from petta import TimeLimitError
-
     groups, text = m.run("!(println! bounded)", capture=True, timeout=5.0)
     assert "bounded" in text and len(groups) == 1
     m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
@@ -609,8 +793,6 @@ def test_stats_block_counts_the_work(m):
 
 
 def test_stream_pulls_rows_lazily_and_interleaves(m):
-    from petta import PettaError
-
     m.add_table("edge", [(i, i + 1) for i in range(500)])
     with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
         first = next(rows)
@@ -625,19 +807,26 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):
 
 
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
-    from petta import PettaError
-
     m.add_table("edge", [(i, i + 1) for i in range(50)])
     cursor = m.stream(S.edge(V.a, V.b))
     assert [tuple(r) for r in cursor] == [tuple(r) for r in m.query(S.edge(V.a, V.b))]
-    with pytest.raises(PettaError):
-        next(cursor)  # exhaustion closed it
-    cursor.close()  # and a second close is a no-op
+    with pytest.raises(StopIteration):
+        next(cursor)
+    assert list(cursor) == []
+    cursor.close()
+    assert list(cursor) == []
+    assert "exhausted" in repr(cursor)
+
+
+def test_abandoned_stream_warns_before_reaping(m):
+    m.add(S.edge(1, 2))
+    cursor = m.stream(S.edge(V.a, V.b))
+    with pytest.warns(ResourceWarning, match="open petta Cursor"):
+        del cursor
+        gc.collect()
 
 
 def test_stream_guard_and_per_pull_bounds(m):
-    from petta import InferenceLimitError
-
     m.add_table("edge", [(i, i + 1) for i in range(100)])
     with m.stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
         assert [r.a for r in rows] == list(range(90, 100))
@@ -653,8 +842,6 @@ def test_stream_guard_and_per_pull_bounds(m):
 
 
 def test_atomic_run_commits_or_rolls_back_whole(m):
-    from petta import EngineError, expr
-
     with pytest.raises(EngineError):
         m.run("(kept fact) !(/ 1 0)", atomic=True)
     assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
@@ -663,8 +850,6 @@ def test_atomic_run_commits_or_rolls_back_whole(m):
 
 
 def test_speculative_run_answers_and_discards(m):
-    from petta import expr
-
     groups = m.run("(ghost fact) !(+ 2 2)", speculative=True)
     assert groups[-1] == [4]
     assert expr(S.ghost, S.fact) not in m
@@ -690,8 +875,6 @@ def test_profile_counts_samples_on_real_work(m):
 
 
 def test_regex_matcher_is_the_crisp_lexical_modality(m):
-    from petta import matching
-
     matching.install_regex(m, name="rxm-t", lexicon=["alpha", "beta", "abbey"])
     (matches,) = m.eval('(collapse (rxm-t "^a" $w))')
     assert sorted(pair[1].value for pair in matches) == ["abbey", "alpha"]

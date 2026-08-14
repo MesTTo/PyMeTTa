@@ -23,13 +23,13 @@ for index in range(16):
     m.add(expr(S.member, index, expr(*genome)))
 
 
-@m.op
+@m.register_op
 def fitness(genome) -> int:
     bits = [int(decode(b)) for b in genome]
     return sum(1 for got, want in zip(bits, TARGET) if got == want)
 
 
-@m.op
+@m.register_op
 def breed(a, b):
     cut = random.randrange(1, len(TARGET))
     bits_a = [int(decode(x)) for x in a]
@@ -41,7 +41,7 @@ def breed(a, b):
     return expr(*child)
 
 
-@m.op
+@m.register_op
 def next_generation() -> bool:
     rows = m.query(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))

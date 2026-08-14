@@ -11,6 +11,9 @@ EmbeddingStore.matcher() (petta.arrays) is the semantic instance. The
 composition rule is mettabase's semmatch design: matchers compose through
 ordinary MeTTa evaluation and nondeterminism, structural match first or
 last or in between, never through new syntax.
+Guarantees:
+  - regex lexicons choose exactly one source mode, iterable or factory
+    [tested test_regex_lexicon_refuses_ambiguous_source]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,13 +22,17 @@ Open Obligations:
 
 from __future__ import annotations
 
+import difflib
 import math
-from typing import Any, Callable, Iterable
+import re
+from collections.abc import Callable, Iterable
+from functools import lru_cache
+from typing import Any
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, decode, expr
+from .atoms import Gnd, Sym, Var, decode, expr
 from .errors import PettaError
 
-__all__ = ["matcher", "install_fuzzy", "install_regex", "text_of"]
+__all__ = ["install_fuzzy", "install_regex", "matcher", "text_of"]
 
 
 def text_of(value: Any) -> str:
@@ -67,12 +74,12 @@ def matcher(
                     f"({name} $q $unbound) generates candidates, and this "
                     f"matcher has no generator; pass generate= to serve it"
                 )
-            for value, degree in generate(_plain(query)):
-                degree = _bounded_degree(
-                    degree, f"matcher {name!r} generated degree"
+            for value, generated_degree in generate(_plain(query)):
+                bounded_degree = _bounded_degree(
+                    generated_degree, f"matcher {name!r} generated degree"
                 )
-                if degree >= threshold:
-                    yield expr(degree, value)
+                if bounded_degree >= threshold:
+                    yield expr(bounded_degree, value)
             return
         degree = _bounded_degree(
             score(_plain(query), _plain(candidate)),
@@ -81,7 +88,7 @@ def matcher(
         if degree >= threshold:
             yield expr(degree, candidate)
 
-    m.op(run, name=name, typed=False, pass_atoms=True)
+    m.register_op(run, name=name, typed=False, pass_atoms=True)
     return name
 
 
@@ -93,9 +100,7 @@ def _bounded_degree(value: Any, boundary: str) -> float:
             f"{boundary} must be a finite number in [0, 1], got {value!r}"
         ) from None
     if not math.isfinite(degree) or not 0.0 <= degree <= 1.0:
-        raise ValueError(
-            f"{boundary} must be finite and in [0, 1], got {degree!r}"
-        )
+        raise ValueError(f"{boundary} must be finite and in [0, 1], got {degree!r}")
     return degree
 
 
@@ -109,12 +114,9 @@ def install_fuzzy(m, name: str = "fuzmatch", threshold: float = 0.0) -> str:
 
         m.run('!(fuzmatch "clase" "class")')        # (0.8 "class")
     """
-    import difflib
 
     def ratio(query: Any, candidate: Any) -> float:
-        return difflib.SequenceMatcher(
-            None, text_of(query), text_of(candidate)
-        ).ratio()
+        return difflib.SequenceMatcher(None, text_of(query), text_of(candidate)).ratio()
 
     return matcher(m, name, score=ratio, threshold=threshold)
 
@@ -141,18 +143,26 @@ def install_regex(
     inline flags like (?i) work. The pattern language is Python's,
     which agrees with lib_regex's PCRE2 on this searching subset.
     """
-    import re as _re
-    from functools import lru_cache
 
     @lru_cache(maxsize=256)
     def compiled(pattern: str):
-        return _re.compile(pattern)
+        return re.compile(pattern)
 
     def hit(query: Any, candidate: Any) -> float:
         return 1.0 if compiled(text_of(query)).search(text_of(candidate)) else 0.0
 
     def generate(query: Any):
-        source = lexicon() if callable(lexicon) else lexicon
+        if lexicon is None:
+            raise RuntimeError("regex generation requires a lexicon")
+        if isinstance(lexicon, Iterable):
+            if callable(lexicon):
+                raise TypeError(
+                    "a regex lexicon cannot be both callable and iterable; "
+                    "pass either its items or a zero-argument factory"
+                )
+            source = lexicon
+        else:
+            source = lexicon()
         pattern = compiled(text_of(query))
         for candidate in source:
             if pattern.search(text_of(candidate)):

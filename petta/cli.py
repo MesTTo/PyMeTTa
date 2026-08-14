@@ -8,8 +8,10 @@ Open Obligations:
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-from . import _resolve_petta_path
+from ._config import config
+from ._engine import _resolve_petta_path
 
 
 def main(argv=None):
@@ -17,29 +19,27 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    runtime_root = _resolve_petta_path()
-    main_file = os.path.join(runtime_root, "src", "main.pl")
+    runtime_root = Path(_resolve_petta_path())
+    main_file = runtime_root / "src" / "main.pl"
     command = [
         "swipl",
-        "--stack_limit=8g",
+        f"--stack_limit={config.stack_limit}",
         "-q",
         "-s",
-        main_file,
+        str(main_file),
         "--",
         *argv,
     ]
 
-    mork_library = os.path.join(
-        runtime_root, "mork_ffi", "target", "release", "libmork_ffi.so"
-    )
+    mork_library = runtime_root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     env = None
-    if os.path.isfile(mork_library):
+    if mork_library.is_file():
         env = os.environ.copy()
         inherited = env.get("LD_PRELOAD")
         env["LD_PRELOAD"] = (
-            os.pathsep.join((mork_library, inherited))
+            os.pathsep.join((str(mork_library), inherited))
             if inherited
-            else mork_library
+            else str(mork_library)
         )
         command.append("mork")
 
@@ -47,6 +47,5 @@ def main(argv=None):
         return subprocess.call(command, env=env)
     except FileNotFoundError as exc:
         raise FileNotFoundError(
-            "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' "
-            "binary on PATH"
+            "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
         ) from exc

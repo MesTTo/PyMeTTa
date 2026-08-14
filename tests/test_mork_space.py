@@ -11,18 +11,21 @@ Open Obligations:
   Future Enhancements: None
 """
 
-import os
+from pathlib import Path
 
 import pytest
 
-from petta import S, V
+from petta import EngineError, S, V, val
 
-_MORKLIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "mork_ffi", "target", "release",
-    "libmork_ffi.so",
+_MORKLIB = (
+    Path(__file__).resolve().parents[2]
+    / "mork_ffi"
+    / "target"
+    / "release"
+    / "libmork_ffi.so"
 )
 pytestmark = pytest.mark.skipif(
-    not os.path.isfile(_MORKLIB),
+    not _MORKLIB.is_file(),
     reason="mork_ffi is not built; run sh build.sh at the repo root",
 )
 
@@ -52,6 +55,7 @@ def test_remove_and_atoms_enumeration(mork):
     mork.add(S.mk(S.a), S.mk(S.b))
     assert mork.remove(S.mk(S.a)) is True
     assert [str(atom) for atom in mork.atoms()] == ["(mk b)"]
+    assert mork.remove(S.mk(S.missing)) is False
 
 
 def test_subscriptions_see_mork_writes(mork):
@@ -120,8 +124,6 @@ def test_hostile_strings_round_trip_or_refuse(metta):
     """Escaped writing keeps line-breaking strings whole through MORK's
     line protocol, and a NUL byte, which would die at the C boundary,
     refuses loudly instead of killing the process."""
-    from petta import EngineError, val
-
     space = metta.space("&mork:hostile")
     for text in ['a"b', "a\\b", "a\nb", "a\tb", "a\rb", "é字"]:
         atom = S.holds(val(text))
@@ -135,23 +137,19 @@ def test_hostile_strings_round_trip_or_refuse(metta):
 
 @pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
 def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name):
-    from petta import EngineError
-
     space = metta.space("&mork:unsafe-symbol")
     atom = S.holds(S[name])
-    with pytest.raises(EngineError, match="symbol names.*MORK text boundary"):
+    with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.add(atom)
-    with pytest.raises(EngineError, match="symbol names.*MORK text boundary"):
+    with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.remove(atom)
-    with pytest.raises(EngineError, match="symbol names.*MORK text boundary"):
+    with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.query(S.holds(S[name]))
 
 
 def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):
-    from petta import EngineError
-
     space = metta.space("&mork:unsafe-bulk")
-    with pytest.raises(EngineError, match="symbol names.*MORK text boundary"):
+    with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.add(S.safe(S.one), S.unsafe(S["bad name"]))
     assert space.atoms() == []
 
@@ -175,7 +173,7 @@ else:
         space = metta.space("&mork:fuzz")
         try:
             space.add(atom)
-            assert atom in [a for a in space.atoms()]
+            assert atom in list(space.atoms())
         finally:
             for stored in space.atoms():
                 space.remove(stored)

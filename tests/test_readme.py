@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+import petta
+
 README = Path(__file__).resolve().parents[2] / "README.md"
 
 _BLOCKS = re.findall(r"```python\n(.*?)```", README.read_text(), re.DOTALL)
@@ -33,4 +35,11 @@ def test_readme_block_executes(index, metta, tmp_path):
     # the compiler asks of a REPL.
     path = tmp_path / f"readme_block_{index + 1}.py"
     path.write_text(source)
-    exec(compile(source, str(path), "exec"), _NAMESPACE)
+    settings = petta.config.as_dict()
+    try:
+        exec(compile(source, str(path), "exec"), _NAMESPACE)
+    finally:
+        petta.config.configure(
+            declaration_limit=settings["declaration_limit"],
+            display_rows=settings["display_rows"],
+        )
