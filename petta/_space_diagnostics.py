@@ -97,6 +97,13 @@ def explain_no_match(space: Any, pattern: Any) -> str:
     return _unstored_explanation(space, head.name)
 
 
+def _first_unmatched_pattern(space: Any, patterns: tuple[Atom, ...]) -> tuple[int, Atom] | None:
+    for index, pattern in enumerate(patterns, start=1):
+        if not space.query(pattern, limit=1):
+            return index, pattern
+    return None
+
+
 def explain_empty_query(
     space: Any,
     patterns: tuple[Atom, ...],
@@ -110,12 +117,13 @@ def explain_empty_query(
             f"the patterns match together, but the where guard {where} "
             "rejects every joined row"
         )
-    for index, pattern in enumerate(patterns, start=1):
-        if not space.query(pattern, limit=1):
-            detail = explain_no_match(space, pattern)
-            if len(patterns) == 1:
-                return detail
-            return f"pattern {index} cannot match: {detail}"
+    unmatched = _first_unmatched_pattern(space, patterns)
+    if unmatched is not None:
+        index, pattern = unmatched
+        detail = explain_no_match(space, pattern)
+        if len(patterns) == 1:
+            return detail
+        return f"pattern {index} cannot match: {detail}"
     if len(patterns) > 1:
         return (
             "each pattern matches on its own, but no shared variable binding "

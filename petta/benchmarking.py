@@ -128,6 +128,77 @@ def _counter_samples(
     return samples
 
 
+def _required_counter_observation(name: str, samples: Sequence[int]) -> tuple[list[int], int]:
+    values, observed = _counter_observation(name, samples)
+    if values is None or observed is None:
+        raise RuntimeError(f"{name} lost its required inference samples")
+    return values, observed
+
+
+def _counter_slope_observation(
+    name: str,
+    small_operations: int,
+    large_operations: int,
+    small_samples: Sequence[int],
+    large_samples: Sequence[int],
+) -> tuple[list[int], list[int], int]:
+    if small_operations <= 0 or large_operations <= small_operations:
+        raise ValueError("counter slope needs positive operation counts in increasing order")
+    small_values, small = _required_counter_observation(f"{name} small", small_samples)
+    large_values, large = _required_counter_observation(f"{name} large", large_samples)
+    observed = large - small
+    if observed < 0:
+        raise ValueError(
+            f"{name} inference count fell from {small} to {large} as the workload grew"
+        )
+    return small_values, large_values, observed
+
+
+def _counter_slope_case(
+    document: Mapping[str, Any], name: str, unit: str
+) -> dict[str, Any]:
+    case = document["benchmarks"].get(name)
+    if case is None:
+        raise KeyError(f"benchmark {name!r} has no counter observation")
+    if case.get("unit") != unit:
+        raise AssertionError(f"{name} unit changed from {case.get('unit')!r} to {unit!r}")
+    return case
+
+
+def _compare_counter_slope(
+    name: str,
+    expected: Any,
+    *,
+    small_operations: int,
+    large_operations: int,
+    small_values: list[int],
+    large_values: list[int],
+    observed: int,
+) -> int:
+    if not isinstance(expected, dict):
+        raise AssertionError(f"{name} has no valid inference slope baseline")
+    if expected.get("small_operations") != small_operations:
+        raise AssertionError(
+            f"{name} slope small operation count changed from "
+            f"{expected.get('small_operations')!r} to {small_operations}"
+        )
+    if expected.get("large_operations") != large_operations:
+        raise AssertionError(
+            f"{name} slope large operation count changed from "
+            f"{expected.get('large_operations')!r} to {large_operations}"
+        )
+    baseline = expected.get("delta_inferences")
+    if isinstance(baseline, bool) or not isinstance(baseline, int) or baseline < 0:
+        raise AssertionError(f"{name} has an invalid inference slope baseline")
+    if observed > baseline + _COUNTER_TOLERANCE:
+        raise AssertionError(
+            f"{name} inference slope regression: {large_values!r} minus "
+            f"{small_values!r} has minimum growth {observed}, baseline {baseline} "
+            f"plus the {_COUNTER_TOLERANCE} inference allowance"
+        )
+    return observed
+
+
 def _instruction_observation(
     name: str,
     samples: Sequence[int],
@@ -248,25 +319,14 @@ class BenchmarkBaseline:
         large_samples: Sequence[int],
     ) -> int:
         """Record or compare inference growth between two workload sizes."""
-        if small_operations <= 0 or large_operations <= small_operations:
-            raise ValueError(
-                "counter slope needs positive operation counts in increasing order"
-            )
-        small_values, small = _counter_observation(f"{name} small", small_samples)
-        large_values, large = _counter_observation(f"{name} large", large_samples)
-        if small_values is None or small is None or large_values is None or large is None:
-            raise RuntimeError(f"{name} slope observation lost its required samples")
-        observed = large - small
-        if observed < 0:
-            raise ValueError(
-                f"{name} inference count fell from {small} to {large} as the workload grew"
-            )
-
-        case = self._document["benchmarks"].get(name)
-        if case is None:
-            raise KeyError(f"benchmark {name!r} has no counter observation")
-        if case.get("unit") != unit:
-            raise AssertionError(f"{name} unit changed from {case.get('unit')!r} to {unit!r}")
+        small_values, large_values, observed = _counter_slope_observation(
+            name,
+            small_operations,
+            large_operations,
+            small_samples,
+            large_samples,
+        )
+        case = _counter_slope_case(self._document, name, unit)
         if self.update:
             case["inference_slope"] = {
                 "small_operations": small_operations,
@@ -274,30 +334,15 @@ class BenchmarkBaseline:
                 "delta_inferences": observed,
             }
             return observed
-
-        expected = case.get("inference_slope")
-        if not isinstance(expected, dict):
-            raise AssertionError(f"{name} has no valid inference slope baseline")
-        if expected.get("small_operations") != small_operations:
-            raise AssertionError(
-                f"{name} slope small operation count changed from "
-                f"{expected.get('small_operations')!r} to {small_operations}"
-            )
-        if expected.get("large_operations") != large_operations:
-            raise AssertionError(
-                f"{name} slope large operation count changed from "
-                f"{expected.get('large_operations')!r} to {large_operations}"
-            )
-        baseline = expected.get("delta_inferences")
-        if isinstance(baseline, bool) or not isinstance(baseline, int) or baseline < 0:
-            raise AssertionError(f"{name} has an invalid inference slope baseline")
-        if observed > baseline + _COUNTER_TOLERANCE:
-            raise AssertionError(
-                f"{name} inference slope regression: {large_values!r} minus "
-                f"{small_values!r} has minimum growth {observed}, baseline {baseline} "
-                f"plus the {_COUNTER_TOLERANCE} inference allowance"
-            )
-        return observed
+        return _compare_counter_slope(
+            name,
+            case.get("inference_slope"),
+            small_operations=small_operations,
+            large_operations=large_operations,
+            small_values=small_values,
+            large_values=large_values,
+            observed=observed,
+        )
 
     def validate_case(self, name: str, *, unit: str, operations: int) -> None:
         """Check metadata when a wall-only run deliberately skips counters."""
