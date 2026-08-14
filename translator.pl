@@ -569,8 +569,15 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
     ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
     append(GsH, GsT2, InnerTmp),
+    %The output check asks whether the result has the declared type, and
+    %nothing reads OutType afterwards, so one witness is the whole answer. A
+    %soft cut here instead enumerates every derivation and succeeds once per
+    %derivation, which repeats the call's answer: with (: (a b) (A B)) declared
+    %alongside (: a A) and (: b B), a function returning (a b) answered twice.
+    %The argument checks above keep their soft cut, because a shared type
+    %variable there does have to backtrack to find a consistent assignment.
     ( (OutType == '%Undefined%' ; OutType == '_' ; OutType == 'Atom')
-       -> Extra = [] ; Extra = [('get-type'(Out, OutType) *-> true ; 'get-metatype'(Out, OutType))] ),
+       -> Extra = [] ; Extra = [('get-type'(Out, OutType) -> true ; 'get-metatype'(Out, OutType))] ),
     build_call_or_partial(Fun, AVsTmp, Out, InnerTmp, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
 
