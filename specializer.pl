@@ -8,17 +8,45 @@
 :- dynamic ho_specialization/2.
 :- dynamic ho_specialization_failed/3.
 
-%Maybe specializes HV(AVs) if not already ongoing, and if specialization fails, nothing changes and specneeded is restored.
-%Re-specializing a function already being specialized is refused: its key must differ from the ongoing one
-%(same keys are memoized via ho_specialization), and ever-growing keys - e.g. a recursive call wrapping its
-%higher-order argument, (= (evolve $r $g) (evolve (twice $r) $g)) - would otherwise diverge at compile time:
-maybe_specialize_call(HV, AVs, Out, Goal) :- ( nb_current('$petta_spec_stack', Stack) -> true ; Stack = [] ),
-                                             \+ memberchk(HV, Stack),
-                                             setup_call_cleanup( (( nb_current('$petta_spec_needed', Prev) -> true ; Prev = [] ), nb_setval('$petta_spec_needed',false),
-                                                                  nb_setval('$petta_spec_stack', [HV|Stack])),
-                                                                 specialize_call(HV, AVs, Out, Goal),
-                                                                 (nb_setval('$petta_spec_stack', Stack),
-                                                                  (Prev == true -> nb_setval('$petta_spec_needed',Prev) ; true)) ).
+% Specialize HV(AVs), or fold an exact recursive specialization back to the
+% predicate currently being generated. A same-function call with a different
+% key stays generic, which retains the termination guard for growing keys such
+% as (evolve (twice $r) ...).
+maybe_specialize_call(HV, AVs, Out, Goal) :-
+    specialization_plan(HV, AVs, CleanBindSet, MetaList, HasDirectBenefit),
+    length(AVs, N),
+    Arity is N + 1,
+    \+ ho_specialization_failed(HV, Arity, CleanBindSet),
+    format(atom(SpecName), "~w_Spec_~w", [HV, CleanBindSet]),
+    ( nb_current('$petta_spec_stack', Stack) -> true ; Stack = [] ),
+    ( active_specialization(HV, Stack, ActiveKey, ActiveSpecName)
+      -> CleanBindSet =@= ActiveKey,
+         specialization_goal(ActiveSpecName, AVs, Out, Goal),
+         nb_setval('$petta_spec_needed', true)
+    ; capture_nb_state('$petta_spec_needed', PreviousNeeded),
+      setup_call_cleanup(
+          ( nb_setval('$petta_spec_needed', false),
+            nb_setval('$petta_spec_stack',
+                      [specializing(HV, CleanBindSet, SpecName)|Stack]) ),
+          specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
+                          HasDirectBenefit, SpecName, Arity),
+          ( nb_setval('$petta_spec_stack', Stack),
+            restore_nb_state('$petta_spec_needed', PreviousNeeded) )),
+      nb_setval('$petta_spec_needed', true)
+    ).
+
+active_specialization(HV, [specializing(ActiveHV, Key, SpecName)|_],
+                      Key, SpecName) :-
+    ActiveHV == HV, !.
+active_specialization(HV, [_|Stack], Key, SpecName) :-
+    active_specialization(HV, Stack, Key, SpecName).
+
+capture_nb_state(Name, present(Value)) :- nb_current(Name, Value), !.
+capture_nb_state(_, absent).
+
+restore_nb_state(Name, present(Value)) :- !, nb_setval(Name, Value).
+restore_nb_state(Name, absent) :-
+    ( nb_current(Name, _) -> nb_delete(Name) ; true ).
 
 % Build a stable, variant-normalized specialization key.
 %
@@ -30,75 +58,159 @@ normalize_specialization_key(Term, Normalized) :-
     copy_term(Term, Normalized),
     numbervars(Normalized, 0, _, [singletons(true)]).
 
-%Specialize a call by creating and translating a specialized version of the MeTTa code:
-specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses stored for HV:
-                                       fun_meta_clauses(HV, MetaList),
-                                       %2. Copy all clause variables eligible for specialization across all meta-clauses:
-                                       bagof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
-                                                    ( member(fun_meta(ArgsNorm, BodyExpr), MetaList),
-                                                      maplist(specializable_vars(BodyExpr), AVs, ArgsNorm, HoBinds),
-                                                      member(HoBindsPerArg, HoBinds),
-                                                      member(HoVar, HoBindsPerArg),
-                                                      nonvar(HoVar) ), BindSet),
-                                       %3. Build the specialization name from the concrete higher-order bind set:
-                                       normalize_specialization_key(BindSet, CleanBindSet),
-                                       length(AVs, N),
-                                       Arity is N + 1,
-                                       \+ ho_specialization_failed(HV, Arity, CleanBindSet),
-                                       format(atom(SpecName), "~w_Spec_~w",[HV, CleanBindSet]),
-                                       %4. Specialize, but only if not already specialized:
-                                       ( ho_specialization(HV, SpecName)
-                                         ; ( %4.1. Otherwise register the specialization:
-                                             register_fun(SpecName),
-                                             assertz(ho_specialization(HV, SpecName)),
-                                             assertz(arity(SpecName, Arity)),
-                                             ( %4.2. Re-use the type definition of the parent function for the specialization:
-                                               findall(TypeChain, catch_recover(type_declaration(HV, TypeChain), fail), TypeChains),
-                                               forall(member(TypeChain, TypeChains), add_sexp('&self', [':', SpecName, TypeChain])),
-                                               %4.3 Translate specialized MeTTa clauseses to Prolog, keeping track of the function we are compiling through recursion:
-                                               maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
-                                                       ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause(Input,Clause,false) ), MetaList, ClauseInfos),
-                                               %4.4 Only proceeed specializing if this or any recursive call profited from specialization with the specialized function at head position:
-                                               nb_getval('$petta_spec_needed', true),
-                                               %4.5 Assert and print each of the created specializations:
-                                               forall(member(clause_info(Input, Clause), ClauseInfos),
-                                               ( asserta(Clause, Ref),
-                                                 assertz(translated_from(Ref, Input)),
-                                                 add_sexp('&self', Input),
-                                                 format(atom(Label), "metta specialization (~w)", [SpecName]),
-                                                 maybe_print_compiled_clause(Label, Input, Clause) ))
-                                               %4.6 Ok specialized, but if we did not succeed ensure the specialization is retracted:
-                                               -> true ; ( silent(true) -> true ; format("Not specialized ~w~n", [SpecName/Arity]) ),
-                                                         forget_symbol(SpecName),
-                                                         retractall(ho_specialization(HV, SpecName)),
-                                                         ( ho_specialization_failed(HV, Arity, CleanBindSet)
-                                                           -> true
-                                                            ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet)) ),
-                                                         fail ))), !,
-                                       %5. Generate call to the specialized function:
-                                       append(AVs, [Out], CallArgs),
-                                       Goal =.. [SpecName|CallArgs].
+% Build one global key from all higher-order positions, while binding every
+% retained clause independently. The key is ordered by call argument and path,
+% so equation order cannot select a different partial reduction.
+specialization_plan(HV, AVs, CleanBindSet, MetaList, HasDirectBenefit) :-
+    fun_meta_clauses(HV, SourceMetaList),
+    maplist(bind_specialization_clause(AVs), SourceMetaList,
+            MetaList, BindingLists),
+    append(BindingLists, Bindings),
+    ( member(binding(_, _, _, direct), Bindings)
+      -> HasDirectBenefit = true
+    ; HasDirectBenefit = false ),
+    canonical_specialization_bindings(Bindings, BindSet),
+    BindSet \== [],
+    normalize_specialization_key(BindSet, CleanBindSet).
+
+bind_specialization_clause(AVs, fun_meta(Args, Body),
+                           fun_meta(Args, Body), Bindings) :-
+    ( same_length(AVs, Args)
+      -> bind_specialization_args(AVs, Args, Body, 1, Bindings)
+    ; Bindings = [] ).
+
+bind_specialization_args([], [], _, _, []).
+bind_specialization_args([Value|Values], [Arg|Args], Body, Index, Bindings) :-
+    ( specializable_vars(Body, Value, Arg, _, PathBindings)
+      -> index_bindings(PathBindings, Index, IndexedBindings)
+    ; IndexedBindings = [] ),
+    NextIndex is Index + 1,
+    bind_specialization_args(Values, Args, Body, NextIndex, RestBindings),
+    append(IndexedBindings, RestBindings, Bindings).
+
+index_bindings([], _, []).
+index_bindings([path_binding(Path, Value, Use)|Bindings], Index,
+               [binding(Index, Path, Value, Use)|Indexed]) :-
+    index_bindings(Bindings, Index, Indexed).
+
+canonical_specialization_bindings(Bindings, BindSet) :-
+    maplist(binding_pair, Bindings, Pairs),
+    keysort(Pairs, SortedPairs),
+    unique_binding_values(SortedPairs, BindSet).
+
+binding_pair(binding(Index, Path, Value, _), (Index-Path)-Value).
+
+unique_binding_values([], []).
+unique_binding_values([Key-Value|Pairs], [Value|Values]) :-
+    skip_same_binding(Pairs, Key, Value, Rest),
+    unique_binding_values(Rest, Values).
+
+skip_same_binding([OtherKey-OtherValue|Pairs], Key, Value, Rest) :-
+    OtherKey == Key, !,
+    ( OtherValue =@= Value
+      -> skip_same_binding(Pairs, Key, Value, Rest)
+    ; throw(error(representation_error(specialization_binding),
+                  context(canonical_specialization_bindings/2,
+                          'one call path produced conflicting bindings'))) ).
+skip_same_binding(Pairs, _, _, Pairs).
+
+% Create a specialization once, or reuse the completed predicate for the same
+% key. MetaList already carries the explicit per-clause bindings.
+specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
+                HasDirectBenefit, SpecName, Arity) :-
+    ( ho_specialization(HV, SpecName)
+    ; ( register_fun(SpecName),
+        assertz(ho_specialization(HV, SpecName)),
+        assertz(arity(SpecName, Arity)),
+        ( findall(TypeChain,
+                  catch_recover(type_declaration(HV, TypeChain), fail),
+                  TypeChains),
+          forall(member(TypeChain, TypeChains),
+                 add_sexp('&self', [':', SpecName, TypeChain])),
+          ( HasDirectBenefit == true
+            -> nb_setval('$petta_spec_needed', true)
+          ; true ),
+          maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
+                  ( Input = [=,[SpecName|ArgsNorm],BodyExpr],
+                    translate_clause(Input,Clause,false) ),
+                  MetaList, ClauseInfos),
+          nb_getval('$petta_spec_needed', true),
+          forall(member(clause_info(Input, Clause), ClauseInfos),
+                 ( asserta(Clause, Ref),
+                   assertz(translated_from(Ref, Input)),
+                   add_sexp('&self', Input),
+                   format(atom(Label), "metta specialization (~w)", [SpecName]),
+                   maybe_print_compiled_clause(Label, Input, Clause) ))
+        -> true
+        ; ( silent(true) -> true
+          ; format("Not specialized ~w~n", [SpecName/Arity]) ),
+          forget_symbol(SpecName),
+          retractall(ho_specialization(HV, SpecName)),
+          ( ho_specialization_failed(HV, Arity, CleanBindSet)
+            -> true
+          ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet)) ),
+          fail ) ) ), !,
+    specialization_goal(SpecName, AVs, Out, Goal).
+
+specialization_goal(SpecName, AVs, Out, Goal) :-
+    append(AVs, [Out], CallArgs),
+    Goal =.. [SpecName|CallArgs].
 
 %Extracts clause-head variables and their call-site copies, producing eligible Var–Copy pairs for specialization:
-specializable_vars(BodyExpr, Value, Arg, HoVars) :- term_variables(Arg, Vars),
-                                                    copy_term(Arg-Vars, ArgCopy-VarsCopy),
-                                                    traverse_list([A,V]>>(nonvar(V) ->  V = A;  true), ArgCopy, Value),
-                                                    eligible_var_pairs(Vars, VarsCopy, BodyExpr, HoVars).
+specializable_vars(BodyExpr, Value, Arg, HoVars) :-
+    specializable_vars(BodyExpr, Value, Arg, HoVars, _).
+
+specializable_vars(BodyExpr, Value, Arg, HoVars, Bindings) :-
+    term_variables(Arg, Vars),
+    maplist(variable_first_path(Arg), Vars, Paths),
+    copy_term(Arg-Vars, ArgCopy-VarsCopy),
+    traverse_list([A,V]>>(nonvar(V) -> V = A ; true), ArgCopy, Value),
+    eligible_var_pairs(Vars, VarsCopy, Paths, BodyExpr, HoVars, Bindings).
+
+variable_first_path(Term, Var, Path) :-
+    variable_path(Term, Var, [], ReversePath), !,
+    reverse(ReversePath, Path).
+
+variable_path(Term, Var, Path, Path) :-
+    var(Term),
+    Term == Var, !.
+variable_path(Term, Var, Prefix, Path) :-
+    compound(Term),
+    functor(Term, _, Arity),
+    between(1, Arity, Index),
+    arg(Index, Term, Arg),
+    variable_path(Arg, Var, [Index|Prefix], Path).
 
 traverse_list(Pred, From, Into) :- (is_list(From),is_list(Into) -> maplist(traverse_list(Pred),From,Into)
                                                                  ; call(Pred, From, Into)).
 
-%Selects and unifies variable–argument pairs that act as higher-order or head operands in the body:
-eligible_var_pairs([], [], _, []).
-eligible_var_pairs([Var|Vars], [Copy|Copies], BodyExpr, HoVars) :- ( specializable_arg(Copy), (var_use_check(head, Var, BodyExpr) ; var_use_check(ho, Var, BodyExpr))
-                                                                     -> Var = Copy,
-                                                                        HoVars = [Var|RestHoVars]
-                                                                      ; HoVars = RestHoVars ),
-                                                                   eligible_var_pairs(Vars, Copies, BodyExpr, RestHoVars).
+% Select and unify variables used as higher-order operands. The six-argument
+% form also retains their structural paths for the global specialization key.
+eligible_var_pairs(Vars, Copies, BodyExpr, HoVars) :-
+    same_length(Vars, Paths),
+    maplist(=([]), Paths),
+    eligible_var_pairs(Vars, Copies, Paths, BodyExpr, HoVars, _).
+
+eligible_var_pairs([], [], [], _, [], []).
+eligible_var_pairs([Var|Vars], [Copy|Copies], [Path|Paths], BodyExpr,
+                   HoVars, Bindings) :-
+    ( specializable_arg(Copy),
+      specialization_use(Var, BodyExpr, Use)
+      -> Var = Copy,
+         HoVars = [Var|RestHoVars],
+         Bindings = [path_binding(Path, Copy, Use)|RestBindings]
+    ; HoVars = RestHoVars,
+      Bindings = RestBindings ),
+    eligible_var_pairs(Vars, Copies, Paths, BodyExpr,
+                       RestHoVars, RestBindings).
+
+specialization_use(Var, BodyExpr, direct) :-
+    var_use_check(head, Var, BodyExpr), !.
+specialization_use(Var, BodyExpr, propagated) :-
+    var_use_check(ho, Var, BodyExpr).
 
 %If Var appears at list head it means function call, meaning specialization is needed, and detect when used as HOL arg
-var_use_check(head, Var, [Head|_]) :- Var == Head,
-                                      nb_setval('$petta_spec_needed', true).
+var_use_check(head, Var, [Head|_]) :- Var == Head.
 var_use_check(ho, Var, [Head|Args]) :- specializable_arg(Head),
                                        member(Arg, Args),
                                        ( Var == Arg
