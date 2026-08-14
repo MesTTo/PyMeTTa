@@ -1,7 +1,15 @@
-"""Purpose: the library's benchmark harness: where the time goes, measured,
-so performance work argues from numbers. Each benchmark reports operations
-per second as the best of three rounds (min wall per op), the shape the
-sibling bench harness proved. Run: python bench.py [name ...]
+"""Purpose: run selected pytest-benchmark cases with committed baselines.
+Guarantees:
+  - every named case runs in a fresh process, so global engine state cannot
+    make subset and suite counters disagree [tested
+    test_benchmark_cli_spawns_each_case]
+  - unknown names fail through argparse and --list reports every case
+    [tested test_benchmark_cli_lists_and_rejects_case_names]
+Owns:
+  - main joins each benchmark process and terminates one that exceeds its
+    explicit limit [tested test_benchmark_cli_spawns_each_case]
+  - JSON output is assembled in a temporary directory and atomically
+    replaces its destination [tested test_benchmark_json_merge_is_atomic]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,262 +18,179 @@ Open Obligations:
 
 from __future__ import annotations
 
-import sys
-import time
-from typing import Callable
+import argparse
+import json
+import multiprocessing
+import os
+import tempfile
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
-from petta import MeTTa, S, V, expr
-from petta.atoms import Gnd, from_wire
+import pytest
 
-ROUNDS = 3
-
-
-def _rate(fn: Callable[[], int]) -> float:
-    """Best ops/second over ROUNDS runs of fn, which returns its op count."""
-    best = 0.0
-    for _ in range(ROUNDS):
-        start = time.perf_counter()
-        count = fn()
-        elapsed = time.perf_counter() - start
-        best = max(best, count / elapsed)
-    return best
-
-
-BENCHES: dict[str, Callable[[MeTTa], float]] = {}
-
-
-def bench(name: str):
-    def apply(fn):
-        BENCHES[name] = fn
-        return fn
-
-    return apply
-
-
-@bench("add-single")
-def add_single(m: MeTTa) -> float:
-    with m.fresh_space() as s:
-        return _rate(lambda: [s.add(S.n(i)) for i in range(2000)] and 2000)
+CASES = {
+    "add-batch": "test_add_batch",
+    "add-single": "test_add_single",
+    "add-table-rows": "test_add_table_rows",
+    "direct-join": "test_direct_join",
+    "eval-arith": "test_eval_arithmetic",
+    "loop-1m": "test_loop_million",
+    "op-encoded": "test_encoded_operation",
+    "op-raw": "test_raw_operation",
+    "prepared-join": "test_prepared_join",
+    "query-2k-rows": "test_query_rows",
+    "query-limit-guarded": "test_query_limit_guarded",
+    "query-limit-plain": "test_query_limit_plain",
+    "query-where": "test_query_where",
+    "register-op": "test_register_operation",
+    "run-source": "test_run_source",
+    "save-load-fast": "test_save_load_fast",
+    "save-load-metta": "test_save_load_metta",
+    "subscribe-tax": "test_subscription_tax",
+    "term-operators": "test_term_operators",
+    "weighted-relation": "test_weighted_relation",
+    "wire-codec": "test_wire_codec",
+}
 
 
-@bench("add-batch")
-def add_batch(m: MeTTa) -> float:
-    with m.fresh_space() as s:
-        return _rate(lambda: s.add(*(S.n(i) for i in range(2000))) or 2000)
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("names", nargs="*")
+    parser.add_argument("--list", action="store_true", dest="list_cases")
+    parser.add_argument("--counter-only", action="store_true")
+    parser.add_argument("--update-baseline", action="store_true")
+    parser.add_argument("--compare-wall", action="store_true")
+    parser.add_argument("--json", type=Path)
+    parser.add_argument("--timeout", type=float, default=120.0)
+    return parser
 
 
-@bench("query-2k-rows")
-def query_rows(m: MeTTa) -> float:
-    with m.fresh_space() as s:
-        s.add(*(S.edge(i, i + 1) for i in range(2000)))
-        return _rate(lambda: len(s.query(S.edge(V.a, V.b))))
+def _run_case(pytest_arguments: list[str], update: bool) -> None:
+    os.environ["PETTA_BENCHMARK_COUNTERS"] = "1"
+    os.environ["PETTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
+    result = pytest.main(pytest_arguments)
+    if result:
+        raise SystemExit(int(result))
 
 
-@bench("eval-arith")
-def eval_arith(m: MeTTa) -> float:
-    return _rate(lambda: [m.eval(expr(S["+"], i, 1)) for i in range(2000)] and 2000)
+def _arguments_for(
+    name: str,
+    *,
+    directory: Path,
+    counter_only: bool,
+    compare_wall: bool,
+    json_path: Path | None,
+) -> list[str]:
+    benchmark_file = directory / "benchmarks" / "test_benchmarks.py"
+    arguments = [
+        f"{benchmark_file}::{CASES[name]}",
+        "-q",
+        f"--rootdir={directory}",
+        "-c",
+        str(directory / "pyproject.toml"),
+    ]
+    if counter_only:
+        arguments.append("--benchmark-disable")
+    if compare_wall:
+        arguments.append(f"--benchmark-compare={directory / 'benchmarks' / 'pytest-baseline.json'}")
+    if json_path is not None:
+        arguments.append(f"--benchmark-json={json_path}")
+    return arguments
 
 
-@bench("op-raw")
-def op_raw(m: MeTTa) -> float:
-    @m.register_op(name="bench-raw", raw=True, typed=False)
-    def bench_raw(a, b):
-        return a + b
-
-    return _rate(lambda: [m.eval(expr(S["bench-raw"], i, 1)) for i in range(2000)] and 2000)
-
-
-@bench("op-encoded")
-def op_encoded(m: MeTTa) -> float:
-    @m.register_op(name="bench-enc", typed=False)
-    def bench_enc(a, b):
-        return a + b
-
-    return _rate(lambda: [m.eval(expr(S["bench-enc"], i, 1)) for i in range(2000)] and 2000)
-
-
-@bench("loop-1m")
-def loop_million(m: MeTTa) -> float:
-    m.run("(= (bench-cd $n) (if (> $n 0) (bench-cd (- $n 1)) done))")
-    return _rate(lambda: m.run("!(bench-cd 1000000)") and 1_000_000)
-
-
-@bench("wire-codec")
-def wire_codec(m: MeTTa) -> float:
-    atom = expr(S.deep, *[expr(S.node, i, Gnd(float(i)), S.leaf) for i in range(50)])
-
-    def round_trips() -> int:
-        for _ in range(2000):
-            from_wire(atom.to_wire())
-        return 2000 * 152  # atoms per trip, both directions
-
-    return _rate(round_trips)
+def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
+    documents = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+    if not documents:
+        raise ValueError("cannot write an empty benchmark JSON document")
+    for path, document in zip(paths, documents, strict=True):
+        if not isinstance(document, dict) or not isinstance(document.get("benchmarks"), list):
+            raise ValueError(f"benchmark JSON has invalid structure: {path}")
+        if len(document["benchmarks"]) != 1:
+            raise ValueError(f"benchmark JSON must hold exactly one case: {path}")
+        if document.get("machine_info") != documents[0].get("machine_info"):
+            raise ValueError(f"benchmark JSON machine metadata changed: {path}")
+        if document.get("commit_info") != documents[0].get("commit_info"):
+            raise ValueError(f"benchmark JSON commit metadata changed: {path}")
+    merged: dict[str, Any] = documents[0]
+    merged["benchmarks"] = [
+        benchmark for document in documents for benchmark in document.get("benchmarks", [])
+    ]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(merged, handle, indent=4)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        Path(temporary_name).replace(target)
+    except BaseException:
+        Path(temporary_name).unlink(missing_ok=True)
+        raise
 
 
-@bench("run-source")
-def run_source(m: MeTTa) -> float:
-    return _rate(lambda: [m.run("!(+ 1 2)") for _ in range(1000)] and 1000)
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the requested benchmark cases through isolated pytest processes."""
+    parser = _parser()
+    arguments = parser.parse_args(argv)
+    if arguments.list_cases:
+        print("\n".join(sorted(CASES)))
+        return 0
+    if arguments.timeout <= 0:
+        parser.error("--timeout must be positive")
 
+    unknown = sorted(set(arguments.names) - CASES.keys())
+    if unknown:
+        parser.error(f"unknown benchmark {', '.join(unknown)}; use --list for valid names")
 
-@bench("term-operators")
-def term_operators(m: MeTTa) -> float:
-    def build() -> int:
-        for i in range(20000):
-            (V.age >= i) & (V.age <= i + 10) | ~V.retired
-        return 20000
+    directory = Path(__file__).resolve().parent
+    selected = arguments.names or sorted(CASES)
+    json_target = arguments.json
+    if arguments.update_baseline and json_target is None and not arguments.counter_only:
+        json_target = directory / "benchmarks" / "pytest-baseline.json"
 
-    return _rate(build)
-
-
-@bench("query-where")
-def query_where(m: MeTTa) -> float:
-    with m.fresh_space() as s:
-        s.add(*(S.person(S[f"p{i}"], i % 90) for i in range(2000)))
-        guard = (V.age >= 18) & (V.age <= 40)
-        return _rate(
-            lambda: len(s.query(S.person(V.name, V.age), where=guard))
-        )
-
-
-@bench("prepared-vs-query")
-def prepared_vs_query(m: MeTTa) -> float:
-    """The prepared ladder: solves/second on a wired two-pattern join;
-    compare against query-2k-rows for the wiring cost saved."""
-    with m.fresh_space() as s:
-        s.add(*(S.edge(i, i + 1) for i in range(500)))
-        hop = s.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c))
-        return _rate(lambda: [hop.solve() for _ in range(20)] and 20)
-
-
-@bench("query-bounded")
-def query_bounded(m: MeTTa) -> float:
-    """The guarded crossing: a generous timeout+inference bound on the
-    same query as query-where's shape; the gap against an unbounded run
-    is the guard's whole cost (measured 4.5% at adoption)."""
-    with m.fresh_space() as s:
-        s.add(*(S.edge(i, i + 1) for i in range(2000)))
-        return _rate(
-            lambda: len(
-                s.query(S.edge(V.a, V.b), limit=50, timeout=30.0, inferences=50_000_000)
+    context = multiprocessing.get_context("spawn")
+    with tempfile.TemporaryDirectory(prefix="petta-benchmark-json-") as temporary:
+        json_paths: list[Path] = []
+        for index, name in enumerate(selected):
+            json_path = Path(temporary) / f"{index:03d}-{name}.json" if json_target else None
+            process = context.Process(
+                target=_run_case,
+                args=(
+                    _arguments_for(
+                        name,
+                        directory=directory,
+                        counter_only=arguments.counter_only,
+                        compare_wall=arguments.compare_wall,
+                        json_path=json_path,
+                    ),
+                    arguments.update_baseline,
+                ),
+                name=f"petta-benchmark-{name}",
             )
-        )
-
-
-@bench("add-table-rows")
-def add_table_rows(m: MeTTa) -> float:
-    rows = [(i, i + 1) for i in range(2000)]
-
-    def load() -> int:
-        with m.fresh_space() as s:
-            s.add_table("edge", rows)
-        return 2000
-
-    return _rate(load)
-
-
-@bench("weighted-relation")
-def weighted_relation_rate(m: MeTTa) -> float:
-    from petta import measure
-
-    with m.fresh_space() as s:
-        measure.install(s)
-        measure.weighted_relation(
-            s, "bench-mood", lambda _day: [0.25, 0.75], [S.calm, S.tense]
-        )
-        return _rate(
-            lambda: [
-                s.run("!(ws-best (collapse (bench-mood today)))")
-                for _ in range(500)
-            ]
-            and 500
-        )
-
-
-@bench("register-op")
-def register_op(m: MeTTa) -> float:
-    """Registrations/second, declarations and reflection facts included."""
-
-    def register_batch() -> int:
-        for i in range(100):
-            def fn(x: int) -> int:
-                return x
-
-            m.register_op(fn, name=f"bench-reg-{i}")
-            m.unregister_op(f"bench-reg-{i}")
-        return 100
-
-    return _rate(register_batch)
-
-
-@bench("subscribe-tax")
-def subscribe_tax(m: MeTTa) -> float:
-    """Adds/second WITH a live subscription elsewhere: the price every
-    space write pays for the dispatch hook once any subscription exists,
-    to compare against add-batch."""
-    with m.fresh_space() as other, m.fresh_space() as s:
-        subscription = other.subscribe(S.never(V.x))
-        try:
-            return _rate(lambda: s.add(*(S.n(i) for i in range(2000))) or 2000)
-        finally:
-            subscription.cancel()
-
-
-@bench("save-load-fast-vs-metta")
-def save_load_fast_vs_metta(m: MeTTa) -> float:
-    """Compare real public save and load paths over 20,001 stored atoms.
-
-    The detail line reports both atom rates and their ratio. The returned
-    rate is the fast path so the common harness can print it too. On the
-    adoption run, fast measured 556,498 atoms/s against text's 53,564,
-    a 10.389x speedup on this workload.
-    """
-    import tempfile
-    from pathlib import Path
-
-    atom_count = 20_001
-    with (
-        tempfile.TemporaryDirectory(prefix="petta-fast-io-") as directory,
-        m.fresh_space() as source,
-        m.fresh_space() as target,
-    ):
-        source.add(*(S["bench-save-node"](i, i + 1) for i in range(20_000)))
-        source.run("(= (bench-save-next $x) (+ $x 1))")
-
-        def measure(format: str) -> float:
-            path = Path(directory) / f"roundtrip.{format}"
-            best = 0.0
-            for _ in range(ROUNDS):
-                target.clear()
-                start = time.perf_counter()
-                saved = source.save(path, format=format)
-                groups = target.load(path)
-                elapsed = time.perf_counter() - start
-                if saved != atom_count or groups or target.count() != atom_count:
-                    raise RuntimeError(
-                        f"{format} benchmark did not round-trip {atom_count} atoms"
-                    )
-                if target.run("!(bench-save-next 41)") != [[42]]:
-                    raise RuntimeError(f"{format} benchmark lost its equation")
-                best = max(best, atom_count / elapsed)
-            return best
-
-        text_rate = measure("metta")
-        fast_rate = measure("fast")
-        print(
-            f"save-load-fast-vs-metta detail: metta={text_rate:,.0f} atoms/s "
-            f"fast={fast_rate:,.0f} atoms/s speedup={fast_rate / text_rate:.3f}x"
-        )
-        return fast_rate
-
-
-def main(argv: list[str]) -> None:
-    chosen = argv or sorted(BENCHES)
-    m = MeTTa()
-    width = max(len(n) for n in chosen)
-    for name in chosen:
-        rate = BENCHES[name](m)
-        print(f"{name:<{width}}  {rate:>12,.0f} /s")
+            process.start()
+            process.join(arguments.timeout)
+            if process.is_alive():
+                process.terminate()
+                process.join(5.0)
+                if process.is_alive():
+                    process.kill()
+                    process.join()
+                raise TimeoutError(
+                    f"benchmark {name} exceeded its {arguments.timeout:g} second limit"
+                )
+            if process.exitcode != 0:
+                raise RuntimeError(
+                    f"benchmark {name} process exited with status {process.exitcode}"
+                )
+            if json_path is not None:
+                json_paths.append(json_path)
+        if json_target is not None:
+            _write_merged_json(json_paths, json_target)
+            print(f"wrote benchmark data to {json_target}")
+    return 0
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    raise SystemExit(main())

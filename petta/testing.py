@@ -15,17 +15,27 @@ Open Obligations:
 from __future__ import annotations
 
 from .atoms import Expr, Gnd, Sym, Var
+from .benchmarking import (
+    BenchmarkBaseline,
+    benchmark_case,
+    count_atoms,
+    measure_instructions,
+)
 
 __all__ = [
+    "BenchmarkBaseline",
+    "atoms",
+    "benchmark_case",
+    "count_atoms",
+    "expressions",
+    "grounded",
+    "measure_instructions",
     "names",
-    "symbols",
-    "variables",
     "numbers",
     "numpy_scalars",
+    "symbols",
     "texts",
-    "grounded",
-    "atoms",
-    "expressions",
+    "variables",
 ]
 
 
