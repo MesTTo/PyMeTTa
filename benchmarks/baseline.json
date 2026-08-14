@@ -18,7 +18,20 @@
       "unit": "rows",
       "wall_seconds_per_operation": 3.28091299161315e-06
     },
+    "alpha-unique": {
+      "inferences": 3750777,
+      "instruction_noise_percent": 1.0,
+      "instructions": 4726847929,
+      "operations": 50000,
+      "unit": "terms",
+      "wall_seconds_per_operation": 2.957344460301101e-06
+    },
     "direct-join": {
+      "inference_slope": {
+        "delta_inferences": 1345470,
+        "large_operations": 49975,
+        "small_operations": 1999
+      },
       "inferences": 280310,
       "operations": 9995,
       "unit": "rows",
@@ -37,6 +50,19 @@
       "operations": 2000,
       "unit": "payload round-trips",
       "wall_seconds_per_operation": 7.741356699261814e-05
+    },
+    "let-heavy": {
+      "inference_slope": {
+        "delta_inferences": 7200288,
+        "large_operations": 1000000,
+        "small_operations": 100000
+      },
+      "inferences": 8000413,
+      "instruction_noise_percent": 1.0,
+      "instructions": 4217524663,
+      "operations": 1000000,
+      "unit": "iterations",
+      "wall_seconds_per_operation": 2.1706230309791863e-07
     },
     "loop-1m": {
       "inferences": 5000989,
@@ -57,10 +83,23 @@
       "wall_seconds_per_operation": 7.45732057839632e-06
     },
     "prepared-join": {
+      "inference_slope": {
+        "delta_inferences": 1345470,
+        "large_operations": 49975,
+        "small_operations": 1999
+      },
       "inferences": 280310,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.8308916356174156e-06
+    },
+    "py-method-call": {
+      "inferences": 2330097,
+      "instruction_noise_percent": 1.0,
+      "instructions": 1869010003,
+      "operations": 10000,
+      "unit": "calls",
+      "wall_seconds_per_operation": 1.0144315101206303e-05
     },
     "query-2k-rows": {
       "inferences": 521145,
@@ -110,6 +149,38 @@
       "unit": "atoms",
       "wall_seconds_per_operation": 2.2809381439032467e-05
     },
+    "sort-atom": {
+      "inferences": 1400181,
+      "instruction_noise_percent": 1.0,
+      "instructions": 4502600332,
+      "operations": 100000,
+      "unit": "terms",
+      "wall_seconds_per_operation": 2.009731971193105e-06
+    },
+    "source-load": {
+      "inferences": 7084961,
+      "instruction_noise_percent": 1.0,
+      "instructions": 4344240369,
+      "operations": 1000,
+      "unit": "forms",
+      "wall_seconds_per_operation": 0.0001865763661917299
+    },
+    "space-digest": {
+      "inferences": 6976033,
+      "instruction_noise_percent": 1.0,
+      "instructions": 5756655856,
+      "operations": 20000,
+      "unit": "atoms",
+      "wall_seconds_per_operation": 1.1809924000408501e-05
+    },
+    "space-name": {
+      "inferences": 2280095,
+      "instruction_noise_percent": 1.0,
+      "instructions": 2556526696,
+      "operations": 30000,
+      "unit": "calls",
+      "wall_seconds_per_operation": 4.320945761476954e-06
+    },
     "subscribe-tax": {
       "inferences": 86018,
       "operations": 2000,
@@ -139,7 +210,7 @@
       "wall_seconds_per_operation": 3.075987162504582e-07
     }
   },
-  "counter_policy": "stats().inferences minimum of three decides; wall time advises",
+  "counter_policy": "stats().inferences minimum of three and fixed two-point growth slopes decide; wall time advises",
   "instruction_policy": "perf instructions:u minimum of three, one percent noise allowance",
   "schema": 1
 }

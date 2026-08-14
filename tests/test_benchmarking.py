@@ -14,14 +14,29 @@ import pytest
 
 from bench import CASES, _write_merged_json
 from bench import main as benchmark_main
+from benchmarks.check_instructions import _CASES as INSTRUCTION_CASES
 from benchmarks.conftest import pytest_benchmark_update_machine_info
+from benchmarks.engine_workloads import (
+    alpha_unique_case,
+    close_engine_case,
+    digest_case,
+    let_heavy,
+    let_space,
+    py_method_case,
+    sort_atom_case,
+    source_load_case,
+    space_name_case,
+)
+from benchmarks.pure import _CASES as PERF_CASES
 from benchmarks.pure import _acknowledge
+from benchmarks.pure import main as perf_workload_main
 from benchmarks.workloads import json_payload, json_wire, term_operators, wire_atom, wire_codec
 from petta import S
 from petta.benchmarking import _run_perf
 from petta.testing import (
     BenchmarkBaseline,
     benchmark_case,
+    benchmark_counter_slope,
     count_atoms,
     measure_instructions,
 )
@@ -44,6 +59,21 @@ class _Engine:
 
     def stats(self):
         return _Stats(self.inferences)
+
+
+class _MutableStats:
+    def __init__(self, state):
+        self.state = state
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    @property
+    def inferences(self):
+        return self.state.inferences
 
 
 class _Benchmark:
@@ -166,6 +196,73 @@ def test_baseline_update_is_atomic_json(tmp_path):
     assert list(tmp_path.glob(".baseline.json.*")) == []
 
 
+def test_benchmark_counter_slope_uses_fresh_state_and_gates_growth(tmp_path):
+    path = tmp_path / "baseline.json"
+    baseline = BenchmarkBaseline(path, update=True)
+    baseline.observe_counter("growth", unit="rows", operations=8, samples=[30, 30, 30])
+    created = []
+    reaped = []
+
+    def setup():
+        state = SimpleNamespace(inferences=0)
+        created.append(state)
+        return state
+
+    def operation(completed, inferences):
+        def run(state):
+            state.inferences = inferences
+            return completed
+
+        return run
+
+    assert (
+        benchmark_counter_slope(
+            baseline,
+            name="growth",
+            unit="rows",
+            small_operations=2,
+            small_operation=operation(2, 11),
+            large_operations=8,
+            large_operation=operation(8, 35),
+            setup=setup,
+            teardown=reaped.append,
+            engine=lambda state: SimpleNamespace(stats=lambda: _MutableStats(state)),
+        )
+        == 24
+    )
+    baseline.finish()
+
+    assert len(created) == 6
+    assert reaped == created
+    assert json.loads(path.read_text())["benchmarks"]["growth"]["inference_slope"] == {
+        "delta_inferences": 24,
+        "large_operations": 8,
+        "small_operations": 2,
+    }
+
+    comparison = BenchmarkBaseline(path)
+    assert (
+        comparison.observe_counter_slope(
+            "growth",
+            unit="rows",
+            small_operations=2,
+            large_operations=8,
+            small_samples=[11, 11, 11],
+            large_samples=[39, 39, 39],
+        )
+        == 28
+    )
+    with pytest.raises(AssertionError, match="inference slope regression"):
+        comparison.observe_counter_slope(
+            "growth",
+            unit="rows",
+            small_operations=2,
+            large_operations=8,
+            small_samples=[11, 11, 11],
+            large_samples=[40, 40, 40],
+        )
+
+
 def test_measure_instructions_parses_perf_csv(monkeypatch):
     calls = []
 
@@ -211,6 +308,48 @@ def test_perf_acknowledgement_accepts_the_native_nul_terminator():
         os.close(writer)
 
 
+def test_perf_workload_setup_and_teardown_stay_outside_control(monkeypatch):
+    events = []
+
+    def factory():
+        events.append("setup")
+
+        def operation():
+            events.append("operation")
+            return 1
+
+        return operation, lambda: events.append("teardown")
+
+    def controlled(operation):
+        events.append("enable")
+        result = operation()
+        events.append("disable")
+        return result
+
+    monkeypatch.setitem(PERF_CASES, "probe", factory)
+    monkeypatch.setattr("benchmarks.pure._controlled", controlled)
+
+    assert perf_workload_main(["probe", "--controlled"]) == 0
+    assert events == ["setup", "enable", "operation", "disable", "teardown"]
+
+
+def test_perf_workload_teardown_runs_after_failure(monkeypatch):
+    events = []
+
+    def factory():
+        def operation():
+            events.append("operation")
+            raise LookupError("workload failed")
+
+        return operation, lambda: events.append("teardown")
+
+    monkeypatch.setitem(PERF_CASES, "failing-probe", factory)
+
+    with pytest.raises(LookupError, match="workload failed"):
+        perf_workload_main(["failing-probe"])
+    assert events == ["operation", "teardown"]
+
+
 def test_count_atoms_derives_the_wire_workload_size():
     atom = S.deep(*(S.node(i, float(i), S.leaf) for i in range(50)))
     assert count_atoms(atom) == 252
@@ -221,6 +360,47 @@ def test_pure_workload_counts_are_derived():
     assert wire_codec(atom, trips=2) == 2 * count_atoms(atom)
     assert json_wire(json_payload(), trips=2) == 2
     assert term_operators(terms=3) == 3
+
+
+def test_instruction_inventory_covers_primitive_heavy_engine_paths():
+    engine_cases = {
+        "alpha-unique",
+        "let-heavy",
+        "py-method-call",
+        "sort-atom",
+        "source-load",
+        "space-digest",
+        "space-name",
+    }
+    assert engine_cases <= PERF_CASES.keys()
+    assert set(INSTRUCTION_CASES) == PERF_CASES.keys()
+
+
+@pytest.mark.parametrize(
+    ("factory", "operations"),
+    [
+        (alpha_unique_case, 20),
+        (digest_case, 20),
+        (py_method_case, 3),
+        (sort_atom_case, 20),
+        (source_load_case, 5),
+        (space_name_case, 3),
+    ],
+)
+def test_primitive_workloads_check_public_results(factory, operations):
+    state = factory(operations)
+    try:
+        assert state[1]() == operations
+    finally:
+        close_engine_case(state)
+
+
+def test_let_workload_checks_its_bignum_result():
+    space = let_space()
+    try:
+        assert let_heavy(space, 10) == 10
+    finally:
+        space.drop()
 
 
 def test_benchmark_cli_lists_and_rejects_case_names(capsys):

@@ -44,6 +44,11 @@ def test_python_gate_groups_files_in_process_workers():
     assert "-p no:benchmark -n auto --dist loadfile --max-worker-restart=0" in gate
 
 
+def test_benchmark_gate_reports_the_whole_inventory():
+    gate = (ROOT / "check.sh").read_text(encoding="utf-8")
+    assert "bench.py --counter-only --keep-going" in gate
+
+
 def test_dependency_audit_treats_tool_extras_as_development_dependencies():
     deptry = _manifest()["tool"]["deptry"]
     assert deptry["optional_dependencies_dev_groups"] == ["test", "checks"]

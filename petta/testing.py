@@ -19,6 +19,7 @@ from .atoms import Expr, Gnd, Sym, Var
 from .benchmarking import (
     BenchmarkBaseline,
     benchmark_case,
+    benchmark_counter_slope,
     count_atoms,
     measure_instructions,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "BenchmarkBaseline",
     "atoms",
     "benchmark_case",
+    "benchmark_counter_slope",
     "count_atoms",
     "expressions",
     "grounded",
