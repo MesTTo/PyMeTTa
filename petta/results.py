@@ -11,6 +11,8 @@ Guarantees:
     [tested test_rows_mutations_preserve_invariants]
   - Row and Rows pickle through stable module-level rebuild functions rather
     than dynamic class names [tested test_rows_copy_and_pickle_protocols]
+  - terminal representations bound both rows and individual values and state
+    the omitted row count [tested test_rows_repr_is_bounded_and_recursive]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,9 +24,16 @@ from __future__ import annotations
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
+import reprlib
 from typing import Any, overload
 
 __all__ = ["Row", "Rows"]
+
+_DISPLAY_ROWS = 100
+_VALUE_REPR = reprlib.Repr()
+_VALUE_REPR.maxlevel = 4
+_VALUE_REPR.maxstring = 80
+_VALUE_REPR.maxother = 120
 
 
 class Row(tuple):
@@ -60,8 +69,12 @@ class Row(tuple):
                 ) from None
         return tuple.__getitem__(self, key)
 
+    @reprlib.recursive_repr()
     def __repr__(self) -> str:
-        inner = ", ".join(f"{c}={v!r}" for c, v in zip(type(self)._columns, self))
+        inner = ", ".join(
+            f"{column}={_VALUE_REPR.repr(value)}"
+            for column, value in zip(type(self)._columns, self)
+        )
         return f"Row({inner})"
 
     def asdict(self) -> dict[str, Any]:
@@ -266,7 +279,7 @@ class Rows(UserList[Row]):
         never a silent cut."""
         import html
 
-        shown = 100
+        shown = _DISPLAY_ROWS
         head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
         body = "".join(
             "<tr>" + "".join(f"<td>{html.escape(str(v))}</td>" for v in row) + "</tr>"
@@ -283,9 +296,13 @@ class Rows(UserList[Row]):
             f"<thead><tr>{head}</tr></thead><tbody>{body}{rest}</tbody></table>"
         )
 
+    @reprlib.recursive_repr()
     def __repr__(self) -> str:
         header = ", ".join(self.columns)
-        return f"Rows[{header}]({super().__repr__()})"
+        body = ", ".join(repr(row) for row in self.data[:_DISPLAY_ROWS])
+        if len(self) > _DISPLAY_ROWS:
+            body += f", ... {len(self) - _DISPLAY_ROWS} more rows"
+        return f"Rows[{header}]([{body}])"
 
     def __iter__(self) -> Iterator[Row]:
         return iter(self.data)

@@ -59,6 +59,18 @@ def test_rows_html_tail_is_an_explicit_count():
     assert "50 more rows" in page
 
 
+def test_rows_repr_is_bounded_and_recursive():
+    rows = Rows(("n", "text"), [(i, "x" * 500) for i in range(50_000)])
+    rendered = repr(rows)
+    assert len(rendered) < 20_000
+    assert "49900 more rows" in rendered
+    assert "xxxxxxxx" in rendered
+
+    recursive = Rows(("nested",), [])
+    recursive.append((recursive,))
+    assert "..." in repr(recursive)
+
+
 def test_rows_reject_duplicate_columns_and_wrong_row_widths():
     with pytest.raises(ValueError, match="duplicate.*x"):
         Rows(("x", "x"), [(1, 2)])
