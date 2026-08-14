@@ -6,6 +6,8 @@ Guarantees:
     test_depth_exhaustion_returns_a_partial_proof]
   - why() distinguishes stored-shape misses, functions, and close names
     [tested test_why]
+  - eager query explanations distinguish a pattern miss, failed join, and
+    rejecting guard [tested test_query_rows_explain_empty_results]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -93,3 +95,30 @@ def explain_no_match(space: Any, pattern: Any) -> str:
     if stored:
         return _stored_explanation(atom, head.name, stored)
     return _unstored_explanation(space, head.name)
+
+
+def explain_empty_query(
+    space: Any,
+    patterns: tuple[Atom, ...],
+    where: Atom | None,
+) -> str:
+    """Explain which stage removed every answer from one eager query."""
+    if len(patterns) == 1 and where is None:
+        return explain_no_match(space, patterns[0])
+    if where is not None and space.query(*patterns, limit=1):
+        return (
+            f"the patterns match together, but the where guard {where} "
+            "rejects every joined row"
+        )
+    for index, pattern in enumerate(patterns, start=1):
+        if not space.query(pattern, limit=1):
+            detail = explain_no_match(space, pattern)
+            if len(patterns) == 1:
+                return detail
+            return f"pattern {index} cannot match: {detail}"
+    if len(patterns) > 1:
+        return (
+            "each pattern matches on its own, but no shared variable binding "
+            "satisfies them together"
+        )
+    return "the empty query returned no rows"
