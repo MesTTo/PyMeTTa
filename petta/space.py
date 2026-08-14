@@ -68,6 +68,7 @@ from ._space_objects import (
     _Assuming,
     _EngineFunction,
     _StatsBlock,
+    guard_atom,
 )
 from ._space_persistence import (
     load_space,
@@ -86,7 +87,7 @@ from .atoms import (
 )
 from .casting import cast as _cast
 from .derivation import Derivation
-from .errors import EngineError, StrictError
+from .errors import EngineError, PettaError, StrictError
 from .foreign import (
     has_provider,
     register_provider,
@@ -116,6 +117,28 @@ def current_space(default: SpaceName = _DEFAULT_SPACE) -> SpaceName:
         return default
     row = bridge().query_once("current_metta_space(S)")
     return SpaceName(str(row["S"])) if row else default
+
+
+def _row_values(row: Any, keys: list[Any]) -> Any:
+    """One table row's values, left to right.
+
+    Iterating a mapping yields its keys, so a list of records would store
+    the column names as data, once per row, with no error and the right
+    row count. Records are read by their values instead, and the first
+    record fixes the key order every later one must repeat, since that
+    order is what decides which fact position a value lands in.
+    """
+    if not isinstance(row, _abc.Mapping):
+        return row
+    if not keys:
+        keys.extend(row.keys())
+    elif list(row.keys()) != keys:
+        raise ValueError(
+            f"every record must carry the same keys in the same order, "
+            f"because their order fixes the fact positions; expected "
+            f"{keys}, got {list(row.keys())}"
+        )
+    return row.values()
 
 
 def _to_stored_atom(value: Any) -> Expr:
@@ -155,6 +178,11 @@ class MeTTa:
         verbose: bool = False,
         petta_path: str | None = None,
     ) -> None:
+        if not isinstance(space, str):
+            raise TypeError(
+                f"a space name is a string starting with &, as in &self or "
+                f"&kb; got {space!r}"
+            )
         if not space.startswith("&"):
             raise ValueError(
                 f"a space name starts with &, as in &self or &kb; got {space!r}. "
@@ -162,8 +190,27 @@ class MeTTa:
                 f"name would read back as a variable."
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
-        self._space = space
+        self._name = space
+        self._dropped = False
         self._ephemeral = False
+
+    @property
+    def _space(self) -> SpaceName:
+        """The space name, refused once this handle has been dropped.
+
+        Every engine call reads the name through here, so a dropped handle
+        cannot reach the engine at all. That matters because drop() returns
+        an anonymous name to the pool: without this, a later fresh_space()
+        hands the same name to a new handle and writes through the dead one
+        land in the new space, silently.
+        """
+        if self._dropped:
+            raise PettaError(
+                f"{self._name} was dropped; this handle is dead. Its name may "
+                f"already belong to another space, so writes through it would "
+                f"land there. Take a new handle from fresh_space() or space()."
+            )
+        return self._name
 
     # ------------------------------------------------------------------ naming
 
@@ -196,7 +243,11 @@ class MeTTa:
         data alone; &self, the engine's own space, is cleared but its name
         never released. Subscriptions on the space cancel with it: a
         pooled name reused later must not deliver to the old life's
-        watchers."""
+        watchers. The handle itself dies here: every later call through it
+        refuses, because its name may already belong to another space.
+        Dropping twice is a no-op, as closing twice is."""
+        if self._dropped:
+            return
         for subscription in _subscriptions_for(self._space):
             subscription.cancel()
         if has_provider(self._space):
@@ -205,6 +256,7 @@ class MeTTa:
         if self._space != "&self":
             self._rt.must("petta_py_release_space(Space)", Space=self._space)
         _integrate._forget_space(self._space)
+        self._dropped = True
 
     def __enter__(self) -> Self:
         if not self._ephemeral:
@@ -219,7 +271,8 @@ class MeTTa:
         self.drop()
 
     def __repr__(self) -> str:
-        return f"MeTTa({self._space!r})"
+        state = ", dropped" if self._dropped else ""
+        return f"MeTTa({self._name!r}{state})"
 
     # ----------------------------------------------------------------- running
 
@@ -423,11 +476,22 @@ class MeTTa:
 
         The source is read by the interface it offers, never by library:
         iter_rows() (polars), itertuples() (pandas), a mapping of columns,
-        or any iterable of row sequences. A mapping's fact positions are
+        or any iterable of rows. A row may be a sequence or a mapping, so
+        a list of records from rows.to_dicts() reads correctly; every
+        record must carry the same keys in the same order, because their
+        order is what fixes the fact positions. A mapping of columns takes
         its own key order, and columns of unequal length are a hard error
-        rather than a silent truncation. The reverse direction is
-        rows.table(), the dict every DataFrame constructor takes."""
+        rather than a silent truncation.
+
+        rows.table() is the reverse in shape, the dict every DataFrame
+        constructor takes, but not in identity: it decodes atoms to Python
+        values, so a symbol comes back as a str and re-enters as a MeTTa
+        String. For a lossless round trip keep the atoms:
+
+            m.add_table(head, {c: rows.column(c) for c in rows.columns})
+        """
         head_atom = _to_atom(head)
+        keys: list[Any] = []
         if hasattr(data, "iter_rows"):
             rows = data.iter_rows()
         elif hasattr(data, "itertuples"):
@@ -442,7 +506,10 @@ class MeTTa:
                 f"columns, or an iterable of rows; "
                 f"{type(data).__name__} offers none of those"
             )
-        facts = [Expr([head_atom, *(encode(value) for value in row)]) for row in rows]
+        facts = [
+            Expr([head_atom, *(encode(value) for value in _row_values(row, keys))])
+            for row in rows
+        ]
         self.add(*facts)
         return len(facts)
 
@@ -633,7 +700,7 @@ class MeTTa:
         return Prepared(
             self,
             [_to_atom(p) for p in patterns],
-            None if where is None else _to_atom(where),
+            guard_atom(where),
         )
 
     # -------------------------------------------------------------- evaluation

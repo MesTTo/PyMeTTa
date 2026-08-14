@@ -14,8 +14,10 @@ from petta import (
     MeTTa,
     MettaOperationError,
     MettaSyntaxError,
+    PettaError,
     S,
     StrictError,
+    TimeLimitError,
     V,
     decode,
     expr,
@@ -367,3 +369,78 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 def test_runtime_refuses_a_second_tree(metta):
     with pytest.raises(ValueError):
         MeTTa(petta_path="/definitely/not/this/tree")
+
+
+def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):
+    # fresh_space() pools names, so a live handle to a dropped space would
+    # otherwise write into whatever space took the name next.
+    dead = metta.fresh_space()
+    released = dead.space_name
+    dead.drop()
+    reused = metta.fresh_space()
+    assert reused.space_name == released
+    with pytest.raises(PettaError) as failure:
+        dead.add(S.ghost(1))
+    assert "was dropped" in str(failure.value)
+    assert reused.count() == 0
+    dead.drop()  # idempotent, as closing twice is
+    assert "dropped" in repr(dead)
+
+
+def test_add_table_reads_records_by_value(m):
+    m.add(S.p(S.a, S.b))
+    rows = m.query(S.p(V.x, V.y))
+    records = m.fresh_space()
+    records.add_table(S.p, rows.to_dicts())
+    # Iterating a mapping yields keys, so this once stored ("x" "y").
+    assert [str(atom) for atom in records.atoms()] == ['(p "a" "b")']
+    lossless = m.fresh_space()
+    lossless.add_table(S.p, {c: rows.column(c) for c in rows.columns})
+    assert lossless.digest() == m.digest()
+
+
+def test_add_table_refuses_records_whose_key_order_drifts(m):
+    with pytest.raises(ValueError, match="same keys in the same order"):
+        m.add_table(S.p, [{"x": 1, "y": 2}, {"y": 3, "x": 4}])
+
+
+def test_the_empty_symbol_is_refused_rather_than_written_unreadably(m, tmp_path):
+    m.add(S.t(S[""], 1))
+    target = tmp_path / "empty.metta"
+    with pytest.raises(ValueError, match="empty symbol"):
+        m.save(str(target))
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("guard", [123, "oops", 4.5, S.oops])
+def test_a_where_guard_that_can_never_be_true_is_refused(m, guard):
+    m.add(S.age(S.Ada, 36))
+    with pytest.raises(TypeError, match="can never answer true"):
+        m.query(S.age(V.who, V.n), where=guard)
+
+
+def test_wrong_bound_types_name_the_argument(m):
+    with pytest.raises(TypeError, match="limit must be"):
+        m.query(S.age(V.who, V.n), limit="x")
+    with pytest.raises(TypeError, match="timeout must be"):
+        m.run("!(+ 1 2)", timeout="x")
+    with pytest.raises(TypeError, match="inferences must be"):
+        m.run("!(+ 1 2)", inferences="x")
+    with pytest.raises(TypeError, match="space name is a string"):
+        MeTTa(123)
+
+
+def test_a_reserved_limit_does_not_leak_janus_framing(metta):
+    metta.run("(= (spin $n) (spin (+ $n 1)))")
+    with pytest.raises(TimeLimitError) as failure:
+        metta.run("!(spin 0)", timeout=0.05)
+    assert "0.05 second time limit" in str(failure.value)
+    assert "Unknown error term" not in str(failure.value)
+    assert "petta_py_exception" not in str(failure.value)
+
+
+def test_build_never_hands_back_its_private_sentinel(m):
+    m.add(S.p(S.a))
+    rows = m.query(S.p(V.x))
+    assert petta.convert.build(S.a, str) == S.a
+    assert rows.build("x", str) == [S.a]
