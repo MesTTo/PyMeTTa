@@ -10,6 +10,8 @@ Guarantees:
   - Gnd normalizes Real and Integral implementations to engine-native Python
     numbers before equality, printing, or wire encoding [tested
     test_numpy_scalars_are_engine_numbers]
+  - decoded symbol and variable interning stays bounded while repeated recent
+    names retain identity [tested test_wire_intern_tables_are_bounded]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,7 +27,7 @@ import re
 import weakref
 from collections.abc import Iterator, Mapping, Sequence
 from functools import singledispatch
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 __all__ = [
     "Atom",
@@ -868,27 +870,54 @@ class _PendingExpr:
         self.built: Expr | None = None
 
 
-# Decoded symbols and variables intern per name: their equality and hash
-# are by name already, the instances are immutable, and a query answering
-# thousands of rows repeats a small vocabulary, so sharing the instances
-# (wire caches included) is pure saving. Vocabularies are bounded by the
-# program; the tables live for the process like the S builder's own cache.
+# Decoded symbols and variables intern per name: their equality and hash are by
+# name already, and a query answering thousands of rows repeats a small
+# vocabulary. The two tiers follow CPython's re cache: check a small FIFO first
+# without reordering, then maintain a larger LRU. Eviction changes only object
+# allocation because equality is by value, while bounding names supplied by a
+# remote peer prevents permanent process growth.
+_WIRE_CACHE_MAX = 512
+_WIRE_CACHE_FAST_MAX = 256
 _WIRE_SYMS: dict[str, Sym] = {}
+_WIRE_SYMS_FAST: dict[str, Sym] = {}
 _WIRE_VARS: dict[str, Var] = {}
+_WIRE_VARS_FAST: dict[str, Var] = {}
+_WireAtom = TypeVar("_WireAtom", Sym, Var)
+
+
+def _wire_intern(
+    name: str,
+    factory: Callable[[str], _WireAtom],
+    cache: dict[str, _WireAtom],
+    fast: dict[str, _WireAtom],
+) -> _WireAtom:
+    interned = fast.get(name)
+    if interned is not None:
+        return interned
+    interned = cache.pop(name, None)
+    if interned is None:
+        interned = factory(name)
+        if len(cache) >= _WIRE_CACHE_MAX:
+            try:
+                del cache[next(iter(cache))]
+            except (KeyError, RuntimeError, StopIteration):
+                pass
+    cache[name] = interned
+    if len(fast) >= _WIRE_CACHE_FAST_MAX:
+        try:
+            del fast[next(iter(fast))]
+        except (KeyError, RuntimeError, StopIteration):
+            pass
+    fast[name] = interned
+    return interned
 
 
 def _wire_sym(name: str) -> Sym:
-    interned = _WIRE_SYMS.get(name)
-    if interned is None:
-        interned = _WIRE_SYMS[name] = Sym(name)
-    return interned
+    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYMS_FAST)
 
 
 def _wire_var(name: str) -> Var:
-    interned = _WIRE_VARS.get(name)
-    if interned is None:
-        interned = _WIRE_VARS[name] = Var(name)
-    return interned
+    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VARS_FAST)
 
 
 def _leaf_from_wire(tag: Any, payload: Any) -> Atom:

@@ -163,6 +163,37 @@ def test_wire_round_trip():
         assert from_wire(a.to_wire()) == a
 
 
+def test_wire_intern_tables_are_bounded():
+    from petta.atoms import (
+        _WIRE_CACHE_FAST_MAX,
+        _WIRE_CACHE_MAX,
+        _WIRE_SYMS,
+        _WIRE_SYMS_FAST,
+        _WIRE_VARS,
+        _WIRE_VARS_FAST,
+    )
+
+    for cache in (_WIRE_SYMS, _WIRE_SYMS_FAST, _WIRE_VARS, _WIRE_VARS_FAST):
+        cache.clear()
+
+    first_sym = from_wire(["s", "evicted"])
+    first_var = from_wire(["v", "evicted"])
+    for index in range(_WIRE_CACHE_MAX + _WIRE_CACHE_FAST_MAX + 10):
+        from_wire(["s", f"symbol-{index}"])
+        from_wire(["v", f"variable-{index}"])
+
+    assert len(_WIRE_SYMS) <= _WIRE_CACHE_MAX
+    assert len(_WIRE_VARS) <= _WIRE_CACHE_MAX
+    assert len(_WIRE_SYMS_FAST) <= _WIRE_CACHE_FAST_MAX
+    assert len(_WIRE_VARS_FAST) <= _WIRE_CACHE_FAST_MAX
+    assert from_wire(["s", "symbol-0"]) is from_wire(["s", "symbol-0"])
+    assert from_wire(["v", "variable-0"]) is from_wire(["v", "variable-0"])
+    assert from_wire(["s", "evicted"]) == first_sym
+    assert from_wire(["s", "evicted"]) is not first_sym
+    assert from_wire(["v", "evicted"]) == first_var
+    assert from_wire(["v", "evicted"]) is not first_var
+
+
 def test_casting_protocol():
     assert int(Gnd(3)) == 3
     assert float(Gnd(3)) == 3.0
