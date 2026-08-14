@@ -12,6 +12,9 @@
 %     metta_operation_errors, translator_evaluation_errors].
 %   - is-alpha-member/3 tests unifiability without retaining bindings in its
 %     arguments [tested 2026-08-15: metta_alpha_membership].
+%   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
+%     hash collision cannot remove an inequivalent term [tested 2026-08-15:
+%     metta_alpha_unique].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
@@ -248,12 +251,28 @@ alpha_list_to_set_assoc([H|T], SeenIn, R) :-
     copy_term(H, HCopy),
     numbervars(HCopy, 0, _),
     term_hash(HCopy, Key),
-    ( get_assoc(Key, SeenIn, _) ->
+    alpha_bucket_insert(Key, HCopy, SeenIn, SeenOut, IsNew),
+    ( IsNew == false ->
         alpha_list_to_set_assoc(T, SeenIn, R)
     ;
-        put_assoc(Key, SeenIn, true, SeenOut),
         R = [H|RT],
         alpha_list_to_set_assoc(T, SeenOut, RT)
+    ).
+
+%A term hash selects a small bucket. Identity inside the bucket decides alpha
+%equivalence, because canonical terms produced above are ground.
+alpha_bucket_insert(Key, Term, SeenIn, SeenOut, IsNew) :-
+    ( get_assoc(Key, SeenIn, Bucket) ->
+        ( memberchk_eq(Term, Bucket) ->
+            SeenOut = SeenIn,
+            IsNew = false
+        ;
+            put_assoc(Key, SeenIn, [Term|Bucket], SeenOut),
+            IsNew = true
+        )
+    ;
+        put_assoc(Key, SeenIn, [Term], SeenOut),
+        IsNew = true
     ).
 
 %A term that can never become a list, no matter how it gets instantiated:
