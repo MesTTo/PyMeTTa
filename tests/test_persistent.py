@@ -398,6 +398,27 @@ def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):
     assert caught.value.__cause__ is not None
 
 
+def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeypatch):
+    journal = tmp_path / "invalid-tail-status.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.valid, S.prefix))
+    space.close()
+    with journal.open("ab") as stream:
+        stream.write(b"assert(edge(c,")
+
+    original_call = PersistentFactSpace._call
+
+    def invalid_tail_status(self, action, *args, **kwargs):
+        if action == "tail_status":
+            return {"Status": object()}
+        return original_call(self, action, *args, **kwargs)
+
+    monkeypatch.setattr(PersistentFactSpace, "_call", invalid_tail_status)
+    with pytest.raises(EngineError, match="invalid status") as caught:
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    assert isinstance(caught.value.__cause__, PettaError)
+
+
 def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
     journal = tmp_path / "module-pool.db"
     first = PersistentFactSpace(journal, {"edge": 2}, sync="close")

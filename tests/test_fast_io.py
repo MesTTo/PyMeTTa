@@ -6,6 +6,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import gzip
 import re
 from contextlib import contextmanager
 from pathlib import Path
@@ -62,6 +63,17 @@ def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):
         assert path.read_text() == '(h "a\\"b")\n'
         assert loaded.load(path) == []
         assert loaded.query(S.h(V.value))[0].value.value == 'a"b'
+
+
+@pytest.mark.parametrize("suffix", [".metta", ".metta.gz"])
+def test_text_save_uses_utf8_for_plain_and_gzip_files(metta, tmp_path, suffix):
+    path = tmp_path / f"unicode{suffix}"
+    with metta.fresh_space() as source:
+        source.add(S.text("é字"))
+        assert source.save(path) == 1
+
+    raw = gzip.decompress(path.read_bytes()) if suffix.endswith(".gz") else path.read_bytes()
+    assert raw == b'(text "\xc3\xa9\xe5\xad\x97")\n'
 
 
 def test_escaped_quote_runs_directly(metta):

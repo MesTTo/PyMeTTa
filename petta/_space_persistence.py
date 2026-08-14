@@ -7,6 +7,8 @@ Guarantees:
     test_text_save_write_failure_preserves_existing_file]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload]
+  - text snapshots use UTF-8 regardless of the process locale [tested
+    test_text_save_uses_utf8_for_plain_and_gzip_files]
 Owns:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save [tested test_save_failure_preserves_existing_file]
@@ -43,8 +45,12 @@ def _open_maybe_gz(path: str | os.PathLike[str], mode: str):
     """Open gzip paths through gzip and all other paths through open()."""
     file = os.fspath(path)
     if file.endswith(".gz"):
-        return gzip.open(file, mode)
-    return Path(file).open(mode)
+        if "b" in mode:
+            return gzip.open(file, mode)
+        return gzip.open(file, mode, encoding="utf-8")
+    if "b" in mode:
+        return Path(file).open(mode, encoding=None)
+    return Path(file).open(mode, encoding="utf-8")
 
 
 def _temporary_sibling(target: Path) -> Path:

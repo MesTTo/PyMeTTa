@@ -173,7 +173,7 @@ def _return_module(key: tuple[tuple[str, int], ...], module: str) -> None:
 
 
 def _helper_names(module: str, schema: Mapping[str, int]) -> dict[str, str]:
-    occupied = {(head, arity) for head, arity in schema.items()}
+    occupied = set(schema.items())
     for head, arity in schema.items():
         for prefix in ("assert_", "asserta_", "retract_", "retractall_"):
             occupied.add((f"{prefix}{head}", arity))
@@ -605,7 +605,7 @@ class PersistentFactSpace(SpaceProvider):
                 if not isinstance(status, str):
                     raise EngineError(
                         f"persistent journal tail inspection returned an invalid status: {status!r}"
-                    )
+                    ) from validation_error
                 tail_status = status
             if tail_status != "incomplete":
                 raise EngineError(
