@@ -397,7 +397,18 @@ def test_deep_terms_cross_and_print():
 
 
 def test_malformed_wire_is_refused():
-    for bad in (["b", "garbage"], ["n", "123"], ["s", 123], ["e", 5], ["zz", 1]):
+    class IntSubclass(int):
+        pass
+
+    for bad in (
+        ["b", "garbage"],
+        ["n", "123"],
+        ["n", True],
+        ["n", IntSubclass(1)],
+        ["s", 123],
+        ["e", 5],
+        ["zz", 1],
+    ):
         with pytest.raises(ValueError):
             from_wire(bad)
 

@@ -38,32 +38,54 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
     payload is a boundary bug and must say so, never coerce."""
     if tag == "s":
-        if not isinstance(payload, str):
-            raise ValueError(f"wire symbol payload must be text, got {payload!r}")
-        return _wire_sym(payload)
+        return _symbol_from_wire(payload)
     if tag == "g":
-        if not isinstance(payload, str):
-            raise ValueError(f"wire string payload must be text, got {payload!r}")
-        return Gnd(payload)
+        return _string_from_wire(payload)
     if tag == "n":
-        if isinstance(payload, bool) or not isinstance(payload, (int, float)):
-            raise ValueError(f"wire number payload must be numeric, got {payload!r}")
-        return Gnd(payload)
+        return _number_from_wire(payload)
     if tag == "b":
-        if isinstance(payload, bool):
-            return Gnd(payload)
-        if payload in ("true", "false"):
-            return Gnd(payload == "true")
-        raise ValueError(f"wire boolean payload must be true or false, got {payload!r}")
+        return _boolean_from_wire(payload)
     if tag == "v":
-        if not isinstance(payload, str):
-            raise ValueError(f"wire variable payload must be text, got {payload!r}")
-        return _wire_var(payload)
+        return _variable_from_wire(payload)
     if tag == "o":
-        if isinstance(payload, Box):
-            payload = payload.value
-        return Gnd(payload)
+        return _object_from_wire(payload)
     raise ValueError(f"unknown wire tag {tag!r}")
+
+
+def _symbol_from_wire(payload: Any) -> Atom:
+    if not isinstance(payload, str):
+        raise ValueError(f"wire symbol payload must be text, got {payload!r}")
+    return _wire_sym(payload)
+
+
+def _string_from_wire(payload: Any) -> Atom:
+    if not isinstance(payload, str):
+        raise ValueError(f"wire string payload must be text, got {payload!r}")
+    return Gnd(payload)
+
+
+def _number_from_wire(payload: Any) -> Atom:
+    if type(payload) not in (int, float):
+        raise ValueError(f"wire number payload must be numeric, got {payload!r}")
+    return Gnd(payload)
+
+
+def _boolean_from_wire(payload: Any) -> Atom:
+    if isinstance(payload, bool):
+        return Gnd(payload)
+    if payload in ("true", "false"):
+        return Gnd(payload == "true")
+    raise ValueError(f"wire boolean payload must be true or false, got {payload!r}")
+
+
+def _variable_from_wire(payload: Any) -> Atom:
+    if not isinstance(payload, str):
+        raise ValueError(f"wire variable payload must be text, got {payload!r}")
+    return _wire_var(payload)
+
+
+def _object_from_wire(payload: Any) -> Atom:
+    return Gnd(payload.value if isinstance(payload, Box) else payload)
 
 
 class Undefined:
@@ -108,34 +130,51 @@ class Undefined:
         return f"Undefined({self.value!r}, why={self.why!r})"
 
 
-def from_wire(wire: Any) -> Atom | Undefined:
-    """Rebuild an atom from the tagged wire form janus delivered.
+def _expression_children(payload: Any) -> list | tuple:
+    if not isinstance(payload, (list, tuple)):
+        raise ValueError(f"wire expression payload must be a list, got {payload!r}")
+    return payload
 
-    Iterative, because expression depth is data and must not meet Python's
-    recursion ceiling; strict, because a malformed payload is a boundary
-    bug that must surface rather than coerce.
-    """
-    # The u tag wraps a whole answer whose truth is undefined; it never
-    # nests inside expressions, so it is handled at the entry alone.
-    if isinstance(wire, (list, tuple)) and len(wire) in (3, 4) and wire[0] == "u":
-        residual = wire[3] if len(wire) == 4 else None
-        return Undefined(atom_from_wire(wire[1]), str(wire[2]), residual)
-    if not isinstance(wire, (list, tuple)) or len(wire) != 2:
-        raise ValueError(f"malformed wire term: {wire!r}")
-    if wire[0] != "e":
-        return _leaf_from_wire(wire[0], wire[1])
 
+def _append_nontext_child(
+    tag: Any,
+    payload: Any,
+    items: list[Atom | _PendingExpr],
+    pendings: list[_PendingExpr],
+    stack: list[tuple[Any, _PendingExpr]],
+) -> None:
+    if tag == "e":
+        nested = _PendingExpr()
+        pendings.append(nested)
+        items.append(nested)
+        stack.append((payload, nested))
+        return
+    items.append(_leaf_from_wire(tag, payload))
+
+
+def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr:
+    # Children are discovered after their parents, so reverse discovery
+    # builds every nested expression before its holder.
+    for pending in reversed(pendings):
+        pending.built = Expr(
+            [item.built if isinstance(item, _PendingExpr) else item for item in pending.items]
+        )
+    return root.built
+
+
+def _expression_from_wire(payload: Any) -> Expr:
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
-    stack: list[tuple[Any, _PendingExpr]] = [(wire[1], root)]
-    # The three hottest tags decode inline, validation kept: a 2000-row
-    # answer is hundreds of thousands of cells, and the dispatch call per
-    # cell was half the query path's whole cost, profiled.
+    stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]
+    # Symbols and numbers decode inline, validation kept: a 2000-row answer
+    # is hundreds of thousands of cells, and a dispatch call per cell was
+    # half the query path's whole cost, profiled. The less common tag paths
+    # stay separate so their validation remains readable.
     wire_sym, gnd, seq = _wire_sym, Gnd, (list, tuple)
+    string_from_wire, append_nontext = _string_from_wire, _append_nontext_child
     while stack:
         children, pending = stack.pop()
-        if not isinstance(children, seq):
-            raise ValueError(f"wire expression payload must be a list, got {children!r}")
+        children = _expression_children(children)
         items = pending.items
         for child in children:
             if not isinstance(child, seq) or len(child) != 2:
@@ -146,27 +185,38 @@ def from_wire(wire: Any) -> Atom | Undefined:
                     raise ValueError(f"wire symbol payload must be text, got {payload!r}")
                 items.append(wire_sym(payload))
             elif tag == "n":
-                if isinstance(payload, bool) or not isinstance(payload, (int, float)):
+                if type(payload) not in (int, float):
                     raise ValueError(f"wire number payload must be numeric, got {payload!r}")
                 items.append(gnd(payload))
             elif tag == "g":
-                if not isinstance(payload, str):
-                    raise ValueError(f"wire string payload must be text, got {payload!r}")
-                items.append(gnd(payload))
-            elif tag == "e":
-                nested = _PendingExpr()
-                pendings.append(nested)
-                items.append(nested)
-                stack.append((payload, nested))
+                items.append(string_from_wire(payload))
             else:
-                items.append(_leaf_from_wire(tag, payload))
-    # Children are discovered after their parents, so building in reverse
-    # discovery order builds every nested expression before its holder.
-    for pending in reversed(pendings):
-        pending.built = Expr(
-            [item.built if isinstance(item, _PendingExpr) else item for item in pending.items]
-        )
-    return root.built
+                append_nontext(tag, payload, items, pendings, stack)
+    return _finish_expression(pendings, root)
+
+
+def from_wire(wire: Any) -> Atom | Undefined:
+    """Rebuild an atom from the tagged wire form janus delivered.
+
+    Iterative, because expression depth is data and must not meet Python's
+    recursion ceiling; strict, because a malformed payload is a boundary
+    bug that must surface rather than coerce.
+    """
+    if not isinstance(wire, (list, tuple)):
+        raise ValueError(f"malformed wire term: {wire!r}")
+    # The u tag wraps a whole answer whose truth is undefined; it never
+    # nests inside expressions, so it is handled at the entry alone.
+    match wire:
+        case ["u", value, why]:
+            return Undefined(atom_from_wire(value), str(why))
+        case ["u", value, why, residual]:
+            return Undefined(atom_from_wire(value), str(why), residual)
+        case ["e", payload]:
+            return _expression_from_wire(payload)
+        case [tag, payload]:
+            return _leaf_from_wire(tag, payload)
+        case _:
+            raise ValueError(f"malformed wire term: {wire!r}")
 
 
 def atom_from_wire(wire: Any) -> Atom:
