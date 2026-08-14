@@ -90,6 +90,7 @@ class Defined:
         body: Atom,
         py: Callable,
         space: Any,
+        *,
         patterns: dict[str, Atom] | None = None,
         runtime_ops: frozenset[str] = frozenset(),
     ):
@@ -109,7 +110,9 @@ class Defined:
 
     def __call__(self, *args: Any) -> Expr:
         if len(args) != len(self.params):
-            raise TypeError(f"{self.name} takes {len(self.params)} argument(s), got {len(args)}")
+            raise TypeError(
+                f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
+            )
         return Expr([Sym(self.name), *(encode(a) for a in args)])
 
     @property
@@ -119,7 +122,9 @@ class Defined:
 
     @property
     def head(self) -> Expr:
-        return Expr([Sym(self.name), *(self.patterns.get(p, Var(p)) for p in self.params)])
+        return Expr(
+            [Sym(self.name), *(self.patterns.get(p, Var(p)) for p in self.params)]
+        )
 
     def source(self) -> str:
         """The equation as MeTTa source."""
@@ -179,7 +184,9 @@ def compile_function(
     tree = ast.parse(source)
     definition = tree.body[0]
     if not isinstance(definition, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        raise CompileError(f"{fn.__name__} is not a function definition", construct="def")
+        raise CompileError(
+            f"{fn.__name__} is not a function definition", construct="def"
+        )
     if isinstance(definition, ast.AsyncFunctionDef):
         raise CompileError(
             "an async function has no MeTTa equation; register it as an operation instead",
@@ -249,9 +256,10 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
         )
     params = [arg.arg for arg in a.args]
     patterns: dict[str, Atom] = {}
-    for arg, default in zip(reversed(a.args), reversed(a.defaults)):
+    for arg, default in zip(reversed(a.args), reversed(a.defaults), strict=False):
         if not (
-            isinstance(default, ast.Constant) and isinstance(default.value, (bool, int, float, str))
+            isinstance(default, ast.Constant)
+            and isinstance(default.value, (bool, int, float, str))
         ):
             raise CompileError(
                 "a default here is a head pattern, so it must be a literal: "
@@ -283,6 +291,7 @@ class _Compiler(
         name: str,
         params: list[str] | dict[str, str],
         known: Callable[[str], bool],
+        *,
         used: set[str] | None = None,
         nondet: Callable[[str], bool] | None = None,
         aux: list | None = None,
@@ -297,7 +306,9 @@ class _Compiler(
         # The Python spelling of the definition's own name, for recursion
         # written the way the author wrote it; self.name is the MeTTa one.
         self.pyname = pyname or name
-        self._builtins = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        self._builtins = (
+            __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        )
         # Whether an identifier resolves to a host binding (a global or a
         # closure cell): a capitalized name that does is a module constant,
         # not a data constructor, and compiles to a refusal.
@@ -324,7 +335,9 @@ class _Compiler(
         # Python name -> (equation name, lifted outer names, is_generator)
         # for inner defs; a call site prepends the lifted names' CURRENT
         # variables, which is Python's own late binding, resolved per call.
-        self.lifted: dict[str, tuple[str, list[str], bool]] = lifted if lifted is not None else {}
+        self.lifted: dict[str, tuple[str, list[str], bool]] = (
+            lifted if lifted is not None else {}
+        )
         # What a block falling off its end means: None is the function-level
         # reading (a missing return is a refusal); a loop body's closer
         # builds the recursive call from the scope at that point.

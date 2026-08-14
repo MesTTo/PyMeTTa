@@ -28,6 +28,7 @@ from ._version import __version__
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
+
 class PeTTa:
     """The original thin wrapper: swrite strings in, swrite strings out.
 
@@ -144,9 +145,7 @@ def backend_info() -> dict[str, str | None]:
     None until a MeTTa runtime exists.
     """
     janus_bridge = _engine.bridge()
-    version_row = janus_bridge.query_once(
-        "current_prolog_flag(version, SwiVersion)"
-    )
+    version_row = janus_bridge.query_once("current_prolog_flag(version, SwiVersion)")
     if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
         raise EngineError("janus did not report the running SWI-Prolog version")
     swi_version_num = version_row["SwiVersion"]
@@ -156,97 +155,94 @@ def backend_info() -> dict[str, str | None]:
         "janus": janus_bridge.version_str(),
         "swi_prolog": janus_bridge.version_str(swi_version_num),
         "python": (
-            f"{sys.version_info.major}.{sys.version_info.minor}."
-            f"{sys.version_info.micro}"
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         ),
-        "petta_path": (
-            None if active is None else active.petta_path
-        ),
+        "petta_path": (None if active is None else active.petta_path),
     }
 
 
 __all__ = [
-    # the legacy surface
-    "PeTTa",
-    "Config",
-    "config",
+    "DECLINE",
+    "REFLECTION_SPACE",
+    "Adder",
     # atoms
     "Atom",
-    "Sym",
-    "Var",
-    "Gnd",
-    "Expr",
-    "Undefined",
-    "S",
-    "V",
-    "sym",
-    "var",
-    "val",
-    "expr",
-    "encode",
-    "decode",
-    "parse",
-    "alpha_eq",
-    "unify",
-    "variables",
-    "is_ground",
-    "map_atoms",
-    "register_object_repr",
-    "cast",
-    "CastError",
-    # runtime
-    "MeTTa",
-    "Prepared",
-    "Cursor",
-    "EngineProfile",
-    "engine_thread",
-    "Rows",
-    "Row",
-    "REFLECTION_SPACE",
-    # diagnostics
-    "backend_info",
-    "Derivation",
-    "Step",
-    "Fact",
     "Builtin",
-    "Truncated",
-    # errors
-    "PettaError",
-    "EngineError",
-    "ResourceLimitError",
-    "TimeLimitError",
-    "InferenceLimitError",
-    "Interrupted",
-    "MettaSyntaxError",
-    "CompileError",
-    "Decline",
-    "DECLINE",
-    # the general integration surface
-    "integrate",
-    "convert",
-    "arrays",
-    "foreign",
-    "matching",
-    "measure",
-    "Matcher",
-    "Enumerable",
-    "Adder",
-    "Remover",
+    "CastError",
     "Clearer",
-    "SpaceProvider",
+    "CompileError",
+    "Config",
+    "Cursor",
+    "Decline",
     "Defined",
-    "register_object_repr_protocol",
+    "Derivation",
+    "EngineError",
+    "EngineProfile",
+    "Enumerable",
     # standing queries and contexts
     "Event",
+    "Expr",
+    "Fact",
+    "Gnd",
+    "InferenceLimitError",
+    "Interrupted",
+    "Matcher",
+    # runtime
+    "MeTTa",
+    "MettaSyntaxError",
+    # the legacy surface
+    "PeTTa",
+    # errors
+    "PettaError",
+    "Prepared",
+    "Remover",
+    "ResourceLimitError",
+    "Row",
+    "Rows",
+    "S",
+    "SpaceProvider",
+    "Step",
     "Subscription",
-    "bridge",
-    "remote",
+    "Sym",
+    "TimeLimitError",
+    "Truncated",
+    "Undefined",
+    "V",
+    "Var",
+    "__version__",
     "aio",
+    "alpha_eq",
+    "arrays",
+    # diagnostics
+    "backend_info",
+    "bridge",
+    "cast",
+    "config",
+    "convert",
+    "current_space",
     "das",
+    "decode",
+    "encode",
+    "engine_thread",
+    "expr",
+    "foreign",
+    # the general integration surface
+    "integrate",
+    "is_ground",
     "lint",
+    "map_atoms",
+    "matching",
+    "measure",
+    "parse",
     "persistent",
+    "register_object_repr",
+    "register_object_repr_protocol",
+    "remote",
+    "sym",
     "testing",
     "trace",
-    "current_space",
-    "__version__",
+    "unify",
+    "val",
+    "var",
+    "variables",
 ]

@@ -26,7 +26,7 @@ import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
-from typing import Any, SupportsIndex, overload
+from typing import Any, Self, SupportsIndex, overload
 
 from . import convert
 from ._config import config
@@ -78,12 +78,12 @@ class Row(tuple):
     def __repr__(self) -> str:
         inner = ", ".join(
             f"{column}={_VALUE_REPR.repr(value)}"
-            for column, value in zip(type(self)._columns, self)
+            for column, value in zip(type(self)._columns, self, strict=True)
         )
         return f"Row({inner})"
 
     def asdict(self) -> dict[str, Any]:
-        return dict(zip(type(self)._columns, self))
+        return dict(zip(type(self)._columns, self, strict=True))
 
     def __reduce__(self):
         return _restore_row, (type(self)._columns, tuple(self))
@@ -91,8 +91,7 @@ class Row(tuple):
 
 @lru_cache(maxsize=256)
 def _row_class(columns: tuple[str, ...]) -> type[Row]:
-    cls = type("Row", (Row,), {"__slots__": (), "_columns": columns})
-    return cls
+    return type("Row", (Row,), {"__slots__": (), "_columns": columns})
 
 
 def _restore_row(columns: tuple[str, ...], values: tuple[Any, ...]) -> Row:
@@ -110,7 +109,9 @@ class Rows(UserList[Row]):
         columns = tuple(columns)
         duplicates = [name for i, name in enumerate(columns) if name in columns[:i]]
         if duplicates:
-            raise ValueError(f"Rows column names must be unique; duplicate names: {duplicates}")
+            raise ValueError(
+                f"Rows column names must be unique; duplicate names: {duplicates}"
+            )
         self.columns = columns
         checked = []
         for index, row in enumerate(rows):
@@ -187,7 +188,7 @@ class Rows(UserList[Row]):
     def __radd__(self, other: Iterable[Iterable[Any]]) -> Rows:
         return Rows(self.columns, [*self._addition_rows(other), *self.data])
 
-    def __iadd__(self, other: Iterable[Iterable[Any]]) -> Rows:
+    def __iadd__(self, other: Iterable[Iterable[Any]]) -> Self:
         self.extend(self._addition_rows(other))
         return self
 
@@ -235,7 +236,9 @@ class Rows(UserList[Row]):
         def plain(value: Any) -> Any:
             return decode(value) if isinstance(value, Gnd) else str(value)
 
-        return {name: [plain(row[i]) for row in self] for i, name in enumerate(self.columns)}
+        return {
+            name: [plain(row[i]) for row in self] for i, name in enumerate(self.columns)
+        }
 
     def to_df(self):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.

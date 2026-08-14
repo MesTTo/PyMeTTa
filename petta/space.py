@@ -41,7 +41,7 @@ import os
 import types
 from collections import abc as _abc
 from collections.abc import Callable
-from typing import Any, Literal, overload
+from typing import Any, Literal, Self, overload
 
 from . import integrate as _integrate
 from . import ops as _ops_module
@@ -75,7 +75,12 @@ from .atoms import (
 from .casting import cast as _cast
 from .derivation import Derivation
 from .errors import EngineError
-from .foreign import PROVIDERS, register_provider, require_capability, unregister_provider
+from .foreign import (
+    PROVIDERS,
+    register_provider,
+    require_capability,
+    unregister_provider,
+)
 from .lint import lint as _lint
 from .results import Rows
 from .subscribe import _subscriptions_for
@@ -186,7 +191,7 @@ class MeTTa:
         if self._space != "&self":
             self._rt.must("petta_py_release_space(Space)", Space=self._space)
 
-    def __enter__(self) -> MeTTa:
+    def __enter__(self) -> Self:
         if not self._ephemeral:
             raise TypeError(
                 f"{self._space} was not created by fresh_space(); only an "
@@ -478,11 +483,11 @@ class MeTTa:
         """Remove everything stored here, compiled equations included."""
         clear_definitions(self)
 
-    def __iadd__(self, atom: Any) -> MeTTa:
+    def __iadd__(self, atom: Any) -> Self:
         self.add(atom)
         return self
 
-    def __isub__(self, atom: Any) -> MeTTa:
+    def __isub__(self, atom: Any) -> Self:
         self.remove(atom)
         return self
 
@@ -575,7 +580,9 @@ class MeTTa:
             route.solve(given=[S.edge(S.x, S.y)])
         """
         return Prepared(
-            self, [_to_atom(p) for p in patterns], None if where is None else _to_atom(where)
+            self,
+            [_to_atom(p) for p in patterns],
+            None if where is None else _to_atom(where),
         )
 
     # -------------------------------------------------------------- evaluation
@@ -758,7 +765,9 @@ class MeTTa:
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count."""
         return bool(
-            self._rt.once("petta_py_function_visible(Space, Name)", Space=self._space, Name=name)
+            self._rt.once(
+                "petta_py_function_visible(Space, Name)", Space=self._space, Name=name
+            )
         )
 
     def arities(self, name: str) -> list[int]:

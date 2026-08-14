@@ -237,7 +237,9 @@ def _pydantic_registration(cls: type) -> _Registration:
         # model_validate with by_name, not cls(**...): a field declared with
         # an alias validates under the alias in the constructor, while
         # projection read attribute names, and by_name accepts them directly.
-        lambda *parts: model_cls.model_validate(dict(zip(names, parts, strict=True)), by_name=True),
+        lambda *parts: model_cls.model_validate(
+            dict(zip(names, parts, strict=True)), by_name=True
+        ),
         cls.__name__,
         names,
         _field_types(cls, names),
@@ -266,9 +268,14 @@ def _dataclass_registration(cls: type) -> _Registration:
 
 
 def _named_tuple_registration(cls: type) -> _Registration:
-    raw_names = getattr(cls, "_fields")
-    if not (isinstance(raw_names, tuple) and all(isinstance(name, str) for name in raw_names)):
-        raise TypeError(f"{cls.__name__} declares invalid NamedTuple fields: {raw_names!r}")
+    raw_names = typing.cast(Any, cls)._fields
+    if not (
+        isinstance(raw_names, tuple)
+        and all(isinstance(name, str) for name in raw_names)
+    ):
+        raise TypeError(
+            f"{cls.__name__} declares invalid NamedTuple fields: {raw_names!r}"
+        )
     names = typing.cast(tuple[str, ...], raw_names)
     return _Registration(
         "expression",

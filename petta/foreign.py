@@ -19,7 +19,7 @@ Open Obligations:
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from .atoms import Atom, atom_from_wire, encode
 from .errors import PettaError
@@ -36,6 +36,7 @@ __all__ = [
     "require_capability",
     "unregister_provider",
 ]
+
 
 @runtime_checkable
 class Matcher(Protocol):
@@ -195,8 +196,7 @@ def foreign_match(space: str, pattern_wire: list):
 def foreign_atoms(space: str):
     provider = PROVIDERS[space]
     _require_provider(provider, space, "enumerate", "get-atoms")
-    assert isinstance(provider, Enumerable)
-    for atom in provider.atoms():
+    for atom in cast(Enumerable, provider).atoms():
         yield encode(atom).to_wire()
 
 
@@ -204,8 +204,7 @@ def foreign_add(space: str, atom_wire: list) -> bool:
     provider = PROVIDERS[space]
     atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "add", "add-atom", atom=atom)
-    assert isinstance(provider, Adder)
-    provider.add(atom)
+    cast(Adder, provider).add(atom)
     return True
 
 
@@ -213,13 +212,11 @@ def foreign_remove(space: str, atom_wire: list) -> bool:
     provider = PROVIDERS[space]
     atom = atom_from_wire(atom_wire)
     _require_provider(provider, space, "remove", "remove-atom", atom=atom)
-    assert isinstance(provider, Remover)
-    return bool(provider.remove(atom))
+    return bool(cast(Remover, provider).remove(atom))
 
 
 def foreign_clear(space: str) -> bool:
     provider = PROVIDERS[space]
     _require_provider(provider, space, "clear", "clear")
-    assert isinstance(provider, Clearer)
-    provider.clear()
+    cast(Clearer, provider).clear()
     return True
