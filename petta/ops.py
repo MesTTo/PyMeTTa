@@ -313,7 +313,13 @@ def unregister(runtime, name: MettaName) -> None:
     registration added, so nothing keeps describing a function that no
     longer exists."""
     op = REGISTRY.get(name)
-    for arity_row in list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name)):
+    arities = list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name))
+    # The registry walk above already knows whether anything is there, so the
+    # existence check costs nothing extra. Asking builtins() instead listed
+    # every registered function per call, +69.6% on the register-op counter.
+    if not arities and op is None:
+        raise KeyError(f"no operation named {name!r} is registered")
+    for arity_row in arities:
         runtime.must("petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:
         for declaration in op.declarations:

@@ -893,8 +893,6 @@ class MeTTa:
         removing something that was never there is a mistake worth hearing
         about, not a no-op to absorb.
         """
-        if name not in self.builtins():
-            raise KeyError(f"no operation named {name!r} is registered")
         _ops_module.unregister(self._rt, name)
 
     # The paired names are canonical. These spellings keep existing

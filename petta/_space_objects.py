@@ -21,7 +21,7 @@ import time
 import warnings
 import weakref
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
 from .atoms import Atom, Expr, Gnd, Sym, Var, _to_atom, atom_from_wire, encode, variables
@@ -34,21 +34,29 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str) -> None:
+    """Check one per-call bound, type before magnitude.
+
+    Comparing first reports a wrong type as "'>' not supported between
+    instances of 'str' and 'int'", which names neither the argument nor the
+    call the user made.
+    """
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, kinds):
+        raise TypeError(f"{called} must be {reads} or None, got {value!r}")
+    # isinstance against a variable tuple narrows value to object, so the
+    # comparison needs the type the check just established.
+    if not cast(float, value) > 0:
+        raise ValueError(f"{called} must be positive, got {value!r}")
+
+
 def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
     """Validate the per-call bounds into the shim's (-1 = none) pair."""
     if timeout is inferences is None:
         return None
-    # Type first: the comparisons below would otherwise report a wrong type as
-    # "'>' not supported between instances of 'str' and 'int'", naming neither
-    # the argument nor the call.
-    if timeout is not None and (isinstance(timeout, bool) or not isinstance(timeout, int | float)):
-        raise TypeError(f"timeout must be seconds as a number or None, got {timeout!r}")
-    if inferences is not None and (isinstance(inferences, bool) or not isinstance(inferences, int)):
-        raise TypeError(f"inferences must be a positive int or None, got {inferences!r}")
-    if timeout is not None and not timeout > 0:
-        raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
-    if inferences is not None and not inferences > 0:
-        raise ValueError(f"inferences must be a positive count, got {inferences!r}")
+    _require_bound(timeout, "timeout", (int, float), "seconds as a number")
+    _require_bound(inferences, "inferences", (int,), "a positive int")
     return (
         -1.0 if timeout is None else float(timeout),
         -1 if inferences is None else int(inferences),
