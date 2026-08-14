@@ -544,7 +544,7 @@ class EmbeddingStore:
         return len(self._keys)
 
     def keys(self) -> list[Atom]:
-        return list(self._keys)
+        return self._keys.copy()
 
     def vector_for(self, key: Any) -> Any:
         atom = key if isinstance(key, Atom) else S[str(key)]

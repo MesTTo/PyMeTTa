@@ -114,9 +114,7 @@ class Rows(UserList[Row]):
                 f"Rows column names must be unique; duplicate names: {duplicates}"
             )
         self.columns = columns
-        checked = []
-        for index, row in enumerate(rows):
-            checked.append(self._coerce_row(row, index=index))
+        checked = [self._coerce_row(row, index=index) for index, row in enumerate(rows)]
         super().__init__(checked)
 
     def _coerce_row(self, row: Iterable[Any], *, index: int | None = None) -> Row:

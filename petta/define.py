@@ -357,7 +357,7 @@ class _Compiler(
         """A compiler for one branch: its own scope, the shared minted set."""
         forked = _Compiler(
             self.name,
-            dict(self.scope),
+            self.scope.copy(),
             self.known,
             used=self.used,
             nondet=self._given_nondet,
@@ -369,13 +369,13 @@ class _Compiler(
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
         )
-        forked.closer_names = list(self.closer_names)
+        forked.closer_names = self.closer_names.copy()
         return forked
 
     def _inner(self, extra: list[str]) -> _Compiler:
         """A compiler for a nested binder (lambda, comprehension): the outer
         scope plus the binder's own parameters, shadowing by name."""
-        scope = dict(self.scope)
+        scope = self.scope.copy()
         scope.update({p: p for p in extra})
         inner = _Compiler(
             self.name,
@@ -391,7 +391,7 @@ class _Compiler(
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
         )
-        inner.closer_names = list(self.closer_names)
+        inner.closer_names = self.closer_names.copy()
         return inner
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:

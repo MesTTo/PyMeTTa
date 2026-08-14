@@ -1,6 +1,10 @@
 """Purpose: own the engine bootstrap and bridge. Consults PeTTa and the shim
 exactly once per process, serializes janus calls behind one lock, and turns
 Prolog exceptions into the library's own errors for both Python surfaces.
+Assumes:
+  - JanusBridge.engine returns the documented integer engine identifier
+    [source 2026-08-14:
+    https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
 Guarantees:
   - importing petta does not import janus_swi until an engine-backed API is
     used [tested test_package_import_does_not_require_janus]
@@ -146,7 +150,7 @@ def engine_thread() -> Iterator[None]:
     """
     bridge = runtime()._janus
     try:
-        already_attached = int(bridge.engine()) >= 0
+        already_attached = bridge.engine() >= 0
     except Exception as exc:
         raise EngineError("could not inspect this thread's Prolog engine") from exc
     if already_attached:
@@ -157,7 +161,7 @@ def engine_thread() -> Iterator[None]:
     try:
         bridge.attach_engine()
         attached = True
-        if int(bridge.engine()) < 0:
+        if bridge.engine() < 0:
             raise RuntimeError("janus did not attach a Prolog engine")
     except Exception as exc:
         if attached:
@@ -207,8 +211,7 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
 
 def _clean_message(exc: BaseException) -> str:
     """The engine's words, without the janus frame around them."""
-    text = str(exc)
-    return text.strip()
+    return str(exc).strip()
 
 
 class Runtime:

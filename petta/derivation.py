@@ -14,6 +14,7 @@ Open Obligations:
 from __future__ import annotations
 
 import html
+import string
 from dataclasses import dataclass, field
 from typing import TypeGuard
 
@@ -151,7 +152,7 @@ def _pretty(atom: Atom) -> Atom:
     them to $a, $b, ... in appearance order. The stored tree keeps the
     originals, so nothing downstream loses the real identity.
     """
-    names = "abcdefghijklmnopqrstuvwxyz"
+    names = string.ascii_lowercase
     mapping: dict[str, str] = {}
 
     def rename(a: Atom) -> Atom:

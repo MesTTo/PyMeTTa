@@ -113,7 +113,7 @@ class Config:
     def as_dict(self) -> dict[str, int]:
         """Return an independent snapshot of every setting."""
         with self._lock:
-            return dict(self._values)
+            return self._values.copy()
 
     @contextmanager
     def _startup(self) -> Iterator[tuple[int, int]]:

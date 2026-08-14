@@ -105,7 +105,7 @@ def integrate(m, target: Any) -> str:
 
 def installed() -> dict[tuple[str, str], Any]:
     """(space, integration name) -> the installed target."""
-    return dict(_INSTALLED)
+    return _INSTALLED.copy()
 
 
 def _resolve(name: str) -> Any:
@@ -117,10 +117,10 @@ def _resolve(name: str) -> Any:
 
 def discover(m) -> list[str]:
     """Install every integration installed packages advertise."""
-    names = []
-    for entry in metadata.entry_points(group=ENTRY_POINT_GROUP):
-        names.append(integrate(m, entry.load()))
-    return names
+    return [
+        integrate(m, entry.load())
+        for entry in metadata.entry_points(group=ENTRY_POINT_GROUP)
+    ]
 
 
 # ----------------------------------------------------------------- operations

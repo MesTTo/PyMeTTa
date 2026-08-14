@@ -270,4 +270,4 @@ def unregister(runtime, name: str) -> None:
 
 def registered() -> dict[str, Operation]:
     """The live registry, name to operation."""
-    return dict(REGISTRY)
+    return REGISTRY.copy()

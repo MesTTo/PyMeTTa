@@ -171,7 +171,7 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Compare(self, node: ast.Compare) -> Atom:
-        terms = [self.expression(v) for v in [node.left, *node.comparators]]
+        terms = [self.expression(v) for v in (node.left, *node.comparators)]
         # A middle operand of a chain is read by two links; Python evaluates
         # it once, so anything that is not already a leaf binds to a
         # temporary before any link is built. Minted names carry a hyphen,
@@ -182,9 +182,10 @@ class ExpressionCompilerMixin(CompilerContext):
                 temp = self._temp("cmp")
                 bindings.append((temp, terms[i]))
                 terms[i] = Var(temp)
-        links: list[Atom] = []
-        for i, op_node in enumerate(node.ops):
-            links.append(self._compare_link(op_node, terms[i], terms[i + 1], node.lineno))
+        links = [
+            self._compare_link(op_node, terms[i], terms[i + 1], node.lineno)
+            for i, op_node in enumerate(node.ops)
+        ]
         folded = links[-1]
         for link in reversed(links[:-1]):
             # The chain short-circuits exactly as Python's does.
@@ -269,8 +270,9 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         params = [arg.arg for arg in a.args]
         inner = self._inner(params)
-        body = inner.expression(node.body)
-        return Expr([Sym("|->"), Expr([Var(p) for p in params]), body])
+        return Expr(
+            [Sym("|->"), Expr([Var(p) for p in params]), inner.expression(node.body)]
+        )
 
     def _x_ListComp(self, node: ast.ListComp) -> Atom:
         """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), an
@@ -396,7 +398,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # min(xs) reads the elements of one expression; min(a, b, ...) folds
         # the engine's two-place min over the arguments, Python's own split.
         args = self._args(node, None, which)
-        if len(args) == 0:
+        if not args:
             raise CompileError(f"{which}() needs arguments", construct=which, line=node.lineno)
         if len(args) == 1:
             return Expr([Sym(f"{which}-atom"), args[0]])

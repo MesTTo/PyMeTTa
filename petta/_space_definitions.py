@@ -57,8 +57,9 @@ def clear_definitions(space: Any) -> None:
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
             for key in [key for key in registry if key[0] == space.space_name]:
                 del registry[key]
-        for key in [key for key in _DEFINED_GENERATORS if key[0] == space.space_name]:
-            _DEFINED_GENERATORS.discard(key)
+        _DEFINED_GENERATORS.difference_update(
+            {key for key in _DEFINED_GENERATORS if key[0] == space.space_name}
+        )
         if space.space_name != _ops_module.REFLECTION_SPACE:
             space.runtime.must("petta_py_reflect_clear_defined(Space)", Space=space.space_name)
 
@@ -187,7 +188,7 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
         for helper_equation in earlier[replaced].get("aux", ()):
             space.remove(helper_equation)
         earlier[replaced] = {
-            "patterns": dict(patterns),
+            "patterns": patterns.copy(),
             "equation": equation,
             "aux": tuple(compiled.aux),
         }
@@ -195,7 +196,7 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
     else:
         earlier.append(
             {
-                "patterns": dict(patterns),
+                "patterns": patterns.copy(),
                 "equation": equation,
                 "aux": tuple(compiled.aux),
             }

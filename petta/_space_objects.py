@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
     """Validate the per-call bounds into the shim's (-1 = none) pair."""
-    if timeout is None and inferences is None:
+    if timeout is inferences is None:
         return None
     if timeout is not None and not timeout > 0:
         raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
@@ -205,7 +205,7 @@ class Cursor:
         wires = [a.to_wire() for a in atoms]
         guard = [] if where is None else _to_atom(where).to_wire()
         self._handle = self._rt.apply_must(
-            "petta_py_cursor_open", space.space_name, wires, guard, list(columns), steps
+            "petta_py_cursor_open", space.space_name, wires, guard, columns.copy(), steps
         )
         self._closed = False
         self._exhausted = False

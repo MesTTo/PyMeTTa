@@ -247,7 +247,7 @@ def _pydantic_registration(cls: type) -> _Registration:
 
 
 def _dataclass_registration(cls: type) -> _Registration:
-    data_fields = tuple(dataclasses.fields(typing.cast(Any, cls)))
+    data_fields = dataclasses.fields(typing.cast(Any, cls))
     non_init = tuple(field.name for field in data_fields if not field.init)
     if non_init:
         listed = ", ".join(non_init)

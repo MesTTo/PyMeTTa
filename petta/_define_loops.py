@@ -64,12 +64,12 @@ class LoopCompilerMixin(CompilerContext):
         loop state, the test chooses between one more round and the exit,
         and the statements after the loop ARE the exit branch. With no break
         in the subset, a while-else always runs, so it prefixes the rest."""
-        rest = list(node.orelse) + rest
+        rest = node.orelse.copy() + rest
         state = self._loop_state([node.test, *node.body, *rest])
         helper = f"{self.name}--loop-{next_aux_serial()}"
 
         equation_compiler = self._equation_compiler(state)
-        equation_compiler.closer_names = list(state)
+        equation_compiler.closer_names = state.copy()
         recur = _recursion_closer(helper, state, prefix=[])
         body_compiler = equation_compiler._fork()
         body_compiler.closer = recur
@@ -89,7 +89,7 @@ class LoopCompilerMixin(CompilerContext):
         decons-atom peeling one per round. A nondeterministic source
         collapses first, which is Python's own single pass over it."""
         target = _name_of(node.target, node.lineno)
-        rest = list(node.orelse) + rest
+        rest = node.orelse.copy() + rest
         if target in self._free_reads(rest) or target in self.closer_names:
             raise CompileError(
                 f"{target!r} is read after the loop, where Python would hold "
@@ -103,7 +103,7 @@ class LoopCompilerMixin(CompilerContext):
         sequence = "loop-rest"
 
         equation_compiler = self._equation_compiler([sequence, *state])
-        equation_compiler.closer_names = list(state)
+        equation_compiler.closer_names = state.copy()
         body_compiler = equation_compiler._fork()
         variable = body_compiler._bind(target)
         tail = body_compiler._temp("tail")
