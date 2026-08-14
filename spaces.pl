@@ -8,13 +8,16 @@
 %   Hacks: None
 %   Future Enhancements: None
 
-%A nonempty expression is encoded as the arguments of the space predicate.
-add_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
-                               assertz(Term), !.
+% Return the asserted clause reference so a source load can roll back every
+% atom it added if a later form fails.
+add_sexp(Space, Term) :- add_sexp(Space, Term, _).
+add_sexp(Space, [Rel|Args], Ref) :- !,
+                                    Term =.. [Space, Rel | Args],
+                                    assertz(Term, Ref).
 %A scalar or empty expression needs a marked rule because Space(Term) as a
 %plain fact is already the encoding of the singleton expression (Term).
-add_sexp(Space, Atom) :- Head =.. [Space, Atom],
-                         assertz((Head :- native_scalar_atom)).
+add_sexp(Space, Atom, Ref) :- Head =.. [Space, Atom],
+                              assertz((Head :- native_scalar_atom), Ref).
 
 %Remove every atom that unifies with the requested value, matching the
 %existing retractall semantics for expressions.

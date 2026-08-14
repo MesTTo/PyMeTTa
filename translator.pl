@@ -83,7 +83,10 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                     ExpOut = BodyExpr
                                                   ; translate_expr(BodyExpr, GoalsBody, ExpOut) ),
                                                (  nonvar(ExpOut) , ExpOut = partial(Base,Bound)
-                                               -> arity(Base, Arity), length(Bound, N), M is (Arity - N) - 1,
+                                               -> length(Bound, N),
+                                                  MinimumArity is N + 1,
+                                                  setof(A, (arity(Base, A), A > MinimumArity), [Arity|_]),
+                                                  M is (Arity - N) - 1,
                                                   length(ExtraArgs, M), append(Bound, ExtraArgs, CallInArgs),
                                                   resolve_memoization(Base, CallInArgs, Out, Goal),
                                                   append(GoalsBody,[Goal],FinalGoals), append(Args1,ExtraArgs,HeadArgs)
@@ -95,6 +98,23 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                append(GoalsPrefix, FinalGoals, Goals),
                                                goals_list_to_conj(Goals, BodyConj0),
                                                merge_branch_returns(Head, BodyConj0, BodyConj).
+
+%Record atoms compiled as plain symbol heads together with where they were compiled:
+%a stored definition can be recompiled when the function arrives late, an already
+%executed expression cannot, so late registration repairs the former and warns on the latter.
+:- dynamic symbol_head/2.
+:- thread_local translating_runnable/0.
+note_symbol_head(HV) :- atom(HV), !,
+                        ( translating_runnable -> Ctx = runnable ; Ctx = clause ),
+                        ( symbol_head(HV, Ctx) -> true ; assertz(symbol_head(HV, Ctx)) ).
+note_symbol_head(_).
+
+%Translate an expression that executes immediately, marking its data uses as unrepairable.
+%once/1 closes the translation before the goals run, so nested imports triggered by the
+%execution compile their definitions under the clause context again:
+translate_runnable_expr(C, Goals, Out) :- setup_call_cleanup(assertz(translating_runnable, Ref),
+                                                             once(translate_expr(C, Goals, Out)),
+                                                             erase(Ref)).
 
 %Print compiled clause:
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
@@ -236,8 +256,9 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                 ( IsPartial -> append(Bound, AVs, AllAVs) ; AllAVs = AVs ),
                 build_call_or_partial_dl(Fun, AllAVs, Out, AfterArgs, Goals, []))
           %Literals (numbers, strings, etc.), known non-function atom => data:
-          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun_here(HV) ) -> translate_args_dl(T, AfterHead, Goals, AVs),
-                                                                  Out = [HV|AVs]
+          ; ( atomic(HV), \+ atom(HV) ; atom(HV), \+ fun_here(HV) ) -> note_symbol_head(HV),
+                                                                       translate_args_dl(T, AfterHead, Goals, AVs),
+                                                                       Out = [HV|AVs]
           %Plain data list: evaluate inner fun-sublists
           ; is_list(HV) -> translate_args_dl(T, AfterHead, AfterArgs, AVs),
                            eval_data_term_dl(HV, AfterArgs, Goals, HV1),
