@@ -6,7 +6,12 @@ mailbox is the space, the subscription is the standing query that maintains
 itself, and the engine's own write hooks deliver.
 Guarantees:
   - registry snapshots and queued event mutation are locked for
-    free-threaded Python [tested test_subscription_queue_is_thread_safe]
+    free-threaded Python [tested test_subscription_queue_is_thread_safe,
+    test_subscription_cancel_is_thread_safe]
+Guarded by:
+  - _SubscriptionRegistry._lock protects subscription state, the active
+    runtime, and engine subscription snapshots [tested
+    test_subscription_cancel_is_thread_safe]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -52,55 +57,73 @@ class Subscription:
 
     def drain(self) -> list[Event]:
         """Every queued event, oldest first; the queue empties."""
-        with _REGISTRY_LOCK:
-            events, self._queue = self._queue, []
-        return events
+        return _REGISTRY.drain(self)
 
     def cancel(self) -> None:
         # The registry mutation is locked: two threads cancelling the
         # same subscription both used to pass the _active guard, and the
         # second list removal raised. Delivery never runs under the lock.
-        with _REGISTRY_LOCK:
-            if not self._active:
-                return
-            self._active = False
-            _SUBSCRIPTIONS.remove(self)
-        _sync_engine()
-        if self._fact is not None and _RUNTIME is not None:
-            _reflect_remove(_RUNTIME, self._fact)
+        runtime = _REGISTRY.cancel(self)
+        if self._fact is not None and runtime is not None:
+            _reflect_remove(runtime, self._fact)
 
     def _deliver(self, event: Event) -> None:
         if self.callback is None:
-            with _REGISTRY_LOCK:
-                self._queue.append(event)
+            _REGISTRY.queue(self, event)
         else:
             self.callback(event)
 
 
-_SUBSCRIPTIONS: list[Subscription] = []
-_RUNTIME = None
-_REGISTRY_LOCK = threading.Lock()
+class _SubscriptionRegistry:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._subscriptions: list[Subscription] = []
+        self.runtime = None
+
+    def add(self, runtime, subscription: Subscription) -> None:
+        with self._lock:
+            self.runtime = runtime
+            self._subscriptions.append(subscription)
+            self._sync_locked()
+
+    def cancel(self, subscription: Subscription):
+        with self._lock:
+            if not subscription._active:
+                return None
+            subscription._active = False
+            self._subscriptions.remove(subscription)
+            self._sync_locked()
+            return self.runtime
+
+    def drain(self, subscription: Subscription) -> list[Event]:
+        with self._lock:
+            events, subscription._queue = subscription._queue, []
+            return events
+
+    def queue(self, subscription: Subscription, event: Event) -> None:
+        with self._lock:
+            subscription._queue.append(event)
+
+    def for_space(self, space: str) -> tuple[Subscription, ...]:
+        with self._lock:
+            return tuple(
+                subscription
+                for subscription in self._subscriptions
+                if subscription._active and subscription.space == space
+            )
+
+    def _sync_locked(self) -> None:
+        if self.runtime is None:
+            return
+        spaces = sorted({subscription.space for subscription in self._subscriptions})
+        self.runtime.must("petta_py_subscriptions(Spaces)", Spaces=spaces)
 
 
-def _sync_engine() -> None:
-    """Tell the engine which spaces have watchers: writes anywhere else
-    never cross the boundary. The set, not a flag, is the whole point."""
-    if _RUNTIME is not None:
-        with _REGISTRY_LOCK:
-            spaces = sorted({s.space for s in _SUBSCRIPTIONS})
-        _RUNTIME.must(
-            "petta_py_subscriptions(Spaces)",
-            Spaces=spaces,
-        )
+_REGISTRY = _SubscriptionRegistry()
 
 
 def _subscriptions_for(space: str) -> tuple[Subscription, ...]:
-    with _REGISTRY_LOCK:
-        return tuple(
-            subscription
-            for subscription in _SUBSCRIPTIONS
-            if subscription._active and subscription.space == space
-        )
+    return _REGISTRY.for_space(space)
 
 
 def subscribe(
@@ -110,11 +133,9 @@ def subscribe(
     callback: Callable[[Event], None] | None = None,
     on: str = "add",
 ) -> Subscription:
-    global _RUNTIME
     if on not in ("add", "remove", "both"):
         raise ValueError(f"on must be add, remove or both, not {on!r}")
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
-    _RUNTIME = runtime
     subscription = Subscription(space, pattern, callback, on)
     # The standing query reflects into the library's own space, removed on
     # cancel, so MeTTa programs see what Python is watching. The fact goes
@@ -122,9 +143,7 @@ def subscribe(
     # subscriptions arrive, never its own birth.
     subscription._fact = Expr([Sym("subscription"), Sym(space), pattern, Sym(on)])
     _reflect_add(runtime, subscription._fact)
-    with _REGISTRY_LOCK:
-        _SUBSCRIPTIONS.append(subscription)
-    _sync_engine()
+    _REGISTRY.add(runtime, subscription)
     return subscription
 
 
@@ -134,7 +153,7 @@ def subscribe(
 def _dispatch(action: str, space: str, wire: list) -> bool:
     atom = atom_from_wire(wire)
     for subscription in _subscriptions_for(space):
-        if subscription.on != "both" and subscription.on != action:
+        if subscription.on not in ("both", action):
             continue
         bindings = unify(subscription.pattern, atom)
         if bindings is None:

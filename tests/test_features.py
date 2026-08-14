@@ -72,8 +72,7 @@ def test_subscription_queue_is_thread_safe(m):
 
     consumer = threading.Thread(target=drain)
     producers = [
-        threading.Thread(target=produce, args=(start,))
-        for start in range(0, 400, 100)
+        threading.Thread(target=produce, args=(start,)) for start in range(0, 400, 100)
     ]
     consumer.start()
     for producer in producers:
@@ -87,6 +86,26 @@ def test_subscription_queue_is_thread_safe(m):
     assert sorted(event.bindings["value"].value for event in collected) == list(
         range(400)
     )
+
+
+def test_subscription_cancel_is_thread_safe(m):
+    subscription = m.subscribe(S.concurrent_cancel(V.value))
+    failures = []
+
+    def cancel():
+        try:
+            subscription.cancel()
+        except Exception as error:
+            failures.append(error)
+
+    threads = [threading.Thread(target=cancel) for _ in range(20)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert failures == []
+    assert subscription._active is False
 
 
 def test_subscription_fires_for_engine_side_writes(m):
@@ -196,11 +215,7 @@ def test_type_declares_class_with_accessors(m):
     assert m.run('!(Song-year (Song "Hallelujah" 1984))') == [[1984]]
     # And back into Python, typed rows in one call.
     rows = m.query(V.s)
-    songs = [
-        s
-        for s in rows.build("s", Song)
-        if isinstance(s, Song)
-    ]
+    songs = [s for s in rows.build("s", Song) if isinstance(s, Song)]
     assert songs == [Song("Hallelujah", 1984)]
 
 
@@ -312,10 +327,10 @@ def test_value_answers_the_one_answer(m):
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
     assert m.value(S.fact(5)) == 120
     with pytest.raises(EngineError):
-        m.value("(superpose (1 2))")     # two answers is not a value
+        m.value("(superpose (1 2))")  # two answers is not a value
     with pytest.raises(EngineError):
         m.run("(= (nothing) (empty))")
-        m.value(S.nothing())             # no answer is not a value either
+        m.value(S.nothing())  # no answer is not a value either
 
 
 def test_rows_first_and_one(m):
@@ -323,7 +338,7 @@ def test_rows_first_and_one(m):
     assert m.query(S.town(V.x)).first() is None
     assert m.query(S.city(V.x)).first() is not None
     with pytest.raises(ValueError):
-        m.query(S.city(V.x)).one()       # two rows
+        m.query(S.city(V.x)).one()  # two rows
     m.remove(S.city(S.perth))
     assert str(m.query(S.city(V.x)).one().x) == "sydney"
 
@@ -406,8 +421,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
         # And joins with local facts in ONE match, the multi-context point.
         local.run("(vip 1)")
         (group,) = local.run(
-            "!(collapse (match (context-space) (vip $id)"
-            " (match &hq (users $id $n) $n)))"
+            "!(collapse (match (context-space) (vip $id) (match &hq (users $id $n) $n)))"
         )
         assert group == [expr("Ada")]
         # Writes cross too, and the remote engine answers them back.
@@ -441,7 +455,7 @@ def test_type_methods_run_on_terms_and_handles(m):
         y: float
 
         def norm(self) -> float:
-            return (self.x ** 2 + self.y ** 2) ** 0.5
+            return (self.x**2 + self.y**2) ** 0.5
 
         def scaled(self, k: float) -> "MethodPoint":
             return MethodPoint(self.x * k, self.y * k)
@@ -449,9 +463,7 @@ def test_type_methods_run_on_terms_and_handles(m):
     assert m.run("!(MethodPoint-norm (MethodPoint 3.0 4.0))") == [[5.0]]
     # A method answering the class answers a constructor TERM: MeTTa keeps
     # matching it, and Python builds it back as the object it is.
-    (scaled,) = m.run(
-        "!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)"
-    )[0]
+    (scaled,) = m.run("!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)")[0]
     assert scaled == expr(S.MethodPoint, 6.0, 8.0)
     assert convert.build(scaled, MethodPoint) == MethodPoint(6.0, 8.0)
     # An equation over the constructor is a method written in MeTTa, on
@@ -496,9 +508,7 @@ def test_remote_auth_token_and_hook_requires_tls(metta):
     )
     try:
         with pytest.raises(PettaError, match="credentials require an https URL"):
-            remote.connect(
-                server.url, token="s3cret", headers={"x-tenant": "acme"}
-            )
+            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
     finally:
         server.close()
         served.drop()
@@ -516,9 +526,24 @@ def test_remote_serves_tls(metta, tmp_path):
         pytest.skip("openssl is not installed")
     key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
     subprocess.run(
-        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", str(key),
-         "-out", str(cert), "-days", "1", "-nodes", "-subj", "/CN=localhost"],
-        check=True, capture_output=True,
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            str(key),
+            "-out",
+            str(cert),
+            "-days",
+            "1",
+            "-nodes",
+            "-subj",
+            "/CN=localhost",
+        ],
+        check=True,
+        capture_output=True,
     )
     server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     server_context.load_cert_chain(cert, key)
