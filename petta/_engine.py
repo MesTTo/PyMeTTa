@@ -109,7 +109,7 @@ _EXCEPTION_TYPES = {
 }
 
 
-def _reserved_message(kind: str, detail: object, fallback: str) -> str:
+def _reserved_message(kind: object, detail: object, fallback: str) -> str:
     """Say what a reserved exception means, in the caller's own terms.
 
     The thrown term is an envelope the Python side put there, so rendering

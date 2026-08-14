@@ -19,12 +19,14 @@ from petta import (
     StrictError,
     TimeLimitError,
     V,
+    _engine,
     decode,
     expr,
     parse,
     val,
 )
 from petta.atoms import Gnd
+from petta.foreign import SpaceProvider, register_provider, unregister_provider
 
 
 @pytest.fixture()
@@ -444,3 +446,56 @@ def test_build_never_hands_back_its_private_sentinel(m):
     rows = m.query(S.p(V.x))
     assert petta.convert.build(S.a, str) == S.a
     assert rows.build("x", str) == [S.a]
+
+
+def test_a_provider_error_is_not_a_system_error(metta):
+    class Exploding(SpaceProvider):
+        def atoms(self):
+            raise RuntimeError("provider exploded")
+
+    register_provider(_engine.runtime(), "&exploding_probe", Exploding())
+    try:
+        with pytest.raises(EngineError) as failure:
+            metta.space("&exploding_probe").atoms()
+        # A generator body runs at the first pull, inside py_iter, where an
+        # exception surfaces as SystemError naming apply_once.
+        assert not isinstance(failure.value, SystemError)
+        assert "provider exploded" in str(failure.value)
+    finally:
+        unregister_provider(_engine.runtime(), "&exploding_probe")
+
+
+def test_a_provider_without_the_interface_is_refused_at_registration():
+    class NotAProvider:
+        def match(self, pattern):
+            return iter(())
+
+    with pytest.raises(TypeError, match="can_run"):
+        register_provider(_engine.runtime(), "&not_a_provider", NotAProvider())
+
+
+def test_removing_what_was_never_registered_is_reported(metta):
+    with pytest.raises(KeyError):
+        metta.unregister_op("no-such-operation-anywhere")
+    with pytest.raises(KeyError):
+        unregister_provider(_engine.runtime(), "&no_such_provider")
+
+
+def test_an_unknown_column_names_the_columns_that_exist(m):
+    m.add(S.p(S.a))
+    rows = m.query(S.p(V.who))
+    with pytest.raises(KeyError, match="did you mean 'who'"):
+        rows.column("wh")
+
+
+@pytest.mark.parametrize(
+    ("call", "match"),
+    [
+        (lambda m: m.run(None), "source as a string"),
+        (lambda m: m.is_function(None), "name as a string"),
+        (lambda m: m.is_function_here(1), "name as a string"),
+    ],
+)
+def test_a_wrong_argument_type_names_the_argument(m, call, match):
+    with pytest.raises(TypeError, match=match):
+        call(m)

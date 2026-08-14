@@ -32,6 +32,7 @@ import html
 import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
+from difflib import get_close_matches
 from functools import lru_cache
 from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
 
@@ -236,6 +237,15 @@ class Rows(UserList[Row]):
 
     def column(self, name: str) -> list[Any]:
         """Return one named column as a list."""
+        if name not in self.columns:
+            # tuple.index would otherwise report this as
+            # "tuple.index(x): x not in tuple", naming neither the column
+            # asked for nor the ones that exist.
+            close = get_close_matches(str(name), self.columns, n=1, cutoff=0.6)
+            suggestion = f"; did you mean {close[0]!r}?" if close else ""
+            raise KeyError(
+                f"no column {name!r} in {self.columns}{suggestion}"
+            )
         index = self.columns.index(name)
         return [row[index] for row in self]
 

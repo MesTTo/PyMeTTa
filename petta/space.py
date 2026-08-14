@@ -141,6 +141,22 @@ def _row_values(row: Any, keys: list[Any]) -> Any:
     return row.values()
 
 
+def _require_source(source: Any, called: str) -> None:
+    """Refuse non-text source here rather than at the engine's reader."""
+    if not isinstance(source, str):
+        raise TypeError(f"{called} takes MeTTa source as a string, got {source!r}")
+
+
+def _require_name(name: Any, called: str) -> None:
+    """Refuse a non-string name here, where the caller can still be named.
+
+    The engine reports one as `atom_string/2: Type error`, which names a
+    Prolog builtin and the tagged null `@none` instead of the argument.
+    """
+    if not isinstance(name, str):
+        raise TypeError(f"{called} takes a name as a string, got {name!r}")
+
+
 def _to_stored_atom(value: Any) -> Expr:
     """Accept exactly the non-empty expression shape spaces can store."""
     atom = _to_atom(value)
@@ -368,6 +384,7 @@ class MeTTa:
         point of the language; turn it on while learning or in a test, and
         the message names the near miss.
         """
+        _require_source(source, "run")
         answered = run_source(
             self._rt,
             self._space,
@@ -870,7 +887,14 @@ class MeTTa:
         return apply(fn) if fn is not None else apply
 
     def unregister_op(self, name: MettaName) -> None:
-        """Remove a registered operation, every arity of it."""
+        """Remove a registered operation, every arity of it.
+
+        An absent name raises KeyError, as convert.unregister_type does:
+        removing something that was never there is a mistake worth hearing
+        about, not a no-op to absorb.
+        """
+        if name not in self.builtins():
+            raise KeyError(f"no operation named {name!r} is registered")
         _ops_module.unregister(self._rt, name)
 
     # The paired names are canonical. These spellings keep existing
@@ -886,12 +910,14 @@ class MeTTa:
 
     def is_function(self, name: MettaName) -> bool:
         """Report whether a function is visible from this space."""
+        _require_name(name, "is_function")
         return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
 
     def is_function_here(self, name: MettaName) -> bool:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count."""
+        _require_name(name, "is_function_here")
         return bool(
             self._rt.once(
                 "petta_py_function_visible(Space, Name)", Space=self._space, Name=name

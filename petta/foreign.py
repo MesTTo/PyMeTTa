@@ -24,7 +24,7 @@ Open Obligations:
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from types import MappingProxyType
 from typing import Any, Protocol, cast, runtime_checkable
 
@@ -180,8 +180,22 @@ def require_capability(
 
 
 def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
-    if not name.startswith("&"):
+    if not isinstance(name, str) or not name.startswith("&"):
         raise ValueError(f"a space name starts with &; got {name!r}")
+    # Registration is the only place this is cheap to see. Without it an
+    # object carrying the narrow protocols but not the base class registers
+    # happily, and every later operation dies inside the engine callback on
+    # a missing can_run, naming an attribute rather than the mistake.
+    missing = [
+        method for method in ("can_run", "should_run") if not callable(getattr(provider, method, None))
+    ]
+    if missing:
+        raise TypeError(
+            f"a provider answers {' and '.join(missing)}; "
+            f"{type(provider).__name__} does not. Subclass petta.foreign."
+            f"SpaceProvider, which implements both from the narrow protocols "
+            f"the class does provide."
+        )
     with _PROVIDER_LOCK:
         holder = _PROVIDERS.get(name)
         if holder is not None and holder is not provider:
@@ -195,7 +209,14 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
 
 
 def unregister_provider(runtime, name: str) -> None:
+    """Release a registered provider; an absent name is a KeyError.
+
+    convert.unregister_type answers the same way. Removing something that
+    was never there is a mistake worth hearing about.
+    """
     with _PROVIDER_LOCK:
+        if name not in _PROVIDERS:
+            raise KeyError(f"no provider is registered for {name!r}")
         runtime.must("petta_py_unregister_foreign(Space)", Space=name)
         _PROVIDERS.pop(name, None)
 
@@ -203,8 +224,22 @@ def unregister_provider(runtime, name: str) -> None:
 # ------------------------------------------------- called from the shim
 
 
+def _wire_stream(candidates: Iterable[Any]):
+    """Encode candidates lazily, so a large foreign space still streams."""
+    for candidate in candidates:
+        yield encode(candidate).to_wire()
+
+
 def foreign_match(space: str, pattern_wire: list):
-    """Generator the shim's py_iter enumerates: candidate atoms, encoded."""
+    """The shim's py_iter enumerates this: candidate atoms, encoded.
+
+    Everything that can fail happens before the generator exists. A
+    generator body does not run until the first pull, and an exception
+    raised there escapes through py_iter as
+    `SystemError: apply_once returned a result with an exception set`,
+    which names nothing the caller did. Raising it from an ordinary call
+    instead lets janus carry it as the error it is.
+    """
     provider = _provider(space)
     pattern = atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
@@ -214,15 +249,14 @@ def foreign_match(space: str, pattern_wire: list):
         candidates = provider.atoms()
     else:
         raise RuntimeError("validated match provider has no candidate source")
-    for candidate in candidates:
-        yield encode(candidate).to_wire()
+    return _wire_stream(iter(candidates))
 
 
 def foreign_atoms(space: str):
+    """The shim's py_iter enumerates this; see foreign_match on ordering."""
     provider = _provider(space)
     _require_provider(provider, space, "enumerate", "get-atoms")
-    for atom in cast(Enumerable, provider).atoms():
-        yield encode(atom).to_wire()
+    return _wire_stream(iter(cast(Enumerable, provider).atoms()))
 
 
 def foreign_add(space: str, atom_wire: list) -> bool:

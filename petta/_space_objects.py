@@ -69,7 +69,7 @@ def guard_atom(where: Any | None) -> Atom | None:
     # An expression is the guard proper; a variable is one a pattern bound to
     # a truth; a grounded bool is trivially one. A grounded value or a bare
     # symbol is neither a call nor a truth, so it can never be true.
-    if isinstance(guard, Expr) or isinstance(guard, Var):
+    if isinstance(guard, (Expr, Var)):
         return guard
     if isinstance(guard, Gnd) and isinstance(guard.value, bool):
         return guard
