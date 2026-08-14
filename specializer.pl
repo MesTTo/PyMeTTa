@@ -1,3 +1,10 @@
+% Purpose: specialize higher-order MeTTa calls and invalidate generated
+%   functions when their source equations change.
+% Open Obligations:
+%   To Do: Resolve the remaining specialization findings in ai-prolog-review.md.
+%   Hacks: None
+%   Future Enhancements: None
+
 :- dynamic ho_specialization/2.
 :- dynamic ho_specialization_failed/3.
 
@@ -5,13 +12,13 @@
 %Re-specializing a function already being specialized is refused: its key must differ from the ongoing one
 %(same keys are memoized via ho_specialization), and ever-growing keys - e.g. a recursive call wrapping its
 %higher-order argument, (= (evolve $r $g) (evolve (twice $r) $g)) - would otherwise diverge at compile time:
-maybe_specialize_call(HV, AVs, Out, Goal) :- ( nb_current('$spec_stack', Stack) -> true ; Stack = [] ),
+maybe_specialize_call(HV, AVs, Out, Goal) :- ( nb_current('$petta_spec_stack', Stack) -> true ; Stack = [] ),
                                              \+ memberchk(HV, Stack),
-                                             setup_call_cleanup( (( nb_current(specneeded, Prev) -> true ; Prev = [] ), nb_setval(specneeded,false),
-                                                                  nb_setval('$spec_stack', [HV|Stack])),
+                                             setup_call_cleanup( (( nb_current('$petta_spec_needed', Prev) -> true ; Prev = [] ), nb_setval('$petta_spec_needed',false),
+                                                                  nb_setval('$petta_spec_stack', [HV|Stack])),
                                                                  specialize_call(HV, AVs, Out, Goal),
-                                                                 (nb_setval('$spec_stack', Stack),
-                                                                  (Prev == true -> nb_setval(specneeded,Prev) ; true)) ).
+                                                                 (nb_setval('$petta_spec_stack', Stack),
+                                                                  (Prev == true -> nb_setval('$petta_spec_needed',Prev) ; true)) ).
 
 % Build a stable, variant-normalized specialization key.
 %
@@ -25,8 +32,7 @@ normalize_specialization_key(Term, Normalized) :-
 
 %Specialize a call by creating and translating a specialized version of the MeTTa code:
 specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses stored for HV:
-                                       nb_current(HV, MetaList0),
-                                       copy_term(MetaList0, MetaList),
+                                       fun_meta_clauses(HV, MetaList),
                                        %2. Copy all clause variables eligible for specialization across all meta-clauses:
                                        bagof(HoVar, ArgsNorm^BodyExpr^HoBinds^HoBindsPerArg^
                                                     ( member(fun_meta(ArgsNorm, BodyExpr), MetaList),
@@ -53,7 +59,7 @@ specialize_call(HV, AVs, Out, Goal) :- %1. Retrieve a copy of all meta-clauses s
                                                maplist({SpecName}/[fun_meta(ArgsNorm,BodyExpr),clause_info(Input,Clause)]>>
                                                        ( Input = [=,[SpecName|ArgsNorm],BodyExpr], translate_clause(Input,Clause,false) ), MetaList, ClauseInfos),
                                                %4.4 Only proceeed specializing if this or any recursive call profited from specialization with the specialized function at head position:
-                                               nb_getval(specneeded, true),
+                                               nb_getval('$petta_spec_needed', true),
                                                %4.5 Assert and print each of the created specializations:
                                                forall(member(clause_info(Input, Clause), ClauseInfos),
                                                ( asserta(Clause, Ref),
@@ -92,7 +98,7 @@ eligible_var_pairs([Var|Vars], [Copy|Copies], BodyExpr, HoVars) :- ( specializab
 
 %If Var appears at list head it means function call, meaning specialization is needed, and detect when used as HOL arg
 var_use_check(head, Var, [Head|_]) :- Var == Head,
-                                      nb_setval(specneeded, true).
+                                      nb_setval('$petta_spec_needed', true).
 var_use_check(ho, Var, [Head|Args]) :- specializable_arg(Head),
                                        member(Arg, Args),
                                        ( Var == Arg
@@ -115,7 +121,7 @@ forget_symbol(Name) :- retractall('&self'(=, [Name|_], _)),
                        forall(metta_on_function_removed(Name), true),
                        retractall(arity(Name,_)),
                        retractall(fun(Name)),
-                       ( nb_current(Name, _) -> nb_delete(Name) ; true ),
+                       clear_fun_meta(Name),
                        retractall(ho_specialization(Name,_)).
 
 %Invalidate all specializations:

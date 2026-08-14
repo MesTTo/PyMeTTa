@@ -1066,15 +1066,7 @@ petta_py_retranslate(Module, OldRef, Source) :-
 %translate_clause/2 pushes a fun_meta entry per compile; dropping the stale
 %one first keeps the specializer's meta-clause list one entry per equation:
 petta_py_drop_fun_meta(F, Args, Body) :-
-    catch_recover(nb_getval(F, Prev), Prev = []),
-    ( petta_py_select_meta(Prev, Args, Body, Rest)
-      -> ( Rest == [] -> nb_delete(F) ; nb_setval(F, Rest) )
-    ; true ).
-
-petta_py_select_meta([fun_meta(A, B)|Rest], Args, Body, Rest) :-
-    (A - B) =@= (Args - Body), !.
-petta_py_select_meta([Keep|Tail], Args, Body, [Keep|Rest]) :-
-    petta_py_select_meta(Tail, Args, Body, Rest).
+    drop_fun_meta(F, Args, Body).
 
 %%%%%%%%%% Silence %%%%%%%%%%
 %

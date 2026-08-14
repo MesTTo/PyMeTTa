@@ -1,3 +1,10 @@
+% Purpose: store MeTTa atoms, compile equations into per-space modules, and
+%   route matching to native and foreign space providers.
+% Open Obligations:
+%   To Do: Resolve the remaining space findings in ai-prolog-review.md.
+%   Hacks: None
+%   Future Enhancements: None
+
 %Since both normal add-attom call and function additions needs to add the S-expression:
 add_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
                                assertz(Term).
@@ -69,10 +76,7 @@ metta_remove_atom(Space, Term, Removed) :- metta_foreign_space(Space), !,
 %%Remove a function atom:
 metta_remove_atom(Space, Term, Removed) :- Term = [=,[F|Args],Body], !,
                                            remove_sexp(Space, Term),
-                                           ( nb_current(F, Prev) -> true ; Prev = [] ),
-                                           (   select(fun_meta(Args, Body), Prev, Rest)
-                                               -> ( Rest == [] -> nb_delete(F)
-                                                                ; nb_setval(F, Rest) ) ; true ),
+                                           drop_fun_meta(F, Args, Body),
                                            space_module(Space, Module),
                                            %Only this space's compiled clauses die: the same equation
                                            %imported into two spaces compiles into two modules, and the

@@ -42,12 +42,12 @@ metta_trace_call(F, In, Head, Closure) :-
     Head =.. [_|Args],
     length(InArgs, In),
     append(InArgs, [Out], Args),
-    b_getval(metta_trace_depth, D),
+    b_getval('$petta_trace_depth', D),
     metta_trace_record(D, call, [F|InArgs], ''),
     D1 is D + 1,
-    b_setval(metta_trace_depth, D1),
+    b_setval('$petta_trace_depth', D1),
     call(Closure),
-    b_setval(metta_trace_depth, D),
+    b_setval('$petta_trace_depth', D),
     metta_trace_record(D, exit, [F|InArgs], Out).
 
 metta_trace_record(Depth, Kind, Term, Answer) :-
@@ -56,14 +56,14 @@ metta_trace_record(Depth, Kind, Term, Answer) :-
     ; swrite(Answer, AnswerText) ),
     format(string(Event), "~w\t~w\t~w\t~w",
            [Depth, Kind, TermText, AnswerText]),
-    nb_getval(metta_trace_seq, N),
+    nb_getval('$petta_trace_seq', N),
     N1 is N + 1,
-    ( nb_getval(metta_trace_max, Max), N1 > Max
+    ( nb_getval('$petta_trace_max', Max), N1 > Max
       -> throw(error(resource_error(petta_trace_events(Max)),
                      context(metta_trace_record/4,
                              'the trace hit its max_events bound')))
     ; true ),
-    nb_setval(metta_trace_seq, N1),
+    nb_setval('$petta_trace_seq', N1),
     assertz(metta_trace_event(N, Event)).
 
 %Run Source in Space with the trace armed; Events come back oldest
@@ -77,23 +77,23 @@ metta_trace_source(Source, Space, Max, Events) :-
     ( integer(Max), Max > 0 -> true
     ; throw(error(domain_error(positive_integer, Max),
                   context(metta_trace_source/4, 'max_events bound')))),
-    ( nb_current(metta_trace_active, true)
+    ( nb_current('$petta_trace_active', true)
       -> throw(error(permission_error(trace, evaluation, nested),
                      context(metta_trace_source/3,
                              'a trace is already running')))
     ; true ),
-    nb_setval(metta_trace_max, Max),
+    nb_setval('$petta_trace_max', Max),
     findall(Target, metta_trace_target(Target), Targets0),
     sort(Targets0, Targets),
     retractall(metta_trace_event(_, _)),
-    nb_setval(metta_trace_seq, 0),
+    nb_setval('$petta_trace_seq', 0),
     setup_call_cleanup(
-        ( nb_setval(metta_trace_active, true),
+        ( nb_setval('$petta_trace_active', true),
           maplist(metta_trace_wrap, Targets) ),
-        ( b_setval(metta_trace_depth, 0),
+        ( b_setval('$petta_trace_depth', 0),
           process_metta_string(Source, _Results, Space) ),
         ( maplist(metta_trace_unwrap, Targets),
-          nb_setval(metta_trace_active, false) )),
+          nb_setval('$petta_trace_active', false) )),
     findall(N-E, metta_trace_event(N, E), Pairs),
     msort(Pairs, Sorted),
     findall(E, member(_-E, Sorted), Events),

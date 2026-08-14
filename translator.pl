@@ -6,6 +6,30 @@
 %   Hacks: None
 %   Future Enhancements: None
 
+% Function source retained for higher-order specialization. Each equation is
+% one independently indexed fact, so compiling a new equation does not copy
+% every older equation for the same function.
+:- dynamic fun_meta_clause/3.
+
+record_fun_meta(F, Args, Body) :-
+    asserta(fun_meta_clause(F, Args, Body)).
+
+fun_meta_clauses(F, Clauses) :-
+    findall(fun_meta(Args, Body), fun_meta_clause(F, Args, Body), Clauses),
+    Clauses \== [].
+
+% Remove one variant-equivalent retained equation. Retraction must not bind the
+% caller's variables, and duplicate equations are removed one at a time.
+drop_fun_meta(F, Args, Body) :-
+    ( once(( clause(fun_meta_clause(F, StoredArgs, StoredBody), true, Ref),
+             (StoredArgs-StoredBody) =@= (Args-Body),
+             erase(Ref) ))
+    -> true
+    ; true ).
+
+clear_fun_meta(F) :-
+    retractall(fun_meta_clause(F, _, _)).
+
 %Pattern matching, structural and functional/relational constraints on arguments:
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 constrain_args([F, A, B], Out, Goals) :- nonvar(F),
@@ -28,8 +52,7 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
                                                                   flatten(GoalsA,GoalsPrefix)
                                                                 ; Args1 = Args0, GoalsPrefix = [] ),
-                                               ( nb_current(F, Prev) -> true ; Prev = [] ),
-                                               nb_setval(F, [fun_meta(Args1, BodyExpr) | Prev]),
+                                               record_fun_meta(F, Args1, BodyExpr),
                                                ( declared_output_type(F, 'Atom')
                                                  -> GoalsBody = [],
                                                     ExpOut = BodyExpr
@@ -582,9 +605,9 @@ memberchk_eq(V, [H|_]) :- V == H, !.
 memberchk_eq(V, [_|T]) :- memberchk_eq(V, T).
 
 %Generate readable lambda name:
-next_lambda_name(Name) :- ( nb_current(lambda_counter, Prev) -> true ; Prev = 0 ),
+next_lambda_name(Name) :- ( nb_current('$petta_lambda_counter', Prev) -> true ; Prev = 0 ),
                           N is Prev + 1,
-                          nb_setval(lambda_counter, N),
+                          nb_setval('$petta_lambda_counter', N),
                           format(atom(Name), 'lambda_~d', [N]).
 
 declared_output_type(F, OutType) :- atom(F),
