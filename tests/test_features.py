@@ -13,6 +13,7 @@ import dataclasses
 import difflib
 import enum
 import gc
+import importlib
 import json
 import os
 import shutil
@@ -44,9 +45,10 @@ from petta import (
 from petta.arrays import EmbeddingStore
 from petta.atoms import Expr, Gnd, Sym, Var
 from petta.integrate import install_reflection_ops
-from petta.subscribe import atom_added
+from petta.subscribe import Event, atom_added
 
 hypothesis = pytest.importorskip("hypothesis")
+subscribe_module = importlib.import_module("petta.subscribe")
 
 
 @pytest.fixture()
@@ -56,6 +58,151 @@ def m(metta):
 
 
 # ----------------------------------------------------------- subscriptions
+
+
+class _SubscriptionRuntime:
+    def __init__(self):
+        self.facts = []
+        self.published = []
+        self.sync_failures = 0
+        self.remove_failure = False
+        self.removed = threading.Event()
+
+    def must(self, goal, **inputs):
+        assert goal == "petta_py_subscriptions(Spaces)"
+        self.published.append(list(inputs["Spaces"]))
+        if self.sync_failures:
+            self.sync_failures -= 1
+            raise RuntimeError("injected subscription sync failure")
+        return {"truth": True}
+
+    def do(self, predicate, *inputs):
+        assert predicate == "petta_py_contains"
+        space, wire = inputs
+        assert space == "&petta"
+        return any(fact.to_wire() == wire for fact in self.facts)
+
+
+def _script_subscription_boundaries(monkeypatch):
+    runtime = _SubscriptionRuntime()
+    registry = subscribe_module._SubscriptionRegistry()
+
+    def reflect_add(active_runtime, fact):
+        assert active_runtime is runtime
+        runtime.facts.append(fact)
+
+    def reflect_remove(active_runtime, fact):
+        assert active_runtime is runtime
+        runtime.facts[:] = [current for current in runtime.facts if current != fact]
+        runtime.removed.set()
+        if runtime.remove_failure:
+            runtime.remove_failure = False
+            raise RuntimeError("injected reflection removal failure")
+
+    monkeypatch.setattr(subscribe_module, "_REGISTRY", registry)
+    monkeypatch.setattr(subscribe_module, "_reflect_add", reflect_add)
+    monkeypatch.setattr(subscribe_module, "_reflect_remove", reflect_remove)
+    return runtime, registry
+
+
+def test_subscription_lifecycle_rolls_back_failed_boundaries(monkeypatch):
+    runtime, registry = _script_subscription_boundaries(monkeypatch)
+    runtime.sync_failures = 1
+    with pytest.raises(RuntimeError, match="injected subscription sync failure"):
+        subscribe_module.subscribe(runtime, "&fault", S.item)
+    assert registry.for_space("&fault") == ()
+    assert runtime.facts == []
+    assert runtime.published == [["&fault"], []]
+
+    first = subscribe_module.subscribe(runtime, "&fault", S.item)
+    second = subscribe_module.subscribe(runtime, "&fault", S.item)
+    assert len(runtime.facts) == 1
+    second.cancel()
+    assert registry.for_space("&fault") == (first,)
+    assert len(runtime.facts) == 1
+
+    runtime.sync_failures = 1
+    with pytest.raises(RuntimeError, match="injected subscription sync failure"):
+        first.cancel()
+    assert first._active is True
+    assert registry.for_space("&fault") == (first,)
+    assert runtime.published[-2:] == [[], ["&fault"]]
+
+    runtime.remove_failure = True
+    with pytest.raises(RuntimeError, match="injected reflection removal failure"):
+        first.cancel()
+    assert first._active is True
+    assert registry.for_space("&fault") == (first,)
+    assert len(runtime.facts) == 1
+    assert runtime.published[-2:] == [[], ["&fault"]]
+
+    first.cancel()
+    assert registry.for_space("&fault") == ()
+    assert runtime.facts == []
+
+
+def test_stale_subscription_snapshot_cannot_deliver_after_cancel(monkeypatch):
+    runtime, registry = _script_subscription_boundaries(monkeypatch)
+    seen = []
+    subscription = subscribe_module.subscribe(runtime, "&stale", S.item, seen.append)
+    stale_snapshot = registry.for_space("&stale")
+    subscription.cancel()
+
+    stale_snapshot[0]._deliver(Event("add", "&stale", S.item, {}))
+
+    assert seen == []
+
+
+def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):
+    runtime, _registry = _script_subscription_boundaries(monkeypatch)
+    entered = threading.Event()
+    release = threading.Event()
+    cancel_complete = threading.Event()
+
+    def callback(_event):
+        entered.set()
+        release.wait()
+
+    subscription = subscribe_module.subscribe(runtime, "&inflight", S.item, callback)
+    event = Event("add", "&inflight", S.item, {})
+    delivery = threading.Thread(target=subscription._deliver, args=(event,))
+
+    def cancel():
+        subscription.cancel()
+        cancel_complete.set()
+
+    cancellation = threading.Thread(target=cancel)
+    delivery.start()
+    assert entered.wait(timeout=2.0)
+    cancellation.start()
+    try:
+        assert runtime.removed.wait(timeout=2.0)
+        cancellation.join(timeout=0.1)
+        assert cancellation.is_alive()
+    finally:
+        release.set()
+        delivery.join(timeout=2.0)
+        cancellation.join(timeout=2.0)
+
+    assert cancel_complete.is_set()
+    assert not delivery.is_alive()
+    assert not cancellation.is_alive()
+
+
+def test_identical_subscriptions_share_one_reflection_fact(m):
+    reflection = m.space("&petta")
+    first = m.subscribe(S.identical(V.value))
+    second = m.subscribe(S.identical(V.value))
+    descriptor = S.subscription(S[m.space_name], V.pattern, V.on)
+    try:
+        assert len(reflection.query(descriptor)) == 1
+        second.cancel()
+        assert len(reflection.query(descriptor)) == 1
+        first.cancel()
+        assert not reflection.query(descriptor)
+    finally:
+        first.cancel()
+        second.cancel()
 
 
 def test_subscription_callback_fires_inside_the_write(m):
