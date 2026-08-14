@@ -21,6 +21,8 @@
 %     [tested 2026-08-14: translator_special_dispatch].
 %   - Higher-arity dynamic calls bypass the operator-table lookup
 %     [tested 2026-08-14: tests/performance/reduce_dispatch.pl].
+%   - Prolog import forms have exactly one translation
+%     [tested 2026-08-14: translator_prolog_imports].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -209,7 +211,7 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
         %The Prolog importer consumes its function-name list as data. Keeping
         %that argument literal makes its translation stable after those names
         %have become registered functions during an earlier space life.
-        ; translate_prolog_import_dl(HV, T, AfterHead, Goals, Out)
+        ; translate_prolog_import_dl(HV, T, AfterHead, Goals, Out) -> true
         %--- Automatic 'smart' dispatch, translator deciding when to create a predicate call, data list, or dynamic dispatch: ---
         ; %Known function => direct call:
           ( is_list(T),
