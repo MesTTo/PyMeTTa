@@ -91,7 +91,7 @@ lookahead_any(Terms, S, E) :- string_codes(Terms,SC), S = [Head | _], member(Hea
 seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), blanks, seq(Xs,E1,E2).
 seq([],E,E)       --> [].
 
-%Variables start with $, and keep track of them: re-using exising Prolog variables for variables of same name:
+%Variables start with $, and keep track of them: reusing existing Prolog variables for variables of same name:
 var_symbol(V,E0,E) --> "$", token(Cs), { atom_chars(N, Cs), ( N == '_' -> V = _, E = E0 ; memberchk(N-V0, E0) -> V = V0, E = E0 ; V = _, E = [N-V|E0] ) }.
 
 %Atoms are derived from tokens:
