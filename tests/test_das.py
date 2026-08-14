@@ -153,10 +153,10 @@ def test_das_space_joins_with_native_facts(metta):
         assert groups == [[expr(S.monkey, S.jungle)]]
         # Direct provider calls raise DASError; through the engine the
         # refusal crosses janus and surfaces as EngineError, the provider
-        # convention, still carrying the message.
+        # convention, still naming the unsupported operation.
         with pytest.raises(DASError, match="read-only"):
             DASSpace(das).add(S.f(S.a))
-        with pytest.raises(EngineError, match="read-only"):
+        with pytest.raises(EngineError, match="does not implement add"):
             space.add(S.f(S.a))
     finally:
         metta.unregister_space("&das-scripted")
@@ -193,7 +193,7 @@ def test_plain_http_error_body_is_reported(monkeypatch):
         "request",
         lambda self, *args, **kwargs: (500, "failure", b"router failure"),
     )
-    with pytest.raises(DASError, match="500.*router failure"):
+    with pytest.raises(DASError, match=r"500.*router failure"):
         das._request("GET", "/probe")
 
 
@@ -202,12 +202,12 @@ def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
     metta.register_space(name, DASSpace(ScriptedDAS([_COMPLETED])))
     try:
         space = metta.space(name)
-        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
             space.lint()
-        with pytest.raises(PettaError, match="DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
             space.digest()
         with pytest.raises(
-            PettaError, match="DASSpace.*no event source.*refuses writes"
+            PettaError, match=r"DASSpace.*no event source.*subscription"
         ):
             space.subscribe(S.watched(V.x))
     finally:

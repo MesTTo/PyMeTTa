@@ -99,7 +99,7 @@ def subscribe(
         raise ValueError(f"on must be add, remove or both, not {on!r}")
     from .foreign import require_capability
 
-    require_capability(space, "subscribe", "subscribe")
+    require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
     _RUNTIME = runtime
     subscription = Subscription(space, pattern, callback, on)
     # The standing query reflects into the library's own space, removed on

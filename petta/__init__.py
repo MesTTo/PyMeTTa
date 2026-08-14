@@ -150,7 +150,14 @@ from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa
 from . import aio, arrays, convert, das, foreign, integrate, lint, matching, measure, persistent, remote, testing, trace  # noqa: E402
 from .casting import CastError, cast  # noqa: E402
 from .define import Defined  # noqa: E402
-from .foreign import SpaceProvider  # noqa: E402
+from .foreign import (  # noqa: E402
+    Adder,
+    Clearer,
+    Enumerable,
+    Matcher,
+    Remover,
+    SpaceProvider,
+)
 from .subscribe import Event, Subscription, bridge  # noqa: E402
 
 __version__ = "0.2.0"
@@ -242,6 +249,11 @@ __all__ = [
     "foreign",
     "matching",
     "measure",
+    "Matcher",
+    "Enumerable",
+    "Adder",
+    "Remover",
+    "Clearer",
     "SpaceProvider",
     "Defined",
     "register_object_repr_protocol",

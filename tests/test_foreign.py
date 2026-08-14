@@ -7,9 +7,22 @@ Open Obligations:
   Future Enhancements: None
 """
 
+from collections.abc import Iterator
+from typing import Any, ClassVar
+
 import pytest
 
-from petta import EngineError, S, V, expr
+from petta import (
+    Adder,
+    Clearer,
+    EngineError,
+    Enumerable,
+    Matcher,
+    Remover,
+    S,
+    V,
+    expr,
+)
 from petta.foreign import SpaceProvider
 
 
@@ -108,7 +121,65 @@ def test_read_only_provider_errors_loudly(metta):
     try:
         with pytest.raises(EngineError) as excinfo:
             metta.run(f"!(add-atom {name} (fact 2))")
-        assert "read-only" in str(excinfo.value)
+        assert "does not implement add" in str(excinfo.value)
+    finally:
+        metta.unregister_space(name)
+
+
+def test_capabilities_follow_implemented_methods():
+    class ReadOnly(SpaceProvider):
+        def atoms(self) -> Iterator[Any]:
+            return iter(())
+
+    class AddOnly(SpaceProvider):
+        def add(self, atom) -> None:
+            pass
+
+    read_only = ReadOnly()
+    assert isinstance(read_only, Enumerable)
+    assert not isinstance(read_only, Matcher)
+    assert read_only.can_run("match")
+    assert read_only.can_run("enumerate")
+    assert not read_only.can_run("add")
+    assert not read_only.can_run("unknown")
+
+    add_only = AddOnly()
+    assert isinstance(add_only, Adder)
+    assert not isinstance(add_only, (Clearer, Remover))
+    assert add_only.can_run("subscribe", on="add")
+    assert not add_only.can_run("subscribe", on="remove")
+    assert not add_only.can_run("subscribe", on="both")
+
+
+def test_stale_static_capability_declaration_is_refused():
+    with pytest.raises(TypeError, match="stale static declaration"):
+
+        class StaleProvider(SpaceProvider):
+            capabilities: ClassVar = {"add": True}
+
+
+def test_provider_can_decline_one_request(metta):
+    class Selective(SpaceProvider):
+        def __init__(self):
+            self.stored = []
+
+        def atoms(self):
+            return iter(self.stored)
+
+        def add(self, atom):
+            self.stored.append(atom)
+
+        def should_run(self, capability, /, **request):
+            return capability != "add" or request["atom"] != S.denied(1)
+
+    provider = Selective()
+    name = "&selective-capability"
+    metta.register_space(name, provider)
+    try:
+        metta.space(name).add(S.allowed(1))
+        with pytest.raises(EngineError, match="declined this add request"):
+            metta.space(name).add(S.denied(1))
+        assert provider.stored == [S.allowed(1)]
     finally:
         metta.unregister_space(name)
 

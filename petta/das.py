@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from http.client import HTTPException
-from typing import Any, ClassVar
+from typing import Any
 
 from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, Gnd, Sym, Var, parse
@@ -378,13 +378,13 @@ class DASSpace(SpaceProvider):
     DAS candidates with native facts. Knowledge loads through das-cli;
     the write paths say so."""
 
-    capabilities: ClassVar[dict[str, bool]] = {
-        "enumerate": False,
-        "subscribe": False,
-    }
-
     def __init__(self, das: DAS) -> None:
         self._das = das
+
+    def can_run(self, capability: str, /, **request: Any) -> bool:
+        if capability in {"add", "clear", "enumerate", "remove", "subscribe"}:
+            return False
+        return super().can_run(capability, **request)
 
     def match(self, pattern: Atom):
         for answer in self._das.query(pattern):
