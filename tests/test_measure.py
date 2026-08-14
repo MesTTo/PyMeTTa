@@ -7,13 +7,18 @@ Open Obligations:
 """
 
 import pytest
+
 from petta import Gnd, S, expr, measure
+
+
+def test_measure_exports_the_entry_point_installer():
+    assert measure.install_petta is measure.install
 
 
 def test_pairs_requires_an_expression_of_exact_pairs():
     with pytest.raises(ValueError, match="expression of pairs"):
         measure.pairs(S.not_a_superposition)
-    with pytest.raises(ValueError, match="pair 0.*exactly two"):
+    with pytest.raises(ValueError, match=r"pair 0.*exactly two"):
         measure.pairs(expr(expr(0.5, S.value, S.extra)))
     with pytest.raises(ValueError, match="nonnumeric weight"):
         measure.pairs(expr(expr(S.heavy, S.value)))

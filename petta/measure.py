@@ -14,11 +14,12 @@ Open Obligations:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from .atoms import Atom, Expr, Gnd, Var, decode, encode, expr
 
-__all__ = ["install", "ws", "pairs", "weighted_relation"]
+__all__ = ["install", "install_petta", "pairs", "weighted_relation", "ws"]
 
 
 def install(m) -> None:
@@ -26,6 +27,10 @@ def install(m) -> None:
     ws-softmax, ws-best, ws-top, ws-sample!, ws-collapse, ws-expect,
     ws-choose, ws-filter, ws-flip."""
     m.run("!(import! (context-space) (library lib_measure))")
+
+
+# Entry-point integrations use the package-wide installer protocol.
+install_petta = install
 
 
 def ws(*weighted: tuple[float, Any]) -> Expr:
@@ -40,7 +45,7 @@ def pairs(atom: Atom) -> list[tuple[float, Any]]:
     """A weighted superposition read back: [(weight, value), ...], grounded
     values unwrapped."""
     if not isinstance(atom, Expr):
-        raise ValueError(  # noqa: TRY004 - the atom has the wrong structure
+        raise ValueError(
             f"a weighted superposition must be an expression of pairs, got {atom!r}"
         )
     out: list[tuple[float, Any]] = []
@@ -100,11 +105,11 @@ def weighted_relation(
             )
         if chosen is not None and not isinstance(chosen, Var):
             chosen_atom = encode(chosen) if not isinstance(chosen, Atom) else chosen
-            for weight, class_atom in zip(answered, class_atoms):
+            for weight, class_atom in zip(answered, class_atoms, strict=True):
                 if class_atom == chosen_atom:
                     yield expr(weight, class_atom)
             return
-        for weight, class_atom in zip(answered, class_atoms):
+        for weight, class_atom in zip(answered, class_atoms, strict=True):
             yield expr(weight, class_atom)
 
     m.register_op(relation, name=name, typed=False, pass_atoms=True)

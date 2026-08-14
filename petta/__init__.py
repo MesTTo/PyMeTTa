@@ -22,6 +22,7 @@ import sys
 import threading
 
 from ._config import Config, config
+from ._version import __version__
 
 # A library stays silent until its host configures the petta logger.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -164,9 +165,6 @@ from .foreign import (  # noqa: E402
     SpaceProvider,
 )
 from .subscribe import Event, Subscription, bridge  # noqa: E402
-
-__version__ = "0.2.0"
-
 
 def backend_info() -> dict[str, str | None]:
     """Return backend versions and the PeTTa runtime tree in use.
