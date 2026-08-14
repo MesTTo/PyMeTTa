@@ -11,6 +11,7 @@ import asyncio
 import gc
 import inspect
 import logging
+import threading
 import time
 
 import pytest
@@ -127,6 +128,47 @@ def test_aio_interrupt_stops_the_running_evaluation(m):
             return await am.value("(+ 1 1)")  # the engine keeps working after
 
     assert asyncio.run(go()) == 2
+
+
+def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):
+    original = petta.janus.query_once
+    unexpected_waiting = threading.Event()
+    release_unexpected = threading.Event()
+    injected = iter(
+        (
+            "error(petta_py_exception(interrupted, none), context(petta, interrupted))",
+            "error(unexpected_drain, context(test, drain))",
+        )
+    )
+
+    def inject(goal, inputs=None):
+        if goal == "true" and (error := next(injected, None)) is not None:
+            if "unexpected_drain" in error:
+                unexpected_waiting.set()
+                if not release_unexpected.wait(2.0):
+                    raise RuntimeError("the drain test did not release its worker")
+            return original(f"throw({error})")
+        return original(goal, inputs)
+
+    monkeypatch.setattr(petta.janus, "query_once", inject)
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            assert await am.count() == 0
+            running = asyncio.create_task(am.count())
+            assert await asyncio.to_thread(unexpected_waiting.wait, 2.0)
+            queued = asyncio.create_task(am.count())
+            await asyncio.sleep(0)
+            release_unexpected.set()
+            with pytest.raises(petta.EngineError, match="unexpected_drain"):
+                await asyncio.wait_for(running, timeout=2.0)
+            with pytest.raises(PettaError, match="failed before this request ran"):
+                await asyncio.wait_for(queued, timeout=2.0)
+            assert "failed" in repr(am)
+            with pytest.raises(PettaError, match=r"failed.*unexpected_drain"):
+                await am.count()
+
+    asyncio.run(go())
 
 
 def test_aio_timeout_cancellation_stops_the_engine(m):

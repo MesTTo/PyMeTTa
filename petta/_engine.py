@@ -311,7 +311,7 @@ class Runtime:
             try:
                 row = self._janus.query_once(goal, inputs)
             except self._janus.PrologError as exc:
-                self._raise(goal, exc)
+                self._raise(exc)
             if row is None or row.get("truth") is False:
                 return {}
             return row
@@ -358,7 +358,7 @@ class Runtime:
             try:
                 value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
             except self._janus.PrologError as exc:
-                self._raise(predicate, exc)
+                self._raise(exc)
         return None if value is _FAILED else value
 
     def apply_must(self, predicate: str, *inputs: Any) -> Any:
@@ -387,7 +387,7 @@ class Runtime:
             try:
                 truth = self._janus.cmd("user", predicate, *inputs)
             except self._janus.PrologError as exc:
-                self._raise(predicate, exc)
+                self._raise(exc)
         return truth is True
 
     def do_must(self, predicate: str, *inputs: Any) -> None:
@@ -412,10 +412,10 @@ class Runtime:
             try:
                 rows = list(self._janus.query(goal, inputs))
             except self._janus.PrologError as exc:
-                self._raise(goal, exc)
+                self._raise(exc)
         return iter(rows)
 
-    def _raise(self, goal: str, exc: BaseException) -> NoReturn:
+    def _raise(self, exc: BaseException) -> NoReturn:
         message = _clean_message(exc)
         term = getattr(exc, "term", None)
         if term is not None:

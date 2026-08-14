@@ -13,6 +13,9 @@ Guarantees:
     shim resource guards [tested test_aio_interrupt_stops_the_running_evaluation]
   - close refuses new work, interrupts a running request, rejects queued
     requests, and bounds the worker join [tested test_aio_close_interrupts_work]
+  - the transition drain discards only a structured interrupt and fails
+    closed on every other error [tested
+    test_aio_drain_only_discards_structured_interrupt]
   - an abandoned live owner emits ResourceWarning and registered workers
     detach during interpreter shutdown [tested test_aio_leak_warns_and_stop_joins,
     test_aio_shutdown_handler_stops_forgotten_workers]
@@ -45,8 +48,8 @@ import weakref
 from collections.abc import Callable
 from typing import Any, Self
 
-from ._engine import bridge
-from .errors import PettaError
+from ._engine import bridge, runtime
+from .errors import Interrupted, PettaError
 from .results import Rows
 from .space import MeTTa
 
@@ -195,8 +198,26 @@ class _EngineThread:
                     finally:
                         with self._transition:
                             self._current = None
-                            self._drain()
+                            drain_failure: BaseException | None = None
+                            try:
+                                self._drain()
+                            except BaseException as exc:  # noqa: BLE001
+                                # The request future must resolve even when a
+                                # process-level exception breaks the barrier.
+                                drain_failure = exc
+                    if drain_failure is not None:
+                        if failed and isinstance(outcome, BaseException):
+                            outcome = BaseExceptionGroup(
+                                "the request and its transition drain both failed",
+                                [outcome, drain_failure],
+                            )
+                        else:
+                            outcome = drain_failure
+                        failed = True
                     _deliver(request, outcome, failed=failed)
+                    if drain_failure is not None:
+                        self._fail_worker(drain_failure)
+                        return
             finally:
                 try:
                     janus.detach_engine()
@@ -246,6 +267,26 @@ class _EngineThread:
             raise PettaError(f"AsyncMeTTa worker failed{detail}") from cause
         raise PettaError(f"AsyncMeTTa worker is {self._state}")
 
+    def _fail_worker(self, cause: BaseException) -> None:
+        pending: list[_Request] = []
+        with self._state_lock:
+            self._fail_locked(cause)
+            while True:
+                try:
+                    request = self.work.get_nowait()
+                except queue.Empty:
+                    break
+                if request is not None:
+                    pending.append(request)
+        for request in pending:
+            failure = PettaError(
+                f"AsyncMeTTa worker failed before this request ran: {type(cause).__name__}: {cause}"
+            )
+            failure.__cause__ = cause
+            _deliver(request, failure, failed=True)
+        if pending:
+            logger.error("rejected %d queued request(s) after worker failure", len(pending))
+
     def submit(self, request: _Request) -> None:
         with self._state_lock:
             if self._state == "live" and self.thread is not None:
@@ -264,7 +305,10 @@ class _EngineThread:
         try:
             janus.query_once("true")
         except janus.PrologError as exc:
-            logger.debug("discarded a stale AsyncMeTTa interrupt: %s", exc)
+            try:
+                runtime()._raise(exc)
+            except Interrupted:
+                logger.debug("discarded a stale AsyncMeTTa interrupt: %s", exc)
 
     def interrupt_if_running(self, request: _Request | None) -> bool:
         """Signal the engine thread if `request` is the one running now,

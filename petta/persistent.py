@@ -546,9 +546,7 @@ class PersistentFactSpace(SpaceProvider):
                 try:
                     self._janus.consult(f"{self._module}.pl", data=source)
                 except self._janus.PrologError as exc:
-                    self._runtime._raise(
-                        f"consult persistent module {self._module}", exc
-                    )
+                    self._runtime._raise(exc)
             self._module_loaded = True
             with ExitStack() as unattached:
                 unattached.callback(self._release_module)
