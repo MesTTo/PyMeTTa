@@ -1,7 +1,7 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
-  - assignments use fresh SSA names and branches keep independent scopes
-    [tested test_rebinding_is_ssa_and_branch_local]
+  - assignments lower to ordered let* bindings [tested
+    test_bindings_become_let_star]
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
 Open Obligations:
