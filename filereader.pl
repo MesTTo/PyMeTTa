@@ -127,11 +127,26 @@ record_source_assertion(Ref) :-
     assertz(source_load_assertion(LoadId, Ref)).
 record_source_assertion(_).
 
+%One pass over the stored equations answers the whole batch. Repairing each
+%function separately walked every equation in the system once per function, so
+%a load that repaired several paid that scan several times. The recompiled set
+%is the union either way, and recompiling rebuilds clauses from stored source
+%without changing translated_from, so a single snapshot answers the same set.
 run_source_repairs(LoadId) :-
     findall(F, source_load_repair(LoadId, F), Functions0),
     sort(Functions0, Functions),
-    transaction(forall(member(F, Functions),
-                       repair_stale_definitions_impl(F))).
+    transaction(repair_stale_definitions_batch(Functions)).
+
+repair_stale_definitions_batch([]) :- !.
+repair_stale_definitions_batch(Functions) :-
+    findall(G,
+            ( translated_from(_, [=, [G|_], Body]),
+              atom(G),
+              member(F, Functions),
+              uses_as_data(F, Body) ),
+            Stale0),
+    sort(Stale0, Stale),
+    forall(member(G, Stale), recompile_function_impl(G)).
 
 rollback_source_load(LoadId) :-
     findall(Ref, retract(source_load_assertion(LoadId, Ref)), Refs),

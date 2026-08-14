@@ -17,23 +17,25 @@ add_sexp(Space, Term) :- add_sexp(Space, Term, _).
 add_sexp(Space, [Rel|Args], Ref) :- !,
                                     Term =.. [Space, Rel | Args],
                                     assertz(Term, Ref).
-%A scalar or empty expression needs a marked rule because Space(Term) as a
-%plain fact is already the encoding of the singleton expression (Term).
-add_sexp(Space, Atom, Ref) :- Head =.. [Space, Atom],
-                              assertz((Head :- native_scalar_atom), Ref).
+%A scalar or empty expression cannot be a plain Space(Term) fact, because that
+%is already the encoding of the singleton expression (Term). It gets its own
+%predicate rather than a marked rule inside the space: a marked rule makes
+%every clause of the space predicate a rule, so reading one back has to go
+%through clause/2, which walks the clause list instead of using SWI's clause
+%indexing. Measured on examples/spaces/matespace.metta, that cost 15.3x,
+%99.5 billion instructions against 1,520 billion. Keeping scalars in
+%native_scalar/2 leaves expressions as facts a direct indexed call reaches,
+%and indexes the scalars on their space in turn.
+add_sexp(Space, Atom, Ref) :- assertz(native_scalar(Space, Atom), Ref).
 
-%Remove every atom that unifies with the requested value, matching the
-%existing retractall semantics for expressions.
-remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
-                                  findall(Ref, clause(Term, true, Ref), Refs),
-                                  forall(member(Ref, Refs), erase(Ref)), !.
-remove_sexp(Space, Atom) :- Head =.. [Space, Atom],
-                            findall(Ref,
-                                    clause(Head, native_scalar_atom, Ref),
-                                    Refs),
-                            forall(member(Ref, Refs), erase(Ref)).
+%Remove every atom that unifies with the requested value. Expressions and
+%scalars live in different predicates, so neither erases the other.
+remove_sexp(Space, [Rel|Args]) :- !,
+                                  Term =.. [Space, Rel | Args],
+                                  retractall(Term).
+remove_sexp(Space, Atom) :- retractall(native_scalar(Space, Atom)).
 
-native_scalar_atom.
+:- dynamic native_scalar/2.
 
 %Which module a space's compiled clauses live in. &self keeps using the default
 %module, so every existing program compiles and runs exactly as before; any other
@@ -189,7 +191,7 @@ match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
                                                                 match_native(Space, [','|Tail], OutPattern, Result).
 match_native(Space, [Comma|[[Rel|PatArgs]|Tail]], OutPattern, Result) :- Comma == ',', !,
                                                                         Term =.. [Space, Rel | PatArgs],
-                                                                        catch(clause(Term, true), E, recover_failure(E)),
+                                                                        catch(Term, E, recover_failure(E)),
                                                                         acyclic_term(OutPattern),
                                                                         match_native(Space, [','|Tail], OutPattern, Result).
 
@@ -206,7 +208,7 @@ match_native(Space, Pattern, OutPattern, Result) :-
     Result = OutPattern.
 
 match_native(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
-                                                          catch(clause(Term, true), E, recover_failure(E)),
+                                                          catch(Term, E, recover_failure(E)),
                                                           acyclic_term(OutPattern),
                                                           Result = OutPattern.
 
@@ -217,17 +219,19 @@ match_native(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel |
 %Get all atoms in space, irregard of arity:
 'get-atoms'(Space, Pattern) :- get_native_atom(Space, Pattern).
 
+%Drop every atom a space holds. Expressions and scalars live in different
+%predicates, so a caller that wipes only the space predicate would leave the
+%scalars standing and a pooled name's next life would inherit them.
+clear_native_atoms(Space) :- forall(( current_predicate(Space/Arity),
+                                      functor(Head, Space, Arity) ),
+                                    retractall(Head)),
+                             retractall(native_scalar(Space, _)).
+
+%Enumeration answers the space's expressions and then its scalar atoms.
 get_native_atom(Space, Pattern) :- current_predicate(Space/Arity),
                                    functor(Head, Space, Arity),
-                                   clause(Head, Body),
-                                   native_clause_atom(Body, Space, Head, Pattern).
+                                   clause(Head, true),
+                                   Head =.. [Space | Pattern].
+get_native_atom(Space, Pattern) :- get_native_scalar_atom(Space, Pattern).
 
-native_clause_atom(true, Space, Head, Pattern) :-
-    Head =.. [Space | Pattern].
-native_clause_atom(native_scalar_atom, Space, Head, Pattern) :-
-    Head =.. [Space, Pattern].
-
-get_native_scalar_atom(Space, Pattern) :-
-    functor(Head, Space, 1),
-    clause(Head, native_scalar_atom),
-    Head =.. [Space, Pattern].
+get_native_scalar_atom(Space, Pattern) :- native_scalar(Space, Pattern).

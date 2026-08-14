@@ -453,9 +453,7 @@ petta_py_clear(Space) :-
 petta_py_clear(Space) :-
     findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
-    forall(( current_predicate(Space/Arity),
-             functor(Head, Space, Arity) ),
-           retractall(Head)),
+    clear_native_atoms(Space),
     space_module(Space, Module),
     petta_py_clear_tabling(Space, Module).
 
