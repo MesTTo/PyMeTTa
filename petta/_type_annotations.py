@@ -49,65 +49,89 @@ def type_atom_for(annotation: Any) -> Atom:
     return type_atoms_for(annotation)[0]
 
 
-def type_atoms_for(annotation: Any) -> list[Atom]:
-    """Return every MeTTa type alternative named by an annotation."""
+def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
     if annotation is inspect.Parameter.empty or annotation is Any or annotation is object:
         return [S["%Undefined%"]]
     if annotation is None or annotation is type(None):
         return [S.NoneType]
+    if isinstance(annotation, typing.TypeVar):
+        return [Var(annotation.__name__.lower())]
+    if origin is not None:
+        return None
+    if isinstance(annotation, type) and metta_type_for(annotation) == "%Undefined%":
+        return [S[_class_type_name(annotation)]]
+    return [S[metta_type_for(annotation)]]
+
+
+def _union_type_atoms(annotation: Any) -> list[Atom]:
+    alternatives: list[Atom] = []
+    seen: set[str] = set()
+    for member in typing.get_args(annotation):
+        for atom in type_atoms_for(member):
+            _add_unique(alternatives, seen, atom)
+    return alternatives
+
+
+def _callable_type_atoms(annotation: Any) -> list[Atom]:
+    args = typing.get_args(annotation)
+    if not args or args[0] is Ellipsis:
+        return [S["%Undefined%"]]
+    argument_types, return_type = list(args[0]), args[1]
+    arrows: list[Atom] = []
+    seen: set[str] = set()
+    argument_alternatives = [type_atoms_for(item) for item in argument_types]
+    argument_alternatives.append(type_atoms_for(return_type))
+    for combination in _bounded_product(
+        argument_alternatives,
+        f"the Callable annotation {annotation!r}",
+    ):
+        _add_unique(arrows, seen, Expr([S["->"], *combination]))
+    return arrows
+
+
+def _tuple_type_atoms(annotation: Any) -> list[Atom]:
+    args = typing.get_args(annotation)
+    if args and args[-1] is Ellipsis:
+        return [S.Expression]
+    shapes: list[Atom] = []
+    seen: set[str] = set()
+    for combination in _bounded_product(
+        [type_atoms_for(item) for item in args],
+        f"the tuple annotation {annotation!r}",
+    ):
+        _add_unique(shapes, seen, Expr(list(combination)))
+    return shapes
+
+
+def _generic_type_atoms(origin: Any) -> list[Atom]:
+    if not isinstance(origin, type):
+        return [S["%Undefined%"]]
+    if issubclass(origin, abc.Mapping):
+        if not inspect.isabstract(origin):
+            return [S[_class_type_name(origin)]]
+        return [S["%Undefined%"]]
+    if origin is list or issubclass(origin, abc.Sequence):
+        return [S.Expression]
+    if not inspect.isabstract(origin):
+        return [S[_class_type_name(origin)]]
+    return [S["%Undefined%"]]
+
+
+def type_atoms_for(annotation: Any) -> list[Atom]:
+    """Return every MeTTa type alternative named by an annotation."""
     origin = typing.get_origin(annotation)
     if origin is typing.Annotated:
         return type_atoms_for(typing.get_args(annotation)[0])
-    if isinstance(annotation, typing.TypeVar):
-        return [Var(annotation.__name__.lower())]
-    if origin is None:
-        if isinstance(annotation, type) and metta_type_for(annotation) == "%Undefined%":
-            return [S[_class_type_name(annotation)]]
-        return [S[metta_type_for(annotation)]]
+    direct = _direct_type_atoms(annotation, origin)
+    if direct is not None:
+        return direct
     if origin in (typing.Union, types.UnionType):
-        alternatives: list[Atom] = []
-        seen: set[str] = set()
-        for member in typing.get_args(annotation):
-            for atom in type_atoms_for(member):
-                _add_unique(alternatives, seen, atom)
-        return alternatives
+        return _union_type_atoms(annotation)
     if origin is abc.Callable:
-        args = typing.get_args(annotation)
-        if not args or args[0] is Ellipsis:
-            return [S["%Undefined%"]]
-        argument_types, return_type = list(args[0]), args[1]
-        arrows: list[Atom] = []
-        seen = set()
-        argument_alternatives = [type_atoms_for(item) for item in argument_types]
-        argument_alternatives.append(type_atoms_for(return_type))
-        for combination in _bounded_product(
-            argument_alternatives,
-            f"the Callable annotation {annotation!r}",
-        ):
-            _add_unique(arrows, seen, Expr([S["->"], *combination]))
-        return arrows
+        return _callable_type_atoms(annotation)
     if origin is tuple:
-        args = typing.get_args(annotation)
-        if args and args[-1] is Ellipsis:
-            return [S.Expression]
-        shapes: list[Atom] = []
-        seen = set()
-        for combination in _bounded_product(
-            [type_atoms_for(item) for item in args],
-            f"the tuple annotation {annotation!r}",
-        ):
-            _add_unique(shapes, seen, Expr(list(combination)))
-        return shapes
-    if isinstance(origin, type):
-        if issubclass(origin, abc.Mapping):
-            if not inspect.isabstract(origin):
-                return [S[_class_type_name(origin)]]
-            return [S["%Undefined%"]]
-        if origin is list or issubclass(origin, abc.Sequence):
-            return [S.Expression]
-        if not inspect.isabstract(origin):
-            return [S[_class_type_name(origin)]]
-    return [S["%Undefined%"]]
+        return _tuple_type_atoms(annotation)
+    return _generic_type_atoms(origin)
 
 
 def _class_type_name(cls: type) -> str:
