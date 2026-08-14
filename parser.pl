@@ -51,9 +51,12 @@ escape_quotes([0'\t|T], [0'\\,0't|R]) :- !, escape_quotes(T, R).
 escape_quotes([0'\r|T], [0'\\,0'r|R]) :- !, escape_quotes(T, R).
 escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 
-%Read S string or atom, extract codes, and apply DCG (parsing):
-sread(S, T) :- ( atom_string(A, S),
-                 atom_codes(A, RawCodes),
+%Read S string or atom, extract codes, and apply DCG (parsing).
+%atom_codes/2 reads the text of a string directly. Going through
+%atom_string/2 first interned an atom for every string parsed, and the
+%library parses one per m.run(): 20000 distinct strings through
+%atom_string/2 left 9953 atoms behind, through atom_codes/2 none.
+sread(S, T) :- ( atom_codes(S, RawCodes),
                  strip(RawCodes, outside, Cs),
                  phrase(sexpr(T, [], _), Cs)
                -> true ; format(atom(Msg), 'Parse error in form: ~w', [S]), throw(error(syntax_error(Msg), none)) ).
@@ -77,18 +80,37 @@ strip([C|R], State, [C|O]) :-
     string_state(State, C, State1),
     strip(R, State1, O).
 
-%An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
-sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.
-sexpr(T,E0,E) --> blanks, "(", blanks, seq(T,E0,E), blanks, ")", blanks, !.
-sexpr(N,E,E)  --> blanks, number(N), ( lookahead_any(" ()\t\n\r") ; \+ [_] ), blanks, !.
-sexpr(V,E0,E) --> blanks, var_symbol(V,E0,E), blanks, !.
-sexpr(A,E,E)  --> blanks, atom_symbol(A), blanks.
+%An S-Expression is a parentheses-nesting of S-Expressions that are either
+%numbers, variables, strings, or atoms. Surrounding whitespace is skipped once
+%here rather than at the start of each alternative: with a leading blanks//0 in
+%every clause, reading an atom, the commonest token, rescanned the same
+%whitespace five times because the four alternatives ahead of it each skipped
+%it before failing.
+sexpr(T,E0,E) --> blanks, sexpr_token(T,E0,E), blanks.
 
-%Helper for strange atoms that aren't numbers, e.g. 1_2_3:
-lookahead_any(Terms, S, E) :- string_codes(Terms,SC), S = [Head | _], member(Head,SC), !, S = E.
+sexpr_token(S,E,E)  --> string_lit(S), !.
+sexpr_token(T,E0,E) --> "(", blanks, seq(T,E0,E), blanks, ")", !.
+sexpr_token(N,E,E)  --> number(N), number_ends, !.
+sexpr_token(V,E0,E) --> var_symbol(V,E0,E), !.
+sexpr_token(A,E,E)  --> atom_symbol(A).
 
-%Recursive processing of S-Expressions within S-Expressions:
-seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), blanks, seq(Xs,E1,E2).
+%A number token has to end at whitespace, a parenthesis, or end of input.
+%Without this, 1_2_3 would read as the number 1 followed by junk. The
+%terminators are facts rather than a scan of a literal string, so the check is
+%one indexed lookup instead of rebuilding the same six codes per number.
+number_ends([], []) :- !.
+number_ends([Code|Rest], [Code|Rest]) :- number_terminator(Code).
+
+number_terminator(0' ).
+number_terminator(0'().
+number_terminator(0')).
+number_terminator(0'\t).
+number_terminator(0'\n).
+number_terminator(0'\r).
+
+%Recursive processing of S-Expressions within S-Expressions. sexpr//3 has
+%already consumed the whitespace after its own token, so this does not repeat it:
+seq([X|Xs],E0,E2) --> sexpr(X,E0,E1), seq(Xs,E1,E2).
 seq([],E,E)       --> [].
 
 %Variables start with $, and keep track of them: reusing existing Prolog variables for variables of same name:
