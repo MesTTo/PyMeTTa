@@ -9,6 +9,8 @@ Guarantees:
     test_fast_load_refuses_a_different_swi_version_before_payload]
   - text snapshots use UTF-8 regardless of the process locale [tested
     test_text_save_uses_utf8_for_plain_and_gzip_files]
+  - the save format type admits exactly metta and fast [tested
+    test_public_context_types_are_distinct]
 Owns:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save [tested test_save_failure_preserves_existing_file]
@@ -28,6 +30,7 @@ import tempfile
 from pathlib import Path
 from typing import Literal
 
+from ._api_types import SaveFormat
 from ._engine import Runtime
 from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
 from .errors import EngineError
@@ -156,7 +159,7 @@ def save_space(
     space: str,
     atoms: list[Atom],
     path: str | os.PathLike[str],
-    format: str,
+    format: SaveFormat,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
     if format not in ("metta", "fast"):

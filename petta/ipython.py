@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import threading
 
+from ._api_types import SpaceName
 from .space import MeTTa
 
 
@@ -57,7 +58,11 @@ def load_ipython_extension(ipython) -> None:
 
     def metta(line: str, cell: str):
         """Run the cell as MeTTa source; the line names a space if given."""
-        target = _current() if not line.strip() else _current().space(line.strip())
+        target = (
+            _current()
+            if not line.strip()
+            else _current().space(SpaceName(line.strip()))
+        )
         groups = target.run(cell)
         # One printed line per directive, the way the CLI prints, and the
         # structured groups as the cell's value for the notebook to show.

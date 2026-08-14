@@ -3,6 +3,9 @@ dispatch/dispatch_many for encoded operations and dispatch_raw variants for
 raw ones; the registry maps a MeTTa function name to the Python callable
 behind it, decoding arguments to atoms-or-values and encoding results back.
 Importable as petta_ops, the name the Prolog side uses.
+Guarantees:
+  - operation records distinguish MeTTa names from declaration-space names
+    [tested test_public_context_types_are_distinct]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,6 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ._api_types import MettaName, SpaceName
 from .atoms import Atom, Box, Gnd, atom_from_wire, decode, encode
 from .errors import Decline
 
@@ -36,12 +40,12 @@ _DECLINED = ["x", "declined"]
 class Operation:
     """One registered MeTTa function backed by Python."""
 
-    name: str
+    name: MettaName
     fn: Callable[..., Any]
     kind: str  # det | many | raw_det | raw_many
     arity: int
     pass_atoms: bool  # give the callable atoms rather than decoded values
-    space: str | None = None  # where the type declarations were added
+    space: SpaceName | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
     arities: tuple = ()  # every registered arity, for reflection facts
 

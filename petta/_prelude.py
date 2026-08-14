@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import ops as _ops_module
+from ._api_types import MettaName
 from .atoms import Expr, Gnd, Sym
 
 __all__ = ["NAMES", "install", "pythonic"]
@@ -121,4 +122,11 @@ def install(runtime) -> None:
         (py_at, "py-at", None),
         (py_slice, "py-slice", None),
     ):
-        _ops_module.register(runtime, fn, name=name, typed=False, pass_atoms=True, arities=arities)
+        _ops_module.register(
+            runtime,
+            fn,
+            name=MettaName(name),
+            typed=False,
+            pass_atoms=True,
+            arities=arities,
+        )

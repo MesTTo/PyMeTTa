@@ -25,6 +25,8 @@ Guarantees:
     test_define_refuses_callable_objects]
   - query, prepare, and stream preserve distinct variable columns in first
     appearance order [tested test_query_surfaces_share_column_order]
+  - public name and save-format annotations distinguish their string
+    contexts [tested test_public_context_types_are_distinct]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -45,6 +47,7 @@ from typing import Any, Literal, Self, overload
 
 from . import integrate as _integrate
 from . import ops as _ops_module
+from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
 from ._space_diagnostics import derivations, explain_no_match
@@ -90,7 +93,7 @@ from .trace import trace as _trace
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
 
 
-def current_space(default: str = "&self") -> str:
+def current_space(default: SpaceName = _DEFAULT_SPACE) -> SpaceName:
     """The space whose module the ENGINE is evaluating in right now.
 
     Callable from inside a registered operation, where it answers the space
@@ -101,7 +104,7 @@ def current_space(default: str = "&self") -> str:
     if not started():
         return default
     row = bridge().query_once("current_metta_space(S)")
-    return str(row["S"]) if row else default
+    return SpaceName(str(row["S"])) if row else default
 
 
 def _to_stored_atom(value: Any) -> Expr:
@@ -136,7 +139,7 @@ class MeTTa:
 
     def __init__(
         self,
-        space: str = "&self",
+        space: SpaceName = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
@@ -154,10 +157,10 @@ class MeTTa:
     # ------------------------------------------------------------------ naming
 
     @property
-    def space_name(self) -> str:
+    def space_name(self) -> SpaceName:
         return self._space
 
-    def space(self, name: str) -> MeTTa:
+    def space(self, name: SpaceName) -> MeTTa:
         """Another space on the same engine."""
         return MeTTa(name)
 
@@ -172,7 +175,7 @@ class MeTTa:
                 scratch.add(...)
         """
         row = self._rt.must("petta_py_new_space(Name)")
-        fresh = MeTTa(row["Name"])
+        fresh = MeTTa(SpaceName(str(row["Name"])))
         fresh._ephemeral = True
         return fresh
 
@@ -331,7 +334,11 @@ class MeTTa:
             inferences=inferences,
         )
 
-    def save(self, path: str | os.PathLike[str], format: str = "metta") -> int:
+    def save(
+        self,
+        path: str | os.PathLike[str],
+        format: SaveFormat = "metta",
+    ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
         format="fast"; answers how many. A path ending .gz writes gzip
@@ -704,7 +711,7 @@ class MeTTa:
         self,
         fn: Callable | None = None,
         *,
-        name: str | None = None,
+        name: MettaName | None = None,
         typed: bool = True,
         raw: bool = False,
         pass_atoms: bool = False,
@@ -743,7 +750,7 @@ class MeTTa:
 
         return apply(fn) if fn is not None else apply
 
-    def unregister_op(self, name: str) -> None:
+    def unregister_op(self, name: MettaName) -> None:
         """Remove a registered operation, every arity of it."""
         _ops_module.unregister(self._rt, name)
 
@@ -758,11 +765,11 @@ class MeTTa:
         """Every function name the engine has registered."""
         return self._rt.builtins()
 
-    def is_function(self, name: str) -> bool:
+    def is_function(self, name: MettaName) -> bool:
         """Report whether a function is visible from this space."""
         return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
 
-    def is_function_here(self, name: str) -> bool:
+    def is_function_here(self, name: MettaName) -> bool:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count."""
@@ -772,7 +779,7 @@ class MeTTa:
             )
         )
 
-    def arities(self, name: str) -> list[int]:
+    def arities(self, name: MettaName) -> list[int]:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
         row = self._rt.once("petta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
@@ -914,7 +921,7 @@ class MeTTa:
         """
         return install_type(self, cls, accessors=accessors, methods=methods)
 
-    def fn(self, name: str) -> _EngineFunction:
+    def fn(self, name: MettaName) -> _EngineFunction:
         """Any engine function as an ordinary Python callable.
 
             car = m.fn("car-atom")
@@ -932,14 +939,14 @@ class MeTTa:
         """Install a library integration; see petta.integrate."""
         return _integrate.integrate(self, target)
 
-    def register_space(self, name: str, provider: Any) -> Any:
+    def register_space(self, name: SpaceName, provider: Any) -> Any:
         """A space answered by Python: matches, adds and removals route to
         the provider, so a table, a dataframe or a service is matchable the
         way stored atoms are. See petta.foreign.SpaceProvider."""
         register_provider(self._rt, name, provider)
         return provider
 
-    def unregister_space(self, name: str) -> None:
+    def unregister_space(self, name: SpaceName) -> None:
         """Remove a registered Python-backed space."""
         unregister_provider(self._rt, name)
 

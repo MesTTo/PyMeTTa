@@ -6,6 +6,8 @@ Guarantees:
     every hit [measured 2026-08-14: minimum 1177503701 versus 1201380616]
   - engine completion failures surface instead of returning partial names
     [tested test_namespace_completion_surfaces_engine_errors]
+  - the cache bound is marked immutable to type checkers [tested
+    test_policy_constants_are_final]
 Guarded by:
   - each namespace lock protects its recency cache [tested
     test_atom_identity_caches_are_thread_safe]
@@ -19,11 +21,11 @@ from __future__ import annotations
 
 import importlib
 import threading
-from typing import Any
+from typing import Any, Final
 
 from ._atoms_core import Sym
 
-NAMESPACE_CACHE_MAX = 512
+NAMESPACE_CACHE_MAX: Final[int] = 512
 
 
 class _Namespace:

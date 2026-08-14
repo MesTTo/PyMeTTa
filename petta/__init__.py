@@ -7,6 +7,8 @@ Guarantees:
     engine-backed API is used [tested test_package_import_does_not_require_janus]
   - optional integration modules load only when requested [tested
     test_optional_surfaces_load_only_when_requested]
+  - contextual name and save-format types are available at package level
+    [tested test_public_context_types_are_distinct]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +27,7 @@ import logging
 import sys
 
 from . import _engine
+from ._api_types import MettaName, SaveFormat, SpaceName
 from ._config import Config, config
 from ._version import __version__
 
@@ -206,6 +209,7 @@ __all__ = [
     "Matcher",
     # runtime
     "MeTTa",
+    "MettaName",
     "MettaSyntaxError",
     # the legacy surface
     "PeTTa",
@@ -217,6 +221,8 @@ __all__ = [
     "Row",
     "Rows",
     "S",
+    "SaveFormat",
+    "SpaceName",
     "SpaceProvider",
     "Step",
     "Subscription",
