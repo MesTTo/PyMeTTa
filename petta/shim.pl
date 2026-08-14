@@ -1185,11 +1185,13 @@ petta_py_fast_has_object(Term) :-
 
 %Symbols have no quoted text form in MeTTa. These characters either split a
 %token or change the form's structure, so every swrite-based seam refuses them.
+%token//1 owns the parser's delimiter rule. Quotes need an explicit check
+%because an embedded quote remains part of token//1's atom token.
 petta_py_unsafe_symbol(Symbol) :- atom(Symbol),
                                   atom_codes(Symbol, Codes),
-                                  member(Code, Codes),
-                                  ( code_type(Code, space)
-                                  ; memberchk(Code, [0'(, 0'), 0'"]) ), !.
+                                  Codes = [_|_],
+                                  ( memberchk(0'", Codes)
+                                  ; \+ phrase(token(_), Codes) ), !.
 petta_py_bad_text_symbol(Term, Term) :- petta_py_unsafe_symbol(Term), !.
 petta_py_bad_text_symbol(Term, Bad) :-
     compound(Term),
