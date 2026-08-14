@@ -99,32 +99,11 @@ class ExpressionCompilerMixin(CompilerContext):
             return Sym(self.name)
         if node.id in _MAGIC:
             return Sym(node.id)
-        if self.known(node.id):
-            if not self._python_resolvable(node.id):
-                self.hazards.add(f"the engine function {node.id}")
-            return Sym(node.id)
-        # Python cannot spell a hyphen, and the engine's own names carry
-        # them, so sqrt_math reaches sqrt-math when that is what exists.
-        hyphenated = node.id.replace("_", "-")
-        if hyphenated != node.id and self.known(hyphenated):
-            if not self._python_resolvable(node.id):
-                self.hazards.add(f"the engine function {hyphenated}")
-            return Sym(hyphenated)
+        known = self._known_symbol(node.id)
+        if known is not None:
+            return known
         if node.id[:1].isupper():
-            if self.host(node.id):
-                raise CompileError(
-                    f"{node.id!r} is a module binding, not a data "
-                    f"constructor: compiling it as a symbol would drop its "
-                    f"value silently. Pass it as an argument, or inline the "
-                    f"literal.",
-                    construct="host binding",
-                    line=node.lineno,
-                )
-            # The constructor convention: a capitalized free name is data,
-            # (Parent $x $y) in a pattern or a tag in an answer. Data has
-            # no Python value, so the twin cannot run a body that mints it.
-            self.hazards.add(f"the constructor {node.id}")
-            return Sym(node.id)
+            return self._constructor_symbol(node)
         raise CompileError(
             f"{node.id!r} is not a parameter of {self.name}, not a function "
             f"the engine knows (as written or with underscores as hyphens), "
@@ -135,6 +114,34 @@ class ExpressionCompilerMixin(CompilerContext):
             construct="free identifier",
             line=node.lineno,
         )
+
+    def _known_symbol(self, identifier: str) -> Sym | None:
+        candidate = identifier
+        if not self.known(candidate):
+            # Python cannot spell a hyphen, and the engine's own names carry
+            # them, so sqrt_math reaches sqrt-math when that is what exists.
+            candidate = identifier.replace("_", "-")
+            if candidate == identifier or not self.known(candidate):
+                return None
+        if not self._python_resolvable(identifier):
+            self.hazards.add(f"the engine function {candidate}")
+        return Sym(candidate)
+
+    def _constructor_symbol(self, node: ast.Name) -> Sym:
+        if self.host(node.id):
+            raise CompileError(
+                f"{node.id!r} is a module binding, not a data "
+                f"constructor: compiling it as a symbol would drop its "
+                f"value silently. Pass it as an argument, or inline the "
+                f"literal.",
+                construct="host binding",
+                line=node.lineno,
+            )
+        # The constructor convention: a capitalized free name is data,
+        # (Parent $x $y) in a pattern or a tag in an answer. Data has
+        # no Python value, so the twin cannot run a body that mints it.
+        self.hazards.add(f"the constructor {node.id}")
+        return Sym(node.id)
 
     def _x_BinOp(self, node: ast.BinOp) -> Atom:
         if isinstance(node.op, ast.Div):
@@ -323,6 +330,23 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:
+        func = self._plain_call_name(node)
+        if func.id == "match":
+            return self._match_call(node)
+        if func.id == "superpose":
+            # superpose(a, b, c): one expression holding the alternatives.
+            return Expr([Sym("superpose"), Expr([self.expression(a) for a in node.args])])
+        if func.id in self.lifted:
+            return self._lifted_call(func.id, node)
+        # Python's own builtins, where a name in scope has not shadowed them,
+        # bridge to the engine functions that mean the same thing.
+        if func.id in _PYBUILTIN_CALLS and func.id not in self.scope:
+            return _PYBUILTIN_CALLS[func.id](self, node)
+        callee = self._x_Name(func)
+        return Expr([callee, *(self.expression(a) for a in node.args)])
+
+    @staticmethod
+    def _plain_call_name(node: ast.Call) -> ast.Name:
         if node.keywords:
             raise CompileError(
                 "a call in a compiled body passes positional arguments; MeTTa "
@@ -338,35 +362,26 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="call",
                 line=node.lineno,
             )
-        if node.func.id == "match":
-            return self._match_call(node)
-        if node.func.id == "superpose":
-            # superpose(a, b, c): one expression holding the alternatives.
-            return Expr([Sym("superpose"), Expr([self.expression(a) for a in node.args])])
-        if node.func.id in self.lifted:
-            # A lifted inner def: its free names travel as leading
-            # arguments, read from the scope AT THE CALL, Python's rule.
-            mangled, lifted_names, _ = self.lifted[node.func.id]
-            missing = [n for n in lifted_names if n not in self.scope]
-            if missing:
-                raise CompileError(
-                    f"{node.func.id!r} closes over {missing} which are not in scope here",
-                    construct="nested def",
-                    line=node.lineno,
-                )
-            return Expr(
-                [
-                    Sym(mangled),
-                    *(Var(self.scope[n]) for n in lifted_names),
-                    *(self.expression(a) for a in node.args),
-                ]
+        return node.func
+
+    def _lifted_call(self, name: str, node: ast.Call) -> Expr:
+        # A lifted inner def's free names travel as leading arguments, read
+        # from the scope at the call, which is Python's late-binding rule.
+        mangled, lifted_names, _ = self.lifted[name]
+        missing = [identifier for identifier in lifted_names if identifier not in self.scope]
+        if missing:
+            raise CompileError(
+                f"{name!r} closes over {missing} which are not in scope here",
+                construct="nested def",
+                line=node.lineno,
             )
-        # Python's own builtins, where a name in scope has not shadowed them,
-        # bridge to the engine functions that mean the same thing.
-        if node.func.id in _PYBUILTIN_CALLS and node.func.id not in self.scope:
-            return _PYBUILTIN_CALLS[node.func.id](self, node)
-        callee = self._x_Name(node.func)
-        return Expr([callee, *(self.expression(a) for a in node.args)])
+        return Expr(
+            [
+                Sym(mangled),
+                *(Var(self.scope[identifier]) for identifier in lifted_names),
+                *(self.expression(argument) for argument in node.args),
+            ]
+        )
 
     def _args(self, node: ast.Call, count: int | None, name: str) -> list[Atom]:
         if count is not None and len(node.args) != count:
@@ -543,50 +558,39 @@ class ExpressionCompilerMixin(CompilerContext):
         a literal spec. Exactly Python's building, so the twin agrees to
         the character."""
         self.runtime_ops.add("py-str-join")
-        parts: list[Atom] = []
-        for piece in node.values:
-            if isinstance(piece, ast.Constant) and isinstance(piece.value, str):
-                parts.append(Gnd(piece.value))
-                continue
-            if not isinstance(piece, ast.FormattedValue):
-                raise CompileError(
-                    "this f-string part has no lowering",
-                    construct="f-string",
-                    line=node.lineno,
-                )
-            value = self.expression(piece.value)
-            if piece.format_spec is not None:
-                spec = piece.format_spec
-                if not isinstance(spec, ast.JoinedStr):
-                    raise CompileError(
-                        "a computed f-string format spec has no lowering; "
-                        "write the spec literally, as in {x:.2f}",
-                        construct="f-string",
-                        line=node.lineno,
-                    )
-                literal_parts: list[str] = []
-                for format_piece in spec.values:
-                    if not (
-                        isinstance(format_piece, ast.Constant)
-                        and isinstance(format_piece.value, str)
-                    ):
-                        raise CompileError(
-                            "a computed f-string format spec has no lowering; "
-                            "write the spec literally, as in {x:.2f}",
-                            construct="f-string",
-                            line=node.lineno,
-                        )
-                    literal_parts.append(format_piece.value)
-                literal = "".join(literal_parts)
-                self.runtime_ops.add("py-format")
-                parts.append(Expr([Sym("py-format"), value, Gnd(literal)]))
-            elif piece.conversion == ord("r"):
-                self.runtime_ops.add("py-repr")
-                parts.append(Expr([Sym("py-repr"), value]))
-            else:
-                self.runtime_ops.add("py-str")
-                parts.append(Expr([Sym("py-str"), value]))
+        parts = [self._fstring_piece(piece, node.lineno) for piece in node.values]
         return Expr([Sym("py-str-join"), Expr(parts)])
+
+    def _fstring_piece(self, piece: ast.expr, line: int) -> Atom:
+        if isinstance(piece, ast.Constant) and isinstance(piece.value, str):
+            return Gnd(piece.value)
+        if not isinstance(piece, ast.FormattedValue):
+            raise CompileError(
+                "this f-string part has no lowering",
+                construct="f-string",
+                line=line,
+            )
+        value = self.expression(piece.value)
+        if piece.format_spec is not None:
+            literal = self._literal_format_spec(piece.format_spec, line)
+            self.runtime_ops.add("py-format")
+            return Expr([Sym("py-format"), value, Gnd(literal)])
+        if piece.conversion == ord("r"):
+            self.runtime_ops.add("py-repr")
+            return Expr([Sym("py-repr"), value])
+        self.runtime_ops.add("py-str")
+        return Expr([Sym("py-str"), value])
+
+    @staticmethod
+    def _literal_format_spec(spec: ast.expr, line: int) -> str:
+        if not isinstance(spec, ast.JoinedStr):
+            raise _computed_format_error(line)
+        literal_parts: list[str] = []
+        for piece in spec.values:
+            if not (isinstance(piece, ast.Constant) and isinstance(piece.value, str)):
+                raise _computed_format_error(line)
+            literal_parts.append(piece.value)
+        return "".join(literal_parts)
 
 
 class _PatternScope:
@@ -603,33 +607,9 @@ class _PatternScope:
 
     def expression(self, node: ast.expr) -> Atom:
         if isinstance(node, ast.Name):
-            if node.id in self.outer.scope:
-                return Var(self.outer.scope[node.id])
-            if (
-                node.id[:1].islower()
-                and not self.outer.known(node.id)
-                and node.id != self.outer.name
-            ):
-                if node.id not in self.bound:
-                    self.bound.append(node.id)
-                return Var(node.id)
-            return self.outer._x_Name(node)
+            return self._name(node)
         if isinstance(node, ast.Call):
-            if not isinstance(node.func, ast.Name):
-                raise CompileError(
-                    "a pattern applies a plain constructor name",
-                    construct="pattern",
-                    line=node.lineno,
-                )
-            # The head position names the relation, whatever its case:
-            # parent(gp, mid) matches (parent ...) atoms, so a lowercase head
-            # is the relation symbol, not a fresh variable; a head already in
-            # scope stays the variable it is.
-            head_id = node.func.id
-            head: Atom = (
-                Var(self.outer.scope[head_id]) if head_id in self.outer.scope else Sym(head_id)
-            )
-            return Expr([head, *(self.expression(a) for a in node.args)])
+            return self._call(node)
         if isinstance(node, (ast.Tuple, ast.List)):
             return Expr([self.expression(e) for e in node.elts])
         if isinstance(node, ast.Constant):
@@ -640,6 +620,30 @@ class _PatternScope:
             construct="pattern",
             line=getattr(node, "lineno", None),
         )
+
+    def _name(self, node: ast.Name) -> Atom:
+        if node.id in self.outer.scope:
+            return Var(self.outer.scope[node.id])
+        if node.id[:1].islower() and not self.outer.known(node.id) and node.id != self.outer.name:
+            if node.id not in self.bound:
+                self.bound.append(node.id)
+            return Var(node.id)
+        return self.outer._x_Name(node)
+
+    def _call(self, node: ast.Call) -> Expr:
+        if not isinstance(node.func, ast.Name):
+            raise CompileError(
+                "a pattern applies a plain constructor name",
+                construct="pattern",
+                line=node.lineno,
+            )
+        # The head position names the relation, whatever its case:
+        # parent(gp, mid) matches (parent ...) atoms, so a lowercase head is
+        # the relation symbol, not a fresh variable. A scoped head remains a
+        # variable.
+        head_id = node.func.id
+        head: Atom = Var(self.outer.scope[head_id]) if head_id in self.outer.scope else Sym(head_id)
+        return Expr([head, *(self.expression(argument) for argument in node.args)])
 
 
 # Python builtin -> its lowering. Consulted for a call to one of these names
@@ -667,5 +671,13 @@ def _name_of(target: ast.expr, line: int | None) -> str:
         "a compiled body binds plain names; destructuring and attribute "
         "assignment have no let* form",
         construct="assignment target",
+        line=line,
+    )
+
+
+def _computed_format_error(line: int) -> CompileError:
+    return CompileError(
+        "a computed f-string format spec has no lowering; write the spec literally, as in {x:.2f}",
+        construct="f-string",
         line=line,
     )
