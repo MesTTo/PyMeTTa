@@ -1,17 +1,33 @@
 % Purpose: store MeTTa atoms, compile equations into per-space modules, and
 %   route matching to native and foreign space providers.
+% Guarantees:
+%   - Native spaces preserve scalar atoms and expressions as distinct values
+%     [tested 2026-08-14: spaces_arbitrary_atoms].
 % Open Obligations:
 %   To Do: Resolve the remaining space findings in ai-prolog-review.md.
 %   Hacks: None
 %   Future Enhancements: None
 
-%Since both normal add-attom call and function additions needs to add the S-expression:
+%A nonempty expression is encoded as the arguments of the space predicate.
 add_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
-                               assertz(Term).
+                               assertz(Term), !.
+%A scalar or empty expression needs a marked rule because Space(Term) as a
+%plain fact is already the encoding of the singleton expression (Term).
+add_sexp(Space, Atom) :- Head =.. [Space, Atom],
+                         assertz((Head :- native_scalar_atom)).
 
-%Same but for removal:
+%Remove every atom that unifies with the requested value, matching the
+%existing retractall semantics for expressions.
 remove_sexp(Space, [Rel|Args]) :- Term =.. [Space, Rel | Args],
-                                  retractall(Term).
+                                  findall(Ref, clause(Term, true, Ref), Refs),
+                                  forall(member(Ref, Refs), erase(Ref)), !.
+remove_sexp(Space, Atom) :- Head =.. [Space, Atom],
+                            findall(Ref,
+                                    clause(Head, native_scalar_atom, Ref),
+                                    Refs),
+                            forall(member(Ref, Refs), erase(Ref)).
+
+native_scalar_atom.
 
 %Which module a space's compiled clauses live in. &self keeps using the default
 %module, so every existing program compiles and runs exactly as before; any other
@@ -156,9 +172,14 @@ match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
                                                                 get_native_atom(Space, Head),
                                                                 acyclic_term(OutPattern),
                                                                 match_native(Space, [','|Tail], OutPattern, Result).
+match_native(Space, [Comma|[Head|Tail]], OutPattern, Result) :- Comma == ',',
+                                                                ( Head == [] ; \+ is_list(Head) ), !,
+                                                                get_native_scalar_atom(Space, Head),
+                                                                acyclic_term(OutPattern),
+                                                                match_native(Space, [','|Tail], OutPattern, Result).
 match_native(Space, [Comma|[[Rel|PatArgs]|Tail]], OutPattern, Result) :- Comma == ',', !,
                                                                         Term =.. [Space, Rel | PatArgs],
-                                                                        catch(Term, E, recover_failure(E)),
+                                                                        catch(clause(Term, true), E, recover_failure(E)),
                                                                         acyclic_term(OutPattern),
                                                                         match_native(Space, [','|Tail], OutPattern, Result).
 
@@ -168,8 +189,14 @@ match_native(Space, PatternVar, OutPattern, Result) :- var(PatternVar), !,
                                                        acyclic_term(OutPattern),
                                                        Result = OutPattern.
 
+match_native(Space, Pattern, OutPattern, Result) :-
+    ( Pattern == [] ; \+ is_list(Pattern) ), !,
+    get_native_scalar_atom(Space, Pattern),
+    acyclic_term(OutPattern),
+    Result = OutPattern.
+
 match_native(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel | PatArgs],
-                                                          catch(Term, E, recover_failure(E)),
+                                                          catch(clause(Term, true), E, recover_failure(E)),
                                                           acyclic_term(OutPattern),
                                                           Result = OutPattern.
 
@@ -182,5 +209,15 @@ match_native(Space, [Rel|PatArgs], OutPattern, Result) :- Term =.. [Space, Rel |
 
 get_native_atom(Space, Pattern) :- current_predicate(Space/Arity),
                                    functor(Head, Space, Arity),
-                                   clause(Head, true),
-                                   Head =.. [Space | Pattern].
+                                   clause(Head, Body),
+                                   native_clause_atom(Body, Space, Head, Pattern).
+
+native_clause_atom(true, Space, Head, Pattern) :-
+    Head =.. [Space | Pattern].
+native_clause_atom(native_scalar_atom, Space, Head, Pattern) :-
+    Head =.. [Space, Pattern].
+
+get_native_scalar_atom(Space, Pattern) :-
+    functor(Head, Space, 1),
+    clause(Head, native_scalar_atom),
+    Head =.. [Space, Pattern].
