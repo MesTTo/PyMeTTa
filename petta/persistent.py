@@ -88,6 +88,33 @@ _HELPER_ARITIES = {
 _MISSING = object()
 
 
+def _validate_schema_entry(head: Any, arity: Any) -> tuple[str, int]:
+    if not isinstance(head, str):
+        raise TypeError(f"schema head names must be strings, got {head!r}")
+    if "\x00" in head:
+        raise ValueError(f"schema head {head!r} contains a null byte")
+    if isinstance(arity, bool) or not isinstance(arity, int) or arity < 0:
+        raise ValueError(
+            f"schema arity for {head!r} must be a non-negative integer, got {arity!r}"
+        )
+    if (head, arity) in _PERSISTENCY_API:
+        raise ValueError(
+            f"schema head {head!r}/{arity} conflicts with library(persistency)"
+        )
+    return head, arity
+
+
+def _validate_generated_updaters(schema: Mapping[str, int]) -> None:
+    for head, arity in schema.items():
+        for prefix in ("assert_", "asserta_", "retract_", "retractall_"):
+            generated = f"{prefix}{head}"
+            if schema.get(generated) == arity:
+                raise ValueError(
+                    f"schema head {generated!r}/{arity} conflicts with the "
+                    f"generated updater for {head!r}/{arity}"
+                )
+
+
 def _validated_schema(schema: Mapping[str, int]) -> dict[str, int]:
     if not isinstance(schema, Mapping):
         raise TypeError(
@@ -95,30 +122,11 @@ def _validated_schema(schema: Mapping[str, int]) -> dict[str, int]:
         )
     copied: dict[str, int] = {}
     for head, arity in schema.items():
-        if not isinstance(head, str):
-            raise TypeError(f"schema head names must be strings, got {head!r}")
-        if "\x00" in head:
-            raise ValueError(f"schema head {head!r} contains a null byte")
-        if isinstance(arity, bool) or not isinstance(arity, int) or arity < 0:
-            raise ValueError(
-                f"schema arity for {head!r} must be a non-negative integer, got {arity!r}"
-            )
-        if (head, arity) in _PERSISTENCY_API:
-            raise ValueError(
-                f"schema head {head!r}/{arity} conflicts with library(persistency)"
-            )
-        copied[head] = arity
+        valid_head, valid_arity = _validate_schema_entry(head, arity)
+        copied[valid_head] = valid_arity
     if not copied:
         raise ValueError("schema must declare at least one fact head")
-
-    for head, arity in copied.items():
-        for prefix in ("assert_", "asserta_", "retract_", "retractall_"):
-            generated = f"{prefix}{head}"
-            if copied.get(generated) == arity:
-                raise ValueError(
-                    f"schema head {generated!r}/{arity} conflicts with the "
-                    f"generated updater for {head!r}/{arity}"
-                )
+    _validate_generated_updaters(copied)
     return copied
 
 
@@ -388,6 +396,57 @@ def _module_source(
 {helpers["compact"]} :- with_mutex({mutex}, ignore(db_sync(gc))).
 {helpers["close"]} :- with_mutex({mutex}, db_detach).
 """
+
+
+def _validated_fact_head(
+    atom: Atom,
+    verb: str,
+    schema: Mapping[str, int],
+) -> tuple[str, tuple[Atom, ...]]:
+    if not (isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)):
+        raise PettaError(
+            f"cannot {verb} {atom}: a persistent fact is a ground "
+            "(head arguments...) expression"
+        )
+    head = atom.head.name
+    if head not in schema:
+        raise PettaError(
+            f"cannot {verb} {atom}: unknown persistent head {head!r}; "
+            f"declared heads are {list(schema)!r}"
+        )
+    expected = schema[head]
+    if len(atom.args) != expected:
+        raise PettaError(
+            f"cannot {verb} {atom}: {head!r} has arity {expected}, got {len(atom.args)}"
+        )
+    return head, atom.args
+
+
+def _persistent_argument_wire(
+    atom: Atom,
+    argument: Atom,
+    index: int,
+    verb: str,
+) -> list[Any]:
+    if not is_ground(argument):
+        raise PettaError(
+            f"cannot {verb} {atom}: argument {index} ({argument}) is not ground"
+        )
+    if isinstance(argument, Sym):
+        return argument.to_wire()
+    if isinstance(argument, Gnd):
+        value = argument.value
+        if type(value) in (bool, int, float, str):
+            return argument.to_wire()
+        raise PettaError(
+            f"cannot {verb} {atom}: argument {index} is a live Python "
+            f"object of type {type(value).__name__}; persistent facts "
+            "accept only numbers, symbols, strings, and booleans"
+        )
+    raise PettaError(
+        f"cannot {verb} {atom}: argument {index} ({argument}) is not "
+        "a number, symbol, string, or boolean"
+    )
 
 
 class PersistentFactSpace(SpaceProvider):
@@ -744,49 +803,11 @@ class PersistentFactSpace(SpaceProvider):
         return facts
 
     def _fact_parts(self, atom: Atom, verb: str) -> tuple[str, list[list[Any]]]:
-        if not (
-            isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)
-        ):
-            raise PettaError(
-                f"cannot {verb} {atom}: a persistent fact is a ground "
-                "(head arguments...) expression"
-            )
-
-        head = atom.head.name
-        if head not in self._schema:
-            raise PettaError(
-                f"cannot {verb} {atom}: unknown persistent head {head!r}; "
-                f"declared heads are {list(self._schema)!r}"
-            )
-        expected = self._schema[head]
-        if len(atom.args) != expected:
-            raise PettaError(
-                f"cannot {verb} {atom}: {head!r} has arity {expected}, got {len(atom.args)}"
-            )
-
-        wires = []
-        for index, argument in enumerate(atom.args, start=1):
-            if not is_ground(argument):
-                raise PettaError(
-                    f"cannot {verb} {atom}: argument {index} ({argument}) is not ground"
-                )
-            if isinstance(argument, Sym):
-                wires.append(argument.to_wire())
-                continue
-            if isinstance(argument, Gnd):
-                value = argument.value
-                if type(value) in (bool, int, float, str):
-                    wires.append(argument.to_wire())
-                    continue
-                raise PettaError(
-                    f"cannot {verb} {atom}: argument {index} is a live Python "
-                    f"object of type {type(value).__name__}; persistent facts "
-                    "accept only numbers, symbols, strings, and booleans"
-                )
-            raise PettaError(
-                f"cannot {verb} {atom}: argument {index} ({argument}) is not "
-                "a number, symbol, string, or boolean"
-            )
+        head, arguments = _validated_fact_head(atom, verb, self._schema)
+        wires = [
+            _persistent_argument_wire(atom, argument, index, verb)
+            for index, argument in enumerate(arguments, start=1)
+        ]
         return head, wires
 
     def _call(
