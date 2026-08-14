@@ -593,12 +593,6 @@ letstar_to_rec_let([], Body, Body) :- !.
 letstar_to_rec_let([[Pat,Val]],Body,[let,Pat,Val,Body]).
 letstar_to_rec_let([[Pat,Val]|Rest],Body,[let,Pat,Val,Out]) :- letstar_to_rec_let(Rest,Body,Out).
 
-%Patterns: variables, atoms, numbers, lists:
-translate_pattern(X, X) :- var(X), !.
-translate_pattern(X, X) :- atomic(X), !.
-translate_pattern([H|T], [P|Ps]) :- !, translate_pattern(H, P),
-                                       translate_pattern(T, Ps).
-
 % Constructs the goal for a single branch of an if-then-else/case.
 build_branch(true, Val, Out, (Out = Val)) :- !.
 %A variable-valued branch unifies with the output at RUNTIME, inside the
