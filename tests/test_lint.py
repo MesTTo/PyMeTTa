@@ -3,15 +3,21 @@ declarations nothing defines, arrow arity against equation arity, calls
 with the wrong argument count, body variables the head never bound,
 alpha-equivalent duplicate equations, and heads no function or fact
 carries. A healthy space answers no findings.
+Guarantees:
+  - public finding records survive pickle through petta.lint [tested
+    test_finding_retains_public_pickle_identity]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import pickle
+
 import pytest
 
 from petta import Expr, S, V
+from petta.lint import Finding
 
 
 @pytest.fixture()
@@ -22,6 +28,12 @@ def m(metta):
 
 def _kinds(findings):
     return [finding.kind for finding in findings]
+
+
+def test_finding_retains_public_pickle_identity():
+    finding = Finding("kind", "subject", "detail", S.evidence)
+    assert pickle.loads(pickle.dumps(finding)) == finding
+    assert Finding.__module__ == "petta.lint"
 
 
 def test_a_healthy_space_answers_no_findings(m):
