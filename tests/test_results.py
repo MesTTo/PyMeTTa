@@ -76,6 +76,46 @@ def test_row_classes_are_reused_and_bounded():
     assert _row_class.cache_info().currsize == 256
 
 
+def test_rows_sequence_operations_preserve_columns():
+    rows = Rows(("name", "score"), [("Ada", 3), ("Bob", 5)])
+    for derived in (
+        rows[:1],
+        rows.copy(),
+        rows + [("Cid", 8)],
+        [("Cid", 8)] + rows,
+        rows * 2,
+        2 * rows,
+    ):
+        assert isinstance(derived, Rows)
+        assert derived.columns == rows.columns
+        assert all(type(row)._columns == rows.columns for row in derived)
+    assert rows["score"] == [3, 5]
+
+    with pytest.raises(ValueError, match="cannot combine Rows"):
+        rows + Rows(("other",), [(1,)])
+
+
+def test_rows_mutations_preserve_invariants():
+    rows = Rows(("name", "score"), [("Ada", 3)])
+    rows.append(("Bob", 5))
+    rows.insert(0, ("Cid", 8))
+    rows.extend([("Dee", 13)])
+    rows[0] = ("Eve", 21)
+    rows[1:2] = [("Fox", 34)]
+    rows += [("Gia", 55)]
+    assert rows["name"] == ["Eve", "Fox", "Bob", "Dee", "Gia"]
+    assert all(type(row)._columns == rows.columns for row in rows)
+
+    with pytest.raises(ValueError, match="1 values for 2 columns"):
+        rows.append(("bad",))
+    with pytest.raises(ValueError, match="3 values for 2 columns"):
+        rows[0] = ("bad", 1, 2)
+    before = rows.copy()
+    with pytest.raises(ValueError, match="1 values for 2 columns"):
+        rows.extend([("valid", 89), ("bad",)])
+    assert rows == before
+
+
 def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
     rows = Rows((), [(), ()])
     with pytest.raises(ValueError, match="nonempty zero-column"):

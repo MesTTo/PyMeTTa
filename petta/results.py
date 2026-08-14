@@ -1,10 +1,14 @@
-"""Purpose: query results as rows. A Rows is a list of Row tuples, one per
+"""Purpose: query results as rows. A Rows is a mutable sequence of Row tuples, one per
 answer, with the query's variable names as columns and attribute access per
 column, so rows drop into unpacking, DataFrame constructors and pattern
 matching without a helper in between.
 Guarantees:
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
+  - slicing, copying, concatenation, and repetition preserve Rows and its
+    columns [tested test_rows_sequence_operations_preserve_columns]
+  - every mutation validates row width and preserves the named Row type
+    [tested test_rows_mutations_preserve_invariants]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,8 +17,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections import UserList
+from collections.abc import Iterable, Iterator
 from functools import lru_cache
-from typing import Any, Iterator
+from typing import Any, overload
 
 __all__ = ["Row", "Rows"]
 
@@ -66,16 +72,18 @@ def _row_class(columns: tuple[str, ...]) -> type[Row]:
     return cls
 
 
-class Rows(list):
+class Rows(UserList[Row]):
     """Every answer to a query, in the order the engine produced them.
 
-    A list, so len, iteration, indexing and slicing behave as expected;
-    columns names the variables. column(name) projects one column out.
+    Sequence operations retain this type and its columns. ``rows["name"]``
+    projects a column, while integer and slice indexing follow a normal list.
     """
 
     __slots__ = ("columns",)
 
-    def __init__(self, columns: tuple[str, ...], rows: list[tuple]) -> None:
+    def __init__(
+        self, columns: tuple[str, ...], rows: Iterable[tuple[Any, ...]]
+    ) -> None:
         columns = tuple(columns)
         duplicates = [
             name for i, name in enumerate(columns) if name in columns[:i]
@@ -84,18 +92,79 @@ class Rows(list):
             raise ValueError(
                 f"Rows column names must be unique; duplicate names: {duplicates}"
             )
+        self.columns = columns
         checked = []
         for index, row in enumerate(rows):
-            values = tuple(row)
-            if len(values) != len(columns):
-                raise ValueError(
-                    f"Rows row {index} has {len(values)} values for "
-                    f"{len(columns)} columns"
-                )
-            checked.append(values)
-        cls = _row_class(columns)
-        super().__init__(cls(r) for r in checked)
-        self.columns = columns
+            checked.append(self._coerce_row(row, index=index))
+        super().__init__(checked)
+
+    def _coerce_row(self, row: Iterable[Any], *, index: int | None = None) -> Row:
+        values = tuple(row)
+        if len(values) != len(self.columns):
+            location = f" row {index}" if index is not None else " row"
+            raise ValueError(
+                f"Rows{location} has {len(values)} values for "
+                f"{len(self.columns)} columns"
+            )
+        return _row_class(self.columns)(values)
+
+    @overload
+    def __getitem__(self, key: int) -> Row: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Rows: ...
+
+    @overload
+    def __getitem__(self, key: str) -> list[Any]: ...
+
+    def __getitem__(self, key: int | slice | str) -> Row | Rows | list[Any]:
+        if isinstance(key, str):
+            return self.column(key)
+        if isinstance(key, slice):
+            return Rows(self.columns, self.data[key])
+        return self.data[key]
+
+    def __setitem__(self, key: int | slice, value: Any) -> None:
+        if isinstance(key, slice):
+            self.data[key] = [self._coerce_row(row) for row in value]
+        else:
+            self.data[key] = self._coerce_row(value)
+
+    def insert(self, index: int, row: Iterable[Any]) -> None:
+        self.data.insert(index, self._coerce_row(row))
+
+    def append(self, row: Iterable[Any]) -> None:
+        self.data.append(self._coerce_row(row))
+
+    def extend(self, rows: Iterable[Iterable[Any]]) -> None:
+        checked = [self._coerce_row(row) for row in rows]
+        self.data.extend(checked)
+
+    def copy(self) -> Rows:
+        return Rows(self.columns, self.data)
+
+    def _addition_rows(self, other: Iterable[Iterable[Any]]) -> Iterable[Iterable[Any]]:
+        if isinstance(other, Rows) and other.columns != self.columns:
+            raise ValueError(
+                f"cannot combine Rows with columns {self.columns!r} and "
+                f"{other.columns!r}"
+            )
+        return other
+
+    def __add__(self, other: Iterable[Iterable[Any]]) -> Rows:
+        return Rows(self.columns, [*self.data, *self._addition_rows(other)])
+
+    def __radd__(self, other: Iterable[Iterable[Any]]) -> Rows:
+        return Rows(self.columns, [*self._addition_rows(other), *self.data])
+
+    def __iadd__(self, other: Iterable[Iterable[Any]]) -> Rows:
+        self.extend(self._addition_rows(other))
+        return self
+
+    def __mul__(self, count: int) -> Rows:
+        return Rows(self.columns, self.data * count)
+
+    __rmul__ = __mul__
 
     def column(self, name: str) -> list[Any]:
         index = self.columns.index(name)
@@ -203,4 +272,4 @@ class Rows(list):
         return f"Rows[{header}]({super().__repr__()})"
 
     def __iter__(self) -> Iterator[Row]:
-        return super().__iter__()
+        return iter(self.data)
