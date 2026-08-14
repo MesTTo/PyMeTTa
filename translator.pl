@@ -222,8 +222,7 @@ translate_expr_dl(X, Goals, Goals, X) :-
     ((var(X) ; atomic(X)) ; X = partial(_,_)), !.
 translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
         safe_rewrite_streamops([H0|T0],[H|T]),
-        translate_expr(H, GsH, HV),
-        append(GsH, AfterHead, Goals0),
+        translate_expr_dl(H, Goals0, AfterHead, HV),
         %--- Translator rules ---:
         ( nonvar(HV), translator_rule(HV) -> ( catch_recover(type_declaration(HV, TypeChain), fail)
                                                -> TypeChain = [->|Xs],
