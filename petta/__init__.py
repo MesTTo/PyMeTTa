@@ -150,6 +150,7 @@ from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa
 from . import aio, arrays, convert, das, foreign, integrate, lint, matching, measure, persistent, remote, testing, trace  # noqa: E402
 from .casting import CastError, cast  # noqa: E402
 from .define import Defined  # noqa: E402
+from ._engine import engine_thread  # noqa: E402
 from .foreign import (  # noqa: E402
     Adder,
     Clearer,
@@ -221,6 +222,7 @@ __all__ = [
     "Prepared",
     "Cursor",
     "EngineProfile",
+    "engine_thread",
     "Rows",
     "Row",
     "REFLECTION_SPACE",

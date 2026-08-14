@@ -6,6 +6,8 @@ Guarantees:
   - Runtime classifies only the shim's exact reserved exception term shape
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
     test_reserved_exception_shape_maps_by_kind]
+  - engine_thread attaches only a bare foreign thread and detaches exactly
+    the engine it attached [tested test_engine_thread_owns_only_its_attachment]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,6 +20,7 @@ import importlib
 import os
 import sys
 import threading
+from contextlib import contextmanager
 from typing import Any, Iterator, NoReturn
 
 from .errors import (
@@ -47,6 +50,44 @@ _EXCEPTION_TYPES = {
 def started() -> bool:
     """Whether a runtime exists, without starting one."""
     return _RUNTIME is not None
+
+
+@contextmanager
+def engine_thread() -> Iterator[None]:
+    """Attach a Prolog engine to this thread for the duration of the block.
+
+    The consulting thread and an already attached worker keep their existing
+    engine. A bare foreign thread gets one engine and releases it on exit,
+    including exceptional exit.
+    """
+    bridge = runtime()._janus
+    try:
+        already_attached = int(bridge.engine()) >= 0
+    except Exception as exc:
+        raise EngineError("could not inspect this thread's Prolog engine") from exc
+    if already_attached:
+        yield
+        return
+
+    attached = False
+    try:
+        bridge.attach_engine()
+        attached = True
+        if int(bridge.engine()) < 0:
+            raise RuntimeError("janus did not attach a Prolog engine")
+    except Exception as exc:
+        if attached:
+            bridge.detach_engine()
+        raise EngineError("could not attach a Prolog engine to this thread") from exc
+    try:
+        yield
+    finally:
+        try:
+            bridge.detach_engine()
+        except Exception as exc:
+            raise EngineError(
+                "could not detach this thread's Prolog engine"
+            ) from exc
 
 
 def runtime(petta_path: str | None = None, verbose: bool = False) -> "Runtime":

@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import petta
@@ -71,3 +72,40 @@ def test_backend_info_never_starts_the_runtime():
     )
     assert done.returncode == 0, done.stderr
     assert "NO-START-OK" in done.stdout
+
+
+def test_engine_thread_owns_only_its_attachment(metta):
+    observed = {}
+
+    def work():
+        observed["before"] = petta.janus.engine()
+        with petta.engine_thread():
+            observed["inside"] = petta.janus.engine()
+            with petta.engine_thread():
+                observed["nested"] = petta.janus.engine()
+                observed["value"] = metta.value("(+ 20 22)")
+            observed["after_nested"] = petta.janus.engine()
+        observed["after"] = petta.janus.engine()
+        try:
+            with petta.engine_thread():
+                raise LookupError("exceptional context exit")
+        except LookupError:
+            pass
+        observed["after_exception"] = petta.janus.engine()
+
+    thread = threading.Thread(target=work)
+    thread.start()
+    thread.join()
+
+    assert observed["before"] == -1
+    assert observed["inside"] >= 0
+    assert observed["nested"] == observed["inside"]
+    assert observed["after_nested"] == observed["inside"]
+    assert observed["value"] == 42
+    assert observed["after"] == -1
+    assert observed["after_exception"] == -1
+
+    home_engine = petta.janus.engine()
+    with petta.engine_thread():
+        assert petta.janus.engine() == home_engine
+    assert petta.janus.engine() == home_engine
