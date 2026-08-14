@@ -11,6 +11,8 @@
 %     translator_branch_returns].
 %   - A typed function remains partially applicable until it has produced a
 %     return value [tested 2026-08-14: translator_typed_currying].
+%   - Arity selection does not compile typed arguments before their branch
+%     translation [tested 2026-08-14: translator_typed_single_pass].
 %   - Empty special-form inputs have explicit identity or failure semantics
 %     [tested 2026-08-14: translator_empty_forms].
 %   - Dynamic and compiled calls surface the same runtime errors
@@ -246,10 +248,9 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
             -> findall(TypeChain, catch_recover(type_declaration(Fun, TypeChain), fail), TypeChains),
                list_to_set(TypeChains, UniqueTypeChains),
                ( UniqueTypeChains \= []
-                 -> translate_args(T, _DiscardedGoals, TypedAVs),
-                    ( IsPartial -> append(Bound, TypedAVs, AllTypedAVs)
-                                ; AllTypedAVs = TypedAVs ),
-                    length(AllTypedAVs, InputArity),
+                 -> length(T, NewInputArity),
+                    length(Bound, BoundArity),
+                    InputArity is BoundArity + NewInputArity,
                     Arity is InputArity + 1,
                     ( incomplete_application_kind(Fun, Arity, ApplicationKind), ApplicationKind == overapplied
                       -> AfterHead = [throw_function_overapplication(Fun, InputArity)|Goals]
