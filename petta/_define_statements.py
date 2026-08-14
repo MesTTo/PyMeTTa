@@ -48,37 +48,13 @@ class StatementCompilerMixin(CompilerContext):
         head, rest = statements[0], statements[1:]
 
         if isinstance(head, ast.Return):
-            if rest:
-                raise CompileError(
-                    "statements after `return` are unreachable and have no equation",
-                    construct="return",
-                    line=rest[0].lineno,
-                )
-            if head.value is None:
-                raise CompileError(
-                    "a compiled function returns a value; a bare `return` has "
-                    "nothing to rewrite to",
-                    construct="return",
-                    line=head.lineno,
-                )
-            return self.expression(head.value)
+            return self._return_statement(head, rest)
 
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-            variable, value = self._binding(head)
-            return Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), self.block(rest)])
+            return self._bound_block(head, rest)
 
-        if isinstance(head, ast.If):
-            return self.if_statement(head, rest, lambda c, stmts: c.block(stmts))
-
-        if isinstance(head, ast.While):
-            return self._while_statement(head, rest)
-
-        if isinstance(head, ast.For):
-            return self._for_statement(head, rest)
-
-        if isinstance(head, ast.FunctionDef):
-            self._lift_definition(head)
-            return self.block(rest)
+        if isinstance(head, (ast.If, ast.While, ast.For, ast.FunctionDef)):
+            return self._compound_statement(head, rest)
 
         if isinstance(head, (ast.Break, ast.Continue)):
             raise CompileError(
@@ -95,6 +71,43 @@ class StatementCompilerMixin(CompilerContext):
             construct=type(head).__name__,
             line=head.lineno,
         )
+
+    def _return_statement(self, head: ast.Return, rest: list[ast.stmt]) -> Atom:
+        if rest:
+            raise CompileError(
+                "statements after `return` are unreachable and have no equation",
+                construct="return",
+                line=rest[0].lineno,
+            )
+        if head.value is None:
+            raise CompileError(
+                "a compiled function returns a value; a bare `return` has nothing to rewrite to",
+                construct="return",
+                line=head.lineno,
+            )
+        return self.expression(head.value)
+
+    def _bound_block(
+        self,
+        head: ast.Assign | ast.AnnAssign | ast.AugAssign,
+        rest: list[ast.stmt],
+    ) -> Expr:
+        variable, value = self._binding(head)
+        return Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), self.block(rest)])
+
+    def _compound_statement(
+        self,
+        head: ast.If | ast.While | ast.For | ast.FunctionDef,
+        rest: list[ast.stmt],
+    ) -> Atom:
+        if isinstance(head, ast.If):
+            return self.if_statement(head, rest, lambda compiler, body: compiler.block(body))
+        if isinstance(head, ast.While):
+            return self._while_statement(head, rest)
+        if isinstance(head, ast.For):
+            return self._for_statement(head, rest)
+        self._lift_definition(head)
+        return self.block(rest)
 
     def _binding(self, head: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[str, Atom]:
         """One binding: the MeTTa variable to write and the value term.
@@ -169,24 +182,9 @@ class StatementCompilerMixin(CompilerContext):
         become leading parameters, the equation joins the definition's own,
         and every call site prepends the lifted names' current variables,
         which is Python's late binding resolved per call."""
-        if node.args.defaults or node.args.vararg or node.args.kwarg or node.args.kwonlyargs:
-            raise CompileError(
-                "a nested def takes plain positional parameters; defaults "
-                "belong on top-level clauses, where they are head patterns",
-                construct="nested def",
-                line=node.lineno,
-            )
+        _validate_nested_signature(node)
         params = [arg.arg for arg in node.args.args]
-        lifted: list[str] = []
-        for sub in ast.walk(node):
-            if (
-                isinstance(sub, ast.Name)
-                and isinstance(sub.ctx, ast.Load)
-                and sub.id in self.scope
-                and sub.id not in params
-                and sub.id not in lifted
-            ):
-                lifted.append(sub.id)
+        lifted = _lifted_names(node, self.scope, params)
         mangled = f"{self.name}--{node.name}-{next_aux_serial()}"
         generator = _is_generator(node)
         self.lifted[node.name] = (mangled, lifted, generator)
@@ -211,53 +209,17 @@ class StatementCompilerMixin(CompilerContext):
             raise CompileError(f"{self.name} yields nothing", construct="body")
         head, rest = statements[0], statements[1:]
 
-        if isinstance(head, ast.Expr) and isinstance(head.value, ast.Yield):
-            if head.value.value is None:
-                raise CompileError(
-                    "a bare `yield` has no value to answer",
-                    construct="yield",
-                    line=head.lineno,
-                )
-            answer = self.expression(head.value.value)
-            return [answer, *(self.yield_answers(rest) if rest else [])]
-
-        if isinstance(head, ast.Expr) and isinstance(head.value, ast.YieldFrom):
-            return [
-                self._yield_from(head.value),
-                *(self.yield_answers(rest) if rest else []),
-            ]
+        if isinstance(head, ast.Expr):
+            return self._yield_expression(head, rest)
 
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-            variable, value = self._binding(head)
-            tail = _superpose(self.yield_answers(rest))
-            return [Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), tail])]
+            return self._yield_binding(head, rest)
 
         if isinstance(head, ast.If):
-            then = _superpose(self._fork().yield_answers(head.body))
-            otherwise = (
-                _superpose(self._fork().yield_answers(head.orelse))
-                if head.orelse
-                else Expr([Sym("empty")])
-            )
-            chooser = Expr([Sym("if"), self._truthy(head.test), then, otherwise])
-            return [chooser, *(self.yield_answers(rest) if rest else [])]
+            return self._yield_if(head, rest)
 
         if isinstance(head, ast.For):
-            # `for x in e: <yields>` is iteration as nondeterminism: bind x
-            # to each element of e through superpose, answer the body for
-            # each. The loop never closes the block, exactly as in Python.
-            if head.orelse:
-                raise CompileError(
-                    "`for ... else` has no equation; the else arm runs on "
-                    "non-break exit and this subset has no break",
-                    construct="for-else",
-                    line=head.lineno,
-                )
-            body_compiler = self._fork()
-            var = body_compiler._bind(_name_of(head.target, head.lineno))
-            body = _superpose(body_compiler.yield_answers(head.body))
-            looped = self._iteration(head.iter, var, body)
-            return [looped, *(self.yield_answers(rest) if rest else [])]
+            return self._yield_for(head, rest)
 
         if isinstance(head, ast.Return):
             raise CompileError(
@@ -272,6 +234,63 @@ class StatementCompilerMixin(CompilerContext):
             construct=type(head).__name__,
             line=head.lineno,
         )
+
+    def _yield_expression(self, head: ast.Expr, rest: list[ast.stmt]) -> list[Atom]:
+        if isinstance(head.value, ast.Yield):
+            if head.value.value is None:
+                raise CompileError(
+                    "a bare `yield` has no value to answer",
+                    construct="yield",
+                    line=head.lineno,
+                )
+            return [self.expression(head.value.value), *self._yield_tail(rest)]
+        if isinstance(head.value, ast.YieldFrom):
+            return [self._yield_from(head.value), *self._yield_tail(rest)]
+        raise CompileError(
+            f"{type(head).__name__} has no place in a compiled generator, "
+            "which covers yield, assignment and if/else",
+            construct=type(head).__name__,
+            line=head.lineno,
+        )
+
+    def _yield_binding(
+        self,
+        head: ast.Assign | ast.AnnAssign | ast.AugAssign,
+        rest: list[ast.stmt],
+    ) -> list[Atom]:
+        variable, value = self._binding(head)
+        tail = _superpose(self.yield_answers(rest))
+        return [Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), tail])]
+
+    def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
+        then = _superpose(self._fork().yield_answers(head.body))
+        otherwise = (
+            _superpose(self._fork().yield_answers(head.orelse))
+            if head.orelse
+            else Expr([Sym("empty")])
+        )
+        chooser = Expr([Sym("if"), self._truthy(head.test), then, otherwise])
+        return [chooser, *self._yield_tail(rest)]
+
+    def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
+        # `for x in e: <yields>` is iteration as nondeterminism: bind x to
+        # each element of e through superpose, answer the body for each. The
+        # loop never closes the block, exactly as in Python.
+        if head.orelse:
+            raise CompileError(
+                "`for ... else` has no equation; the else arm runs on "
+                "non-break exit and this subset has no break",
+                construct="for-else",
+                line=head.lineno,
+            )
+        body_compiler = self._fork()
+        variable = body_compiler._bind(_name_of(head.target, head.lineno))
+        body = _superpose(body_compiler.yield_answers(head.body))
+        looped = self._iteration(head.iter, variable, body)
+        return [looped, *self._yield_tail(rest)]
+
+    def _yield_tail(self, rest: list[ast.stmt]) -> list[Atom]:
+        return self.yield_answers(rest) if rest else []
 
 
 def _superpose(answers: list[Atom]) -> Expr:
@@ -308,3 +327,26 @@ def _single_target(node: ast.Assign) -> str:
             line=node.lineno,
         )
     return _name_of(node.targets[0], node.lineno)
+
+
+def _validate_nested_signature(node: ast.FunctionDef) -> None:
+    if node.args.defaults or node.args.vararg or node.args.kwarg or node.args.kwonlyargs:
+        raise CompileError(
+            "a nested def takes plain positional parameters; defaults "
+            "belong on top-level clauses, where they are head patterns",
+            construct="nested def",
+            line=node.lineno,
+        )
+
+
+def _lifted_names(node: ast.FunctionDef, scope: dict[str, str], params: list[str]) -> list[str]:
+    return list(
+        dict.fromkeys(
+            sub.id
+            for sub in ast.walk(node)
+            if isinstance(sub, ast.Name)
+            and isinstance(sub.ctx, ast.Load)
+            and sub.id in scope
+            and sub.id not in params
+        )
+    )
