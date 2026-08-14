@@ -76,7 +76,8 @@ def _unstored_explanation(space: Any, name: str) -> str:
     if renamed != name and space.is_function_here(renamed):
         return (
             f"nothing here is headed by {name}, and no function has that name; "
-            f"did you mean {renamed}? define() reads underscores as hyphens"
+            f"did you mean {renamed}? define() and register_op() both read "
+            f"underscores as hyphens"
         )
     close = get_close_matches(name, space.builtins(), n=1, cutoff=0.75)
     suggestion = f"; did you mean {close[0]}?" if close else ""

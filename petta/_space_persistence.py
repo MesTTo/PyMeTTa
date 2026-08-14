@@ -99,8 +99,9 @@ def unsafe_text_symbol(atom: Atom) -> Sym | None:
     stack = [atom]
     while stack:
         current = stack.pop()
-        if isinstance(current, Sym) and any(
-            character.isspace() or character in '()"' for character in current.name
+        if isinstance(current, Sym) and (
+            not current.name
+            or any(character.isspace() or character in '()"' for character in current.name)
         ):
             return current
         if isinstance(current, Expr):
@@ -110,11 +111,16 @@ def unsafe_text_symbol(atom: Atom) -> Sym | None:
 
 def raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
     name = symbol.name if isinstance(symbol, Sym) else str(symbol)
-    raise ValueError(
-        f"{operation} cannot write symbol {name!r} as MeTTa text: symbol "
-        f"names containing whitespace, parentheses, or quotes have no "
-        f"round-trip text spelling"
+    reason = (
+        "the empty symbol writes as nothing at all, so its term reads back "
+        "one element shorter"
+        if not name
+        else (
+            "symbol names containing whitespace, parentheses, or quotes have "
+            "no round-trip text spelling"
+        )
     )
+    raise ValueError(f"{operation} cannot write symbol {name!r} as MeTTa text: {reason}")
 
 
 def _validate_atoms(atoms: list[Atom]) -> None:

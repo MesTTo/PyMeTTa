@@ -109,6 +109,24 @@ _EXCEPTION_TYPES = {
 }
 
 
+def _reserved_message(kind: str, detail: object, fallback: str) -> str:
+    """Say what a reserved exception means, in the caller's own terms.
+
+    The thrown term is an envelope the Python side put there, so rendering
+    it leaks janus framing: the caller who passed timeout=0.05 was reading
+    `Unknown error term: petta_py_exception(time_limit,0.05)`.
+    """
+    if kind == "syntax":
+        return detail if isinstance(detail, str) else fallback
+    if kind == "time_limit":
+        return f"the {detail} second time limit was reached"
+    if kind == "inference_limit":
+        return f"the {detail} inference limit was reached"
+    if kind == "interrupted":
+        return "interrupt() stopped the evaluation"
+    return fallback
+
+
 def started() -> bool:
     """Whether a runtime exists, without starting one."""
     return _STATE.runtime is not None
@@ -437,10 +455,7 @@ class Runtime:
                     _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
                 )
                 if error_type is not None:
-                    detail = row.get("Detail")
-                    if error_type is MettaSyntaxError and isinstance(detail, str):
-                        message = detail
-                    raise error_type(message) from exc
+                    raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
 

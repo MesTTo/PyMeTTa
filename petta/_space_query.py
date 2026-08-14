@@ -20,7 +20,7 @@ from typing import Any
 
 from ._api_types import SpaceName
 from ._engine import Runtime
-from ._space_objects import _column_names, _limits
+from ._space_objects import _column_names, _limits, guard_atom
 from .atoms import Atom, _to_atom, atom_from_wire
 from .results import Rows, _QueryContext
 
@@ -58,7 +58,7 @@ def query_rows(
     """Execute one eager query and decode its rows."""
     _validate_limit(limit)
     atoms: list[Atom] = [_to_atom(pattern) for pattern in patterns]
-    guard = None if where is None else _to_atom(where)
+    guard = guard_atom(where)
     columns = _column_names(atoms)
     predicate, inputs = _query_target(
         space,
@@ -76,7 +76,14 @@ def query_rows(
 
 
 def _validate_limit(limit: int | None) -> None:
-    if limit is not None and limit <= 0:
+    if limit is None:
+        return
+    # The comparison below is what would otherwise report a wrong type, as
+    # "'<=' not supported between instances of 'str' and 'int'", which names
+    # neither the argument nor the call.
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise TypeError(f"limit must be a positive int or None, got {limit!r}")
+    if limit <= 0:
         raise ValueError(f"limit must be positive, got {limit}")
 
 

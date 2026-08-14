@@ -154,7 +154,9 @@ petta_py_operation_error(error(Formal, context(Operation, Message)),
 %`Domain error: py_term expected` while binding the output, which would turn a
 %user's type error into a classifier failure. Such a culprit crosses as its
 %written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs.
-petta_py_operation_value(Term, none) :- var(Term), !.
+%An absent part crosses as the atom `none`, which janus maps to Python None
+%rather than to the string "none": @none is the tagged null it reads back.
+petta_py_operation_value(Term, @none) :- var(Term), !.
 petta_py_operation_value(Term, Term) :- atomic(Term), !.
 petta_py_operation_value(Term, Value) :- is_list(Term), !,
                                          maplist(petta_py_operation_value, Term, Value).

@@ -24,7 +24,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Self
 
 from ._engine import Runtime
-from .atoms import Atom, Expr, Sym, _to_atom, atom_from_wire, encode, variables
+from .atoms import Atom, Expr, Gnd, Sym, Var, _to_atom, atom_from_wire, encode, variables
 from .errors import EngineError, PettaError
 from .results import Rows, _row_class
 
@@ -38,6 +38,13 @@ def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] 
     """Validate the per-call bounds into the shim's (-1 = none) pair."""
     if timeout is inferences is None:
         return None
+    # Type first: the comparisons below would otherwise report a wrong type as
+    # "'>' not supported between instances of 'str' and 'int'", naming neither
+    # the argument nor the call.
+    if timeout is not None and (isinstance(timeout, bool) or not isinstance(timeout, int | float)):
+        raise TypeError(f"timeout must be seconds as a number or None, got {timeout!r}")
+    if inferences is not None and (isinstance(inferences, bool) or not isinstance(inferences, int)):
+        raise TypeError(f"inferences must be a positive int or None, got {inferences!r}")
     if timeout is not None and not timeout > 0:
         raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
     if inferences is not None and not inferences > 0:
@@ -45,6 +52,30 @@ def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] 
     return (
         -1.0 if timeout is None else float(timeout),
         -1 if inferences is None else int(inferences),
+    )
+
+
+def guard_atom(where: Any | None) -> Atom | None:
+    """Convert a where= guard, refusing one that can never answer a truth.
+
+    A grounded non-boolean is the trap: it converts to a perfectly good
+    atom, the engine evaluates it per row, nothing is ever true, and the
+    query answers empty as though the data were wrong. why() then blames
+    the guard, which is honest but sends the reader to the data.
+    """
+    if where is None:
+        return None
+    guard = _to_atom(where)
+    # An expression is the guard proper; a variable is one a pattern bound to
+    # a truth; a grounded bool is trivially one. A grounded value or a bare
+    # symbol is neither a call nor a truth, so it can never be true.
+    if isinstance(guard, Expr) or isinstance(guard, Var):
+        return guard
+    if isinstance(guard, Gnd) and isinstance(guard.value, bool):
+        return guard
+    raise TypeError(
+        f"a where= guard is a term the engine evaluates per row, as in "
+        f"(V.age >= 18); {where!r} can never answer true"
     )
 
 
@@ -203,7 +234,8 @@ class Cursor:
         steps = -1 if limits is None else limits[1]
         self._rt = space.runtime
         wires = [a.to_wire() for a in atoms]
-        guard = [] if where is None else _to_atom(where).to_wire()
+        checked = guard_atom(where)
+        guard = [] if checked is None else checked.to_wire()
         self._handle = self._rt.apply_must(
             "petta_py_cursor_open", space.space_name, wires, guard, columns.copy(), steps
         )

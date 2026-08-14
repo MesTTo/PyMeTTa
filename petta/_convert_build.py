@@ -51,10 +51,19 @@ def build(atom: Atom, cls: Any) -> Any: ...
 
 
 def build(atom: Atom, cls: Any = None) -> Any:
-    """Rebuild the Python value an atom describes, optionally by annotation."""
-    if cls is not None and not _is_plain_class(cls):
-        return _build_annotated(atom, cls)
-    return _build_plain(atom, cls)
+    """Rebuild the Python value an atom describes, optionally by annotation.
+
+    An atom this cannot rebuild comes back unchanged, which is how every
+    unhandled shape already behaved; cast() is the spelling that refuses.
+    The sentinel is module-private and must never reach a caller, so it is
+    translated here rather than at each of the branches that produce it.
+    """
+    rebuilt = (
+        _build_annotated(atom, cls)
+        if cls is not None and not _is_plain_class(cls)
+        else _build_plain(atom, cls)
+    )
+    return atom if rebuilt is _UNHANDLED else rebuilt
 
 
 def _build_plain(atom: Atom, cls: type | None) -> Any:
