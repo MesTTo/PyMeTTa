@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import stat
 import subprocess
 import sys
 import textwrap
@@ -353,6 +354,30 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):
     assert (tmp_path / "terminal-tail.db.tail").read_bytes() == incomplete_tail
     assert "recovered persistent journal" in caplog.text
     assert "truncating at byte" in caplog.text
+
+
+def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):
+    journal = tmp_path / "durable-tail.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.a, S.b))
+    space.close()
+    with journal.open("ab") as stream:
+        stream.write(b"assert(edge(c,")
+
+    synced = []
+    real_fsync = os.fsync
+
+    def record_fsync(descriptor):
+        mode = os.fstat(descriptor).st_mode
+        synced.append("directory" if stat.S_ISDIR(mode) else "file")
+        real_fsync(descriptor)
+
+    monkeypatch.setattr("petta.persistent.os.fsync", record_fsync)
+    recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    recovered.close()
+
+    expected = ["file", "directory", "file"] if os.name == "posix" else ["file", "file"]
+    assert synced == expected
 
 
 def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):

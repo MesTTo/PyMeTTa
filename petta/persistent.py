@@ -7,6 +7,8 @@ newline-terminated record validates. Earlier corruption is refused.
 Guarantees:
   - constructor failure releases its path claim and any unattached reusable
     module [tested test_constructor_failure_releases_path_and_unattached_module]
+  - terminal-tail recovery syncs the backup file and its directory before
+    truncating the journal [tested test_tail_backup_is_durable_before_truncation]
 Owns:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback [tested
@@ -143,6 +145,16 @@ def _journal_path(path: str | os.PathLike[str]) -> Path:
             f"persistent journal parent is not a directory: {resolved.parent}"
         )
     return resolved
+
+
+def _sync_directory(path: Path) -> None:
+    if os.name != "posix":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _quoted_atom(engine: Runtime, value: str) -> str:
@@ -610,6 +622,133 @@ class PersistentFactSpace(SpaceProvider):
             self._release_module()
             logger.debug("closed persistent journal %s", self._path)
 
+    def _validate_journal(self) -> None:
+        self._call(
+            "validate",
+            "File",
+            {"File": str(self._path)},
+            require_open=False,
+        )
+
+    def _read_invalid_journal(self, validation_error: PettaError) -> bytes:
+        try:
+            return self._path.read_bytes()
+        except OSError as read_error:
+            raise PettaError(
+                f"cannot inspect persistent journal {self._path} after "
+                f"validation failed: {read_error}"
+            ) from validation_error
+
+    def _terminal_tail(
+        self,
+        contents: bytes,
+        validation_error: PettaError,
+    ) -> tuple[int, bytes]:
+        boundary = contents.rfind(b"\n") + 1
+        tail = contents[boundary:]
+        if not tail:
+            raise EngineError(
+                f"persistent journal {self._path} is corrupt before its "
+                f"terminal record. Correct or remove the malformed record "
+                f"reported by the engine, then reopen it: {validation_error}"
+            ) from validation_error
+        return boundary, tail
+
+    def _require_incomplete_tail(
+        self,
+        tail: bytes,
+        validation_error: PettaError,
+    ) -> None:
+        try:
+            tail_text = tail.decode("utf-8")
+        except UnicodeDecodeError:
+            # A process can stop between bytes of one UTF-8 code point. The
+            # exact bytes still go to the backup.
+            return
+        status_row = self._call(
+            "tail_status",
+            "Text, Status",
+            {"Text": tail_text},
+            require_open=False,
+        )
+        status = status_row.get("Status")
+        if not isinstance(status, str):
+            raise EngineError(
+                f"persistent journal tail inspection returned an invalid status: {status!r}"
+            ) from validation_error
+        if status != "incomplete":
+            raise EngineError(
+                f"persistent journal {self._path} ends with a complete but "
+                f"invalid record, not a truncated record. Correct or remove "
+                f"the terminal bytes reported by the engine, then reopen it: "
+                f"{validation_error}"
+            ) from validation_error
+
+    def _validated_prefix(
+        self,
+        contents: bytes,
+        boundary: int,
+        validation_error: PettaError,
+    ) -> None:
+        try:
+            prefix = contents[:boundary].decode("utf-8")
+        except UnicodeDecodeError as prefix_error:
+            raise EngineError(
+                f"persistent journal {self._path} contains invalid UTF-8 "
+                f"before its terminal record. Restore or repair the bytes "
+                f"before byte {boundary}, then reopen it."
+            ) from prefix_error
+        try:
+            self._call(
+                "validate_text",
+                "Text",
+                {"Text": prefix},
+                require_open=False,
+            )
+        except PettaError as prefix_error:
+            raise EngineError(
+                f"persistent journal {self._path} is corrupt before its "
+                f"incomplete terminal record. Correct or remove the "
+                f"malformed newline-terminated record reported by the "
+                f"engine, then reopen it: {prefix_error}"
+            ) from validation_error
+
+    def _save_tail_backup(self, tail: bytes) -> Path:
+        backup = Path(f"{self._path}.tail")
+        try:
+            with backup.open("xb") as stream:
+                stream.write(tail)
+                stream.flush()
+                os.fsync(stream.fileno())
+            _sync_directory(backup.parent)
+        except FileExistsError as backup_error:
+            raise PettaError(
+                f"cannot recover persistent journal {self._path}: tail "
+                f"backup {backup} already exists. Move that backup aside, "
+                f"then reopen the journal."
+            ) from backup_error
+        except OSError as backup_error:
+            raise PettaError(
+                f"cannot save the incomplete terminal record from "
+                f"persistent journal {self._path} to {backup}: "
+                f"{backup_error}"
+            ) from backup_error
+        return backup
+
+    def _truncate_journal(self, boundary: int, backup: Path) -> None:
+        try:
+            with self._path.open("r+b") as stream:
+                stream.truncate(boundary)
+                stream.flush()
+                os.fsync(stream.fileno())
+        except OSError as truncate_error:
+            raise PettaError(
+                f"saved the incomplete terminal record from {self._path} "
+                f"to {backup}, but could not truncate the journal to byte "
+                f"{boundary}: {truncate_error}. Repair the journal before "
+                f"reopening it."
+            ) from truncate_error
+
     def _validate_or_repair_tail(self) -> None:
         """Validate the journal or remove one incomplete final record.
 
@@ -619,129 +758,29 @@ class PersistentFactSpace(SpaceProvider):
         beside the journal so recovery never destroys the only copy.
         """
         try:
-            self._call(
-                "validate",
-                "File",
-                {"File": str(self._path)},
-                require_open=False,
-            )
+            self._validate_journal()
             return
-        except PettaError as validation_error:
+        except PettaError as caught:
+            validation_error = caught
             logger.debug(
                 "persistent journal validation failed; inspecting its tail",
                 exc_info=True,
             )
-            try:
-                contents = self._path.read_bytes()
-            except OSError as read_error:
-                raise PettaError(
-                    f"cannot inspect persistent journal {self._path} after "
-                    f"validation failed: {read_error}"
-                ) from validation_error
-
-            boundary = contents.rfind(b"\n") + 1
-            tail = contents[boundary:]
-            if not tail:
-                raise EngineError(
-                    f"persistent journal {self._path} is corrupt before its "
-                    f"terminal record. Correct or remove the malformed record "
-                    f"reported by the engine, then reopen it: {validation_error}"
-                ) from validation_error
-            try:
-                tail_text = tail.decode("utf-8")
-            except UnicodeDecodeError:
-                # A process can stop between bytes of one UTF-8 code point.
-                # The exact bytes still go to the backup below.
-                tail_status = "incomplete"
-            else:
-                status_row = self._call(
-                    "tail_status",
-                    "Text, Status",
-                    {"Text": tail_text},
-                    require_open=False,
-                )
-                status = status_row.get("Status")
-                if not isinstance(status, str):
-                    raise EngineError(
-                        f"persistent journal tail inspection returned an invalid status: {status!r}"
-                    ) from validation_error
-                tail_status = status
-            if tail_status != "incomplete":
-                raise EngineError(
-                    f"persistent journal {self._path} ends with a complete but "
-                    f"invalid record, not a truncated record. Correct or remove "
-                    f"the terminal bytes reported by the engine, then reopen it: "
-                    f"{validation_error}"
-                ) from validation_error
-            try:
-                prefix = contents[:boundary].decode("utf-8")
-            except UnicodeDecodeError as prefix_error:
-                raise EngineError(
-                    f"persistent journal {self._path} contains invalid UTF-8 "
-                    f"before its terminal record. Restore or repair the bytes "
-                    f"before byte {boundary}, then reopen it."
-                ) from prefix_error
-            try:
-                self._call(
-                    "validate_text",
-                    "Text",
-                    {"Text": prefix},
-                    require_open=False,
-                )
-            except PettaError as prefix_error:
-                raise EngineError(
-                    f"persistent journal {self._path} is corrupt before its "
-                    f"incomplete terminal record. Correct or remove the "
-                    f"malformed newline-terminated record reported by the "
-                    f"engine, then reopen it: {prefix_error}"
-                ) from validation_error
-
-            backup = Path(f"{self._path}.tail")
-            try:
-                with backup.open("xb") as stream:
-                    stream.write(tail)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-            except FileExistsError as backup_error:
-                raise PettaError(
-                    f"cannot recover persistent journal {self._path}: tail "
-                    f"backup {backup} already exists. Move that backup aside, "
-                    f"then reopen the journal."
-                ) from backup_error
-            except OSError as backup_error:
-                raise PettaError(
-                    f"cannot save the incomplete terminal record from "
-                    f"persistent journal {self._path} to {backup}: "
-                    f"{backup_error}"
-                ) from backup_error
-
-            try:
-                with self._path.open("r+b") as stream:
-                    stream.truncate(boundary)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-            except OSError as truncate_error:
-                raise PettaError(
-                    f"saved the incomplete terminal record from {self._path} "
-                    f"to {backup}, but could not truncate the journal to byte "
-                    f"{boundary}: {truncate_error}. Repair the journal before "
-                    f"reopening it."
-                ) from truncate_error
-
-            self._call(
-                "validate",
-                "File",
-                {"File": str(self._path)},
-                require_open=False,
-            )
-            logger.warning(
-                "recovered persistent journal %s by saving %d terminal bytes "
-                "to %s and truncating at byte %d",
-                self._path,
-                len(tail),
-                backup,
-                boundary,
-            )
+        contents = self._read_invalid_journal(validation_error)
+        boundary, tail = self._terminal_tail(contents, validation_error)
+        self._require_incomplete_tail(tail, validation_error)
+        self._validated_prefix(contents, boundary, validation_error)
+        backup = self._save_tail_backup(tail)
+        self._truncate_journal(boundary, backup)
+        self._validate_journal()
+        logger.warning(
+            "recovered persistent journal %s by saving %d terminal bytes "
+            "to %s and truncating at byte %d",
+            self._path,
+            len(tail),
+            backup,
+            boundary,
+        )
 
     def _write_call(
         self,
