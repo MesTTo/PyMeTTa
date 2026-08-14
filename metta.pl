@@ -453,8 +453,21 @@ bind_python_call_spec(Spec, Spec).
 'get-state'(Var, Value) :- nb_getval(Var, Value).
 
 %%% Eval: %%%
+%eval runs its goals in the current space's module, for the same reason
+%call_goals_in/2 and current_metta_space/1 exist: call/1 resolves a goal in the
+%module its clause was compiled in, so a module-blind call/1 reaches only user.
+%Without this, `!(eval (f 1))` on a function defined in any space other than
+%&self raised `call_goals/1: Unknown procedure: f/2` while the same `!(f 1)`
+%answered normally, and every named space PyPeTTa creates hit it. lib_he's
+%`unify` and the ToResult asserts route their branches through eval, so they
+%failed there too [tested: test_per_space.py::test_eval_uses_the_spaces_own_equations].
+%The unset case is `user`, which is what a bare call/1 already resolves to, so
+%it keeps the original path and costs nothing on the default space; only a
+%named space pays for the qualification.
 eval(C, Out) :- translate_runnable_expr(C, Goals, Out),
-                call_goals(Goals).
+                ( nb_current('$petta_module', Module)
+                  -> call_goals_in_(Module, Goals)
+                  ;  call_goals(Goals) ).
 
 call_goals([]).
 call_goals([G|Gs]) :- call(G), 
