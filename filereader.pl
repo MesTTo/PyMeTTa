@@ -11,6 +11,9 @@
 %   - A failed source load removes compiler metadata and generated predicates,
 %     and does not repair existing callers against definitions that rolled back
 %     [tested 2026-08-14: filereader_source_rollback].
+%   - Direct source strings compile equations into their target named space
+%     [tested 2026-08-14:
+%     tracer:function_defined_in_named_trace_stays_in_that_space].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -145,15 +148,22 @@ rethrow_metta_file_error(_, Error) :- throw(Error).
 process_metta_string(S, Results) :- process_metta_string(S, Results, '&self').
 process_metta_string(S, Results, Space) :-
     with_mutex(metta_loader,
-               process_metta_string(S, Results, Space, compile)).
+               process_direct_metta_string(S, Results, Space)).
+process_direct_metta_string(S, Results, Space) :-
+    prepare_metta_source(S, ParsedForms),
+    maplist(process_form(Space), ParsedForms, ResultsList), !,
+    append(ResultsList, Results).
 process_metta_string(S, Results, Space, CompileMode) :-
+    prepare_metta_source(S, ParsedForms),
+    maplist(process_form(Space, CompileMode), ParsedForms, ResultsList), !,
+    append(ResultsList, Results).
+
+prepare_metta_source(S, ParsedForms) :-
     parse_metta_source(S, ParsedForms),
     register_parsed_signatures(ParsedForms),
     % Pinned git dependencies declared in this file are fetched before any of
     % its forms run (gitimport.pl).
-    acquire_declared_dependencies(ParsedForms),
-    maplist(process_form(Space, CompileMode), ParsedForms, ResultsList), !,
-    append(ResultsList, Results).
+    acquire_declared_dependencies(ParsedForms).
 
 parse_metta_source(S, ParsedForms) :-
     string_codes(S, Cs),
