@@ -295,9 +295,11 @@ class DAS:
                 yield "status", event
 
     def status(self, execution_id: str) -> dict:
+        """Return the router status for one execution."""
         return self._request("GET", f"/command-router/executions/{execution_id}")
 
     def cancel(self, execution_id: str) -> None:
+        """Ask the router to cancel one execution."""
         self._request("POST", f"/command-router/executions/{execution_id}/cancel")
 
     def _query_params(

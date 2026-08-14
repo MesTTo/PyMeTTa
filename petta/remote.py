@@ -203,6 +203,7 @@ class Server:
         self.url = f"{scheme}://{self.host}:{self.port}"
 
     def close(self) -> None:
+        """Stop accepting requests, close the listener, and join its thread."""
         self._httpd.shutdown()
         self._httpd.server_close()
         self._thread.join(timeout=10)

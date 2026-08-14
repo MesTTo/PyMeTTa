@@ -501,6 +501,7 @@ class AsyncMeTTa:
         atomic: bool = False,
         speculative: bool = False,
     ) -> Any:
+        """Run MeTTa source on the worker and return its result groups."""
         return await self.call(
             lambda m: m.run(
                 source,
@@ -514,27 +515,35 @@ class AsyncMeTTa:
         )
 
     async def load(self, path: str) -> list:
+        """Load source or a fast cache into this space on the worker."""
         return await self.call(lambda m: m.load(path))
 
     async def save(self, path: str, format: str = "metta") -> int:
+        """Save this space and return the number of stored atoms."""
         return await self.call(lambda m: m.save(path, format=format))
 
     async def add(self, *atoms: Any) -> None:
+        """Add atoms to this space on the worker."""
         return await self.call(lambda m: m.add(*atoms))
 
     async def add_table(self, head: Any, data: Any) -> int:
+        """Add rows from a tabular value and return the number added."""
         return await self.call(lambda m: m.add_table(head, data))
 
     async def remove(self, atom: Any) -> bool:
+        """Remove one matching atom and report whether one existed."""
         return await self.call(lambda m: m.remove(atom))
 
     async def clear(self) -> None:
+        """Remove every atom from this space."""
         return await self.call(lambda m: m.clear())
 
     async def count(self) -> int:
+        """Return the number of atoms in this space."""
         return await self.call(lambda m: m.count())
 
     async def atoms(self) -> list:
+        """Return a snapshot of every atom in this space."""
         return await self.call(lambda m: m.atoms())
 
     async def query(
@@ -545,6 +554,7 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Rows:
+        """Query patterns with the synchronous surface's bounds and guard."""
         return await self.call(
             lambda m: m.query(
                 *patterns,
@@ -564,6 +574,7 @@ class AsyncMeTTa:
         capture: bool = False,
         residuals: bool = False,
     ) -> Any:
+        """Evaluate a term and return every answer."""
         return await self.call(
             lambda m: m.eval(
                 target,
@@ -581,6 +592,7 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
+        """Evaluate a term that must produce exactly one value."""
         return await self.call(
             lambda m: m.value(
                 target,
@@ -590,10 +602,12 @@ class AsyncMeTTa:
         )
 
     async def fresh_space(self) -> AsyncMeTTa:
+        """Return an isolated space that borrows this connection's worker."""
         fresh = await self.call(lambda m: m.fresh_space())
         return AsyncMeTTa._sharing(fresh, self._worker)
 
     async def drop(self) -> None:
+        """Drop this named space from the engine."""
         return await self.call(lambda m: m.drop())
 
     async def profile(
@@ -604,40 +618,51 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
+        """Profile source execution and return its groups and counters."""
         return await self.call(
             lambda m: m.profile(source, using, timeout=timeout, inferences=inferences)
         )
 
     async def parse(self, source: str) -> Any:
+        """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
 
     async def cast(self, value: Any, type_: Any) -> Any:
+        """Check and narrow a value through the engine type system."""
         return await self.call(lambda m: m.cast(value, type_))
 
     async def trace(self, source: str, max_events: int = 1_000_000) -> Any:
+        """Trace source execution up to the requested event bound."""
         return await self.call(lambda m: m.trace(source, max_events=max_events))
 
     async def lint(self) -> Any:
+        """Return static findings for this space."""
         return await self.call(lambda m: m.lint())
 
     async def digest(self) -> str:
+        """Return the stable content digest for this space."""
         return await self.call(lambda m: m.digest())
 
     async def unregister_op(self, name: str) -> None:
+        """Remove every registered operation overload under a name."""
         return await self.call(lambda m: m.unregister_op(name))
 
     unregister = unregister_op
 
     async def builtins(self) -> list[str]:
+        """Return the names of engine builtins."""
         return await self.call(lambda m: m.builtins())
 
     async def is_function(self, name: str) -> bool:
+        """Report whether a function is visible from this space."""
         return await self.call(lambda m: m.is_function(name))
 
     async def is_function_here(self, name: str) -> bool:
+        """Report whether this space defines a function itself."""
         return await self.call(lambda m: m.is_function_here(name))
 
     async def arities(self, name: str) -> list[int]:
+        """Return the registered arities for a function name."""
         return await self.call(lambda m: m.arities(name))
 
     async def derivation(
@@ -648,6 +673,7 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
+        """Build a bounded derivation tree for one target."""
         return await self.call(
             lambda m: m.derivation(
                 target,
@@ -658,6 +684,7 @@ class AsyncMeTTa:
         )
 
     async def why(self, pattern: Any) -> str:
+        """Explain why a pattern is not currently reducible."""
         return await self.call(lambda m: m.why(pattern))
 
     async def space(self, name: str) -> AsyncMeTTa:

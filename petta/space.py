@@ -418,6 +418,7 @@ class MeTTa:
         return [atom_from_wire(w) for w in wires]
 
     def count(self) -> int:
+        """Return the number of atoms stored in this space."""
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
@@ -758,6 +759,7 @@ class MeTTa:
         return self._rt.builtins()
 
     def is_function(self, name: str) -> bool:
+        """Report whether a function is visible from this space."""
         return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
 
     def is_function_here(self, name: str) -> bool:
@@ -938,6 +940,7 @@ class MeTTa:
         return provider
 
     def unregister_space(self, name: str) -> None:
+        """Remove a registered Python-backed space."""
         unregister_provider(self._rt, name)
 
     # ------------------------------------------------------------ interop

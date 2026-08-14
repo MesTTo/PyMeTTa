@@ -50,6 +50,13 @@ def test_dependency_audit_treats_tool_extras_as_development_dependencies():
     assert {"bench.py", "benchmarks"} <= set(deptry["extend_exclude"])
 
 
+def test_doc_gate_measures_the_public_surface_at_eighty_percent():
+    interrogate = _manifest()["tool"]["interrogate"]
+    assert interrogate["fail-under"] == 80
+    assert interrogate["ignore-semiprivate"] is True
+    assert interrogate["ignore-private"] is True
+
+
 def test_measure_integration_and_version_are_published_from_their_modules():
     manifest = _manifest()
     assert manifest["project"]["entry-points"]["petta.integrations"] == {

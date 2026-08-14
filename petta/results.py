@@ -83,6 +83,7 @@ class Row(tuple):
         return f"Row({inner})"
 
     def asdict(self) -> dict[str, Any]:
+        """Return this row as a column-to-value mapping."""
         return dict(zip(type(self)._columns, self, strict=True))
 
     def __reduce__(self):
@@ -199,6 +200,7 @@ class Rows(UserList[Row]):
         return self * n
 
     def column(self, name: str) -> list[Any]:
+        """Return one named column as a list."""
         index = self.columns.index(name)
         return [row[index] for row in self]
 
