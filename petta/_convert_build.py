@@ -1,5 +1,7 @@
 """Purpose: rebuild Python values from atoms using registrations and annotations.
 Guarantees:
+  - a concrete requested class remains build's static return type [tested
+    test_target_type_overloads_preserve_the_requested_class]
   - registered projections round-trip without dropping fields [tested
     test_build_reverses_the_projection]
   - union selection follows the atom shape and surfaces a selected reverse's
@@ -18,7 +20,7 @@ import types
 import typing
 from collections import abc
 from enum import Enum
-from typing import Any
+from typing import Any, TypeVar, overload
 
 from ._convert_registry import (
     _class_label,
@@ -33,6 +35,19 @@ from ._convert_registry import (
 from .atoms import Atom, Expr, Gnd, Sym, decode
 
 _UNHANDLED = object()
+_BuildT = TypeVar("_BuildT")
+
+
+@overload
+def build(atom: Atom, cls: type[_BuildT]) -> _BuildT: ...
+
+
+@overload
+def build(atom: Atom, cls: None = None) -> Any: ...
+
+
+@overload
+def build(atom: Atom, cls: Any) -> Any: ...
 
 
 def build(atom: Atom, cls: Any = None) -> Any:

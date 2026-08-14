@@ -13,6 +13,11 @@ nothing). Targets the translator never checks (Atom, %Undefined%, _)
 pass unchecked here too, and a Python type spells its MeTTa reading:
 bool is Bool before int is Number, str is String, any other class its
 own name, the names get-type itself answers.
+Guarantees:
+  - a concrete Python target type remains the cast's static return type [tested
+    test_target_type_overloads_preserve_the_requested_class]
+  - the target is positional-only, so its implementation name is not API
+    [tested test_cast_target_is_positional_only]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,13 +26,15 @@ Open Obligations:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar, overload
 
 from ._convert_registry import _is_plain_class
 from .atoms import Atom, Gnd, Sym, atom_from_wire, encode, parse
 from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
+
+_CastT = TypeVar("_CastT")
 
 # Targets the translator compiles no check for; a cast mirrors that.
 _UNCHECKED = {"Atom", "%Undefined%", "_"}
@@ -71,7 +78,15 @@ def _narrow(value: Any) -> Any:
     return value
 
 
-def cast(space, value: Any, type_: Any) -> Any:
+@overload
+def cast(space: Any, value: Any, type_: type[_CastT], /) -> _CastT: ...
+
+
+@overload
+def cast(space: Any, value: Any, type_: Atom | str, /) -> Any: ...
+
+
+def cast(space: Any, value: Any, type_: Any, /) -> Any:
     """Answer value, narrowed, when space's type discipline admits it as
     type_; raise CastError naming its actual types otherwise.
 

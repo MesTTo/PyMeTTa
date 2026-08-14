@@ -27,6 +27,10 @@ Guarantees:
     appearance order [tested test_query_surfaces_share_column_order]
   - public name and save-format annotations distinguish their string
     contexts [tested test_public_context_types_are_distinct]
+  - cast preserves a concrete target class as its static return type and keeps
+    the target positional-only [tested
+    test_target_type_overloads_preserve_the_requested_class,
+    test_cast_target_is_positional_only]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -43,7 +47,7 @@ import os
 import types
 from collections import abc as _abc
 from collections.abc import Callable
-from typing import Any, Literal, Self, overload
+from typing import Any, Literal, Self, TypeVar, overload
 
 from . import integrate as _integrate
 from . import ops as _ops_module
@@ -91,6 +95,8 @@ from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
+
+_CastT = TypeVar("_CastT")
 
 
 def current_space(default: SpaceName = _DEFAULT_SPACE) -> SpaceName:
@@ -429,7 +435,13 @@ class MeTTa:
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
-    def cast(self, value, type_):
+    @overload
+    def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
+
+    @overload
+    def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
+
+    def cast(self, value: Any, type_: Any, /) -> Any:
         """Answer value, narrowed to its Python-most spelling, when this
         space's type discipline admits it as type_: the same acceptance
         a typed call compiles, ':' declarations in this space and &self

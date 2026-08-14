@@ -25,6 +25,10 @@ Guarantees:
     optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
   - async names and save formats retain the synchronous surface's contextual
     types [tested test_public_context_types_are_distinct]
+  - async cast preserves a concrete target class as its static return type and
+    keeps the target positional-only [tested
+    test_target_type_overloads_preserve_the_requested_class,
+    test_cast_target_is_positional_only]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -50,10 +54,11 @@ import threading
 import warnings
 import weakref
 from collections.abc import Callable
-from typing import Any, Final, Self
+from typing import Any, Final, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
 from ._engine import bridge, runtime
+from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
 from .space import MeTTa
@@ -65,6 +70,7 @@ __all__ = ["AsyncMeTTa", "connect"]
 DEFAULT_CLOSE_TIMEOUT: Final[float] = 10.0
 _LIVE_WORKERS: weakref.WeakSet[_EngineThread] = weakref.WeakSet()
 _LIVE_WORKERS_LOCK = threading.Lock()
+_CastT = TypeVar("_CastT")
 
 
 def _set_future_exception(future: asyncio.Future[None], failure: BaseException) -> None:
@@ -682,7 +688,13 @@ class AsyncMeTTa:
         """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
 
-    async def cast(self, value: Any, type_: Any) -> Any:
+    @overload
+    async def cast(self, value: Any, type_: type[_CastT], /) -> _CastT: ...
+
+    @overload
+    async def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
+
+    async def cast(self, value: Any, type_: Any, /) -> Any:
         """Check and narrow a value through the engine type system."""
         return await self.call(lambda m: m.cast(value, type_))
 

@@ -13,6 +13,8 @@ Guarantees:
     than dynamic class names [tested test_rows_copy_and_pickle_protocols]
   - terminal representations bound both rows and individual values and state
     the omitted row count [tested test_rows_repr_is_bounded_and_recursive]
+  - Rows.build preserves its requested class as the list element type [tested
+    test_target_type_overloads_preserve_the_requested_class]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +28,7 @@ import reprlib
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
-from typing import Any, Self, SupportsIndex, overload
+from typing import Any, Self, SupportsIndex, TypeVar, overload
 
 from . import convert
 from ._config import config
@@ -39,6 +41,7 @@ _VALUE_REPR = reprlib.Repr()
 _VALUE_REPR.maxlevel = 4
 _VALUE_REPR.maxstring = 80
 _VALUE_REPR.maxother = 120
+_BuildT = TypeVar("_BuildT")
 
 
 class Row(tuple):
@@ -218,7 +221,7 @@ class Rows(UserList[Row]):
             )
         return self[0]
 
-    def build(self, column: str, cls: type) -> list[Any]:
+    def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call."""
         return [convert.build(value, cls) for value in self.column(column)]
