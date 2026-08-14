@@ -4,109 +4,117 @@
       "inferences": 82016,
       "operations": 2000,
       "unit": "atoms",
-      "wall_seconds_per_operation": 2.409534528851509e-06
+      "wall_seconds_per_operation": 2.5735434610396623e-06
     },
     "add-single": {
       "inferences": 78007,
       "operations": 2000,
       "unit": "atoms",
-      "wall_seconds_per_operation": 4.8305584350600835e-06
+      "wall_seconds_per_operation": 3.833017544820905e-06
     },
     "add-table-rows": {
       "inferences": 100087,
       "operations": 2000,
       "unit": "rows",
-      "wall_seconds_per_operation": 3.1142230145633223e-06
+      "wall_seconds_per_operation": 3.28091299161315e-06
     },
     "direct-join": {
       "inferences": 280295,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.747252112950546e-06
+      "wall_seconds_per_operation": 2.78302382169037e-06
     },
     "eval-arith": {
       "inferences": 172011,
       "operations": 2000,
       "unit": "evaluations",
-      "wall_seconds_per_operation": 6.241164985112846e-06
+      "wall_seconds_per_operation": 6.401210906915367e-06
+    },
+    "json-wire": {
+      "inferences": null,
+      "instruction_noise_percent": 1.0,
+      "instructions": 3788755253,
+      "operations": 2000,
+      "unit": "payload round-trips",
+      "wall_seconds_per_operation": 7.741356699261814e-05
     },
     "loop-1m": {
       "inferences": 5000908,
       "operations": 1000000,
       "unit": "iterations",
-      "wall_seconds_per_operation": 9.587745298631489e-08
+      "wall_seconds_per_operation": 9.513080096803606e-08
     },
     "op-encoded": {
       "inferences": 214013,
       "operations": 2000,
       "unit": "evaluations",
-      "wall_seconds_per_operation": 9.972406434826553e-06
+      "wall_seconds_per_operation": 9.811793919652701e-06
     },
     "op-raw": {
       "inferences": 178011,
       "operations": 2000,
       "unit": "evaluations",
-      "wall_seconds_per_operation": 7.408392499201e-06
+      "wall_seconds_per_operation": 7.45732057839632e-06
     },
     "prepared-join": {
       "inferences": 280295,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.5937878100454e-06
+      "wall_seconds_per_operation": 2.8308916356174156e-06
     },
     "query-2k-rows": {
       "inferences": 561107,
       "operations": 40000,
       "unit": "rows",
-      "wall_seconds_per_operation": 1.8314871762413532e-06
+      "wall_seconds_per_operation": 2.0797247299924494e-06
     },
     "query-limit-guarded": {
       "inferences": 83109,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.0597872324287893e-06
+      "wall_seconds_per_operation": 2.0604806020855903e-06
     },
     "query-limit-plain": {
       "inferences": 80407,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 1.8438756000250578e-06
+      "wall_seconds_per_operation": 1.9979908131062986e-06
     },
     "query-where": {
       "inferences": 690713,
       "operations": 10160,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.860724508916358e-06
+      "wall_seconds_per_operation": 5.481676766868886e-06
     },
     "register-op": {
       "inferences": 45607,
       "operations": 100,
       "unit": "registrations",
-      "wall_seconds_per_operation": 0.00010902754962444306
+      "wall_seconds_per_operation": 0.00011055343085899949
     },
     "run-source": {
       "inferences": 1407057,
       "operations": 1000,
       "unit": "directives",
-      "wall_seconds_per_operation": 0.00011677106400020421
+      "wall_seconds_per_operation": 0.00011902688606642186
     },
     "save-load-fast": {
       "inferences": 5683143,
       "operations": 20001,
       "unit": "atoms",
-      "wall_seconds_per_operation": 1.2239020094379778e-05
+      "wall_seconds_per_operation": 1.3796682617386862e-05
     },
     "save-load-metta": {
       "inferences": 11777998,
       "operations": 20001,
       "unit": "atoms",
-      "wall_seconds_per_operation": 2.1174951750723833e-05
+      "wall_seconds_per_operation": 2.2809381439032467e-05
     },
     "subscribe-tax": {
       "inferences": 82018,
       "operations": 2000,
       "unit": "atoms",
-      "wall_seconds_per_operation": 2.403318998403847e-06
+      "wall_seconds_per_operation": 2.682138467207551e-06
     },
     "term-operators": {
       "inferences": null,
@@ -114,13 +122,13 @@
       "instructions": 1189274361,
       "operations": 20000,
       "unit": "terms",
-      "wall_seconds_per_operation": 2.5777874048799276e-06
+      "wall_seconds_per_operation": 2.7933047502301635e-06
     },
     "weighted-relation": {
       "inferences": 613525,
       "operations": 500,
       "unit": "evaluations",
-      "wall_seconds_per_operation": 6.516446592286229e-05
+      "wall_seconds_per_operation": 6.723001785576344e-05
     },
     "wire-codec": {
       "inferences": null,
@@ -128,7 +136,7 @@
       "instructions": 3536885108,
       "operations": 504000,
       "unit": "atom round-trips",
-      "wall_seconds_per_operation": 2.419755989057382e-07
+      "wall_seconds_per_operation": 3.075987162504582e-07
     }
   },
   "counter_policy": "stats().inferences minimum of three decides; wall time advises",

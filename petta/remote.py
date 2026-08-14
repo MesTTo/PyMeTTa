@@ -24,13 +24,13 @@ Open Obligations:
 from __future__ import annotations
 
 import hmac
-import json
 import logging
 import threading
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Iterator, Mapping
 
+from . import _json
 from ._engine import bridge
 from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, atom_from_wire
@@ -136,7 +136,7 @@ def connect(
             status, reason, raw = endpoint.request(
                 "POST",
                 operation,
-                body=json.dumps(payload).encode("utf-8"),
+                body=_json.dumps(payload),
                 headers=sent,
                 timeout=timeout,
             )
@@ -155,8 +155,7 @@ def connect(
             status,
         )
         try:
-            body = raw.decode("utf-8")
-            answer = json.loads(body)
+            answer = _json.loads(raw)
         except (UnicodeDecodeError, ValueError) as exc:
             detail = raw.decode("utf-8", "replace")[:200]
             raise PettaError(
@@ -164,6 +163,7 @@ def connect(
                 f"{detail}"
             ) from exc
         if status >= 400:
+            body = raw.decode("utf-8", "replace")
             detail = answer.get("error", body) if isinstance(answer, dict) else body
             raise PettaError(f"the remote engine refused {operation}: {detail}")
         if not isinstance(answer, dict):
@@ -334,7 +334,7 @@ def serve(
                 logger.warning(
                     "refused unauthorized remote engine operation %s", operation
                 )
-                body = json.dumps({"error": "not authorized"}).encode("utf-8")
+                body = _json.dumps({"error": "not authorized"})
                 self.send_response(401)
                 self.send_header("content-type", "application/json")
                 self.send_header("content-length", str(len(body)))
@@ -342,7 +342,7 @@ def serve(
                 self.wfile.write(body)
                 return
             try:
-                payload = json.loads(self.rfile.read(length) or b"{}")
+                payload = _json.loads(self.rfile.read(length) or b"{}")
                 reply: queue.SimpleQueue = queue.SimpleQueue()
                 work.put((operation, payload, reply))
                 kind, value = reply.get(timeout=600)
@@ -355,7 +355,7 @@ def serve(
                     exc_info=True,
                 )
                 answer, status = {"error": str(exc)}, 400
-            body = json.dumps(answer).encode("utf-8")
+            body = _json.dumps(answer)
             self.send_response(status)
             self.send_header("content-type", "application/json")
             self.send_header("content-length", str(len(body)))

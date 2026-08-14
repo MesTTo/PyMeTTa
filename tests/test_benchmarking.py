@@ -16,7 +16,7 @@ from bench import CASES, _write_merged_json
 from bench import main as benchmark_main
 from benchmarks.conftest import pytest_benchmark_update_machine_info
 from benchmarks.pure import _acknowledge
-from benchmarks.workloads import term_operators, wire_atom, wire_codec
+from benchmarks.workloads import json_payload, json_wire, term_operators, wire_atom, wire_codec
 from petta import S
 from petta.benchmarking import _run_perf
 from petta.testing import (
@@ -212,6 +212,7 @@ def test_count_atoms_derives_the_wire_workload_size():
 def test_pure_workload_counts_are_derived():
     atom = wire_atom()
     assert wire_codec(atom, trips=2) == 2 * count_atoms(atom)
+    assert json_wire(json_payload(), trips=2) == 2
     assert term_operators(terms=3) == 3
 
 
@@ -269,6 +270,42 @@ def test_benchmark_json_merge_is_atomic(tmp_path):
         "second",
     ]
     assert list(tmp_path.glob(".merged.json.*")) == []
+
+
+def test_benchmark_json_merge_preserves_unselected_cases(tmp_path):
+    selected = tmp_path / "selected.json"
+    target = tmp_path / "baseline.json"
+    selected.write_text(
+        json.dumps(
+            {
+                "benchmarks": [{"name": "selected", "stats": {"min": 1}}],
+                "machine_info": {"cpu": "current"},
+                "commit_info": {"id": "new"},
+            }
+        )
+    )
+    target.write_text(
+        json.dumps(
+            {
+                "benchmarks": [
+                    {"name": "selected", "stats": {"min": 9}},
+                    {"name": "untouched", "stats": {"min": 2}},
+                ],
+                "machine_info": {"cpu": "old"},
+                "commit_info": {"id": "old"},
+            }
+        )
+    )
+
+    _write_merged_json([selected], target)
+
+    document = json.loads(target.read_text())
+    assert document["benchmarks"] == [
+        {"name": "selected", "stats": {"min": 1}},
+        {"name": "untouched", "stats": {"min": 2}},
+    ]
+    assert document["machine_info"] == {"cpu": "current"}
+    assert document["commit_info"] == {"id": "new"}
 
 
 def test_benchmark_machine_info_is_stable():

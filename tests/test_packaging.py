@@ -33,7 +33,7 @@ def test_optional_integrations_have_installable_extras():
     assert set(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
     assert extras["das"] == ["websocket-client"]
     assert set(extras["dataframes"]) == {"pandas", "polars"}
-    assert extras["orjson"] == ["orjson"]
+    assert extras["orjson"] == ["orjson>=3.10,<4"]
 
 
 def test_measure_integration_and_version_are_published_from_their_modules():

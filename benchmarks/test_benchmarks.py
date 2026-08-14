@@ -13,8 +13,11 @@ Open Obligations:
 from tempfile import TemporaryDirectory
 
 from benchmarks.workloads import (
+    JSON_TRIPS,
     TERM_COUNT,
     WIRE_TRIPS,
+    json_payload,
+    json_wire,
     term_operators,
     wire_atom,
     wire_codec,
@@ -206,6 +209,20 @@ def test_wire_codec(benchmark, inference_baseline):
         operation=wire_codec,
         setup=wire_atom,
         teardown=lambda _atom: None,
+        engine=None,
+    )
+
+
+def test_json_wire(benchmark, inference_baseline):
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="json-wire",
+        unit="payload round-trips",
+        operations=JSON_TRIPS,
+        operation=json_wire,
+        setup=json_payload,
+        teardown=lambda _payload: None,
         engine=None,
     )
 

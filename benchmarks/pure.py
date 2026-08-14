@@ -9,14 +9,25 @@ import argparse
 import os
 from collections.abc import Sequence
 
-from benchmarks.workloads import term_operators, wire_atom, wire_codec
+from benchmarks.workloads import (
+    json_payload,
+    json_wire,
+    term_operators,
+    wire_atom,
+    wire_codec,
+)
 
 
 def _wire_codec():
     return wire_codec(wire_atom())
 
 
+def _json_wire():
+    return json_wire(json_payload())
+
+
 _CASES = {
+    "json-wire": _json_wire,
     "term-operators": term_operators,
     "wire-codec": _wire_codec,
 }

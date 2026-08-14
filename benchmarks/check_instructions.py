@@ -15,7 +15,7 @@ from pathlib import Path
 
 from petta.testing import BenchmarkBaseline, measure_instructions
 
-_CASES = ("term-operators", "wire-codec")
+_CASES = ("json-wire", "term-operators", "wire-codec")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

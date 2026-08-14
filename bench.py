@@ -10,6 +10,8 @@ Owns:
     explicit limit [tested test_benchmark_cli_spawns_each_case]
   - JSON output is assembled in a temporary directory and atomically
     replaces its destination [tested test_benchmark_json_merge_is_atomic]
+  - updating selected cases preserves every unselected committed case
+    [tested test_benchmark_json_merge_preserves_unselected_cases]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,6 +37,7 @@ CASES = {
     "add-table-rows": "test_add_table_rows",
     "direct-join": "test_direct_join",
     "eval-arith": "test_eval_arithmetic",
+    "json-wire": "test_json_wire",
     "loop-1m": "test_loop_million",
     "op-encoded": "test_encoded_operation",
     "op-raw": "test_raw_operation",
@@ -113,9 +116,18 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
         if document.get("commit_info") != documents[0].get("commit_info"):
             raise ValueError(f"benchmark JSON commit metadata changed: {path}")
     merged: dict[str, Any] = documents[0]
-    merged["benchmarks"] = [
-        benchmark for document in documents for benchmark in document.get("benchmarks", [])
-    ]
+    updated = {
+        benchmark["name"]: benchmark
+        for document in documents
+        for benchmark in document.get("benchmarks", [])
+    }
+    if target.exists():
+        existing = json.loads(target.read_text(encoding="utf-8"))
+        if not isinstance(existing, dict) or not isinstance(existing.get("benchmarks"), list):
+            raise ValueError(f"benchmark JSON has invalid structure: {target}")
+        for benchmark in existing["benchmarks"]:
+            updated.setdefault(benchmark["name"], benchmark)
+    merged["benchmarks"] = [updated[name] for name in sorted(updated)]
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
     try:

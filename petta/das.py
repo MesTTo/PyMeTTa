@@ -36,6 +36,7 @@ from collections.abc import Iterator
 from http.client import HTTPException
 from typing import Any
 
+from . import _json
 from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms, parse
 from .errors import PettaError
@@ -171,7 +172,7 @@ class DAS:
     # ------------------------------------------------------------- transport
 
     def _request(self, method: str, path: str, body: dict | None = None) -> Any:
-        data = None if body is None else json.dumps(body).encode("utf8")
+        data = None if body is None else _json.dumps(body)
         logger.debug("sending DAS %s %s", method, path)
         try:
             status, _reason, raw = self._endpoint.request(
@@ -189,17 +190,17 @@ class DAS:
                 f"no DAS command router at {self._base}: {exc}"
             ) from exc
         logger.debug("DAS %s %s answered with HTTP %d", method, path, status)
-        text = raw.decode("utf8", "replace" if status >= 400 else "strict")
         if status >= 400:
+            text = raw.decode("utf8", "replace")
             raise DASError(
                 f"DAS {method} {path} answered {status}: {text}"
             )
-        if not text:
+        if not raw:
             return None
         try:
-            return json.loads(text)
+            return _json.loads(raw)
         except ValueError:
-            return text
+            return raw.decode("utf8")
 
     def _events(self, execution_id: str) -> Iterator[dict]:
         try:
@@ -224,7 +225,7 @@ class DAS:
                 message = connection.recv()
                 if not message:
                     continue
-                yield json.loads(message)
+                yield _json.loads(message)
         except WebSocketConnectionClosedException:
             # The server closed the stream; the caller's terminal-event
             # handling decides whether the answer set was complete.
