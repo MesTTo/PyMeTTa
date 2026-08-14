@@ -191,8 +191,8 @@ def test_match_patterns_are_structural(m):
 
 
 def test_bare_atoms_are_refused_loudly(m):
-    """A stored atom is an expression; anything else must error, never
-    vanish: the silent write was a real bug this pins."""
+    """A stored atom is a non-empty expression; anything else must error,
+    never vanish: the silent write was a real bug this pins."""
     import pytest
     from petta import S
 
@@ -200,6 +200,20 @@ def test_bare_atoms_are_refused_loudly(m):
         m.add(S.bare)
     with pytest.raises(TypeError):
         m.add(7)
+    with pytest.raises(TypeError, match="non-empty expression"):
+        m.add(expr())
+    with pytest.raises(TypeError, match="non-empty expression"):
+        m.remove(expr())
+
+
+def test_remove_reports_presence_and_removes_every_duplicate(m):
+    atom = S.duplicate(S.value)
+
+    assert m.remove(atom) is False
+    m.add(atom, atom)
+    assert m.remove(atom) is True
+    assert atom not in m
+    assert m.remove(atom) is False
 
 
 def test_object_identity_survives_the_boundary(m):

@@ -146,6 +146,8 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
 
 
 def expressions(max_leaves: int = 8, *, ground: bool = False):
-    """Expression-rooted atoms, the shape spaces store."""
+    """Non-empty expression-rooted atoms, the shape spaces store."""
     st = _st()
-    return st.lists(atoms(max_leaves, ground=ground), max_size=4).map(Expr)
+    return st.lists(
+        atoms(max_leaves, ground=ground), min_size=1, max_size=4
+    ).map(Expr)

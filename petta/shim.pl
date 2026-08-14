@@ -407,8 +407,16 @@ petta_py_add_many(Space, TaggedList) :-
 
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
+    ( metta_foreign_space(Space)
+      -> Existed = provider
+    ; copy_term(Term, Pattern),
+      ( once(('get-atoms'(Space, Stored), Stored = Pattern)) -> Existed = true
+      ; Existed = false ) ),
     'remove-atom'(Space, Term, Removed0),
-    petta_py_encode(Removed0, Removed).
+    ( Existed == provider -> Verdict = Removed0
+    ; Removed0 == false -> Verdict = false
+    ; Verdict = Existed ),
+    petta_py_encode(Verdict, Removed).
 
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).

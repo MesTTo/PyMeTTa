@@ -85,6 +85,18 @@ def _to_atom(value: Any) -> Atom:
     return encode(value)
 
 
+def _to_stored_atom(value: Any) -> Expr:
+    """Accept exactly the non-empty expression shape spaces can store."""
+    atom = _to_atom(value)
+    if not isinstance(atom, Expr) or not atom.children:
+        detail = "the empty expression" if isinstance(atom, Expr) else atom.metatype
+        raise TypeError(
+            f"a stored atom is a non-empty expression; {atom!r} is {detail}. "
+            f"Wrap a bare value in structure, as in (value {atom})."
+        )
+    return atom
+
+
 def _open_maybe_gz(path: str | os.PathLike[str], mode: str):
     """Open a save or load path, gzip-compressed when it ends .gz. The
     engine side mirrors this with zlib's gzopen, so both readers accept
@@ -503,16 +515,7 @@ class MeTTa:
         An (= ...) atom compiles as an equation. A stored atom is an
         expression, the engine's own storage shape, so anything else is
         refused here rather than failing silently inside."""
-        wires = []
-        for a in atoms:
-            atom = _to_atom(a)
-            if not isinstance(atom, Expr):
-                raise TypeError(
-                    f"a stored atom is an expression; {atom!r} is "
-                    f"{atom.metatype}. Wrap a bare value in structure, as in "
-                    f"(value {atom})."
-                )
-            wires.append(atom.to_wire())
+        wires = [_to_stored_atom(atom).to_wire() for atom in atoms]
         if not wires:
             return
         if len(wires) == 1:
@@ -558,9 +561,10 @@ class MeTTa:
 
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: an equation removal reports
-        whether it existed; a plain atom removal removes every copy."""
+        whether it existed; a plain atom removal removes every copy and
+        reports whether at least one copy existed."""
         removed = self._rt.apply_must(
-            "petta_py_remove", self._space, _to_atom(atom).to_wire()
+            "petta_py_remove", self._space, _to_stored_atom(atom).to_wire()
         )
         result = from_wire(removed)
         return bool(getattr(result, "value", True))

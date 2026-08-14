@@ -52,6 +52,7 @@ def test_remove_and_atoms_enumeration(mork):
     mork.add(S.mk(S.a), S.mk(S.b))
     assert mork.remove(S.mk(S.a)) is True
     assert [str(atom) for atom in mork.atoms()] == ["(mk b)"]
+    assert mork.remove(S.mk(S.missing)) is False
 
 
 def test_subscriptions_see_mork_writes(mork):
