@@ -11,6 +11,8 @@ Guarantees:
   - Runtime classifies only the shim's exact reserved exception term shape
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
     test_reserved_exception_shape_maps_by_kind]
+  - reader errors expose the reader's diagnostic instead of Janus's unknown
+    wrapper text [tested test_run_syntax_error_is_loud]
   - engine_thread attaches only a bare foreign thread and detaches exactly
     the engine it attached [tested test_engine_thread_owns_only_its_attachment]
 Guarded by:
@@ -421,7 +423,7 @@ class Runtime:
         if term is not None:
             try:
                 row = self._janus.query_once(
-                    "petta_py_exception_kind(Error, Kind)", {"Error": term}
+                    "petta_py_exception_info(Error, Kind, Detail)", {"Error": term}
                 )
             except self._janus.PrologError as classifier_error:
                 raise EngineError(
@@ -434,6 +436,9 @@ class Runtime:
                     _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
                 )
                 if error_type is not None:
+                    detail = row.get("Detail")
+                    if error_type is MettaSyntaxError and isinstance(detail, str):
+                        message = detail
                     raise error_type(message) from exc
         raise EngineError(message) from exc
 

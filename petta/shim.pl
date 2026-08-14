@@ -6,6 +6,8 @@
 % Guarantees:
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - petta_py_exception_info/3 returns the tagged reader detail without
+%     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -122,9 +124,12 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 petta_py_raise(Kind, Detail) :-
     throw(error(petta_py_exception(Kind, Detail), context(petta, Kind))).
 
-petta_py_exception_kind(
-    error(petta_py_exception(Kind, _), context(petta, _)), Kind) :-
+petta_py_exception_info(
+    error(petta_py_exception(Kind, Detail), context(petta, _)), Kind, Detail) :-
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted]).
+
+petta_py_exception_kind(Error, Kind) :-
+    petta_py_exception_info(Error, Kind, _).
 
 petta_py_control_exception(inference_limit_exceeded).
 petta_py_control_exception(time_limit_exceeded).

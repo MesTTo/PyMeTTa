@@ -37,8 +37,11 @@ def test_run_booleans_and_strings(metta):
 
 
 def test_run_syntax_error_is_loud(metta):
-    with pytest.raises(MettaSyntaxError):
+    with pytest.raises(MettaSyntaxError) as failure:
         metta.run("! (broken")
+    assert "line 1" in str(failure.value)
+    assert "Unknown error term" not in str(failure.value)
+    assert "petta_py_exception" not in str(failure.value)
 
 
 def test_run_unknown_function_error_is_loud(metta):
