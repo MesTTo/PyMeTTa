@@ -170,7 +170,7 @@ def weighted_relation_rate(m: MeTTa) -> float:
     with m.fresh_space() as s:
         measure.install(s)
         measure.weighted_relation(
-            s, "bench-mood", lambda day: [0.25, 0.75], [S.calm, S.tense]
+            s, "bench-mood", lambda _day: [0.25, 0.75], [S.calm, S.tense]
         )
         return _rate(
             lambda: [

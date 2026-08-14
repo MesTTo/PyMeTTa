@@ -9,5 +9,158 @@ dependencies = [
     "pytest>=8.4.2",
 ]
 
+# Everything the check runner needs. Install with:
+#   pip install -e ".[checks]"   (or: uv sync --extra checks)
+[project.optional-dependencies]
+checks = [
+    "ruff>=0.14",
+    "mypy>=1.18",
+    "ty>=0.0.1a20",
+    "pylint>=3.3",
+    "perflint>=0.8",
+    "radon>=6.0",
+    "xenon>=0.9",
+    "refurb>=2.3",
+    "vulture>=2.16",
+    "slotscheck>=0.20",
+    "bandit>=1.9",
+    "deptry>=0.25",
+    "pip-audit>=2.9",
+    "interrogate>=1.7",
+    "codespell>=2.4",
+    "import-linter>=2.13",
+    "pytest-benchmark>=5.2",
+    "hypothesis>=6.165",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+# --------------------------------------------------------------------------
+# ruff. The ruleset is pinned here so a fresh clone lints identically; before
+# this file it came from outside the tree and every machine disagreed.
+# --------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = ["HE", "examples/**/_common.py"]
+
+[tool.ruff.lint]
+select = [
+    "F",      # pyflakes
+    "E", "W", # pycodestyle
+    "I",      # import sorting
+    "UP",     # pyupgrade
+    "B",      # bugbear
+    "BLE",    # blind except
+    "S",      # bandit subset
+    "PL",     # pylint subset
+    "RUF",    # ruff-specific
+    "FURB",   # refurb subset
+    "PYI",    # stub correctness
+    "SIM",    # simplification
+    "C4",     # comprehensions
+    "PTH",    # pathlib over os.path
+    "RET",    # return simplification
+]
+ignore = [
+    "E501",     # line length is formatter territory, not lint
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915",  # arity/branch counts: xenon owns complexity
+    "PLR2004",  # magic values: too noisy against engine protocol constants
+    "S101",     # assert: used deliberately in aio invariants
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, shell out, and reach into internals on purpose.
+"tests/**" = ["S", "BLE", "PLW", "SIM", "RUF059"]
+"bench.py" = ["S", "PLW"]
+# The legacy PeTTa class and the engine bootstrap keep upstream's shape.
+"petta/__init__.py" = ["PLW0603", "PTH"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["petta"]
+
+# --------------------------------------------------------------------------
+# mypy. explicit_package_bases is what lets `petta` resolve while the legacy
+# `python.petta` alias exists; without it mypy refuses to start at all.
+# --------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+files = ["petta"]
+explicit_package_bases = true
+mypy_path = "."
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+# Not yet: strict = true. The burn-down is tracked in
+# ai-code-organisation-and-fixes.md section C2 (65 errors across 13 files).
+
+[[tool.mypy.overrides]]
+# Optional integrations that are not installed in every environment.
+# follow_imports = "skip" matters as much as ignore_missing_imports here:
+# python_version above is 3.10 so that 3.11+ and 3.12+ calls in our own code
+# are caught, but that same setting makes mypy reject third-party stubs
+# written in newer syntax (numpy's use PEP 695 `type` statements), and a
+# stub syntax error aborts the whole run before it checks anything.
+module = [
+    "janus_swi.*", "numpy.*", "faiss.*", "array_api_compat.*",
+    "websocket.*", "pandas.*", "polars.*", "torch.*", "duckdb.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+# --------------------------------------------------------------------------
+# Everything else the check runner drives.
+# --------------------------------------------------------------------------
+[tool.interrogate]
+fail-under = 40          # measured 41.9%; ratchet upward, never downward
+exclude = ["tests", "HE", "examples", "build"]
+ignore-init-module = true
+ignore-magic = true
+ignore-private = false
+
+# codespell config lives in .codespellrc at the repo root, because the check
+# runner scans src/ and lib/ as well and would never read this file.
+
+[tool.vulture]
+min_confidence = 80
+paths = ["petta", "bench.py"]
+# The context-manager and finalizer protocols hand these in and forbid
+# renaming them; vulture reports them at 100% confidence regardless.
+ignore_names = ["exc_type", "exc_val", "exc_tb", "tb", "exc"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "HE", "build"]
+
+[tool.deptry]
+known_first_party = ["petta"]
+extend_exclude = ["HE", "examples", "build"]
+
+# --------------------------------------------------------------------------
+# import-linter. The layering contract: atoms is the base, nothing under it
+# may import upward, and space (the facade) may not be imported by the
+# modules it drives. See ai-code-organisation-and-fixes.md section B6: the
+# `_to_atom` move is what makes the second contract pass.
+# --------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "petta"
+
+[[tool.importlinter.contracts]]
+name = "atoms is the base layer"
+type = "forbidden"
+source_modules = ["petta.atoms", "petta.errors"]
+forbidden_modules = [
+    "petta.space", "petta.ops", "petta.define", "petta.convert",
+    "petta.integrate", "petta.subscribe",
+]
+
+[[tool.importlinter.contracts]]
+name = "leaf modules do not import the facade"
+type = "forbidden"
+source_modules = [
+    "petta.subscribe", "petta.foreign", "petta.casting", "petta.trace",
+    "petta.lint", "petta.derivation", "petta.results",
+]
+forbidden_modules = ["petta.space"]
