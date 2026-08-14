@@ -1,11 +1,16 @@
 """Purpose: the Python-to-MeTTa compiler: lowerings run against the engine,
 refusals name construct and line, helper-bearing redefinitions replace as a
 unit, and guarded Python twins agree with equations on ground inputs.
+Owns:
+  - test_define_from_two_threads_is_serialized joins both definition workers
+    before examining their equations [tested test_define_from_two_threads_is_serialized]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -18,6 +23,20 @@ from hypothesis import given, settings, strategies as st  # noqa: E402
 @pytest.fixture()
 def m(metta):
     return metta.fresh_space()
+
+
+def test_define_from_two_threads_is_serialized(m):
+    def thread_left(value):
+        return value + 1
+
+    def thread_right(value):
+        return value * 2
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        left, right = workers.map(m.define, (thread_left, thread_right))
+
+    assert m.eval(left(4)) == [5]
+    assert m.eval(right(4)) == [8]
 
 
 def test_recursion_compiles_and_runs(m):

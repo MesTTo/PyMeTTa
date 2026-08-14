@@ -47,6 +47,7 @@ from typing import Any, Literal, overload
 
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
+from ._space_definitions import clear_definitions, install_define, install_type
 from ._space_objects import (
     Cursor,
     EngineProfile,
@@ -62,9 +63,7 @@ from .atoms import (
     Expr,
     Sym,
     Undefined,
-    Var,
     _to_atom,
-    alpha_eq,
     atom_from_wire,
     encode,
     from_wire,
@@ -89,14 +88,6 @@ def current_space(default: str = "&self") -> str:
         return default
     row = bridge().query_once("current_metta_space(S)")
     return str(row["S"]) if row else default
-
-
-# @define bookkeeping is keyed (space name, function name) process-wide,
-# because equations live in spaces, not in MeTTa instances: two instances
-# bound to one space stack clauses of one function together.
-_DEFINE_CLAUSES: dict[tuple[str, str], list[dict]] = {}
-_DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
-_DEFINED_GENERATORS: set[tuple[str, str]] = set()
 
 
 def _to_stored_atom(value: Any) -> Expr:
@@ -674,21 +665,7 @@ class MeTTa:
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
-        self._rt.must("petta_py_clear(Space)", Space=self._space)
-        # The @define bookkeeping follows the equations it describes.
-        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
-            for key in [k for k in registry if k[0] == self._space]:
-                del registry[key]
-        for key in [k for k in _DEFINED_GENERATORS if k[0] == self._space]:
-            _DEFINED_GENERATORS.discard(key)
-        # Reflection facts describing this space follow it too, so a pooled
-        # name reused later does not inherit another life's story. One
-        # engine crossing removes them all; per-fact crossings measured
-        # 64ms for 10,000 defines.
-        from .ops import REFLECTION_SPACE
-
-        if self._space != REFLECTION_SPACE:
-            self._rt.must("petta_py_reflect_clear_defined(Space)", Space=self._space)
+        clear_definitions(self)
 
     def __iadd__(self, atom: Any) -> MeTTa:
         self.add(atom)
@@ -1151,166 +1128,7 @@ class MeTTa:
         the running space, lowercase free names in the pattern binding as
         variables.
         """
-        if not isinstance(fn, types.FunctionType):
-            raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
-        from ._ops import REGISTRY
-        from .define import (
-            Defined,
-            canonical_aux_set,
-            compile_function,
-            hazard_twin,
-            twin_dispatcher,
-        )
-        from .errors import CompileError
-        from .ops import (
-            class_declarations,
-            declaration_exprs,
-            referenced_classes,
-            resolved_annotations,
-        )
-
-        def nondet(called: str) -> bool:
-            for spelling in (called, called.replace("_", "-")):
-                operation = REGISTRY.get(spelling)
-                if operation is not None and operation.kind in ("many", "raw_many"):
-                    return True
-                if (self._space, spelling) in _DEFINED_GENERATORS:
-                    return True
-            return False
-
-        # The equation's name follows the operation rule: underscores read
-        # as hyphens, one policy across both decorators.
-        name = fn.__name__.replace("_", "-")
-        compiled = compile_function(fn, known=self.is_function, nondet=nondet, metta_name=name)
-        params, patterns, body = compiled.params, compiled.patterns, compiled.body
-        # Clause stacking is per (space, name), process-wide: equations live
-        # in the space, not in whichever MeTTa instance happened to add them.
-        earlier = _DEFINE_CLAUSES.setdefault((self._space, name), [])
-        first_clause = not earlier
-        if not earlier and self.is_function_here(name):
-            raise CompileError(
-                f"{name!r} is already a function this space answers (an "
-                f"engine builtin, an operation, or an equation): defining it "
-                f"would stack a clause onto it and the existing definition "
-                f"would keep answering first. Pick another name, or add the "
-                f"equation deliberately with m.run.",
-                construct="name collision",
-            )
-        if patterns and any(not clause["patterns"] for clause in earlier):
-            raise CompileError(
-                f"a clause of {name} with a literal head comes after the "
-                f"general clause, which already matches everything; define "
-                f"the general clause last",
-                construct="clause order",
-            )
-        for clause in earlier:
-            earlier_patterns = clause["patterns"]
-            if len(earlier_patterns) < len(patterns) and all(
-                patterns.get(param) == value for param, value in earlier_patterns.items()
-            ):
-                raise CompileError(
-                    f"a clause of {name} fixes every literal from an earlier "
-                    f"head and adds more literals, so the earlier clause "
-                    f"already answers every input this clause could match; "
-                    f"put the more specific clause first",
-                    construct="clause order",
-                )
-        # MeTTa equations are alternatives, and a Python author stacking
-        # clauses means first-match, so each clause is guarded against every
-        # earlier literal head it would otherwise also answer for. The guard
-        # is ordinary MeTTa, visible in .source(), never a hidden rule.
-        body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns, params)
-        head = Expr([Sym(name), *(patterns.get(p, Var(p)) for p in params)])
-        equation = Expr([Sym("="), head, body])
-        dispatcher = twin_dispatcher(fn)
-        # Idempotence compares the main equation and all helper equations with
-        # auxiliary names canonicalized. A loop-body-only or lifted-body-only
-        # change must replace the old clause and its old helpers.
-        equations = (equation, *compiled.aux)
-        canonical = canonical_aux_set(equations, name)
-        clause_twin = (
-            hazard_twin(name, compiled.hazards, patterns, params)
-            if compiled.hazards
-            else compiled.twin
-        )
-        replaced = None
-        for position, clause in enumerate(earlier):
-            old_equations = (clause["equation"], *clause.get("aux", ()))
-            old_canonical = canonical_aux_set(old_equations, name)
-            if len(old_canonical) == len(canonical) and all(
-                alpha_eq(old, new) for old, new in zip(old_canonical, canonical)
-            ):
-                # The identical clause again, a re-run cell or module
-                # reload: adding it would duplicate answers, so it stands.
-                return Defined(
-                    name,
-                    params,
-                    body,
-                    dispatcher,
-                    self,
-                    patterns=patterns,
-                    runtime_ops=compiled.runtime_ops,
-                )
-            if clause["patterns"] == patterns:
-                replaced = position
-        if replaced is not None:
-            # The same head with a new body is a redefinition of that
-            # clause, the notebook reading; the old equation goes, the new
-            # one takes its place in both the space and the twin dispatch.
-            self.remove(earlier[replaced]["equation"])
-            for helper_equation in earlier[replaced].get("aux", ()):
-                self.remove(helper_equation)
-            earlier[replaced] = {
-                "patterns": dict(patterns),
-                "equation": equation,
-                "aux": tuple(compiled.aux),
-            }
-            dispatcher.clauses[replaced] = clause_twin
-        else:
-            earlier.append(
-                {
-                    "patterns": dict(patterns),
-                    "equation": equation,
-                    "aux": tuple(compiled.aux),
-                }
-            )
-            dispatcher.clauses.append(clause_twin)
-        for helper_equation in compiled.aux:
-            self.add(helper_equation)
-        self.add(equation)
-        if first_clause:
-            # The function reflects into the library's own space, one fact
-            # per (space, name), following the space through clear().
-            self._rt.must(
-                "petta_py_add(Space, W)",
-                Space=_ops_module.REFLECTION_SPACE,
-                W=Expr([Sym("defined"), Sym(self._space), Sym(name)]).to_wire(),
-            )
-        # Annotations declare the type, exactly as they do for operations,
-        # once per name so stacked clauses do not repeat the declaration.
-        annotated = resolved_annotations(fn)
-        if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get((self._space, name)):
-            import inspect as _inspect
-
-            annotations = [annotated.get(p, _inspect.Parameter.empty) for p in params]
-            ret_annotation = annotated.get("return", _inspect.Parameter.empty)
-            for declaration in declaration_exprs(name, annotations, ret_annotation):
-                self.add(declaration)
-            for cls in referenced_classes([*annotations, ret_annotation]):
-                for extra in class_declarations(cls):
-                    self.add(extra)
-            _DECLARED_DEFINES[(self._space, name)] = True
-        if compiled.generator:
-            _DEFINED_GENERATORS.add((self._space, name))
-        return Defined(
-            name,
-            params,
-            body,
-            dispatcher,
-            self,
-            patterns=patterns,
-            runtime_ops=compiled.runtime_ops,
-        )
+        return install_define(self, fn)
 
     def type(
         self,
@@ -1345,79 +1163,7 @@ class MeTTa:
         footing. An Enum declares its members; get-type sees them all.
         Returns the class, so it stacks under @dataclass.
         """
-        from . import convert as _convert
-
-        def apply(target: _builtins.type) -> _builtins.type:
-            registration = _convert.ensure_registered(target)
-            for declaration in _convert.declarations(target):
-                self.add(declaration)
-            if accessors and registration.image == "expression" and registration.fields:
-                constructor = registration.type_name
-                fields = registration.fields
-                variables = [Var(f"f{i}") for i in range(1, len(fields) + 1)]
-                for position, field_name in enumerate(fields):
-                    head = Expr(
-                        [
-                            Sym(f"{constructor}-{field_name}"),
-                            Expr([Sym(constructor), *variables]),
-                        ]
-                    )
-                    self.add(Expr([Sym("="), head, variables[position]]))
-            if methods:
-                self._register_methods(target, registration.type_name)
-            return target
-
-        return apply(cls) if cls is not None else apply
-
-    def _register_methods(self, target: _builtins.type, type_name: str) -> None:
-        """Every method the class itself defines, as a MeTTa function
-        named {Type}-{method}: the instance argument accepts a
-        constructor term (rebuilt through the translator) or a live
-        handle, and results the translator knows project back to terms."""
-        import inspect as _inspect
-
-        from . import convert as _convert
-        from .atoms import Gnd, encode
-
-        def projectable(value: Any) -> Any:
-            try:
-                _convert.ensure_registered(type(value))
-            except TypeError:
-                return value
-            return _convert.project(value).atom
-
-        def wrapper_for(fn):
-            def call(instance, *args):
-                subject = (
-                    _convert.build(instance, target)
-                    if isinstance(instance, Expr)
-                    else (instance.value if isinstance(instance, Gnd) else instance)
-                )
-                values = [a.value if isinstance(a, Gnd) else a for a in args]
-                result = fn(subject, *values)
-                if result is None:
-                    return None
-                if isinstance(result, Atom):
-                    return result
-                if isinstance(result, (bool, int, float, str)):
-                    return encode(result)
-                return projectable(result)
-
-            return call
-
-        for method_name, fn in vars(target).items():
-            if method_name.startswith("_") or not _inspect.isfunction(fn):
-                continue
-            parameters = list(_inspect.signature(fn).parameters.values())[1:]
-            required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
-            arities = list(range(1 + required, len(parameters) + 2))
-            self.register_op(
-                wrapper_for(fn),
-                name=f"{type_name}-{method_name}".replace("_", "-"),
-                typed=False,
-                pass_atoms=True,
-                arities=arities,
-            )
+        return install_type(self, cls, accessors=accessors, methods=methods)
 
     def fn(self, name: str) -> _EngineFunction:
         """Any engine function as an ordinary Python callable.
@@ -1494,31 +1240,3 @@ def _raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
         f"names containing whitespace, parentheses, or quotes have no "
         f"round-trip text spelling"
     )
-
-
-def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> Atom:
-    """The current clause's body, declining every earlier literal head.
-
-    For each earlier clause, the inputs it claims are the positions it fixed
-    with literals; when this clause leaves all of those positions variable,
-    the two overlap, and this clause answers (empty) there, so dispatch reads
-    first-match the way the stacked Python reads. define() refuses a later
-    head that fixes every literal in an earlier head because no variable is
-    available for a conditional guard.
-    """
-    for earlier_patterns in earlier:
-        if not earlier_patterns:
-            continue
-        overlapping = all(
-            p not in patterns or patterns[p] == v for p, v in earlier_patterns.items()
-        )
-        contested = [p for p in earlier_patterns if p not in patterns]
-        if not overlapping or not contested:
-            continue
-        first, *remaining = contested
-        condition: Atom = Expr([Sym("=="), Var(first), earlier_patterns[first]])
-        for p in remaining:
-            test = Expr([Sym("=="), Var(p), earlier_patterns[p]])
-            condition = Expr([Sym("and"), condition, test])
-        body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
-    return body
