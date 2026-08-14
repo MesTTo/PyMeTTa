@@ -546,12 +546,16 @@ class EmbeddingStore:
                 matrix = numpy.ascontiguousarray(
                     numpy.asarray(self._matrix, dtype=numpy.float32)
                 )
-                self._index = faiss.IndexFlatIP(matrix.shape[1])
-                self._index.add(matrix)
+                built_index = faiss.IndexFlatIP(matrix.shape[1])
+                built_index.add(matrix)
+                self._index = built_index
+            index = self._index
+            if index is None:
+                raise RuntimeError("FAISS index construction produced no index")
             probe = numpy.ascontiguousarray(
                 numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
             )
-            scores, indexes = self._index.search(probe, count)
+            scores, indexes = index.search(probe, count)
             for score, index in zip(scores[0], indexes[0]):
                 yield self._keys[int(index)], round(float(score), 6)
             return

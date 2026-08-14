@@ -264,9 +264,9 @@ class DAS:
         return body["execution_id"]
 
     def _start_query(self, patterns: tuple, count: bool, unique: bool,
-                     max_answers: int | None, extra: dict) -> str:
+        max_answers: int | None, extra: dict) -> str:
         if self._dialect != "legacy":
-            body = {
+            body: dict[str, Any] = {
                 "command": "query",
                 "params": self._query_params(
                     patterns, count, unique, max_answers, extra

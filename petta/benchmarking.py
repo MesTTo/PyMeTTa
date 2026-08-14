@@ -104,15 +104,16 @@ class BenchmarkBaseline:
         """Record or compare one deterministic engine counter."""
         if operations <= 0:
             raise ValueError(f"benchmark operations must be positive, got {operations}")
-        if samples is not None:
-            if len(samples) < _COUNTER_SAMPLES:
+        sample_values = None if samples is None else list(samples)
+        if sample_values is not None:
+            if len(sample_values) < _COUNTER_SAMPLES:
                 raise ValueError(f"benchmark counter needs at least {_COUNTER_SAMPLES} samples")
             if any(
                 not isinstance(value, int) or isinstance(value, bool) or value < 0
-                for value in samples
+                for value in sample_values
             ):
-                raise ValueError(f"invalid inference samples for {name}: {samples!r}")
-            observed = min(samples)
+                raise ValueError(f"invalid inference samples for {name}: {sample_values!r}")
+            observed = min(sample_values)
         else:
             observed = None
 
@@ -138,7 +139,7 @@ class BenchmarkBaseline:
             raise AssertionError(f"{name} baseline has invalid inferences {baseline!r}")
         if observed > baseline:
             raise AssertionError(
-                f"{name} inference regression: minimum of {list(samples)!r} is "
+                f"{name} inference regression: minimum of {sample_values!r} is "
                 f"{observed}, baseline {baseline}"
             )
         return observed
@@ -267,8 +268,9 @@ def benchmark_case(
             raise AssertionError(f"{name} completed {completed} {unit}, expected {operations}")
         return completed
 
-    samples: list[int] | None = [] if engine is not None and baseline.compare_counters else None
-    if samples is not None:
+    samples: list[int] | None = None
+    if engine is not None and baseline.compare_counters:
+        samples = []
         for _ in range(_COUNTER_SAMPLES):
             state = setup()
             try:

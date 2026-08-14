@@ -597,7 +597,13 @@ class PersistentFactSpace(SpaceProvider):
                     {"Text": tail_text},
                     require_open=False,
                 )
-                tail_status = status_row.get("Status")
+                status = status_row.get("Status")
+                if not isinstance(status, str):
+                    raise EngineError(
+                        f"persistent journal tail inspection returned an "
+                        f"invalid status: {status!r}"
+                    )
+                tail_status = status
             if tail_status != "incomplete":
                 raise EngineError(
                     f"persistent journal {self._path} ends with a complete but "
@@ -719,7 +725,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"persistent enumeration returned invalid wires: {wires!r}"
             )
 
-        facts = []
+        facts: list[Atom] = []
         for wire in wires:
             try:
                 fact = atom_from_wire(wire)

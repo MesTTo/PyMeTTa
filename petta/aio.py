@@ -57,6 +57,18 @@ _LIVE_WORKERS: weakref.WeakSet[_EngineThread] = weakref.WeakSet()
 _LIVE_WORKERS_LOCK = threading.Lock()
 
 
+def _set_future_exception(
+    future: asyncio.Future[None], failure: BaseException
+) -> None:
+    if not future.done():
+        future.set_exception(failure)
+
+
+def _set_future_result(future: asyncio.Future[None]) -> None:
+    if not future.done():
+        future.set_result(None)
+
+
 class _Request:
     __slots__ = ("fn", "target", "loop", "future", "abandoned")
 
@@ -139,7 +151,7 @@ class _EngineThread:
                 failure = exc
                 try:
                     loop.call_soon_threadsafe(
-                        lambda: started.done() or started.set_exception(failure)
+                        _set_future_exception, started, failure
                     )
                 finally:
                     _forget_worker(self)
@@ -152,9 +164,7 @@ class _EngineThread:
                     self._state = "live"
             logger.debug("AsyncMeTTa worker attached a Prolog engine")
             try:
-                loop.call_soon_threadsafe(
-                    lambda: started.done() or started.set_result(None)
-                )
+                loop.call_soon_threadsafe(_set_future_result, started)
                 while True:
                     request = self.work.get()
                     if request is None:
