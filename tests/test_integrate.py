@@ -169,7 +169,7 @@ def test_networkx_integrates_in_a_page(metta):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
         return expr(*(S[n] for n in names))
 
-    space.op(shortest_path, name="nx-path", raw=False, typed=False)
+    space.register_op(shortest_path, name="nx-path", raw=False, typed=False)
     # And both compose with reasoning:
     assert space.run("!(nx-path a c)") == [[expr(S.a, S.b, S.c)]]
     rows = space.query(S.nx_edge(S.a, V.to, V.w))

@@ -81,7 +81,7 @@ def matcher(
         if degree >= threshold:
             yield expr(degree, candidate)
 
-    m.op(run, name=name, typed=False, pass_atoms=True)
+    m.register_op(run, name=name, typed=False, pass_atoms=True)
     return name
 
 

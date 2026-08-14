@@ -596,8 +596,10 @@ class AsyncMeTTa:
     async def digest(self) -> str:
         return await self.call(lambda m: m.digest())
 
-    async def unregister(self, name: str) -> None:
-        return await self.call(lambda m: m.unregister(name))
+    async def unregister_op(self, name: str) -> None:
+        return await self.call(lambda m: m.unregister_op(name))
+
+    unregister = unregister_op
 
     async def builtins(self) -> list[str]:
         return await self.call(lambda m: m.builtins())

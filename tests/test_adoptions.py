@@ -88,7 +88,7 @@ def test_typevar_annotations_declare_parametrically(m):
 
     A = TypeVar("A")
 
-    @m.op(name="first-of")
+    @m.register_op(name="first-of")
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
@@ -104,7 +104,7 @@ def test_typevar_annotations_declare_parametrically(m):
 def test_union_annotations_superpose_declarations(m):
     from typing import Union
 
-    @m.op(name="describe")
+    @m.register_op(name="describe")
     def describe(x: Union[int, str]) -> str:
         return f"<{x}>"
 
@@ -121,7 +121,7 @@ def test_union_annotations_superpose_declarations(m):
 def test_optional_return_declares_the_value_type(m):
     from typing import Optional
 
-    @m.op(name="lookup-age")
+    @m.register_op(name="lookup-age")
     def lookup_age(name: str) -> Optional[int]:
         return {"ada": 36}.get(name)
 
@@ -134,13 +134,13 @@ def test_optional_return_declares_the_value_type(m):
 def test_callable_and_tuple_annotations_declare_structurally(m):
     from typing import Callable
 
-    @m.op(name="fixed-point-of")
+    @m.register_op(name="fixed-point-of")
     def fixed_point_of(f: Callable[[int], int]) -> int:
         raise NotImplementedError
 
     assert _arrows_of(m, "fixed-point-of") == {"(-> (-> Number Number) Number)"}
 
-    @m.op(name="swap")
+    @m.register_op(name="swap")
     def swap(pair: tuple[int, str]) -> tuple[str, int]:
         a, b = pair
         return (b, a)
@@ -159,7 +159,7 @@ def test_class_annotations_declare_the_class(m):
         mass: float
         velocity: float
 
-    @m.op(name="momentum")
+    @m.register_op(name="momentum")
     def momentum(p: Particle) -> float:
         return p.mass * p.velocity
 
@@ -268,13 +268,13 @@ def test_the_library_reflects_into_its_own_space(m):
 
     reflection = MeTTa(REFLECTION_SPACE)
 
-    @m.op(name="reflect-probe")
+    @m.register_op(name="reflect-probe")
     def reflect_probe(x: int) -> int:
         return x
 
     rows = reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
     assert [(r.arity, str(r.kind)) for r in rows] == [(1, "det")]
-    m.unregister("reflect-probe")
+    m.unregister_op("reflect-probe")
     assert not reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
 
     @m.define
@@ -349,20 +349,20 @@ def test_shared_class_declarations_survive_one_unregister(m):
     class SharedReview:
         stars: float
 
-    @m.op(name="rate-one")
+    @m.register_op(name="rate-one")
     def rate_one(r: SharedReview) -> float:
         return r.stars
 
-    @m.op(name="rate-two")
+    @m.register_op(name="rate-two")
     def rate_two(r: SharedReview) -> float:
         return r.stars * 2
 
     constructor = "(-> Number SharedReview)"
     assert _arrows_of(m, "SharedReview") == {constructor}
-    m.unregister("rate-one")
+    m.unregister_op("rate-one")
     # The other owner still declares the class.
     assert _arrows_of(m, "SharedReview") == {constructor}
-    m.unregister("rate-two")
+    m.unregister_op("rate-two")
     assert _arrows_of(m, "SharedReview") == set()
 
 
@@ -376,7 +376,7 @@ def test_registration_failure_leaves_nothing_half_registered(m):
         return 1
 
     with pytest.raises(TypeError):
-        m.op(bad, name="bad-op")
+        m.register_op(bad, name="bad-op")
     reflection = MeTTa(REFLECTION_SPACE)
     assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
@@ -392,7 +392,7 @@ def test_union_expansion_is_bounded(m):
         return a
 
     with pytest.raises(TypeError):
-        m.op(wide, name="wide-op")
+        m.register_op(wide, name="wide-op")
     assert not m.is_function("wide-op")
 
 

@@ -191,7 +191,7 @@ def test_aio_exposes_every_plain_request_response_method():
         "trace",
         "lint",
         "digest",
-        "unregister",
+        "unregister_op",
         "builtins",
         "is_function",
         "is_function_here",
@@ -278,14 +278,14 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
             assert partial and not partial[0].complete
 
             await am.call(
-                lambda sync: sync.op(
+                lambda sync: sync.register_op(
                     lambda value: value,
                     name="aio-unregister-target",
                     typed=False,
                 )
             )
             assert await am.is_function("aio-unregister-target")
-            await am.unregister("aio-unregister-target")
+            await am.unregister_op("aio-unregister-target")
             assert not await am.is_function("aio-unregister-target")
 
             path = tmp_path / "aio.fast"

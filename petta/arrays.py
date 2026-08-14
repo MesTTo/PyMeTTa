@@ -160,7 +160,7 @@ def install(m, default: Any = None) -> list[str]:
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
             )
-        m.op(fn, name=name, raw=raw, typed=False, **kw)
+        m.register_op(fn, name=name, raw=raw, typed=False, **kw)
         if types:
             m.add(expr(S[":"], S[name], Expr([S["->"], *(S[t] for t in types)])))
         registered.append(name)
@@ -421,8 +421,8 @@ class EmbeddingStore:
         serial = next(_STORE_SERIAL)
         internal_knn = f"{name}--store-{serial}-knn"
         internal_embed = f"{name}--store-{serial}-embed"
-        m.op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
-        m.op(embed, name=internal_embed, raw=False, typed=False, pass_atoms=True)
+        m.register_op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
+        m.register_op(embed, name=internal_embed, raw=False, typed=False, pass_atoms=True)
 
         key = (m.space_name, name)
         previous = _SPACE_STORES.get(key)

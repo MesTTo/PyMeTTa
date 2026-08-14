@@ -131,6 +131,18 @@ def test_fact_isolation_between_spaces(metta):
     assert len(b.query(S.fact(V.x))) == 0
 
 
+def test_default_metta_handles_share_the_self_space():
+    from petta import MeTTa
+
+    first, second = MeTTa(), MeTTa()
+    shared = S["shared-default-handle"](S.value)
+    first.add(shared)
+    try:
+        assert shared in second
+    finally:
+        first.remove(shared)
+
+
 def test_space_name_validation():
     from petta import MeTTa
 
@@ -143,6 +155,18 @@ def test_load_runs_a_file(metta, tmp_path):
     f.write_text("(= (loaded-f) 5)\n!(loaded-f)\n")
     groups = metta.load(str(f))
     assert groups == [[5]]
+
+
+def test_load_adds_to_existing_space(m, tmp_path):
+    path = tmp_path / "additive.metta"
+    path.write_text("(loaded-copy value)\n")
+
+    m.add(S.existing(S.value))
+    m.load(path)
+    m.load(path)
+
+    assert m.count() == 3
+    assert len(m.query(S["loaded-copy"](V.value))) == 2
 
 
 def test_why(m):

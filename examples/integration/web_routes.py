@@ -48,7 +48,7 @@ class Router:
     def get(self, path: str) -> Callable:
         def wrap(fn: Callable) -> Callable:
             handler = fn.__name__.replace("_", "-")
-            self._m.op(fn, name=handler, typed=False)
+            self._m.register_op(fn, name=handler, typed=False)
             self.add_route("GET", path, handler)
             return fn
 

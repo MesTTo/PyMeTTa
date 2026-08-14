@@ -161,7 +161,7 @@ def module_ops(
                 for p in signature.parameters.values()
             )
         if spread:
-            m.op(
+            m.register_op(
                 _spread(fn),
                 name=metta_name,
                 raw=raw,
@@ -169,7 +169,7 @@ def module_ops(
                 arities=[0, 1, 2, 3, 4],
             )
         else:
-            m.op(fn, name=metta_name, raw=raw, typed=typed)
+            m.register_op(fn, name=metta_name, raw=raw, typed=typed)
         registered.append(metta_name)
     return registered
 
@@ -229,7 +229,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     def call(*xs):
         return target(*xs)
 
-    m.op(call, name=name, raw=True, typed=False, arities=arities)
+    m.register_op(call, name=name, raw=True, typed=False, arities=arities)
     return target
 
 
@@ -350,8 +350,8 @@ def install_reflection_ops(m) -> list[str]:
         for attr in _field_names(target):
             yield expr(Sym(attr), val(getattr(target, attr)))
 
-    m.op(py_attr, name="py-attr", raw=False, typed=False, pass_atoms=True)
-    m.op(py_field, name="py-field", raw=False, typed=False, pass_atoms=True)
+    m.register_op(py_attr, name="py-attr", raw=False, typed=False, pass_atoms=True)
+    m.register_op(py_field, name="py-field", raw=False, typed=False, pass_atoms=True)
     return ["py-attr", "py-field"]
 
 

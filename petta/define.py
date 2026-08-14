@@ -56,7 +56,7 @@ _INSTEAD = {
     ast.FloorDiv: "write floor_math(a / b): mapping // directly would return "
     "an integer where Python returns a float, and the Python twin has to "
     "agree on every input",
-    ast.MatMult: "register a matrix multiply with @m.op, or use pettorch's "
+    ast.MatMult: "register a matrix multiply with @m.register_op, or use pettorch's "
     "matmul",
     ast.BitAnd: "use `and` on booleans; MeTTa has no bitwise operators",
     ast.BitOr: "use `or` on booleans; MeTTa has no bitwise operators",
@@ -1108,7 +1108,7 @@ class _Compiler(ast.NodeVisitor):
         if op is None:
             raise CompileError(
                 f"the operator {type(node.op).__name__} has no MeTTa function. "
-                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.op for it')}",
+                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.register_op for it')}",
                 construct=type(node.op).__name__,
                 line=node.lineno,
             )

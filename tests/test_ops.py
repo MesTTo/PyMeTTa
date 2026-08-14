@@ -20,7 +20,7 @@ def unique(prefix: str) -> str:
 def test_det_op_composes_with_equations(metta):
     name = unique("dbl")
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def double(x: int) -> int:
         return 2 * x
 
@@ -32,7 +32,7 @@ def test_det_op_composes_with_equations(metta):
 def test_generator_is_nondeterministic(metta):
     name = unique("upto")
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def upto(n: int):
         yield from range(1, n + 1)
 
@@ -45,11 +45,11 @@ def test_none_and_decline_answer_nothing(metta):
     evens = unique("evens")
     picky = unique("picky")
 
-    @metta.op(name=evens)
+    @metta.register_op(name=evens)
     def only_even(x: int):
         return x if x % 2 == 0 else None
 
-    @metta.op(name=picky)
+    @metta.register_op(name=picky)
     def picky_op(x: int):
         if x < 0:
             raise Decline
@@ -64,7 +64,7 @@ def test_none_and_decline_answer_nothing(metta):
 def test_python_exception_is_a_hard_error(metta):
     name = unique("boom")
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def boom(x: int) -> int:
         raise ValueError("exploded on purpose")
 
@@ -76,7 +76,7 @@ def test_python_exception_is_a_hard_error(metta):
 def test_annotations_declare_types(metta):
     name = unique("typed")
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def typed_op(x: int) -> int:
         return x
 
@@ -86,7 +86,7 @@ def test_annotations_declare_types(metta):
 def test_defaults_register_every_arity(metta):
     name = unique("greet")
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def greet(who: str, greeting: str = "hello") -> str:
         return f"{greeting}, {who}"
 
@@ -98,7 +98,7 @@ def test_ops_see_atoms_not_mush(metta):
     name = unique("peek")
     seen = []
 
-    @metta.op(name=name)
+    @metta.register_op(name=name)
     def peek(x) -> bool:
         seen.append(x)
         return True
@@ -115,7 +115,7 @@ def test_pass_atoms_hands_over_atoms(metta):
     name = unique("atoms")
     seen = []
 
-    @metta.op(name=name, pass_atoms=True)
+    @metta.register_op(name=name, pass_atoms=True)
     def watch(x) -> bool:
         seen.append(x)
         return True
@@ -134,13 +134,13 @@ def test_objects_flow_through_ops_by_identity(metta):
 
     box = []
 
-    @metta.op(name=make)
+    @metta.register_op(name=make)
     def make_counter():
         c = Counter()
         box.append(c)
         return val(c)
 
-    @metta.op(name=read)
+    @metta.register_op(name=read)
     def read_counter(c) -> int:
         assert c is box[0]
         c.n += 1
@@ -153,20 +153,25 @@ def test_objects_flow_through_ops_by_identity(metta):
 def test_raw_mode_for_number_work(metta):
     name = unique("rawsum")
 
-    @metta.op(name=name, raw=True, typed=False)
+    @metta.register_op(name=name, raw=True, typed=False)
     def raw_sum(a, b):
         return a + b
 
     assert metta.run(f"!({name} 20 22)") == [[42]]
 
 
-def test_name_mangling_and_unregister(metta):
-    @metta.op
+def test_operation_registration_names_are_symmetric(metta):
+    assert hasattr(metta, "register_op")
+    assert hasattr(metta, "unregister_op")
+    assert metta.op.__func__ is metta.register_op.__func__
+    assert metta.unregister.__func__ is metta.unregister_op.__func__
+
+    @metta.register_op
     def very_unique_op_name_xyz(x: int) -> int:
         return x
 
     assert metta.run("!(very-unique-op-name-xyz 9)") == [[9]]
-    metta.unregister("very-unique-op-name-xyz")
+    metta.unregister_op("very-unique-op-name-xyz")
     # Unregistered: the call no longer reduces, the engine leaves it inert.
     r = metta.run("!(very-unique-op-name-xyz 9)")
     assert r == [[expr(S["very-unique-op-name-xyz"], 9)]]
@@ -175,12 +180,12 @@ def test_name_mangling_and_unregister(metta):
 def test_var_kw_params_are_refused(metta):
     with pytest.raises(TypeError):
 
-        @metta.op
+        @metta.register_op
         def bad(*args):
             return 0
 
     with pytest.raises(TypeError):
 
-        @metta.op
+        @metta.register_op
         def bad2(*, key=1):
             return 0

@@ -107,5 +107,5 @@ def weighted_relation(
         for weight, class_atom in zip(answered, class_atoms):
             yield expr(weight, class_atom)
 
-    m.op(relation, name=name, typed=False, pass_atoms=True)
+    m.register_op(relation, name=name, typed=False, pass_atoms=True)
     return name

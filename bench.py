@@ -68,7 +68,7 @@ def eval_arith(m: MeTTa) -> float:
 
 @bench("op-raw")
 def op_raw(m: MeTTa) -> float:
-    @m.op(name="bench-raw", raw=True, typed=False)
+    @m.register_op(name="bench-raw", raw=True, typed=False)
     def bench_raw(a, b):
         return a + b
 
@@ -77,7 +77,7 @@ def op_raw(m: MeTTa) -> float:
 
 @bench("op-encoded")
 def op_encoded(m: MeTTa) -> float:
-    @m.op(name="bench-enc", typed=False)
+    @m.register_op(name="bench-enc", typed=False)
     def bench_enc(a, b):
         return a + b
 
@@ -190,8 +190,8 @@ def register_op(m: MeTTa) -> float:
             def fn(x: int) -> int:
                 return x
 
-            m.op(fn, name=f"bench-reg-{i}")
-            m.unregister(f"bench-reg-{i}")
+            m.register_op(fn, name=f"bench-reg-{i}")
+            m.unregister_op(f"bench-reg-{i}")
         return 100
 
     return _rate(register_batch)

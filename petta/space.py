@@ -18,6 +18,8 @@ Guarantees:
     closed Cursor refuses use [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion,
     test_stream_pulls_rows_lazily_and_interleaves]
+  - register_op and unregister_op are the paired operation lifecycle names
+    [tested test_operation_registration_names_are_symmetric]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -144,8 +146,10 @@ class MeTTa:
 
     PeTTa keeps one engine per process; every MeTTa instance shares it. The
     default space is &self, the space the CLI itself uses, so source pasted
-    from a .metta file behaves identically here. Named spaces isolate stored
-    atoms; equations are process-wide, which is the engine's own rule.
+    from a .metta file behaves identically here. Two MeTTa() calls therefore
+    see the same &self state. Use fresh_space() when independent stored state
+    is required. Named spaces isolate stored atoms; equations are process-wide,
+    which is the engine's own rule.
 
         from petta import MeTTa, S, V
 
@@ -402,9 +406,12 @@ class MeTTa:
             temporary.unlink(missing_ok=True)
 
     def load(self, path: str | os.PathLike[str]) -> list[list[Atom]]:
-        """Load a text program or an auto-detected trusted fast cache,
-        gzip-compressed or plain; a .gz path sniffs and reads through
-        the decompressed bytes."""
+        """Add a text program or trusted fast cache to this space.
+
+        Existing atoms remain, so loading the same file twice adds two copies.
+        Use clear() first or load into fresh_space() when replacement is wanted.
+        A .gz path is detected and read through the decompressed bytes.
+        """
         file = str(path)
         try:
             with _open_maybe_gz(file, "rb") as handle:
@@ -875,7 +882,7 @@ class MeTTa:
 
     # -------------------------------------------------------------- operations
 
-    def op(
+    def register_op(
         self,
         fn: Callable | None = None,
         *,
@@ -887,11 +894,11 @@ class MeTTa:
     ):
         """Register a Python callable as a MeTTa function, decorator-style.
 
-            @m.op
+            @m.register_op
             def double(x: int) -> int:
                 return 2 * x                    # !(double 21) -> 42
 
-            @m.op
+            @m.register_op
             def neighbours(n: int):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
@@ -900,7 +907,8 @@ class MeTTa:
         operation skips the wire encoding both ways, which suits tensor and
         number work; symbols reach it as plain strings, so keep raw off when
         the symbol-string distinction matters. pass_atoms hands the callable
-        Atom objects instead of decoded Python values.
+        Atom objects instead of decoded Python values. unregister_op(name)
+        removes every registered arity.
         """
 
         def apply(f: Callable) -> Callable:
@@ -917,9 +925,14 @@ class MeTTa:
 
         return apply(fn) if fn is not None else apply
 
-    def unregister(self, name: str) -> None:
+    def unregister_op(self, name: str) -> None:
         """Remove a registered operation, every arity of it."""
         _ops_module.unregister(self._rt, name)
+
+    # The paired names are canonical. These spellings keep existing
+    # decorators and notebooks executable while callers migrate together.
+    op = register_op
+    unregister = unregister_op
 
     # -------------------------------------------------------------- inspection
 
@@ -1346,7 +1359,7 @@ class MeTTa:
                 1 for p in parameters if p.default is _inspect.Parameter.empty
             )
             arities = list(range(1 + required, len(parameters) + 2))
-            self.op(
+            self.register_op(
                 wrapper_for(fn),
                 name=f"{type_name}-{method_name}".replace("_", "-"),
                 typed=False,
