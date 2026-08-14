@@ -192,17 +192,27 @@ member_alpha(X, [_|T]) :- member_alpha(X, T).
 
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
+%Remove the first element identical to X, keeping the rest in order. select/3
+%unifies instead, which both answers wrongly and binds the caller's variables:
+%(subtraction-atom ($x) (a)) came back () with $x bound to a. PeTTa's own
+%formalisation removes by equality, in leanPeTTa/StreamOps.lean:
+%  removeFirstEq (x : Pattern) : List Pattern -> Option (List Pattern)
+%    | y :: ys => if y == x then some ys else ...
+select_eq(X, [Y|Ys], Ys) :- X == Y, !.
+select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
+
 %Multisets:
+'subtraction-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'subtraction-atom'([], _, []).
-'subtraction-atom'([H|T], B, Out) :- ( select(H, B, BRest) -> 'subtraction-atom'(T, BRest, Out)
-                                                            ; Out = [H|Rest],
-                                                              'subtraction-atom'(T, B, Rest) ).
+'subtraction-atom'([H|T], B, Out) :- ( select_eq(H, B, BRest) -> 'subtraction-atom'(T, BRest, Out)
+                                                              ; Out = [H|Rest],
+                                                                'subtraction-atom'(T, B, Rest) ).
 'union-atom'(A, B, Out) :- append(A, B, Out).
 'intersection-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'intersection-atom'([], _, []).
-'intersection-atom'([H|T], B, Out) :- ( select(H, B, BRest) -> Out = [H|Rest],
-                                                              'intersection-atom'(T, BRest, Rest)
-                                                            ; 'intersection-atom'(T, B, Out) ).
+'intersection-atom'([H|T], B, Out) :- ( select_eq(H, B, BRest) -> Out = [H|Rest],
+                                                                 'intersection-atom'(T, BRest, Rest)
+                                                               ; 'intersection-atom'(T, B, Out) ).
 
 %%% Type system: %%%
 
