@@ -522,11 +522,43 @@ translate_special_dl('catch', [Expr], AfterHead, Goals, Out) :-
                         ; Out = ['Error', Exception] )),
     AfterHead = [CatchGoal|Goals].
 
+%A let unifies its pattern with its value under an occurs check, so a binding
+%cannot build a term that contains itself. Where that check is emitted decides
+%whether it can fire at all.
+%
+%Emitted before the goals that compute the value, which is where it used to
+%go, it runs on a result that is still an unbound variable, and two fresh
+%variables cannot fail an occurs check. The cycle is then built by the goals
+%that follow: (let $x (cons-atom $x ()) $x) was accepted and left $x bound to
+%a rational tree. The check was live only when the value needed no goals of
+%its own, which is the case tests/prolog/translator.plt covered.
+%
+%Emitting it after the value's goals is not free. It then walks an
+%instantiated term on every let, and let is the third most called predicate in
+%the engine after arithmetic: measured on a let-heavy workload at 2.7x wall
+%clock, 0.0062s to 0.0169s over five runs each, with the inference count
+%identical at 248706, so neither the benchmark gate nor any other
+%inference-based measure sees the difference.
+%
+%A value that shares no variable with the pattern cannot be built out of the
+%pattern's own variables by this let, so for it the early position loses
+%nothing and stays. Only a value that does share one pays for the late check.
 translate_let_dl([Pattern, Value, In], AfterHead, Goals, Out) :-
-    AfterHead = [unify_with_occurs_check(PatternValue, ValueResult)|AfterUnify],
-    translate_expr_dl(Pattern, AfterUnify, AfterPattern, PatternValue),
-    translate_expr_dl(Value, AfterPattern, AfterValue, ValueResult),
-    translate_expr_dl(In, AfterValue, Goals, Out).
+    ( shares_variable(Pattern, Value)
+      -> translate_expr_dl(Pattern, AfterHead, AfterPattern, PatternValue),
+         translate_expr_dl(Value, AfterPattern, AfterValue, ValueResult),
+         AfterValue = [unify_with_occurs_check(PatternValue, ValueResult)|AfterUnify]
+       ; AfterHead = [unify_with_occurs_check(PatternValue, ValueResult)|BeforePattern],
+         translate_expr_dl(Pattern, BeforePattern, AfterPattern, PatternValue),
+         translate_expr_dl(Value, AfterPattern, AfterUnify, ValueResult) ),
+    translate_expr_dl(In, AfterUnify, Goals, Out).
+
+%Whether two terms have a variable in common.
+shares_variable(A, B) :- term_variables(A, VarsA),
+                         VarsA \== [],
+                         term_variables(B, VarsB),
+                         member(Var, VarsA),
+                         memberchk_eq(Var, VarsB), !.
 
 translate_space_update_dl(Operation, [SpaceExpr, Atom], AfterHead, Goals,
                           Out) :-
