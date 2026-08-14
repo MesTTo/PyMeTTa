@@ -34,3 +34,16 @@ def test_cell_magic_targets_a_named_space(shell):
     from petta import MeTTa, V
 
     assert MeTTa("&nbspace").query(S["nb-fact"](V.x))[0].x == S.here
+
+
+def test_ipython_magic_uses_selected_space(shell, metta):
+    from petta import V
+    from petta.ipython import use
+
+    with metta.fresh_space() as selected:
+        use(selected)
+        try:
+            shell.run_cell_magic("metta", "", "(selected-fact here)")
+            assert selected.query(S["selected-fact"](V.x))[0].x == S.here
+        finally:
+            use(metta)

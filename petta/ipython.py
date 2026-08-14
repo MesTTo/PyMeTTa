@@ -2,6 +2,9 @@
 notebook holds both languages and one session holds both namespaces. The
 full-notebook experience is trueagi-io/jupyter-petta-kernel; this composes
 with it rather than competing.
+Guarded by:
+  - _MagicSession._lock protects the selected space [tested
+    test_ipython_magic_uses_selected_space]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,22 +19,37 @@ Open Obligations:
 
 from __future__ import annotations
 
+import threading
+
 from .space import MeTTa
 
-_METTA: MeTTa | None = None
+
+class _MagicSession:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._metta: MeTTa | None = None
+
+    def current(self) -> MeTTa:
+        with self._lock:
+            if self._metta is None:
+                self._metta = MeTTa()
+            return self._metta
+
+    def use(self, metta: MeTTa) -> None:
+        with self._lock:
+            self._metta = metta
+
+
+_SESSION = _MagicSession()
 
 
 def _current() -> MeTTa:
-    global _METTA
-    if _METTA is None:
-        _METTA = MeTTa()
-    return _METTA
+    return _SESSION.current()
 
 
 def use(metta: MeTTa) -> None:
     """Point the magic at a space other than the default &self."""
-    global _METTA
-    _METTA = metta
+    _SESSION.use(metta)
 
 
 def load_ipython_extension(ipython) -> None:
