@@ -14,6 +14,8 @@
 %   - Direct source strings compile equations into their target named space
 %     [tested 2026-08-14:
 %     tracer:function_defined_in_named_trace_stays_in_that_space].
+%   - File functions remain a global fallback when a named space defines the
+%     same symbol [tested 2026-08-14: filereader_global_function_scope].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -344,6 +346,7 @@ process_form(Space, compile, parsed(function, FormStr, Term), []) :-
     record_source_assertion(SpaceRef),
     bind_python_calls(Term, BoundTerm),
     BoundTerm = [=, [F|_], _],
+    register_fun_in(user, F),
     once(with_metta_module(user, translate_clause(BoundTerm, Clause))),
     assertz(user:Clause, Ref),
     record_source_assertion(Ref),
