@@ -33,7 +33,7 @@ from typing import Any, Callable, Iterator, Mapping
 
 from ._engine import bridge
 from ._network import HTTPEndpoint
-from .atoms import Atom, atom_from_wire
+from .atoms import Atom, Expr, atom_from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
 
@@ -203,7 +203,8 @@ class Server:
         self._httpd = httpd
         self._thread = thread
         self._work = work
-        self.host, self.port = httpd.server_address[:2]
+        raw_host, self.port = httpd.server_address[:2]
+        self.host = raw_host.decode("ascii") if isinstance(raw_host, bytes) else raw_host
         self.url = f"{scheme}://{self.host}:{self.port}"
 
     def close(self) -> None:
@@ -257,12 +258,21 @@ def serve(
         if operation == "match":
             space = space_of(payload)
             pattern = atom_from_wire(payload["pattern"])
-            (answers,) = space.run(
+            groups = space.run(
                 "!(collapse (match (context-space) pat pat))",
                 using={"pat": pattern},
             )
-            group = answers[0]
-            atoms = list(group) if hasattr(group, "children") else []
+            if len(groups) != 1 or len(groups[0]) != 1:
+                raise PettaError(
+                    "remote match returned an invalid collapse result: "
+                    f"{groups!r}"
+                )
+            group = groups[0][0]
+            if not isinstance(group, Expr):
+                raise PettaError(
+                    f"remote match returned a non-expression collapse: {group!r}"
+                )
+            atoms = list(group)
             return {"atoms": [a.to_wire() for a in atoms]}
         if operation == "atoms":
             return {"atoms": [a.to_wire() for a in space_of(payload).atoms()]}
@@ -316,7 +326,11 @@ def serve(
         def do_POST(self) -> None:  # noqa: N802  (http.server's spelling)
             length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
-            if not _is_authorized(self.headers, token, authorize):
+            headers: dict[str, str] = {}
+            for name, value in self.headers.items():
+                key = name.lower()
+                headers[key] = f"{headers[key]}, {value}" if key in headers else value
+            if not _is_authorized(headers, token, authorize):
                 logger.warning(
                     "refused unauthorized remote engine operation %s", operation
                 )

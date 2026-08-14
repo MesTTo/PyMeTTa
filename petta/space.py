@@ -35,13 +35,15 @@ Open Obligations:
 
 from __future__ import annotations
 
+import builtins as _builtins
 import os
 import stat
 import tempfile
+import time
 import warnings
 import weakref
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Literal, overload
 
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
@@ -155,6 +157,30 @@ def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] 
     )
 
 
+def _stats_snapshot(
+    rt: Runtime,
+) -> tuple[
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+]:
+    """Read and validate the six counters supplied by the engine shim."""
+    raw = rt.apply_must("petta_py_stats")
+    if not isinstance(raw, (list, tuple)) or len(raw) != 6:
+        raise EngineError(f"engine statistics returned an invalid snapshot: {raw!r}")
+    values: list[int | float] = []
+    for value in raw:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise EngineError(
+                f"engine statistics returned a non-numeric counter: {value!r}"
+            )
+        values.append(value)
+    return values[0], values[1], values[2], values[3], values[4], values[5]
+
+
 class MeTTa:
     """A space bound to the engine: the way in from Python.
 
@@ -256,6 +282,45 @@ class MeTTa:
             return "petta_py_run", [source, self._space]
         pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
         return "petta_py_run_using", [source, self._space, pairs]
+
+    @overload
+    def run(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: Literal[False] = False,
+        atomic: bool = False,
+        speculative: bool = False,
+    ) -> list[list[Atom]]: ...
+
+    @overload
+    def run(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: Literal[True],
+        atomic: bool = False,
+        speculative: bool = False,
+    ) -> tuple[list[list[Atom]], str]: ...
+
+    @overload
+    def run(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: bool,
+        atomic: bool = False,
+        speculative: bool = False,
+    ) -> list[list[Atom]] | tuple[list[list[Atom]], str]: ...
 
     def run(
         self,
@@ -787,6 +852,39 @@ class MeTTa:
                         None if where is None else _to_atom(where))
 
     # -------------------------------------------------------------- evaluation
+
+    @overload
+    def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: Literal[False] = False,
+        residuals: bool = False,
+    ) -> list[Atom | Undefined]: ...
+
+    @overload
+    def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: Literal[True],
+        residuals: bool = False,
+    ) -> tuple[list[Atom | Undefined], str]: ...
+
+    @overload
+    def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+        capture: bool,
+        residuals: bool = False,
+    ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]: ...
 
     def eval(
         self,
@@ -1335,7 +1433,7 @@ class MeTTa:
 
         return apply(cls) if cls is not None else apply
 
-    def _register_methods(self, target: type, type_name: str) -> None:
+    def _register_methods(self, target: _builtins.type, type_name: str) -> None:
         """Every method the class itself defines, as a MeTTa function
         named {Type}-{method}: the instance argument accepts a
         constructor term (rebuilt through the translator) or a live
@@ -1486,10 +1584,11 @@ def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> A
         contested = [p for p in earlier_patterns if p not in patterns]
         if not overlapping or not contested:
             continue
-        condition: Atom | None = None
-        for p in contested:
+        first, *remaining = contested
+        condition: Atom = Expr([Sym("=="), Var(first), earlier_patterns[first]])
+        for p in remaining:
             test = Expr([Sym("=="), Var(p), earlier_patterns[p]])
-            condition = test if condition is None else Expr([Sym("and"), condition, test])
+            condition = Expr([Sym("and"), condition, test])
         body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
     return body
 
@@ -1530,30 +1629,30 @@ class _StatsBlock:
 
     def __init__(self, rt: Runtime) -> None:
         self._rt = rt
-        self._before = None
-        self._wall = None
-        self.inferences = None
-        self.cputime = None
-        self.walltime = None
-        self.gc_count = None
-        self.gc_freed = None
-        self.gc_time = None
-        self.table_bytes = None
+        self._before: tuple[int | float, ...] | None = None
+        self._wall: float | None = None
+        self.inferences: int | None = None
+        self.cputime: float | None = None
+        self.walltime: float | None = None
+        self.gc_count: int | None = None
+        self.gc_freed: int | None = None
+        self.gc_time: float | None = None
+        self.table_bytes: int | None = None
 
     def __enter__(self) -> "_StatsBlock":
-        import time
-
-        self._before = self._rt.apply_must("petta_py_stats")
+        self._before = _stats_snapshot(self._rt)
         self._wall = time.perf_counter()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        import time
-
-        wall = time.perf_counter() - self._wall
-        after = self._rt.apply_must("petta_py_stats")
+        before = self._before
+        started_at = self._wall
+        if before is None or started_at is None:
+            raise RuntimeError("a stats block cannot exit before it enters")
+        wall = time.perf_counter() - started_at
+        after = _stats_snapshot(self._rt)
         inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
-            a - b for a, b in zip(after, self._before)
+            a - b for a, b in zip(after, before, strict=True)
         )
         # The two petta_py_stats crossings themselves sit inside the
         # window; their cost is a few hundred inferences, the noise floor.
