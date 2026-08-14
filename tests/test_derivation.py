@@ -6,7 +6,17 @@ Open Obligations:
 """
 
 import pytest
-from petta import Derivation, Fact, S, V, expr
+
+from petta import (
+    Builtin,
+    Derivation,
+    Fact,
+    InferenceLimitError,
+    S,
+    Truncated,
+    V,
+    expr,
+)
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):
@@ -40,9 +50,84 @@ def test_every_proof_enumerates(metta):
     assert answers == {S.Bob, S.Ann}
 
 
-def test_depth_bound_stops_runaway_search(metta):
+def test_depth_bound_marks_runaway_search_as_partial(metta):
     metta.run("(= (loop-d $x) (loop-d $x))")
-    assert metta.derivation(S["loop-d"](1), depth=5) == []
+    (proof,) = metta.derivation(S["loop-d"](1), depth=5)
+    assert not proof.complete
+    assert proof.truncations
+    assert isinstance(proof.truncations[0], Truncated)
+
+
+def test_conditional_derivation_exposes_the_recursive_branch(metta):
+    metta.run(
+        "(= (fact-tree $n) "
+        "(if (== $n 0) 1 (* $n (fact-tree (- $n 1)))))"
+    )
+
+    (proof,) = metta.derivation(S["fact-tree"](2))
+
+    assert proof.answer == 2
+    assert len(proof.rules) == 3
+    assert "(fact-tree 1)" in str(proof)
+    assert not any(
+        isinstance(node, Builtin) and "fact-tree" in node.text
+        for node in _walk_nodes(proof.children)
+    )
+
+
+def test_disjunction_derivation_enumerates_each_taken_branch(metta):
+    metta.run("(= (pick-tree) (superpose (1 2 3)))")
+    proofs = metta.derivation(S["pick-tree"]())
+    assert {proof.answer for proof in proofs} == {1, 2, 3}
+    assert all(proof.complete for proof in proofs)
+
+
+def test_once_and_findall_derivations_expose_their_inner_goals(metta):
+    metta.run(
+        "(= (once-tree) (once (superpose (1 2)))) "
+        "(= (findall-tree) (collapse (superpose (1 2))))"
+    )
+    once_proof = metta.derivation(S["once-tree"]())[0]
+    findall_proof = metta.derivation(S["findall-tree"]())[0]
+
+    leaves = [
+        node.text
+        for proof in (once_proof, findall_proof)
+        for node in _walk_nodes(proof.children)
+        if isinstance(node, Builtin)
+    ]
+    assert all("once(" not in leaf and "findall(" not in leaf for leaf in leaves)
+    assert any("1=1" in leaf for leaf in leaves)
+    assert any("2=2" in leaf for leaf in leaves)
+
+
+def test_depth_exhaustion_returns_a_partial_proof(metta):
+    depth = 40
+    peano = "z"
+    for _ in range(depth):
+        peano = f"(s {peano})"
+    metta.run("(= (dep-tree z) 0) (= (dep-tree (s $n)) (+ 1 (dep-tree $n)))")
+
+    (partial,) = metta.derivation(f"(dep-tree {peano})", depth=10)
+    (complete,) = metta.derivation(f"(dep-tree {peano})")
+
+    assert not partial.complete
+    assert partial.truncations
+    assert complete.complete
+    assert complete.answer == depth
+    assert metta.derivation("(dep-tree not-a-peano)") == []
+
+
+def test_unbounded_derivation_obeys_resource_guards(metta):
+    metta.run("(= (loop-guard-d $x) (loop-guard-d $x))")
+    with pytest.raises(InferenceLimitError):
+        metta.derivation(S["loop-guard-d"](1), inferences=2_000)
+
+
+@pytest.mark.parametrize("depth", [0, -1, True, 1.5])
+def test_derivation_depth_must_be_a_positive_integer_or_none(metta, depth):
+    with pytest.raises(ValueError, match="positive integer or None"):
+        metta.derivation(S.anything(), depth=depth)
 
 
 def test_html_rendering(metta):
@@ -83,6 +168,14 @@ def test_html_rendering(metta):
             ),
             "builtin node",
         ),
+        (
+            expr(
+                S.derivation,
+                expr(S.answer, S.call, S.out),
+                expr(S.truncated),
+            ),
+            "truncated node",
+        ),
     ],
 )
 def test_malformed_derivation_nodes_are_named(tree, message):
@@ -102,3 +195,10 @@ def test_derivation_facts_deduplicate_in_first_seen_order():
     )
     proof = Derivation.from_atom(tree)
     assert [fact.atom for fact in proof.facts] == [S.a(1), S.b(2)]
+
+
+def _walk_nodes(nodes):
+    for node in nodes:
+        yield node
+        if hasattr(node, "children"):
+            yield from _walk_nodes(node.children)

@@ -10,6 +10,10 @@ Guarantees:
     test_save_failure_preserves_existing_file]
   - MeTTa.save fsyncs a completed sibling file before replacing the target
     [tested test_save_syncs_before_replacing]
+  - MeTTa.derivation distinguishes a finite-depth cutoff from no proof and
+    accepts time and inference guards [tested
+    test_depth_exhaustion_returns_a_partial_proof,
+    test_unbounded_derivation_obeys_resource_guards]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -973,28 +977,43 @@ class MeTTa:
 
     # ------------------------------------------------------------- diagnostics
 
-    def derivation(self, target: Any, depth: int = 30) -> list[Derivation]:
+    def derivation(
+        self,
+        target: Any,
+        depth: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list[Derivation]:
         """Every proof of an answer, as trees in MeTTa terms.
 
         Each tree names the equations that fired and the stored atoms at the
         leaves, read from the translated_from links the engine keeps for
         every compiled clause. Meta-interpreted, so slower than evaluation;
-        a diagnostic, not an evaluation path. Depth bounds the SEARCH, and
-        an evaluation error inside a proof surfaces as itself rather than
-        as an empty proof list.
+        a diagnostic, not an evaluation path. The default walks each proof
+        without a depth cutoff. A positive depth returns a partial tree with
+        Truncated nodes when its budget ends, so an empty list means no proof.
+        `timeout` and `inferences` guard the whole search. An evaluation error
+        inside a proof surfaces as itself rather than as an empty proof list.
         """
-        if depth <= 0:
+        if depth is not None and (
+            isinstance(depth, bool) or not isinstance(depth, int) or depth <= 0
+        ):
             raise ValueError(
-                f"derivation depth must be positive, got {depth}: a zero "
-                f"budget would answer no proofs for everything"
+                f"derivation depth must be a positive integer or None, got {depth!r}"
             )
+        seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
         rows = self._rt.iter(
-            "petta_py_derivation(Space, W, D, T)",
-            Space=self._space,
-            W=_to_atom(target).to_wire(),
-            D=depth,
+            "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)",
+            Seconds=seconds,
+            Steps=steps,
+            Ins=[
+                self._space,
+                _to_atom(target).to_wire(),
+                -1 if depth is None else depth,
+            ],
         )
-        return [Derivation.from_atom(from_wire(r["T"])) for r in rows]
+        return [Derivation.from_atom(from_wire(r["Tree"])) for r in rows]
 
     def why(self, pattern: Any) -> str:
         """Why a pattern matches nothing here, in words.

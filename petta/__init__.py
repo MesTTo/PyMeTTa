@@ -131,7 +131,7 @@ from .atoms import (  # noqa: E402
     var,
     variables,
 )
-from .derivation import Builtin, Derivation, Fact, Step  # noqa: E402
+from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
     CompileError,
@@ -223,6 +223,7 @@ __all__ = [
     "Step",
     "Fact",
     "Builtin",
+    "Truncated",
     # errors
     "PettaError",
     "EngineError",

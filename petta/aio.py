@@ -421,8 +421,22 @@ class AsyncMeTTa:
     async def arities(self, name: str) -> list[int]:
         return await self.call(lambda m: m.arities(name))
 
-    async def derivation(self, target: Any, depth: int = 30) -> Any:
-        return await self.call(lambda m: m.derivation(target, depth=depth))
+    async def derivation(
+        self,
+        target: Any,
+        depth: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Any:
+        return await self.call(
+            lambda m: m.derivation(
+                target,
+                depth=depth,
+                timeout=timeout,
+                inferences=inferences,
+            )
+        )
 
     async def why(self, pattern: Any) -> str:
         return await self.call(lambda m: m.why(pattern))

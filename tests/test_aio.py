@@ -202,6 +202,15 @@ def test_aio_exposes_every_plain_request_response_method():
     signature = inspect.signature(aio.AsyncMeTTa.save)
     assert list(signature.parameters) == ["self", "path", "format"]
     assert signature.parameters["format"].default == "metta"
+    derivation = inspect.signature(aio.AsyncMeTTa.derivation)
+    assert list(derivation.parameters) == [
+        "self",
+        "target",
+        "depth",
+        "timeout",
+        "inferences",
+    ]
+    assert derivation.parameters["depth"].default is None
 
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
@@ -230,6 +239,10 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
                 "(= (aio-prove) (match (context-space) (aio-proof $x) $x))"
             )
             assert await am.derivation(S["aio-prove"]())
+            partial = await am.derivation(
+                S["aio-prove"](), depth=1, timeout=5.0, inferences=100_000
+            )
+            assert partial and not partial[0].complete
 
             await am.call(
                 lambda sync: sync.op(

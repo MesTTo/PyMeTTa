@@ -245,6 +245,7 @@ petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
+petta_py_wrappable(petta_py_derivation).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
     ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),
@@ -840,11 +841,13 @@ petta_py_arities(Name0, As) :-
 
 %%%%%%%%%% Derivation trees %%%%%%%%%%
 %
-% The classic three-clause proof-tree meta-interpreter, rendered in MeTTa
-% terms: every compiled clause remembers its source equation through
-% translated_from/2, so each node names the equation that fired, a stored atom
-% is a leaf, and a builtin call is an opaque leaf. Depth-bounded, because a
-% meta-interpreted search should fail loudly rather than loop silently.
+% The classic proof-tree meta-interpreter, rendered in MeTTa terms: every
+% compiled clause remembers its source equation through translated_from/2,
+% so each node names the equation that fired, a stored atom is a leaf, and a
+% builtin call is an opaque leaf. Control constructs recurse into the branch
+% they execute. A finite depth emits a truncated node rather than claiming no
+% proof. Negative depth means unbounded; Python puts that search behind the
+% same time and inference guards as evaluation.
 
 petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_decode_shared(Tagged, Term, _),
@@ -856,12 +859,51 @@ petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_in_module(Module, petta_py_solve(Module, Goal, Depth, Tree)),
     petta_py_encode_tree(Tree, [F|Args], Out, TreeTagged).
 
-petta_py_solve(_, _, D, _) :- D =< 0, !, fail.
-petta_py_solve(_, true, _, []) :- !.
-petta_py_solve(M, (A, B), D, Tree) :- !,
-    petta_py_solve(M, A, D, TA),
-    petta_py_solve(M, B, D, TB),
-    append(TA, TB, Tree).
+petta_py_solve(M, Goal, D, Tree) :-
+    petta_py_solve_(M, Goal, D, Tree, _).
+
+petta_py_solve_(_, Goal, 0, [truncated(Goal)], truncated) :- !.
+petta_py_solve_(_, true, _, [], complete) :- !.
+petta_py_solve_(M, (If -> Then ; Else), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+      -> ( IfStatus == truncated
+           -> Tree = IfTree, Status = truncated
+         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+           append(IfTree, ThenTree, Tree) )
+    ; petta_py_solve_(M, Else, D, Tree, Status) ).
+petta_py_solve_(M, (If -> Then), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+      -> ( IfStatus == truncated
+           -> Tree = IfTree, Status = truncated
+         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+           append(IfTree, ThenTree, Tree) )
+    ; fail ).
+petta_py_solve_(M, (A ; B), D, Tree, Status) :- !,
+    ( petta_py_solve_(M, A, D, Tree, Status)
+    ; petta_py_solve_(M, B, D, Tree, Status) ).
+petta_py_solve_(M, (A, B), D, Tree, Status) :- !,
+    petta_py_solve_(M, A, D, TA, SA),
+    ( SA == truncated
+      -> Tree = TA, Status = truncated
+    ; petta_py_solve_(M, B, D, TB, Status),
+      append(TA, TB, Tree) ).
+petta_py_solve_(M, call(A), D, Tree, Status) :- !,
+    petta_py_solve_(M, A, D, Tree, Status).
+petta_py_solve_(M, once(A), D, Tree, Status) :- !,
+    once(petta_py_solve_(M, A, D, Tree, Status)).
+petta_py_solve_(M, \+ A, D, Tree, Status) :- !,
+    ( once(petta_py_solve_(M, A, D, TA, SA))
+      -> ( SA == truncated
+           -> Tree = TA, Status = truncated
+         ; fail )
+    ; Tree = [builtin(\+ A)], Status = complete ).
+petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status) :- !,
+    findall([Template, SubTree, SubStatus],
+            petta_py_solve_(M, Goal, D, SubTree, SubStatus),
+            Results),
+    petta_py_findall_results(Results, Values, Tree, Status),
+    ( Status == complete -> List = Values ; true ).
+
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is
 %called whole and appears as one leaf, so the tree stays in MeTTa terms. The
@@ -870,18 +912,29 @@ petta_py_solve(M, (A, B), D, Tree) :- !,
 %clause INSPECTION is guarded (an uninspectable goal is an opaque leaf); a
 %body or builtin that ERRS propagates, because (/ 1 0) failing into "no
 %proof" would be a lie about why:
-petta_py_solve(M, Goal, D, Tree) :-
+petta_py_solve_(M, Goal, D, Tree, Status) :-
     \+ predicate_property(M:Goal, built_in),
     catch_recover(clause(M:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
-      -> D1 is D - 1,
-         petta_py_solve(M, Body, D1, Sub),
+      -> petta_py_next_depth(D, D1),
+         petta_py_solve_(M, Body, D1, Sub, Status),
          Tree = [step(Goal, Source, Sub)]
     ; call(M:Body),
-      petta_py_leaf(Goal, Tree) ).
-petta_py_solve(M, Goal, _, [builtin(Goal)]) :-
+      petta_py_leaf(Goal, Tree),
+      Status = complete ).
+petta_py_solve_(M, Goal, _, [builtin(Goal)], complete) :-
     predicate_property(M:Goal, built_in), !,
     call(M:Goal).
+
+petta_py_findall_results([], [], [], complete).
+petta_py_findall_results(
+    [[Value, SubTree, SubStatus]|Results], [Value|Values], Tree, Status) :-
+    petta_py_findall_results(Results, Values, RestTree, RestStatus),
+    append(SubTree, RestTree, Tree),
+    ( SubStatus == truncated -> Status = truncated ; Status = RestStatus ).
+
+petta_py_next_depth(D, D) :- D < 0, !.
+petta_py_next_depth(D, D1) :- D1 is D - 1.
 
 %A match over a space names the atom it found; anything else names its goal:
 petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
@@ -893,7 +946,8 @@ petta_py_leaf(Goal, [builtin(Goal)]).
 
 %The tree crosses as nested tagged expressions:
 %  (derivation Conclusion Steps...) with each step
-%  (step Conclusion (= Head Body) Substeps...) or (fact Atom) or (builtin Text).
+%  (step Conclusion (= Head Body) Substeps...), (fact Atom), (builtin Text),
+%  or (truncated Goal).
 petta_py_encode_tree(Steps, Root, Out, ["e", [["s", "derivation"], RootE | StepEs]]) :-
     petta_py_encode([Root, '=', Out], ["e", [R, _, O]]),
     RootE = ["e", [["s", "answer"], R, O]],
@@ -908,6 +962,8 @@ petta_py_encode_step(fact(Space, Fact), ["e", [["s", "fact"], SpaceE, FactE]]) :
     petta_py_encode(Space, SpaceE),
     petta_py_encode(Fact, FactE).
 petta_py_encode_step(builtin(Goal), ["e", [["s", "builtin"], ["g", Text]]]) :-
+    term_string(Goal, Text).
+petta_py_encode_step(truncated(Goal), ["e", [["s", "truncated"], ["g", Text]]]) :-
     term_string(Goal, Text).
 
 %A compiled goal f(A1..An,Out) renders as the call (f A1..An) with its answer:
