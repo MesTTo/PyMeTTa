@@ -2,6 +2,9 @@
 answer, with the query's variable names as columns and attribute access per
 column, so rows drop into unpacking, DataFrame constructors and pattern
 matching without a helper in between.
+Guarantees:
+  - Rows with the same columns share one bounded cached Row subclass [tested
+    test_row_classes_are_reused_and_bounded]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,6 +13,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, Iterator
 
 __all__ = ["Row", "Rows"]
@@ -56,6 +60,7 @@ class Row(tuple):
         return dict(zip(type(self)._columns, self))
 
 
+@lru_cache(maxsize=256)
 def _row_class(columns: tuple[str, ...]) -> type[Row]:
     cls = type("Row", (Row,), {"__slots__": (), "_columns": columns})
     return cls

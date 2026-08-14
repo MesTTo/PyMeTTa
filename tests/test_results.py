@@ -9,6 +9,7 @@ Open Obligations:
 import pytest
 
 from petta import Rows, S, V
+from petta.results import _row_class
 
 
 @pytest.fixture()
@@ -62,6 +63,17 @@ def test_rows_reject_duplicate_columns_and_wrong_row_widths():
         Rows(("x", "y"), [(1,)])
     with pytest.raises(ValueError, match="row 0 has 2 values for 1 columns"):
         Rows(("x",), [(1, 2)])
+
+
+def test_row_classes_are_reused_and_bounded():
+    _row_class.cache_clear()
+    left = Rows(("name",), [("Ada",)])
+    right = Rows(("name",), [("Bob",)])
+    assert type(left[0]) is type(right[0])
+
+    for index in range(300):
+        Rows((f"column_{index}",), [(index,)])
+    assert _row_class.cache_info().currsize == 256
 
 
 def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
