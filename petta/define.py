@@ -23,6 +23,11 @@ import types
 from collections.abc import Callable
 from typing import Any, NamedTuple, cast
 
+from ._define_twins import (
+    _python_twin,
+    hazard_twin,
+    twin_dispatcher,
+)
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
@@ -318,151 +323,6 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
             )
         patterns[arg.arg] = Gnd(default.value)
     return params, patterns
-
-
-class TwinDispatcher:
-    """The Python twin of a possibly-stacked definition: clause twins in
-    definition order, first whose head admits the arguments answers, the
-    engine's own first-match reading that the guards compile. Twins of other
-    definitions resolve to dispatchers too, so twins compose: a twin calling
-    another defined name runs that name's Python, not a term builder."""
-
-    __slots__ = ("name", "clauses")
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.clauses: list[Callable] = []
-
-    def __call__(self, *args: Any):
-        for clause in self.clauses:
-            try:
-                return clause(*args)
-            except _ClauseMiss:
-                continue
-        raise LookupError(f"{self.name}: no clause's head matches {args!r}")
-
-    @property
-    def __name__(self) -> str:
-        return self.name
-
-    @property
-    def __doc__(self) -> str | None:  # type: ignore[override]
-        return self.clauses[0].__doc__ if self.clauses else None
-
-    def __repr__(self) -> str:
-        return f"<python twin of {self.name}, {len(self.clauses)} clause(s)>"
-
-
-class _ClauseMiss(LookupError):
-    """A clause twin refusing arguments its head does not match."""
-
-
-# (id of a module's globals, name) -> the dispatcher every twin from that
-# module resolves the name to; and per module, every twin-globals view built,
-# so a later definition becomes visible to earlier twins, Python's own rule
-# that a call resolves its callee at call time.
-_TWIN_DISPATCHERS: dict[tuple[int, str], TwinDispatcher] = {}
-_TWIN_VIEWS: dict[int, list[dict]] = {}
-
-
-def hazard_twin(
-    name: str,
-    hazards: frozenset[str],
-    patterns: dict[str, Atom] | None = None,
-    params: list[str] | None = None,
-) -> Callable[..., Any]:
-    """The refusal twin for a clause Python cannot run.
-
-    Calling it names the unsupported engine behavior instead of raising an
-    unrelated NameError from inside the original function.
-    """
-
-    def unrunnable(*_args, **_kwargs):
-        reasons = ", ".join(sorted(hazards))
-        raise RuntimeError(
-            f"{name}.py cannot run this clause in Python: its body uses "
-            f"{reasons}, which exist only in the engine. Evaluate through "
-            f"the space instead: m.eval({name}(...))."
-        )
-
-    unrunnable.__name__ = name
-    return _guard_twin(unrunnable, name, params or [], patterns)
-
-
-def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
-    """The dispatcher for fn's name in fn's module, created on first use and
-    pushed into every twin-globals view of that module."""
-    mid, name = id(fn.__globals__), fn.__name__
-    dispatcher = _TWIN_DISPATCHERS.get((mid, name))
-    if dispatcher is None:
-        dispatcher = _TWIN_DISPATCHERS[(mid, name)] = TwinDispatcher(name)
-        for view in _TWIN_VIEWS.get(mid, []):
-            view[name] = dispatcher
-    return dispatcher
-
-
-def _python_twin(
-    fn: types.FunctionType, patterns: dict[str, Atom] | None = None
-) -> Callable[..., Any]:
-    """One clause's Python twin, head guard included.
-
-    The twin's globals overlay every dispatcher this module has, its own
-    name's first of all, so recursion reaches the dispatcher rather than the
-    term builder, across clauses and across definitions. A clause with
-    literal head patterns raises a clause miss when an argument misses one,
-    and the dispatcher moves on.
-    """
-    globals_ = dict(fn.__globals__)
-    mid = id(fn.__globals__)
-    for (module_id, other), dispatcher in _TWIN_DISPATCHERS.items():
-        if module_id == mid:
-            globals_[other] = dispatcher
-    _TWIN_VIEWS.setdefault(mid, []).append(globals_)
-
-    name = fn.__name__
-    own = twin_dispatcher(fn)
-    globals_[name] = own
-
-    closure = fn.__closure__
-    freevars = fn.__code__.co_freevars
-    if name in freevars and closure is not None:
-        cells = list(closure)
-        cell = types.CellType()
-        cell.cell_contents = own
-        cells[freevars.index(name)] = cell
-        closure = tuple(cells)
-
-    twin = types.FunctionType(
-        fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
-    )
-    twin.__doc__ = fn.__doc__
-    order = list(inspect.signature(fn).parameters)
-    return _guard_twin(twin, name, order, patterns)
-
-
-def _guard_twin(
-    twin: Callable[..., Any],
-    name: str,
-    order: list[str],
-    patterns: dict[str, Atom] | None,
-) -> Callable[..., Any]:
-    """Apply one literal-head guard to either kind of clause twin."""
-    if not patterns:
-        return twin
-
-    def guarded(*args):
-        for position, value in zip(order, args):
-            expected = patterns.get(position)
-            if expected is not None and expected != value:
-                raise _ClauseMiss(
-                    f"{name}: this clause's head matches {position}={expected}, "
-                    f"not {value!r}"
-                )
-        return twin(*args)
-
-    guarded.__name__ = name
-    guarded.__doc__ = twin.__doc__
-    return guarded
 
 
 class _Compiler(ast.NodeVisitor):

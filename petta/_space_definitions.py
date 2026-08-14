@@ -23,14 +23,18 @@ from typing import Any
 
 from . import convert as _convert
 from . import ops as _ops_module
+from ._define_twins import (
+    append_twin_clause,
+    hazard_twin,
+    replace_twin_clause,
+    twin_dispatcher,
+)
 from ._ops import REGISTRY
 from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
 from .define import (
     Defined,
     canonical_aux_set,
     compile_function,
-    hazard_twin,
-    twin_dispatcher,
 )
 from .errors import CompileError
 from .ops import (
@@ -187,7 +191,7 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
             "equation": equation,
             "aux": tuple(compiled.aux),
         }
-        dispatcher.clauses[replaced] = clause_twin
+        replace_twin_clause(dispatcher, replaced, clause_twin)
     else:
         earlier.append(
             {
@@ -196,7 +200,7 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
                 "aux": tuple(compiled.aux),
             }
         )
-        dispatcher.clauses.append(clause_twin)
+        append_twin_clause(dispatcher, clause_twin)
     for helper_equation in compiled.aux:
         space.add(helper_equation)
     space.add(equation)

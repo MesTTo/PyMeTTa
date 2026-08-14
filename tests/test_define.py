@@ -25,6 +25,18 @@ def m(metta):
     return metta.fresh_space()
 
 
+def twin_base_probe(value):
+    return value + 1
+
+
+def twin_base_replacement(value):
+    return value + 10
+
+
+def twin_user_probe(value):
+    return twin_base_probe(value) * 2
+
+
 def test_define_from_two_threads_is_serialized(m):
     def thread_left(value):
         return value + 1
@@ -37,6 +49,21 @@ def test_define_from_two_threads_is_serialized(m):
 
     assert m.eval(left(4)) == [5]
     assert m.eval(right(4)) == [8]
+
+
+def test_existing_twin_sees_later_redefinition(m):
+    m.define(twin_base_probe)
+    twin_user = m.define(twin_user_probe)
+    assert twin_user.py(3) == 8
+
+    original_name = twin_base_replacement.__name__
+    twin_base_replacement.__name__ = twin_base_probe.__name__
+    try:
+        m.define(twin_base_replacement)
+    finally:
+        twin_base_replacement.__name__ = original_name
+
+    assert twin_user.py(3) == 26
 
 
 def test_recursion_compiles_and_runs(m):
