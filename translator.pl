@@ -23,6 +23,8 @@
 %     [tested 2026-08-14: tests/performance/reduce_dispatch.pl].
 %   - Prolog import forms have exactly one translation
 %     [tested 2026-08-14: translator_prolog_imports].
+%   - Source-load rollback removes retained metadata, generated lambdas, and
+%     symbol-head notes [tested 2026-08-14: filereader_source_rollback].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -37,7 +39,8 @@
 :- dynamic fun_meta_clause/3.
 
 record_fun_meta(F, Args, Body) :-
-    asserta(fun_meta_clause(F, Args, Body)).
+    asserta(fun_meta_clause(F, Args, Body), Ref),
+    record_source_assertion(Ref).
 
 fun_meta_clauses(F, Clauses) :-
     findall(fun_meta(Args, Body), fun_meta_clause(F, Args, Body), Clauses),
@@ -94,7 +97,7 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                append(HeadArgs, [Out], FinalArgs),
                                                Head =.. [F|FinalArgs],
                                                length(FinalArgs, CompiledArity),
-                                               (arity(F, CompiledArity) -> true ; assertz(arity(F, CompiledArity))),
+                                               register_arity(F, CompiledArity),
                                                append(GoalsPrefix, FinalGoals, Goals),
                                                goals_list_to_conj(Goals, BodyConj0),
                                                merge_branch_returns(Head, BodyConj0, BodyConj).
@@ -106,7 +109,9 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
 :- thread_local translating_runnable/0.
 note_symbol_head(HV) :- atom(HV), !,
                         ( translating_runnable -> Ctx = runnable ; Ctx = clause ),
-                        ( symbol_head(HV, Ctx) -> true ; assertz(symbol_head(HV, Ctx)) ).
+                        ( symbol_head(HV, Ctx) -> true
+                        ; assertz(symbol_head(HV, Ctx), Ref),
+                          record_source_assertion(Ref) ).
 note_symbol_head(_).
 
 %Translate an expression that executes immediately, marking its data uses as unrepairable.
@@ -462,12 +467,13 @@ translate_special_dl('|->', [Args, Body], AfterHead, Goals, Out) :-
     append(FreeVars, Args, FullArgs),
     translate_clause([=, [Function|FullArgs], Body], Clause),
     register_fun(Function),
-    assertz(Clause),
+    assertz(Clause, Ref),
+    record_source_assertion(Ref),
     format(atom(Label), "metta lambda (~w)", [Function]),
     maybe_print_compiled_clause(Label, ['|->', Args, Body], Clause),
     length(FullArgs, InputArity),
     Arity is InputArity + 1,
-    ( arity(Function, Arity) -> true ; assertz(arity(Function, Arity)) ),
+    register_arity(Function, Arity),
     ( FreeVars == [] -> Out = Function ; Out = partial(Function, FreeVars) ),
     AfterHead = Goals.
 

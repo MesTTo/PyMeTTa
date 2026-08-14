@@ -8,6 +8,9 @@
 %     filereader_form_splitter].
 %   - Loader diagnostics contain ANSI escapes only on terminal streams
 %     [tested 2026-08-14: filereader_terminal_output].
+%   - A failed source load removes compiler metadata and generated predicates,
+%     and does not repair existing callers against definitions that rolled back
+%     [tested 2026-08-14: filereader_source_rollback].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -33,6 +36,7 @@ prolog:error_message(petta_translation_failed(Form)) -->
 :- dynamic compiled_metta_source/1.
 :- thread_local active_source_load/1.
 :- dynamic source_load_assertion/2.
+:- dynamic source_load_repair/2.
 
 push_working_dir(Filename) :- file_directory_name(Filename, Dir0),
                               ( absolute_file_name(Dir0, Dir, [file_type(directory), file_errors(fail)])
@@ -97,9 +101,11 @@ run_new_source_load(Filename, Results, Space) :-
     gensym(source_load_, LoadId),
     setup_call_catcher_cleanup(
         asserta(active_source_load(LoadId), ContextRef),
-        once(load_metta_file_impl(Filename, Results, Space, compile)),
+        once(( load_metta_file_impl(Filename, Results, Space, compile),
+               run_source_repairs(LoadId) )),
         Catcher,
         ( erase(ContextRef),
+          retractall(source_load_repair(LoadId, _)),
           ( Catcher == exit
             -> retractall(source_load_assertion(LoadId, _))
              ; rollback_source_load(LoadId) ) )).
@@ -115,6 +121,12 @@ record_source_assertion(Ref) :-
     active_source_load(LoadId), !,
     assertz(source_load_assertion(LoadId, Ref)).
 record_source_assertion(_).
+
+run_source_repairs(LoadId) :-
+    findall(F, source_load_repair(LoadId, F), Functions0),
+    sort(Functions0, Functions),
+    transaction(forall(member(F, Functions),
+                       repair_stale_definitions_impl(F))).
 
 rollback_source_load(LoadId) :-
     findall(Ref, retract(source_load_assertion(LoadId, Ref)), Refs),
@@ -201,30 +213,54 @@ warn_if_executed_as_symbol(_).
 %A function arriving after its name was already compiled as plain data in stored
 %definitions: recompile those definitions from their source terms, so import order
 %cannot change what a definition means:
-repair_after_late_registration(F) :- ( symbol_head(F, clause) -> repair_stale_definitions(F) ; true ).
+repair_after_late_registration(F) :-
+    ( symbol_head(F, clause) -> schedule_definition_repair(F) ; true ).
 
-repair_stale_definitions(F) :- findall(G, ( translated_from(_, [=, [G|_], Body]),
-                                            atom(G),
-                                            uses_as_data(F, Body) ), Gs0),
-                               sort(Gs0, Gs),
-                               forall(member(G, Gs), recompile_function(G)).
+schedule_definition_repair(F) :-
+    active_source_load(LoadId), !,
+    ( source_load_repair(LoadId, F) -> true
+    ; assertz(source_load_repair(LoadId, F)) ).
+schedule_definition_repair(F) :-
+    repair_stale_definitions(F).
+
+repair_stale_definitions(F) :-
+    transaction(repair_stale_definitions_impl(F)).
+
+repair_stale_definitions_impl(F) :-
+    findall(G,
+            ( translated_from(_, [=, [G|_], Body]),
+              atom(G),
+              uses_as_data(F, Body) ),
+            Functions0),
+    sort(Functions0, Functions),
+    forall(member(G, Functions), recompile_function_impl(G)).
 
 %Rebuild every clause of G from its stored source terms. Erasing and re-appending each
 %tracked clause in assertion order keeps their relative order; clauses asserted through
 %Prolog interop are not tracked and would end up before the rebuilt ones:
-recompile_function(G) :- findall(Ref-Term, ( translated_from(Ref, Term),
-                                             Term = [=, [G0|_], _],
-                                             G0 == G ), Pairs),
-                         forall(member(Ref-Term, Pairs),
-                                ( clause_property(Ref, module(Module)),
-                                  erase(Ref),
-                                  retract(translated_from(Ref, Term)),
-                                  copy_term(Term, Fresh),
-                                  once(with_metta_module(Module,
-                                                         translate_clause(Fresh, Clause))),
-                                  assertz(Module:Clause, NewRef),
-                                  assertz(translated_from(NewRef, Term)) )),
-                         invalidate_specializations(G).
+recompile_function(G) :-
+    transaction(recompile_function_impl(G)).
+
+recompile_function_impl(G) :-
+    findall(compiled(Ref, Module, Term),
+            ( translated_from(Ref, Term),
+              Term = [=, [G0|_], _],
+              G0 == G,
+              clause_property(Ref, module(Module)) ),
+            Clauses),
+    forall(member(compiled(Ref, _, Term), Clauses),
+           ( erase(Ref),
+             retract(translated_from(Ref, Term)) )),
+    clear_fun_meta(G),
+    forall(member(compiled(_, Module, Term), Clauses),
+           ( copy_term(Term, Fresh),
+             once(with_metta_module(Module,
+                                    translate_clause(Fresh, Clause))),
+             assertz(Module:Clause, NewRef),
+             record_source_assertion(NewRef),
+             assertz(translated_from(NewRef, Term), SourceRef),
+             record_source_assertion(SourceRef) )),
+    invalidate_specializations(G).
 
 %True if the term contains a call-shaped (list-head) occurrence of F:
 uses_as_data(F, Term) :- nonvar(Term),
@@ -245,8 +281,9 @@ parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 % process_form/3 is the direct-string path used by named Python spaces. File
 % loads use process_form/4 so source clauses compile once while their atoms are
 % populated into each target space.
-process_form(Space, parsed(expression, _, Term), []) :- 'add-atom'(Space, Term, true),
-                                                        print_expression_form(Term).
+process_form(Space, parsed(expression, _, Term), []) :-
+    'add-atom'(Space, Term, true),
+    print_expression_form(Term).
 process_form(Space, parsed(runnable, FormStr, Term), Result) :-
     bind_python_calls(Term, BoundTerm),
     space_module(Space, Module),
@@ -260,13 +297,16 @@ process_form(Space, parsed(function, FormStr, Term), []) :-
     length(Args, InputArity),
     Arity is InputArity + 1,
     register_function_signature(F, Arity),
-    add_sexp(Space, Term),
+    add_sexp(Space, Term, SpaceRef),
+    record_source_assertion(SpaceRef),
     space_module(Space, Module),
     register_fun_in(Module, F),
     bind_python_calls(Term, BoundTerm),
     once(with_metta_module(Module, translate_clause(BoundTerm, Clause))),
     assertz(Module:Clause, Ref),
-    assertz(translated_from(Ref, BoundTerm)),
+    record_source_assertion(Ref),
+    assertz(translated_from(Ref, BoundTerm), SourceRef),
+    record_source_assertion(SourceRef),
     forall(metta_on_function_changed(F), true),
     print_function_form(FormStr, Ref).
 process_form(_, In, _) :-

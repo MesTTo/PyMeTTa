@@ -3,8 +3,11 @@
 % Guarantees:
 %   - Native spaces preserve scalar atoms and expressions as distinct values
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
+%   - Dynamic function registration is atomic and failed source loads remove
+%     its asserted compiler state [tested 2026-08-14:
+%     spaces_registration_atomicity, filereader_source_rollback].
 % Open Obligations:
-%   To Do: Resolve the remaining space findings in ai-prolog-review.md.
+%   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
@@ -77,20 +80,24 @@ metta_add_atom(Space, Term, true) :- Term = [=,[FAtom|W],_], !,
                                                                    Term, FAtom, W)).
 
 %Add an atom to the space:
-metta_add_atom(Space, Term, true) :- add_sexp(Space, Term).
+metta_add_atom(Space, Term, true) :- add_sexp(Space, Term, Ref),
+                                     record_source_assertion(Ref).
 
 %Compile and register a dynamic equation as one database transaction. A
 %translation or change-hook error therefore leaves no stored atom, function
 %marker, arity, meta-clause, or executable clause behind.
 add_function_atom(Space, Module, Term, FAtom, W) :-
-    add_sexp(Space, Term),
+    add_sexp(Space, Term, SpaceRef),
+    record_source_assertion(SpaceRef),
     register_fun_in(Module, FAtom),
     length(W, N),
     Arity is N + 1,
     register_arity(FAtom, Arity),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
     assertz(Module:Clause, Ref),
-    assertz(translated_from(Ref, Term)),
+    record_source_assertion(Ref),
+    assertz(translated_from(Ref, Term), SourceRef),
+    record_source_assertion(SourceRef),
     forall(metta_on_function_changed(FAtom), true),
     invalidate_specializations(FAtom),
     maybe_print_compiled_clause("added function", Term, Clause).

@@ -7,8 +7,10 @@
 %     [tested 2026-08-14: translator_test_answers].
 %   - Runtime builtins reject prebound outputs that they would not produce
 %     [tested 2026-08-14: metta_builtin_outputs].
+%   - Function registration performed by a source load participates in that
+%     load's rollback [tested 2026-08-14: filereader_source_rollback].
 % Open Obligations:
-%   To Do: Resolve the remaining runtime findings in ai-prolog-review.md.
+%   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
@@ -645,14 +647,16 @@ importer_helper_impl(Space, File) :-
 :- dynamic fun/1, arity/2.
 register_fun(N) :- must_be(atom, N),
                    ( fun(N) -> true
-                   ; assertz(fun(N)),
+                   ; assertz(fun(N), Ref),
+                     record_source_assertion(Ref),
                      forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
                             register_arity(N, Arity)),
                      repair_after_late_registration(N) ).
 
 %Record each callable arity once, even when a function has many equations.
 register_arity(N, Arity) :- ( arity(N, Arity) -> true
-                            ; assertz(arity(N, Arity)) ).
+                            ; assertz(arity(N, Arity), Ref),
+                              record_source_assertion(Ref) ).
 
 %The module whose equations are in scope while a term is compiled or run. The
 %default is user, so nothing changes for a program that only ever uses &self.
@@ -707,10 +711,13 @@ fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
 %whether *this* space defines a symbol rather than whether any space does.
 :- dynamic fun_in/2, fun_scoped/1.
 register_fun_in(Module, N) :- register_fun(N),
-                              ( fun_in(Module, N) -> true ; assertz(fun_in(Module, N)) ),
+                              ( fun_in(Module, N) -> true
+                              ; assertz(fun_in(Module, N), FunInRef),
+                                record_source_assertion(FunInRef) ),
                               ( Module == user -> true
                               ; fun_scoped(N) -> true
-                              ; assertz(fun_scoped(N)) ).
+                              ; assertz(fun_scoped(N), ScopedRef),
+                                record_source_assertion(ScopedRef) ).
 
 unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
                                 ( fun_in(Other, N), Other \== user

@@ -1,7 +1,11 @@
 % Purpose: specialize higher-order MeTTa calls and invalidate generated
 %   functions when their source equations change.
+% Guarantees:
+%   - Specializer assertions made while loading a source participate in source
+%     rollback [tested 2026-08-14:
+%     specializer:compound_partial_key_has_stable_anonymous_variables].
 % Open Obligations:
-%   To Do: Resolve the remaining specialization findings in ai-prolog-review.md.
+%   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
@@ -120,8 +124,9 @@ specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
                 HasDirectBenefit, SpecName, Arity) :-
     ( ho_specialization(HV, SpecName)
     ; ( register_fun(SpecName),
-        assertz(ho_specialization(HV, SpecName)),
-        assertz(arity(SpecName, Arity)),
+        assertz(ho_specialization(HV, SpecName), SpecializationRef),
+        record_source_assertion(SpecializationRef),
+        register_arity(SpecName, Arity),
         ( findall(TypeChain,
                   catch_recover(type_declaration(HV, TypeChain), fail),
                   TypeChains),
@@ -137,8 +142,11 @@ specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
           nb_getval('$petta_spec_needed', true),
           forall(member(clause_info(Input, Clause), ClauseInfos),
                  ( asserta(Clause, Ref),
-                   assertz(translated_from(Ref, Input)),
-                   add_sexp('&self', Input),
+                   record_source_assertion(Ref),
+                   assertz(translated_from(Ref, Input), SourceRef),
+                   record_source_assertion(SourceRef),
+                   add_sexp('&self', Input, SpaceRef),
+                   record_source_assertion(SpaceRef),
                    format(atom(Label), "metta specialization (~w)", [SpecName]),
                    maybe_print_compiled_clause(Label, Input, Clause) ))
         -> true
@@ -148,7 +156,8 @@ specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
           retractall(ho_specialization(HV, SpecName)),
           ( ho_specialization_failed(HV, Arity, CleanBindSet)
             -> true
-          ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet)) ),
+          ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet), FailedRef),
+            record_source_assertion(FailedRef) ),
           fail ) ) ), !,
     specialization_goal(SpecName, AVs, Out, Goal).
 
