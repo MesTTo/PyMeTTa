@@ -22,6 +22,10 @@ stays loud.
 Guarantees:
   - DAS refuses non-HTTP endpoint URLs during construction [tested
     test_das_refuses_non_http_urls]
+  - query and count return data only after a completed terminal event
+    and close the event stream before returning [tested
+    test_query_and_count_require_completed_terminal_event,
+    test_completed_query_closes_its_event_stream]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,7 +36,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from contextlib import closing
 from http.client import HTTPException
 from typing import Any
 
@@ -46,8 +51,6 @@ from .foreign import SpaceProvider
 logger = logging.getLogger(__name__)
 
 __all__ = ["DAS", "DASAnswer", "DASError", "DASSpace"]
-
-_TERMINAL = ("completed", "error", "aborted")
 
 
 class DASError(PettaError):
@@ -283,7 +286,7 @@ class DAS:
         answer = self._request("POST", "/command-router/executions", body)
         return answer["execution_id"]
 
-    def _answer_stream(self, execution_id: str) -> Iterator[tuple[str, Any]]:
+    def _answer_stream(self, execution_id: str) -> Generator[tuple[str, Any], None, None]:
         """Both dialects' events as ('answers', items) and
         ('status', payload) pairs."""
         for event in self._events(execution_id):
@@ -336,31 +339,27 @@ class DAS:
         router's query parameters verbatim."""
         execution_id = self._start_query(patterns, False, unique, max_answers, extra)
         answers: list[DASAnswer] = []
-        for kind, body in self._answer_stream(execution_id):
-            if kind == "answers":
-                answers.extend(DASAnswer(item) for item in body)
-                continue
-            status = body.get("status")
-            if status == "error":
-                raise DASError(f"DAS query failed: {body.get('message', 'no detail')}")
-            if status in _TERMINAL:
-                break
-        return answers
+        with closing(self._answer_stream(execution_id)) as stream:
+            for kind, body in stream:
+                if kind == "answers":
+                    answers.extend(DASAnswer(item) for item in _answer_items(body, "query"))
+                    continue
+                if _completed("query", body):
+                    return answers
+        raise DASError("the DAS query stream closed before completing")
 
     def count(self, *patterns: Any, **extra: Any) -> int:
         """The router's count mode: the server's own total, no answers
         shipped."""
         execution_id = self._start_query(patterns, True, False, None, extra)
         counted = 0
-        for kind, body in self._answer_stream(execution_id):
-            if kind == "answers":
-                counted += len(body)
-                continue
-            status = body.get("status")
-            if status == "error":
-                raise DASError(f"DAS count failed: {body.get('message', 'no detail')}")
-            if status in _TERMINAL:
-                return int(body.get("total_items", counted))
+        with closing(self._answer_stream(execution_id)) as stream:
+            for kind, body in stream:
+                if kind == "answers":
+                    counted += len(_answer_items(body, "count"))
+                    continue
+                if _completed("count", body):
+                    return int(body.get("total_items", counted))
         raise DASError("the DAS answer stream closed before completing")
 
 
@@ -402,3 +401,20 @@ def _substitute(pattern: Atom, bindings: dict[str, Atom]) -> Atom:
         pattern,
         lambda atom: bindings.get(atom.name, atom) if isinstance(atom, Var) else atom,
     )
+
+
+def _answer_items(body: Any, operation: str) -> list[dict]:
+    if not isinstance(body, list) or not all(isinstance(item, dict) for item in body):
+        raise DASError(f"DAS {operation} answer event must contain a list of objects")
+    return body
+
+
+def _completed(operation: str, body: Any) -> bool:
+    if not isinstance(body, dict):
+        raise DASError(f"DAS {operation} status event must be an object")
+    status = body.get("status")
+    if status == "error":
+        raise DASError(f"DAS {operation} failed: {body.get('message', 'no detail')}")
+    if status == "aborted":
+        raise DASError(f"DAS {operation} was aborted: {body.get('message', 'no detail')}")
+    return status == "completed"

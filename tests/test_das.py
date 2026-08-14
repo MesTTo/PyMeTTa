@@ -5,6 +5,11 @@ completion carries "total_items", errors carry "message"), answers read
 back as petta atoms, and a DASSpace registered on a real engine joins
 DAS candidates with native facts through the engine's own unification.
 A live-router test runs only when PETTA_DAS_URL answers ping.
+Guarantees:
+  - incomplete and aborted answer streams never return partial data [tested
+    test_query_and_count_require_completed_terminal_event]
+  - a terminal event closes its event iterator before query returns [tested
+    test_completed_query_closes_its_event_stream]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -112,6 +117,49 @@ def test_error_status_raises_with_the_servers_message():
     ])
     with pytest.raises(DASError, match="no such context"):
         das.query(S.f(V.x))
+
+
+def test_query_and_count_require_completed_terminal_event():
+    partial = {
+        "command": "query_answers",
+        "params": {"answers": [_answer_item('"partial"', "(f partial)")]},
+    }
+    with pytest.raises(DASError, match="query stream closed before completing"):
+        ScriptedDAS([partial]).query(S.f(V.x))
+    with pytest.raises(DASError, match="answer stream closed before completing"):
+        ScriptedDAS([partial]).count(S.f(V.x))
+
+    aborted = {
+        "command": "execution_status",
+        "params": {"status": "aborted", "message": "worker stopped"},
+    }
+    with pytest.raises(DASError, match=r"query was aborted.*worker stopped"):
+        ScriptedDAS([aborted]).query(S.f(V.x))
+    with pytest.raises(DASError, match=r"count was aborted.*worker stopped"):
+        ScriptedDAS([aborted]).count(S.f(V.x))
+
+
+def test_completed_query_closes_its_event_stream(monkeypatch):
+    class TrackedStream:
+        def __init__(self):
+            self._events = iter([("status", _COMPLETED["params"])])
+            self.closed = False
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return next(self._events)
+
+        def close(self):
+            self.closed = True
+
+    das = ScriptedDAS([])
+    stream = TrackedStream()
+    monkeypatch.setattr(das, "_answer_stream", lambda _execution_id: stream)
+
+    assert das.query(S.f(V.x)) == []
+    assert stream.closed
 
 
 def test_count_answers_the_servers_total():
