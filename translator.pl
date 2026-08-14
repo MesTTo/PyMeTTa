@@ -18,7 +18,8 @@
 %   - Empty special-form inputs have explicit identity or failure semantics
 %     [tested 2026-08-14: translator_empty_forms].
 %   - Dynamic and compiled calls surface the same runtime errors
-%     [tested 2026-08-14: translator_evaluation_errors].
+%     even when builtin type declarations are loaded [tested 2026-08-15:
+%     translator_evaluation_errors].
 %   - Compiler diagnostics contain ANSI escapes only on terminal streams
 %     [tested 2026-08-14: translator_terminal_output].
 %   - Special forms dispatch through first-argument-indexed clauses
@@ -192,6 +193,8 @@ reduce([F|Args], Out) :- nonvar(F), atom(F),
                           ; % --- Case 3: leave unevaluated ---
                             Out = [F|Args],
                             acyclic_term(Out).
+reduce(Culprit, _) :- non_list(Culprit),
+                      throw_metta_type_error(reduce, list, Culprit).
 
 %Calling reduce from aggregate function foldall needs this argument wrapping
 agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc).
@@ -253,8 +256,13 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
             ( atom(HV), fun_here(HV), Fun = HV, IsPartial = false, Bound = []
             ; compound(HV), HV = partial(Fun, Bound), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
-            -> findall(TypeChain, catch_recover(type_declaration(Fun, TypeChain), fail), TypeChains),
-               list_to_set(TypeChains, UniqueTypeChains),
+            -> ( runtime_guarded_builtin_call(Fun)
+                 -> UniqueTypeChains = []
+                  ; findall(TypeChain,
+                            catch_recover(type_declaration(Fun, TypeChain),
+                                          fail),
+                            TypeChains),
+                    list_to_set(TypeChains, UniqueTypeChains) ),
                ( UniqueTypeChains \= []
                  -> length(T, NewInputArity),
                     length(Bound, BoundArity),
@@ -280,6 +288,15 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
           %Unknown head (var/compound) => runtime dispatch:
           ; translate_args_dl(T, AfterHead, BeforeReduce, AVs),
             BeforeReduce = [reduce([HV|AVs], Out)|Goals] )).
+
+%A name alone is not enough: a user or named-space equation can override a
+%builtin and must retain reflective type checks. Only the unmodified runtime
+%predicate owns the complete input contract.
+runtime_guarded_builtin_call(Fun) :-
+    runtime_type_guarded(Fun),
+    \+ fun_in(user, Fun),
+    current_metta_module(Module),
+    \+ fun_in(Module, Fun).
 
 %First-argument indexing keeps each special form independent of the number of
 %other forms. A clause fails on an unsupported arity so ordinary function or

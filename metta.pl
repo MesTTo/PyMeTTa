@@ -7,6 +7,9 @@
 %   - Import lifecycle state is separate from atom storage, so wildcard atom
 %     removal cannot make a loaded source run twice [tested 2026-08-15:
 %     filereader_import_lifecycle].
+%   - Host failures from builtins retain their ISO error class and name the
+%     written MeTTa operation [tested 2026-08-15:
+%     metta_operation_errors, translator_evaluation_errors].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
@@ -59,78 +62,163 @@ repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, R) :- sread(Str, R).
 
 %%% Arithmetic & Comparison: %%%
-'+'(A,B,R)  :- R is A + B.
-'-'(A,B,R)  :- R is A - B.
-'*'(A,B,R)  :- R is A * B.
-'/'(A,B,R)  :- R is A / B.
-'%'(A,B,R)  :- R is A mod B.
-'<'(A,B,R)  :- (A<B -> R=true ; R=false).
-'>'(A,B,R)  :- (A>B -> R=true ; R=false).
+'+'(A,B,R)  :- ( integer(A), integer(B) -> R is A + B
+                ; catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
+'-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
+                ; catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
+'*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
+                ; catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
+'/'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A / B
+                ; catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
+'%'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A mod B
+                ; catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
+'<'(A,B,R)  :- ( number(A), number(B) -> (A<B -> R=true ; R=false)
+                ; catch((A<B -> R=true ; R=false), E,
+                        rethrow_metta_operation_error('<', E)) ).
+'>'(A,B,R)  :- ( number(A), number(B) -> (A>B -> R=true ; R=false)
+                ; catch((A>B -> R=true ; R=false), E,
+                        rethrow_metta_operation_error('>', E)) ).
 '=='(A,B,R) :- (A==B -> R=true ; R=false).
 '!='(A,B,R) :- (A==B -> R=false ; R=true).
 '='(A,B,R) :-  (A=B -> R=true ; R=false).
 '=?'(A,B,R) :- (\+ \+ A=B -> R=true ; R=false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
 '=@='(A,B,R) :- (A =@= B -> R=true ; R=false).
-'<='(A,B,R) :- (A =< B -> R=true ; R=false).
-'>='(A,B,R) :- (A >= B -> R=true ; R=false).
-min(A,B,R)  :- R is min(A,B).
-max(A,B,R)  :- R is max(A,B).
-exp(Arg,R) :- R is exp(Arg).
+'<='(A,B,R) :- ( number(A), number(B) -> (A =< B -> R=true ; R=false)
+                ; catch((A =< B -> R=true ; R=false), E,
+                        rethrow_metta_operation_error('<=', E)) ).
+'>='(A,B,R) :- ( number(A), number(B) -> (A >= B -> R=true ; R=false)
+                ; catch((A >= B -> R=true ; R=false), E,
+                        rethrow_metta_operation_error('>=', E)) ).
+min(A,B,R)  :- ( integer(A), integer(B) -> R is min(A,B)
+                ; catch(R is min(A,B), E,
+                        rethrow_metta_operation_error(min, E)) ).
+max(A,B,R)  :- ( integer(A), integer(B) -> R is max(A,B)
+                ; catch(R is max(A,B), E,
+                        rethrow_metta_operation_error(max, E)) ).
+exp(Arg,R) :- catch(R is exp(Arg), E,
+                    rethrow_metta_operation_error(exp, E)).
 :- use_module(library(clpfd)).
-'#+'(A, B, R) :- R #= A + B.
-'#-'(A, B, R) :- R #= A - B.
-'#*'(A, B, R) :- R #= A * B.
-'#div'(A, B, R) :- R #= A div B.
-'#//'(A, B, R) :- R #= A // B.
-'#mod'(A, B, R) :- R #= A mod B.
-'#min'(A, B, R) :- R #= min(A,B).
-'#max'(A, B, R) :- R #= max(A,B).
-'#<'(A, B, true)  :- A #< B, !.
-'#<'(A, B, false) :- A #>= B.
-'#>'(A, B, true)  :- A #> B, !.
-'#>'(A, B, false) :- A #=< B.
-'#='(A, B, true)  :- A #= B, !.
-'#='(A, B, false) :- A #\= B.
-'#\\='(A, B, true)  :- A #\= B, !.
-'#\\='(A, B, false) :- A #= B.
-'pow-math'(A, B, Out) :- Out is A ** B.
-'sqrt-math'(A, Out)   :- Out is sqrt(A).
-'abs-math'(A, Out)    :- Out is abs(A).
-'log-math'(Base, X, Out) :- Out is log(X) / log(Base).
-'exp-math'(A, Out)    :- Out is exp(A).
-'trunc-math'(A, Out)  :- Out is truncate(A).
-'ceil-math'(A, Out)   :- Out is ceil(A).
-'floor-math'(A, Out)  :- Out is floor(A).
-'round-math'(A, Out)  :- Out is round(A).
-'sin-math'(A, Out)  :- Out is sin(A).
-'cos-math'(A, Out)  :- Out is cos(A).
-'tan-math'(A, Out)  :- Out is tan(A).
-'asin-math'(A, Out) :- Out is asin(A).
-'acos-math'(A, Out) :- Out is acos(A).
-'atan-math'(A, Out) :- Out is atan(A).
-'isnan-math'(A, Out) :- ( A =:= A -> Out = false ; Out = true ).
-'isinf-math'(A, Out) :- ( ( A =:= 1.0Inf ; A =:= -1.0Inf ) -> Out = true ; Out = false ).
+'#+'(A, B, R) :- catch(R #= A + B, E,
+                       rethrow_metta_operation_error('#+', E)).
+'#-'(A, B, R) :- catch(R #= A - B, E,
+                       rethrow_metta_operation_error('#-', E)).
+'#*'(A, B, R) :- catch(R #= A * B, E,
+                       rethrow_metta_operation_error('#*', E)).
+'#div'(A, B, R) :- catch(R #= A div B, E,
+                         rethrow_metta_operation_error('#div', E)).
+'#//'(A, B, R) :- catch(R #= A // B, E,
+                        rethrow_metta_operation_error('#//', E)).
+'#mod'(A, B, R) :- catch(R #= A mod B, E,
+                         rethrow_metta_operation_error('#mod', E)).
+'#min'(A, B, R) :- catch(R #= min(A,B), E,
+                         rethrow_metta_operation_error('#min', E)).
+'#max'(A, B, R) :- catch(R #= max(A,B), E,
+                         rethrow_metta_operation_error('#max', E)).
+'#<'(A, B, true)  :- catch(A #< B, E,
+                           rethrow_metta_operation_error('#<', E)), !.
+'#<'(A, B, false) :- catch(A #>= B, E,
+                           rethrow_metta_operation_error('#<', E)).
+'#>'(A, B, true)  :- catch(A #> B, E,
+                           rethrow_metta_operation_error('#>', E)), !.
+'#>'(A, B, false) :- catch(A #=< B, E,
+                           rethrow_metta_operation_error('#>', E)).
+'#='(A, B, true)  :- catch(A #= B, E,
+                           rethrow_metta_operation_error('#=', E)), !.
+'#='(A, B, false) :- catch(A #\= B, E,
+                           rethrow_metta_operation_error('#=', E)).
+'#\\='(A, B, true)  :- catch(A #\= B, E,
+                              rethrow_metta_operation_error('#\\=', E)), !.
+'#\\='(A, B, false) :- catch(A #= B, E,
+                              rethrow_metta_operation_error('#\\=', E)).
+'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
+                               rethrow_metta_operation_error('pow-math', E)).
+'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
+                             rethrow_metta_operation_error('sqrt-math', E)).
+'abs-math'(A, Out) :-
+    ( integer(A) -> Out is abs(A)
+    ; catch(Out is abs(A), E,
+            rethrow_metta_operation_error('abs-math', E)) ).
+'log-math'(Base, X, Out) :- catch(Out is log(X) / log(Base), E,
+                                  rethrow_metta_operation_error('log-math', E)).
+'exp-math'(A, Out) :- catch(Out is exp(A), E,
+                            rethrow_metta_operation_error('exp-math', E)).
+'trunc-math'(A, Out) :- catch(Out is truncate(A), E,
+                              rethrow_metta_operation_error('trunc-math', E)).
+'ceil-math'(A, Out) :- catch(Out is ceil(A), E,
+                             rethrow_metta_operation_error('ceil-math', E)).
+'floor-math'(A, Out) :- catch(Out is floor(A), E,
+                              rethrow_metta_operation_error('floor-math', E)).
+'round-math'(A, Out) :- catch(Out is round(A), E,
+                              rethrow_metta_operation_error('round-math', E)).
+'sin-math'(A, Out) :- catch(Out is sin(A), E,
+                            rethrow_metta_operation_error('sin-math', E)).
+'cos-math'(A, Out) :- catch(Out is cos(A), E,
+                            rethrow_metta_operation_error('cos-math', E)).
+'tan-math'(A, Out) :- catch(Out is tan(A), E,
+                            rethrow_metta_operation_error('tan-math', E)).
+'asin-math'(A, Out) :- catch(Out is asin(A), E,
+                             rethrow_metta_operation_error('asin-math', E)).
+'acos-math'(A, Out) :- catch(Out is acos(A), E,
+                             rethrow_metta_operation_error('acos-math', E)).
+'atan-math'(A, Out) :- catch(Out is atan(A), E,
+                             rethrow_metta_operation_error('atan-math', E)).
+'isnan-math'(A, Out) :-
+    catch(( A =:= A -> Out = false ; Out = true ), E,
+          rethrow_metta_operation_error('isnan-math', E)).
+'isinf-math'(A, Out) :-
+    catch(( ( A =:= 1.0Inf ; A =:= -1.0Inf )
+            -> Out = true ; Out = false ), E,
+          rethrow_metta_operation_error('isinf-math', E)).
 'min-atom'(List, Out) :- non_list(List), !, Out = [].
-'min-atom'(List, Out) :- min_list(List, Out).
+'min-atom'(List, Out) :- catch(( must_be(list(number), List),
+                                min_list(List, Out) ), E,
+                              rethrow_metta_operation_error('min-atom', E)).
 'max-atom'(List, Out) :- non_list(List), !, Out = [].
-'max-atom'(List, Out) :- max_list(List, Out).
+'max-atom'(List, Out) :- catch(( must_be(list(number), List),
+                                max_list(List, Out) ), E,
+                              rethrow_metta_operation_error('max-atom', E)).
 
 %%% Random Generators: %%%
-'random-int'(Min, Max, Result) :- random_between(Min, Max, Result).
-'random-int'('&rng', Min, Max, Result) :- random_between(Min, Max, Result).
-'random-float'(Min, Max, Result) :- random(R), Result is Min + R * (Max - Min).
-'random-float'('&rng', Min, Max, Result) :- random(R), Result is Min + R * (Max - Min).
+'random-int'(Min, Max, Result) :-
+    ( integer(Min), integer(Max), Min =< Max
+      -> random_between(Min, Max, Result)
+       ; catch(random_between(Min, Max, Result), E,
+               rethrow_metta_operation_error('random-int', E)) ).
+'random-int'('&rng', Min, Max, Result) :-
+    ( integer(Min), integer(Max), Min =< Max
+      -> random_between(Min, Max, Result)
+       ; catch(random_between(Min, Max, Result), E,
+               rethrow_metta_operation_error('random-int', E)) ).
+'random-float'(Min, Max, Result) :-
+    catch(( random(R), Result is Min + R * (Max - Min) ), E,
+          rethrow_metta_operation_error('random-float', E)).
+'random-float'('&rng', Min, Max, Result) :-
+    catch(( random(R), Result is Min + R * (Max - Min) ), E,
+          rethrow_metta_operation_error('random-float', E)).
 
 %%% Boolean Logic: %%%
 bool(true).
 bool(false).
-and(A,B,C) :- bool(A), bool(B), ( A == true -> C = B ; A == false -> C = false ).
-or(A,B,C) :- bool(A), bool(B), ( A == true -> C = true ; A == false -> C = B ).
-not(A,B) :- bool(A), ( A == true -> B = false ; A == false -> B = true ).
-xor(A,B,C) :- bool(A), bool(B), ( A == B -> C = false ; C = true ).
-implies(A,B,C) :- bool(A), bool(B), ( A == true -> ( B == true  -> C = true ; B == false -> C = false )
-                                                 ; A == false -> C = true ).
+boolean_argument(_, Value) :- var(Value), !, bool(Value).
+boolean_argument(_, true) :- !.
+boolean_argument(_, false) :- !.
+boolean_argument(Operation, Culprit) :-
+    throw_metta_type_error(Operation, boolean, Culprit).
+
+and(A,B,C) :- boolean_argument(and, A), boolean_argument(and, B),
+              ( A == true -> C = B ; A == false -> C = false ).
+or(A,B,C) :- boolean_argument(or, A), boolean_argument(or, B),
+             ( A == true -> C = true ; A == false -> C = B ).
+not(A,B) :- boolean_argument(not, A),
+            ( A == true -> B = false ; A == false -> B = true ).
+xor(A,B,C) :- boolean_argument(xor, A), boolean_argument(xor, B),
+              ( A == B -> C = false ; C = true ).
+implies(A,B,C) :- boolean_argument(implies, A),
+                  boolean_argument(implies, B),
+                  ( A == true -> ( B == true  -> C = true
+                                 ; B == false -> C = false )
+                              ; A == false -> C = true ).
 
 %%% Nondeterminism: %%%
 superpose(L,X) :- member(X,L).
@@ -510,9 +598,17 @@ bind_python_call_spec(Spec, Spec).
                                                 py_call(builtins:Call0, R0, Opts), py_bool_norm(R0, Result) ).
 
 %%% States: %%%
-'bind!'(A, ['new-state', B], C) :- 'change-state!'(A, B, C).
-'change-state!'(Var, Value, true) :- nb_setval(Var, Value).
-'get-state'(Var, Value) :- nb_getval(Var, Value).
+'bind!'(Var, ['new-state', Value], true) :-
+    ( atom(Var) -> nb_setval(Var, Value)
+    ; catch(nb_setval(Var, Value), E,
+            rethrow_metta_operation_error('bind!', E)) ).
+'change-state!'(Var, Value, true) :-
+    ( atom(Var) -> nb_setval(Var, Value)
+    ; catch(nb_setval(Var, Value), E,
+            rethrow_metta_operation_error('change-state!', E)) ).
+'get-state'(Var, Value) :-
+    catch(nb_getval(Var, Value), E,
+          rethrow_metta_operation_error('get-state', E)).
 
 %%% Eval: %%%
 %eval runs its goals in the current space's module, for the same reason
@@ -805,6 +901,78 @@ control_exception('$aborted').
 control_exception(error(petta_py_time_limit(_), _)).
 control_exception(error(petta_py_inference_limit(_), _)).
 control_exception(error(resource_error(_), _)).
+
+%Keep the ISO Formal term because callers and the MeTTa catch form inspect it.
+%Only the host context is replaced, so lists:min_list/3, is/2, and nb_setval/2
+%cannot leak into a language-level diagnostic. Integer fast paths avoid the
+%catch cost on valid arithmetic without letting float overflow escape. Over
+%100,000 calls the guarded form used
+%300,002 inferences against 300,003 directly, while an unconditional catch used
+%400,002 [measured: guarded -1 and caught +99,999 inferences, 2026-08-15].
+rethrow_metta_operation_error(_, Error) :- control_exception(Error), !,
+                                            throw(Error).
+rethrow_metta_operation_error(Operation, error(Formal, _)) :- !,
+    throw(error(Formal,
+                context(Operation, 'while evaluating MeTTa operation'))).
+rethrow_metta_operation_error(_, Error) :- throw(Error).
+
+throw_metta_type_error(Operation, Expected, Culprit) :-
+    throw(error(type_error(Expected, Culprit),
+                context(Operation, 'invalid MeTTa operation argument'))).
+
+%These builtins validate their own runtime inputs and provide their own error
+%context. The translator may therefore bypass reflective input filtering when
+%the builtin has not been overridden. Keep this list aligned with those guards.
+runtime_type_guarded('+').
+runtime_type_guarded('-').
+runtime_type_guarded('*').
+runtime_type_guarded('/').
+runtime_type_guarded('%').
+runtime_type_guarded('<').
+runtime_type_guarded('>').
+runtime_type_guarded('<=').
+runtime_type_guarded('>=').
+runtime_type_guarded(min).
+runtime_type_guarded(max).
+runtime_type_guarded(exp).
+runtime_type_guarded('#+').
+runtime_type_guarded('#-').
+runtime_type_guarded('#*').
+runtime_type_guarded('#div').
+runtime_type_guarded('#//').
+runtime_type_guarded('#mod').
+runtime_type_guarded('#min').
+runtime_type_guarded('#max').
+runtime_type_guarded('#<').
+runtime_type_guarded('#>').
+runtime_type_guarded('#=').
+runtime_type_guarded('#\\=').
+runtime_type_guarded('pow-math').
+runtime_type_guarded('sqrt-math').
+runtime_type_guarded('abs-math').
+runtime_type_guarded('log-math').
+runtime_type_guarded('exp-math').
+runtime_type_guarded('trunc-math').
+runtime_type_guarded('ceil-math').
+runtime_type_guarded('floor-math').
+runtime_type_guarded('round-math').
+runtime_type_guarded('sin-math').
+runtime_type_guarded('cos-math').
+runtime_type_guarded('tan-math').
+runtime_type_guarded('asin-math').
+runtime_type_guarded('acos-math').
+runtime_type_guarded('atan-math').
+runtime_type_guarded('isnan-math').
+runtime_type_guarded('isinf-math').
+runtime_type_guarded('min-atom').
+runtime_type_guarded('max-atom').
+runtime_type_guarded('random-int').
+runtime_type_guarded('random-float').
+runtime_type_guarded(and).
+runtime_type_guarded(or).
+runtime_type_guarded(not).
+runtime_type_guarded(xor).
+runtime_type_guarded(implies).
 
 %The evaluator's catch-all: real errors take the recovery, control
 %signals keep flying.
