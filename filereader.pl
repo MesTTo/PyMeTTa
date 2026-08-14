@@ -3,6 +3,9 @@
 % Guarantees:
 %   - A parsed form that cannot translate is not reported as a syntax error
 %     [tested 2026-08-14: filereader_translation_errors].
+%   - top_forms//2 ignores comment text and keeps parentheses inside escaped
+%     string quotes inside their form [tested 2026-08-14:
+%     filereader_form_splitter].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -101,14 +104,6 @@ process_form(_, In, _) :-
 newlines(C0, C2) --> blanks_to_nl, !, {C1 is C0+1}, newlines(C1,C2).
 newlines(C, C) --> blanks.
 
-%Advance the same three-state string machine as parser:string_chars//1.
-%A backslash escapes exactly the next character while inside a string.
-string_state(outside, 0'", string) :- !.
-string_state(string, 0'\\, escaped) :- !.
-string_state(string, 0'", outside) :- !.
-string_state(escaped, _, string) :- !.
-string_state(State, _, State).
-
 %Collect characters until all parentheses are balanced (depth 0), accumulating codes, and also counting newlines:
 grab_until_balanced(D, Acc, Cs, LC0, LC2, State) --> [C],
     { string_state(State, C, State1),
@@ -130,14 +125,3 @@ top_forms([Term|Fs], LC0) --> newlines(LC0, LC1),
                                 -> { true } ; string_without("\n", Rest), { format(atom(Msg), "missing ')', starting at line ~w:~n~s", [LC1, Rest]), throw(error(syntax_error(Msg), none)) } ),
                               { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
                               top_forms(Fs, LC2).
-
-%Strip off code that is commented out, while tracking when inside of string:
-strip([], _, []).
-strip([0'\n|R], State, [0'\n|O]) :- !,
-    string_state(State, 0'\n, State1),
-    strip(R, State1, O).
-strip([0';|R], outside, Out) :- !,
-    ( append(_, [0'\n|Rest], R) -> strip([0'\n|Rest], outside, Out)
-                                   ; Out = [] ).
-strip([C|R], State, [C|O]) :- string_state(State, C, State1),
-                              strip(R, State1, O).

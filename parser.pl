@@ -1,3 +1,13 @@
+% Purpose: parse and print MeTTa atoms with shared variable identity, string
+%   escapes, and semicolon comments outside strings.
+% Guarantees:
+%   - sread/2 and the file loader apply the same semicolon-comment rules
+%     [tested 2026-08-14: parser_comments].
+% Open Obligations:
+%   To Do: Make printed unbound-variable names reproducible.
+%   Hacks: None
+%   Future Enhancements: None
+
 :- use_module(library(dcg/basics)). %blanks/0, number/1, string_without/2
 
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
@@ -28,9 +38,29 @@ escape_quotes([H|T], [H|R]) :- escape_quotes(T, R).
 
 %Read S string or atom, extract codes, and apply DCG (parsing):
 sread(S, T) :- ( atom_string(A, S),
-                 atom_codes(A, Cs),
+                 atom_codes(A, RawCodes),
+                 strip(RawCodes, outside, Cs),
                  phrase(sexpr(T, [], _), Cs)
                -> true ; format(atom(Msg), 'Parse error in form: ~w', [S]), throw(error(syntax_error(Msg), none)) ).
+
+%The reader and top-level loader share one string-aware comment pass. A
+%backslash escapes exactly the next character while inside a string.
+string_state(outside, 0'", string) :- !.
+string_state(string, 0'\\, escaped) :- !.
+string_state(string, 0'", outside) :- !.
+string_state(escaped, _, string) :- !.
+string_state(State, _, State).
+
+strip([], _, []).
+strip([0'\n|R], State, [0'\n|O]) :- !,
+    string_state(State, 0'\n, State1),
+    strip(R, State1, O).
+strip([0';|R], outside, Out) :- !,
+    ( append(_, [0'\n|Rest], R) -> strip([0'\n|Rest], outside, Out)
+                                   ; Out = [] ).
+strip([C|R], State, [C|O]) :-
+    string_state(State, C, State1),
+    strip(R, State1, O).
 
 %An S-Expression is a parentheses-nesting of S-Expressions that are either numbers, variables, sttrings, or atoms:
 sexpr(S,E,E)  --> blanks, string_lit(S), blanks, !.
@@ -58,8 +88,8 @@ atom_symbol(A) --> token(Cs), { string_codes("\"", [Q]), ( Cs = [Q|_] -> append(
                                                                                          -> A = false
                                                                                           ; A = R ))}.
 
-%A token is a non-empty string without whitespace:
-token(Cs) --> string_without(" \t\r\n()", Cs), { Cs \= [] }.
+%A token is a non-empty string without whitespace or comment delimiters:
+token(Cs) --> string_without(" \t\r\n();", Cs), { Cs \= [] }.
 
 %Just string literal handling from here-on:
 string_lit(S) --> "\"", string_chars(Cs), "\"", { string_codes(S, Cs) }.
