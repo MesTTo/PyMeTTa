@@ -1,0 +1,95 @@
+"""Purpose: build derivation trees and explain unsuccessful space patterns.
+Guarantees:
+  - derivation depth is either absent or a positive integer [tested
+    test_derivation_depth_must_be_a_positive_integer_or_none]
+  - depth exhaustion remains a partial proof rather than no proof [tested
+    test_depth_exhaustion_returns_a_partial_proof]
+  - why() distinguishes stored-shape misses, functions, and close names
+    [tested test_why]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+from __future__ import annotations
+
+from difflib import get_close_matches
+from typing import Any
+
+from ._engine import Runtime
+from ._space_objects import _limits
+from .atoms import Atom, Expr, Sym, _to_atom, atom_from_wire
+from .derivation import Derivation
+
+
+def derivations(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    depth: int | None,
+    *,
+    timeout: float | None,
+    inferences: int | None,
+) -> list[Derivation]:
+    """Return each guarded derivation for one target."""
+    _validate_depth(depth)
+    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
+    rows = rt.iter(
+        "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)",
+        Seconds=seconds,
+        Steps=steps,
+        Ins=[space, _to_atom(target).to_wire(), -1 if depth is None else depth],
+    )
+    return [Derivation.from_atom(atom_from_wire(row["Tree"])) for row in rows]
+
+
+def _validate_depth(depth: int | None) -> None:
+    if depth is not None and (isinstance(depth, bool) or not isinstance(depth, int) or depth <= 0):
+        raise ValueError(f"derivation depth must be a positive integer or None, got {depth!r}")
+
+
+def _stored_with_head(space: Any, name: str) -> list[Expr]:
+    return [
+        atom
+        for atom in space.atoms()
+        if isinstance(atom, Expr) and isinstance(atom.head, Sym) and atom.head.name == name
+    ]
+
+
+def _stored_explanation(atom: Expr, name: str, stored: list[Expr]) -> str:
+    sizes = sorted({len(candidate) for candidate in stored})
+    if len(atom) not in sizes:
+        return f"{name} atoms here have {sizes} elements; the pattern has {len(atom)}"
+    return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
+
+
+def _unstored_explanation(space: Any, atom: Expr, name: str) -> str:
+    if space.is_function(name):
+        return (
+            f"no {name} atoms are stored here; {name} is a function, so its "
+            f"answers come from evaluation, not matching: try eval"
+        )
+    renamed = name.replace("_", "-")
+    if renamed != name and space.is_function_here(renamed):
+        return (
+            f"nothing here is headed by {name}, and no function has that name; "
+            f"did you mean {renamed}? define() reads underscores as hyphens"
+        )
+    close = get_close_matches(name, space.builtins(), n=1, cutoff=0.75)
+    suggestion = f"; did you mean {close[0]}?" if close else ""
+    return f"nothing here is headed by {name}, and no function has that name{suggestion}"
+
+
+def explain_no_match(space: Any, pattern: Any) -> str:
+    """Explain the first cheap reason one pattern cannot match."""
+    atom: Atom = _to_atom(pattern)
+    if not isinstance(atom, Expr) or not atom.children:
+        return f"{atom} is not an expression pattern"
+    head = atom.head
+    if not isinstance(head, Sym):
+        return f"the pattern head {head} is not a symbol"
+    stored = _stored_with_head(space, head.name)
+    if stored:
+        return _stored_explanation(atom, head.name, stored)
+    return _unstored_explanation(space, atom, head.name)

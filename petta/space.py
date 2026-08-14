@@ -45,6 +45,7 @@ from typing import Any, Literal, overload
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
+from ._space_diagnostics import derivations, explain_no_match
 from ._space_execution import evaluate, profile_source, run_source, value_one
 from ._space_persistence import (
     load_space,
@@ -830,22 +831,14 @@ class MeTTa:
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
         """
-        if depth is not None and (
-            isinstance(depth, bool) or not isinstance(depth, int) or depth <= 0
-        ):
-            raise ValueError(f"derivation depth must be a positive integer or None, got {depth!r}")
-        seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-        rows = self._rt.iter(
-            "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)",
-            Seconds=seconds,
-            Steps=steps,
-            Ins=[
-                self._space,
-                _to_atom(target).to_wire(),
-                -1 if depth is None else depth,
-            ],
+        return derivations(
+            self._rt,
+            self._space,
+            target,
+            depth,
+            timeout=timeout,
+            inferences=inferences,
         )
-        return [Derivation.from_atom(atom_from_wire(r["Tree"])) for r in rows]
 
     def why(self, pattern: Any) -> str:
         """Why a pattern matches nothing here, in words.
@@ -853,39 +846,7 @@ class MeTTa:
         Checks the cheap explanations in order: unknown function, wrong
         arity, no stored atoms with that head. Honest when it cannot tell.
         """
-        atom = _to_atom(pattern)
-        if not isinstance(atom, Expr) or not atom.children:
-            return f"{atom} is not an expression pattern"
-        head = atom.head
-        if not isinstance(head, Sym):
-            return f"the pattern head {head} is not a symbol"
-        name = head.name
-        stored = [
-            a
-            for a in self.atoms()
-            if isinstance(a, Expr) and isinstance(a.head, Sym) and a.head.name == name
-        ]
-        if stored:
-            sizes = sorted({len(a) for a in stored})
-            if len(atom) not in sizes:
-                return f"{name} atoms here have {sizes} elements; the pattern has {len(atom)}"
-            return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
-        if self.is_function(name):
-            return (
-                f"no {name} atoms are stored here; {name} is a function, so its "
-                f"answers come from evaluation, not matching: try eval"
-            )
-        renamed = name.replace("_", "-")
-        if renamed != name and self.is_function_here(renamed):
-            return (
-                f"nothing here is headed by {name}, and no function has that name; "
-                f"did you mean {renamed}? define() reads underscores as hyphens"
-            )
-        from difflib import get_close_matches
-
-        close = get_close_matches(name, self.builtins(), n=1, cutoff=0.75)
-        suggestion = f"; did you mean {close[0]}?" if close else ""
-        return f"nothing here is headed by {name}, and no function has that name{suggestion}"
+        return explain_no_match(self, pattern)
 
     # ------------------------------------------------------------ definitions
 
