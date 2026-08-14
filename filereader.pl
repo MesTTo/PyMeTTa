@@ -6,12 +6,15 @@
 %   - top_forms//2 ignores comment text and keeps parentheses inside escaped
 %     string quotes inside their form [tested 2026-08-14:
 %     filereader_form_splitter].
+%   - Loader diagnostics contain ANSI escapes only on terminal streams
+%     [tested 2026-08-14: filereader_terminal_output].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
 :- use_module(library(readutil)). % read_file_to_string/3
+:- use_module(library(ansi_term)). % terminal-aware diagnostic colors
 :- use_module(library(pcre)). % re_replace/4
 :- use_module(library(zlib)). % gzopen/3, .gz program files
 %Every compiled clause's source equation; asserted here and by
@@ -75,13 +78,18 @@ parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 %Second pass to compile / run / add the Terms:
 process_form(Space, parsed(expression, _, Term), []) :- 'add-atom'(Space, Term, true),
                                                         ( silent(true) -> true ; swrite(Term,STerm),
-                                                                                 format("\e[33m--> metta sexpr -->~n\e[36m~w~n", [STerm]),
-                                                                                 format("\e[33m^^^^^^^^^^^^^^^^^^^\e[0m~n") ).
+                                                                                 ansi_format([fg(yellow)], "--> metta sexpr -->~n", []),
+                                                                                 ansi_format([fg(cyan)], "~w~n", [STerm]),
+                                                                                 ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^~n", []) ).
 process_form(Space, parsed(runnable, FormStr, Term), Result) :- space_module(Space, Module),
                                                             with_metta_module(Module, translate_expr([collapse, Term], Goals, Result)),
-                                                            ( silent(true) -> true ; format("\e[33m--> metta runnable  -->~n\e[36m!~w~n\e[33m-->  prolog goal  -->\e[35m ~n", [FormStr]),
-                                                                                     forall(member(G, Goals), portray_clause((:- G))),
-                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^^\e[0m~n") ),
+                                                            ( silent(true) -> true ; ansi_format([fg(yellow)], "--> metta runnable  -->~n", []),
+                                                                                     ansi_format([fg(cyan)], "!~w~n", [FormStr]),
+                                                                                     ansi_format([fg(yellow)], "-->  prolog goal  -->", []),
+                                                                                     ansi_format([fg(magenta)], " ~n", []),
+                                                                                     forall(member(G, Goals),
+                                                                                            ansi_format([fg(magenta)], "~@", [portray_clause((:- G))])),
+                                                                                     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^^^~n", []) ),
                                                             call_goals_in(Module, Goals).
 process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term),
                                                             Term = [=, [F|_], _],
@@ -91,11 +99,13 @@ process_form(Space, parsed(function, FormStr, Term), []) :- add_sexp(Space, Term
                                                             assertz(Module:Clause, Ref),
                                                             assertz(translated_from(Ref, Term)),
                                                             forall(metta_on_function_changed(F), true),
-                                                            ( silent(true) -> true ; format("\e[33m--> metta function -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [FormStr]),
+                                                            ( silent(true) -> true ; ansi_format([fg(yellow)], "--> metta function -->~n", []),
+                                                                                     ansi_format([fg(cyan)], "~w~n", [FormStr]),
+                                                                                     ansi_format([fg(yellow)], "--> prolog clause -->~n", []),
                                                                                      clause(Head, Body, Ref),
                                                                                      ( Body == true -> Show = Head; Show = (Head :- Body) ),
-                                                                                     portray_clause(current_output, Show),
-                                                                                     format("\e[33m^^^^^^^^^^^^^^^^^^^^^^\e[0m~n") ).
+                                                                                     ansi_format([fg(green)], "~@", [portray_clause(current_output, Show)]),
+                                                                                     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^^~n", []) ).
 process_form(_, In, _) :-
     throw(error(petta_translation_failed(In),
                 context(process_form/3, 'could not translate MeTTa form'))).

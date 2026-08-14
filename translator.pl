@@ -15,12 +15,15 @@
 %     [tested 2026-08-14: translator_empty_forms].
 %   - Dynamic and compiled calls surface the same runtime errors
 %     [tested 2026-08-14: translator_evaluation_errors].
+%   - Compiler diagnostics contain ANSI escapes only on terminal streams
+%     [tested 2026-08-14: translator_terminal_output].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
 %   Future Enhancements: None
 
 :- use_module(library(assoc)).
+:- use_module(library(ansi_term)).
 
 % Function source retained for higher-order specialization. Each equation is
 % one independently indexed fact, so compiling a new equation does not copy
@@ -91,9 +94,11 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
 maybe_print_compiled_clause(_, _, _) :- silent(true), !.
 maybe_print_compiled_clause(Label, FormTerm, Clause) :-
     swrite(FormTerm, FormStr),
-    format("\e[33m-->  ~w  -->~n\e[36m~w~n\e[33m--> prolog clause -->~n\e[32m", [Label, FormStr]),
-    portray_clause(current_output, Clause),
-    format("\e[33m^^^^^^^^^^^^^^^^^^^^^\e[0m~n").
+    ansi_format([fg(yellow)], "-->  ~w  -->~n", [Label]),
+    ansi_format([fg(cyan)], "~w~n", [FormStr]),
+    ansi_format([fg(yellow)], "--> prolog clause -->~n", []),
+    ansi_format([fg(green)], "~@", [portray_clause(current_output, Clause)]),
+    ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^~n", []).
 
 %Conjunction builder, turning goals list to a flat conjunction:
 goals_list_to_conj([], true)      :- !.
