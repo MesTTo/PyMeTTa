@@ -28,10 +28,6 @@ Guarantees:
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
-  - Cursor owns one engine query until exhaustion, close, or finalization
-    and warns when finalization had to reap an open query [tested
-    test_stream_agrees_with_query_and_closes_on_exhaustion,
-    test_abandoned_stream_warns_before_reaping]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,15 +40,23 @@ import builtins as _builtins
 import os
 import stat
 import tempfile
-import time
 import types
-import warnings
-import weakref
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, overload
+from typing import Any, Literal, overload
 
 from . import ops as _ops_module
 from ._engine import Runtime, bridge, runtime, started
+from ._space_objects import (
+    Cursor,
+    EngineProfile,
+    Prepared,
+    _Assuming,
+    _column_names,
+    _EngineFunction,
+    _limits,
+    _StatsBlock,
+)
 from .atoms import (
     Atom,
     Expr,
@@ -65,13 +69,12 @@ from .atoms import (
     encode,
     from_wire,
     parse,
-    variables,
 )
 from .derivation import Derivation
-from .errors import EngineError, PettaError
-from .results import Rows, _row_class
+from .errors import EngineError
+from .results import Rows
 
-__all__ = ["MeTTa", "Prepared", "Cursor", "EngineProfile", "current_space"]
+__all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
 
 
 def current_space(default: str = "&self") -> str:
@@ -86,6 +89,7 @@ def current_space(default: str = "&self") -> str:
         return default
     row = bridge().query_once("current_metta_space(S)")
     return str(row["S"]) if row else default
+
 
 # @define bookkeeping is keyed (space name, function name) process-wide,
 # because equations live in spaces, not in MeTTa instances: two instances
@@ -149,56 +153,6 @@ def _sync_and_replace(temporary: Path, target: Path) -> None:
             os.close(descriptor)
 
 
-def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
-    """Validate the per-call bounds into the shim's (-1 = none) pair."""
-    if timeout is None and inferences is None:
-        return None
-    if timeout is not None and not timeout > 0:
-        raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
-    if inferences is not None and not inferences > 0:
-        raise ValueError(f"inferences must be a positive count, got {inferences!r}")
-    return (
-        -1.0 if timeout is None else float(timeout),
-        -1 if inferences is None else int(inferences),
-    )
-
-
-def _stats_snapshot(
-    rt: Runtime,
-) -> tuple[
-    int | float,
-    int | float,
-    int | float,
-    int | float,
-    int | float,
-    int | float,
-]:
-    """Read and validate the six counters supplied by the engine shim."""
-    raw = rt.apply_must("petta_py_stats")
-    if not isinstance(raw, (list, tuple)) or len(raw) != 6:
-        raise EngineError(f"engine statistics returned an invalid snapshot: {raw!r}")
-    values: list[int | float] = []
-    for value in raw:
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise EngineError(
-                f"engine statistics returned a non-numeric counter: {value!r}"
-            )
-        values.append(value)
-    return values[0], values[1], values[2], values[3], values[4], values[5]
-
-
-def _column_names(atoms: Iterable[Atom]) -> list[str]:
-    """Distinct non-anonymous variables in first-appearance order."""
-    return list(
-        dict.fromkeys(
-            name
-            for atom in atoms
-            for name in variables(atom)
-            if name != "_"
-        )
-    )
-
-
 class MeTTa:
     """A space bound to the engine: the way in from Python.
 
@@ -240,11 +194,11 @@ class MeTTa:
     def space_name(self) -> str:
         return self._space
 
-    def space(self, name: str) -> "MeTTa":
+    def space(self, name: str) -> MeTTa:
         """Another space on the same engine."""
         return MeTTa(name)
 
-    def fresh_space(self) -> "MeTTa":
+    def fresh_space(self) -> MeTTa:
         """An anonymous space with a name nothing else is using.
 
         Works as a context manager: leaving the block drops the space, so a
@@ -277,7 +231,7 @@ class MeTTa:
         if self._space != "&self":
             self._rt.must("petta_py_release_space(Space)", Space=self._space)
 
-    def __enter__(self) -> "MeTTa":
+    def __enter__(self) -> MeTTa:
         if not self._ephemeral:
             raise TypeError(
                 f"{self._space} was not created by fresh_space(); only an "
@@ -404,7 +358,10 @@ class MeTTa:
             seconds, steps = limits if limits is not None else (-1.0, -1)
             row = self._rt.must(
                 "petta_py_limited(T, I, P, Ins, Out)",
-                T=seconds, I=steps, P=pred, Ins=ins,
+                T=seconds,
+                I=steps,
+                P=pred,
+                Ins=ins,
             )
             out = row.get("Out", [])
         if capture:
@@ -420,7 +377,7 @@ class MeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> tuple[list[list[Atom]], "EngineProfile"]:
+    ) -> tuple[list[list[Atom]], EngineProfile]:
         """Run source under the engine's statistical profiler, answering
         (groups, profile): the groups exactly as run() answers them, and
         the profile carrying sample counters plus one row per predicate,
@@ -438,7 +395,10 @@ class MeTTa:
         seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
         row = self._rt.must(
             "petta_py_limited(T, I, P, Ins, Out)",
-            T=seconds, I=steps, P="petta_py_profiled", Ins=[pred, ins],
+            T=seconds,
+            I=steps,
+            P="petta_py_profiled",
+            Ins=[pred, ins],
         )
         out, samples, ticks, nodes = row["Out"]
         groups = [[atom_from_wire(w) for w in group] for group in out]
@@ -454,9 +414,7 @@ class MeTTa:
         intact. Atoms carrying live host objects cannot survive either file
         and are refused."""
         if format not in ("metta", "fast"):
-            raise ValueError(
-                f"save format must be 'metta' or 'fast', got {format!r}"
-            )
+            raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
         atoms = self.atoms()
         for atom in atoms:
             if not _serializable(atom):
@@ -471,13 +429,9 @@ class MeTTa:
         temporary = _temporary_sibling(target)
         try:
             if format == "fast":
-                result = self._rt.apply_must(
-                    "petta_py_fast_save", str(temporary), self._space
-                )
+                result = self._rt.apply_must("petta_py_fast_save", str(temporary), self._space)
                 if not isinstance(result, list) or len(result) != 2:
-                    raise EngineError(
-                        f"petta_py_fast_save returned an invalid result: {result!r}"
-                    )
+                    raise EngineError(f"petta_py_fast_save returned an invalid result: {result!r}")
                 kind, value = result
                 if kind == "object":
                     atom = atom_from_wire(value)
@@ -488,9 +442,7 @@ class MeTTa:
                 if kind == "symbol":
                     _raise_unsafe_text_symbol(atom_from_wire(value), "save")
                 if kind != "saved":
-                    raise EngineError(
-                        f"petta_py_fast_save returned an unknown result: {result!r}"
-                    )
+                    raise EngineError(f"petta_py_fast_save returned an unknown result: {result!r}")
                 count = int(value)
             else:
                 with _open_maybe_gz(temporary, "wt") as handle:
@@ -517,9 +469,7 @@ class MeTTa:
             is_fast = False
         if is_fast:
             return self._load_fast(file)
-        row = self._rt.must(
-            "petta_py_load(File, Space, Groups)", File=file, Space=self._space
-        )
+        row = self._rt.must("petta_py_load(File, Space, Groups)", File=file, Space=self._space)
         return [[atom_from_wire(w) for w in group] for group in row.get("Groups", [])]
 
     def _load_fast(self, path: str) -> list[list[Atom]]:
@@ -551,14 +501,9 @@ class MeTTa:
         if fields[0] != expected_fields[0]:
             raise reject("the cache marker is invalid")
         if fields[1] != expected_fields[1]:
-            raise reject(
-                f"magic tag {fields[1]!r} does not match {expected_fields[1]!r}"
-            )
+            raise reject(f"magic tag {fields[1]!r} does not match {expected_fields[1]!r}")
         if fields[2] != expected_fields[2]:
-            raise reject(
-                f"format version {fields[2]!r} does not match "
-                f"{expected_fields[2]!r}"
-            )
+            raise reject(f"format version {fields[2]!r} does not match {expected_fields[2]!r}")
         if fields[3] != expected_fields[3]:
             raise reject(
                 f"SWI-Prolog version {fields[3]!r} does not match the running "
@@ -638,9 +583,7 @@ class MeTTa:
                 f"columns, or an iterable of rows; "
                 f"{type(data).__name__} offers none of those"
             )
-        facts = [
-            Expr([head_atom, *(encode(value) for value in row)]) for row in rows
-        ]
+        facts = [Expr([head_atom, *(encode(value) for value in row)]) for row in rows]
         self.add(*facts)
         return len(facts)
 
@@ -708,9 +651,7 @@ class MeTTa:
         require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
-            raise EngineError(
-                f"petta_py_digest returned an invalid result: {result!r}"
-            )
+            raise EngineError(f"petta_py_digest returned an invalid result: {result!r}")
         kind, value = result
         if kind == "object":
             atom = atom_from_wire(value)
@@ -722,18 +663,14 @@ class MeTTa:
         if kind == "symbol":
             _raise_unsafe_text_symbol(atom_from_wire(value), "digest")
         if kind != "digest":
-            raise EngineError(
-                f"petta_py_digest returned an unknown result: {result!r}"
-            )
+            raise EngineError(f"petta_py_digest returned an unknown result: {result!r}")
         return str(value)
 
     def __len__(self) -> int:
         return self.count()
 
     def __contains__(self, atom: Any) -> bool:
-        return self._rt.do(
-            "petta_py_contains", self._space, _to_atom(atom).to_wire()
-        )
+        return self._rt.do("petta_py_contains", self._space, _to_atom(atom).to_wire())
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
@@ -751,15 +688,13 @@ class MeTTa:
         from .ops import REFLECTION_SPACE
 
         if self._space != REFLECTION_SPACE:
-            self._rt.must(
-                "petta_py_reflect_clear_defined(Space)", Space=self._space
-            )
+            self._rt.must("petta_py_reflect_clear_defined(Space)", Space=self._space)
 
-    def __iadd__(self, atom: Any) -> "MeTTa":
+    def __iadd__(self, atom: Any) -> MeTTa:
         self.add(atom)
         return self
 
-    def __isub__(self, atom: Any) -> "MeTTa":
+    def __isub__(self, atom: Any) -> MeTTa:
         self.remove(atom)
         return self
 
@@ -821,7 +756,7 @@ class MeTTa:
         where: Any | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> "Cursor":
+    ) -> Cursor:
         """query(), pulled: the same conjunction and guard, answered one
         row at a time through a cursor the engine holds open.
 
@@ -842,7 +777,7 @@ class MeTTa:
         """
         return Cursor(self, patterns, where, timeout, inferences)
 
-    def assuming(self, *facts: Any) -> "_Assuming":
+    def assuming(self, *facts: Any) -> _Assuming:
         """Facts held only inside a with-block: the assumptions reading of
         a what-if query, added on entry, removed on exit, exceptions
         included.
@@ -852,7 +787,7 @@ class MeTTa:
         """
         return _Assuming(self, [_to_atom(f) for f in facts])
 
-    def prepare(self, *patterns: Any, where: Any | None = None) -> "Prepared":
+    def prepare(self, *patterns: Any, where: Any | None = None) -> Prepared:
         """A query whose shape is fixed and whose facts are not: the wire
         form and columns build once, and each solve() may bring per-call
         facts (given=) that leave nothing behind.
@@ -861,8 +796,9 @@ class MeTTa:
             route.solve()
             route.solve(given=[S.edge(S.x, S.y)])
         """
-        return Prepared(self, [_to_atom(p) for p in patterns],
-                        None if where is None else _to_atom(where))
+        return Prepared(
+            self, [_to_atom(p) for p in patterns], None if where is None else _to_atom(where)
+        )
 
     # -------------------------------------------------------------- evaluation
 
@@ -979,7 +915,7 @@ class MeTTa:
             )
         return decode(answer) if isinstance(answer, Gnd) else answer
 
-    def stats(self) -> "_StatsBlock":
+    def stats(self) -> _StatsBlock:
         """The engine's own counters over a with-block, as deltas.
 
             with m.stats() as s:
@@ -1065,9 +1001,7 @@ class MeTTa:
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count."""
         return bool(
-            self._rt.once(
-                "petta_py_function_visible(Space, Name)", Space=self._space, Name=name
-            )
+            self._rt.once("petta_py_function_visible(Space, Name)", Space=self._space, Name=name)
         )
 
     def arities(self, name: str) -> list[int]:
@@ -1136,9 +1070,7 @@ class MeTTa:
         if depth is not None and (
             isinstance(depth, bool) or not isinstance(depth, int) or depth <= 0
         ):
-            raise ValueError(
-                f"derivation depth must be a positive integer or None, got {depth!r}"
-            )
+            raise ValueError(f"derivation depth must be a positive integer or None, got {depth!r}")
         seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
         rows = self._rt.iter(
             "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)",
@@ -1173,14 +1105,8 @@ class MeTTa:
         if stored:
             sizes = sorted({len(a) for a in stored})
             if len(atom) not in sizes:
-                return (
-                    f"{name} atoms here have {sizes} elements; the pattern has "
-                    f"{len(atom)}"
-                )
-            return (
-                f"{len(stored)} {name} atom(s) exist here but none unifies with "
-                f"{atom}"
-            )
+                return f"{name} atoms here have {sizes} elements; the pattern has {len(atom)}"
+            return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
         if self.is_function(name):
             return (
                 f"no {name} atoms are stored here; {name} is a function, so its "
@@ -1196,10 +1122,7 @@ class MeTTa:
 
         close = get_close_matches(name, self.builtins(), n=1, cutoff=0.75)
         suggestion = f"; did you mean {close[0]}?" if close else ""
-        return (
-            f"nothing here is headed by {name}, and no function has that name"
-            f"{suggestion}"
-        )
+        return f"nothing here is headed by {name}, and no function has that name{suggestion}"
 
     # ------------------------------------------------------------ definitions
 
@@ -1229,9 +1152,7 @@ class MeTTa:
         variables.
         """
         if not isinstance(fn, types.FunctionType):
-            raise TypeError(
-                f"define expects a Python function, got {type(fn).__name__}"
-            )
+            raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
         from ._ops import REGISTRY
         from .define import (
             Defined,
@@ -1260,9 +1181,7 @@ class MeTTa:
         # The equation's name follows the operation rule: underscores read
         # as hyphens, one policy across both decorators.
         name = fn.__name__.replace("_", "-")
-        compiled = compile_function(
-            fn, known=self.is_function, nondet=nondet, metta_name=name
-        )
+        compiled = compile_function(fn, known=self.is_function, nondet=nondet, metta_name=name)
         params, patterns, body = compiled.params, compiled.patterns, compiled.body
         # Clause stacking is per (space, name), process-wide: equations live
         # in the space, not in whichever MeTTa instance happened to add them.
@@ -1286,12 +1205,8 @@ class MeTTa:
             )
         for clause in earlier:
             earlier_patterns = clause["patterns"]
-            if (
-                len(earlier_patterns) < len(patterns)
-                and all(
-                    patterns.get(param) == value
-                    for param, value in earlier_patterns.items()
-                )
+            if len(earlier_patterns) < len(patterns) and all(
+                patterns.get(param) == value for param, value in earlier_patterns.items()
             ):
                 raise CompileError(
                     f"a clause of {name} fixes every literal from an earlier "
@@ -1304,12 +1219,8 @@ class MeTTa:
         # clauses means first-match, so each clause is guarded against every
         # earlier literal head it would otherwise also answer for. The guard
         # is ordinary MeTTa, visible in .source(), never a hidden rule.
-        body = _guard_against(
-            body, [clause["patterns"] for clause in earlier], patterns, params
-        )
-        head = Expr(
-            [Sym(name), *(patterns.get(p, Var(p)) for p in params)]
-        )
+        body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns, params)
+        head = Expr([Sym(name), *(patterns.get(p, Var(p)) for p in params)])
         equation = Expr([Sym("="), head, body])
         dispatcher = twin_dispatcher(fn)
         # Idempotence compares the main equation and all helper equations with
@@ -1332,8 +1243,13 @@ class MeTTa:
                 # The identical clause again, a re-run cell or module
                 # reload: adding it would duplicate answers, so it stands.
                 return Defined(
-                    name, params, body, dispatcher, self,
-                    patterns=patterns, runtime_ops=compiled.runtime_ops,
+                    name,
+                    params,
+                    body,
+                    dispatcher,
+                    self,
+                    patterns=patterns,
+                    runtime_ops=compiled.runtime_ops,
                 )
             if clause["patterns"] == patterns:
                 replaced = position
@@ -1373,14 +1289,10 @@ class MeTTa:
         # Annotations declare the type, exactly as they do for operations,
         # once per name so stacked clauses do not repeat the declaration.
         annotated = resolved_annotations(fn)
-        if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get(
-            (self._space, name)
-        ):
+        if any(k != "return" for k in annotated) and not _DECLARED_DEFINES.get((self._space, name)):
             import inspect as _inspect
 
-            annotations = [
-                annotated.get(p, _inspect.Parameter.empty) for p in params
-            ]
+            annotations = [annotated.get(p, _inspect.Parameter.empty) for p in params]
             ret_annotation = annotated.get("return", _inspect.Parameter.empty)
             for declaration in declaration_exprs(name, annotations, ret_annotation):
                 self.add(declaration)
@@ -1391,8 +1303,13 @@ class MeTTa:
         if compiled.generator:
             _DEFINED_GENERATORS.add((self._space, name))
         return Defined(
-            name, params, body, dispatcher, self,
-            patterns=patterns, runtime_ops=compiled.runtime_ops,
+            name,
+            params,
+            body,
+            dispatcher,
+            self,
+            patterns=patterns,
+            runtime_ops=compiled.runtime_ops,
         )
 
     def type(
@@ -1434,11 +1351,7 @@ class MeTTa:
             registration = _convert.ensure_registered(target)
             for declaration in _convert.declarations(target):
                 self.add(declaration)
-            if (
-                accessors
-                and registration.image == "expression"
-                and registration.fields
-            ):
+            if accessors and registration.image == "expression" and registration.fields:
                 constructor = registration.type_name
                 fields = registration.fields
                 variables = [Var(f"f{i}") for i in range(1, len(fields) + 1)]
@@ -1496,9 +1409,7 @@ class MeTTa:
             if method_name.startswith("_") or not _inspect.isfunction(fn):
                 continue
             parameters = list(_inspect.signature(fn).parameters.values())[1:]
-            required = sum(
-                1 for p in parameters if p.default is _inspect.Parameter.empty
-            )
+            required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
             arities = list(range(1 + required, len(parameters) + 2))
             self.register_op(
                 wrapper_for(fn),
@@ -1508,7 +1419,7 @@ class MeTTa:
                 arities=arities,
             )
 
-    def fn(self, name: str) -> "_EngineFunction":
+    def fn(self, name: str) -> _EngineFunction:
         """Any engine function as an ordinary Python callable.
 
             car = m.fn("car-atom")
@@ -1556,9 +1467,7 @@ def _serializable(atom: Atom) -> bool:
     stack = [atom]
     while stack:
         current = stack.pop()
-        if isinstance(current, Gnd) and not isinstance(
-            current.value, (bool, int, float, str)
-        ):
+        if isinstance(current, Gnd) and not isinstance(current.value, (bool, int, float, str)):
             return False
         if isinstance(current, Expr):
             stack.extend(current.children)
@@ -1570,8 +1479,7 @@ def _unsafe_text_symbol(atom: Atom) -> Sym | None:
     while stack:
         current = stack.pop()
         if isinstance(current, Sym) and any(
-            character.isspace() or character in '()"'
-            for character in current.name
+            character.isspace() or character in '()"' for character in current.name
         ):
             return current
         if isinstance(current, Expr):
@@ -1614,305 +1522,3 @@ def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> A
             condition = Expr([Sym("and"), condition, test])
         body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
     return body
-
-
-class _Assuming:
-    """Facts scoped to a with-block; see MeTTa.assuming."""
-
-    __slots__ = ("_space", "_facts")
-
-    def __init__(self, space: MeTTa, facts: list[Atom]) -> None:
-        self._space = space
-        self._facts = facts
-
-    def __enter__(self) -> MeTTa:
-        self._space.add(*self._facts)
-        return self._space
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        for fact in self._facts:
-            self._space.remove(fact)
-
-
-class _StatsBlock:
-    """MeTTa.stats(): engine counter deltas over one with-block.
-
-    Before exit the fields are None; after exit they carry the deltas the
-    block spent: inferences (int), cputime (seconds), walltime (seconds,
-    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds),
-    and table_bytes (answer-table bytes the block grew or, negative,
-    released; tabling's memory made visible where the counters live).
-    """
-
-    __slots__ = (
-        "_rt", "_before", "_wall",
-        "inferences", "cputime", "walltime", "gc_count", "gc_freed", "gc_time",
-        "table_bytes",
-    )
-
-    def __init__(self, rt: Runtime) -> None:
-        self._rt = rt
-        self._before: tuple[int | float, ...] | None = None
-        self._wall: float | None = None
-        self.inferences: int | None = None
-        self.cputime: float | None = None
-        self.walltime: float | None = None
-        self.gc_count: int | None = None
-        self.gc_freed: int | None = None
-        self.gc_time: float | None = None
-        self.table_bytes: int | None = None
-
-    def __enter__(self) -> "_StatsBlock":
-        self._before = _stats_snapshot(self._rt)
-        self._wall = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        before = self._before
-        started_at = self._wall
-        if before is None or started_at is None:
-            raise RuntimeError("a stats block cannot exit before it enters")
-        wall = time.perf_counter() - started_at
-        after = _stats_snapshot(self._rt)
-        inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
-            a - b for a, b in zip(after, before, strict=True)
-        )
-        # The two petta_py_stats crossings themselves sit inside the
-        # window; their cost is a few hundred inferences, the noise floor.
-        self.inferences = int(inferences)
-        self.cputime = float(cputime)
-        self.walltime = wall
-        self.gc_count = int(gc_count)
-        self.gc_freed = int(gc_freed)
-        self.gc_time = float(gc_ms) / 1000.0
-        self.table_bytes = int(table_bytes)
-
-    def __repr__(self) -> str:
-        if self.inferences is None:
-            return "<stats: pending>"
-        return (
-            f"<stats: {self.inferences} inferences, "
-            f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
-        )
-
-
-class Cursor:
-    """MeTTa.stream(): answers pulled one at a time from an engine-held
-    query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
-    the engine and remains ordinary iterator exhaustion; explicit close is a
-    separate state that refuses further pulls. A cursor dropped unclosed is
-    reaped by its finalizer. Rows carry the query's variable names as columns,
-    exactly as query()'s rows do.
-    """
-
-    __slots__ = (
-        "columns",
-        "_row_cls",
-        "_timeout",
-        "_rt",
-        "_handle",
-        "_closed",
-        "_exhausted",
-        "_finalizer",
-        "__weakref__",
-    )
-
-    def __init__(
-        self,
-        space: "MeTTa",
-        patterns: tuple,
-        where: Any | None,
-        timeout: float | None,
-        inferences: int | None,
-    ) -> None:
-        atoms = [_to_atom(p) for p in patterns]
-        columns = _column_names(atoms)
-        self.columns = tuple(columns)
-        self._row_cls = _row_class(self.columns)
-        limits = _limits(timeout, inferences)
-        # The inference budget rides inside the engine (its work is its
-        # own counter's, invisible to a per-pull wrapper); the wall bound
-        # wraps each pull outside, where idle time between pulls is free.
-        self._timeout = None if limits is None or limits[0] < 0 else limits[0]
-        steps = -1 if limits is None else limits[1]
-        self._rt = space.runtime
-        wires = [a.to_wire() for a in atoms]
-        guard = [] if where is None else _to_atom(where).to_wire()
-        self._handle = self._rt.apply_must(
-            "petta_py_cursor_open", space.space_name, wires, guard, list(columns), steps
-        )
-        self._closed = False
-        self._exhausted = False
-        # The finalizer is the last guard, not the contract: it destroys
-        # the engine if a cursor is dropped unclosed, from whichever
-        # thread collection runs on (cross-thread destroy is probed).
-        self._finalizer = weakref.finalize(self, Cursor._reap, self._handle)
-
-    @staticmethod
-    def _reap(handle: Any) -> None:
-        try:
-            bridge().query_once("petta_py_cursor_close(E)", {"E": handle})
-        except Exception:
-            pass  # the engine is already gone, or the process is ending
-
-    def __iter__(self) -> "Cursor":
-        return self
-
-    def __next__(self):
-        if self._exhausted:
-            raise StopIteration
-        if self._closed:
-            raise PettaError("this cursor is closed")
-        if self._timeout is None:
-            answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
-        else:
-            answer = self._rt.apply_must(
-                "petta_py_limited", self._timeout, -1,
-                "petta_py_cursor_next", [self._handle],
-            )
-        if not answer:
-            self._exhausted = True
-            self._finalizer()
-            raise StopIteration
-        return self._row_cls(atom_from_wire(v) for v in answer[0])
-
-    def close(self) -> None:
-        """Destroy the held engine; idempotent and distinct from exhaustion."""
-        if self._closed or self._exhausted:
-            return
-        self._closed = True
-        self._finalizer()  # runs the reap exactly once; later GC is a no-op
-
-    def __enter__(self) -> "Cursor":
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        self.close()
-
-    def __del__(self) -> None:
-        if (
-            not getattr(self, "_closed", True)
-            and not getattr(self, "_exhausted", True)
-        ):
-            warnings.warn(
-                "an open petta Cursor was discarded; use a with-block or close()",
-                ResourceWarning,
-                source=self,
-            )
-
-    def __repr__(self) -> str:
-        state = "closed" if self._closed else "exhausted" if self._exhausted else "open"
-        return f"<cursor {state} -> {', '.join(self.columns)}>"
-
-
-class EngineProfile:
-    """MeTTa.profile()'s second answer: the sampler's counters and one
-    row per predicate, self-ticks-descending. Each node is (predicate,
-    calls, redos, ticks_self, ticks_siblings)."""
-
-    __slots__ = ("samples", "ticks", "nodes")
-
-    def __init__(self, samples: int, ticks: int, nodes: list) -> None:
-        self.samples = int(samples)
-        self.ticks = int(ticks)
-        self.nodes = [tuple(node) for node in nodes]
-
-    def top(self, n: int = 10) -> list[tuple]:
-        """The n predicates the samples landed in most."""
-        return self.nodes[:n]
-
-    def __repr__(self) -> str:
-        return (
-            f"<profile: {self.samples} samples, {self.ticks} ticks, "
-            f"{len(self.nodes)} predicates>"
-        )
-
-
-class Prepared:
-    """A prepared query: pattern wires and columns built once, solved many
-    times, optionally with per-call facts. The ladder the clingo API walks
-    (assumptions per solve, inputs per session, rules added), with the rung
-    clingo lacks: rules REMOVED, since this engine erases clauses whole.
-
-        route = m.prepare(S.path(V.a, V.b))
-        route.solve()
-        route.solve(given=[S.edge(S.a, S.b)])   # facts for this call only
-    """
-
-    __slots__ = ("_space", "_patterns", "_where", "_wires", "_guard", "columns")
-
-    def __init__(self, space: MeTTa, patterns: list[Atom], where: Atom | None) -> None:
-        self._space = space
-        self._patterns = patterns
-        self._where = where
-        self._wires = [p.to_wire() for p in patterns]
-        self._guard = None if where is None else where.to_wire()
-        self.columns = tuple(_column_names(patterns))
-
-    def solve(
-        self,
-        given: list | None = None,
-        limit: int | None = None,
-        *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-    ) -> Rows:
-        """Answers now, with `given` facts present for this call alone.
-        `timeout` and `inferences` bound this solve exactly as they bound
-        MeTTa.query()."""
-        if not given:
-            return self._run(limit, timeout, inferences)
-        with self._space.assuming(*given):
-            return self._run(limit, timeout, inferences)
-
-    def _run(self, limit: int | None, timeout: float | None, inferences: int | None) -> Rows:
-        rt = self._space.runtime
-        space = self._space.space_name
-        names = list(self.columns)
-        if self._guard is not None:
-            pred = "petta_py_query_guarded_all"
-            ins = [space, self._wires, self._guard, names, limit or 0]
-        elif limit is not None:
-            pred, ins = "petta_py_query_limit_all", [space, self._wires, names, limit]
-        else:
-            pred, ins = "petta_py_query_all", [space, self._wires, names]
-        limits = _limits(timeout, inferences)
-        if limits is None:
-            answered = rt.apply_must(pred, *ins)
-        else:
-            answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
-        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
-        return Rows(self.columns, decoded)
-
-    def __repr__(self) -> str:
-        shown = ", ".join(str(p) for p in self._patterns)
-        return f"<prepared {shown} -> {', '.join(self.columns)}>"
-
-
-class _EngineFunction:
-    """One engine function, callable the way Python callables are."""
-
-    __slots__ = ("_space", "_name")
-
-    def __init__(self, space: MeTTa, name: str) -> None:
-        self._space = space
-        self._name = name
-
-    def _term(self, args: tuple) -> Expr:
-        return Expr([Sym(self._name), *(encode(a) for a in args)])
-
-    def __call__(self, *args: Any) -> Any:
-        answers = self._space.eval(self._term(args))
-        if len(answers) != 1:
-            # The same violated contract as value(): the same error class.
-            raise EngineError(
-                f"({self._name} ...) answered {len(answers)} results; calling "
-                f"expects exactly one. Use .all(...) for every answer."
-            )
-        return answers[0]
-
-    def all(self, *args: Any) -> list:
-        return self._space.eval(self._term(args))
-
-    def __repr__(self) -> str:
-        return f"<engine function {self._name} on {self._space.space_name}>"

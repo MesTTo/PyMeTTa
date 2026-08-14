@@ -1,0 +1,384 @@
+"""Purpose: query, profiling, scope, and callable objects returned by MeTTa.
+Guarantees:
+  - Cursor keeps exhaustion distinct from explicit close [tested
+    test_stream_agrees_with_query_and_closes_on_exhaustion]
+  - Prepared preserves first-appearance query columns [tested
+    test_query_surfaces_share_column_order]
+Owns:
+  - Cursor owns one engine query until exhaustion, close, or finalization
+    and warns when finalization reaps an open query [tested
+    test_abandoned_stream_warns_before_reaping]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+import warnings
+import weakref
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Self
+
+from ._engine import Runtime
+from .atoms import Atom, Expr, Sym, _to_atom, atom_from_wire, encode, variables
+from .errors import EngineError, PettaError
+from .results import Rows, _row_class
+
+if TYPE_CHECKING:
+    from .space import MeTTa
+
+logger = logging.getLogger(__name__)
+
+
+def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
+    """Validate the per-call bounds into the shim's (-1 = none) pair."""
+    if timeout is None and inferences is None:
+        return None
+    if timeout is not None and not timeout > 0:
+        raise ValueError(f"timeout must be positive seconds, got {timeout!r}")
+    if inferences is not None and not inferences > 0:
+        raise ValueError(f"inferences must be a positive count, got {inferences!r}")
+    return (
+        -1.0 if timeout is None else float(timeout),
+        -1 if inferences is None else int(inferences),
+    )
+
+
+def _stats_snapshot(
+    rt: Runtime,
+) -> tuple[
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+    int | float,
+]:
+    """Read and validate the six counters supplied by the engine shim."""
+    raw = rt.apply_must("petta_py_stats")
+    if not isinstance(raw, (list, tuple)) or len(raw) != 6:
+        raise EngineError(f"engine statistics returned an invalid snapshot: {raw!r}")
+    values: list[int | float] = []
+    for value in raw:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise EngineError(f"engine statistics returned a non-numeric counter: {value!r}")
+        values.append(value)
+    return values[0], values[1], values[2], values[3], values[4], values[5]
+
+
+def _column_names(atoms: Iterable[Atom]) -> list[str]:
+    """Distinct non-anonymous variables in first-appearance order."""
+    return list(dict.fromkeys(name for atom in atoms for name in variables(atom) if name != "_"))
+
+
+class _Assuming:
+    """Facts scoped to a with-block; see MeTTa.assuming."""
+
+    __slots__ = ("_facts", "_space")
+
+    def __init__(self, space: MeTTa, facts: list[Atom]) -> None:
+        self._space = space
+        self._facts = facts
+
+    def __enter__(self) -> MeTTa:
+        self._space.add(*self._facts)
+        return self._space
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        for fact in self._facts:
+            self._space.remove(fact)
+
+
+class _StatsBlock:
+    """MeTTa.stats(): engine counter deltas over one with-block.
+
+    Before exit the fields are None; after exit they carry the deltas the
+    block spent: inferences (int), cputime (seconds), walltime (seconds,
+    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds),
+    and table_bytes (answer-table bytes the block grew or, negative,
+    released; tabling's memory made visible where the counters live).
+    """
+
+    __slots__ = (
+        "_before",
+        "_rt",
+        "_wall",
+        "cputime",
+        "gc_count",
+        "gc_freed",
+        "gc_time",
+        "inferences",
+        "table_bytes",
+        "walltime",
+    )
+
+    def __init__(self, rt: Runtime) -> None:
+        self._rt = rt
+        self._before: tuple[int | float, ...] | None = None
+        self._wall: float | None = None
+        self.inferences: int | None = None
+        self.cputime: float | None = None
+        self.walltime: float | None = None
+        self.gc_count: int | None = None
+        self.gc_freed: int | None = None
+        self.gc_time: float | None = None
+        self.table_bytes: int | None = None
+
+    def __enter__(self) -> Self:
+        self._before = _stats_snapshot(self._rt)
+        self._wall = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        before = self._before
+        started_at = self._wall
+        if before is None or started_at is None:
+            raise RuntimeError("a stats block cannot exit before it enters")
+        wall = time.perf_counter() - started_at
+        after = _stats_snapshot(self._rt)
+        inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
+            a - b for a, b in zip(after, before, strict=True)
+        )
+        # The two petta_py_stats crossings themselves sit inside the
+        # window; their cost is a few hundred inferences, the noise floor.
+        self.inferences = int(inferences)
+        self.cputime = float(cputime)
+        self.walltime = wall
+        self.gc_count = int(gc_count)
+        self.gc_freed = int(gc_freed)
+        self.gc_time = float(gc_ms) / 1000.0
+        self.table_bytes = int(table_bytes)
+
+    def __repr__(self) -> str:
+        if self.inferences is None:
+            return "<stats: pending>"
+        return (
+            f"<stats: {self.inferences} inferences, "
+            f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
+        )
+
+
+class Cursor:
+    """MeTTa.stream(): answers pulled one at a time from an engine-held
+    query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
+    the engine and remains ordinary iterator exhaustion; explicit close is a
+    separate state that refuses further pulls. A cursor dropped unclosed is
+    reaped by its finalizer. Rows carry the query's variable names as columns,
+    exactly as query()'s rows do.
+    """
+
+    __slots__ = (
+        "__weakref__",
+        "_closed",
+        "_exhausted",
+        "_finalizer",
+        "_handle",
+        "_row_cls",
+        "_rt",
+        "_timeout",
+        "columns",
+    )
+
+    def __init__(
+        self,
+        space: MeTTa,
+        patterns: tuple,
+        where: Any | None,
+        timeout: float | None,
+        inferences: int | None,
+    ) -> None:
+        atoms = [_to_atom(p) for p in patterns]
+        columns = _column_names(atoms)
+        self.columns = tuple(columns)
+        self._row_cls = _row_class(self.columns)
+        limits = _limits(timeout, inferences)
+        # The inference budget rides inside the engine (its work is its
+        # own counter's, invisible to a per-pull wrapper); the wall bound
+        # wraps each pull outside, where idle time between pulls is free.
+        self._timeout = None if limits is None or limits[0] < 0 else limits[0]
+        steps = -1 if limits is None else limits[1]
+        self._rt = space.runtime
+        wires = [a.to_wire() for a in atoms]
+        guard = [] if where is None else _to_atom(where).to_wire()
+        self._handle = self._rt.apply_must(
+            "petta_py_cursor_open", space.space_name, wires, guard, list(columns), steps
+        )
+        self._closed = False
+        self._exhausted = False
+        # The finalizer is the last guard, not the contract: it destroys
+        # the engine if a cursor is dropped unclosed, from whichever
+        # thread collection runs on (cross-thread destroy is probed).
+        self._finalizer = weakref.finalize(self, Cursor._reap, self._rt, self._handle)
+
+    @staticmethod
+    def _reap(runtime: Runtime, handle: Any) -> None:
+        try:
+            runtime.do("petta_py_cursor_close", handle)
+        except EngineError:
+            logger.debug("cursor finalization found an unavailable engine", exc_info=True)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self):
+        if self._exhausted:
+            raise StopIteration
+        if self._closed:
+            raise PettaError("this cursor is closed")
+        if self._timeout is None:
+            answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
+        else:
+            answer = self._rt.apply_must(
+                "petta_py_limited",
+                self._timeout,
+                -1,
+                "petta_py_cursor_next",
+                [self._handle],
+            )
+        if not answer:
+            self._exhausted = True
+            self._finalizer()
+            raise StopIteration
+        return self._row_cls(atom_from_wire(v) for v in answer[0])
+
+    def close(self) -> None:
+        """Destroy the held engine; idempotent and distinct from exhaustion."""
+        if self._closed or self._exhausted:
+            return
+        self._closed = True
+        self._finalizer()  # runs the reap exactly once; later GC is a no-op
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        if not getattr(self, "_closed", True) and not getattr(self, "_exhausted", True):
+            warnings.warn(
+                "an open petta Cursor was discarded; use a with-block or close()",
+                ResourceWarning,
+                source=self,
+                stacklevel=2,
+            )
+
+    def __repr__(self) -> str:
+        state = "closed" if self._closed else "exhausted" if self._exhausted else "open"
+        return f"<cursor {state} -> {', '.join(self.columns)}>"
+
+
+class EngineProfile:
+    """MeTTa.profile()'s second answer: the sampler's counters and one
+    row per predicate, self-ticks-descending. Each node is (predicate,
+    calls, redos, ticks_self, ticks_siblings)."""
+
+    __slots__ = ("nodes", "samples", "ticks")
+
+    def __init__(self, samples: int, ticks: int, nodes: list) -> None:
+        self.samples = int(samples)
+        self.ticks = int(ticks)
+        self.nodes = [tuple(node) for node in nodes]
+
+    def top(self, n: int = 10) -> list[tuple]:
+        """The n predicates the samples landed in most."""
+        return self.nodes[:n]
+
+    def __repr__(self) -> str:
+        return (
+            f"<profile: {self.samples} samples, {self.ticks} ticks, {len(self.nodes)} predicates>"
+        )
+
+
+class Prepared:
+    """A prepared query: pattern wires and columns built once, solved many
+    times, optionally with per-call facts. The ladder the clingo API walks
+    (assumptions per solve, inputs per session, rules added), with the rung
+    clingo lacks: rules REMOVED, since this engine erases clauses whole.
+
+        route = m.prepare(S.path(V.a, V.b))
+        route.solve()
+        route.solve(given=[S.edge(S.a, S.b)])   # facts for this call only
+    """
+
+    __slots__ = ("_guard", "_patterns", "_space", "_where", "_wires", "columns")
+
+    def __init__(self, space: MeTTa, patterns: list[Atom], where: Atom | None) -> None:
+        self._space = space
+        self._patterns = patterns
+        self._where = where
+        self._wires = [p.to_wire() for p in patterns]
+        self._guard = None if where is None else where.to_wire()
+        self.columns = tuple(_column_names(patterns))
+
+    def solve(
+        self,
+        given: list | None = None,
+        limit: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Rows:
+        """Answers now, with `given` facts present for this call alone.
+        `timeout` and `inferences` bound this solve exactly as they bound
+        MeTTa.query()."""
+        if not given:
+            return self._run(limit, timeout, inferences)
+        with self._space.assuming(*given):
+            return self._run(limit, timeout, inferences)
+
+    def _run(self, limit: int | None, timeout: float | None, inferences: int | None) -> Rows:
+        rt = self._space.runtime
+        space = self._space.space_name
+        names = list(self.columns)
+        if self._guard is not None:
+            pred = "petta_py_query_guarded_all"
+            ins = [space, self._wires, self._guard, names, limit or 0]
+        elif limit is not None:
+            pred, ins = "petta_py_query_limit_all", [space, self._wires, names, limit]
+        else:
+            pred, ins = "petta_py_query_all", [space, self._wires, names]
+        limits = _limits(timeout, inferences)
+        if limits is None:
+            answered = rt.apply_must(pred, *ins)
+        else:
+            answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
+        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
+        return Rows(self.columns, decoded)
+
+    def __repr__(self) -> str:
+        shown = ", ".join(str(p) for p in self._patterns)
+        return f"<prepared {shown} -> {', '.join(self.columns)}>"
+
+
+class _EngineFunction:
+    """One engine function, callable the way Python callables are."""
+
+    __slots__ = ("_name", "_space")
+
+    def __init__(self, space: MeTTa, name: str) -> None:
+        self._space = space
+        self._name = name
+
+    def _term(self, args: tuple) -> Expr:
+        return Expr([Sym(self._name), *(encode(a) for a in args)])
+
+    def __call__(self, *args: Any) -> Any:
+        answers = self._space.eval(self._term(args))
+        if len(answers) != 1:
+            # The same violated contract as value(): the same error class.
+            raise EngineError(
+                f"({self._name} ...) answered {len(answers)} results; calling "
+                f"expects exactly one. Use .all(...) for every answer."
+            )
+        return answers[0]
+
+    def all(self, *args: Any) -> list:
+        return self._space.eval(self._term(args))
+
+    def __repr__(self) -> str:
+        return f"<engine function {self._name} on {self._space.space_name}>"
