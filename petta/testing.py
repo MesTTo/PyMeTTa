@@ -21,6 +21,7 @@ __all__ = [
     "symbols",
     "variables",
     "numbers",
+    "numpy_scalars",
     "texts",
     "grounded",
     "atoms",
@@ -77,6 +78,28 @@ def numbers():
     return st.one_of(
         st.integers(min_value=-(2**62), max_value=2**62),
         st.floats(allow_nan=False, allow_infinity=False, width=64),
+    )
+
+
+def numpy_scalars():
+    """NumPy integer and real scalar values accepted by PeTTa's Number type.
+
+    NumPy is optional. Install ``petta[arrays,test]`` before requesting this
+    strategy.
+    """
+    st = _st()
+    try:
+        import numpy as np
+    except ImportError as missing:
+        raise ImportError(
+            "petta.testing.numpy_scalars requires numpy; "
+            "pip install 'petta[arrays,test]'"
+        ) from missing
+    return st.one_of(
+        st.integers(-(2**31), 2**31 - 1).map(np.int32),
+        st.integers(-(2**62), 2**62).map(np.int64),
+        st.floats(allow_nan=False, allow_infinity=False, width=32).map(np.float32),
+        st.floats(allow_nan=False, allow_infinity=False, width=64).map(np.float64),
     )
 
 

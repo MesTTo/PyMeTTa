@@ -5,6 +5,9 @@ Open Obligations:
   Future Enhancements: None
 """
 
+from decimal import Decimal
+from fractions import Fraction
+
 import pytest
 
 from petta import S, V, Expr, Gnd, Sym, Var, alpha_eq, encode, expr, unify, val, variables
@@ -31,6 +34,38 @@ def test_grounded_hash_agrees_with_equality():
     assert hash(Gnd(3)) == hash(3)
     assert {Gnd(3), 3} == {3}
     assert Gnd("a") in {"a"}
+
+
+def test_numpy_scalars_are_engine_numbers(metta):
+    np = pytest.importorskip("numpy")
+    cases = [np.int32(7), np.int64(2), np.float32(1.5), np.float64(3.5)]
+    for scalar in cases:
+        atom = Gnd(scalar)
+        expected = int(scalar) if isinstance(scalar, np.integer) else float(scalar)
+        assert type(atom.value) is type(expected)
+        assert atom == scalar
+        assert atom.to_wire() == ["n", expected]
+        assert str(atom) == repr(expected)
+        assert metta.eval(expr(S["+"], atom, 1)) == [Gnd(expected + 1)]
+
+
+def test_non_real_numpy_values_stay_opaque():
+    np = pytest.importorskip("numpy")
+    for value in (np.bool_(True), np.array([1.0])):
+        atom = Gnd(value)
+        assert atom.value is value
+        assert atom.to_wire()[0] == "o"
+
+
+def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():
+    real = Gnd(Fraction(3, 2))
+    assert type(real.value) is float
+    assert real.to_wire() == ["n", 1.5]
+
+    decimal = Decimal("1.5")
+    opaque = Gnd(decimal)
+    assert opaque.value is decimal
+    assert opaque.to_wire()[0] == "o"
 
 
 def test_expr_is_a_sequence():

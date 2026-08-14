@@ -6,6 +6,10 @@ boundary travels tagged instead: s symbol, g string, n number, b boolean,
 v variable, e expression, o object reference. Python operators on atoms
 build terms, so V.age >= 18 is the expression (>= $age 18), while grounded
 values keep ordinary value semantics.
+Guarantees:
+  - Gnd normalizes Real and Integral implementations to engine-native Python
+    numbers before equality, printing, or wire encoding [tested
+    test_numpy_scalars_are_engine_numbers]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +20,7 @@ from __future__ import annotations
 
 import collections.abc as _abc
 import math
+import numbers as _numbers
 import re
 import weakref
 from collections.abc import Iterator, Mapping, Sequence
@@ -71,9 +76,20 @@ def _encodable(value: str) -> str:
     return value
 
 
+def _normalize_grounded(value: Any) -> Any:
+    """Convert the numeric tower to the exact host types the engine carries."""
+    if type(value) in (bool, int, float, str):
+        return value
+    if isinstance(value, _numbers.Integral):
+        return int(value)
+    if isinstance(value, _numbers.Real):
+        return float(value)
+    return value
+
+
 def _is_primitive(value: Any) -> bool:
     """Whether PeTTa has a native term for this value: string, number, boolean."""
-    return isinstance(value, (str, int, float, bool))
+    return type(value) in (str, int, float, bool)
 
 
 def _ground_equal(mine: Any, theirs: Any) -> bool:
@@ -82,6 +98,8 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     integers, an integer is not a float ((== 1 1.0) is false), floats
     compare by IEEE identity (-0.0 is not 0.0, and a NaN IS itself), and an
     opaque object is itself alone."""
+    mine = _normalize_grounded(mine)
+    theirs = _normalize_grounded(theirs)
     if isinstance(mine, bool) or isinstance(theirs, bool):
         return type(mine) is type(theirs) and mine == theirs
     if isinstance(mine, float) and isinstance(theirs, float):
@@ -436,7 +454,7 @@ class Gnd(Atom):
     value: Any
 
     def __init__(self, value: Any) -> None:
-        object.__setattr__(self, "value", value)
+        object.__setattr__(self, "value", _normalize_grounded(value))
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Gnd):
