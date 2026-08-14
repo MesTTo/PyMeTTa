@@ -26,6 +26,7 @@ import re
 import stat
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from ._engine import Runtime
 from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
@@ -41,16 +42,17 @@ _FAST_ERRORS = (
 )
 
 
-def _open_maybe_gz(path: str | os.PathLike[str], mode: str):
+def _open_maybe_gz(path: str | os.PathLike[str], mode: Literal["rb", "wt"]):
     """Open gzip paths through gzip and all other paths through open()."""
     file = os.fspath(path)
-    if file.endswith(".gz"):
-        if "b" in mode:
-            return gzip.open(file, mode)
-        return gzip.open(file, mode, encoding="utf-8")
-    if "b" in mode:
-        return Path(file).open(mode, encoding=None)
-    return Path(file).open(mode, encoding="utf-8")
+    compressed = file.endswith(".gz")
+    if mode == "rb":
+        return gzip.open(file, "rb") if compressed else Path(file).open("rb")
+    return (
+        gzip.open(file, "wt", encoding="utf-8")
+        if compressed
+        else Path(file).open("wt", encoding="utf-8")
+    )
 
 
 def _temporary_sibling(target: Path) -> Path:

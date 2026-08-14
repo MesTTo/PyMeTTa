@@ -112,7 +112,7 @@ class SpaceProvider:
             return isinstance(self, Adder) and isinstance(self, Remover)
         return False
 
-    def should_run(self, capability: str, /, **request: Any) -> bool:
+    def should_run(self, _capability: str, /, **_request: Any) -> bool:
         """Policy hook: decline a supported concrete request before execution."""
         return True
 

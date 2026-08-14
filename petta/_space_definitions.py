@@ -267,7 +267,7 @@ def _install_define_locked(space: Any, fn: types.FunctionType):
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
     # is ordinary MeTTa, visible in .source(), never a hidden rule.
-    body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns, params)
+    body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns)
     head = Expr([Sym(name), *(patterns.get(p, Var(p)) for p in params)])
     equation = Expr([Sym("="), head, body])
     dispatcher = twin_dispatcher(fn)
@@ -414,7 +414,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         )
 
 
-def _guard_against(body: Atom, earlier: list, patterns: dict, params: list) -> Atom:
+def _guard_against(body: Atom, earlier: list, patterns: dict) -> Atom:
     """The current clause's body, declining every earlier literal head.
 
     For each earlier clause, the inputs it claims are the positions it fixed

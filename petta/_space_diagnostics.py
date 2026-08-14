@@ -64,7 +64,7 @@ def _stored_explanation(atom: Expr, name: str, stored: list[Expr]) -> str:
     return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
 
 
-def _unstored_explanation(space: Any, atom: Expr, name: str) -> str:
+def _unstored_explanation(space: Any, name: str) -> str:
     if space.is_function(name):
         return (
             f"no {name} atoms are stored here; {name} is a function, so its "
@@ -92,4 +92,4 @@ def explain_no_match(space: Any, pattern: Any) -> str:
     stored = _stored_with_head(space, head.name)
     if stored:
         return _stored_explanation(atom, head.name, stored)
-    return _unstored_explanation(space, atom, head.name)
+    return _unstored_explanation(space, head.name)
