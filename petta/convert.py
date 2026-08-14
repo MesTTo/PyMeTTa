@@ -59,6 +59,11 @@ _CONSTRUCTORS: dict[str, tuple[type, _Registration]] = {}
 _TYPE_OWNERS: dict[str, type] = {}
 
 
+def _is_plain_class(value: object) -> bool:
+    """Whether value is a class rather than a parameterized annotation."""
+    return isinstance(value, type) and typing.get_origin(value) is None
+
+
 def _class_label(cls: type) -> str:
     """One class label that still distinguishes a same-name redefinition."""
     return f"{cls.__module__}.{cls.__qualname__} (class object {id(cls):#x})"
@@ -464,7 +469,7 @@ def build(atom: Atom, cls: Any = None) -> Any:
     list[Colour] rebuilds each element, Annotated unwraps. Anything else
     stays an atom because no registered reverse exists for that structure.
     """
-    if cls is not None and not isinstance(cls, type):
+    if cls is not None and not _is_plain_class(cls):
         return _build_annotated(atom, cls)
     if isinstance(atom, Gnd):
         return decode(atom)

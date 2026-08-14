@@ -194,6 +194,13 @@ def test_parameterized_field_annotations_rebuild_nested_enums():
     assert isinstance(rebuilt.favourite, Color)
 
 
+def test_plain_class_detection_never_mistakes_a_generic_alias_for_a_class():
+    from petta.convert import _is_plain_class
+
+    assert _is_plain_class(list) is True
+    assert _is_plain_class(list[Color]) is False
+
+
 def test_enum_typed_field_uses_the_enum_in_constructor_declarations():
     class ConversionShade(Enum):
         RED = 1

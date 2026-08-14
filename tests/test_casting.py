@@ -94,6 +94,11 @@ def test_the_module_function_takes_the_space_first(m):
     assert issubclass(CastError, TypeError)
 
 
+def test_parameterized_generic_is_not_accepted_as_a_cast_class(m):
+    with pytest.raises(TypeError, match="cast target must be"):
+        m.cast([1, 2, 3], list[int])
+
+
 def test_ground_atoms_narrow_to_their_python_values(m):
     assert m.cast(Gnd(3), "Number") == 3
     assert isinstance(m.cast(Gnd(3), int), int)

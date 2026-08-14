@@ -3,7 +3,7 @@ name = "petta-workspace"
 version = "0.0.0"
 description = "Development workspace configuration; the installable package is built by setup.py at the repository root"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "janus-swi>=1.5.2",
     "pytest>=8.4.2",
@@ -41,7 +41,7 @@ pythonpath = ["."]
 # this file it came from outside the tree and every machine disagreed.
 # --------------------------------------------------------------------------
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 extend-exclude = ["HE", "examples/**/_common.py"]
 
@@ -85,7 +85,7 @@ known-first-party = ["petta"]
 # `python.petta` alias exists; without it mypy refuses to start at all.
 # --------------------------------------------------------------------------
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 files = ["petta"]
 explicit_package_bases = true
 mypy_path = "."
@@ -100,10 +100,8 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 # Optional integrations that are not installed in every environment.
 # follow_imports = "skip" matters as much as ignore_missing_imports here:
-# python_version above is 3.10 so that 3.11+ and 3.12+ calls in our own code
-# are caught, but that same setting makes mypy reject third-party stubs
-# written in newer syntax (numpy's use PEP 695 `type` statements), and a
-# stub syntax error aborts the whole run before it checks anything.
+# Third-party stubs may use syntax newer than the declared floor. Skipping
+# their bodies keeps this check focused on petta's own typed surface.
 module = [
     "janus_swi.*", "numpy.*", "faiss.*", "array_api_compat.*",
     "websocket.*", "pandas.*", "polars.*", "torch.*", "duckdb.*",

@@ -291,12 +291,17 @@ def test_token_rendering_distinguishes_ground_links_from_templates():
 _LIVE_URL = os.environ.get("PETTA_DAS_URL", "http://localhost:40009")
 
 
-@pytest.mark.skipif(
-    not DAS(_LIVE_URL, timeout=1.0).ping(),
-    reason=f"no DAS command router answering at {_LIVE_URL}",
-)
-def test_live_router_round_trip():
-    das = DAS(_LIVE_URL, timeout=20.0)
+@pytest.fixture(scope="module")
+def live_das():
+    pytest.importorskip("websocket")
+    das = DAS(_LIVE_URL, timeout=1.0)
+    if not das.ping():
+        pytest.skip(f"no DAS command router answering at {_LIVE_URL}")
+    return DAS(_LIVE_URL, timeout=20.0)
+
+
+def test_live_router_round_trip(live_das):
+    das = live_das
     answers = das.query(S.Similarity(V.a, V.b), max_answers=5)
     assert answers, "the loaded knowledge base answered nothing"
     assert all(answer.handles for answer in answers)

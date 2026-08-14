@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from .atoms import Atom, Gnd, Sym, encode, from_wire, parse
+from .convert import _is_plain_class
 from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
@@ -51,7 +52,7 @@ def _type_atom(type_: Any) -> Atom:
         return type_
     if isinstance(type_, str):
         return parse(type_)
-    if isinstance(type_, type):
+    if _is_plain_class(type_):
         for spelled, name in _PYTHON_SPELLINGS:
             if type_ is spelled:
                 return Sym(name)
