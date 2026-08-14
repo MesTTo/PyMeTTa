@@ -10,6 +10,8 @@
 % Guarantees:
 %   - Functions defined by the traced source and calls from hyperpose workers
 %     produce events [tested 2026-08-14: tracer].
+%   - Traced get-type extensions report their public function name
+%     [tested 2026-08-15: tracer:type_extensions_keep_the_public_name].
 % Owns:
 %   - metta_trace_source/4 removes every petta_tracer wrapper and state fact,
 %     including after an event-limit error [tested 2026-08-14:
@@ -36,8 +38,9 @@
 %which keeps a trace about the program, not the engine, and keeps the
 %wrap away from library predicates a weak import makes visible.
 metta_trace_target(Module:F/A) :-
-    arity(F, A),
-    ( fun_in(Module, F) ; Module = user ),
+    arity(LogicalF, A),
+    ( fun_in(Module, LogicalF) ; Module = user ),
+    compiled_function_name(LogicalF, F),
     current_predicate(Module:F/A),
     functor(Head, F, A),
     \+ predicate_property(Module:Head, imported_from(_)),
@@ -47,9 +50,10 @@ metta_trace_target(Module:F/A) :-
 
 metta_trace_wrap(Module:F/A) :-
     functor(Head, F, A),
+    compiled_function_name(LogicalF, F),
     In is A - 1,
     wrap_predicate(Module:Head, petta_tracer, Closure,
-                   metta_trace_call(F, In, Head, Closure)).
+                   metta_trace_call(LogicalF, In, Head, Closure)).
 
 metta_trace_unwrap(Module:F/A) :-
     catch(unwrap_predicate(Module:F/A, petta_tracer), _, true).
@@ -65,9 +69,10 @@ metta_trace_wrap_once(Target) :-
 metta_on_function_changed(F) :-
     with_mutex('$petta_trace_state',
                ( metta_trace_session
-                 -> findall(Target,
+                 -> compiled_function_name(F, Predicate),
+                    findall(Target,
                             ( metta_trace_target(Target),
-                              Target = _Module:F/_Arity ),
+                              Target = _Module:Predicate/_Arity ),
                             Targets0),
                     sort(Targets0, Targets),
                     maplist(metta_trace_wrap_once, Targets)

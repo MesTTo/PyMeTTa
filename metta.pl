@@ -1,6 +1,9 @@
 % Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
 %   imports, function registration, and named-space execution context.
 % Guarantees:
+%   - get-type/2 returns each derived type once, while has_type/2 uses one
+%     witness for a fixed expected type [tested 2026-08-15:
+%     metta_type_answers, translator_typed_checks].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
@@ -242,21 +245,77 @@ type_declaration_in(Module, X, T) :- (   match(Module, [':', X, T], T, _)
 get_function_type([F|Args], T) :- nonvar(F),
                                   catch('&self'(':', F, [->|Ts]), E, recover_failure(E)),
                                   append(As,[T],Ts),
-                                  maplist('get-type', Args, As).
+                                  maplist(has_type_in(user), Args, As).
 get_function_type_in(Module, [F|Args], T) :- Module \== user,
                                              nonvar(F),
                                              type_declaration_in(Module, F, [->|Ts]),
                                              append(As,[T],Ts),
-                                             maplist(Module:'get-type', Args, As).
+                                             maplist(has_type_in(Module), Args, As).
 
-:- dynamic 'get-type'/2.
-%A type query executed in a named space reads the scoped MeTTa module once,
-%then keeps that module through the candidate loop. Translation, evaluation,
-%and host calls all establish the same scoped state through with_metta_module/2.
+:- dynamic get_type_rule/2.
+%get-type is the user-facing set boundary. Candidate derivations may overlap,
+%for example an expression can be typed both element-wise and by an explicit
+%declaration. Collecting candidates and retaining each first occurrence removes
+%those duplicate answers without changing the declared type order.
+%Internal checks call has_type/2 instead: a fixed expected type stops at its
+%first witness, while an unbound shared type variable still enumerates the
+%distinct choices needed to make later arguments consistent.
 'get-type'(X, T) :- current_metta_module(Module),
-                    ( ( Module == user -> get_type_candidate(X, T)
-                                         ; get_type_candidate_in(Module, X, T) )
-                      *-> true ; T = '%Undefined%' ).
+                    type_answers(Module, X, Types),
+                    member(T, Types).
+
+has_type(X, T) :- current_metta_module(Module),
+                  has_type_in(Module, X, T).
+
+has_type_in(Module, X, T) :-
+    ( nonvar(T)
+      -> ( T == '%Undefined%'
+           -> \+ once(type_candidate_in(Module, X, _))
+            ; once(type_candidate_in(Module, X, T)) )
+       ; type_answers(Module, X, Types),
+         member(T, Types) ).
+
+type_answers(Module, X, Types) :-
+    findall(Type, type_candidate_in(Module, X, Type), Candidates),
+    unique_type_answers(Candidates, Unique),
+    ( Unique == [] -> Types = ['%Undefined%'] ; Types = Unique ).
+
+%Canonical keys make alpha-equivalent polymorphic types equal. The two stable
+%sorts remove repeats in O(n log n) work and then restore derivation order,
+%which is observable through collapse.
+unique_type_answers(Candidates, Unique) :-
+    type_answer_pairs(Candidates, 0, Pairs),
+    keysort(Pairs, ByType),
+    first_type_per_key(ByType, Indexed),
+    keysort(Indexed, ByIndex),
+    pairs_values(ByIndex, Unique).
+
+type_answer_pairs([], _, []).
+type_answer_pairs([Type|Types], Index, [Key-(Index-Type)|Pairs]) :-
+    copy_term(Type, Key),
+    numbervars(Key, 0, _),
+    Next is Index + 1,
+    type_answer_pairs(Types, Next, Pairs).
+
+first_type_per_key([], []).
+first_type_per_key([Key-Indexed|Pairs], [Indexed|Unique]) :-
+    skip_type_key(Pairs, Key, Rest),
+    first_type_per_key(Rest, Unique).
+
+skip_type_key([Other-_|Pairs], Key, Rest) :- Other == Key, !,
+                                             skip_type_key(Pairs, Key, Rest).
+skip_type_key(Pairs, _, Pairs).
+
+type_candidate_in(user, X, T) :- get_type_candidate(X, T).
+type_candidate_in(Module, X, T) :- Module \== user,
+                                   get_type_candidate_in(Module, X, T).
+type_candidate_in(Module, X, T) :- get_type_rule_in(Module, X, T).
+
+get_type_rule_in(Module, X, T) :- Module \== user,
+                                  fun_in(Module, 'get-type'),
+                                  Module:get_type_rule(X, T).
+get_type_rule_in(_, X, T) :- get_type_rule(X, T).
+
 get_type_candidate(X, 'Number')   :- number(X), !.
 get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
@@ -270,7 +329,7 @@ get_type_candidate(X, T) :- atomic(X), \+ atom(X),
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
-                            maplist('get-type', X, T).
+                            maplist(has_type_in(user), X, T).
 get_type_candidate(X, T) :- catch('&self'(':', X, T), E, recover_failure(E)),
                             acyclic_term(T).
 
@@ -284,7 +343,7 @@ get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
                                        is_list(X),
-                                       maplist(Module:'get-type', X, T).
+                                       maplist(has_type_in(Module), X, T).
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is

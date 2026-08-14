@@ -3,6 +3,8 @@
 % Guarantees:
 %   - Native spaces preserve scalar atoms and expressions as distinct values
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
+%   - Removing one scoped get-type rule keeps sibling extension rules visible
+%     [tested 2026-08-15: spaces_type_extensions].
 %   - Dynamic function registration is atomic and failed source loads remove
 %     its asserted compiler state [tested 2026-08-14:
 %     spaces_registration_atomicity, filereader_source_rollback].
@@ -61,8 +63,9 @@ function_still_defined(F) :- ( fun_in(Module, F) ; Module = user ),
 %Whether this module itself holds a clause for a function. Inherited clauses
 %do not count: clause/3 sees user's clauses through module inheritance, and
 %counting those would keep a module's claim alive on another space's strength.
-module_owns_function(Module, F) :- current_predicate(Module:F/Arity),
-                                   functor(Head, F, Arity),
+module_owns_function(Module, F) :- compiled_function_name(F, Predicate),
+                                   current_predicate(Module:Predicate/Arity),
+                                   functor(Head, Predicate, Arity),
                                    clause(Module:Head, _, Ref),
                                    clause_property(Ref, module(Module)),
                                    !.

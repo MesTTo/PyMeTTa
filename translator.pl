@@ -6,6 +6,8 @@
 %     lookups finish [source 2026-08-14:
 %     https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl].
 % Guarantees:
+%   - User get-type equations extend the deduplicating type boundary through
+%     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
 %   - Branch-return merging preserves shared and pre-bound variables while
 %     restoring private tail returns [tested 2026-08-14:
 %     translator_branch_returns].
@@ -97,12 +99,19 @@ translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                   append(GoalsBody,[Goal],FinalGoals), append(Args1,ExtraArgs,HeadArgs)
                                                ; FinalGoals= GoalsBody , HeadArgs = Args1, Out = ExpOut ),
                                                append(HeadArgs, [Out], FinalArgs),
-                                               Head =.. [F|FinalArgs],
+                                               compiled_function_name(F, Predicate),
+                                               Head =.. [Predicate|FinalArgs],
                                                length(FinalArgs, CompiledArity),
                                                register_arity(F, CompiledArity),
                                                append(GoalsPrefix, FinalGoals, Goals),
                                                goals_list_to_conj(Goals, BodyConj0),
                                                merge_branch_returns(Head, BodyConj0, BodyConj).
+
+%get-type owns the answer-stream boundary. User equations therefore compile
+%behind that boundary instead of becoming sibling clauses that could bypass
+%its deduplication. Every other function keeps its source name.
+compiled_function_name('get-type', get_type_rule) :- !.
+compiled_function_name(F, F).
 
 %Record atoms compiled as plain symbol heads together with where they were compiled:
 %a stored definition can be recompiled when the function arrives late, an already
@@ -609,7 +618,7 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     %The argument checks above keep their soft cut, because a shared type
     %variable there does have to backtrack to find a consistent assignment.
     ( (OutType == '%Undefined%' ; OutType == '_' ; OutType == 'Atom')
-       -> Extra = [] ; Extra = [('get-type'(Out, OutType) -> true ; 'get-metatype'(Out, OutType))] ),
+       -> Extra = [] ; Extra = [(has_type(Out, OutType) -> true ; 'get-metatype'(Out, OutType))] ),
     build_call_or_partial(Fun, AVsTmp, Out, InnerTmp, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
 
@@ -627,7 +636,7 @@ translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs]) :-
     ; translate_expr_dl(A, Goals0, AfterTranslation, AV),
       ( (T == '%Undefined%' ; T == '_')
         -> AfterArg = AfterTranslation
-      ; AfterTranslation = [('get-type'(AV, T) *-> true ; 'get-metatype'(AV, T))|AfterArg] ) ),
+      ; AfterTranslation = [(has_type(AV, T) *-> true ; 'get-metatype'(AV, T))|AfterArg] ) ),
     translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs).
 
 %Handle data list:
