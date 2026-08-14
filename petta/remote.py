@@ -12,6 +12,9 @@ Guarantees:
   - serve compares Bearer credentials with hmac.compare_digest before
     consulting the authorization callback [tested
     test_bearer_token_uses_constant_time_comparison]
+  - connect refuses non-HTTP URLs and refuses credentials over plain HTTP
+    [tested test_remote_connect_refuses_non_http_urls,
+    test_remote_connect_refuses_credentials_over_http]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,10 +26,11 @@ from __future__ import annotations
 import hmac
 import json
 import threading
+from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Iterator, Mapping
-from urllib.request import Request, urlopen
 
+from ._network import HTTPEndpoint
 from .atoms import Atom, from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
@@ -103,8 +107,19 @@ def connect(
     deployment needs (an API key, a tenant id), and ssl_context is
     Python's own ssl.SSLContext for https urls, certificate pinning
     included, so the transport composes with whatever security the
-    serving side asks for."""
-    base = url.rstrip("/")
+    serving side asks for. Only absolute http and https URLs are accepted.
+    Credentials require https."""
+    endpoint = HTTPEndpoint(
+        url,
+        subject="remote engine",
+        error_type=PettaError,
+        ssl_context=ssl_context,
+    )
+    has_credentials = token is not None or any(
+        name.lower() == "authorization" for name in headers or ()
+    )
+    if endpoint.scheme != "https" and has_credentials:
+        raise PettaError("remote engine credentials require an https URL")
     sent = {"content-type": "application/json"}
     if token is not None:
         sent["authorization"] = f"Bearer {token}"
@@ -112,31 +127,34 @@ def connect(
         sent.update(headers)
 
     def transport(operation: str, payload: dict) -> dict:
-        from urllib.error import HTTPError
-
-        request = Request(
-            f"{base}/{operation}",
-            data=json.dumps(payload).encode("utf-8"),
-            headers=dict(sent),
-            method="POST",
-        )
         try:
-            with urlopen(request, timeout=timeout, context=ssl_context) as response:
-                answer = json.loads(response.read().decode("utf-8"))
-        except HTTPError as refusal:
-            # The remote's refusal travels as a JSON error body; read it,
-            # so the caller gets the remote engine's own words, and close
-            # the response it rides on.
-            try:
-                body = refusal.read().decode("utf-8", "replace")
-            finally:
-                refusal.close()
-            try:
-                answer = json.loads(body)
-            except ValueError:
-                raise PettaError(
-                    f"the remote engine refused {operation}: {body[:200]}"
-                ) from refusal
+            status, reason, raw = endpoint.request(
+                "POST",
+                operation,
+                body=json.dumps(payload).encode("utf-8"),
+                headers=sent,
+                timeout=timeout,
+            )
+        except (HTTPException, OSError) as exc:
+            raise PettaError(
+                f"the remote engine request {operation} failed: {exc}"
+            ) from exc
+        try:
+            body = raw.decode("utf-8")
+            answer = json.loads(body)
+        except (UnicodeDecodeError, ValueError) as exc:
+            detail = raw.decode("utf-8", "replace")[:200]
+            raise PettaError(
+                f"the remote engine answered {status} {reason} with invalid JSON: "
+                f"{detail}"
+            ) from exc
+        if status >= 400:
+            detail = answer.get("error", body) if isinstance(answer, dict) else body
+            raise PettaError(f"the remote engine refused {operation}: {detail}")
+        if not isinstance(answer, dict):
+            raise PettaError(
+                f"the remote engine returned {type(answer).__name__}, expected an object"
+            )
         if "error" in answer:
             raise PettaError(f"the remote engine refused {operation}: {answer['error']}")
         return answer

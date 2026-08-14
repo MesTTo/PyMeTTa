@@ -13,7 +13,6 @@ Open Obligations:
 
 import json
 import os
-from io import BytesIO
 
 import pytest
 
@@ -168,33 +167,34 @@ def test_ping_is_false_when_nothing_listens():
     assert DAS("http://127.0.0.1:9", timeout=0.5).ping() is False
 
 
-def test_plain_http_error_body_is_closed_after_reading(monkeypatch):
-    from urllib.error import HTTPError
+@pytest.mark.parametrize(
+    ("url", "scheme"),
+    [
+        ("file:///etc/passwd", "file"),
+        ("ftp://example.test/data", "ftp"),
+        ("data:text/plain,secret", "data"),
+        ("example.test/api", "<missing>"),
+    ],
+)
+def test_das_refuses_non_http_urls(url, scheme):
+    with pytest.raises(DASError, match=scheme):
+        DAS(url)
 
-    import petta.das as das_module
 
-    class TrackedHTTPError(HTTPError):
-        was_closed = False
+def test_das_accepts_http_and_https_urls():
+    assert DAS("http://example.test/api/")._base == "http://example.test/api"
+    assert DAS("https://example.test/api/")._base == "https://example.test/api"
 
-        def close(self):
-            self.was_closed = True
-            super().close()
 
-    failure = TrackedHTTPError(
-        "http://scripted/probe",
-        500,
-        "failure",
-        {},
-        BytesIO(b"router failure"),
+def test_plain_http_error_body_is_reported(monkeypatch):
+    das = DAS("http://scripted")
+    monkeypatch.setattr(
+        type(das._endpoint),
+        "request",
+        lambda self, *args, **kwargs: (500, "failure", b"router failure"),
     )
-
-    def refuse(request, timeout):
-        raise failure
-
-    monkeypatch.setattr(das_module, "urlopen", refuse)
     with pytest.raises(DASError, match="500.*router failure"):
-        DAS("http://scripted")._request("GET", "/probe")
-    assert failure.was_closed
+        das._request("GET", "/probe")
 
 
 def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):

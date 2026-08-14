@@ -19,6 +19,9 @@ under "data", and answer handles without MeTTa text, verified against a
 live das-cli deployment. The dialect negotiates once per connection off
 the server's own 400 naming the missing legacy fields; anything else
 stays loud.
+Guarantees:
+  - DAS refuses non-HTTP endpoint URLs during construction [tested
+    test_das_refuses_non_http_urls]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,10 +32,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from http.client import HTTPException
 from typing import Any, ClassVar
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
+from ._network import HTTPEndpoint
 from .atoms import Atom, Expr, Gnd, Sym, Var, parse
 from .errors import PettaError
 from .foreign import SpaceProvider
@@ -155,7 +158,10 @@ class DAS:
     """
 
     def __init__(self, url: str = "http://localhost:40009", timeout: float = 10.0):
-        self._base = url.rstrip("/")
+        self._endpoint = HTTPEndpoint(
+            url, subject="DAS command router", error_type=DASError
+        )
+        self._base = self._endpoint.url
         self._timeout = float(timeout)
         self._dialect: str | None = None
 
@@ -163,27 +169,23 @@ class DAS:
 
     def _request(self, method: str, path: str, body: dict | None = None) -> Any:
         data = None if body is None else json.dumps(body).encode("utf8")
-        request = Request(
-            self._base + path,
-            data=data,
-            method=method,
-            headers={"Content-Type": "application/json"} if data else {},
-        )
         try:
-            with urlopen(request, timeout=self._timeout) as response:
-                text = response.read().decode("utf8")
-        except HTTPError as exc:
-            try:
-                detail = exc.read().decode("utf8", "replace")
-            finally:
-                exc.close()
+            status, _reason, raw = self._endpoint.request(
+                method,
+                path,
+                body=data,
+                headers={"Content-Type": "application/json"} if data else None,
+                timeout=self._timeout,
+            )
+        except (HTTPException, OSError) as exc:
             raise DASError(
-                f"DAS {method} {path} answered {exc.code}: {detail}"
+                f"no DAS command router at {self._base}: {exc}"
             ) from exc
-        except URLError as exc:
+        text = raw.decode("utf8", "replace" if status >= 400 else "strict")
+        if status >= 400:
             raise DASError(
-                f"no DAS command router at {self._base}: {exc.reason}"
-            ) from exc
+                f"DAS {method} {path} answered {status}: {text}"
+            )
         if not text:
             return None
         try:

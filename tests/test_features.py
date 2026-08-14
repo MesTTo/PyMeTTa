@@ -444,7 +444,7 @@ def test_enum_members_match_in_metta(m):
     assert m.run("!(get-type Storm)") == [[S.MatchingMood]]
 
 
-def test_remote_auth_token_and_hook(metta):
+def test_remote_auth_token_and_hook_requires_tls(metta):
     from petta import remote
     from petta.errors import PettaError
 
@@ -457,18 +457,10 @@ def test_remote_auth_token_and_hook(metta):
         authorize=lambda headers: headers.get("x-tenant") == "acme",
     )
     try:
-        good = remote.connect(
-            server.url, token="s3cret", headers={"x-tenant": "acme"}
-        )
-        assert list(remote.RemoteSpace(good, served.space_name).atoms())
-        with pytest.raises(PettaError):
-            bad_token = remote.connect(
-                server.url, token="wrong", headers={"x-tenant": "acme"}
+        with pytest.raises(PettaError, match="credentials require an https URL"):
+            remote.connect(
+                server.url, token="s3cret", headers={"x-tenant": "acme"}
             )
-            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
-        with pytest.raises(PettaError):
-            no_tenant = remote.connect(server.url, token="s3cret")
-            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
     finally:
         server.close()
         served.drop()
@@ -480,6 +472,7 @@ def test_remote_serves_tls(metta, tmp_path):
     import subprocess
 
     from petta import remote
+    from petta.errors import PettaError
 
     if shutil.which("openssl") is None:
         pytest.skip("openssl is not installed")
@@ -497,13 +490,35 @@ def test_remote_serves_tls(metta, tmp_path):
     served = metta.fresh_space()
     served.add(S.tls(S.ok))
     server = remote.serve(
-        metta, spaces=[served.space_name], ssl_context=server_context
+        metta,
+        spaces=[served.space_name],
+        token="s3cret",
+        authorize=lambda headers: headers.get("x-tenant") == "acme",
+        ssl_context=server_context,
     )
     try:
         assert server.url.startswith("https://")
-        transport = remote.connect(server.url, ssl_context=client_context)
+        transport = remote.connect(
+            server.url,
+            token="s3cret",
+            headers={"x-tenant": "acme"},
+            ssl_context=client_context,
+        )
         atoms = list(remote.RemoteSpace(transport, served.space_name).atoms())
         assert atoms == [expr(S.tls, S.ok)]
+        with pytest.raises(PettaError, match="not authorized"):
+            bad_token = remote.connect(
+                server.url,
+                token="wrong",
+                headers={"x-tenant": "acme"},
+                ssl_context=client_context,
+            )
+            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
+        with pytest.raises(PettaError, match="not authorized"):
+            no_tenant = remote.connect(
+                server.url, token="s3cret", ssl_context=client_context
+            )
+            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
     finally:
         server.close()
         served.drop()
