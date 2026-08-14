@@ -93,6 +93,18 @@ def _has_var(value: Any) -> bool:
     return False
 
 
+def _render_token_grounded(value: Gnd) -> str:
+    plain = value.value
+    if isinstance(plain, str):
+        return f'NODE Symbol "{plain}"'
+    if isinstance(plain, (int, float)) and not isinstance(plain, bool):
+        return f"NODE Symbol {plain}"
+    raise DASError(
+        f"{value!r} has no DAS token spelling; use symbols, strings, "
+        f"numbers, variables, and expressions"
+    )
+
+
 def _render_tokens(value: Any) -> str:
     """The same pattern in DAS token-vector spelling, the legacy query
     syntax the query agent walks as a prefix stack machine: a link with
@@ -107,15 +119,7 @@ def _render_tokens(value: Any) -> str:
     if isinstance(value, Sym):
         return f"NODE Symbol {value.name}"
     if isinstance(value, Gnd):
-        plain = value.value
-        if isinstance(plain, str):
-            return f'NODE Symbol "{plain}"'
-        if isinstance(plain, (int, float)) and not isinstance(plain, bool):
-            return f"NODE Symbol {plain}"
-        raise DASError(
-            f"{value!r} has no DAS token spelling; use symbols, strings, "
-            f"numbers, variables, and expressions"
-        )
+        return _render_token_grounded(value)
     if isinstance(value, Expr):
         head = "LINK_TEMPLATE" if _has_var(value) else "LINK"
         parts = [_render_tokens(item) for item in value]
