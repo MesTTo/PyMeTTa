@@ -13,6 +13,8 @@
 %     return value [tested 2026-08-14: translator_typed_currying].
 %   - Empty special-form inputs have explicit identity or failure semantics
 %     [tested 2026-08-14: translator_empty_forms].
+%   - Dynamic and compiled calls surface the same runtime errors
+%     [tested 2026-08-14: translator_evaluation_errors].
 % Open Obligations:
 %   To Do: Resolve the remaining translator findings in ai-prolog-review.md.
 %   Hacks: None
@@ -132,11 +134,8 @@ reduce([F|Args], Out) :- nonvar(F), atom(F),
                                                ; current_predicate(Module:F/Arity) ),
                               \+ (current_op(_, _, F), Arity =< 2)
                               -> resolve_memoization(F, Args, Out, Goal),
-                                 %Keep the recovery handler inside catch/3. A
-                                 %catch_recover/2 wrapper adds a Prolog call to
-                                 %every dynamic reduction even when none throws.
                                  ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
-                                 catch(call(CallGoal), E, recover_failure(E))
+                                 call(CallGoal)
                             ; incomplete_application_kind(F, Arity, partial)
                               -> Out = partial(F,Args)
                             ; throw_function_overapplication(F, N) )
