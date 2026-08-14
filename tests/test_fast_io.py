@@ -7,10 +7,13 @@ Open Obligations:
 """
 
 import re
+from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
 from petta import EngineError, S, V, backend_info, val
+from petta import space as space_module
 
 
 @pytest.fixture()
@@ -102,6 +105,93 @@ def test_save_refuses_symbols_without_round_trip_text(
     with pytest.raises(ValueError, match="symbol.*round-trip text spelling"):
         m.save(path, format=format)
     assert not path.exists()
+
+
+@pytest.mark.parametrize("format", ["metta", "fast"])
+@pytest.mark.parametrize("suffix", [".data", ".data.gz"])
+def test_save_failure_preserves_existing_file(
+    m, tmp_path, monkeypatch, format, suffix
+):
+    target = tmp_path / f"knowledge{suffix}"
+    target.write_bytes(b"old data stays\n")
+    m.add(S.new(S.data))
+
+    def fail_replace(source, destination):
+        assert Path(source).parent == target.parent
+        assert Path(source) != target
+        assert Path(destination) == target
+        raise OSError("injected replacement failure")
+
+    monkeypatch.setattr(space_module.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="injected replacement failure"):
+        m.save(target, format=format)
+
+    assert target.read_bytes() == b"old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+@pytest.mark.parametrize("format", ["metta", "fast"])
+def test_save_validation_preserves_existing_file(m, tmp_path, format):
+    target = tmp_path / "knowledge.data"
+    target.write_bytes(b"old data stays\n")
+    m.add(S.holds(val(object())))
+
+    with pytest.raises(ValueError, match="live Python object"):
+        m.save(target, format=format)
+
+    assert target.read_bytes() == b"old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatch):
+    target = tmp_path / "knowledge.metta"
+    target.write_text("old data stays\n")
+    m.add(S.first(S.value), S.second(S.value))
+    real_open = space_module._open_maybe_gz
+
+    @contextmanager
+    def failing_open(path, mode):
+        assert Path(path) != target
+        with real_open(path, mode) as handle:
+            writes = 0
+
+            class FailingHandle:
+                def write(self, text):
+                    nonlocal writes
+                    writes += 1
+                    if writes == 2:
+                        raise OSError("injected write failure")
+                    return handle.write(text)
+
+            yield FailingHandle()
+
+    monkeypatch.setattr(space_module, "_open_maybe_gz", failing_open)
+    with pytest.raises(OSError, match="injected write failure"):
+        m.save(target)
+
+    assert target.read_text() == "old data stays\n"
+    assert list(tmp_path.glob(".petta-save-*")) == []
+
+
+def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):
+    target = tmp_path / "knowledge.metta"
+    m.add(S.synced(S.value))
+    events = []
+    real_replace = space_module.os.replace
+
+    def record_fsync(descriptor):
+        events.append("fsync")
+
+    def record_replace(source, destination):
+        events.append("replace")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(space_module.os, "fsync", record_fsync)
+    monkeypatch.setattr(space_module.os, "replace", record_replace)
+    assert m.save(target) == 1
+
+    assert events[0:2] == ["fsync", "replace"]
+    assert target.read_text() == "(synced value)\n"
 
 
 def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):

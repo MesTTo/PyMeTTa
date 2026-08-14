@@ -3,6 +3,16 @@ process's engine and offers running source, loading files, structured space
 edits, conjunctive queries with guards, bounds, scoped assumptions and
 preparation, evaluation, Python-backed operations, proof-tree derivations
 and a why-not diagnostic, all in PeTTa's own semantics.
+Guarantees:
+  - MeTTa.save preserves an existing target when validation, writing, or
+    replacement fails [tested test_save_validation_preserves_existing_file,
+    test_text_save_write_failure_preserves_existing_file,
+    test_save_failure_preserves_existing_file]
+  - MeTTa.save fsyncs a completed sibling file before replacing the target
+    [tested test_save_syncs_before_replacing]
+Owns:
+  - MeTTa.save owns its sibling temporary file and removes it after every
+    failed operation [tested test_save_failure_preserves_existing_file]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -11,7 +21,11 @@ Open Obligations:
 
 from __future__ import annotations
 
+import os
+import stat
+import tempfile
 import weakref
+from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from . import ops as _ops_module
@@ -56,15 +70,46 @@ def _to_atom(value: Any) -> Atom:
     return encode(value)
 
 
-def _open_maybe_gz(path: str, mode: str):
+def _open_maybe_gz(path: str | os.PathLike[str], mode: str):
     """Open a save or load path, gzip-compressed when it ends .gz. The
     engine side mirrors this with zlib's gzopen, so both readers accept
     either writer's files."""
-    if path.endswith(".gz"):
+    file = os.fspath(path)
+    if file.endswith(".gz"):
         import gzip
 
-        return gzip.open(path, mode)
-    return open(path, mode)
+        return gzip.open(file, mode)
+    return open(file, mode)
+
+
+def _temporary_sibling(target: Path) -> Path:
+    """Create an exclusive temporary file beside target.
+
+    A sibling keeps the later replacement on one filesystem. The suffix is
+    retained because .gz selects the compressed writer on both sides of the
+    bridge.
+    """
+    descriptor, name = tempfile.mkstemp(
+        prefix=".petta-save-", suffix=target.suffix, dir=target.parent
+    )
+    os.close(descriptor)
+    temporary = Path(name)
+    if target.exists():
+        temporary.chmod(stat.S_IMODE(target.stat().st_mode))
+    return temporary
+
+
+def _sync_and_replace(temporary: Path, target: Path) -> None:
+    """Make temporary durable, replace target, then persist the directory."""
+    with temporary.open("rb") as handle:
+        os.fsync(handle.fileno())
+    os.replace(temporary, target)
+    if os.name == "posix":
+        descriptor = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
 
 def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
@@ -287,41 +332,20 @@ class MeTTa:
         groups = [[from_wire(w) for w in group] for group in out]
         return groups, EngineProfile(samples, ticks, nodes)
 
-    def save(self, path: str, format: str = "metta") -> int:
+    def save(self, path: str | os.PathLike[str], format: str = "metta") -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
         format="fast"; answers how many. A path ending .gz writes gzip
         compressed in either format, and load and import! read it back
-        under the same name. Atoms carrying live host objects cannot
-        survive either file and are refused."""
+        under the same name. The completed sibling file is synced and then
+        atomically replaces the target, so a failed save leaves the old file
+        intact. Atoms carrying live host objects cannot survive either file
+        and are refused."""
         if format not in ("metta", "fast"):
             raise ValueError(
                 f"save format must be 'metta' or 'fast', got {format!r}"
             )
-        if format == "fast":
-            result = self._rt.apply_must(
-                "petta_py_fast_save", str(path), self._space
-            )
-            if not isinstance(result, list) or len(result) != 2:
-                raise EngineError(
-                    f"petta_py_fast_save returned an invalid result: {result!r}"
-                )
-            kind, value = result
-            if kind == "object":
-                atom = from_wire(value)
-                raise ValueError(
-                    f"{atom} carries a live Python object; a file cannot "
-                    f"hold it. Remove it, or persist its data explicitly."
-                )
-            if kind == "symbol":
-                _raise_unsafe_text_symbol(from_wire(value), "save")
-            if kind != "saved":
-                raise EngineError(
-                    f"petta_py_fast_save returned an unknown result: {result!r}"
-                )
-            return int(value)
         atoms = self.atoms()
-        lines = []
         for atom in atoms:
             if not _serializable(atom):
                 raise ValueError(
@@ -331,12 +355,42 @@ class MeTTa:
             bad = _unsafe_text_symbol(atom)
             if bad is not None:
                 _raise_unsafe_text_symbol(bad, "save")
-            lines.append(str(atom))
-        with _open_maybe_gz(str(path), "wt") as handle:
-            handle.write("\n".join(lines) + ("\n" if lines else ""))
-        return len(atoms)
+        target = Path(path)
+        temporary = _temporary_sibling(target)
+        try:
+            if format == "fast":
+                result = self._rt.apply_must(
+                    "petta_py_fast_save", str(temporary), self._space
+                )
+                if not isinstance(result, list) or len(result) != 2:
+                    raise EngineError(
+                        f"petta_py_fast_save returned an invalid result: {result!r}"
+                    )
+                kind, value = result
+                if kind == "object":
+                    atom = from_wire(value)
+                    raise ValueError(
+                        f"{atom} carries a live Python object; a file cannot "
+                        f"hold it. Remove it, or persist its data explicitly."
+                    )
+                if kind == "symbol":
+                    _raise_unsafe_text_symbol(from_wire(value), "save")
+                if kind != "saved":
+                    raise EngineError(
+                        f"petta_py_fast_save returned an unknown result: {result!r}"
+                    )
+                count = int(value)
+            else:
+                with _open_maybe_gz(temporary, "wt") as handle:
+                    for atom in atoms:
+                        handle.write(f"{atom}\n")
+                count = len(atoms)
+            _sync_and_replace(temporary, target)
+            return count
+        finally:
+            temporary.unlink(missing_ok=True)
 
-    def load(self, path: str) -> list[list[Atom]]:
+    def load(self, path: str | os.PathLike[str]) -> list[list[Atom]]:
         """Load a text program or an auto-detected trusted fast cache,
         gzip-compressed or plain; a .gz path sniffs and reads through
         the decompressed bytes."""
