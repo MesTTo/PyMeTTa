@@ -9,6 +9,9 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import gc
+import threading
+
 import pytest
 
 from petta import S, V, expr
@@ -49,6 +52,41 @@ def test_subscription_queue_mode_drains(m):
         assert sub.drain() == []
     finally:
         sub.cancel()
+
+
+def test_subscription_queue_is_thread_safe(m):
+    from petta.subscribe import atom_added
+
+    subscription = m.subscribe(S.concurrent(V.value))
+    complete = threading.Event()
+    collected = []
+
+    def produce(offset):
+        for value in range(offset, offset + 100):
+            atom_added(m.space_name, S.concurrent(value).to_wire())
+
+    def drain():
+        while not complete.is_set():
+            collected.extend(subscription.drain())
+        collected.extend(subscription.drain())
+
+    consumer = threading.Thread(target=drain)
+    producers = [
+        threading.Thread(target=produce, args=(start,))
+        for start in range(0, 400, 100)
+    ]
+    consumer.start()
+    for producer in producers:
+        producer.start()
+    for producer in producers:
+        producer.join()
+    complete.set()
+    consumer.join()
+    subscription.cancel()
+
+    assert sorted(event.bindings["value"].value for event in collected) == list(
+        range(400)
+    )
 
 
 def test_subscription_fires_for_engine_side_writes(m):
@@ -649,6 +687,14 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
     cursor.close()
     assert list(cursor) == []
     assert "exhausted" in repr(cursor)
+
+
+def test_abandoned_stream_warns_before_reaping(m):
+    m.add(S.edge(1, 2))
+    cursor = m.stream(S.edge(V.a, V.b))
+    with pytest.warns(ResourceWarning, match="open petta Cursor"):
+        del cursor
+        gc.collect()
 
 
 def test_stream_guard_and_per_pull_bounds(m):

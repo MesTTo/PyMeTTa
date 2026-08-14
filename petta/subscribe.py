@@ -4,6 +4,9 @@ synchronously, inside the write that caused it; without one, by queuing
 events for drain(). This is the actors-and-pub-sub reading of a space: the
 mailbox is the space, the subscription is the standing query that maintains
 itself, and the engine's own write hooks deliver.
+Guarantees:
+  - registry snapshots and queued event mutation are locked for
+    free-threaded Python [tested test_subscription_queue_is_thread_safe]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,7 +50,8 @@ class Subscription:
 
     def drain(self) -> list[Event]:
         """Every queued event, oldest first; the queue empties."""
-        events, self._queue = self._queue, []
+        with _REGISTRY_LOCK:
+            events, self._queue = self._queue, []
         return events
 
     def cancel(self) -> None:
@@ -67,7 +71,8 @@ class Subscription:
 
     def _deliver(self, event: Event) -> None:
         if self.callback is None:
-            self._queue.append(event)
+            with _REGISTRY_LOCK:
+                self._queue.append(event)
         else:
             self.callback(event)
 
@@ -81,9 +86,20 @@ def _sync_engine() -> None:
     """Tell the engine which spaces have watchers: writes anywhere else
     never cross the boundary. The set, not a flag, is the whole point."""
     if _RUNTIME is not None:
+        with _REGISTRY_LOCK:
+            spaces = sorted({s.space for s in _SUBSCRIPTIONS})
         _RUNTIME.must(
             "petta_py_subscriptions(Spaces)",
-            Spaces=sorted({s.space for s in _SUBSCRIPTIONS}),
+            Spaces=spaces,
+        )
+
+
+def _subscriptions_for(space: str) -> tuple[Subscription, ...]:
+    with _REGISTRY_LOCK:
+        return tuple(
+            subscription
+            for subscription in _SUBSCRIPTIONS
+            if subscription._active and subscription.space == space
         )
 
 
@@ -124,9 +140,7 @@ def subscribe(
 
 def _dispatch(action: str, space: str, wire: list) -> bool:
     atom = from_wire(wire)
-    for subscription in list(_SUBSCRIPTIONS):
-        if not subscription._active or subscription.space != space:
-            continue
+    for subscription in _subscriptions_for(space):
         if subscription.on != "both" and subscription.on != action:
             continue
         bindings = unify(subscription.pattern, atom)

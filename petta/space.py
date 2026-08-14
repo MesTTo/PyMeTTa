@@ -22,7 +22,9 @@ Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
   - Cursor owns one engine query until exhaustion, close, or finalization
-    [tested test_stream_agrees_with_query_and_closes_on_exhaustion]
+    and warns when finalization had to reap an open query [tested
+    test_stream_agrees_with_query_and_closes_on_exhaustion,
+    test_abandoned_stream_warns_before_reaping]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,6 +36,7 @@ from __future__ import annotations
 import os
 import stat
 import tempfile
+import warnings
 import weakref
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -202,11 +205,9 @@ class MeTTa:
         pooled name reused later must not deliver to the old life's
         watchers."""
         from .foreign import PROVIDERS, unregister_provider
-        from .subscribe import _SUBSCRIPTIONS
+        from .subscribe import _subscriptions_for
 
-        for subscription in [
-            s for s in _SUBSCRIPTIONS if s.space == self._space
-        ]:
+        for subscription in _subscriptions_for(self._space):
             subscription.cancel()
         if self._space in PROVIDERS:
             unregister_provider(self._rt, self._space)
@@ -1638,6 +1639,17 @@ class Cursor:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+    def __del__(self) -> None:
+        if (
+            not getattr(self, "_closed", True)
+            and not getattr(self, "_exhausted", True)
+        ):
+            warnings.warn(
+                "an open petta Cursor was discarded; use a with-block or close()",
+                ResourceWarning,
+                source=self,
+            )
 
     def __repr__(self) -> str:
         state = "closed" if self._closed else "exhausted" if self._exhausted else "open"

@@ -8,6 +8,7 @@ Open Obligations:
 """
 
 import asyncio
+import gc
 import inspect
 
 import pytest
@@ -211,6 +212,38 @@ def test_aio_exposes_every_plain_request_response_method():
         "inferences",
     ]
     assert derivation.parameters["depth"].default is None
+    assert list(inspect.signature(aio.AsyncMeTTa.run).parameters) == [
+        "self",
+        "source",
+        "using",
+        "timeout",
+        "inferences",
+        "capture",
+        "atomic",
+        "speculative",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.query).parameters) == [
+        "self",
+        "patterns",
+        "where",
+        "limit",
+        "timeout",
+        "inferences",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [
+        "self",
+        "target",
+        "timeout",
+        "inferences",
+        "capture",
+        "residuals",
+    ]
+    assert list(inspect.signature(aio.AsyncMeTTa.value).parameters) == [
+        "self",
+        "target",
+        "timeout",
+        "inferences",
+    ]
 
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
@@ -306,3 +339,63 @@ def test_aio_borrowed_space_refuses_after_owner_closes(metta):
 
     asyncio.run(go())
     metta.space("&aio-closed-borrower").drop()
+
+
+def test_aio_close_interrupts_work(m):
+    from petta import Interrupted, PettaError, aio
+
+    async def go():
+        am = await aio.connect(metta=m)
+        await am.run(
+            "(= (aio-close-spin $n) "
+            "(if (== $n 0) done (aio-close-spin (- $n 1))))"
+        )
+        running = asyncio.create_task(
+            am.eval("(aio-close-spin 2000000000)")
+        )
+        queued = asyncio.create_task(am.add(S.never_after_close(1)))
+        await asyncio.sleep(0.1)
+
+        await am.aclose(timeout=2.0)
+
+        with pytest.raises(Interrupted):
+            await running
+        with pytest.raises(PettaError, match="closed before this request ran"):
+            await queued
+        assert am._worker.thread is not None
+        assert not am._worker.thread.is_alive()
+        assert not m.query(S.never_after_close(V.value))
+
+    asyncio.run(go())
+
+
+def test_aio_leak_warns_and_stop_joins(m):
+    from petta import aio
+
+    async def open_connection():
+        am = await aio.connect(metta=m)
+        await am.count()
+        return am
+
+    am = asyncio.run(open_connection())
+    worker = am._worker
+    with pytest.warns(ResourceWarning, match="open AsyncMeTTa"):
+        del am
+        gc.collect()
+
+    worker.stop(timeout=2.0)
+    assert worker.thread is not None
+    assert not worker.thread.is_alive()
+
+
+def test_aio_shutdown_handler_stops_forgotten_workers(m):
+    from petta import aio
+
+    async def open_connection():
+        return await aio.connect(metta=m)
+
+    am = asyncio.run(open_connection())
+    thread = am._worker.thread
+    aio._shutdown_workers()
+    assert thread is not None
+    assert not thread.is_alive()
