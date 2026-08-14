@@ -23,6 +23,8 @@ Guarantees:
   - define accepts source-bearing Python functions and refuses callable
     objects before reading compiler metadata [tested
     test_define_refuses_callable_objects]
+  - query, prepare, and stream preserve distinct variable columns in first
+    appearance order [tested test_query_surfaces_share_column_order]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -183,6 +185,18 @@ def _stats_snapshot(
             )
         values.append(value)
     return values[0], values[1], values[2], values[3], values[4], values[5]
+
+
+def _column_names(atoms: Iterable[Atom]) -> list[str]:
+    """Distinct non-anonymous variables in first-appearance order."""
+    return list(
+        dict.fromkeys(
+            name
+            for atom in atoms
+            for name in variables(atom)
+            if name != "_"
+        )
+    )
 
 
 class MeTTa:
@@ -784,12 +798,7 @@ class MeTTa:
         if limit is not None and limit <= 0:
             raise ValueError(f"limit must be positive, got {limit}")
         atoms = [_to_atom(p) for p in patterns]
-        columns: list[str] = []
-        for a in atoms:
-            for name in variables(a):
-                # `_` is anonymous: fresh at every occurrence, never a column.
-                if name != "_" and name not in columns:
-                    columns.append(name)
+        columns = _column_names(atoms)
         wires = [a.to_wire() for a in atoms]
         if where is not None:
             pred = "petta_py_query_guarded_all"
@@ -1717,11 +1726,7 @@ class Cursor:
         inferences: int | None,
     ) -> None:
         atoms = [_to_atom(p) for p in patterns]
-        columns: list[str] = []
-        for a in atoms:
-            for name in variables(a):
-                if name != "_" and name not in columns:
-                    columns.append(name)
+        columns = _column_names(atoms)
         self.columns = tuple(columns)
         self._row_cls = _row_class(self.columns)
         limits = _limits(timeout, inferences)
@@ -1842,12 +1847,7 @@ class Prepared:
         self._where = where
         self._wires = [p.to_wire() for p in patterns]
         self._guard = None if where is None else where.to_wire()
-        columns: list[str] = []
-        for pattern in patterns:
-            for name in variables(pattern):
-                if name != "_" and name not in columns:
-                    columns.append(name)
-        self.columns = tuple(columns)
+        self.columns = tuple(_column_names(patterns))
 
     def solve(
         self,

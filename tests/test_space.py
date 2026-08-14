@@ -67,6 +67,18 @@ def test_query_projection_and_column(m):
     assert sorted(rows.column("years"), key=int) == [36, 41]
 
 
+def test_query_surfaces_share_column_order(m):
+    patterns = (
+        S.left(V.first, V.second, V.first, V._),
+        S.right(V.third, V.second),
+    )
+    expected = ("first", "second", "third")
+    assert m.query(*patterns).columns == expected
+    assert m.prepare(*patterns).columns == expected
+    with m.stream(*patterns) as cursor:
+        assert cursor.columns == expected
+
+
 def test_atoms_count_contains_remove_clear(m):
     m.add(S.item(1), S.item(2))
     assert m.count() == 2 and len(m) == 2
