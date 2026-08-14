@@ -52,6 +52,87 @@ def count_atoms(atom: Any) -> int:
     return count
 
 
+def _counter_observation(
+    name: str,
+    samples: Sequence[int] | None,
+) -> tuple[list[int] | None, int | None]:
+    sample_values = None if samples is None else list(samples)
+    if sample_values is None:
+        return None, None
+    if len(sample_values) < _COUNTER_SAMPLES:
+        raise ValueError(f"benchmark counter needs at least {_COUNTER_SAMPLES} samples")
+    if any(
+        not isinstance(value, int) or isinstance(value, bool) or value < 0
+        for value in sample_values
+    ):
+        raise ValueError(f"invalid inference samples for {name}: {sample_values!r}")
+    return sample_values, min(sample_values)
+
+
+def _compare_counter(
+    name: str,
+    expected: Mapping[str, Any],
+    sample_values: list[int] | None,
+    observed: int | None,
+) -> int | None:
+    baseline = expected.get("inferences")
+    if observed is None:
+        if baseline is not None:
+            raise AssertionError(
+                f"{name} is engine-free but its baseline has inferences {baseline!r}"
+            )
+        return None
+    if isinstance(baseline, bool) or not isinstance(baseline, int):
+        raise AssertionError(f"{name} baseline has invalid inferences {baseline!r}")
+    if observed > baseline:
+        raise AssertionError(
+            f"{name} inference regression: minimum of {sample_values!r} is "
+            f"{observed}, baseline {baseline}"
+        )
+    return observed
+
+
+def _instruction_observation(
+    name: str,
+    samples: Sequence[int],
+    noise_percent: float,
+) -> int:
+    invalid_samples = len(samples) < _COUNTER_SAMPLES or any(
+        not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        for value in samples
+    )
+    invalid_noise = (
+        isinstance(noise_percent, bool)
+        or not isinstance(noise_percent, (int, float))
+        or noise_percent < 0
+    )
+    if invalid_samples or invalid_noise:
+        raise ValueError(f"invalid instruction samples for {name}: {samples!r}")
+    return min(samples)
+
+
+def _compare_instructions(
+    name: str,
+    case: Mapping[str, Any],
+    samples: Sequence[int],
+    observed: int,
+) -> int:
+    baseline = case.get("instructions")
+    allowance = case.get("instruction_noise_percent")
+    if not isinstance(baseline, int) or baseline <= 0:
+        raise AssertionError(f"{name} has no valid instruction baseline")
+    if not isinstance(allowance, (int, float)) or allowance < 0:
+        raise AssertionError(f"{name} has no valid instruction noise allowance")
+    ceiling = baseline * (1.0 + allowance / 100.0)
+    if observed > ceiling:
+        raise AssertionError(
+            f"{name} instruction regression: minimum of {list(samples)!r} is "
+            f"{observed}, baseline {baseline} plus {allowance:g}% is "
+            f"{ceiling:.0f}"
+        )
+    return observed
+
+
 class BenchmarkBaseline:
     """Committed counter and advisory wall baselines for benchmark_case."""
 
@@ -104,18 +185,7 @@ class BenchmarkBaseline:
         """Record or compare one deterministic engine counter."""
         if operations <= 0:
             raise ValueError(f"benchmark operations must be positive, got {operations}")
-        sample_values = None if samples is None else list(samples)
-        if sample_values is not None:
-            if len(sample_values) < _COUNTER_SAMPLES:
-                raise ValueError(f"benchmark counter needs at least {_COUNTER_SAMPLES} samples")
-            if any(
-                not isinstance(value, int) or isinstance(value, bool) or value < 0
-                for value in sample_values
-            ):
-                raise ValueError(f"invalid inference samples for {name}: {sample_values!r}")
-            observed = min(sample_values)
-        else:
-            observed = None
+        sample_values, observed = _counter_observation(name, samples)
 
         if self.update:
             previous = self._document["benchmarks"].get(name, {})
@@ -128,21 +198,7 @@ class BenchmarkBaseline:
             return observed
 
         expected = self._case(name, unit=unit, operations=operations)
-        baseline = expected.get("inferences")
-        if observed is None:
-            if baseline is not None:
-                raise AssertionError(
-                    f"{name} is engine-free but its baseline has inferences {baseline!r}"
-                )
-            return None
-        if isinstance(baseline, bool) or not isinstance(baseline, int):
-            raise AssertionError(f"{name} baseline has invalid inferences {baseline!r}")
-        if observed > baseline:
-            raise AssertionError(
-                f"{name} inference regression: minimum of {sample_values!r} is "
-                f"{observed}, baseline {baseline}"
-            )
-        return observed
+        return _compare_counter(name, expected, sample_values, observed)
 
     def validate_case(self, name: str, *, unit: str, operations: int) -> None:
         """Check metadata when a wall-only run deliberately skips counters."""
@@ -168,18 +224,7 @@ class BenchmarkBaseline:
         noise_percent: float = 1.0,
     ) -> int:
         """Record or compare perf's retired-instruction counter."""
-        if (
-            len(samples) < _COUNTER_SAMPLES
-            or any(
-                not isinstance(value, int) or isinstance(value, bool) or value <= 0
-                for value in samples
-            )
-            or isinstance(noise_percent, bool)
-            or not isinstance(noise_percent, (int, float))
-            or noise_percent < 0
-        ):
-            raise ValueError(f"invalid instruction samples for {name}: {samples!r}")
-        observed = min(samples)
+        observed = _instruction_observation(name, samples, noise_percent)
         if self.update:
             case = self._document["benchmarks"].get(name)
             if case is None:
@@ -191,20 +236,7 @@ class BenchmarkBaseline:
         case = self._document["benchmarks"].get(name)
         if case is None:
             raise AssertionError(f"benchmark baseline has no case named {name!r}")
-        baseline = case.get("instructions")
-        allowance = case.get("instruction_noise_percent")
-        if not isinstance(baseline, int) or baseline <= 0:
-            raise AssertionError(f"{name} has no valid instruction baseline")
-        if not isinstance(allowance, (int, float)) or allowance < 0:
-            raise AssertionError(f"{name} has no valid instruction noise allowance")
-        ceiling = baseline * (1.0 + allowance / 100.0)
-        if observed > ceiling:
-            raise AssertionError(
-                f"{name} instruction regression: minimum of {list(samples)!r} is "
-                f"{observed}, baseline {baseline} plus {allowance:g}% is "
-                f"{ceiling:.0f}"
-            )
-        return observed
+        return _compare_instructions(name, case, samples, observed)
 
     def finish(self) -> None:
         """Atomically write an update; normal comparison mode writes nothing."""
@@ -312,14 +344,11 @@ def benchmark_case(
     return result
 
 
-def measure_instructions(
+def _instruction_request(
     command: Sequence[str],
-    *,
-    rounds: int = _COUNTER_SAMPLES,
-    controlled: bool = False,
-    timeout: float = 60.0,
-) -> tuple[int, ...]:
-    """Run command under perf stat and return retired instructions per run."""
+    rounds: int,
+    timeout: float,
+) -> tuple[str, float]:
     if rounds < _COUNTER_SAMPLES:
         raise ValueError(f"instruction measurement needs at least {_COUNTER_SAMPLES} rounds")
     if not command:
@@ -329,6 +358,32 @@ def measure_instructions(
     perf = shutil.which("perf")
     if perf is None:
         raise FileNotFoundError("perf is required to measure instructions:u")
+    return perf, float(timeout)
+
+
+def _parse_instruction_sample(returncode: int, stdout: str, stderr: str) -> int:
+    if returncode != 0:
+        detail = stderr.strip() or stdout.strip()
+        raise RuntimeError(f"perf stat failed with exit {returncode}: {detail}")
+    fields = [
+        line.split(",", 1)[0] for line in stderr.splitlines() if ",instructions:u," in line
+    ]
+    if len(fields) != 1 or not fields[0].isdigit():
+        raise RuntimeError(
+            f"perf stat did not return one numeric instructions:u counter: {stderr.strip()}"
+        )
+    return int(fields[0])
+
+
+def measure_instructions(
+    command: Sequence[str],
+    *,
+    rounds: int = _COUNTER_SAMPLES,
+    controlled: bool = False,
+    timeout: float = 60.0,
+) -> tuple[int, ...]:
+    """Run command under perf stat and return retired instructions per run."""
+    perf, timeout = _instruction_request(command, rounds, timeout)
     environment = os.environ | {"LC_ALL": "C"}
     samples: list[int] = []
     for _ in range(rounds):
@@ -337,19 +392,9 @@ def measure_instructions(
             command,
             environment,
             controlled=controlled,
-            timeout=float(timeout),
+            timeout=timeout,
         )
-        if returncode != 0:
-            detail = stderr.strip() or stdout.strip()
-            raise RuntimeError(f"perf stat failed with exit {returncode}: {detail}")
-        fields = [
-            line.split(",", 1)[0] for line in stderr.splitlines() if ",instructions:u," in line
-        ]
-        if len(fields) != 1 or not fields[0].isdigit():
-            raise RuntimeError(
-                f"perf stat did not return one numeric instructions:u counter: {stderr.strip()}"
-            )
-        samples.append(int(fields[0]))
+        samples.append(_parse_instruction_sample(returncode, stdout, stderr))
     return tuple(samples)
 
 
