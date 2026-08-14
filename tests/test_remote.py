@@ -6,6 +6,8 @@ Guarantees:
   - server startup and shutdown expose attached-engine lifecycle failures
     [tested test_remote_serve_reports_worker_startup_failure,
     test_remote_close_waits_for_worker_detach]
+  - malformed HTTP request framing and JSON receive explicit client errors
+    [tested test_remote_server_rejects_malformed_request_bodies]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -14,6 +16,7 @@ Open Obligations:
 
 import logging
 import threading
+from http.client import HTTPConnection
 
 import pytest
 
@@ -171,6 +174,50 @@ def test_remote_close_waits_for_worker_detach(metta, monkeypatch):
     assert not closer.is_alive()
     assert not server._worker.thread.is_alive()
     server.close()
+
+
+@pytest.mark.parametrize(
+    ("headers", "body", "status", "detail"),
+    [
+        ({}, b"", 411, "content-length is required"),
+        ({"Content-Length": "nope"}, b"", 400, "decimal digits"),
+        ({"Content-Length": "-1"}, b"", 400, "decimal digits"),
+        (
+            {"Content-Length": str(remote._MAX_REQUEST_BYTES + 1)},
+            b"",
+            413,
+            "exceeds",
+        ),
+        ({"Content-Length": "1"}, b"[", 400, "not valid JSON"),
+        ({"Content-Length": "2"}, b"[]", 400, "JSON object"),
+        (
+            {"Transfer-Encoding": "chunked", "Content-Length": "2"},
+            b"{}",
+            400,
+            "transfer-encoding",
+        ),
+    ],
+)
+def test_remote_server_rejects_malformed_request_bodies(
+    metta,
+    headers,
+    body,
+    status,
+    detail,
+):
+    server = remote.serve(metta)
+    connection = HTTPConnection(server.host, server.port, timeout=2.0)
+    try:
+        connection.putrequest("POST", "/atoms")
+        for name, value in headers.items():
+            connection.putheader(name, value)
+        connection.endheaders(body)
+        response = connection.getresponse()
+        assert response.status == status
+        assert detail.encode() in response.read()
+    finally:
+        connection.close()
+        server.close()
 
 
 @pytest.mark.parametrize("read_fails", [False, True])

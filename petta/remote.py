@@ -19,6 +19,9 @@ Guarantees:
     waits for both owned threads to finish [tested
     test_remote_serve_reports_worker_startup_failure,
     test_remote_close_waits_for_worker_detach]
+  - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
+    non-object JSON with a response instead of dropping the connection
+    [tested test_remote_server_rejects_malformed_request_bodies]
 Owns:
   - Server owns the HTTP loop and its attached-engine worker until close()
     joins both [tested test_remote_close_waits_for_worker_detach]
@@ -57,6 +60,7 @@ __all__ = ["RemoteSpace", "Server", "attach", "connect", "serve"]
 #: callable with the same contract, the DAS gateway's own injection seam.
 Transport = Callable[[str, dict], dict]
 _SERVER_TIMEOUT = 10.0
+_MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
 
 def _server_timeout(timeout: float) -> float:
@@ -70,6 +74,32 @@ def _raise_failures(message: str, failures: list[BaseException]) -> None:
     if len(failures) == 1:
         raise failures[0]
     raise BaseExceptionGroup(message, failures)
+
+
+class _HTTPProblem(ValueError):
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+def _request_length(headers: Any) -> int:
+    if headers.get("transfer-encoding") is not None:
+        raise _HTTPProblem(400, "transfer-encoding is not supported; send content-length")
+    values = headers.get_all("content-length", [])
+    if not values:
+        raise _HTTPProblem(411, "content-length is required")
+    if len(values) != 1:
+        raise _HTTPProblem(400, "exactly one content-length header is required")
+    raw = values[0]
+    if not raw.isascii() or not raw.isdigit():
+        raise _HTTPProblem(400, f"content-length must be decimal digits, got {raw!r}")
+    length = int(raw)
+    if length > _MAX_REQUEST_BYTES:
+        raise _HTTPProblem(
+            413,
+            f"request body exceeds the {_MAX_REQUEST_BYTES}-byte limit",
+        )
+    return length
 
 
 def _is_authorized(
@@ -485,8 +515,33 @@ def serve(
     worker = _RemoteWorker(handle)
 
     class Handler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            super().setup()
+            self.connection.settimeout(_SERVER_TIMEOUT)
+
+        def _payload(self) -> dict:
+            length = _request_length(self.headers)
+            try:
+                raw = self.rfile.read(length)
+            except TimeoutError as exc:
+                raise _HTTPProblem(408, "request body timed out") from exc
+            if len(raw) != length:
+                raise _HTTPProblem(
+                    400,
+                    f"request body ended after {len(raw)} of {length} bytes",
+                )
+            try:
+                payload = _json.loads(raw)
+            except (UnicodeDecodeError, ValueError) as exc:
+                raise _HTTPProblem(400, f"request body is not valid JSON: {exc}") from exc
+            if not isinstance(payload, dict):
+                raise _HTTPProblem(
+                    400,
+                    f"request body must be a JSON object, got {type(payload).__name__}",
+                )
+            return payload
+
         def do_POST(self) -> None:
-            length = int(self.headers.get("content-length", 0))
             operation = self.path.strip("/")
             headers: dict[str, str] = {}
             for name, value in self.headers.items():
@@ -502,10 +557,17 @@ def serve(
                 self.wfile.write(body)
                 return
             try:
-                payload = _json.loads(self.rfile.read(length) or b"{}")
+                payload = self._payload()
                 kind, value = worker.call(operation, payload, timeout=600.0)
                 answer = value if kind == "ok" else {"error": value}
                 status = 200 if kind == "ok" else 400
+            except _HTTPProblem as exc:
+                logger.warning(
+                    "remote engine HTTP handler rejected operation %s: %s",
+                    operation,
+                    exc,
+                )
+                answer, status = {"error": str(exc)}, exc.status
             except Exception as exc:
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s",
