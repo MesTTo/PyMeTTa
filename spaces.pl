@@ -85,6 +85,12 @@ ensure_native_storage_module_locked(Space, Module) :-
 % Return the asserted clause reference so a source load can roll back every
 % atom it added if a later form fails.
 add_sexp(Space, Term) :- add_sexp(Space, Term, _).
+%&self's storage module is fixed and created when this file loads, so the
+%default space skips the cache lookup that every other space needs. Writes are
+%the one path that pays per atom: resolving the module per write cost four
+%inferences of every seven on this path [measured 2026-08-15: 7.00 to 5.00
+%inferences per write over 200,000 writes].
+add_sexp('&self', Term, Ref) :- !, add_sexp_in('$petta_atoms:&self', '&self', Term, Ref).
 add_sexp(Space, Term, Ref) :- ensure_native_storage_module(Space, Module),
                               add_sexp_in(Module, Space, Term, Ref).
 
@@ -249,7 +255,13 @@ match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_
                                              match_native(Module, Space, Pattern, OutPattern, Result).
 match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',', !,
                                              match_routed(Space, Pattern, OutPattern, Result).
+%An unbound space would make this dynamic call enumerate every space that has
+%ever been written to, so a program in &self could read &kb without naming it.
+%Before storage modules the same path reached Term =.. [Space, Rel|Args] and
+%raised, which is the behaviour to keep: matching is against a space you name
+%[tested: spaces_storage_modules:matching_requires_a_named_space].
 match(Space, Pattern, OutPattern, Result) :-
+    ( var(Space) -> instantiation_error(Space) ; true ),
     native_storage_module_cache(Space, Module),
     match_native(Module, Space, Pattern, OutPattern, Result).
 
