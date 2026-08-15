@@ -9,7 +9,13 @@
 %     filereader_import_lifecycle].
 %   - Host failures from builtins retain their ISO error class and name the
 %     written MeTTa operation [tested 2026-08-15:
-%     metta_operation_errors, translator_evaluation_errors].
+%     metta_operation_errors, translator_evaluation_errors]. Integer
+%     arithmetic pays nothing for this and float arithmetic pays one
+%     inference per call, because only the integer pair takes the guarded
+%     fast path [measured 2026-08-15: 300,000 and 400,000 inferences per
+%     100,000 calls, against 300,000 unguarded]. Whole-corpus cost is
+%     +2.1% instructions on examples/performance/scale.metta
+%     [measured 2026-08-15].
 %   - is-alpha-member/3 tests unifiability without retaining bindings in its
 %     arguments [tested 2026-08-15: metta_alpha_membership].
 %   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
@@ -175,6 +181,11 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
     catch(( ( A =:= 1.0Inf ; A =:= -1.0Inf )
             -> Out = true ; Out = false ), E,
           rethrow_metta_operation_error('isinf-math', E)).
+%must_be/2 walks the list a second time with a type check per element, so a
+%numeric list costs 3x what min_list alone does [measured 2026-08-15: 20 calls
+%over 50,000 elements, 3,000,220 against 1,000,060 inferences]. That buys
+%'min-atom': Type error: `number' expected, found `a' in place of a leaked
+%lists:min_list/3, which is the trade this file makes everywhere.
 'min-atom'(List, Out) :- non_list(List), !, Out = [].
 'min-atom'(List, Out) :- catch(( must_be(list(number), List),
                                 min_list(List, Out) ), E,
