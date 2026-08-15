@@ -221,6 +221,30 @@ def test_subscription_callback_fires_inside_the_write(m):
     assert len(seen) == 2  # cancelled means cancelled
 
 
+def test_clear_announces_every_atom_it_drops(m):
+    # The two bulk doors have to agree: add announces per atom, so clear
+    # does too. Clearing swept the storage module directly, so a watcher
+    # saw the equations go and nothing else.
+    seen = []
+    sub = m.subscribe(S.stock(V.item), seen.append, on="both")
+    try:
+        m.add(S.stock(S.apple), S.stock(S.pear), S.other(1))
+        m.run("(= (restock $x) $x)")
+        seen.clear()
+        m.clear()
+        assert [e.action for e in seen] == ["remove", "remove"]
+        assert sorted(str(e.bindings["item"]) for e in seen) == ["apple", "pear"]
+    finally:
+        sub.cancel()
+    assert m.atoms() == []
+
+
+def test_clear_empties_a_space_nobody_is_watching(m):
+    m.add(S.stock(S.apple), S.stock(S.pear))
+    m.clear()
+    assert m.atoms() == []
+
+
 def test_subscription_hooks_follow_the_active_space_set(m):
     def installed(kind):
         return bool(m._rt.once(f"petta_py_subscription_hook_ref({kind}, _)"))
@@ -648,7 +672,7 @@ def test_remote_auth_token_and_hook_requires_tls(metta):
         metta,
         spaces=[served.space_name],
         token="s3cret",
-        authorize=lambda headers: headers.get("x-tenant") == "acme",
+        authorize=lambda request: request.headers.get("x-tenant") == "acme",
     )
     try:
         with pytest.raises(PettaError, match="credentials require an https URL"):
@@ -693,7 +717,7 @@ def test_remote_serves_tls(metta, tmp_path):
         metta,
         spaces=[served.space_name],
         token="s3cret",
-        authorize=lambda headers: headers.get("x-tenant") == "acme",
+        authorize=lambda request: request.headers.get("x-tenant") == "acme",
         ssl_context=server_context,
     )
     try:

@@ -537,9 +537,34 @@ petta_py_clear(Space) :-
 petta_py_clear(Space) :-
     findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
-    clear_native_atoms(Space),
+    petta_py_clear_stored(Space),
     space_module(Space, Module),
     petta_py_clear_tabling(Space, Module).
+
+%A watched space announces the atoms clear drops, the way any other removal
+%does. The equations above already went through the removal funnel, so a
+%subscription saw those and not the plain atoms beside them: the two bulk
+%doors disagreed, add announcing per atom and clear announcing nothing. With
+%nothing listening the whole set still goes in one sweep over the storage
+%module [tested: test_clear_announces_every_atom_it_drops].
+petta_py_clear_stored(Space) :-
+    petta_py_remove_hooks_idle(Space), !,
+    clear_native_atoms(Space).
+petta_py_clear_stored(Space) :-
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    forall(member(Atom, Atoms), 'remove-atom'(Space, Atom, _)),
+    clear_native_atoms(Space).
+
+%The removal mirror of metta_add_hooks_idle/1: nothing is listening when no
+%removed-atom handler exists at all, or when this unwatched space's only
+%handler is the subscription bridge.
+petta_py_remove_hooks_idle(_) :-
+    \+ metta_atom_hook_clause(removed, _), !.
+petta_py_remove_hooks_idle(Space) :-
+    \+ petta_py_subscribed_space(Space),
+    petta_py_subscription_hook_ref(removed, SubscriptionRef),
+    findall(Ref, metta_atom_hook_clause(removed, Ref), [OnlyRef]),
+    OnlyRef == SubscriptionRef.
 
 %Tabling state dies with the space life. Clause removal leaves both the
 %tabled property and the answer tables standing, so a reused pooled
