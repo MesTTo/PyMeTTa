@@ -726,6 +726,26 @@ eval(C, Out) :- translate_runnable_expr(C, Goals, Out),
                   -> call_goals_in_(Module, Goals)
                   ;  call_goals(Goals) ).
 
+%evalc is eval in a space you name, the counterpart to context-space, which
+%reports the space eval is already running in. Naming the space is the only
+%way to reach another space's equations from MeTTa: import! loads a file into
+%one, and everything else runs where it was written.
+%
+%The space argument selects the module the goals resolve in and nothing else.
+%PeTTa's eval is a full evaluation of compiled goals rather than the single
+%rewriting step of minimal MeTTa, and evalc keeps that, so the two agree
+%everywhere except which space's equations answer
+%[source: /home/user/Dev/LeaTTa/stdlib.md, evalc's SpaceType is the "Space to
+%evaluate atom in its context"] [tested: metta_evalc].
+%
+%A space is an atom beginning with &, which is what is-space/2 tests, so an
+%argument that is not one is a type error rather than a silently empty space.
+evalc(C, Space, Out) :- ( 'is-space'(Space, true)
+                          -> true
+                          ;  throw_metta_type_error(evalc, 'SpaceType', Space) ),
+                        space_module(Space, Module),
+                        with_metta_module(Module, eval(C, Out)).
+
 call_goals([]).
 call_goals([G|Gs]) :- call(G), 
                       call_goals(Gs).
@@ -1149,7 +1169,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
-                          foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, reduce, 'import!',
+                          foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, evalc, reduce, 'import!',
                           'git-import!',
                           'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
                           decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', sread, cons, reverse,

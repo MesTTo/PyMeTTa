@@ -144,7 +144,7 @@
       "wall_seconds_per_operation": 1.3796682617386862e-05
     },
     "save-load-metta": {
-      "inferences": 9002149,
+      "inferences": 9002155,
       "operations": 20001,
       "unit": "atoms",
       "wall_seconds_per_operation": 2.2809381439032467e-05
@@ -166,7 +166,7 @@
       "wall_seconds_per_operation": 0.0001865763661917299
     },
     "space-digest": {
-      "inferences": 6976032,
+      "inferences": 6976038,
       "instruction_noise_percent": 1.0,
       "instructions": 5756655856,
       "operations": 20000,

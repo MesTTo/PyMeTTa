@@ -551,6 +551,13 @@ translate_special_dl(reduce, [Expr], AfterHead, Goals, Out) :-
         BeforeReduce = [reduce(ExprValue, Out, _)|Goals] ).
 translate_special_dl(eval, [Arg], AfterHead, Goals, Out) :-
     AfterHead = [eval(Arg, Out)|Goals].
+%evalc hands its first argument over unevaluated, exactly as eval does, or the
+%expression would already have been reduced in the calling space before the
+%space argument could select another one. The space itself is evaluated, so a
+%function that answers a space name, or (context-space), can name it.
+translate_special_dl(evalc, [Arg, Space], AfterHead, Goals, Out) :-
+    translate_expr_dl(Space, AfterHead, BeforeEval, SpaceValue),
+    BeforeEval = [evalc(Arg, SpaceValue, Out)|Goals].
 translate_special_dl(quote, [Expr], Goals, Goals, Expr).
 translate_special_dl('catch', [Expr], AfterHead, Goals, Out) :-
     translate_expr(Expr, ExprGoals, ExprOut),
