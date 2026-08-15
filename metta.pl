@@ -577,6 +577,7 @@ py_object_class_type(X, T) :- py_object_extra_type(X, T).
 
 %%% Diagnostics / Testing: %%%
 :- multifile prolog:error_message//1.
+:- multifile prolog:message//1.
 
 prolog:error_message(petta_test_failed(Actual, Expected)) -->
     [ 'MeTTa test failed: ~p does not match ~p'-[Actual, Expected] ].
@@ -1046,6 +1047,26 @@ rethrow_metta_operation_error(_, Error) :- throw(Error).
 throw_metta_type_error(Operation, Expected, Culprit) :-
     throw(error(type_error(Expected, Culprit),
                 context(Operation, 'invalid MeTTa operation argument'))).
+
+%The culprit in the message is the value the program wrote, so it reads as
+%MeTTa: (State 5), not ['State',5]. The Formal term stays ISO, because
+%callers and the MeTTa catch form inspect it, and the structured Python
+%surface reads it too; only the rendering changes.
+%
+%prolog:message//1 is consulted before the formal-only
+%prolog:error_message//1, and this clause matches the context PeTTa's own
+%guards attach, so every other error SWI renders is untouched
+%[source: SWI-Prolog 10.1 boot/messages.pl, translate_message/1]
+%[tested: metta_operation_error_message].
+%The context is matched in the body, not in the head: library(error) throws
+%its type errors with an unbound context, which a head pattern would unify
+%with and claim, renaming every unrelated type error in the process
+%[tested: metta_operation_error_message:an_unrelated_type_error_is_untouched].
+prolog:message(error(type_error(Expected, Culprit), Context)) -->
+    { nonvar(Context),
+      Context = context(Operation, 'invalid MeTTa operation argument'),
+      swrite(Culprit, CulpritText) },
+    [ '~w: ~w expected, found ~w'-[Operation, Expected, CulpritText] ].
 
 %These builtins validate their own runtime inputs and provide their own error
 %context. The translator may therefore bypass reflective input filtering when
