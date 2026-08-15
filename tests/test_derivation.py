@@ -82,6 +82,33 @@ def test_disjunction_derivation_enumerates_each_taken_branch(metta):
     assert all(proof.complete for proof in proofs)
 
 
+def test_derivation_honours_a_cut(metta):
+    # A cut prunes the equations after it. Recorded as a leaf and called,
+    # it pruned nothing, so the proof list carried a conclusion the program
+    # cannot reach: run answered first, derivation proved first and second.
+    metta.run("(= (cut-tree $x) (let $c (cut) first))")
+    metta.run("(= (cut-tree $x) second)")
+    assert metta.run("!(cut-tree 1)") == [[S.first]]
+    assert [proof.answer for proof in metta.derivation(S["cut-tree"](1))] == [S.first]
+
+
+def test_derivation_still_enumerates_equations_without_a_cut(metta):
+    metta.run("(= (open-tree $x) one)")
+    metta.run("(= (open-tree $x) two)")
+    assert [proof.answer for proof in metta.derivation(S["open-tree"](1))] == [S.one, S.two]
+
+
+def test_a_cut_inside_once_stays_inside_it(metta):
+    # once/1 is a cut barrier: the cut may not prune the equations beside
+    # the one it sits in.
+    metta.run("(= (barrier-tree $x) (let $c (once (cut)) first))")
+    metta.run("(= (barrier-tree $x) second)")
+    assert [proof.answer for proof in metta.derivation(S["barrier-tree"](1))] == [
+        S.first,
+        S.second,
+    ]
+
+
 def test_once_and_findall_derivations_expose_their_inner_goals(metta):
     metta.run(
         "(= (once-tree) (once (superpose (1 2)))) "

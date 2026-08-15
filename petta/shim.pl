@@ -1035,46 +1035,67 @@ petta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     petta_py_encode_tree(Tree, [F|Args], Out, TreeTagged).
 
 petta_py_solve(M, Goal, D, Tree) :-
-    petta_py_solve_(M, Goal, D, Tree, _).
+    petta_py_solve_barrier(M, Goal, D, Tree, _).
 
-petta_py_solve_(_, Goal, 0, [truncated(Goal)], truncated) :- !.
-petta_py_solve_(_, true, _, [], complete) :- !.
-petta_py_solve_(M, (If -> Then ; Else), D, Tree, Status) :- !,
-    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+%A cut prunes the clauses that follow it and the choicepoints that precede
+%it in the same body. Recorded as a leaf and simply called, it pruned
+%neither, so the tree proved conclusions the program cannot reach: two
+%equations for one head, the first cutting, proved both while run answered
+%only the first.
+%
+%Passing a cut signal upward prunes the later clauses but not the earlier
+%goals, so the cut throws instead. Every construct that is a cut barrier in
+%Prolog, a clause body, call/1, once/1, \+/1, findall/3 and an if-then-else
+%condition, catches its own throw and turns it into failure, which discards
+%the goals inside it and the clauses beside it together. That is what a cut
+%does [source: Sterling and Shapiro, The Art of Prolog, meta-interpreters
+%and cut] [tested: test_derivation_honours_a_cut].
+petta_py_solve_barrier(M, Goal, D, Tree, Status) :-
+    gensym('$petta_py_cut_', Barrier),
+    catch(petta_py_solve_(M, Goal, D, Tree, Status, Barrier),
+          petta_py_cut(Barrier),
+          fail).
+
+petta_py_solve_(_, Goal, 0, [truncated(Goal)], truncated, _) :- !.
+petta_py_solve_(_, true, _, [], complete, _) :- !.
+petta_py_solve_(_, '!', _, [builtin(!)], complete, Barrier) :- !,
+    ( true ; throw(petta_py_cut(Barrier)) ).
+petta_py_solve_(M, (If -> Then ; Else), D, Tree, Status, Barrier) :- !,
+    ( petta_py_solve_barrier(M, If, D, IfTree, IfStatus)
       -> ( IfStatus == truncated
            -> Tree = IfTree, Status = truncated
-         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+         ; petta_py_solve_(M, Then, D, ThenTree, Status, Barrier),
            append(IfTree, ThenTree, Tree) )
-    ; petta_py_solve_(M, Else, D, Tree, Status) ).
-petta_py_solve_(M, (If -> Then), D, Tree, Status) :- !,
-    ( petta_py_solve_(M, If, D, IfTree, IfStatus)
+    ; petta_py_solve_(M, Else, D, Tree, Status, Barrier) ).
+petta_py_solve_(M, (If -> Then), D, Tree, Status, Barrier) :- !,
+    ( petta_py_solve_barrier(M, If, D, IfTree, IfStatus)
       -> ( IfStatus == truncated
            -> Tree = IfTree, Status = truncated
-         ; petta_py_solve_(M, Then, D, ThenTree, Status),
+         ; petta_py_solve_(M, Then, D, ThenTree, Status, Barrier),
            append(IfTree, ThenTree, Tree) )
     ; fail ).
-petta_py_solve_(M, (A ; B), D, Tree, Status) :- !,
-    ( petta_py_solve_(M, A, D, Tree, Status)
-    ; petta_py_solve_(M, B, D, Tree, Status) ).
-petta_py_solve_(M, (A, B), D, Tree, Status) :- !,
-    petta_py_solve_(M, A, D, TA, SA),
+petta_py_solve_(M, (A ; B), D, Tree, Status, Barrier) :- !,
+    ( petta_py_solve_(M, A, D, Tree, Status, Barrier)
+    ; petta_py_solve_(M, B, D, Tree, Status, Barrier) ).
+petta_py_solve_(M, (A, B), D, Tree, Status, Barrier) :- !,
+    petta_py_solve_(M, A, D, TA, SA, Barrier),
     ( SA == truncated
       -> Tree = TA, Status = truncated
-    ; petta_py_solve_(M, B, D, TB, Status),
+    ; petta_py_solve_(M, B, D, TB, Status, Barrier),
       append(TA, TB, Tree) ).
-petta_py_solve_(M, call(A), D, Tree, Status) :- !,
-    petta_py_solve_(M, A, D, Tree, Status).
-petta_py_solve_(M, once(A), D, Tree, Status) :- !,
-    once(petta_py_solve_(M, A, D, Tree, Status)).
-petta_py_solve_(M, \+ A, D, Tree, Status) :- !,
-    ( once(petta_py_solve_(M, A, D, TA, SA))
+petta_py_solve_(M, call(A), D, Tree, Status, _) :- !,
+    petta_py_solve_barrier(M, A, D, Tree, Status).
+petta_py_solve_(M, once(A), D, Tree, Status, _) :- !,
+    once(petta_py_solve_barrier(M, A, D, Tree, Status)).
+petta_py_solve_(M, \+ A, D, Tree, Status, _) :- !,
+    ( once(petta_py_solve_barrier(M, A, D, TA, SA))
       -> ( SA == truncated
            -> Tree = TA, Status = truncated
          ; fail )
     ; Tree = [builtin(\+ A)], Status = complete ).
-petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status) :- !,
+petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status, _) :- !,
     findall([Template, SubTree, SubStatus],
-            petta_py_solve_(M, Goal, D, SubTree, SubStatus),
+            petta_py_solve_barrier(M, Goal, D, SubTree, SubStatus),
             Results),
     petta_py_findall_results(Results, Values, Tree, Status),
     ( Status == complete -> List = Values ; true ).
@@ -1087,19 +1108,27 @@ petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status) :- !,
 %clause INSPECTION is guarded (an uninspectable goal is an opaque leaf); a
 %body or builtin that ERRS propagates, because (/ 1 0) failing into "no
 %proof" would be a lie about why:
-petta_py_solve_(M, Goal, D, Tree, Status) :-
+%One barrier serves every clause of the goal, because a cut in the body of
+%one clause discards the clauses after it as well as its own alternatives.
+petta_py_solve_(M, Goal, D, Tree, Status, _) :-
     \+ predicate_property(M:Goal, built_in),
+    gensym('$petta_py_cut_', Barrier),
+    catch(petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier),
+          petta_py_cut(Barrier),
+          fail).
+petta_py_solve_(M, Goal, _, [builtin(Goal)], complete, _) :-
+    predicate_property(M:Goal, built_in), !,
+    call(M:Goal).
+
+petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
     catch_recover(clause(M:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
       -> petta_py_next_depth(D, D1),
-         petta_py_solve_(M, Body, D1, Sub, Status),
+         petta_py_solve_(M, Body, D1, Sub, Status, Barrier),
          Tree = [step(Goal, Source, Sub)]
     ; call(M:Body),
       petta_py_leaf(Goal, Tree),
       Status = complete ).
-petta_py_solve_(M, Goal, _, [builtin(Goal)], complete) :-
-    predicate_property(M:Goal, built_in), !,
-    call(M:Goal).
 
 petta_py_findall_results([], [], [], complete).
 petta_py_findall_results(
