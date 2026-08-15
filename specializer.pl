@@ -14,7 +14,7 @@
 %   Hacks: None
 %   Future Enhancements: None
 
-:- dynamic ho_specialization/2.
+:- dynamic ho_specialization/3.
 :- dynamic ho_specialization_failed/3.
 
 % Specialize HV(AVs), or fold an exact recursive specialization back to the
@@ -137,19 +137,35 @@ specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
     Outcome == ready, !,
     specialization_goal(SpecName, AVs, Out, Goal).
 
+%Keyed by module as well as by call shape. Keyed by shape alone, a named
+%space reused the specialization &self had already published, so the same
+%program answered twice there and once in &self, and which you got depended
+%on what had run earlier in the process.
 specialize_call_locked(HV, _, _, _, SpecName, _, ready) :-
-    ho_specialization(HV, SpecName), !.
+    current_metta_module(Module),
+    ho_specialization(Module, HV, SpecName), !.
+%The specialization belongs to the space whose code triggered it. This runs
+%during translation, inside with_metta_module/2, so the current module is the
+%one whose functions the generated body references. Registering globally and
+%asserting into user left the clause calling functions that do not exist
+%there: (= (twice $f $x) ($f ($f $x))) with (= (bump $n) (+ $n 1)) crashed on
+%the first call in a named space with Unknown procedure: bump/2, and gave a
+%duplicate answer when an earlier &self engine had compiled the same name.
+%add_function_atom/5 in spaces.pl is the same job done correctly
+%[tested: specializer_named_spaces].
 specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
                        SpecName, Arity, Outcome) :-
-    register_fun(SpecName),
-    assertz(ho_specialization(HV, SpecName), SpecializationRef),
+    current_metta_module(Module),
+    current_metta_space(Space),
+    register_fun_in(Module, SpecName),
+    assertz(ho_specialization(Module, HV, SpecName), SpecializationRef),
     record_source_assertion(SpecializationRef),
     register_arity(SpecName, Arity),
     ( findall(TypeChain,
               catch_recover(type_declaration(HV, TypeChain), fail),
               TypeChains),
       forall(member(TypeChain, TypeChains),
-             add_sexp('&self', [':', SpecName, TypeChain])),
+             add_sexp(Space, [':', SpecName, TypeChain])),
       ( HasDirectBenefit == true
         -> nb_setval('$petta_spec_needed', true)
       ; true ),
@@ -159,11 +175,11 @@ specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
               MetaList, ClauseInfos),
       nb_getval('$petta_spec_needed', true),
       forall(member(clause_info(Input, Clause), ClauseInfos),
-             ( asserta(Clause, Ref),
+             ( asserta(Module:Clause, Ref),
                record_source_assertion(Ref),
                assertz(translated_from(Ref, Input), SourceRef),
                record_source_assertion(SourceRef),
-               add_sexp('&self', Input, SpaceRef),
+               add_sexp(Space, Input, SpaceRef),
                record_source_assertion(SpaceRef),
                format(atom(Label), "metta specialization (~w)", [SpecName]),
                maybe_print_compiled_clause(Label, Input, Clause) ))
@@ -171,7 +187,7 @@ specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
     ; ( silent(true) -> true
       ; format("Not specialized ~w~n", [SpecName/Arity]) ),
       forget_symbol(SpecName),
-      retractall(ho_specialization(HV, SpecName)),
+      retractall(ho_specialization(Module, HV, SpecName)),
       ( ho_specialization_failed(HV, Arity, CleanBindSet)
         -> true
       ; assertz(ho_specialization_failed(HV, Arity, CleanBindSet), FailedRef),
@@ -261,12 +277,13 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
                        retractall(arity(Name,_)),
                        retractall(fun(Name)),
                        clear_fun_meta(Name),
-                       retractall(ho_specialization(Name,_)).
+                       retractall(ho_specialization(_, Name, _)),
+                       retractall(ho_specialization(_, _, Name)).
 
 %Invalidate all specializations:
 invalidate_specializations(F) :-
     retractall(ho_specialization_failed(_,_,_)),
-    findall(Spec, ho_specialization(F, Spec), Specs),
+    findall(Spec, ho_specialization(_, F, Spec), Specs),
     forall(member(S, Specs), invalidate_specializations(S)),
     forall(member(S, Specs), forget_symbol(S)),
-    retractall(ho_specialization(F,_)).
+    retractall(ho_specialization(_, F, _)).
