@@ -391,8 +391,14 @@ get_function_type_in(Module, [F|Args], T) :- Module \== user,
 has_type(X, T) :- current_metta_module(Module),
                   has_type_in(Module, X, T).
 
+%The first-witness shortcut is only sound for a GROUND expected type. A
+%parametric one such as (Pair $t) is nonvar but still carries a variable the
+%later arguments must agree on, and once/1 commits to whichever witness came
+%first: with (: p1 (Pair A)), (: p1 (Pair B)) and (: p2 (Pair B)) declared,
+%(samepair p1 p2) answered nothing while (samepair p2 p1) answered True, from
+%one symmetric definition [tested metta_shared_type_variables].
 has_type_in(Module, X, T) :-
-    ( nonvar(T)
+    ( ground(T)
       -> ( T == '%Undefined%'
            -> \+ once(type_candidate_in(Module, X, _))
             ; once(type_candidate_in(Module, X, T)) )

@@ -627,9 +627,9 @@ build_call_or_partial_dl(Fun, AVs, Out, Goals0, Goals, Extra) :-
 typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchGoal) :-
     TypeChain = [->|Xs],
     append(ArgTypes, [OutType], Xs), !,
-    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0),
+    translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0, ArgChecks),
     ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
-    append(GsH, GsT2, InnerTmp),
+    append(GsH, GsT2, InnerEval),
     %The output check asks whether the result has the declared type, and
     %nothing reads OutType afterwards, so one witness is the whole answer. A
     %soft cut here instead enumerates every derivation and succeeds once per
@@ -638,26 +638,74 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     %The argument checks above keep their soft cut, because a shared type
     %variable there does have to backtrack to find a consistent assignment.
     ( (OutType == '%Undefined%' ; OutType == '_' ; OutType == 'Atom')
-       -> Extra = [] ; Extra = [(has_type(Out, OutType) -> true ; 'get-metatype'(Out, OutType))] ),
-    build_call_or_partial(Fun, AVsTmp, Out, InnerTmp, Extra, GoalsList),
+       -> OutCheck = []
+        ; OutCheck = [(has_type(Out, OutType) -> true ; 'get-metatype'(Out, OutType))] ),
+    place_type_checks(ArgTypes, OutType, ArgChecks, OutCheck, InnerEval, Inner, Extra),
+    build_call_or_partial(Fun, AVsTmp, Out, Inner, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
+
+%One commit covers every check that constrains the same type variables.
+%
+%Where the output type shares no variable with the arguments, the argument
+%checks commit as a group before the call, so an ill-typed call never runs the
+%body, and the output check commits separately after it.
+%
+%Where the output shares one, as in (-> $a $a), committing before the call
+%picks a witness the output cannot satisfy: with (: at A), (: at T), (: t T)
+%and (= (testf at) t), the argument check binds $a to A and the answer t, of
+%type T, is then rejected. Both halves solve together after the call instead,
+%which is the only order in which a shared variable can be assigned
+%consistently [tested examples/types/types.metta, metta_shared_type_variables].
+place_type_checks(ArgTypes, OutType, ArgChecks, OutCheck, InnerEval, Inner, Extra) :-
+    term_variables(ArgTypes, ArgVars),
+    term_variables(OutType, OutVars),
+    ( shares_a_variable(ArgVars, OutVars)
+      -> Inner = InnerEval,
+         append(ArgChecks, OutCheck, Both),
+         commit_checks(Both, Extra)
+       ; commit_checks(ArgChecks, Committed),
+         append(InnerEval, Committed, Inner),
+         Extra = OutCheck ).
+
+commit_checks([], []) :- !.
+commit_checks(Checks, [once(Conj)]) :- goals_list_to_conj(Checks, Conj).
+
+shares_a_variable(As, Bs) :- member(A, As), member(B, Bs), A == B, !.
 
 
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
-translate_args_by_type([], _, [], []) :- !.
-translate_args_by_type([A|As], [T|Ts], GsOut, [AV|AVs]) :-
-    translate_args_by_type_dl([A|As], [T|Ts], GsOut, [], [AV|AVs]).
+%The argument checks are collected and committed as ONE group, after the
+%argument evaluations. Checking each argument under its own commit cannot
+%satisfy a type variable the arguments share: the first witness for one
+%argument binds it, and nothing backtracks to the assignment the next
+%argument needs. Committing per argument loses answers, and not committing
+%at all repeats them once per consistent assignment, so the group is the
+%unit: find one assignment that satisfies every argument, then stop looking.
+%The evaluations stay outside the commit, because a nondeterministic
+%argument must keep every answer it produces
+%[tested metta_shared_type_variables, translator_typed_checks].
+translate_args_by_type([], _, [], [], []) :- !.
+translate_args_by_type(Args, Types, GsOut, AVs, Checks) :-
+    translate_args_by_type_dl(Args, Types, GsOut, [], AVs, Checks, []).
 
-translate_args_by_type_dl([], _, Goals, Goals, []) :- !.
-translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs]) :-
+translate_args_by_type_dl(Args, Types, Goals0, Goals, AVs) :-
+    translate_args_by_type_dl(Args, Types, Goals0, Tail, AVs, Checks, []),
+    ( Checks == []
+      -> Tail = Goals
+       ; goals_list_to_conj(Checks, CheckConj),
+         Tail = [once(CheckConj)|Goals] ).
+
+translate_args_by_type_dl([], _, Goals, Goals, [], Checks, Checks) :- !.
+translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Checks) :-
     ( T == 'Atom'
       -> AV = A,
-         AfterArg = Goals0
-    ; translate_expr_dl(A, Goals0, AfterTranslation, AV),
+         AfterArg = Goals0,
+         AfterCheck = Checks0
+    ; translate_expr_dl(A, Goals0, AfterArg, AV),
       ( (T == '%Undefined%' ; T == '_')
-        -> AfterArg = AfterTranslation
-      ; AfterTranslation = [(has_type(AV, T) *-> true ; 'get-metatype'(AV, T))|AfterArg] ) ),
-    translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs).
+        -> AfterCheck = Checks0
+      ; Checks0 = [(has_type(AV, T) *-> true ; 'get-metatype'(AV, T))|AfterCheck] ) ),
+    translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs, AfterCheck, Checks).
 
 %Handle data list:
 eval_data_term_dl(X, Goals, Goals, X) :- (var(X); atomic(X)), !.
