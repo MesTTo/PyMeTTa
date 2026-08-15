@@ -1043,13 +1043,22 @@ petta_py_solve(M, Goal, D, Tree) :-
 %equations for one head, the first cutting, proved both while run answered
 %only the first.
 %
+%That is the naive incorporation the literature names and rejects: "A naive
+%incorporation of cuts treats them as a builtin predicate, effectively
+%adding a clause solve(!) <- !. This clause does not achieve the correct
+%behavior of cut. The cut in the clause commits to the current solve clause
+%rather than pruning the search tree." What has to be modelled instead is
+%the cut's SCOPE, the clause in which the cut is a goal
+%[source: Sterling and Shapiro, The Art of Prolog, 2nd ed., p327, ch17].
+%That page states the problem and refers the solution out, so the technique
+%below is this engine's own.
+%
 %Passing a cut signal upward prunes the later clauses but not the earlier
 %goals, so the cut throws instead. Every construct that is a cut barrier in
 %Prolog, a clause body, call/1, once/1, \+/1, findall/3 and an if-then-else
 %condition, catches its own throw and turns it into failure, which discards
 %the goals inside it and the clauses beside it together. That is what a cut
-%does [source: Sterling and Shapiro, The Art of Prolog, meta-interpreters
-%and cut] [tested: test_derivation_honours_a_cut].
+%does [tested: test_derivation_honours_a_cut].
 petta_py_solve_barrier(M, Goal, D, Tree, Status) :-
     gensym('$petta_py_cut_', Barrier),
     catch(petta_py_solve_(M, Goal, D, Tree, Status, Barrier),
