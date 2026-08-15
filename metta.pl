@@ -73,21 +73,55 @@ repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, R) :- sread(Str, R).
 
 %%% Arithmetic & Comparison: %%%
+%An arithmetic operand is a number. Everything else is refused here, before
+%is/2 applies Prolog's own coercion rules to it.
+%
+%Two things came through that door. A MeTTa expression IS a Prolog list, and
+%SWI reads a one-element list as a character code, so (+ 1 (g)) quietly
+%answered 104, the code of g, and (* 2 (z)) answered 244: a symbol's SPELLING
+%became a number, while the two-element case raised.
+%
+%Worse, Prolog's evaluable atoms silently outranked MeTTa. With (= pi 3.14)
+%defined, (+ 1 pi) answered 4.141592653589793 from SWI's constant rather than
+%4.14 from the user's own equation. A constant belongs in a MeTTa library as
+%an ordinary rewrite, (= (my-pi) 3.14), which reduces before arithmetic sees
+%it and now wins because nothing shadows it.
+%
+%Nobody chose either behaviour; both fall out of is/2. The whole corpus, 169
+%programs including the ones passing inf and nan around, is unaffected
+%[tested: metta_arithmetic_operands].
+%An unbound operand is left to is/2, which raises instantiation_error for it,
+%the answer Prolog and ISO both give; refusing it as a type error here would
+%report a missing value as a wrong one.
+%Both operands in one call: the inline type tests are free, the call is not,
+%so checking them separately cost two inferences per operation instead of one
+%[measured 2026-08-15: alpha-unique +200,010 against +100,005].
+metta_arith_operands(Op, A, B) :-
+    ( var(A) -> true ; number(A) -> true ; throw_metta_type_error(Op, number, A) ),
+    ( var(B) -> true ; number(B) -> true ; throw_metta_type_error(Op, number, B) ).
+
 '+'(A,B,R)  :- ( integer(A), integer(B) -> R is A + B
-                ; catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
+                ; metta_arith_operands('+', A, B),
+                  catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
 '-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
-                ; catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
+                ; metta_arith_operands('-', A, B),
+                  catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
 '*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
-                ; catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
+                ; metta_arith_operands('*', A, B),
+                  catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
 '/'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A / B
-                ; catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
+                ; metta_arith_operands('/', A, B),
+                  catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
 '%'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A mod B
-                ; catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
+                ; metta_arith_operands('%', A, B),
+                  catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
 '<'(A,B,R)  :- ( number(A), number(B) -> (A<B -> R=true ; R=false)
-                ; catch((A<B -> R=true ; R=false), E,
+                ; metta_arith_operands('<', A, B),
+                  catch((A<B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('<', E)) ).
 '>'(A,B,R)  :- ( number(A), number(B) -> (A>B -> R=true ; R=false)
-                ; catch((A>B -> R=true ; R=false), E,
+                ; metta_arith_operands('>', A, B),
+                  catch((A>B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('>', E)) ).
 '=='(A,B,R) :- (A==B -> R=true ; R=false).
 '!='(A,B,R) :- (A==B -> R=false ; R=true).
@@ -96,16 +130,20 @@ parse(Str, R) :- sread(Str, R).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
 '=@='(A,B,R) :- (A =@= B -> R=true ; R=false).
 '<='(A,B,R) :- ( number(A), number(B) -> (A =< B -> R=true ; R=false)
-                ; catch((A =< B -> R=true ; R=false), E,
+                ; metta_arith_operands('<=', A, B),
+                  catch((A =< B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('<=', E)) ).
 '>='(A,B,R) :- ( number(A), number(B) -> (A >= B -> R=true ; R=false)
-                ; catch((A >= B -> R=true ; R=false), E,
+                ; metta_arith_operands('>=', A, B),
+                  catch((A >= B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('>=', E)) ).
 min(A,B,R)  :- ( integer(A), integer(B) -> R is min(A,B)
-                ; catch(R is min(A,B), E,
+                ; metta_arith_operands(min, A, B),
+                  catch(R is min(A,B), E,
                         rethrow_metta_operation_error(min, E)) ).
 max(A,B,R)  :- ( integer(A), integer(B) -> R is max(A,B)
-                ; catch(R is max(A,B), E,
+                ; metta_arith_operands(max, A, B),
+                  catch(R is max(A,B), E,
                         rethrow_metta_operation_error(max, E)) ).
 exp(Arg,R) :- catch(R is exp(Arg), E,
                     rethrow_metta_operation_error(exp, E)).
@@ -1047,8 +1085,15 @@ recover_failure(E) :- ( control_exception(E) -> throw(E) ; fail ).
 %defines, since &self is shared. fun_scoped/1 summarizes non-user fun_in/2
 %claims. A builtin or user-only function is therefore unambiguous in every
 %space and avoids a current-module read in higher-order loops.
-fun_here(F) :- fun(F), \+ fun_scoped(F), !.
-fun_here(F) :- current_metta_module(Module), fun_here_in(Module, F).
+%fun_in/2 is only ever asserted by register_fun_in/2, which registers fun/1
+%first, so fun_in implies fun. A name that is not a function therefore cannot
+%be one here either, and one indexed lookup settles it: the old second clause
+%went on to read current_metta_module/1 and two fun_in/2 facts before failing,
+%for every non-function head the translator resolves
+%[measured 2026-08-15: alpha-unique 4,050,778 to 3,750,772 inferences].
+fun_here(F) :- fun(F),
+               ( \+ fun_scoped(F) -> true
+               ; current_metta_module(Module), fun_here_in(Module, F) ).
 
 %The builtin fallback is what keeps (+ 1 2) working in &self after some other
 %named space defines (= (+ $a $b) ...). fun_scoped(N) stops fun_here/1's first
@@ -1056,8 +1101,8 @@ fun_here(F) :- current_metta_module(Module), fun_here_in(Module, F).
 %named space turned + into inert data in every other space and in engines
 %built afterwards [tested: metta_builtin_scoping].
 fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
-                          ;   builtin_fun(F) -> true
-                          ;   Module \== user, fun_in(user, F) ).
+                          ;   Module \== user, fun_in(user, F) -> true
+                          ;   builtin_fun(F) ).
 
 %Register a function and record which module its clauses live in. fun/1 stays
 %global because the translator consults it at compile time to decide whether a

@@ -70,8 +70,8 @@ def test_run_unknown_function_error_is_loud(metta):
 @pytest.mark.parametrize(
     ("source", "operation", "expected", "culprit"),
     [
-        ("!(+ 1 a)", "+", "evaluable", "a"),
-        ("!(< 1 a)", "<", "evaluable", "a"),
+        ("!(+ 1 a)", "+", "number", "a"),
+        ("!(< 1 a)", "<", "number", "a"),
         ("!(min-atom (a b))", "min-atom", "number", "a"),
         ("!(and true 5)", "and", "boolean", 5),
         ("!(reduce a)", "reduce", "list", "a"),
