@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .atoms import Atom, parse
+from ._atom_wire import atom_from_wire
+from .atoms import Atom
 
 __all__ = ["TraceEvent", "trace"]
 
@@ -49,18 +50,24 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
             f"max_events must be positive, got {max_events!r}"
         )
     row = space.runtime.once(
-        "metta_trace_source(Src, Space, Max, Events)",
+        "petta_py_trace(Src, Space, Max, Events)",
         Src=source,
         Space=space.space_name,
         Max=int(max_events),
     )
+    # Events cross as terms on the ordinary wire. Read back from their own
+    # text, a symbol whose spelling reads as something else arrived as
+    # something else: (holds $notvar) traced as a variable while run
+    # answered the symbol, and a tab inside a symbol split the record.
     events = []
-    for line in row.get("Events") or []:
-        depth, kind, term_text, answer_text = str(line).split("\t")
-        events.append(TraceEvent(
-            int(depth),
-            kind,
-            parse(term_text),
-            parse(answer_text) if answer_text else None,
-        ))
+    for record in row.get("Events") or []:
+        depth, kind, term, *answer = record
+        events.append(
+            TraceEvent(
+                int(depth),
+                str(kind),
+                atom_from_wire(term),
+                atom_from_wire(answer[0]) if answer else None,
+            )
+        )
     return events

@@ -505,6 +505,21 @@ petta_py_remove(Space, Tagged, Removed) :-
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
 
+%The tracer answers terms; putting them on the wire is the shim's job, as
+%it is for every other atom leaving the engine. A call event has no answer
+%field at all, rather than a value standing in for its absence.
+petta_py_trace(Source, Space, Max, Encoded) :-
+    metta_trace_source(Source, Space, Max, Events),
+    maplist(petta_py_trace_event, Events, Encoded).
+
+petta_py_trace_event(event(Depth, call, Term, _, Names),
+                     [Depth, "call", EncodedTerm]) :- !,
+    petta_py_encode_named(Term, Names, EncodedTerm).
+petta_py_trace_event(event(Depth, exit, Term, Answer, Names),
+                     [Depth, "exit", EncodedTerm, EncodedAnswer]) :-
+    petta_py_encode_named(Term, Names, EncodedTerm),
+    petta_py_encode_named(Answer, Names, EncodedAnswer).
+
 %Bulk cleanup of the reflection facts describing one space: every
 %(defined <Space> _) atom in &petta goes through the engine's own removal
 %funnel (hooks fire per fact), but in ONE crossing from Python; the

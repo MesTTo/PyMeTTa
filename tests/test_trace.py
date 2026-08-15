@@ -10,7 +10,7 @@ Open Obligations:
 
 import pytest
 
-from petta import S
+from petta import S, Sym
 
 
 @pytest.fixture()
@@ -31,6 +31,27 @@ def test_trace_nests_calls_and_carries_answers(m):
     assert str(exits[-1].term) == "(tr-fact 3)"
     assert exits[-1].answer == 6
     assert events[0].kind == "call"
+
+
+def test_trace_answers_the_atom_run_answers(m):
+    # Events used to cross as the term's text and be parsed back, so a
+    # symbol whose spelling reads as something else arrived as something
+    # else: $notvar as a variable, and a semicolon truncating the rest of
+    # the term at the comment it starts.
+    m.run("(= (tr-echo $x) $x)")
+    for name in ("$notvar", "semi;colon", "42", "True"):
+        m.add(S["tr-holds"](Sym(name)))
+        source = "!(match &self (tr-holds $v) (tr-echo $v))"
+        answered = m.run(source)
+        exits = [e for e in m.trace(source) if e.kind == "exit"]
+        assert [e.answer for e in exits] == answered[0], name
+        m.remove(S["tr-holds"](Sym(name)))
+
+
+def test_trace_names_variables_by_first_occurrence(m):
+    m.run("(= (tr-pair $a $b) ($b $a))")
+    events = m.trace("!(tr-pair $one $two)")
+    assert str(events[0].term) == "(tr-pair $_0 $_1)"
 
 
 def test_trace_runs_the_source_for_real(m):

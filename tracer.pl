@@ -4,12 +4,15 @@
 %   exit event with the answer per reduction, depth-nested through the
 %   call tree, then unwraps whole, so tracing costs nothing when off. A
 %   reduction that fails leaves its call without an exit, which is what
-%   failing looks like. Events answer as tab-separated strings, depth,
-%   kind, the term's text, and the answer's text, everything written by
-%   the engine's own swrite so any reader parses it back.
+%   failing looks like. Events answer as event/5 terms carrying the term
+%   itself, depth, kind, term, answer, and the names of the term's
+%   variables.
 % Guarantees:
 %   - Functions defined by the traced source and calls from hyperpose workers
 %     produce events [tested 2026-08-14: tracer].
+%   - A symbol whose spelling reads back as something else survives the
+%     trip: the trace and run answer the same atom
+%     [tested 2026-08-15: tracer:a_symbol_that_looks_like_a_variable_stays_a_symbol].
 %   - Traced get-type extensions report their public function name
 %     [tested 2026-08-15: tracer:type_extensions_keep_the_public_name].
 % Owns:
@@ -90,12 +93,18 @@ metta_trace_call(F, In, Head, Closure) :-
     b_setval('$petta_trace_depth', D),
     metta_trace_record(D, exit, [F|InArgs], Out).
 
+%An event carries the term, not the term's text. Written with swrite and
+%read back by the receiver, every symbol whose spelling reads as something
+%else changed on the way: a stored (holds $notvar) traced as a variable
+%while run answered the symbol, a semicolon truncated the rest of the term
+%at the comment it starts, and a tab inside a symbol split the record into
+%the wrong fields altogether. Variables are named by first occurrence,
+%which is the one thing the text form did that a reader wants kept.
 metta_trace_record(Depth, Kind, Term, Answer) :-
-    swrite(Term, TermText),
-    ( Answer == '' -> AnswerText = ""
-    ; swrite(Answer, AnswerText) ),
-    format(string(Event), "~w\t~w\t~w\t~w",
-           [Depth, Kind, TermText, AnswerText]),
+    copy_term(Term-Answer, TermCopy-AnswerCopy),
+    term_variables(TermCopy-AnswerCopy, Variables),
+    metta_trace_variable_names(Variables, 0, Names),
+    Event = event(Depth, Kind, TermCopy, AnswerCopy, Names),
     with_mutex('$petta_trace_events',
                ( metta_trace_next_seq(N),
                  metta_trace_limit(Max),
@@ -107,6 +116,16 @@ metta_trace_record(Depth, Kind, Term, Answer) :-
                  ; retractall(metta_trace_next_seq(_)),
                    assertz(metta_trace_next_seq(N1)),
                    assertz(metta_trace_event(N, Event)) ) )).
+
+%_0, _1 and so on, by first occurrence, which is the naming swrite applied
+%when an event crossed as text. The pairs travel with the term, so a
+%receiver that encodes variables by name reads the same spelling; the
+%leading $ belongs to the spelling of a variable, not to its name.
+metta_trace_variable_names([], _, []).
+metta_trace_variable_names([Variable|Rest], Index, [Name-Variable|Names]) :-
+    atom_concat('_', Index, Name),
+    Next is Index + 1,
+    metta_trace_variable_names(Rest, Next, Names).
 
 metta_trace_begin(Max) :-
     with_mutex('$petta_trace_state', metta_trace_begin_unlocked(Max)).
@@ -144,7 +163,9 @@ metta_trace_end_unlocked :-
 %Run Source in Space with the trace armed; Events come back oldest
 %first, at most Max of them: past the bound the trace throws instead of
 %accumulating without limit, since a long run's trace is data too. The
-%three-argument form carries the default bound.
+%three-argument form carries the default bound. Each event is
+%event(Depth, Kind, Term, Answer, VariableNames), Answer being '' on a
+%call, and VariableNames pairing $_0, $_1 with the term's variables.
 metta_trace_source(Source, Space, Events) :-
     metta_trace_source(Source, Space, 1000000, Events).
 
