@@ -1389,17 +1389,18 @@ petta_py_fast_has_object(Term) :-
 %token or change the form's structure, so every swrite-based seam refuses them.
 %token//1 owns the parser's delimiter rule. Quotes need an explicit check
 %because an embedded quote remains part of token//1's atom token.
-petta_py_unsafe_symbol(Symbol) :- atom(Symbol),
-                                  atom_codes(Symbol, Codes),
-                                  Codes = [_|_],
-                                  ( memberchk(0'", Codes)
-                                  ; \+ phrase(token(_), Codes) ), !.
-petta_py_bad_text_symbol(Term, Term) :- petta_py_unsafe_symbol(Term), !.
-petta_py_bad_text_symbol(Term, Bad) :-
-    compound(Term),
-    compound_name_arguments(Term, Functor, Args),
-    ( petta_py_bad_text_symbol(Functor, Bad)
-    ; member(Arg, Args), petta_py_bad_text_symbol(Arg, Bad) ), !.
+%The rule lives with the grammar it comes from [source: src/parser.pl,
+%metta_symbol_writable/1].
+petta_py_bad_text_symbol(Term, Bad) :- metta_unwritable_symbol(Term, Bad).
+
+%The first name in this list with no round-trip text spelling, so a host
+%validating a save asks the grammar instead of keeping a second copy of its
+%rules, which is how the host's copy came to miss three classes.
+petta_py_unwritable_name(Names, Bad) :-
+    member(Name, Names),
+    ( atom(Name) -> Symbol = Name ; atom_string(Symbol, Name) ),
+    \+ metta_symbol_writable(Symbol), !,
+    atom_string(Symbol, Bad).
 
 petta_py_fast_save(File, Space, Result) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),

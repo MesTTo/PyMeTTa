@@ -100,12 +100,15 @@ def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
     assert not (tmp_path / "object.fast").exists()
 
 
-@pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
+@pytest.mark.parametrize(
+    "name",
+    ['bad"quote', "bad(paren", "bad)paren", "bad name", "$notvar", "semi;colon", "42", "True"],
+)
 @pytest.mark.parametrize("format", ["metta", "fast"])
 def test_save_refuses_symbols_without_round_trip_text(m, tmp_path, name, format):
     path = tmp_path / f"unsafe-{format}"
     m.add(S.container(S[name]))
-    with pytest.raises(ValueError, match=r"symbol.*round-trip text spelling"):
+    with pytest.raises(ValueError, match=r"cannot write symbol"):
         m.save(path, format=format)
     assert not path.exists()
 

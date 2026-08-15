@@ -137,6 +137,59 @@ atom_symbol(A) --> token(Cs), { string_codes("\"", [Q]), ( Cs = [Q|_] -> append(
 %A token is a non-empty string without whitespace or comment delimiters:
 token(Cs) --> string_without(" \t\r\n();", Cs), { Cs \= [] }.
 
+%Whether a symbol's spelling reads back as that same symbol. Both readers
+%above answer, so this cannot drift from either: a name that reads as a
+%number, a variable, a string, a boolean, or as more than one token has no
+%text form that carries it, and neither has one that opens a string for the
+%form scanner, which would swallow the rest of the form.
+%
+%A character blacklist stood here in three places and missed three classes,
+%each a silent change of meaning wherever an atom crossed as text. $x read
+%back as a variable, a;b truncated at the comment it starts, 42 read as the
+%number, and True read as the boolean [tested: parser_symbol_text].
+%Reading the whole grammar back costs about three times a single token
+%scan, and every save and every digest asks this of every symbol it
+%carries, so the ordinary name answers without it: once a name is one
+%token holding no quote, only a first character that could begin a number,
+%a variable or a string, or a boolean's own spelling, can make it read
+%back as something else [measured 2026-08-15: the grammar alone cost
+%+18.9% inferences and +16.8% instructions on space-digest].
+metta_symbol_writable(Symbol) :-
+    atom(Symbol),
+    atom_codes(Symbol, Codes),
+    Codes = [First|_],
+    phrase(writable_token(Codes), Codes),
+    (   metta_symbol_ordinary(First, Symbol)
+    ->  true
+    ;   phrase(sexpr_token(Read, [], _), Codes),
+        Read == Symbol ).
+
+%One token, and no quote either: the form scanner opens a string on a quote
+%and would swallow the rest of the form, which sread/2 alone never sees. One
+%scan answers both, since every symbol carried as text pays for it.
+writable_token(Cs) --> string_without(" \t\r\n();\"", Cs), { Cs \= [] }.
+
+metta_symbol_ordinary(First, Symbol) :-
+    \+ metta_symbol_reserved_start(First),
+    Symbol \== 'True',
+    Symbol \== 'False'.
+
+%$ opens a variable, . - + and a digit can open a number. A name starting
+%with one of them is read in full before it is believed.
+metta_symbol_reserved_start(0'$).
+metta_symbol_reserved_start(0'.).
+metta_symbol_reserved_start(0'-).
+metta_symbol_reserved_start(0'+).
+metta_symbol_reserved_start(Code) :- code_type(Code, digit).
+
+%The first symbol in a term that has no round-trip text spelling.
+metta_unwritable_symbol(Term, Term) :- atom(Term), \+ metta_symbol_writable(Term), !.
+metta_unwritable_symbol(Term, Bad) :-
+    compound(Term),
+    compound_name_arguments(Term, Functor, Args),
+    ( metta_unwritable_symbol(Functor, Bad)
+    ; member(Arg, Args), metta_unwritable_symbol(Arg, Bad) ), !.
+
 %Just string literal handling from here-on:
 string_lit(S) --> "\"", string_chars(Cs), "\"", { string_codes(S, Cs) }.
 string_chars([]) --> [].

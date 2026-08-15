@@ -94,19 +94,20 @@ def serializable(atom: Atom) -> bool:
     return True
 
 
-def unsafe_text_symbol(atom: Atom) -> Sym | None:
-    """Return the first symbol that has no round-trip MeTTa text spelling."""
-    stack = [atom]
+def _symbol_names(atoms: list[Atom]) -> list[str]:
+    """Every distinct symbol name in these atoms, first appearance first."""
+    names: list[str] = []
+    seen: set[str] = set()
+    stack = list(reversed(atoms))
     while stack:
         current = stack.pop()
-        if isinstance(current, Sym) and (
-            not current.name
-            or any(character.isspace() or character in '()"' for character in current.name)
-        ):
-            return current
-        if isinstance(current, Expr):
+        if isinstance(current, Sym):
+            if current.name not in seen:
+                seen.add(current.name)
+                names.append(current.name)
+        elif isinstance(current, Expr):
             stack.extend(reversed(current.children))
-    return None
+    return names
 
 
 def raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
@@ -116,23 +117,29 @@ def raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
         "one element shorter"
         if not name
         else (
-            "symbol names containing whitespace, parentheses, or quotes have "
-            "no round-trip text spelling"
+            "the text form reads back as something else: a number, a "
+            "variable, a boolean, a string, or more than one atom"
         )
     )
     raise ValueError(f"{operation} cannot write symbol {name!r} as MeTTa text: {reason}")
 
 
-def _validate_atoms(atoms: list[Atom]) -> None:
+def _validate_atoms(rt: Runtime, atoms: list[Atom]) -> None:
     for atom in atoms:
         if not serializable(atom):
             raise ValueError(
                 f"{atom} carries a live Python object; a file cannot hold it. "
                 f"Remove it, or persist its data explicitly."
             )
-        bad = unsafe_text_symbol(atom)
-        if bad is not None:
-            raise_unsafe_text_symbol(bad, "save")
+    # Which spellings survive a round trip is the grammar's question, so the
+    # engine answers it. A blacklist kept here missed a leading $, which reads
+    # back as a variable, a semicolon, which starts a comment, and any name
+    # spelled like a number or a boolean.
+    names = _symbol_names(atoms)
+    if names:
+        row = rt.once("petta_py_unwritable_name(Names, Bad)", Names=names)
+        if row:
+            raise_unsafe_text_symbol(Sym(str(row["Bad"])), "save")
 
 
 def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
@@ -170,7 +177,7 @@ def save_space(
     """Validate and atomically persist one enumerated space."""
     if format not in ("metta", "fast"):
         raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
-    _validate_atoms(atoms)
+    _validate_atoms(rt, atoms)
     target = Path(path)
     temporary = _temporary_sibling(target)
     try:

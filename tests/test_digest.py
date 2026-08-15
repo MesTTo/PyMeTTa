@@ -67,9 +67,37 @@ def test_digest_refuses_live_objects(metta):
             m.digest()
 
 
-@pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        'bad"quote',
+        "bad(paren",
+        "bad)paren",
+        "bad name",
+        # Each of these reads back as something else, and each was accepted:
+        # a variable, a comment, a number, and a boolean.
+        "$notvar",
+        "semi;colon",
+        "42",
+        "True",
+    ],
+)
 def test_digest_refuses_symbols_without_round_trip_text(metta, name):
     with metta.fresh_space() as m:
         m.add(S.container(S[name]))
-        with pytest.raises(ValueError, match=r"symbol.*round-trip text spelling"):
+        with pytest.raises(ValueError, match=r"cannot write symbol"):
             m.digest()
+
+
+@pytest.mark.parametrize("name", ["plain", "a-b", "<=", "#+", "0x1f", ".5", "3x", "-abc"])
+def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):
+    # The refusal has to guard the writer that actually runs: a saved file is
+    # read back by the top-level form scanner, which tracks a string state
+    # sread alone never sees.
+    path = tmp_path / "one.metta"
+    with metta.fresh_space() as writer:
+        writer.add(S.container(S[name]))
+        writer.save(path)
+    with metta.fresh_space() as reader:
+        reader.load(path)
+        assert reader.atoms() == [S.container(S[name])]
