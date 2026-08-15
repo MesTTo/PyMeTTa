@@ -62,7 +62,10 @@ def _stored_with_head(space: Any, name: str) -> list[Expr]:
 def _stored_explanation(atom: Expr, name: str, stored: list[Expr]) -> str:
     sizes = sorted({len(candidate) for candidate in stored})
     if len(atom) not in sizes:
-        return f"{name} atoms here have {sizes} elements; the pattern has {len(atom)}"
+        # One observed size reads as a number, not a set: "[3] elements" looks
+        # like a list of one element rather than an element count of three.
+        observed = str(sizes[0]) if len(sizes) == 1 else str(sizes)
+        return f"{name} atoms here have {observed} elements; the pattern has {len(atom)}"
     return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
 
 
