@@ -1050,7 +1050,13 @@ recover_failure(E) :- ( control_exception(E) -> throw(E) ; fail ).
 fun_here(F) :- fun(F), \+ fun_scoped(F), !.
 fun_here(F) :- current_metta_module(Module), fun_here_in(Module, F).
 
+%The builtin fallback is what keeps (+ 1 2) working in &self after some other
+%named space defines (= (+ $a $b) ...). fun_scoped(N) stops fun_here/1's first
+%clause applying process-wide, and without this the name resolved nowhere: one
+%named space turned + into inert data in every other space and in engines
+%built afterwards [tested: metta_builtin_scoping].
 fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
+                          ;   builtin_fun(F) -> true
                           ;   Module \== user, fun_in(user, F) ).
 
 %Register a function and record which module its clauses live in. fun/1 stays
@@ -1059,6 +1065,15 @@ fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
 %compiled; fun_in/2 says where the clauses actually are, so a caller can ask
 %whether *this* space defines a symbol rather than whether any space does.
 :- dynamic fun_in/2, fun_scoped/1.
+%A builtin is visible from every space, and stays visible when a named space
+%defines its name. fun_in/2 cannot carry that: it means "an equation or a
+%registered operation defines this here", which is exactly the test
+%runtime_guarded_builtin_call/1 uses to decide a builtin was overridden. One
+%fact for each meaning, so neither reading breaks the other.
+:- dynamic builtin_fun/1.
+register_builtin_fun(N) :- register_fun(N),
+                           ( builtin_fun(N) -> true ; assertz(builtin_fun(N)) ).
+
 register_fun_in(Module, N) :- register_fun(N),
                               ( fun_in(Module, N) -> true
                               ; assertz(fun_in(Module, N), FunInRef),
@@ -1074,7 +1089,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
@@ -1099,5 +1114,5 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
 %1)) instead of running or failing.
 :- current_prolog_flag(argv, Argv),
    ( member(mork, Argv)
-     -> maplist(register_fun, ['mm2-exec', 'mork-add-atoms', 'mork-flush'])
+     -> maplist(register_builtin_fun, ['mm2-exec', 'mork-add-atoms', 'mork-flush'])
       ; true ).
