@@ -16,7 +16,6 @@ from petta import (
     MettaSyntaxError,
     PettaError,
     S,
-    StrictError,
     TimeLimitError,
     V,
     _engine,
@@ -103,46 +102,6 @@ def test_reserved_kinds_win_over_operation_classification(metta):
     with pytest.raises(MettaSyntaxError) as failure:
         metta.run("! (broken")
     assert not isinstance(failure.value, MettaOperationError)
-
-
-def test_strict_refuses_a_typo_and_names_the_near_miss(m):
-    m.run("(= (fact 0) 1)")
-    with pytest.raises(StrictError) as failure:
-        m.run("!(fct 5)", strict=True)
-    assert failure.value.directive == 1
-    assert str(failure.value.term) == "(fct 5)"
-    assert "did you mean fact?" in str(failure.value)
-
-
-def test_strict_refuses_an_empty_answer(m):
-    m.run("(= (only-zero 0) yes)")
-    with pytest.raises(StrictError) as failure:
-        m.run("!(only-zero 0)\n!(only-zero 7)", strict=True)
-    assert failure.value.directive == 2
-    assert failure.value.term is None
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "!(+ 1 2)",
-        "!(likes Ada Music)",  # stored data evaluating to itself is an answer
-        "!(quote (+ 1 2))",
-    ],
-)
-def test_strict_accepts_answers_that_are_not_silence(m, source):
-    m.add(S.likes(S.Ada, S.Music))
-    assert m.run(source, strict=True)
-
-
-def test_strict_is_opt_in(m):
-    # The default keeps every unreduced term, which is the point of the language.
-    assert m.run("!(fct 5)") == [[parse("(fct 5)")]]
-
-
-def test_eval_strict_refuses_silence(m):
-    with pytest.raises(StrictError):
-        m.eval(S.fct(5), strict=True)
 
 
 def test_add_query_atoms(m):

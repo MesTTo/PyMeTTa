@@ -19,7 +19,6 @@ __all__ = [
     "MettaSyntaxError",
     "PettaError",
     "ResourceLimitError",
-    "StrictError",
     "TimeLimitError",
 ]
 
@@ -89,22 +88,6 @@ class Interrupted(EngineError):
     The sqlite3 and DuckDB reading of interrupt: whatever the goal
     completed before the stop, writes included, stands.
     """
-
-
-class StrictError(PettaError):
-    """An opt-in strict run or eval refused an empty or unreduced answer.
-
-    Silence is a legitimate MeTTa answer, so this is never raised unless the
-    caller passed strict=True. `term` is the answer that triggered it, None
-    when a directive answered nothing, and `directive` is its 1-based
-    position in the source.
-    """
-
-    def __init__(self, message: str, *, term: object | None = None, directive: int | None = None):
-        where = f"directive {directive}: " if directive is not None else ""
-        super().__init__(f"{where}{message}")
-        self.term = term
-        self.directive = directive
 
 
 class CompileError(PettaError):
