@@ -19,6 +19,7 @@ __all__ = [
     "MettaSyntaxError",
     "PettaError",
     "ResourceLimitError",
+    "StrictError",
     "TimeLimitError",
 ]
 
@@ -88,6 +89,23 @@ class Interrupted(EngineError):
     The sqlite3 and DuckDB reading of interrupt: whatever the goal
     completed before the stop, writes included, stands.
     """
+
+
+class StrictError(PettaError):
+    """An opt-in strict run or eval refused an answer nothing reduced.
+
+    Strict means every directive must reduce. `term` is the answer the
+    engine handed back unevaluated, and `directive` is its 1-based position
+    in the source. An empty answer is NOT a violation: a pruned branch is
+    what (empty) and a match with no candidates produce, and refusing it
+    would refuse ordinary MeTTa.
+    """
+
+    def __init__(self, message: str, *, term: object = None, directive: int | None = None):
+        where = f"directive {directive}: " if directive is not None else ""
+        super().__init__(f"{where}{message}")
+        self.term = term
+        self.directive = directive
 
 
 class CompileError(PettaError):

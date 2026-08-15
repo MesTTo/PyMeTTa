@@ -16,6 +16,7 @@ from petta import (
     MettaSyntaxError,
     PettaError,
     S,
+    StrictError,
     TimeLimitError,
     V,
     _engine,
@@ -115,6 +116,69 @@ def test_reserved_kinds_win_over_operation_classification(metta):
     with pytest.raises(MettaSyntaxError) as failure:
         metta.run("! (broken")
     assert not isinstance(failure.value, MettaOperationError)
+
+
+@pytest.mark.parametrize(
+    ("setup", "source", "status"),
+    [
+        ("(= (d $x) (* $x 2))", "(d 4)", "value"),
+        ("", "(+ 1 2)", "value"),
+        ("", "(quote (a b))", "value"),
+        ("", "(Point 1 2)", "not-reducible"),
+        ("", "(fct 5)", "not-reducible"),
+        ("", "(empty)", "empty"),
+        ("(= (only-zero 0) yes)", "(only-zero 7)", "empty"),
+    ],
+)
+def test_eval_status_reports_the_four_outcomes(m, setup, source, status):
+    # A pruned branch and an unevaluated term look alike in the answers
+    # alone, which is exactly what this separates.
+    if setup:
+        m.run(setup)
+    reported = m.eval_status(parse(source))
+    assert [kind for kind, _ in reported] == [status]
+    if status == "empty":
+        assert reported[0][1] is None
+    else:
+        assert reported[0][1] is not None
+
+
+def test_run_status_reports_each_directive(m):
+    m.run("(= (d $x) (* $x 2))")
+    reported = m.run_status("!(d 4)\n!(Point 1 2)\n!(empty)")
+    assert [[kind for kind, _ in group] for group in reported] == [
+        ["value"],
+        ["not-reducible"],
+        ["empty"],
+    ]
+
+
+def test_strict_refuses_only_what_did_not_reduce(m):
+    m.run("(= (d $x) (* $x 2))")
+    with pytest.raises(StrictError) as failure:
+        m.run("!(d 4)\n!(fct 5)", strict=True)
+    assert failure.value.directive == 2
+    assert str(failure.value.term) == "(fct 5)"
+    assert "not reducible" in str(failure.value)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "!(+ 1 2)",
+        "!(quote (a b))",
+        "!(empty)",
+        "!(superpose ((Node 1) (Node 2)))",
+    ],
+)
+def test_strict_accepts_a_pruned_branch_and_every_reduction(m, source):
+    # Each of these once raised, because an empty answer and an unevaluated
+    # term were read as the same thing.
+    m.run(source, strict=True)
+
+
+def test_strict_is_opt_in(m):
+    assert m.run("!(fct 5)") == [[parse("(fct 5)")]]
 
 
 def test_add_query_atoms(m):

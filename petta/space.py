@@ -33,6 +33,10 @@ Guarantees:
     test_cast_target_is_positional_only]
   - dropping a space releases its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - eval_status and run_status separate a pruned branch from an unevaluated
+    term, and strict= refuses only the latter [tested
+    test_eval_status_reports_the_four_outcomes,
+    test_strict_accepts_a_pruned_branch_and_every_reduction]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -57,7 +61,14 @@ from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import clear_definitions, install_define, install_type
 from ._space_diagnostics import derivations, explain_no_match
-from ._space_execution import evaluate, profile_source, run_source, value_one
+from ._space_execution import (
+    evaluate,
+    evaluate_status,
+    profile_source,
+    run_source,
+    run_status,
+    value_one,
+)
 from ._space_objects import (
     Cursor,
     EngineProfile,
@@ -84,7 +95,7 @@ from .atoms import (
 )
 from .casting import cast as _cast
 from .derivation import Derivation
-from .errors import EngineError, PettaError
+from .errors import EngineError, PettaError, StrictError
 from .foreign import (
     has_provider,
     register_provider,
@@ -338,6 +349,7 @@ class MeTTa:
         capture: bool = False,
         atomic: bool = False,
         speculative: bool = False,
+        strict: bool = False,
     ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
         """Run MeTTa source: one list of answers per ! directive.
 
@@ -369,8 +381,20 @@ class MeTTa:
         snapshot/1: the answers return and every write is discarded.
         Both cover engine state; a Python operation's side effects, and
         subscription callbacks already fired, stay where they happened.
+
+        `strict=True` requires every directive to reduce, raising
+        StrictError on one the engine hands back unevaluated. It is opt-in,
+        because an unreduced term is an ordinary MeTTa value: a bare data
+        constructor is refused under strict for the same reason a bare
+        typo is, since neither reduces. An empty answer is allowed, being
+        the pruned branch that (empty) and an unmatched match produce.
+        eval_status() reports the same paths without refusing anything.
         """
         _require_source(source, "run")
+        if strict:
+            self._refuse_unreduced(
+                run_status(self._rt, self._space, source, timeout, inferences)
+            )
         return run_source(
             self._rt,
             self._space,
@@ -382,6 +406,20 @@ class MeTTa:
             atomic=atomic,
             speculative=speculative,
         )
+
+    def _refuse_unreduced(
+        self, groups: list[list[tuple[str, Any]]]
+    ) -> None:
+        """Refuse any directive the engine handed back unevaluated."""
+        for position, group in enumerate(groups, start=1):
+            for status, answer in group:
+                if status == "not-reducible":
+                    raise StrictError(
+                        f"{answer} is not reducible: no equation, builtin or "
+                        f"special form applies to it",
+                        term=answer,
+                        directive=position,
+                    )
 
     def profile(
         self,
@@ -765,6 +803,45 @@ class MeTTa:
             capture=capture,
             residuals=residuals,
         )
+
+    def eval_status(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list[tuple[str, Atom | Undefined | None]]:
+        """Evaluate a term, pairing each answer with how it was produced.
+
+            m.eval_status(S.double(4))       # [("value", Gnd(8))]
+            m.eval_status(S.Point(1, 2))     # [("not-reducible", Expr(...))]
+            m.eval_status(S.empty())         # [("empty", None)]
+
+        `value` means an equation, builtin or special form applied.
+        `not-reducible` means no rule applied, so the answer is the term
+        itself, which is what PeTTa does with any head it cannot call.
+        `empty` means the goal produced no answer at all, and its atom is
+        None. Reading the last two as the same thing is the mistake this
+        exists to prevent: an unevaluated term and a pruned branch look
+        alike from the answers alone. An error is not a status here,
+        because it arrives as an exception.
+        """
+        return evaluate_status(self._rt, self._space, target, timeout, inferences)
+
+    def run_status(
+        self,
+        source: str,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list[list[tuple[str, Atom | Undefined | None]]]:
+        """run(), with each directive's answers paired with how they arose.
+
+        The grouping and the answers are run()'s own; see eval_status() for
+        what the three paths mean.
+        """
+        _require_source(source, "run_status")
+        return run_status(self._rt, self._space, source, timeout, inferences)
 
     def value(
         self,

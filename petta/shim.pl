@@ -10,6 +10,10 @@
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_exception_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
+%   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
+%     PeTTa's evaluation paths produced each answer, leaving the ordinary
+%     entry points' output unchanged [tested
+%     test_eval_status_reports_the_four_outcomes]
 %   - petta_py_operation_error/5 reports a builtin refusal as its written
 %     operation, formal functor, expected type and culprit, and every value it
 %     yields is one Janus can carry [tested
@@ -256,6 +260,32 @@ petta_py_process_forms([P|Ps], Space, Out) :-
     ; Out = Rest ),
     petta_py_process_forms(Ps, Space, Rest).
 
+%run, with each directive's group carrying the path that produced it. The
+%grouping and the answers are exactly petta_py_run's; only the pairing is new
+%[tested test_run_status_reports_each_directive].
+petta_py_run_status(Source, Space, Groups) :-
+    petta_py_ensure_working_dir,
+    ( string(Source) -> S = Source ; atom_string(Source, S) ),
+    petta_py_tag_reader(parse_metta_source(S, Parsed)),
+    petta_py_process_forms_status(Parsed, Space, Groups), !.
+
+petta_py_process_forms_status([], _, []).
+petta_py_process_forms_status([P|Ps], Space, Out) :-
+    process_form(Space, P, Results),
+    ( P = parsed(runnable, _, Term)
+      -> petta_py_module(Space, Module),
+         ( petta_py_reducible_head(Module, Term) -> Status = value
+                                                  ; Status = 'not-reducible' ),
+         ( Results == []
+           -> Group = [[empty, none]]
+            ; maplist(petta_py_status_answer(Status), Results, Group) ),
+         Out = [Group|Rest]
+    ; Out = Rest ),
+    petta_py_process_forms_status(Ps, Space, Rest).
+
+petta_py_status_answer(Status, Result, [Status, Encoded]) :-
+    petta_py_encode(Result, Encoded).
+
 %Load a file the way the CLI does, working_dir included, keeping the
 %grouping. The directory holds only for THIS load: whatever working_dir the
 %process had comes back afterwards, exceptions included, so one load never
@@ -292,6 +322,8 @@ petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_res_all).
+petta_py_wrappable(petta_py_eval_status_all).
+petta_py_wrappable(petta_py_run_status).
 petta_py_wrappable(petta_py_captured).
 petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
@@ -757,6 +789,53 @@ petta_py_call_goals(Module, [G|Gs]) :-
 
 petta_py_eval_all(Space, Tagged, Encoded) :-
     findall(E, petta_py_eval(Space, Tagged, E), Encoded).
+
+%Which of PeTTa's own evaluation paths produced each answer, reported without
+%changing what the ordinary entry points return:
+%
+%  value           an equation, builtin or special form applied
+%  not-reducible   no rule applied, so the answer is the written term itself,
+%                  which is what PeTTa does with any head it cannot call
+%  empty           the goal produced no answer at all, which is what (empty)
+%                  and a match with no candidates do
+%
+%PeTTa had no name for these, so the taxonomy was taken from the mechanised
+%Hyperon specification, which is the only part borrowed
+%[source: /home/user/Dev/LeaTTa/MettaHyperonFull/Core/Result.lean, EvalStatus].
+%The distinction that matters is the one that surface behaviour hides: empty
+%is a pruned branch and not-reducible is an unevaluated term, and reading
+%both as "nothing happened" is what made an earlier strict mode fire on
+%(empty) and on a match with no candidates. An error is the fourth outcome
+%there and is not reported here, because the caller already receives it as
+%an exception.
+%
+%The head decides between value and not-reducible, using the same test the
+%translator uses when it chooses between emitting a call and building data,
+%so this reports the branch the engine actually took rather than guessing
+%from the answer [tested test_eval_status_reports_the_four_outcomes].
+petta_py_eval_status_all(Space, Tagged, Results) :-
+    petta_py_decode_shared(Tagged, Term, _),
+    petta_py_module(Space, Module),
+    ( petta_py_reducible_head(Module, Term) -> Status = value
+                                             ; Status = 'not-reducible' ),
+    findall([Status, E], petta_py_eval(Space, Tagged, E), Answers),
+    ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
+
+%A head the engine will try to reduce: a function this space can see. A
+%variable or compound head is decided at runtime by reduce/3, which reports
+%its own outcome, so it counts as reducible here.
+petta_py_reducible_head(Module, [F|_]) :-
+    ( atom(F) -> ( petta_py_special_head(F) -> true
+                 ; translator_rule(F) -> true
+                 ; petta_py_in_module(Module, fun_here(F)) )
+               ; true ).
+
+%A special form reduces without being a fun/1: quote is
+%translate_special_dl(quote, [Expr], Goals, Goals, Expr), which applies and
+%hands back its argument, so (quote (a b)) is a value and not a term nothing
+%could reduce. The arity is unknown here, so any clause for the head counts.
+petta_py_special_head(F) :-
+    clause(translate_special_dl(F, _, _, _, _), _), !.
 
 %The residual variant additionally derives, per undefined answer, the
 %residual program from its delays (the loop through tnot responsible),

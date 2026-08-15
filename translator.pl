@@ -174,8 +174,18 @@ throw_function_overapplication(Fun, ActualInputArity) :-
 % reduce/2 came back as a partial application instead of running: `(map-atom
 % (1 2 3) double)` answered `((partial double (1)) ...)`. A builtin still
 % resolves, through the module's own inheritance from user.
-reduce([], []) :- !.
-reduce([F|Args], Out) :- nonvar(F), atom(F),
+%The four evaluation outcomes of the Hyperon specification are value, Empty,
+%NotReducible and Error, and PeTTa already produces all four: an answer, a
+%failed goal, a term handed back unevaluated, and a thrown error. Only the
+%third was unreportable, because the term it yields is indistinguishable from
+%data. reduce/3 carries which of the two happened and reduce/2 keeps its exact
+%behaviour, so every compiled call site is unchanged
+%[source: /home/user/Dev/LeaTTa/MettaHyperonFull/Core/Result.lean, EvalStatus]
+%[tested: translator_reduction_status].
+reduce(X, Out) :- reduce(X, Out, _).
+
+reduce([], [], 'not-reducible') :- !.
+reduce([F|Args], Out, Status) :- nonvar(F), atom(F),
                          ( fun(F), \+ fun_scoped(F) -> Module = user
                          ; current_metta_module(Module), fun_here_in(Module, F) )
                          -> % --- Case 1: callable predicate ---
@@ -186,21 +196,24 @@ reduce([F|Args], Out) :- nonvar(F), atom(F),
                               \+ (Arity =< 2, current_op(_, _, F))
                               -> resolve_memoization(F, Args, Out, Goal),
                                  ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
-                                 call(CallGoal)
+                                 call(CallGoal),
+                                 Status = reduced
                             ; incomplete_application_kind(F, Arity, partial)
-                              -> Out = partial(F,Args)
+                              -> Out = partial(F,Args),
+                                 Status = reduced
                             ; throw_function_overapplication(F, N) )
                           ; % --- Case 2: partial closure ---
                             compound(F), F = partial(Base, Bound) -> append(Bound, Args, NewArgs),
-                                                                     reduce([Base|NewArgs], Out)
+                                                                     reduce([Base|NewArgs], Out, Status)
                           ; % --- Case 3: leave unevaluated ---
                             Out = [F|Args],
-                            acyclic_term(Out).
-reduce(Culprit, _) :- non_list(Culprit),
-                      throw_metta_type_error(reduce, list, Culprit).
+                            acyclic_term(Out),
+                            Status = 'not-reducible'.
+reduce(Culprit, _, _) :- non_list(Culprit),
+                         throw_metta_type_error(reduce, list, Culprit).
 
 %Calling reduce from aggregate function foldall needs this argument wrapping
-agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc).
+agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc, _).
 
 %Combined expr translation to goals list
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
@@ -290,7 +303,7 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                            Out = [HV1|AVs]
           %Unknown head (var/compound) => runtime dispatch:
           ; translate_args_dl(T, AfterHead, BeforeReduce, AVs),
-            BeforeReduce = [reduce([HV|AVs], Out)|Goals] )).
+            BeforeReduce = [reduce([HV|AVs], Out, _)|Goals] )).
 
 %A name alone is not enough: a user or named-space equation can override a
 %builtin and must retain reflective type checks. Only the unmodified runtime
@@ -430,10 +443,10 @@ translate_special_dl('forall', [Generator, Test], AfterHead, Goals, Out) :-
     TestList = [TestHeadValue, GeneratedValue],
     goals_list_to_conj(GeneratorGoals, GeneratorPrefix),
     GeneratorGoal = (GeneratorPrefix,
-                     reduce(GeneratorList, GeneratedValue)),
+                     reduce(GeneratorList, GeneratedValue, _)),
     translate_expr_dl(Test, AfterHead, BeforeForall, TestHeadValue),
     BeforeForall = [(forall(GeneratorGoal,
-                            (reduce(TestList, Truth), Truth == true))
+                            (reduce(TestList, Truth, _), Truth == true))
                      -> Out = true
                       ; Out = false)|Goals].
 translate_special_dl('foldall', [Accumulator, Generator, InitialExpr],
@@ -459,7 +472,7 @@ translate_special_dl('foldall', [Accumulator, Generator, InitialExpr],
         GeneratorList = [GeneratorHeadValue] ),
     AfterGenerator = [InitialConj,
                       foldall(agg_reduce(AccumulatorValue, Value),
-                              reduce(GeneratorList, Value), Initial, Out)|Goals].
+                              reduce(GeneratorList, Value, _), Initial, Out)|Goals].
 
 translate_special_dl('foldl-atom', [ListExpr, InitialExpr, AccVar, ItemVar,
                                     Body], AfterHead, Goals, Out) :-
@@ -531,11 +544,11 @@ translate_special_dl(reduce, [Expr], AfterHead, Goals, Out) :-
          AfterHead = Goals
       ; var(Expr)
       -> translate_expr_dl(Expr, AfterHead, BeforeReduce, ExprValue),
-         BeforeReduce = [reduce(ExprValue, Out)|Goals]
+         BeforeReduce = [reduce(ExprValue, Out, _)|Goals]
       ; Expr = [Function|Args],
         translate_args_dl(Args, AfterHead, BeforeReduce, ArgValues),
         ExprValue = [Function|ArgValues],
-        BeforeReduce = [reduce(ExprValue, Out)|Goals] ).
+        BeforeReduce = [reduce(ExprValue, Out, _)|Goals] ).
 translate_special_dl(eval, [Arg], AfterHead, Goals, Out) :-
     AfterHead = [eval(Arg, Out)|Goals].
 translate_special_dl(quote, [Expr], Goals, Goals, Expr).

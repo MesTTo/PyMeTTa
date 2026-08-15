@@ -173,3 +173,46 @@ def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:
             f"definite one exists. eval() carries the third truth value."
         )
     return decode(answer) if isinstance(answer, Gnd) else answer
+
+
+def evaluate_status(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int | None,
+) -> list[tuple[str, Atom | Undefined | None]]:
+    """Pair each answer with the evaluation path that produced it."""
+    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
+    rows = rt.apply_must(
+        "petta_py_limited",
+        seconds,
+        steps,
+        "petta_py_eval_status_all",
+        [space, _to_atom(target).to_wire()],
+    )
+    return [
+        (str(status), None if status == "empty" else from_wire(wire))
+        for status, wire in rows
+    ]
+
+
+def run_status(
+    rt: Runtime,
+    space: str,
+    source: str,
+    timeout: float | None,
+    inferences: int | None,
+) -> list[list[tuple[str, Atom | Undefined | None]]]:
+    """One (status, answer) list per ! directive, in source order."""
+    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
+    groups = rt.apply_must(
+        "petta_py_limited", seconds, steps, "petta_py_run_status", [source, space]
+    )
+    return [
+        [
+            (str(status), None if status == "empty" else from_wire(wire))
+            for status, wire in group
+        ]
+        for group in groups
+    ]
