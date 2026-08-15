@@ -39,6 +39,7 @@ import math
 import queue
 import threading
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -53,7 +54,7 @@ from .space import MeTTa
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["RemoteSpace", "Server", "attach", "connect", "serve"]
+__all__ = ["RemoteSpace", "Request", "Server", "attach", "connect", "serve"]
 
 #: A transport: one callable taking (operation, payload dict) and answering
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
@@ -102,17 +103,34 @@ def _request_length(headers: Any) -> int:
     return length
 
 
+@dataclass(frozen=True)
+class Request:
+    """What an authorize hook decides about: who is asking, what they ask
+    for, and which space they name. A hook given the headers alone could
+    not tell a read from a write, so read-only was inexpressible."""
+
+    operation: str
+    space: str
+    headers: Mapping[str, str]
+
+
+def _has_credential(headers: Mapping[str, str], token: str | None) -> bool:
+    """Check the fixed Bearer credential, before the body is read at all."""
+    if token is None:
+        return True
+    supplied = headers.get("authorization", "")
+    return hmac.compare_digest(supplied, f"Bearer {token}")
+
+
 def _is_authorized(
-    headers: Mapping[str, str],
+    request: Request,
     token: str | None,
-    authorize: Callable[[Mapping[str, str]], bool] | None,
+    authorize: Callable[[Request], bool] | None,
 ) -> bool:
     """Check the fixed Bearer credential before the general policy hook."""
-    if token is not None:
-        supplied = headers.get("authorization", "")
-        if not hmac.compare_digest(supplied, f"Bearer {token}"):
-            return False
-    return authorize is None or authorize(headers)
+    return _has_credential(request.headers, token) and (
+        authorize is None or authorize(request)
+    )
 
 
 class RemoteSpace(SpaceProvider):
@@ -458,7 +476,7 @@ def serve(
     spaces: list[str] | None = None,
     *,
     token: str | None = None,
-    authorize: Callable[[Mapping[str, str]], bool] | None = None,
+    authorize: Callable[[Request], bool] | None = None,
     ssl_context: Any = None,
 ) -> Server:
     """Expose this engine's spaces over HTTP; port 0 picks a free one.
@@ -466,8 +484,9 @@ def serve(
     Every operation answers for the space the request names, restricted
     to `spaces` when given. Security is the caller's to define, library
     fashion: token requires Bearer authentication, authorize is the
-    general hook (the request headers in, a verdict out, so any scheme
-    an operator runs fits), and ssl_context, Python's own
+    general hook (a Request in, carrying the operation, the space and
+    the headers, and a verdict out, so read-only, per-space and
+    per-tenant policies all fit), and ssl_context, Python's own
     ssl.SSLContext with a certificate loaded, serves TLS directly;
     anything heavier still composes behind a fronting proxy. match runs
     the engine's own match with the pattern as its template, so the
@@ -542,23 +561,33 @@ def serve(
                 )
             return payload
 
+        def _refuse_unauthorized(self, operation: str) -> None:
+            logger.warning("refused unauthorized remote engine operation %s", operation)
+            body = _json.dumps({"error": "not authorized"})
+            self.send_response(401)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def do_POST(self) -> None:
             operation = self.path.strip("/")
             headers: dict[str, str] = {}
             for name, value in self.headers.items():
                 key = name.lower()
                 headers[key] = f"{headers[key]}, {value}" if key in headers else value
-            if not _is_authorized(headers, token, authorize):
-                logger.warning("refused unauthorized remote engine operation %s", operation)
-                body = _json.dumps({"error": "not authorized"})
-                self.send_response(401)
-                self.send_header("content-type", "application/json")
-                self.send_header("content-length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
+            # The fixed credential decides before the body is read, so a
+            # request without it drives no parser. The policy hook decides
+            # after, because the space it judges is in the body.
+            if not _has_credential(headers, token):
+                self._refuse_unauthorized(operation)
                 return
             try:
                 payload = self._payload()
+                request = Request(operation, str(payload.get("space", m.space_name)), headers)
+                if authorize is not None and not authorize(request):
+                    self._refuse_unauthorized(operation)
+                    return
                 kind, value = worker.call(operation, payload, timeout=600.0)
                 answer = value if kind == "ok" else {"error": value}
                 status = 200 if kind == "ok" else 400

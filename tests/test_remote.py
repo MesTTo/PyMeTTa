@@ -22,7 +22,7 @@ import pytest
 
 import petta
 import petta._network as network
-from petta import remote
+from petta import S, remote
 from petta.errors import PettaError
 
 
@@ -58,25 +58,30 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):
         calls.append((supplied, expected))
         return supplied == expected
 
-    def authorize(headers):
-        policies.append(headers)
+    def authorize(request):
+        policies.append(request)
         return True
+
+    def asking(headers):
+        return remote.Request("atoms", "&self", headers)
 
     monkeypatch.setattr(remote.hmac, "compare_digest", compare)
 
     matching = {"authorization": "Bearer secret"}
-    assert remote._is_authorized(matching, "secret", authorize)
+    assert remote._is_authorized(asking(matching), "secret", authorize)
     assert not remote._is_authorized(
-        {"authorization": "Bearer wrong"}, "secret", authorize
+        asking({"authorization": "Bearer wrong"}), "secret", authorize
     )
-    assert not remote._is_authorized({}, "secret", authorize)
+    assert not remote._is_authorized(asking({}), "secret", authorize)
 
     assert calls == [
         ("Bearer secret", "Bearer secret"),
         ("Bearer wrong", "Bearer secret"),
         ("", "Bearer secret"),
     ]
-    assert policies == [matching]
+    # The policy hook runs only behind a good credential, and it is told
+    # what is being asked for, not only who is asking.
+    assert policies == [remote.Request("atoms", "&self", matching)]
 
 
 @pytest.mark.parametrize(
@@ -224,6 +229,33 @@ def test_remote_server_rejects_malformed_request_bodies(
     finally:
         connection.close()
         server.close()
+
+
+def test_authorize_can_serve_a_space_read_only(metta):
+    # The hook saw the headers alone, so it could not tell a read from a
+    # write and read-only was inexpressible.
+    served = metta.fresh_space()
+    served.add(S.stock(S.apple))
+    name = served.space_name
+    seen = []
+
+    def read_only(request):
+        seen.append((request.operation, request.space))
+        return request.operation in ("atoms", "match")
+
+    server = remote.serve(metta, spaces=[name], authorize=read_only)
+    try:
+        transport = remote.connect(server.url)
+        space = remote.RemoteSpace(transport, name)
+        assert list(space.atoms()) == [S.stock(S.apple)]
+        with pytest.raises(PettaError, match="not authorized"):
+            space.add(S.stock(S.pear))
+        assert list(space.atoms()) == [S.stock(S.apple)]
+    finally:
+        server.close()
+        served.drop()
+
+    assert seen == [("atoms", name), ("add", name), ("atoms", name)]
 
 
 @pytest.mark.parametrize(
