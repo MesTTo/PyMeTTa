@@ -53,13 +53,13 @@
     },
     "let-heavy": {
       "inference_slope": {
-        "delta_inferences": 7200288,
+        "delta_inferences": 9000360,
         "large_operations": 1000000,
         "small_operations": 100000
       },
-      "inferences": 8000413,
+      "inferences": 10001439,
       "instruction_noise_percent": 1.0,
-      "instructions": 4433498838,
+      "instructions": 5614114809,
       "operations": 1000000,
       "unit": "iterations",
       "wall_seconds_per_operation": 2.1706230309791863e-07

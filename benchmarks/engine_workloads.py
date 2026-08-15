@@ -35,6 +35,7 @@ from petta import Expr, MeTTa, S, V, expr
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
 LET_ITERATIONS = 1_000_000
+LET_ROW_ELEMENTS = 64
 LET_SLOPE_SMALL = 100_000
 METHOD_CALLS = 10_000
 SORT_TERMS = 100_000
@@ -42,6 +43,7 @@ SOURCE_FORMS = 1_000
 SPACE_NAME_CALLS = 30_000
 
 _BIGNUM = 10**40
+_LET_ROW = expr(*(_BIGNUM + index for index in range(LET_ROW_ELEMENTS)))
 
 EngineCase: TypeAlias = tuple[MeTTa, Callable[[], int]]
 
@@ -60,9 +62,10 @@ def let_space() -> MeTTa:
     space = _space()
     try:
         space.run(
-            "(= (benchmark-let-heavy $n $acc) "
+            "(= (benchmark-let-heavy $n $acc $row) "
             "(if (> $n 0) "
-            "(let $next (+ $acc $n) (benchmark-let-heavy (- $n 1) $next)) "
+            "(let $next (cons-atom $n $row) "
+            "(benchmark-let-heavy (- $n 1) (+ $acc (car-atom $next)) $row)) "
             "$acc))"
         )
     except BaseException:
@@ -72,9 +75,22 @@ def let_space() -> MeTTa:
 
 
 def let_heavy(space: MeTTa, iterations: int = LET_ITERATIONS) -> int:
-    """Evaluate one let and one bignum addition per iteration."""
+    """Evaluate one let binding a compound and one bignum addition per iteration.
+
+    The bound value is a compound on purpose. A let emits its occurs check
+    before evaluating both sides when they share no variable, which is O(1)
+    on two unbound variables, and after when they do, where the check walks
+    the whole value. Binding a bignum leaves that walk one cell wide, so the
+    case measured let dispatch and nothing of the walk: forcing every let
+    onto the late path moved it 0.5% in the wrong direction. The row is a
+    fixed width rather than an accumulation, so the walk is a constant per
+    iteration instead of quadratic over a million of them.
+
+    Forcing the late path now costs 13,836,204,827 instructions:u against
+    5,614,127,276, a factor of 2.46 [measured 2026-08-15, min of 3].
+    """
     expected = _BIGNUM + iterations * (iterations + 1) // 2
-    result = space.eval(S["benchmark-let-heavy"](iterations, _BIGNUM))
+    result = space.eval(S["benchmark-let-heavy"](iterations, _BIGNUM, _LET_ROW))
     if result != [expected]:
         raise AssertionError(f"let-heavy returned {result!r}, expected {[expected]!r}")
     return iterations
