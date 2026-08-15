@@ -32,6 +32,19 @@ native_storage_module(Space, Module) :-
 :- dynamic native_storage_module_cache/2.
 :- dynamic petta_py_add_hooks_idle/1.
 
+%Only a module that actually holds something belongs to somebody else.
+%current_module/1 is not that test: SWI creates a module as a side effect of
+%merely naming it, including from read-only introspection, so
+%predicate_property('$petta_atoms:&kb':anything, dynamic) was enough to make
+%&kb throw on every write for the life of the process, with clear/1 reporting
+%success and changing nothing. An empty module of that name is ours to claim
+%[tested: spaces_registration:naming_the_storage_module_does_not_claim_it].
+native_storage_module_occupied(Module) :-
+    current_module(Module),
+    predicate_property(Module:Head, defined),
+    \+ predicate_property(Module:Head, imported_from(_)),
+    \+ predicate_property(Module:Head, foreign), !.
+
 native_storage_ready(Module) :-
     current_predicate(Module:'$petta_native_storage'/0),
     predicate_property(Module:'$petta_native_storage', dynamic),
@@ -54,7 +67,7 @@ ensure_native_storage_module_locked(Space, Module) :-
     native_storage_ready(Module), !,
     assertz(native_storage_module_cache(Space, Module)).
 ensure_native_storage_module_locked(Space, Module) :-
-    ( current_module(Module)
+    ( native_storage_module_occupied(Module)
       -> throw(error(permission_error(create, native_space_storage, Module),
                      context(ensure_native_storage_module/2,
                              'the reserved storage module name is already in use')))
