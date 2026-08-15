@@ -336,6 +336,37 @@ def test_nested_loops_carry_the_outer_state(m):
     assert dtriangles.py(5) == 10
 
 
+def test_nested_for_loops_resume_the_outer_sequence(m):
+    @m.define
+    def dgrid(rows):
+        out = 0
+        for row in rows:
+            for cell in row:
+                out += cell
+            out += 100
+        return out
+
+    @m.define
+    def dcube(grid):
+        out = 0
+        for plane in grid:
+            for row in plane:
+                for cell in row:
+                    out += cell
+        return out
+
+    # A for carries the sequence it has left to peel. Held as a fixed
+    # variable rather than as loop state, the inner loop's exit read that
+    # name in its own equation, where it is the inner loop's tail, and the
+    # outer loop resumed on it.
+    assert m.run("!(dgrid ((1 2) (3)))") == [[206]]
+    assert dgrid.py([[1, 2], [3]]) == 206
+    assert m.run("!(dgrid ((5)))") == [[105]]
+    assert m.run("!(dgrid ())") == [[0]]
+    assert m.run("!(dcube (((1 2) (3)) ((4))))") == [[10]]
+    assert dcube.py([[[1, 2], [3]], [[4]]]) == 10
+
+
 def test_for_peels_with_decons_and_early_return_searches(m):
     @m.define
     def dfind(xs, target):

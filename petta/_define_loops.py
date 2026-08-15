@@ -20,12 +20,18 @@ from .atoms import Atom, Expr, Sym, Var
 from .errors import CompileError
 
 
-def _recursion_closer(helper: str, state: list[str], prefix: list):
+def _recursion_closer(helper: str, state: list[str]):
     """What a loop body's fall-through means: one more round, with each
-    state name's CURRENT variable at that point in the body."""
+    state name's CURRENT variable at that point in the body.
+
+    Every argument is resolved through the scope, the loop's own remaining
+    sequence included. Holding that one as a fixed variable instead read the
+    outer loop's tail in the inner loop's equation, where the name belongs to
+    the inner loop, so a nested for resumed the outer loop on its own tail.
+    """
 
     def recur(compiler: CompilerContext) -> Expr:
-        return Expr([Sym(helper), *prefix, *(Var(compiler.scope[n]) for n in state)])
+        return Expr([Sym(helper), *(Var(compiler.scope[n]) for n in state)])
 
     return recur
 
@@ -70,7 +76,7 @@ class LoopCompilerMixin(CompilerContext):
 
         equation_compiler = self._equation_compiler(state)
         equation_compiler.closer_names = state.copy()
-        recur = _recursion_closer(helper, state, prefix=[])
+        recur = _recursion_closer(helper, state)
         body_compiler = equation_compiler._fork()
         body_compiler.closer = recur
         exit_compiler = equation_compiler._fork()
@@ -107,7 +113,14 @@ class LoopCompilerMixin(CompilerContext):
         body_compiler = equation_compiler._fork()
         variable = body_compiler._bind(target)
         tail = body_compiler._temp("tail")
-        body_compiler.closer = _recursion_closer(helper, state, prefix=[Var(tail)])
+        # The remaining sequence is loop state like any other: a construct
+        # nested in the body compiles into its own equation, and the
+        # continuation it captures resumes THIS loop on THIS tail, so the
+        # tail has to travel there as a parameter. It enters scope under its
+        # own variable name, which no Python identifier can spell.
+        body_compiler.scope[tail] = tail
+        body_compiler.closer_names = [tail, *state]
+        body_compiler.closer = _recursion_closer(helper, [tail, *state])
         exit_compiler = equation_compiler._fork()
         exit_compiler.closer = self.closer
 
