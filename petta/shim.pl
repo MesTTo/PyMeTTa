@@ -144,27 +144,42 @@ petta_py_exception_kind(Error, Kind) :-
 petta_py_operation_error(error(Formal, context(Operation, Message)),
                          Operation, Kind, Expected, Culprit) :-
     atom(Operation),
+    nonvar(Message),
     petta_py_operation_message(Message),
     nonvar(Formal),
     petta_py_operation_formal(Formal, Kind, Expected0, Culprit0),
-    petta_py_operation_value(Expected0, Expected),
-    petta_py_operation_value(Culprit0, Culprit).
+    petta_py_operation_part(Expected0, Expected),
+    petta_py_operation_part(Culprit0, Culprit).
+
+%Absence is my own unbound output and crosses as None. A variable INSIDE a
+%culprit is one the user wrote and has to render, or (a $x) and (a <absent>)
+%read alike on the far side.
+petta_py_operation_part(Term, @none) :- var(Term), !.
+petta_py_operation_part(Term, Value) :- petta_py_operation_value(Term, Value).
 
 %janus carries atomics and lists of them; any other compound would raise
 %`Domain error: py_term expected` while binding the output, which would turn a
 %user's type error into a classifier failure. Such a culprit crosses as its
-%written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs.
-%An absent part crosses as the atom `none`, which janus maps to Python None
-%rather than to the string "none": @none is the tagged null it reads back.
-petta_py_operation_value(Term, @none) :- var(Term), !.
+%written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs. The text
+%comes from swrite/2, the engine's own printer, so it reads back as the MeTTa
+%the user wrote: term_to_atom spells a variable `_112` and a partial
+%application `partial(g,[1])`, neither of which is MeTTa surface syntax.
 petta_py_operation_value(Term, Term) :- atomic(Term), !.
 petta_py_operation_value(Term, Value) :- is_list(Term), !,
                                          maplist(petta_py_operation_value, Term, Value).
-petta_py_operation_value(Term, Text) :- term_to_atom(Term, Text).
+petta_py_operation_value(Term, Text) :- swrite(Term, Text).
 
 petta_py_operation_message('while evaluating MeTTa operation').
 petta_py_operation_message('invalid MeTTa operation argument').
 
+%is/2 reports an unevaluable term as a predicate indicator, Name/Arity. That
+%is a Prolog artifact rather than anything the user wrote, and swrite would
+%read the / as MeTTa and print (/ a 0). A zero-arity indicator is exactly the
+%symbol the source wrote, so it crosses as that symbol.
+petta_py_operation_formal(type_error(evaluable, Name/Arity), type_error,
+                          evaluable, Culprit) :- !,
+    ( Arity =:= 0 -> Culprit = Name
+                   ; format(atom(Culprit), '~w/~w', [Name, Arity]) ).
 petta_py_operation_formal(type_error(Expected, Culprit), type_error,
                           Expected, Culprit) :- !.
 petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).

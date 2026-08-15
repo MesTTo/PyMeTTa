@@ -69,8 +69,8 @@ def test_run_unknown_function_error_is_loud(metta):
 @pytest.mark.parametrize(
     ("source", "operation", "expected", "culprit"),
     [
-        ("!(+ 1 a)", "+", "evaluable", "a/0"),
-        ("!(< 1 a)", "<", "evaluable", "a/0"),
+        ("!(+ 1 a)", "+", "evaluable", "a"),
+        ("!(< 1 a)", "<", "evaluable", "a"),
         ("!(min-atom (a b))", "min-atom", "number", "a"),
         ("!(and true 5)", "and", "boolean", 5),
         ("!(reduce a)", "reduce", "list", "a"),
@@ -88,6 +88,19 @@ def test_operation_error_carries_its_parts(metta, source, operation, expected, c
     assert failure.value.culprit == culprit
     assert isinstance(failure.value, EngineError)
     assert "classifier failed" not in str(failure.value)
+
+
+def test_an_operation_error_keeps_the_variables_the_source_wrote(m):
+    # A variable inside a culprit must render, or (a $x) and an absent part
+    # both arrive as None and read alike.
+    with pytest.raises(MettaOperationError) as failure:
+        m.run("!(and True (a $x))")
+    assert failure.value.culprit == ["a", "$_0"]
+    with pytest.raises(MettaOperationError) as absent:
+        m.run("!(/ 1 0)")
+    assert absent.value.kind == "evaluation_error"
+    assert absent.value.expected is None
+    assert absent.value.culprit is None
 
 
 def test_engine_error_without_an_operation_stays_plain(metta):

@@ -312,12 +312,6 @@ match_native(Module, Space, [Rel|PatArgs], OutPattern, Result) :- native_express
 %Read one stored expression through its private module. The module's unknown
 %flag is fail, so a virgin arity fails directly and this indexed path needs no
 %exception handler.
-native_expression('&self', Rel, PatArgs) :- !,
-    native_expression('$petta_atoms:&self', '&self', Rel, PatArgs).
-native_expression(Space, Rel, PatArgs) :-
-    native_storage_module_ready(Space, Module),
-    native_expression(Module, Space, Rel, PatArgs).
-
 native_expression(Module, Space, Rel, PatArgs) :-
     Term =.. [Space, Rel | PatArgs],
     call(Module:Term).
@@ -352,10 +346,6 @@ get_native_atom(Module, Space, Pattern) :-
     clause(Module:Head, true),
     Head =.. [Space | Pattern].
 get_native_atom(Module, _, Pattern) :-
-    get_native_scalar_atom_in(Module, Pattern).
-
-get_native_scalar_atom(Space, Pattern) :-
-    native_storage_module_ready(Space, Module),
     get_native_scalar_atom_in(Module, Pattern).
 
 get_native_scalar_atom_in(Module, Pattern) :-
