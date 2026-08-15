@@ -199,13 +199,41 @@ add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
     Arity is N + 1,
     register_arity(FAtom, Arity),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
-    assertz(Module:Clause, Ref),
+    assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
     assertz(translated_from(Ref, Term), SourceRef),
     record_source_assertion(SourceRef),
     forall(metta_on_function_changed(FAtom), true),
     invalidate_specializations(FAtom),
     maybe_print_compiled_clause("added function", Term, Clause).
+
+%A builtin is a static predicate compiled into the engine, so an equation for
+%its name in &self would have to assert into it. SWI refuses that with a
+%permission error naming assertz/2, the Prolog arity, and the absolute path of
+%the engine source file, none of which is language the program that wrote the
+%equation can act on. Say it in MeTTa's terms, and say where the definition
+%can go: a named space compiles its clauses into a module of its own, which
+%shadows the builtin there and leaves every other space's alone
+%[tested: spaces_builtin_override].
+:- multifile prolog:error_message//1.
+
+assert_function_clause(Module, Clause, Ref) :-
+    catch(assertz(Module:Clause, Ref),
+          error(permission_error(modify, static_procedure, _), _),
+          throw_builtin_redefinition(Module, Clause)).
+
+throw_builtin_redefinition(Module, Clause) :-
+    ( Clause = (Head :- _) -> true ; Head = Clause ),
+    functor(Head, Name, Arity),
+    InputArity is Arity - 1,
+    ( Module == user -> Space = '&self' ; Space = Module ),
+    throw(error(petta_builtin_redefinition(Name, InputArity, Space),
+                context('=', 'a builtin cannot be redefined in this space'))).
+
+prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
+    [ '~w with ~w arguments is a builtin and cannot be redefined in ~w. A \c
+       named space compiles its own clauses, so defining it there shadows \c
+       the builtin for that space alone.'-[Name, Arity, Space] ].
 
 'remove-atom'(Space, Term, Removed) :- metta_remove_atom(Space, Term, Removed).
 
