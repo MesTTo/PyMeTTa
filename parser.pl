@@ -13,6 +13,7 @@
 %   Future Enhancements: None
 
 :- use_module(library(dcg/basics)). %blanks/0, number/1, string_without/2
+:- use_module(library(occurs)). %sub_term/2
 
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
 swrite(Term, String) :- stable_print_term(Term, Printable),
@@ -183,12 +184,18 @@ metta_symbol_reserved_start(0'+).
 metta_symbol_reserved_start(Code) :- code_type(Code, digit).
 
 %The first symbol in a term that has no round-trip text spelling.
-metta_unwritable_symbol(Term, Term) :- atom(Term), \+ metta_symbol_writable(Term), !.
+%sub_term/2 walks it; a MeTTa expression is a list, so its head symbol is
+%an element and is reached, and a non-list compound is written functor
+%first by swrite/2, so that name is checked too
+%[source: SWI-Prolog 10.1 Reference Manual A.31, library(occurs)].
 metta_unwritable_symbol(Term, Bad) :-
-    compound(Term),
-    compound_name_arguments(Term, Functor, Args),
-    ( metta_unwritable_symbol(Functor, Bad)
-    ; member(Arg, Args), metta_unwritable_symbol(Arg, Bad) ), !.
+    sub_term(Sub, Term),
+    metta_unwritable_here(Sub, Bad), !.
+
+metta_unwritable_here(Sub, Sub) :- atom(Sub), !, \+ metta_symbol_writable(Sub).
+metta_unwritable_here(Sub, Name) :- compound(Sub), \+ is_list(Sub),
+                                    functor(Sub, Name, _),
+                                    \+ metta_symbol_writable(Name).
 
 %Just string literal handling from here-on:
 string_lit(S) --> "\"", string_chars(Cs), "\"", { string_codes(S, Cs) }.
