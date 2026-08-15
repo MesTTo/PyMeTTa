@@ -158,7 +158,7 @@
       "wall_seconds_per_operation": 2.009731971193105e-06
     },
     "source-load": {
-      "inferences": 6921397,
+      "inferences": 6921403,
       "instruction_noise_percent": 1.0,
       "instructions": 4248161895,
       "operations": 1000,

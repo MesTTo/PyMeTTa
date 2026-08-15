@@ -348,7 +348,13 @@ clear_native_atoms(Space) :-
     retractall(import_life(Space, _, _)).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
+%The read sibling of match/4's guard, and it needs it for the same reason:
+%native_storage_module_ready/2 is a dynamic lookup, so an unbound space
+%enumerated every space ever written to and !(collapse (get-atoms $any))
+%answered with another space's atoms without ever naming it
+%[tested: spaces_storage_modules:reading_atoms_requires_a_named_space].
 get_native_atom(Space, Pattern) :-
+    ( var(Space) -> instantiation_error(Space) ; true ),
     native_storage_module_ready(Space, Module),
     get_native_atom(Module, Space, Pattern).
 

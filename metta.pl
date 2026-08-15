@@ -380,6 +380,17 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
     ; Out = [H|Rest],
       'subtraction-atom'(T, B, Rest) ).
 'subtraction-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
+%The guard its two siblings already have, and it leads rather than trails
+%because append/3 succeeds on a non-list right operand: (union-atom (a) b)
+%built the improper list [a|b], printed as (cons a b), which is not a tuple
+%and cannot be consumed by any tuple operation. A non-list left operand
+%failed silently. The empty-tuple answer is this family's settled convention.
+%
+%non_list/1 is false for an unbound argument, which is load-bearing: lib_roman
+%calls (union-atom $xs ($x)) with $xs unbound to SPLIT a list, so append/3
+%must still be reached in its relational modes
+%[tested: metta_set_operations, examples/libraries/roman_test.metta].
+'union-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'union-atom'(A, B, Out) :- append(A, B, Out).
 'intersection-atom'([], _, []) :- !.
 'intersection-atom'([H|T], B, Out) :- !,
