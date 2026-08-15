@@ -1,3 +1,9 @@
+%Memoization dispatch: a handler decides whether a call is served from a
+%cache. A function name alone does not identify a function, because a named
+%space compiles its equations into a module of its own, so a handler that
+%keeps state per function reads current_metta_module/1 to learn which module
+%the call site is in. It reads it rather than being passed it because this
+%hook is consulted on every compiled call site.
 :- multifile metta_memoized_dispatch_call/4.
 :- multifile metta_on_function_changed/1.
 :- multifile metta_on_function_removed/1.

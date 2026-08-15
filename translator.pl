@@ -151,6 +151,13 @@ goals_list_to_conj([], true)      :- !.
 goals_list_to_conj([G], G)        :- !.
 goals_list_to_conj([G|Gs], (G,R)) :- goals_list_to_conj(Gs, R).
 
+%A handler that caches by function has to know which module the call site
+%lives in, because a named space compiles its own equations into its own
+%module and the same name is a different function there. The handler reads
+%current_metta_module/1 for itself rather than being handed it: this runs on
+%every compiled call site and every reduced call, and resolving the module
+%here cost between +0.09% and +0.41% inferences across six benchmarks
+%[measured 2026-08-15: weighted-relation 483521 -> 485517].
 resolve_memoization(Fun, Args, Out, Goal) :-
     ( metta_memoized_dispatch_call(Fun, Args, Out, Goal)
     -> true
