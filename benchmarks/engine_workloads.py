@@ -86,6 +86,11 @@ def let_heavy(space: MeTTa, iterations: int = LET_ITERATIONS) -> int:
     fixed width rather than an accumulation, so the walk is a constant per
     iteration instead of quadratic over a million of them.
 
+    The walk is over the value's subterms, so its cost is the value's size:
+    "All the subterms of the given term are generated on backtracking and
+    tested to see if they are identical to the variable" [source: Sterling
+    and Shapiro, The Art of Prolog, 2nd ed., p182, Program 10.7].
+
     Forcing the late path now costs 13,836,204,827 instructions:u against
     5,614,127,276, a factor of 2.46 [measured 2026-08-15, min of 3].
     """
