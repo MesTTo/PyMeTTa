@@ -1869,6 +1869,36 @@ petta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     findall(A, arity(Name, A), As).
 
+%Every stored equation for a name, live from the space. Pattern-directed:
+%a native space answers by first-argument index on '=', a foreign space
+%enumerates and unifies, and the open tail in the head pattern is Prolog
+%unification against stored lists, not the MeTTa matcher.
+petta_py_equations(Space, Name0, Encoded) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    Pattern = [=, [Name|_], _],
+    (   metta_foreign_space(Space)
+    ->  findall(E, ( 'get-atoms'(Space, A), A = Pattern,
+                     petta_py_encode(A, E) ), Encoded)
+    ;   findall(E, ( get_native_atom(Space, Pattern),
+                     petta_py_encode(Pattern, E) ), Encoded)
+    ).
+
+%The Prolog clauses a name compiled to, dis for the translator: one
+%listing per registered arity, resolved in this space's module so a named
+%space shows the clauses it would run. Fails on a name the engine never
+%compiled, and the Python side turns that into its own refusal.
+petta_py_disassemble(Space, Name0, Text) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    findall(A, arity(Name, A), As0),
+    As0 \== [],
+    sort(As0, As),
+    space_module(Space, Module),
+    with_output_to(string(Text),
+                   forall(member(A, As),
+                          (   current_predicate(Module:Name/A)
+                          ->  listing(Module:Name/A)
+                          ;   true ))).
+
 %%%%%%%%%% Derivation trees %%%%%%%%%%
 %
 % The classic proof-tree meta-interpreter, rendered in MeTTa terms: every

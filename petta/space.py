@@ -1457,6 +1457,24 @@ class MeTTa:
         row = self._rt.once("petta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
 
+    def disassemble(self, name: str) -> str:
+        """The Prolog clauses a function name compiled to, dis for the
+        translator: one listing per registered arity, resolved in this
+        space's module. What the engine RUNS for a call, which is the
+        debuggability bytecode has and homoiconicity alone does not
+        give, since (= ...) atoms are the source, not the compilation.
+        Also reachable as m.fn(name).compiled."""
+        _require_name(name, "disassemble")
+        row = self._rt.once(
+            "petta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
+        )
+        if not row:
+            raise PettaError(
+                f"{name!r} has no compiled clauses here; is_function() "
+                f"tells whether the engine knows the name at all"
+            )
+        return str(row["Text"])
+
     def register_prolog(
         self,
         source: str | None = None,

@@ -16,6 +16,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 import warnings
@@ -24,7 +25,18 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
-from .atoms import Atom, Expr, Gnd, Sym, Var, _to_atom, atom_from_wire, encode, variables
+from .atoms import (
+    Atom,
+    Expr,
+    Gnd,
+    Sym,
+    Var,
+    _to_atom,
+    atom_from_wire,
+    decode,
+    encode,
+    variables,
+)
 from .errors import EngineError, PettaError
 from .results import Rows, _row_class, raise_error_answers
 
@@ -583,14 +595,83 @@ class Prepared:
         return f"<prepared {shown} -> {', '.join(self.columns)}>"
 
 
-class _EngineFunction:
-    """One engine function, callable the way Python callables are."""
+_UNDEFINED_TYPE = Sym("%Undefined%")
 
-    __slots__ = ("_name", "_space")
+
+def _doc_text(atom: object) -> str:
+    """The prose inside a doc part: a string value decodes, anything
+    else renders as written."""
+    if isinstance(atom, Gnd):
+        value = decode(atom)
+        if isinstance(value, str):
+            return value
+    return str(atom)
+
+
+def _format_doc_atom(doc: Expr) -> str:
+    """`(@doc name (@desc ...) (@params (...)) (@return ...))` as help()
+    text: one summary line, then the parameters, then the return."""
+    name = doc.children[1] if len(doc.children) > 1 else ""
+    lines: list[str] = []
+    parameters: list[str] = []
+    returns: str | None = None
+    for part in doc.children[2:]:
+        if not (isinstance(part, Expr) and part.children):
+            continue
+        head, *rest = part.children
+        if head == Sym("@desc") and rest:
+            lines.append(f"{name}: {_doc_text(rest[0])}")
+        elif head == Sym("@params") and rest and isinstance(rest[0], Expr):
+            parameters = [
+                _doc_text(param.children[1])
+                for param in rest[0].children
+                if isinstance(param, Expr) and len(param.children) > 1
+            ]
+        elif head == Sym("@return") and rest:
+            returns = _doc_text(rest[0])
+    if not lines:
+        lines.append(str(name))
+    if parameters:
+        lines.extend(("", "Parameters:"))
+        lines.extend(f"  - {parameter}" for parameter in parameters)
+    if returns is not None:
+        lines.append(f"Returns: {returns}")
+    return "\n".join(lines)
+
+
+class _EngineFunction:
+    """One engine function, callable the way Python callables are.
+
+    Beyond calling, it carries the function protocol's introspection:
+    __name__ and __qualname__ as data, __doc__, __signature__, .type,
+    .equations and .compiled as live reads of the space, so help() and
+    inspect.signature() answer from MeTTa's own declarations.
+    functools.partial composes because this is an ordinary callable,
+    which is the whole bound-method story; there is deliberately no
+    __defaults__ or __annotations__, because MeTTa has no default
+    arguments and the annotations live on the arrow type.
+    """
+
+    # A slot named __qualname__ is the one pure-Python spelling of
+    # method.__qualname__'s C getset: the member descriptor answers per
+    # instance, while class access keeps resolving through the
+    # type.__qualname__ metaclass data descriptor, so the class still
+    # answers _EngineFunction (verified in test_name_and_qualname_...).
+    # Assigning a property after class creation is refused by that same
+    # metaclass setter, which only accepts str. pylint flags the
+    # shadowing it cannot see resolves correctly.
+    __slots__ = (
+        "__name__",
+        "__qualname__",  # pylint: disable=class-variable-slots-conflict
+        "_name",
+        "_space",
+    )
 
     def __init__(self, space: MeTTa, name: str) -> None:
         self._space = space
         self._name = name
+        self.__name__ = name
+        self.__qualname__ = f"{space.space_name}.{name}"
 
     def _term(self, args: tuple) -> Expr:
         return Expr([Sym(self._name), *(encode(a) for a in args)])
@@ -631,6 +712,84 @@ class _EngineFunction:
             return None
         raise_error_answers(answers[:1], space=self._space.space_name, target=term)
         return value_one(term, answers[:1])
+
+    # ------------------------------------------------------- introspection
+
+    @property
+    def type(self) -> Atom | None:
+        """The declared type atom, or None when undeclared.
+
+        get-type's own answer through this space's context, so a named
+        space's declarations count; %Undefined% reads as None because
+        the function protocol spells absence that way. MeTTa allows
+        several declarations for one name; this answers the first."""
+        answers = self._space.eval(Expr([Sym("get-type"), Sym(self._name)]))
+        for answer in answers:
+            if isinstance(answer, Atom) and answer != _UNDEFINED_TYPE:
+                return answer
+        return None
+
+    @property
+    def equations(self) -> list[Expr]:
+        """The stored `(= (f ...) body)` atoms, live from the space."""
+        wires = self._space._rt.apply_must(
+            "petta_py_equations", self._space.space_name, self._name
+        )
+        return [cast(Expr, atom_from_wire(w)) for w in wires]
+
+    @property
+    def compiled(self) -> str:
+        """The Prolog clauses this name compiled to: dis for the
+        translator, m.disassemble(name) as a property."""
+        return self._space.disassemble(self._name)
+
+    @property
+    def __signature__(self) -> inspect.Signature:
+        """Built from the arrow type when one is declared, so
+        inspect.signature() and completion show the arity with the
+        parameter types as annotations; no arrow means (*args)."""
+        arrow = self.type
+        if (
+            not isinstance(arrow, Expr)
+            or not arrow.children
+            or arrow.children[0] != Sym("->")
+        ):
+            return inspect.Signature(
+                [inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL)]
+            )
+        parts = arrow.children[1:]
+        parameters = [
+            inspect.Parameter(
+                f"x{position}",
+                inspect.Parameter.POSITIONAL_ONLY,
+                annotation=str(part),
+            )
+            for position, part in enumerate(parts[:-1], start=1)
+        ]
+        return inspect.Signature(
+            parameters, return_annotation=str(parts[-1]) if parts else ""
+        )
+
+    @property
+    def __doc__(self) -> str | None:  # type: ignore[override]
+        """MeTTa's own documentation, formatted for help(): the space's
+        `(@doc name ...)` atom when one exists (the engine's register
+        documents every prelude form, so builtins answer too), else the
+        declaration and equations, else None as Python spells absence."""
+        answers = self._space.eval(Expr([Sym("get-doc"), Sym(self._name)]))
+        if answers and isinstance(answers[0], Expr):
+            return _format_doc_atom(answers[0])
+        lines = []
+        declared = self.type
+        if declared is not None:
+            lines.append(f"{self._name}: {declared}")
+        equations = self.equations
+        if equations:
+            if not lines:
+                lines.append(self._name)
+            lines.extend(("", "Equations:"))
+            lines.extend(f"  {equation}" for equation in equations)
+        return "\n".join(lines) if lines else None
 
     def __repr__(self) -> str:
         return f"<engine function {self._name} on {self._space.space_name}>"
