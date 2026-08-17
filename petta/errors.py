@@ -1,5 +1,11 @@
 """Purpose: the error types the petta library raises, and the Decline signal a
 Python-backed operation uses to answer nothing.
+Guarantees:
+  - every PettaError carries atom, space, operation and capability
+    attributes, None by default, the message unchanged for their presence
+    [tested test_base_fields_default_to_none]
+  - MettaOperationError.operation is the base field, not a shadow
+    [tested test_operation_error_operation_is_the_base_field]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +22,7 @@ __all__ = [
     "InferenceLimitError",
     "Interrupted",
     "MettaOperationError",
+    "MettaResultError",
     "MettaSyntaxError",
     "PettaError",
     "ResourceLimitError",
@@ -28,7 +35,30 @@ __all__ = [
 
 
 class PettaError(Exception):
-    """Base class for everything this library raises on purpose."""
+    """Base class for everything this library raises on purpose.
+
+    Machine-readable parts ride beside the message, the way
+    AttributeError.name and OSError.errno do: `atom` is the MeTTa atom
+    the error is about, an `(Error ...)` answer or the offending term;
+    `space` is the space name involved; `operation` the operation that
+    refused; `capability` the capability that was missing. Each defaults
+    to None, and the message never changes for their presence, so a
+    program reacts to the part where it used to parse the sentence.
+    """
+
+    def __init__(
+        self,
+        *args: object,
+        atom: object | None = None,
+        space: str | None = None,
+        operation: str | None = None,
+        capability: str | None = None,
+    ):
+        super().__init__(*args)
+        self.atom = atom
+        self.space = space
+        self.operation = operation
+        self.capability = capability
 
 
 class MettaSyntaxError(PettaError):
@@ -73,11 +103,39 @@ class MettaOperationError(EngineError):
         expected: object | None = None,
         culprit: object | None = None,
     ):
-        super().__init__(message)
-        self.operation = operation
+        super().__init__(message, operation=operation)
         self.kind = kind
         self.expected = expected
         self.culprit = culprit
+
+
+class MettaResultError(PettaError):
+    """The evaluation ANSWERED an `(Error ...)` atom, at a door that
+    answers a single value.
+
+    In MeTTa an error is a result: `(Error culprit reason)` is one
+    element of the answer multiset, which is why the aggregation doors,
+    eval(), run(), fn.all() and the streams, keep it as data. A door
+    that answers exactly one value has no multiset for the error to be
+    data in, so one(), first() and calling a function raise it instead.
+    `atom` carries the whole `(Error ...)` expression, `culprit` the
+    term it blames, `reason` the explanation beside it. Not an
+    EngineError on purpose: the engine did not throw, the program
+    answered an error value.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        atom: object,
+        culprit: object | None = None,
+        reason: object | None = None,
+        space: str | None = None,
+    ):
+        super().__init__(message, atom=atom, space=space)
+        self.culprit = culprit
+        self.reason = reason
 
 
 class ResourceLimitError(EngineError):

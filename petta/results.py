@@ -20,6 +20,9 @@ Guarantees:
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
+  - error_answer recognizes (Error ...) by head symbol alone, so quoted and
+    nested errors stay data, and raise_for_errors chains when clean [tested
+    test_raise_for_errors_chains_when_clean_and_raises_one_plainly]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,10 +42,51 @@ from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
 from . import convert
 from ._config import config
 from ._optional import require_module
-from .atoms import Atom, Gnd, decode
-from .errors import EngineError
+from .atoms import Atom, Expr, Gnd, Sym, decode
+from .errors import EngineError, MettaResultError
 
 __all__ = ["Row", "Rows"]
+
+_ERROR_HEAD = Sym("Error")
+
+
+def error_answer(answer: object, *, space: str | None = None) -> MettaResultError | None:
+    """The structured exception for an `(Error ...)` answer, or None.
+
+    The head symbol alone decides, MeTTa's own shape `(Error culprit
+    reason)`, so a quoted or nested error stays data.
+    """
+    if not isinstance(answer, Expr):
+        return None
+    parts = answer.children
+    if not parts or parts[0] != _ERROR_HEAD:
+        return None
+    culprit = parts[1] if len(parts) > 1 else None
+    reason = parts[2] if len(parts) > 2 else None
+    return MettaResultError(
+        f"the answer is an error: {answer}",
+        atom=answer,
+        culprit=culprit,
+        reason=reason,
+        space=space,
+    )
+
+
+def raise_error_answers(
+    answers: Iterable[object], *, space: str | None = None, target: object = None
+) -> None:
+    """Raise the first `(Error ...)` member of answers, if any.
+
+    The check every single-value door runs before decoding: an error
+    among the answers is the evaluation reporting failure, and failure
+    outranks a count. The target rides as a note, so the traceback names
+    the call without the message growing."""
+    for answer in answers:
+        error = error_answer(answer, space=space)
+        if error is not None:
+            if target is not None:
+                error.add_note(f"while evaluating {target}")
+            raise error
 
 _VALUE_REPR = reprlib.Repr()
 _VALUE_REPR.maxlevel = 4
@@ -265,6 +309,31 @@ class Rows(UserList[Row]):
                 f"use first() for row-or-None, or iterate for all"
             )
         return self[0]
+
+    def raise_for_errors(self) -> Self:
+        """Raise when any cell carries an `(Error ...)` atom; answer self
+        otherwise, so the call chains.
+
+            m.query(pattern).raise_for_errors()
+
+        Query rows are BINDINGS, not evaluation answers, so a stored
+        error record stays data through every Rows door, one() and
+        first() included; this is the explicit bridge for callers who
+        want the raise_for_status reading. One error raises it plainly,
+        several raise one ExceptionGroup carrying each."""
+        errors = [
+            error
+            for row in self
+            for cell in row
+            if (error := error_answer(cell)) is not None
+        ]
+        if not errors:
+            return self
+        if len(errors) == 1:
+            raise errors[0]
+        raise ExceptionGroup(
+            f"{len(errors)} error atoms across {len(self)} rows", errors
+        )
 
     def why(self) -> str:
         """Explain why this eager query returned no rows.

@@ -34,7 +34,6 @@ from petta import (
     Adder,
     Atom,
     Clearer,
-    EngineError,
     Enumerable,
     Expr,
     Matcher,
@@ -142,9 +141,10 @@ def test_read_only_provider_errors_loudly(metta):
     name = "&readonly1"
     metta.register_space(ReadOnly(), name)
     try:
-        with pytest.raises(EngineError) as excinfo:
+        with pytest.raises(PettaError) as excinfo:
             metta.run(f"!(add-atom {name} (fact 2))")
         assert "does not implement add" in str(excinfo.value)
+        assert excinfo.value.capability == "add"
     finally:
         metta.unregister_space(name)
 
@@ -200,7 +200,7 @@ def test_provider_can_decline_one_request(metta):
     metta.register_space(provider, name)
     try:
         metta.space(name).add(S.allowed(1))
-        with pytest.raises(EngineError, match="declines this add request"):
+        with pytest.raises(PettaError, match="declines this add request"):
             metta.space(name).add(S.denied(1))
         assert provider.stored == [S.allowed(1)]
     finally:

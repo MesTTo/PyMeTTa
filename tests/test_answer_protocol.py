@@ -12,7 +12,7 @@ import pytest
 
 from petta import Answer, Bindings, parse
 from petta.atoms import Expr, Gnd, Sym, Var
-from petta.errors import EngineError
+from petta.errors import EngineError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
 
 
@@ -135,7 +135,9 @@ def test_an_enumeration_refuses_answers(metta):
             yield Bindings({"x": 1})
 
     metta.register_space(_Wrong(), "&ap-enum")
-    with pytest.raises(EngineError, match="enumeration has no query"):
+    # The seam raises its own PettaError, and the boundary re-raises
+    # the original object rather than an EngineError transcript.
+    with pytest.raises(PettaError, match="enumeration has no query"):
         metta.run("!(collapse (get-atoms &ap-enum))")
 
 
@@ -496,7 +498,9 @@ def test_the_mode_routes_by_shape_most_specific_first(metta):
 def test_a_transport_failure_always_aborts(metta):
     metta.register_space(_FlakyProvider(OSError("router gone")), "&oe-transport")
     metta.declare_on_error("&oe-transport", "(edge $x $y)", "keep")
-    with pytest.raises(EngineError, match="TransportFailure"):
+    # The original TransportFailure re-arrives as itself, so the
+    # trichotomy is testable by class rather than by transcript text.
+    with pytest.raises(TransportFailure, match="router gone"):
         metta.run("!(collapse (match &oe-transport (edge $x $y) $y))")
 
 
@@ -665,7 +669,7 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):
 
     metta.register_space(_Plain(), "&tx-nm")
     metta.declare_writes("&tx-nm", "transactional")
-    with pytest.raises(EngineError, match="Transactional"):
+    with pytest.raises(PettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 

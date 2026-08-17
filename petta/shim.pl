@@ -1017,6 +1017,13 @@ petta_py_count(Space, Count) :-
 petta_py_space_names(Names) :-
     metta_space_names(Names).
 
+%The live Python exception object inside a python_error term, so the
+%boundary can re-raise the ORIGINAL, structured fields intact, instead of
+%a flattened transcript of it. Handing Obj back through janus converts
+%the blob to the very object the callback raised.
+petta_py_original_exception(error(python_error(_, Obj), _), Obj) :-
+    py_is_object(Obj).
+
 petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.

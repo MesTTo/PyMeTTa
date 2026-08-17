@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Self, cast
 from ._engine import Runtime
 from .atoms import Atom, Expr, Gnd, Sym, Var, _to_atom, atom_from_wire, encode, variables
 from .errors import EngineError, PettaError
-from .results import Rows, _row_class
+from .results import Rows, _row_class, raise_error_answers
 
 if TYPE_CHECKING:
     from .space import MeTTa
@@ -609,20 +609,27 @@ class _EngineFunction:
         from ._space_execution import value_one  # noqa: PLC0415
 
         term = self._term(args)
-        return value_one(term, self._space.eval(term))
+        answers = self._space.eval(term)
+        raise_error_answers(answers, space=self._space.space_name, target=term)
+        return value_one(term, answers)
 
     def all(self, *args: Any) -> list:
+        """Every answer as data, `(Error ...)` atoms included: the
+        aggregation reading, where the multiset is the return shape."""
         return self._space.eval(self._term(args))
 
     def first(self, *args: Any) -> Any:
         """The first answer decoded, or None for no answers: the same
-        tolerant member value()'s family has."""
+        tolerant member one()'s family has. An `(Error ...)` first
+        answer raises as one() raises; tolerance covers absence, not
+        errors."""
         from ._space_execution import value_one  # noqa: PLC0415  cycle
 
         term = self._term(args)
         answers = self._space.eval(term)
         if not answers:
             return None
+        raise_error_answers(answers[:1], space=self._space.space_name, target=term)
         return value_one(term, answers[:1])
 
     def __repr__(self) -> str:

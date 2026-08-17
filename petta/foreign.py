@@ -366,11 +366,17 @@ def _require_provider(
     stated = _stated_refusal(provider, capability, request)
     if stated is not None:
         raise PettaError(
-            f"{operation} cannot use {space}, whose {name} provider says: {stated}"
+            f"{operation} cannot use {space}, whose {name} provider says: {stated}",
+            space=space,
+            operation=operation,
+            capability=capability,
         )
     raise PettaError(
         f"{operation} cannot use {space}: its {name} provider "
-        f"{_refusal_detail(provider, capability, request)}"
+        f"{_refusal_detail(provider, capability, request)}",
+        space=space,
+        operation=operation,
+        capability=capability,
     )
 
 
@@ -583,7 +589,9 @@ def foreign_refuse(space: str, capability: str) -> None:
     _require_provider(provider, space, capability, capability)
     raise PettaError(
         f"{space} refused {capability} to the engine and allows it here; the "
-        f"engine's capability record and this provider disagree"
+        f"engine's capability record and this provider disagree",
+        space=space,
+        capability=capability,
     )
 
 

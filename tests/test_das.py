@@ -22,7 +22,7 @@ import os
 
 import pytest
 
-from petta import EngineError, PettaError, S, V, expr
+from petta import PettaError, S, V, expr
 from petta.atoms import Gnd, parse
 from petta.das import (
     DAS,
@@ -215,7 +215,7 @@ def test_das_space_joins_with_native_facts(metta):
         # unreachable.
         with pytest.raises(DASError, match="read-only"):
             DASSpace(das).add(S.f(S.a))
-        with pytest.raises(EngineError, match="das-cli metta load"):
+        with pytest.raises(PettaError, match="das-cli metta load"):
             space.add(S.f(S.a))
     finally:
         metta.unregister_space("&das-scripted")

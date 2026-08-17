@@ -144,7 +144,7 @@ from .foreign import (
     unregister_provider,
 )
 from .lint import lint as _lint
-from .results import Rows
+from .results import Rows, raise_error_answers
 from .subscribe import _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
@@ -1231,8 +1231,14 @@ class MeTTa:
         same everywhere it appears: eval() takes every answer (MeTTa's
         collapse), first() takes the first and tolerates absence, one()
         demands exactly one. fn() and Rows carry the same triple, and
-        the same timeout/inferences bounds apply throughout."""
+        the same timeout/inferences bounds apply throughout.
+
+        An `(Error ...)` answer raises MettaResultError carrying the
+        atom: an error among the answers is the evaluation reporting
+        failure, and failure outranks the count. eval() is the door
+        that keeps errors as data."""
         answers = self.eval(target, timeout=timeout, inferences=inferences)
+        raise_error_answers(answers, space=self._space, target=target)
         return value_one(target, answers)
 
     def first(
@@ -1244,14 +1250,19 @@ class MeTTa:
     ) -> Any:
         """The first answer as a plain Python value, or None for no answers.
 
-        The tolerant member of value()'s family: value() asserts exactly
+        The tolerant member of one()'s family: one() asserts exactly
         one, eval() answers all, first() answers the first or nothing,
-        decoded by the same rule as value(). An Undefined first answer
-        still raises, since None here MEANS no answers.
+        decoded by the same rule as one(). An Undefined first answer
+        still raises, since None here MEANS no answers. Tolerance is
+        about cardinality, not content: a first answer that is an
+        `(Error ...)` atom raises MettaResultError exactly as one()
+        does, because None must keep meaning "no answers" and an error
+        used as a value is the silent kind of wrong.
         """
         answers = self.eval(target, timeout=timeout, inferences=inferences)
         if not answers:
             return None
+        raise_error_answers(answers[:1], space=self._space, target=target)
         return value_one(target, answers[:1])
 
     def stats(self) -> _StatsBlock:

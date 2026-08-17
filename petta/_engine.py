@@ -51,6 +51,7 @@ from .errors import (
     Interrupted,
     MettaOperationError,
     MettaSyntaxError,
+    PettaError,
     TimeLimitError,
 )
 
@@ -565,6 +566,14 @@ class Runtime:
         message = _clean_message(exc)
         term = getattr(exc, "term", None)
         if term is not None:
+            original = self._original_python_error(term)
+            if original is not None:
+                # The library's own raise crossed Prolog and came back:
+                # re-raise the very object, structured fields intact,
+                # instead of an EngineError holding its transcript. Only
+                # PettaError rehydrates; an op author's ValueError keeps
+                # arriving wrapped, the boundary it crossed visible.
+                raise original from exc
             try:
                 row = self._janus.query_once(
                     "petta_py_exception_info(Error, Kind, Detail)", {"Error": term}
@@ -583,6 +592,20 @@ class Runtime:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
+
+    def _original_python_error(self, term: object) -> PettaError | None:
+        """The live PettaError a Python callback raised, when the Prolog
+        term still carries the object reference."""
+        try:
+            row = self._janus.query_once(
+                "petta_py_original_exception(Error, Obj)", {"Error": term}
+            )
+        except self._janus.PrologError:
+            return None
+        if not row or row.get("truth") is False:
+            return None
+        obj = row.get("Obj")
+        return obj if isinstance(obj, PettaError) else None
 
     def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
         """Raise MettaOperationError when the term names a MeTTa operation."""
