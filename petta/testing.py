@@ -23,7 +23,7 @@ from __future__ import annotations
 from types import GeneratorType
 
 from ._optional import require_module
-from .atoms import Expr, Gnd, Sym, Var, encode
+from .atoms import Expr, Gnd, Sym, Var, alpha_eq, encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
     BenchmarkBaseline,
@@ -299,8 +299,6 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
     different atom in production."""
     if atoms_to_store is None:
         return []
-    from .atoms import alpha_eq  # noqa: PLC0415 - alpha_eq only serves this check
-
     for atom in atoms_to_store:
         if not any(alpha_eq(atom, held) for held in stored):
             raise AssertionError(
@@ -369,25 +367,44 @@ def _claim_patterns(atom):
 
 def _unifiable(left, right) -> bool:
     """Two-way syntactic unifiability, the question the engine's own
-    re-unification answers.
+    re-unification answers."""
+    return _joined(left, right) is not None
+
+
+def _joined(pattern, atom):
+    """The two-way unification RESULT of pattern against atom, or None:
+    the pattern's shape with every bound variable resolved, which is the
+    answer the engine's re-unification produces for this candidate.
 
     atoms.unify is one-way by design, so a candidate carrying variables of
     its own would be judged wrongly by it; this judges the pair the way the
     engine will, in miniKanren's walk/unify shape. Variables bind by name
-    in one namespace, `_` matches anything and binds nothing, and no
-    occurs check, matching SWI's default. Check-side variables are named
-    petta-check-*, so a collision would need a stored $petta-check-*
-    variable.
+    in one namespace, `_` matches anything and binds nothing, and the
+    occurs check applies, because the engine's matching is occurs-checked
+    on purpose: petta_match_atoms unifies with unify_with_occurs_check
+    (the arbiter's variable cases, LeaTTa matchAtomsWith), and
+    match_native guards every answer with acyclic_term/1, so a
+    rational-tree instantiation is never an answer there. Check-side
+    variables are named petta-check-*, so a collision would need a stored
+    $petta-check-* variable.
     """
     bindings: dict = {}
-    stack = [(encode(left), encode(right))]
+    stack = [(encode(pattern), encode(atom))]
     while stack:
         x, y = (_walk(term, bindings) for term in stack.pop())
         if _anonymous(x) or _anonymous(y):
             continue
         if not _unify_pair(x, y, bindings, stack):
-            return False
-    return True
+            return None
+    return _resolve(encode(pattern), bindings)
+
+
+def _resolve(term, bindings):
+    """The term with every variable walked to its binding, recursively."""
+    term = _walk(term, bindings)
+    if isinstance(term, Expr):
+        return Expr([_resolve(child, bindings) for child in term.children])
+    return term
 
 
 def _walk(term, bindings):
@@ -401,13 +418,33 @@ def _anonymous(term) -> bool:
     return isinstance(term, Var) and term.name == "_"
 
 
+def _occurs(name, term, bindings) -> bool:
+    """Whether the variable occurs in the walked term: the engine's own
+    occurs check, which is what keeps every join acyclic and therefore
+    resolvable to a finite atom."""
+    stack = [term]
+    while stack:
+        walked = _walk(stack.pop(), bindings)
+        if isinstance(walked, Var):
+            if walked.name == name:
+                return True
+        elif isinstance(walked, Expr):
+            stack.extend(walked.children)
+    return False
+
+
 def _unify_pair(x, y, bindings, stack) -> bool:
     """One walked pair: bind a variable, descend an expression, or compare."""
     if isinstance(x, Var):
-        if not (isinstance(y, Var) and y.name == x.name):
-            bindings[x.name] = y
+        if isinstance(y, Var) and y.name == x.name:
+            return True
+        if _occurs(x.name, y, bindings):
+            return False
+        bindings[x.name] = y
         return True
     if isinstance(y, Var):
+        if _occurs(y.name, x, bindings):
+            return False
         bindings[y.name] = x
         return True
     if isinstance(x, Expr) and isinstance(y, Expr):
@@ -477,12 +514,22 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
             checked += 1
             answered = list(provider.match(pattern))
             for entry in stored:
-                if not _unifiable(pattern, entry):
+                joined = _joined(pattern, entry)
+                if joined is None:
                     continue
-                if not any(_same_atom(found, entry) for found in answered):
+                # A candidate vouches for the stored entry either as the
+                # entry itself (an enumerate-and-filter store) or as this
+                # pattern's unification result with it (a gateway that
+                # answers instantiations): both preserve this pattern's
+                # answer set exactly, which is what soundness is about.
+                if not any(
+                    _same_atom(found, entry) or alpha_eq(found, joined)
+                    for found in answered
+                ):
                     raise AssertionError(
-                        f"{name}.match({pattern!r}) did not answer {entry!r}, "
-                        f"which the space holds and the pattern matches. A "
+                        f"{name}.match({pattern!r}) answered neither "
+                        f"{entry!r}, which the space holds and the pattern "
+                        f"matches, nor its unification result {joined!r}. A "
                         f"provider may over-approximate and may never "
                         f"under-approximate: yielding every atom is always "
                         f"correct, yielding fewer than unify is never allowed "

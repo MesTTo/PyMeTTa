@@ -75,6 +75,7 @@ var SpaceStore = class {
   constructor(served = null) {
     this.served = served;
   }
+  served;
   spaces = /* @__PURE__ */ new Map();
   space(name) {
     if (this.served !== null && !this.served.has(name)) {
@@ -103,6 +104,11 @@ var SpaceStore = class {
   match(name, pattern) {
     return this.space(name).filter((atom) => unifiable(pattern, atom));
   }
+  // Honoring is sound HERE because match filters by real unification,
+  // so the first `bound` survivors are true answers, never candidates.
+  boundedMatch(name, pattern, bound) {
+    return this.match(name, pattern).slice(0, bound);
+  }
   // Every unifying occurrence goes, the multiset reading remove-atom has
   // everywhere, and the answer says whether any was there.
   remove(name, pattern) {
@@ -123,6 +129,7 @@ var HttpProblem = class extends Error {
     super(message);
     this.status = status;
   }
+  status;
 };
 var DEFAULT_MAX_BODY = 16 * 1024 * 1024;
 function requestLength(request, maxBody) {
@@ -216,7 +223,13 @@ function startServer(options = {}) {
     let answer;
     try {
       if (request.method === "GET" && path === "health") {
-        answer = { ok: true, atoms: store.count(), protocol: 1 };
+        answer = {
+          ok: true,
+          atoms: store.count(),
+          protocol: 2,
+          capabilities: ["match", "enumerate", "add", "remove"],
+          bound: typeof store.boundedMatch === "function"
+        };
       } else if (request.method !== "POST") {
         throw new HttpProblem(405, `method ${request.method} is not supported; POST an operation`);
       } else if (!credentialAccepted(request, token)) {
@@ -259,6 +272,15 @@ function startServer(options = {}) {
       case "match": {
         const space = payloadSpace(payload);
         const pattern = payloadAtom(payload, "pattern");
+        const bound = payload["bound"];
+        if (bound !== void 0) {
+          if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
+            throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(bound)}`);
+          }
+          if (typeof store.boundedMatch === "function") {
+            return { atoms: store.boundedMatch(space, pattern, bound) };
+          }
+        }
         return { atoms: store.match(space, pattern) };
       }
       case "atoms": {
@@ -381,7 +403,13 @@ test("the HTTP boundary mirrors the protocol's refusals", async () => {
     strictEqual(wrongMethod.status, 405);
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     strictEqual(health.status, 200);
-    deepStrictEqual(await health.json(), { ok: true, atoms: 1, protocol: 1 });
+    deepStrictEqual(await health.json(), {
+      ok: true,
+      atoms: 1,
+      protocol: 2,
+      capabilities: ["match", "enumerate", "add", "remove"],
+      bound: true
+    });
   } finally {
     await running.close();
   }
@@ -400,7 +428,49 @@ test("a batch lands whole through add_many, and health names the protocol", asyn
     strictEqual(bad.status, 400);
     strictEqual((await operate(port, "atoms", {})).body.atoms.length, 3);
     const health = await fetch(`http://127.0.0.1:${port}/health`);
-    deepStrictEqual(await health.json(), { ok: true, atoms: 3, protocol: 1 });
+    deepStrictEqual(await health.json(), {
+      ok: true,
+      atoms: 3,
+      protocol: 2,
+      capabilities: ["match", "enumerate", "add", "remove"],
+      bound: true
+    });
+  } finally {
+    await running.close();
+  }
+});
+test("a bound crosses on match and is honored exactly", async () => {
+  const running = await startServer({ port: 0 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: [edge(sym("a"), sym("b")), edge(sym("a"), sym("c")), edge(sym("a"), sym("d"))]
+    });
+    const bounded = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 2
+    });
+    strictEqual(bounded.status, 200);
+    strictEqual(bounded.body.atoms.length, 2);
+    const unbounded = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x"))
+    });
+    strictEqual(unbounded.body.atoms.length, 3);
+    const zero = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 0
+    });
+    deepStrictEqual(zero.body, { atoms: [] });
+    const bad = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: -1
+    });
+    strictEqual(bad.status, 400);
+    const alsoBad = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 1.5
+    });
+    strictEqual(alsoBad.status, 400);
   } finally {
     await running.close();
   }

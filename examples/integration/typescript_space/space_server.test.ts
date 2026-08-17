@@ -114,7 +114,13 @@ test("the HTTP boundary mirrors the protocol's refusals", async () => {
 
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     strictEqual(health.status, 200);
-    deepStrictEqual(await health.json(), { ok: true, atoms: 1, protocol: 1 });
+    deepStrictEqual(await health.json(), {
+      ok: true,
+      atoms: 1,
+      protocol: 2,
+      capabilities: ["match", "enumerate", "add", "remove"],
+      bound: true,
+    });
   } finally {
     await running.close();
   }
@@ -136,7 +142,50 @@ test("a batch lands whole through add_many, and health names the protocol", asyn
     strictEqual((await operate(port, "atoms", {})).body.atoms.length, 3);
 
     const health = await fetch(`http://127.0.0.1:${port}/health`);
-    deepStrictEqual(await health.json(), { ok: true, atoms: 3, protocol: 1 });
+    deepStrictEqual(await health.json(), {
+      ok: true,
+      atoms: 3,
+      protocol: 2,
+      capabilities: ["match", "enumerate", "add", "remove"],
+      bound: true,
+    });
+  } finally {
+    await running.close();
+  }
+});
+
+test("a bound crosses on match and is honored exactly", async () => {
+  const running = await startServer({ port: 0 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: [edge(sym("a"), sym("b")), edge(sym("a"), sym("c")), edge(sym("a"), sym("d"))],
+    });
+    const bounded = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 2,
+    });
+    strictEqual(bounded.status, 200);
+    strictEqual(bounded.body.atoms.length, 2);
+    const unbounded = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+    });
+    strictEqual(unbounded.body.atoms.length, 3);
+    const zero = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 0,
+    });
+    deepStrictEqual(zero.body, { atoms: [] });
+    const bad = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: -1,
+    });
+    strictEqual(bad.status, 400);
+    const alsoBad = await operate(port, "match", {
+      pattern: edge(sym("a"), v("x")),
+      bound: 1.5,
+    });
+    strictEqual(alsoBad.status, 400);
   } finally {
     await running.close();
   }

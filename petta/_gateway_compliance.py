@@ -17,8 +17,8 @@ Guarantees:
   - the refusal ladder answers JSON errors with the documented statuses,
     including the pre-body refusals only a raw socket can probe
     [tested test_refusals_carry_json_errors]
-  - wide integers are refused, never rounded
-    [tested test_wide_integers_are_refused]
+  - wide integers are stored exactly or refused, never rounded
+    [tested test_wide_integers_are_exact_or_refused]
   - the conformance kit certifies the attached RemoteSpace, match
     contract and round-trip law included, so the wire, the store and the
     kit agree about one live gateway
@@ -104,8 +104,39 @@ class GatewayComplianceSuite:
         assert status == 200
         health = json.loads(raw)
         assert health["ok"] is True
-        assert health["protocol"] == 1
+        assert health["protocol"] == 2
         assert isinstance(health["atoms"], int)
+        # Revision 2's reflection: what the server admits, so a client
+        # can ask before writing, and whether /match honors a bound.
+        assert isinstance(health["capabilities"], list)
+        assert {"match", "enumerate", "add", "remove"} <= set(health["capabilities"])
+        assert isinstance(health["bound"], bool)
+
+    def test_a_bound_is_honored_or_ignored_soundly(self, gateway_url, scratch):
+        """bound=1 answers at most one atom on an honoring server and
+        every unifying atom on an ignoring one; anything between is the
+        under-approximation the protocol forbids."""
+        endpoint = HTTPEndpoint(
+            gateway_url, subject="gateway under test", error_type=PettaError
+        )
+        _, _, raw = endpoint.request("GET", "health", timeout=30.0)
+        honors = json.loads(raw)["bound"]
+        stored = [parse(f"(gc-bound {n})") for n in range(3)]
+        scratch.add_many(stored)
+        status, body = _post(
+            gateway_url,
+            "match",
+            {
+                "space": _SCRATCH,
+                "pattern": parse("(gc-bound $n)").to_wire(),
+                "bound": 1,
+            },
+        )
+        assert status == 200
+        answered = body["atoms"]
+        assert len(answered) == (1 if honors else 3)
+        wire_forms = [atom.to_wire() for atom in stored]
+        assert all(atom in wire_forms for atom in answered)
 
     def test_the_operations_keep_space_semantics(self, scratch):
         atom = parse("(gc-edge a b)")
@@ -158,16 +189,25 @@ class GatewayComplianceSuite:
             == 405
         ), "only POST operates"
 
-    def test_wide_integers_are_refused(self, gateway_url):
+    def test_wide_integers_are_exact_or_refused(self, gateway_url, scratch):
+        """PeTTa's numbers are exact at any width, so the one forbidden
+        outcome is rounding: a server either refuses the literal (a JSON
+        parser that would round past 2^53 must) or stores it exactly and
+        answers it back exactly."""
+        wide = 123456789012345678901
         parts = urlparse(gateway_url)
         host = f"{parts.hostname}:{parts.port}"
-        body = '{"space": "' + _SCRATCH + '", "atom": ["n", 123456789012345678901]}'
+        body = '{"space": "' + _SCRATCH + '", "atom": ["n", ' + str(wide) + "]}"
         status = _raw(
             gateway_url,
             f"POST /add HTTP/1.1\r\nHost: {host}\r\n"
             f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n{body}",
         )
-        assert status == 400
+        if status == 400:
+            return
+        assert status == 200
+        stored = [atom.to_wire() for atom in scratch.atoms()]
+        assert ["n", wide] in stored
 
     def test_the_kit_certifies_the_attached_space(self, scratch):
         report = testing.check_space_provider(

@@ -47,7 +47,7 @@ from typing import Any
 from . import _json
 from ._engine import bridge
 from ._network import HTTPEndpoint, validated_timeout
-from .atoms import Atom, Expr, atom_from_wire
+from .atoms import Atom, Expr, Var, atom_from_wire
 from .errors import PettaError
 from .foreign import SpaceProvider
 from .space import MeTTa
@@ -60,6 +60,26 @@ __all__ = ["RemoteSpace", "Request", "Server", "attach", "connect", "serve"]
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
 #: callable with the same contract, the DAS gateway's own injection seam.
 Transport = Callable[[str, dict], dict]
+
+
+class _HTTPTransport:
+    """connect()'s transport: one call per operation, and it knows its
+    server's GET /health, which is how server_capabilities() can ask. A
+    hand-built transport that wants the same offers its own `health`."""
+
+    def __init__(
+        self,
+        operate: Callable[[str, dict], dict],
+        health: Callable[[], dict],
+    ) -> None:
+        self._operate = operate
+        self._health = health
+
+    def __call__(self, operation: str, payload: dict) -> dict:
+        return self._operate(operation, payload)
+
+    def health(self) -> dict:
+        return self._health()
 _SERVER_TIMEOUT = 10.0
 _MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
@@ -147,10 +167,44 @@ class RemoteSpace(SpaceProvider):
         self._transport = transport
         self._space = space
 
-    def match(self, pattern: Atom) -> Iterator[Atom]:
-        answer = self._transport("match", {"space": self._space, "pattern": pattern.to_wire()})
+    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
+        """Candidates for a pattern; `limit` crosses as the wire's optional
+        `bound` field. Sending it is sound whatever the server does: a
+        server that honors it exactly saves the work, one that ignores it
+        over-answers, and the local engine re-unifies and truncates either
+        way. Whether it is honored is advertised in
+        `server_capabilities()`."""
+        payload: dict[str, Any] = {"space": self._space, "pattern": pattern.to_wire()}
+        if limit is not None:
+            payload["bound"] = limit
+        answer = self._transport("match", payload)
         for wire in answer["atoms"]:
             yield atom_from_wire(wire)
+
+    def server_capabilities(self) -> dict[str, Any]:
+        """The server's own advertisement from GET /health: `capabilities`
+        names the seam operations it admits, so a client can ask before
+        writing, and `bound` says whether /match honors the bound field
+        exactly. A transport built by connect() knows its URL; a
+        hand-built transport must carry its own `health` callable, or
+        this refuses rather than guessing."""
+        health = getattr(self._transport, "health", None)
+        if health is None:
+            raise PettaError(
+                "this transport cannot ask the server for /health; build it "
+                "with petta.remote.connect(), or give the callable a "
+                "`health` attribute answering the health body"
+            )
+        body = health()
+        # A revision-1 server advertises nothing: the four required
+        # operations, bound ignored, is what its silence means.
+        return {
+            "capabilities": body.get(
+                "capabilities", ["match", "enumerate", "add", "remove"]
+            ),
+            "bound": bool(body.get("bound", False)),
+            "protocol": body.get("protocol"),
+        }
 
     def atoms(self) -> Iterator[Atom]:
         answer = self._transport("atoms", {"space": self._space})
@@ -250,7 +304,27 @@ def connect(
             raise PettaError(f"the remote engine refused {operation}: {answer['error']}")
         return answer
 
-    return transport
+    def health() -> dict:
+        """GET /health, the server describing itself: revision, atom
+        count, capabilities, and whether /match honors bound."""
+        try:
+            status, reason, raw = endpoint.request(
+                "GET", "health", headers=sent, timeout=timeout
+            )
+        except (HTTPException, OSError) as exc:
+            raise PettaError(f"the remote engine health request failed: {exc}") from exc
+        try:
+            answer = _json.loads(raw)
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise PettaError(
+                f"the remote engine answered health with invalid JSON "
+                f"({status} {reason})"
+            ) from exc
+        if status >= 400 or not isinstance(answer, dict):
+            raise PettaError(f"the remote engine refused health: {status} {reason}")
+        return answer
+
+    return _HTTPTransport(transport, health)
 
 
 def attach(m, name: str, url_or_transport: Any, remote_space: str = "&self") -> RemoteSpace:
@@ -478,6 +552,17 @@ class Server:
         return []
 
 
+def _instantiate(atom: Atom, bindings: dict) -> Atom:
+    """The pattern with one answer row's bindings substituted, which is
+    exactly the atom match's pattern-as-template form would answer."""
+    if isinstance(atom, Var):
+        bound = bindings.get(atom.name)
+        return bound if bound is not None else atom
+    if isinstance(atom, Expr):
+        return Expr([_instantiate(child, bindings) for child in atom.children])
+    return atom
+
+
 def serve(
     m,
     host: str = "127.0.0.1",
@@ -519,6 +604,28 @@ def serve(
         if operation == "match":
             space = space_of(payload)
             pattern = atom_from_wire(payload["pattern"])
+            bound = payload.get("bound")
+            if bound is not None:
+                # Honored EXACTLY, the trusted-Exact contract this server
+                # may claim because its match is real unification: the
+                # engine's own bounded query stops at the count, and the
+                # rows instantiate the pattern the way match's template
+                # would.
+                if isinstance(bound, bool) or not isinstance(bound, int) or bound < 0:
+                    raise PettaError(
+                        f"bound must be a non-negative integer, got {bound!r}"
+                    )
+                if bound == 0:
+                    # Zero answers wanted: the engine's query refuses a
+                    # zero limit, and no work is the exact honoring.
+                    return {"atoms": []}
+                rows = space.query(pattern, limit=bound)
+                names = rows.columns
+                atoms = [
+                    _instantiate(pattern, dict(zip(names, row, strict=True)))
+                    for row in rows
+                ]
+                return {"atoms": [a.to_wire() for a in atoms]}
             groups = space.run(
                 "!(collapse (match (context-space) pat pat))",
                 using={"pat": pattern},
@@ -535,9 +642,39 @@ def serve(
         if operation == "add":
             space_of(payload).add(atom_from_wire(payload["atom"]))
             return {"added": True}
+        if operation == "add_many":
+            atoms = [atom_from_wire(wire) for wire in payload["atoms"]]
+            space_of(payload).add(*atoms)
+            return {"added": len(atoms)}
         if operation == "remove":
-            removed = space_of(payload).remove(atom_from_wire(payload["atom"]))
-            return {"removed": removed}
+            pattern = atom_from_wire(payload["atom"])
+            space = space_of(payload)
+            if isinstance(pattern, Var):
+                # The protocol's law is removal by unification, and a bare
+                # variable unifies with every stored atom. The engine's own
+                # removal wants a storage-shaped pattern, so "everything"
+                # is spelled as one removal per stored atom, equations and
+                # their compiled clauses included.
+                removed = False
+                for atom in space.atoms():
+                    removed = space.remove(atom) or removed
+                return {"removed": removed}
+            if not isinstance(pattern, Expr):
+                # A stored atom is always an expression; a symbol or a
+                # grounded value can unify with none of them.
+                return {"removed": False}
+            return {"removed": space.remove(pattern)}
+        if operation == "health":
+            return {
+                "ok": True,
+                "atoms": m.count(),
+                "protocol": 2,
+                # The reflection the in-process seam has: what this server
+                # admits, so a client can ask before writing.
+                "capabilities": ["match", "enumerate", "add", "remove"],
+                # /match honors the optional bound field exactly.
+                "bound": True,
+            }
         raise PettaError(f"unknown operation {operation!r}")
 
     # Every engine call runs on one persistent attached-engine worker.
@@ -579,12 +716,62 @@ def serve(
             self.end_headers()
             self.wfile.write(body)
 
-        def do_POST(self) -> None:
-            operation = self.path.strip("/")
+        def _collected_headers(self) -> dict[str, str]:
             headers: dict[str, str] = {}
             for name, value in self.headers.items():
                 key = name.lower()
                 headers[key] = f"{headers[key]}, {value}" if key in headers else value
+            return headers
+
+        def do_GET(self) -> None:
+            operation = self.path.strip("/")
+            headers = self._collected_headers()
+            # The same gates as every POST, credential then policy hook:
+            # health names what the server admits, which is not an
+            # anonymous answer when a token or a policy is configured.
+            if not _has_credential(headers, token):
+                self._refuse_unauthorized(operation)
+                return
+            request = Request(operation, m.space_name, headers)
+            if authorize is not None and not authorize(request):
+                self._refuse_unauthorized(operation)
+                return
+            if operation == "health":
+                try:
+                    kind, value = worker.call("health", {}, timeout=600.0)
+                    answer = value if kind == "ok" else {"error": value}
+                    status = 200 if kind == "ok" else 400
+                except Exception as exc:  # noqa: BLE001  the wire answers errors as JSON
+                    answer, status = {"error": str(exc)}, 400
+            else:
+                answer, status = {"error": f"unknown operation {operation!r}"}, 400
+            body = _json.dumps(answer)
+            self.send_response(status)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _method_not_allowed(self) -> None:
+            # The protocol's own refusal: only POST operates (and GET
+            # answers /health). BaseHTTPRequestHandler would say 501,
+            # which reads as "not implemented yet" rather than "never".
+            body = _json.dumps(
+                {"error": f"method {self.command} is not supported; POST an operation"}
+            )
+            self.send_response(405)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_PUT = _method_not_allowed
+        do_DELETE = _method_not_allowed
+        do_PATCH = _method_not_allowed
+
+        def do_POST(self) -> None:
+            operation = self.path.strip("/")
+            headers = self._collected_headers()
             # The fixed credential decides before the body is read, so a
             # request without it drives no parser. The policy hook decides
             # after, because the space it judges is in the body.

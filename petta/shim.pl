@@ -1207,12 +1207,26 @@ petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
 
 %A row holds one encoded value per requested name; a variable the answer left
 %unbound comes back as itself:
-petta_py_row([], _, []).
-petta_py_row([Name0|Names], Bindings, [Value|Values]) :-
+%The acyclicity guard is the engine's own semantics, not a transport
+%limit: match_native guards every OUT template with acyclic_term/1, so a
+%rational-tree instantiation is not an answer there, and the engine's
+%matching is unify_with_occurs_check throughout (spaces.pl
+%petta_match_atoms, the arbiter's variable cases). The query lanes keep
+%their bindings OUTSIDE the out template, so without this guard a cyclic
+%join sailed past match_native's check and the row encode walked it to a
+%stack overflow. Same semantics as match/4: the cyclic candidate FAILS
+%this row and enumeration continues. Guarded once per row, not per
+%column.
+petta_py_row(Names, Bindings, Row) :-
+    acyclic_term(Bindings),
+    petta_py_row_columns(Names, Bindings, Row).
+
+petta_py_row_columns([], _, []).
+petta_py_row_columns([Name0|Names], Bindings, [Value|Values]) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     ( memberchk(Name-V, Bindings) -> petta_py_encode(V, Value)
     ; Value = ["v", Name0] ),
-    petta_py_row(Names, Bindings, Values).
+    petta_py_row_columns(Names, Bindings, Values).
 
 %%%%%%%%%% Space modules %%%%%%%%%%
 %

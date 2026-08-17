@@ -23,6 +23,7 @@ import pytest
 import petta
 import petta._network as network
 from petta import S, remote
+from petta import testing as remote_testing
 from petta.errors import PettaError
 
 
@@ -330,3 +331,89 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
 
     assert connection.response.closed
     assert connection.closed
+
+
+# ------------------------------------------------- the wire projection (J4)
+
+
+def test_health_advertises_the_projection(metta):
+    server = remote.serve(metta)
+    try:
+        transport = remote.connect(server.url)
+        body = transport.health()
+        assert body["ok"] is True and body["protocol"] == 2
+        assert {"match", "enumerate", "add", "remove"} <= set(body["capabilities"])
+        assert body["bound"] is True
+        space = remote.RemoteSpace(transport)
+        advertised = space.server_capabilities()
+        assert advertised["bound"] is True and advertised["protocol"] == 2
+    finally:
+        server.close()
+
+
+def test_server_capabilities_refuses_a_health_less_transport():
+    space = remote.RemoteSpace(lambda operation, payload: {"atoms": []})
+    with pytest.raises(PettaError, match="health"):
+        space.server_capabilities()
+
+
+def test_bound_crosses_and_is_honored_exactly(metta):
+    scratch = metta.new_space()
+    scratch.add(S.re_edge(S.a, S.b), S.re_edge(S.a, S.c), S.re_edge(S.a, S.d))
+    server = remote.serve(metta)
+    try:
+        transport = remote.connect(server.url)
+        space = remote.RemoteSpace(transport, scratch.space_name)
+        pattern = petta.parse("(re_edge a $x)")
+        assert len(list(space.match(pattern, limit=2))) == 2
+        assert len(list(space.match(pattern))) == 3
+        assert list(space.match(pattern, limit=0)) == []
+        with pytest.raises(PettaError, match="bound"):
+            list(space.match(pattern, limit=-1))
+    finally:
+        server.close()
+
+
+def test_the_seam_pushes_the_callers_bound_onto_the_wire():
+    # No server at all: a capturing transport proves the engine-side
+    # bounded query reaches RemoteSpace.match with the limit, and the
+    # limit leaves as the wire's bound field.
+    sent = []
+
+    def capturing(operation, payload):
+        sent.append((operation, payload))
+        return {"atoms": []}
+
+    space = remote.RemoteSpace(capturing)
+    list(space.match(petta.parse("(re_probe $x)"), limit=5))
+    assert sent[-1][1]["bound"] == 5
+    list(space.match(petta.parse("(re_probe $x)")))
+    assert "bound" not in sent[-1][1]
+
+
+def test_add_many_lands_through_our_own_server(metta):
+    # The client always sent add_many; the server refused it as unknown
+    # until the projection work, so bulk adds against serve() failed.
+    scratch = metta.new_space()
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space.add_many([petta.parse(f"(re_bulk {n})") for n in range(4)])
+        assert len(list(space.match(petta.parse("(re_bulk $n)")))) == 4
+    finally:
+        server.close()
+
+
+class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
+    """Our own serve() certified by the same suite that certifies the
+    TypeScript references: the page made executable, pointed inward.
+    This is what caught add_many missing, /health missing, and 501
+    where the contract says 405."""
+
+    @pytest.fixture()
+    def gateway_url(self, metta):
+        server = remote.serve(metta)
+        try:
+            yield server.url
+        finally:
+            server.close()

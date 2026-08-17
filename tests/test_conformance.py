@@ -176,7 +176,7 @@ def test_an_enumeration_only_provider_passes():
 
 
 def test_the_kit_catches_an_under_approximating_matcher():
-    with pytest.raises(AssertionError, match="did not answer"):
+    with pytest.raises(AssertionError, match="answered neither"):
         testing.check_space_provider(UnderApproximating())
 
 
@@ -209,7 +209,7 @@ def test_a_repeated_variable_liar_is_caught_by_the_folded_pattern():
 
 
 def test_a_ground_only_matcher_is_caught_by_the_open_pattern():
-    with pytest.raises(AssertionError, match="did not answer"):
+    with pytest.raises(AssertionError, match="answered neither"):
         testing.check_space_provider(GroundOnlyMatcher())
 
 

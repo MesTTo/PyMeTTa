@@ -36,14 +36,16 @@
     },
     "direct-join": {
       "inference_slope": {
-        "delta_inferences": 1297444,
+        "delta_inferences": 1345302,
         "large_operations": 49975,
-        "small_operations": 1999
+        "small_operations": 1999,
+        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302]."
       },
-      "inferences": 270305,
+      "inferences": 280275,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.78302382169037e-06
+      "wall_seconds_per_operation": 2.78302382169037e-06,
+      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18]."
     },
     "eval-arith": {
       "inferences": 172009,
@@ -107,14 +109,16 @@
     },
     "prepared-join": {
       "inference_slope": {
-        "delta_inferences": 1297444,
+        "delta_inferences": 1345302,
         "large_operations": 49975,
-        "small_operations": 1999
+        "small_operations": 1999,
+        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302]."
       },
-      "inferences": 270305,
+      "inferences": 280275,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.8308916356174156e-06
+      "wall_seconds_per_operation": 2.8308916356174156e-06,
+      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18]."
     },
     "py-method-call": {
       "comment": "LOWERED on 2026-08-16, 1828026371 to 1655770341 instructions. The wire decoder decided a tag by asking petta_py_tag/2 whether it was o, then s, then g, then n, re-running atom/1 and string/1 at every step, so a single ['n',1] leaf cost nine inferences to recognise. Normalising the tag once and dispatching on it lets first-argument indexing pick the clause: a number leaf falls to 4.00 and a three-element expression 29.00 to 20.00. Attributed by interleaved A/B of that change alone, min-of-3 instructions:u: 1770899831 to 1656177950, -6.48%.",
@@ -126,28 +130,32 @@
       "wall_seconds_per_operation": 1.0144315101206303e-05
     },
     "query-2k-rows": {
-      "inferences": 521145,
+      "inferences": 561027,
       "operations": 40000,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.0797247299924494e-06
+      "wall_seconds_per_operation": 2.0797247299924494e-06,
+      "comment": "Raised from 521145 on 2026-08-18, +1 inference per answer row (delta 39882 over 20 repeats * ~1994 rows): petta_py_row guards its bindings with acyclic_term/1 once per row, the occurs-check correctness fix recorded in full on direct-join [measured 2026-08-18]."
     },
     "query-limit-guarded": {
-      "inferences": 78307,
+      "inferences": 83107,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.0604806020855903e-06
+      "wall_seconds_per_operation": 2.0604806020855903e-06,
+      "comment": "Raised from 78307 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the same per-row acyclic_term guard as direct-join [measured 2026-08-18; first invocation measured 85245 once, JIT-index timing, min stands]."
     },
     "query-limit-plain": {
-      "inferences": 75607,
+      "inferences": 80407,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 1.9979908131062986e-06
+      "wall_seconds_per_operation": 1.9979908131062986e-06,
+      "comment": "Raised from 75607 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18; one 82540 sample from JIT-index timing, min stands]."
     },
     "query-where": {
-      "inferences": 648231,
+      "inferences": 687713,
       "operations": 10160,
       "unit": "rows",
-      "wall_seconds_per_operation": 5.481676766868886e-06
+      "wall_seconds_per_operation": 5.481676766868886e-06,
+      "comment": "Raised from 648231 on 2026-08-18, +1 inference per answer row (delta 39482 over 20 repeats * ~1974 guard-passing rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18]."
     },
     "register-op": {
       "comment": "Raised from 39705 on 2026-08-17, +2 per registration: each registration parses its declaration form through the named-space reader, so it pays the same two-inference &self probe run-source records [measured 2026-08-17]. Prior: Raised from 36605 on 2026-08-18, +3100 over 100 register-and-unregister cycles, +31.0 per cycle, all of it at SETUP. Registration now compiles the operation FROM its contract atoms: the Python keywords assert (op Name Arity Kind), (effect Name immutable) and (inverse Name) into &petta first, and petta_py_compile_op reads them back and builds the clause through the same petta_py_op_body/petta_py_directed_body builders as before, clause-identical by construction and held so by the exhaustive parameter-cube gate (test_contract_cube.py, 44 points plus a planted mismatch). Nothing was added to any call path, which the unchanged op-raw and op-encoded rows confirm. The 36605 floor itself was set the same day by the petta_py_existed indexed-probe fix, so the net move against the 2026-08-16 baseline of 47307 is -7602.",

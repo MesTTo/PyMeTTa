@@ -662,3 +662,20 @@ def test_an_unknown_column_names_the_columns_that_exist(m):
 def test_a_wrong_argument_type_names_the_argument(m, call, match):
     with pytest.raises(TypeError, match=match):
         call(m)
+
+
+def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):
+    # The engine's matching is occurs-checked on purpose (the arbiter's
+    # variable cases), and match_native guards its OUT template with
+    # acyclic_term. The query lanes keep bindings outside that template,
+    # and a cyclic join once sailed through to the row encoder and died
+    # at a 53-million-frame walk. Now the cyclic candidate fails its row,
+    # exactly as the same pattern behaves through match.
+    m.add(parse("(rt-fact (f $x) $x)"))
+    assert len(m.query(parse("(rt-fact $y $y)"))) == 0
+    assert m.run("!(collapse (match (context-space) (rt-fact $y $y) hit))") == [
+        [expr()]
+    ]
+    # The acyclic twin still answers through both doors.
+    m.add(parse("(rt-fact ok ok)"))
+    assert len(m.query(parse("(rt-fact $y $y)"))) == 1

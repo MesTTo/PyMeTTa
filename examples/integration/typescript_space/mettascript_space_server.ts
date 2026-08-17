@@ -160,6 +160,12 @@ export class MettascriptStore implements WireSpaceStore {
     );
   }
 
+  // No boundedMatch on purpose, so health advertises bound: false and
+  // /match ignores the field: admits() over-approximates (the union
+  // envelope above), and truncating an over-approximated list can drop
+  // truly-unifying atoms past the cut, the under-approximation the
+  // protocol forbids. Ignoring a bound is always sound; honoring one is
+  // only sound for an exact matcher.
   match(name: string, pattern: WireAtom): WireAtom[] {
     const wanted = wireToCore(this.core, pattern);
     return this.space(name)

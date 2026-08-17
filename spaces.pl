@@ -1436,9 +1436,18 @@ match_native(Module, Space, [Rel|PatArgs], OutPattern, Result) :- native_express
 %Read one stored expression through its private module. The module's unknown
 %flag is fail, so a virgin arity fails directly and this indexed path needs no
 %exception handler.
+%The storage call unifies raw, so first-argument indexing dispatches, and
+%the occurs check runs once on the answer instead: a cyclic binding fails
+%THIS candidate and enumeration continues. Without it, a repeated-variable
+%pattern like (f $y $y) against a stored (f (g $x) $x) "matched" whenever
+%the out template did not mention $y, while the same pattern failed when it
+%did, one match with two answers. The arbiter's matcher occurs-checks its
+%variable cases (LeaTTa MettaHyperonFull/Core/Matching.lean matchAtomsWith),
+%so a rational-tree instantiation is never a MeTTa answer.
 native_expression(Module, Space, Rel, PatArgs) :-
     Term =.. [Space, Rel | PatArgs],
-    call(Module:Term).
+    call(Module:Term),
+    acyclic_term(PatArgs).
 
 'get-atoms'(Space, Pattern) :- nonvar(Space),
                                metta_foreign_space(Space), !,

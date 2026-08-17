@@ -71,6 +71,7 @@ var SpaceStore = class {
   constructor(served = null) {
     this.served = served;
   }
+  served;
   spaces = /* @__PURE__ */ new Map();
   space(name) {
     if (this.served !== null && !this.served.has(name)) {
@@ -99,6 +100,11 @@ var SpaceStore = class {
   match(name, pattern) {
     return this.space(name).filter((atom) => unifiable(pattern, atom));
   }
+  // Honoring is sound HERE because match filters by real unification,
+  // so the first `bound` survivors are true answers, never candidates.
+  boundedMatch(name, pattern, bound) {
+    return this.match(name, pattern).slice(0, bound);
+  }
   // Every unifying occurrence goes, the multiset reading remove-atom has
   // everywhere, and the answer says whether any was there.
   remove(name, pattern) {
@@ -119,6 +125,7 @@ var HttpProblem = class extends Error {
     super(message);
     this.status = status;
   }
+  status;
 };
 var DEFAULT_MAX_BODY = 16 * 1024 * 1024;
 function requestLength(request, maxBody) {
@@ -212,7 +219,13 @@ function startServer(options = {}) {
     let answer;
     try {
       if (request.method === "GET" && path === "health") {
-        answer = { ok: true, atoms: store.count(), protocol: 1 };
+        answer = {
+          ok: true,
+          atoms: store.count(),
+          protocol: 2,
+          capabilities: ["match", "enumerate", "add", "remove"],
+          bound: typeof store.boundedMatch === "function"
+        };
       } else if (request.method !== "POST") {
         throw new HttpProblem(405, `method ${request.method} is not supported; POST an operation`);
       } else if (!credentialAccepted(request, token)) {
@@ -255,6 +268,15 @@ function startServer(options = {}) {
       case "match": {
         const space = payloadSpace(payload);
         const pattern = payloadAtom(payload, "pattern");
+        const bound = payload["bound"];
+        if (bound !== void 0) {
+          if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
+            throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(bound)}`);
+          }
+          if (typeof store.boundedMatch === "function") {
+            return { atoms: store.boundedMatch(space, pattern, bound) };
+          }
+        }
         return { atoms: store.match(space, pattern) };
       }
       case "atoms": {

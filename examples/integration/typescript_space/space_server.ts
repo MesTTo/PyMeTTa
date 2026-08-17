@@ -144,6 +144,13 @@ export interface WireSpaceStore {
   addMany(name: string, atoms: readonly WireAtom[]): number;
   atoms(name: string): readonly WireAtom[];
   match(name: string, pattern: WireAtom): WireAtom[];
+  // Present exactly when this store may honor /match's bound field: the
+  // trusted-Exact contract. A store whose match over-approximates must
+  // NOT implement it, because truncating an over-approximated candidate
+  // list can drop truly-unifying atoms past the cut, which is the
+  // under-approximation the protocol forbids. Health advertises
+  // `bound` from its presence.
+  boundedMatch?(name: string, pattern: WireAtom, bound: number): WireAtom[];
   remove(name: string, pattern: WireAtom): boolean;
   count(): number;
 }
@@ -183,6 +190,12 @@ export class SpaceStore implements WireSpaceStore {
 
   match(name: string, pattern: WireAtom): WireAtom[] {
     return this.space(name).filter((atom) => unifiable(pattern, atom));
+  }
+
+  // Honoring is sound HERE because match filters by real unification,
+  // so the first `bound` survivors are true answers, never candidates.
+  boundedMatch(name: string, pattern: WireAtom, bound: number): WireAtom[] {
+    return this.match(name, pattern).slice(0, bound);
   }
 
   // Every unifying occurrence goes, the multiset reading remove-atom has
@@ -341,8 +354,17 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
     try {
       if (request.method === "GET" && path === "health") {
         // protocol names the wire contract's revision, the seam
-        // describing itself as data before anyone speaks it.
-        answer = { ok: true, atoms: store.count(), protocol: 1 };
+        // describing itself as data before anyone speaks it. Revision 2
+        // adds the reflection: capabilities names what this server
+        // admits, so a client can ask before writing, and bound says
+        // whether /match honors the bound field exactly.
+        answer = {
+          ok: true,
+          atoms: store.count(),
+          protocol: 2,
+          capabilities: ["match", "enumerate", "add", "remove"],
+          bound: typeof store.boundedMatch === "function",
+        };
       } else if (request.method !== "POST") {
         throw new HttpProblem(405, `method ${request.method} is not supported; POST an operation`);
       } else if (!credentialAccepted(request, token)) {
@@ -386,6 +408,17 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
       case "match": {
         const space = payloadSpace(payload);
         const pattern = payloadAtom(payload, "pattern");
+        const bound = payload["bound"];
+        if (bound !== undefined) {
+          if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
+            throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(bound)}`);
+          }
+          // Honored exactly when the store can; ignored (a sound
+          // over-answer) when it cannot, which health advertises.
+          if (typeof store.boundedMatch === "function") {
+            return { atoms: store.boundedMatch(space, pattern, bound) };
+          }
+        }
         return { atoms: store.match(space, pattern) };
       }
       case "atoms": {
