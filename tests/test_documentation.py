@@ -133,3 +133,23 @@ def test_a_tag_shaped_word_in_prose_is_escaped_and_code_is_not():
     assert _reference.escape_tags("    # <mylib-join/3 prolog: 1 call>") == (
         "    # <mylib-join/3 prolog: 1 call>"
     )
+
+
+def _load_libdoc():
+    import importlib.util as _importlib_util
+
+    specification = _importlib_util.spec_from_file_location(
+        "petta_libdoc_tool", _REPO / "python" / "tools" / "libdoc.py"
+    )
+    module = _importlib_util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def test_the_metta_library_page_is_up_to_date():
+    libdoc = _load_libdoc()
+    current = libdoc._PAGE.read_text(encoding="utf-8")
+    assert current == libdoc.page(), (
+        "metta-libraries.md no longer matches the libraries' @doc atoms; "
+        "run `python python/tools/libdoc.py --write`"
+    )
