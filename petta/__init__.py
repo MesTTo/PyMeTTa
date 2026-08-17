@@ -167,7 +167,7 @@ from .foreign import (  # noqa: E402
     Remover,
     SpaceProvider,
 )
-from .ops import REFLECTION_SPACE  # noqa: E402
+from .ops import REFLECTION_SPACE, record  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
@@ -334,6 +334,7 @@ __all__ = [
     "parse",
     "persistent",
     "query",
+    "record",
     "register_object_repr",
     "register_object_repr_protocol",
     "remote",

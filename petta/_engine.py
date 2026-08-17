@@ -184,6 +184,12 @@ def active_runtime() -> Runtime | None:
     return _STATE.runtime
 
 
+def booted() -> bool:
+    """Whether the engine and its shim are consulted in this process,
+    without booting anything: the probe deferred work wants."""
+    return _SHIM_LOADED.is_set()
+
+
 def bridge() -> JanusBridge:
     """Import and return janus without starting the PeTTa runtime."""
     janus = _STATE.janus

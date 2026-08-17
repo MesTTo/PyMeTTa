@@ -15,10 +15,11 @@ Open Obligations:
 from __future__ import annotations
 
 import inspect
+import threading
 from collections.abc import Callable
 from typing import Any, ParamSpec, TypeVar
 
-from . import convert
+from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
@@ -106,6 +107,57 @@ def _release_declaration(runtime, space: str, declaration: Expr) -> None:
         runtime.once("petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
     else:
         _DECLARATION_REFS[key] = count - 1
+
+
+_RECORDED: list[type] = []
+_RECORDED_LOCK = threading.Lock()
+
+
+def record(cls: type) -> type:
+    """The declarative-record wiring, attrs' and pydantic's shape: one
+    decorator over a dataclass, NamedTuple, or Enum and the class
+    converts both ways, its `(: ...)` declarations land in &self, and it
+    serves as a cast and query(into=) target.
+
+        @petta.record
+        @dataclass
+        class Edge:
+            a: str
+            b: str
+
+    Conversion registers immediately (an unregistrable class fails at
+    the decorator, not at first use). The declarations are engine-side
+    atoms, so they land the moment an engine exists: immediately when
+    one is already booted, or on the first MeTTa construction otherwise,
+    which is what lets the decorator run at import time without booting
+    anything. Every underlying registration call stays public for the
+    classes that need custom shapes."""
+    convert.ensure_registered(cls)
+    with _RECORDED_LOCK:
+        _RECORDED.append(cls)
+    if _engine.booted():
+        declare_recorded()
+    return cls
+
+
+def declare_recorded() -> None:
+    """Land every pending recorded class's declarations in &self; a
+    no-op when nothing is pending, called by MeTTa construction so a
+    decorator that ran before any engine existed still declares."""
+    with _RECORDED_LOCK:
+        if not _RECORDED:
+            return
+        pending = list(_RECORDED)
+        _RECORDED.clear()
+    declarations = [atom for cls in pending for atom in class_declarations(cls)]
+    if not declarations:
+        return
+    runtime = _engine.runtime()
+    runtime.do_must(
+        "petta_py_add_many",
+        _DEFAULT_SPACE,
+        [declaration.to_wire() for declaration in declarations],
+    )
 
 
 def class_declarations(cls: type) -> list[Expr]:

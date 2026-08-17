@@ -316,6 +316,8 @@ class MeTTa:
                 f"name would read back as a variable."
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
+        # Recorded classes declared before any engine existed land now.
+        _ops_module.declare_recorded()
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
         self._name = SpaceName(space)

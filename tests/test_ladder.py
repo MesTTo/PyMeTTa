@@ -235,3 +235,72 @@ def test_ladder_rungs_cross_the_async_seam(metta):
 
 class _Count(NamedTuple):
     n: int
+
+
+def test_record_wires_the_declarative_dance(metta):
+    # In-process: the classes declare on the next engine touch (the
+    # engine exists here already, so immediately).
+    from dataclasses import dataclass
+
+    @petta.record
+    @dataclass
+    class LadderEdge:
+        a: str
+        b: str
+
+    declared = metta.query("(: LadderEdge $t)")
+    assert [str(row[0]) for row in declared] == ["(-> String String LadderEdge)"]
+    # cast narrows against the landed declaration ...
+    atom = petta.parse('(LadderEdge "x" "y")')
+    assert metta.cast(atom, LadderEdge) is atom
+    # ... conversion runs both ways ...
+    projected = petta.convert.project(LadderEdge("p", "q"))
+    assert str(projected.atom) == '(LadderEdge "p" "q")'
+    assert petta.convert.build(projected.atom, LadderEdge) == LadderEdge("p", "q")
+    # ... and the class serves as an into= target.
+    sp = metta.new_space()
+    sp.add(projected.atom)
+    assert sp.query("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
+
+
+def test_record_before_any_engine_defers_without_booting():
+    import os
+    import subprocess
+
+    code = (
+        "import sys\n"
+        "from dataclasses import dataclass\n"
+        "import petta\n"
+        "@petta.record\n"
+        "@dataclass\n"
+        "class PreBoot:\n"
+        "    n: int\n"
+        "assert 'janus_swi' not in sys.modules, 'record booted the engine'\n"
+        "m = petta.MeTTa()\n"
+        "rows = m.query('(: PreBoot $t)')\n"
+        "assert [str(r[0]) for r in rows] == ['(-> Number PreBoot)'], rows\n"
+        "print('deferred ok')\n"
+    )
+    environment = dict(os.environ)
+    package_root = str(Path(__file__).resolve().parents[1])
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{package_root}{os.pathsep}{existing}" if existing else package_root
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=240,
+        env=environment,
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "deferred ok" in done.stdout
+
+
+def test_record_refuses_an_unregistrable_class():
+    with pytest.raises(TypeError, match="default image"):
+
+        @petta.record
+        class Plain:
+            pass
