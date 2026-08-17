@@ -560,3 +560,21 @@ def test_aio_declare_and_register_delegations_land():
             return True
 
     assert asyncio.run(go())
+
+
+def test_aio_scoped_limits_cross_to_the_worker(m):
+    # with-limits state is a ContextVar; the request copies the task's
+    # context at submission and the worker runs inside it, so the block
+    # bounds engine work that happens on ANOTHER thread.
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.run(
+                "(= (aio-ctx-spin $n) (if (== $n 0) done (aio-ctx-spin (- $n 1))))"
+            )
+            with am.limits(inferences=2000):
+                with pytest.raises(petta.InferenceLimitError):
+                    await am.eval("(aio-ctx-spin 100000000)")
+            # outside the block the same engine call runs unbounded
+            assert await am.eval("(aio-ctx-spin 3)") == [S.done]
+
+    asyncio.run(go())

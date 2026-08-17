@@ -1111,3 +1111,20 @@ def test_events_delivers_leftovers_queued_before_cancel(m):
     m.add(S.dleft(S.kept))
     subscription.cancel()
     assert [str(e.atom) for e in subscription.events()] == ["(dleft kept)"]
+
+
+def test_bare_threads_share_the_home_engine_serialized(m):
+    # No engine_thread(), no pool: plain threads' calls serialize on the
+    # home engine's lock and every answer is right.
+    m.run("(= (tsafe-double $x) (* $x 2))")
+    answers = {}
+
+    def ask(n):
+        answers[n] = m.one(f"(tsafe-double {n})")
+
+    workers = [threading.Thread(target=ask, args=(n,)) for n in range(6)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=30)
+    assert answers == {n: n * 2 for n in range(6)}
