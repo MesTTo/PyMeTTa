@@ -748,7 +748,7 @@ def test_declare_merge_validates(metta):
 
 
 def test_a_bridge_inserts_under_the_matched_bindings(metta):
-    metta.declare_bridge("&br-src", "(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
+    metta.declare_reaction("&br-src", "(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
     metta.run("!(add-atom &br-src (fact one two))")
     out = metta.run("!(collapse (match &br-mirror (mirrored $a $b) ($a $b)))")
     assert str(out[0][0]) == "((two one))"
@@ -756,7 +756,7 @@ def test_a_bridge_inserts_under_the_matched_bindings(metta):
 
 def test_a_revise_bridge_replaces(metta):
     metta.run("!(add-atom &br-state (mode old))")
-    metta.declare_bridge(
+    metta.declare_reaction(
         "&br-cmd", "(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
     )
     metta.run("!(add-atom &br-cmd (set-mode new))")
@@ -765,13 +765,13 @@ def test_a_revise_bridge_replaces(metta):
 
 
 def test_a_bridge_cascade_is_bounded(metta):
-    metta.declare_bridge("&br-loop", "(tick $n)", "(insert &br-loop (tick $n))")
+    metta.declare_reaction("&br-loop", "(tick $n)", "(insert &br-loop (tick $n))")
     with pytest.raises(EngineError, match="cascade"):
         metta.run("!(add-atom &br-loop (tick 1))")
 
 
 def test_an_unknown_bridge_head_is_loud(metta):
-    metta.declare_bridge("&br-bad", "(x $y)", "(teleport &elsewhere $y)")
+    metta.declare_reaction("&br-bad", "(x $y)", "(teleport &elsewhere $y)")
     with pytest.raises(EngineError, match="managed head"):
         metta.run("!(add-atom &br-bad (x 1))")
 
