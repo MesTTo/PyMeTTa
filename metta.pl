@@ -656,8 +656,25 @@ current_metta_space(Space) :- current_metta_module(Module),
 type_declaration(X, T) :- current_metta_module(Module),
                           type_declaration_in(Module, X, T).
 
-type_declaration_in(user, X, T) :- !, match('&self', [':', X, T], T, _).
-type_declaration_in(Module, X, T) :- (   match(Module, [':', X, T], T, _)
+%The prelude tier comes LAST in each clause, so a declaration a program
+%writes for the same name wins over the engine's prelude, the order the
+%type surface already keeps for get-type. The my-if tutorial mechanism is
+%what this tier carries: an Atom parameter declared in src/prelude.metta
+%masks that argument at every call site, which is how the prelude's
+%assertEqualToResult receives its expected set unevaluated.
+%In the user clause the prelude branch comes FIRST, and the order is
+%about determinism, not precedence: a first-arg-indexed lookup fails
+%fast for every ordinary name, and the disjunction is then EXHAUSTED
+%when match/4 yields its last solution, so a raw first-solution caller
+%(filereader.plt calls type_declaration/2 bare) is left with exactly the
+%choicepoint profile this predicate had before the prelude existed.
+%Precedence still belongs to the user because eviction removes the
+%prelude's rows the moment &self defines or declares the name, so the
+%two stores answer together only when the user has said nothing.
+type_declaration_in(user, X, T) :- !, (   prelude_type_declaration(X, T)
+                                      ;   match('&self', [':', X, T], T, _) ).
+type_declaration_in(Module, X, T) :- (   prelude_type_declaration(X, T)
+                                     ;   match(Module, [':', X, T], T, _)
                                      ;   match('&self', [':', X, T], T, _) ).
 
 %A declaration that is not an arrow types the SYMBOL and cannot type a call to
@@ -2231,6 +2248,14 @@ assert(Goal, true) :- ( call(Goal) -> true
 % program in &self writes (match &self ...); outside any named space the
 % answer is &self.
 'context-space'(Space) :- ( current_metta_space(Space) -> true ; Space = '&self' ).
+
+%get-type, run with the SELECTED space as the context: upstream's
+%get-type-space (pinned stdlib.md:849-868). The library stub this
+%replaces matched the literal &self and answered nothing for any named
+%space; the engine's type machinery is module-parameterized already, so
+%selection is one with_metta_module/2 around the ordinary get-type.
+'get-type-space'(Space, X, T) :- space_module(Space, Module),
+                                 with_metta_module(Module, 'get-type'(X, T)).
 
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
@@ -3977,7 +4002,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           decons, 'decons-atom', noeval, 'new-space',
                           'py-call', 'py-atom', 'py-dot',
                           'py-list', 'py-tuple', 'py-dict', 'py-iter',
-                          'get-type', 'get-metatype', '=alpha', sread, cons, reverse,
+                          'get-type', 'get-type-space', 'get-metatype', '=alpha', sread, cons, reverse,
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','#=<','#>=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
@@ -4051,4 +4076,160 @@ load_builtin_type_surface :-
     index_masking_data_heads.
 load_builtin_type_surface :- index_masking_data_heads.
 
-:- initialization(load_builtin_type_surface).
+%%%%%%%%%% The engine's prelude %%%%%%%%%%
+%
+%src/prelude.metta holds standard vocabulary promoted from the libraries:
+%forms every program may use with no import!, compiled here at startup by
+%the same translator that compiles a program's own equations. The clauses
+%land in the base tier and each head registers as a builtin, so the names
+%are visible from every space and shadowable per named space exactly as
+%builtins are; the ATOMS are stored in no space at all, so a program
+%enumerating &self sees only its own writes, the same design decision
+%load_builtin_type_surface records above for the type surface.
+%
+%Declarations go to prelude_type_declaration/2, a third register beside
+%type_declaration/2 (what the program declared) and
+%builtin_type_declaration/2 (the engine's Prolog surface). It is consulted
+%on the FUNCTION path, which builtin_type_declaration deliberately is not:
+%that register describes arguments a caller writes for predicates
+%underneath (the maplist lesson, documented at call_site_type_chains/2),
+%while a prelude declaration is an ordinary MeTTa declaration for an
+%ordinary compiled equation, so honouring it at call sites is exactly
+%right, and it is what makes an Atom parameter like assertEqualToResult's
+%arrive unevaluated. A program's own declaration is read first, so a user
+%redeclaration wins, the same order the type surface keeps.
+%
+%Two passes, because the file may use a name before defining it
+%(type-cast calls type-cast-holds, defined below it): every equation head
+%registers first, then every form compiles, so a forward reference
+%compiles as the call it is. The filereader solves the same problem with
+%a repair pass; the prelude is small enough to pre-register instead.
+:- dynamic prelude_type_declaration/2.
+:- dynamic petta_engine_src_dir/1.
+:- dynamic prelude_owned/1.
+:- dynamic prelude_clause_ref/2.
+
+%A user definition WINS over the prelude, entirely. When &self compiles
+%an equation for a name the prelude owns, the prelude's clauses and
+%declarations for that name are evicted first, so the program's own
+%definition answers alone, exactly as it did before the name was
+%promoted (examples/types/matchtypes.metta defines its own match-types
+%and must keep meaning ITS match-types). Additive answers would be the
+%non-exclusive-equations reading, but the prelude is engine vocabulary,
+%not part of the program, and the house rule everywhere else on this
+%boundary is that the user's word replaces the engine's: get-type reads
+%a program's declaration ahead of the surface, prelude_type_declaration
+%is consulted last. Eviction is one-way; removing the user's equation
+%later does not resurrect the prelude's, the same as redefining any
+%function. Named spaces need none of this: their clauses shadow through
+%their own module already, the builtin-override rule.
+evict_prelude_definition(FAtom) :-
+    (   retract(prelude_owned(FAtom))
+    ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
+        retract_prelude_declarations(FAtom),
+        function_changed(FAtom)
+    ;   true
+    ).
+
+%The ledger rows say exactly which builtin_type_declaration entries are
+%the prelude's, so eviction purges both stores and nothing else.
+retract_prelude_declarations(Name) :-
+    forall(retract(prelude_type_declaration(Name, Type)),
+           retractall(builtin_type_declaration(Name, Type))).
+
+%The declaration half of the same rule, for the loader's door: a ':'
+%atom a file writes into the base tier replaces the prelude's
+%declaration for that name, so the compile-time findall over
+%type chains sees ONE authority, the user's.
+evict_prelude_declaration(Space, [':', Name, _]) :-
+    atom(Name),
+    space_module(Space, user),
+    !,
+    retract_prelude_declarations(Name).
+evict_prelude_declaration(_, _).
+
+:- prolog_load_context(directory, Dir),
+   (   petta_engine_src_dir(_) -> true
+   ;   assertz(petta_engine_src_dir(Dir))
+   ).
+
+%The prelude compiles SILENTLY whatever the session's verbosity: these
+%are engine internals loading at boot, and a --verbose user asking to see
+%their program's compiled clauses is not asking for the engine's own.
+%asserta so the silence wins over an already-asserted silent(false), and
+%the cleanup erases exactly the clause added here.
+load_engine_prelude :-
+    setup_call_cleanup(asserta(silent(true), Ref),
+                       load_engine_prelude_forms,
+                       erase(Ref)).
+
+load_engine_prelude_forms :-
+    petta_engine_src_dir(Dir),
+    directory_file_path(Dir, 'prelude.metta', Path),
+    (   exists_file(Path)
+    ->  true
+    ;   throw(error(existence_error(source_sink, Path),
+                    context(load_engine_prelude/0,
+                            'src/prelude.metta is part of the engine')))
+    ),
+    read_file_to_string(Path, Text, []),
+    parse_metta_source(Text, Forms),
+    %Re-loading restores only what eviction removed: a name still owned
+    %keeps every clause it has, and its forms are skipped WHOLE (a name
+    %may carry several equations, so the skip is per name, decided
+    %before anything loads). First load: nothing is owned, nothing
+    %skips.
+    findall(Owned, prelude_owned(Owned), OwnedBefore),
+    %Arity registers in pass one WITH the name: a registered name with no
+    %recorded arity compiles a later call site as a partial application
+    %(the backends note beside metta_backend_builtin/1 records the same
+    %trap), and type-cast calls type-cast-check before pass two reaches
+    %its equation.
+    forall(( member(parsed(function, _, [=, [FAtom|W], _]), Forms),
+             atom(FAtom) ),
+           ( register_builtin_fun(FAtom),
+             length(W, N),
+             Arity is N + 1,
+             register_arity(FAtom, Arity) )),
+    forall(member(parsed(Kind, Src, Term), Forms),
+           (   Term = [=, [Skip|_], _],
+               memberchk(Skip, OwnedBefore)
+           ->  true
+           ;   load_prelude_form(Kind, Src, Term)
+           )).
+
+%A declaration lands in TWO stores: prelude_type_declaration/2 is the
+%masking tier the compiler reads and the eviction ledger, and
+%builtin_type_declaration/2 is where get-type already looks, so the
+%get-type path gains no new clause to try (measured: an extra candidate
+%clause cost ~6 inferences per compiled run() call, 2026-08-18). The
+%ledger is what lets eviction purge BOTH stores exactly.
+load_prelude_form(expression, _, [':', Name, Type]) :-
+    atom(Name), !,
+    (   prelude_type_declaration(Name, Type) -> true
+    ;   assertz(prelude_type_declaration(Name, Type)),
+        assertz(builtin_type_declaration(Name, Type))
+    ).
+load_prelude_form(function, _, Term) :-
+    Term = [=, [FAtom|W], _], atom(FAtom), !,
+    length(W, N),
+    Arity is N + 1,
+    register_arity(FAtom, Arity),
+    once(with_metta_module(user, translate_clause(Term, Clause))),
+    assert_function_clause(user, Clause, Ref),
+    assertz(prelude_clause_ref(FAtom, Ref)),
+    (   prelude_owned(FAtom) -> true
+    ;   assertz(prelude_owned(FAtom))
+    ).
+%Anything else is refused rather than skipped: a prelude form that is
+%neither a declaration nor an equation is a mistake in the engine's own
+%source, and silently ignoring it would ship a vocabulary hole.
+load_prelude_form(Kind, Src, _) :-
+    throw(error(domain_error(prelude_form, Kind),
+                context(load_engine_prelude/0, Src))).
+
+%One initialization goal for both, in this order, because initialization/1
+%goals do not reliably order against each other (the note above) and the
+%prelude's bodies mention constructors like Error whose Atom masking reads
+%the surface loaded first.
+:- initialization((load_builtin_type_surface, load_engine_prelude)).

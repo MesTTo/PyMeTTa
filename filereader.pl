@@ -445,6 +445,11 @@ process_form(Space, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     space_module(Space, Module),
+    %The user's word replaces the engine's, at THIS door too: the loader
+    %compiles equations without going through add_function_atom/6, so the
+    %prelude eviction lives at both (evict_prelude_definition/1 in
+    %metta.pl carries the reasoning).
+    (   Module == user -> evict_prelude_definition(F) ; true ),
     register_fun_in(Module, F),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     once(with_metta_module(Module, translate_clause(BoundTerm, Clause))),
@@ -461,6 +466,9 @@ process_form(_, In, _) :-
 % The loader records every asserted clause reference. A later source error can
 % then erase the whole partial load and leave the file retryable.
 process_form(Space, _, parsed(expression, _, Term), []) :-
+    %This pipeline bypasses metta_add_atom/3, so the user-wins rule for
+    %prelude declarations applies here directly.
+    evict_prelude_declaration(Space, Term),
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     print_expression_form(Term).
@@ -479,6 +487,8 @@ process_form(Space, compile, parsed(function, FormStr, Term), []) :-
     record_source_assertion(SpaceRef),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     BoundTerm = [=, [F|_], _],
+    %Third compile door, same user-wins rule; this one hardcodes user.
+    evict_prelude_definition(F),
     register_fun_in(user, F),
     once(with_metta_module(user, translate_clause(BoundTerm, Clause))),
     assert_function_clause(user, Clause, Ref),

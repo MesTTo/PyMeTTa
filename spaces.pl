@@ -308,6 +308,15 @@ metta_add_atom(Space, Term, true) :- Term = [=, [FAtom|W], _], !,
 %it [tested: a_late_type_declaration_repairs_its_call_sites].
 metta_add_atom(Space, Term, true) :- Term = [':', FAtom, _], atom(FAtom),
                                      fun(FAtom), !,
+                                     %A declaration written into &self replaces the
+                                     %prelude's for the same name, the user-wins rule
+                                     %evict_prelude_definition/1 documents; the
+                                     %recompile below then re-reads call sites under
+                                     %the user's masking.
+                                     (   Space == '&self'
+                                     ->  retract_prelude_declarations(FAtom)
+                                     ;   true
+                                     ),
                                      store_atom(Space, Term),
                                      recompile_definitions_mentioning(FAtom),
                                      function_changed(FAtom).
@@ -545,6 +554,11 @@ add_atoms_in_one_crossing(Space, Terms) :-
 %translation or change-hook error therefore leaves no stored atom, function
 %marker, arity, meta-clause, or executable clause behind.
 add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
+    %The user's word replaces the engine's: an equation compiled into the
+    %base tier evicts the prelude's definition of the same name first, so
+    %a program defining its own match-types means ITS match-types
+    %(evict_prelude_definition/1 in metta.pl carries the reasoning).
+    (   Module == user -> evict_prelude_definition(FAtom) ; true ),
     store_equation(Storage, Space, Term),
     register_fun_in(Module, FAtom),
     length(W, N),

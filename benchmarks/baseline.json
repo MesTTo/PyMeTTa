@@ -29,8 +29,8 @@
       "wall_seconds_per_operation": 2.957344460301101e-06
     },
     "annotated-relation": {
-      "comment": "Raised from 461521 on 2026-08-17, +998 from the &self reader cascade on its five hundred directives (see run-source) and +498 from petta_on_error_mode/3's petta_ctx_declared/1 precondition: this space declares annotations, so the flag check succeeds and adds one inference per on-error consult before petta_shape_route runs as before. That precondition is CA-7's trade: a ctx with no declarations at all now skips the shape route entirely. Both shares measured by hot-swap differential, 461015 to 460017 to 460517 [measured 2026-08-17]. Prior: The Empty prune's gate and walk beside each collapse, dated 2026-08-17; see run-source for why the filter is not in the findall goal.",
-      "inferences": 463023,
+      "comment": "Raised from 461521 on 2026-08-17, +998 from the &self reader cascade on its five hundred directives (see run-source) and +498 from petta_on_error_mode/3's petta_ctx_declared/1 precondition: this space declares annotations, so the flag check succeeds and adds one inference per on-error consult before petta_shape_route runs as before. That precondition is CA-7's trade: a ctx with no declarations at all now skips the shape route entirely. Both shares measured by hot-swap differential, 461015 to 460017 to 460517 [measured 2026-08-17]. Prior: The Empty prune's gate and walk beside each collapse, dated 2026-08-17; see run-source for why the filter is not in the findall goal. Raised from 463023 on 2026-08-18, the engine prelude: compile-path type-chain lookups gained the prelude masking tier (~1 inference per miss), and the counter wobbles up to 6 across invocations from dynamic-register JIT index timing, so this is the max observed minimum across the gate and bare-shell contexts.",
+      "inferences": 464021,
       "operations": 500,
       "unit": "evaluations"
     },
@@ -52,16 +52,16 @@
       "wall_seconds_per_operation": 6.401210906915367e-06
     },
     "foreign-match": {
-      "inferences": 2428081,
+      "inferences": 2428089,
       "operations": 2000,
       "unit": "queries",
-      "comment": "Recorded 2026-08-17: the foreign-space seam priced per query against a minimal in-process Python provider holding two atoms, so the number is provider dispatch plus the candidate crossing plus the engine binding each answer, about 1214 inferences per collapse-match run, and nothing backend-specific."
+      "comment": "Recorded 2026-08-17: the foreign-space seam priced per query against a minimal in-process Python provider holding two atoms, so the number is provider dispatch plus the candidate crossing plus the engine binding each answer, about 1214 inferences per collapse-match run, and nothing backend-specific. Raised from 2428081 on 2026-08-18: one-time first-compile share of the engine prelude's masking tier inside the measured block; the per-query cost is zero."
     },
     "handle-round-trip": {
-      "inferences": 1798067,
+      "inferences": 1806071,
       "operations": 2000,
       "unit": "round trips",
-      "comment": "Recorded 2026-08-17: one native handle out and back per operation, the [\"h\"] wire form, the registry keep, the resolve, and one C accessor through the handle, about 899 inferences per round trip including both run crossings."
+      "comment": "Recorded 2026-08-17: one native handle out and back per operation, the [\"h\"] wire form, the registry keep, the resolve, and one C accessor through the handle, about 899 inferences per round trip including both run crossings. Raised from 1798067 on 2026-08-18, the engine prelude: each round trip run()s SOURCE, so the compile path pays the prelude masking-tier lookups, measured +4/op by A/B against the pre-prelude tree (887.065 vs 881.065 inferences per probe op, minus the removed get-type candidate clause), with ~2/op residual from the ten added builtin_type_declaration rows. The object path is untouched; a hot loop belongs on prepare()/objects per the source-vs-object measurement."
     },
     "json-wire": {
       "comment": "RE-FLOORED 2026-08-17 from 3753315597: the codec changed, not the cost of the old one. dumps and loads now cross into the engine and run library(json), so one round trip pays two janus crossings and two Prolog passes, 62M instructions per trip against the removed orjson path's 1.9M, a factor of 33 on this bench. The wire paths this serves are network-latency-dominated DAS and remote-space messages, and the trade bought one JSON implementation for the whole system with unbounded integers native. Spread under the deterministic harness: 0.005% across the re-floor triple.",
@@ -87,10 +87,11 @@
       "wall_seconds_per_operation": 2.1706230309791863e-07
     },
     "loop-1m": {
-      "inferences": 5000812,
+      "inferences": 5000817,
       "operations": 1000000,
       "unit": "iterations",
-      "wall_seconds_per_operation": 9.513080096803606e-08
+      "wall_seconds_per_operation": 9.513080096803606e-08,
+      "comment": " Raised from 5000812 on 2026-08-18: a one-time in-block first-compile share of the prelude masking tier; per-iteration cost is zero."
     },
     "op-encoded": {
       "inferences": 214011,
@@ -191,11 +192,11 @@
       "wall_seconds_per_operation": 2.009731971193105e-06
     },
     "source-load": {
-      "comment": "Raised from 940155 on 2026-08-17, +2 per form from the &self reader cascade in rewrite_parsed_form/4: a named-space form pays two inferences to probe its own source text for the token (the CLI's &self space short-circuits before any real call). Measured by hot-swapping the pre-cascade body into the live process: the same thousand-directive loop went 340013 to 338015 [measured 2026-08-17]. Prior: LOWERED on 2026-08-16, 6921403 to 939162 inferences and 4,248,161,895 to 942,633,712 instructions, 7.5x and 4.5x. Compiling an equation fired metta_on_function_changed/1, and the handler answered \"which stored definitions mention this name\" by SCANNING every equation in the system, so a load was quadratic in its own length and the scan was almost the whole of it: a thousand equations cost 7,330,334 inferences with it and 822,578 without. definition_mentions/2 in src/filereader.pl indexes the answer by the mentioned symbol, recorded once where the equation is, so the question is a first-argument lookup. Lowered rather than left: a ceiling eight times above the floor lets an eightfold regression through without a word. Raised from 939162 to 940155 on 2026-08-16, +993 over the same 1000 equations, which is ONE indexed lookup per parsed form on the empty metta_token/2 table, the same cost save-load-metta took above and for the same feature. A form now asks two questions before anything reads it, are there py-call aliases and are there bound tokens, where it used to ask only the first; both guards are inline in rewrite_parsed_form/2 in src/metta.pl so the second costs its lookup and no call frame. Collapsing the two into one would take a cached \"something is registered\" flag, and a stale flag there does not cost speed, it silently drops a bind! substitution. One inference per form is the honest price of the feature.",
-      "inferences": 942164,
-      "instruction_comment": "RE-FLOORED 2026-08-17 from 942633712 (+1.7%): not a code change. The old floor was one of two alignment modes selected by the caller's environment-block size (stable 957.6M under check.sh against a stable low mode under a bare shell, inference counter identical); the deterministic harness pins one mode and this is its floor. Presizing SWI stacks instead was measured and rejected: it distorted the engine's own GC economics, save-load-metta +2.35%.",
+      "comment": "Raised from 940155 on 2026-08-17, +2 per form from the &self reader cascade in rewrite_parsed_form/4: a named-space form pays two inferences to probe its own source text for the token (the CLI's &self space short-circuits before any real call). Measured by hot-swapping the pre-cascade body into the live process: the same thousand-directive loop went 340013 to 338015 [measured 2026-08-17]. Prior: LOWERED on 2026-08-16, 6921403 to 939162 inferences and 4,248,161,895 to 942,633,712 instructions, 7.5x and 4.5x. Compiling an equation fired metta_on_function_changed/1, and the handler answered \"which stored definitions mention this name\" by SCANNING every equation in the system, so a load was quadratic in its own length and the scan was almost the whole of it: a thousand equations cost 7,330,334 inferences with it and 822,578 without. definition_mentions/2 in src/filereader.pl indexes the answer by the mentioned symbol, recorded once where the equation is, so the question is a first-argument lookup. Lowered rather than left: a ceiling eight times above the floor lets an eightfold regression through without a word. Raised from 939162 to 940155 on 2026-08-16, +993 over the same 1000 equations, which is ONE indexed lookup per parsed form on the empty metta_token/2 table, the same cost save-load-metta took above and for the same feature. A form now asks two questions before anything reads it, are there py-call aliases and are there bound tokens, where it used to ask only the first; both guards are inline in rewrite_parsed_form/2 in src/metta.pl so the second costs its lookup and no call frame. Collapsing the two into one would take a cached \"something is registered\" flag, and a stale flag there does not cost speed, it silently drops a bind! substitution. One inference per form is the honest price of the feature. Inferences raised from 942164 on 2026-08-18, the engine prelude: the loader compiles 1000 forms and each pays the masking-tier lookups (~2/form).",
+      "inferences": 944158,
+      "instruction_comment": "RE-FLOORED 2026-08-17 from 942633712 (+1.7%): not a code change. The old floor was one of two alignment modes selected by the caller's environment-block size (stable 957.6M under check.sh against a stable low mode under a bare shell, inference counter identical); the deterministic harness pins one mode and this is its floor. Presizing SWI stacks instead was measured and rejected: it distorted the engine's own GC economics, save-load-metta +2.35%. RE-FLOORED 2026-08-18 from 958517257 (+2.2%): the engine prelude's boot-time compile plus the per-form masking-tier lookups under the deterministic harness; the new floor is the minimum across the gate and local harness contexts.",
       "instruction_noise_percent": 1.0,
-      "instructions": 958517257,
+      "instructions": 979540495,
       "operations": 1000,
       "unit": "forms",
       "wall_seconds_per_operation": 0.0001865763661917299
@@ -213,10 +214,11 @@
       "comment": "LOWERED on 2026-08-16, 2551779767 to 2370220156 instructions. The wire decoder decided a tag by asking petta_py_tag/2 whether it was o, then s, then g, then n, re-running atom/1 and string/1 at every step, so a single ['n',1] leaf cost nine inferences to recognise. Normalising the tag once and dispatching on it lets first-argument indexing pick the clause: a number leaf falls to 4.00 and a three-element expression 29.00 to 20.00. Attributed by interleaved A/B of that change alone, min-of-3 instructions:u: 2565110755 to 2369523357, -7.62%.",
       "inferences": 2280095,
       "instruction_noise_percent": 1.0,
-      "instructions": 2366706148,
+      "instructions": 2399659538,
       "operations": 30000,
       "unit": "calls",
-      "wall_seconds_per_operation": 4.320945761476954e-06
+      "wall_seconds_per_operation": 4.320945761476954e-06,
+      "instruction_comment": "RE-FLOORED 2026-08-18 from 2366706148 (+1.39%): not a per-op change, the inference counter is identical and gated green. The engine prelude's ~25 boot-compiled clauses shift the clause-layout mode plus a fixed boot share, the same alignment-mode class source-load's note records; stable at this mode across three prelude perturbations (2399659538/2399659559)."
     },
     "subscribe-tax": {
       "inferences": 62041,
@@ -246,10 +248,11 @@
       },
       "inferences": 8500420,
       "instruction_noise_comment": "RAISED to 5.0 on 2026-08-17, from the 1.0 every other bench carries, because this workload's instruction count is LAYOUT-sensitive at 3.13% and nothing in the tree selects the mode. Ten clauses that NOTHING CALLS, appended to src/python.pl, moved it from 6590121734 to 6390136042, and removing them moved it back. A sweep of the same probe reads 6590121734, 6558144686, 6462134810, 6518142057, 6438133781, 6390136042 at 0, 1, 2, 3, 5 and 10 clauses, saturating there and unchanged at 20, so it is a continuum rather than the two modes alpha-unique had [measured 2026-08-17]. The INFERENCE count is identical across every one of them, which is what says no logical work ever changed. This is code-layout bias, the effect Mytkowicz, Diwan, Hauswirth and Sweeney measured in 'Producing Wrong Data Without Doing Anything Obviously Wrong!' (ASPLOS 2009), where link order and environment size alone move a benchmark by several percent and can reverse a conclusion. alpha-unique's warm-up does NOT fix this one: with typed-call added to pure.py's _WARM_UP the same two trees still measure 6591481484 and 6391492325, so the mode is not the one-time stack growth that was, and the warm-up was reverted rather than left in for nothing. The allowance is measured rather than guessed, and the ceiling still sees what it exists for: this bench is gated in instructions because the inference counter cannot see the type-check specialisation, and disabling that specialisation by one token measures 9368378515, +42.2% against a 3.13% noise floor, a 13x margin [measured 2026-08-17]. The baseline stays at the LOW end of the layout range rather than being re-recorded at the tree's current value, so a real regression sitting on top of the high mode still fails.",
-      "instruction_noise_percent": 1.0,
-      "instructions": 6482141737,
+      "instruction_noise_percent": 4.0,
+      "instructions": 6425150113,
       "operations": 500000,
-      "unit": "calls"
+      "unit": "calls",
+      "instruction_comment": "RE-FLOORED 2026-08-18 from 6482141737: typed-call runs in TWO environment-selected alignment modes (6425150113 and 6674588065, each stable to ~60 instructions within a run, 3.9% apart, inference counter identical and green in both), the same class source-load's note records. The floor is the low mode and the noise percent spans the high one, so a real regression on either mode still trips."
     },
     "wire-codec": {
       "inferences": null,
