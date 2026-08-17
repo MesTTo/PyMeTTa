@@ -49,7 +49,7 @@ with a message when the dependency is absent.
 |---|---|
 | [`reasoning/evolutionary_search.py`](reasoning/evolutionary_search.py) | a population as a space and generations as rewriting |
 | [`reasoning/pln_uncertain_reasoning.py`](reasoning/pln_uncertain_reasoning.py) | the engine's PLN library driven from Python |
-| [`reasoning/custom_matchers.py`](reasoning/custom_matchers.py) | fuzzy and semantic matchers feeding the measure algebra |
+| [`reasoning/custom_matchers.py`](reasoning/custom_matchers.py) | grounded values with their own matching logic inside unify |
 
 ## Live systems
 
@@ -67,6 +67,6 @@ grounded atoms with identity. Tables, caches, and populations are spaces, and
 a query is a match. Dispatch is equations with the catch-all last. Generators,
 search, and retrieval are nondeterminism. Schemas are constructors with
 declarations. Structure is facts that rules match over. Subscriptions are
-standing queries. Closeness of any kind is a matcher whose answers carry a
-measure. An integration maps a library onto those forms, and the toolkit in
+standing queries. Closeness of any kind is matching logic a grounded value
+owns, its degrees riding as answer annotations. An integration maps a library onto those forms, and the toolkit in
 `petta.integrate` supports that mapping.

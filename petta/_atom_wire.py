@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ._atoms_core import Atom, Box, Expr, Gnd, _wire_sym, _wire_var
+from ._atoms_core import Atom, Box, Expr, Gnd, Handle, _wire_sym, _wire_var
 from .errors import PettaError
 
 
@@ -50,6 +50,14 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     if tag == "o":
         return _object_from_wire(payload)
     raise ValueError(f"unknown wire tag {tag!r}")
+
+
+def _handle_from_wire(ident: Any, text: Any) -> Atom:
+    if isinstance(ident, bool) or not isinstance(ident, int):
+        raise ValueError(f"wire handle id must be an integer, got {ident!r}")
+    if not isinstance(text, str):
+        raise ValueError(f"wire handle text must be a string, got {text!r}")
+    return Handle(ident, text)
 
 
 def _symbol_from_wire(payload: Any) -> Atom:
@@ -177,7 +185,13 @@ def _expression_from_wire(payload: Any) -> Expr:
         children = _expression_children(children)
         items = pending.items
         for child in children:
-            if not isinstance(child, seq) or len(child) != 2:
+            if not isinstance(child, seq):
+                raise ValueError(f"malformed wire term: {child!r}")
+            if len(child) != 2:
+                # The one three-element wire is a native handle reference.
+                if len(child) == 3 and child[0] == "h":
+                    items.append(_handle_from_wire(child[1], child[2]))
+                    continue
                 raise ValueError(f"malformed wire term: {child!r}")
             tag, payload = child
             if tag == "s":
@@ -213,6 +227,8 @@ def from_wire(wire: Any) -> Atom | Undefined:
             return Undefined(atom_from_wire(value), str(why), residual)
         case ["e", payload]:
             return _expression_from_wire(payload)
+        case ["h", ident, text]:
+            return _handle_from_wire(ident, text)
         case [tag, payload]:
             return _leaf_from_wire(tag, payload)
         case _:

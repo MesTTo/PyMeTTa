@@ -1,6 +1,7 @@
 """Purpose: own the engine bootstrap and bridge. Consults PeTTa and the shim
-exactly once per process, serializes janus calls behind one lock, and turns
-Prolog exceptions into the library's own errors for both Python surfaces.
+exactly once per process, serializes calls made on the home engine, lets a
+thread holding its own engine run without that lock, and turns Prolog
+exceptions into the library's own errors for both Python surfaces.
 Assumes:
   - JanusBridge.engine returns the documented integer engine identifier
     [source 2026-08-14:
@@ -16,9 +17,13 @@ Guarantees:
   - engine_thread attaches only a bare foreign thread and detaches exactly
     the engine it attached [tested test_engine_thread_owns_only_its_attachment]
 Guarded by:
-  - _LOCK serializes runtime creation and Janus calls; CONSULT_LOCK and
-    the startup events publish completed consultation [tested
+  - _LOCK serializes runtime creation and every call made on the HOME engine.
+    A thread holding its own attached engine takes no process lock: it shares
+    no engine with any other thread, and PeTTa's shared structures already
+    carry their own Prolog mutexes because hyperpose workers have always
+    reached the same database [tested
     test_define_from_two_threads_is_serialized]
+  - CONSULT_LOCK and the startup events publish completed consultation
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,11 +38,12 @@ import os
 import sys
 import threading
 from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager, nullcontext
+from importlib import resources
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
 
-from . import _callbacks, _prelude
+from . import _callbacks, _contract, _prelude
 from ._config import config
 from .errors import (
     EngineError,
@@ -51,6 +57,40 @@ from .errors import (
 logger = logging.getLogger(__name__)
 
 _LOCK = threading.RLock()
+# Reusable, so the call path picks a shared object instead of building a
+# context manager on a path measured at 4.13M calls per second.
+_NULL_LOCK: AbstractContextManager[None] = nullcontext()
+
+
+class _CallLocks(threading.local):
+    """Which lock this thread's engine calls take, decided once per thread.
+
+    _LOCK serialises use of the home engine. A thread that attached its own
+    engine through engine_thread() shares that engine with nobody, so
+    serialising it against the home engine protects nothing and costs all the
+    parallelism [measured 2026-08-15: 1.94x, 3.90x and 7.26x at 2, 4 and 8
+    threads, ai-tmp/pool/janus_par.py].
+
+    The choice is made when the engine is attached rather than on every call.
+    Deciding per call cost 72ns against the plain lock's 43ns and, worse, put
+    a janus.engine() crossing on every call a pool worker makes; one
+    thread-local read is 59ns [measured 2026-08-15, ai-tmp/pool/lockcost.py].
+
+    What makes running free safe is that PeTTa's shared structures already
+    carry their own Prolog mutexes, because hyperpose workers have always
+    reached the same database: '$petta_specializer' in specializer.pl,
+    '$petta_native_storage' in spaces.pl, metta_loader around
+    process_metta_string in filereader.pl, and a per-function mutex in
+    lib_memo.pl. SWI keeps individual dynamic predicates consistent itself.
+    """
+
+    lock: AbstractContextManager[Any] = _LOCK
+
+
+# Threads start on the class default, so every thread that never attaches an
+# engine of its own keeps exactly the previous behaviour.
+_CALL_LOCKS = _CallLocks()
+
 CONSULT_LOCK = threading.Lock()
 CONSULTED = threading.Event()
 _SHIM_LOADED = threading.Event()
@@ -106,6 +146,12 @@ _EXCEPTION_TYPES = {
     "time_limit": TimeLimitError,
     "inference_limit": InferenceLimitError,
     "interrupted": Interrupted,
+    #The engine's JSON codec classifies its own refusals: a value JSON
+    #cannot carry is a ValueError, a term that is not JSON data at all
+    #is a TypeError. Plain built-ins, because the refusal is about the
+    #caller's data, not about MeTTa.
+    "value": ValueError,
+    "type": TypeError,
 }
 
 
@@ -149,16 +195,46 @@ def bridge() -> JanusBridge:
 
 
 def _resolve_petta_path() -> str:
-    """Locate the configured, bundled, or checkout PeTTa runtime tree."""
+    """Locate the configured, bundled, or checkout PeTTa runtime tree.
+
+    importlib.resources for the bundled case, because that is the supported
+    way to locate package data and the one that keeps working when the package
+    is not an ordinary directory on disk. This is latent for PeTTa itself,
+    since wheels are normally unpacked, and it is not latent for the pattern:
+    every downstream library shipping a .pl beside its Python copies whatever
+    the engine does, so getting it right once here is what gives them the
+    right thing to copy.
+
+    The engine needs a real filesystem PATH either way, because SWI consults
+    files, so as_file() materialises one for the duration and the fallback to
+    __file__ stays for a source checkout, where the package is not installed
+    at all.
+    """
     configured = os.environ.get("PETTA_PATH")
     if configured:
         return str(Path(configured).resolve())
 
-    package = Path(__file__).resolve().parent
-    bundled = package / "_runtime"
-    if (bundled / "src" / "main.pl").is_file():
-        return str(bundled)
-    return str(package.parents[1])
+    bundled = _bundled_runtime()
+    if bundled is not None:
+        return bundled
+    # petta/_engine.py -> petta -> python -> the checkout root.
+    return str(Path(__file__).resolve().parents[2])
+
+
+def _bundled_runtime() -> str | None:
+    """The wheel's own copy of src/ and lib/, if this is an installed wheel."""
+    package = __package__ or "petta"
+    try:
+        root = resources.files(package) / "_runtime"
+    except (ModuleNotFoundError, TypeError):
+        return None
+    try:
+        with resources.as_file(root) as path:
+            if (path / "src" / "main.pl").is_file():
+                return str(path)
+    except (FileNotFoundError, NotADirectoryError, OSError):
+        return None
+    return None
 
 
 @contextmanager
@@ -188,9 +264,14 @@ def engine_thread() -> Iterator[None]:
         if attached:
             janus.detach_engine()
         raise EngineError("could not attach a Prolog engine to this thread") from exc
+    # This thread now owns an engine nobody else can reach, so its calls need
+    # no process lock. Decided here, once, rather than on every call.
+    previous_lock = _CALL_LOCKS.lock
+    _CALL_LOCKS.lock = _NULL_LOCK
     try:
         yield
     finally:
+        _CALL_LOCKS.lock = previous_lock
         try:
             janus.detach_engine()
         except Exception as exc:
@@ -277,15 +358,19 @@ class Runtime:
     # ------------------------------------------------------------------ startup
 
     def _consult_engine(self, petta_path: str, stack_limit: int) -> JanusBridge:
-        """Mirror of the legacy startup: stack limit, optional MORK, main.pl."""
+        """Stack limit, native backends, main.pl.
+
+        `backends` asks the engine to load every native backend that is built.
+        This names none of them: which backends exist is backends/*.pl and
+        whether one is usable is that backend's own business. It used to test
+        for MORK's shared library here and pass `mork`, which put a backend's
+        build path in the embedding host.
+        """
         logger.debug("consulting the PeTTa engine from %s", petta_path)
         root = Path(petta_path)
-        morklib = root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
-        if morklib.exists():
-            logger.debug("enabling the MORK backend")
-            janus.query_once("set_prolog_flag(argv, ['mork'])")
+        janus.query_once("set_prolog_flag(argv, ['backends'])")
         main_file = root / "src" / "main.pl"
         helper_file = root / "python" / "helper.pl"
         if not main_file.is_file():
@@ -317,6 +402,10 @@ class Runtime:
         # with the shim so the two arrive together.
         _prelude.install(self)
         logger.debug("installed the Python bridge prelude")
+        # The contract ontology: the typed vocabulary seam declarations are
+        # stated in, present before any user declaration can reference it.
+        _contract.install(self)
+        logger.debug("installed the contract ontology")
 
     # -------------------------------------------------------------------- calls
 
@@ -328,7 +417,7 @@ class Runtime:
         fails returns an empty dict, which no shim entry point does on
         purpose, so callers treat it as an engine-side refusal.
         """
-        with _LOCK:
+        with self._thread_lock() or _LOCK:
             try:
                 row = self._janus.query_once(goal, inputs)
             except self._janus.PrologError as exc:
@@ -351,14 +440,48 @@ class Runtime:
             )
         return row
 
-    def _fast_ok(self) -> bool:
-        """Whether this thread may use the functional convention: the
-        consulting thread always, any other thread exactly when it holds
-        an attached Prolog engine (janus.attach_engine()); bare foreign
-        threads abort the process on apply_once and cmd, measured."""
+    def consult(self, name: str, *, data: str | None = None) -> None:
+        """Load Prolog source into the engine: a path, or source held in
+        memory under a name of the caller's choosing.
+
+        Every other engine call in this package takes the lock and routes its
+        failures through _raise. The two consults did neither, in a package
+        that ships a thread pool and an async surface, so a syntax error in a
+        library's shipped .pl arrived as a raw janus PrologError that a
+        caller's `except PettaError` missed.
+
+        The engine side raises what SWI would only have printed, which is the
+        half no wrapper here could reach: a syntax error inside a consulted
+        file goes through print_message/2 and the load then succeeds with the
+        predicate undefined.
+        """
+        goal = "consult_global(File)" if data is None else "consult_string_global(Name, Text)"
+        inputs = {"File": name} if data is None else {"Name": name, "Text": data}
+        self.once(goal, **inputs)
+
+    def _thread_lock(self) -> AbstractContextManager[Any] | None:
+        """The lock this thread's engine calls take, or None when this thread
+        must fall back to the relational form.
+
+        This replaces the older _fast_ok() and answers both questions from one
+        threading.get_ident(), because the two have the same answer: a thread
+        may use the functional convention exactly when it holds an engine of
+        its own, and a thread holding its own engine is exactly the thread
+        that needs no process lock. Folding them keeps the home path at the
+        cost it had before per-engine locking existed, which matters: on the
+        space-name benchmark, one extra thread-local read per call measured
+        +15.5M instructions, +0.61% [measured 2026-08-15, ai-tmp/pool/ab_lock.py].
+
+        Bare foreign threads abort the process on apply_once and cmd
+        (measured), which is why they answer None rather than a lock.
+        """
         if threading.get_ident() == self._home_thread:
-            return True
-        return self._janus.engine() >= 0
+            return _LOCK
+        if _CALL_LOCKS.lock is _NULL_LOCK:
+            return _NULL_LOCK
+        # aio and remote workers attach an engine without going through
+        # engine_thread(), so ask janus before deciding they are bare.
+        return _NULL_LOCK if self._janus.engine() >= 0 else None
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
@@ -370,12 +493,13 @@ class Runtime:
         as once(). Off the consulting thread the same call routes through
         the relational form, since the functional one is main-thread-only
         in janus (a foreign-thread call aborts the process)."""
-        if not self._fast_ok():
+        lock = self._thread_lock()
+        if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join([*names, 'Out'])})"
             row = self.once(goal, **dict(zip(names, inputs, strict=True)))
             return row.get("Out") if row else None
-        with _LOCK:
+        with lock:
             try:
                 value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
             except self._janus.PrologError as exc:
@@ -400,11 +524,12 @@ class Runtime:
         failure, errors classified exactly as once(). Off the consulting
         thread the call routes through the relational form, as apply()
         does and for the same reason."""
-        if not self._fast_ok():
+        lock = self._thread_lock()
+        if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
             goal = f"{predicate}({', '.join(names)})" if names else predicate
             return bool(self.once(goal, **dict(zip(names, inputs, strict=True))))
-        with _LOCK:
+        with lock:
             try:
                 truth = self._janus.cmd("user", predicate, *inputs)
             except self._janus.PrologError as exc:
@@ -429,7 +554,7 @@ class Runtime:
         deadlocks. Answer sets that must stream should provide a shim-side
         findall instead.
         """
-        with _LOCK:
+        with self._thread_lock() or _LOCK:
             try:
                 rows = list(self._janus.query(goal, inputs))
             except self._janus.PrologError as exc:

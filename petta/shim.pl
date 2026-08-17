@@ -4,6 +4,10 @@
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   src/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - petta_py_declare_handles/3 writes the declaration and checks the
+%     context's critical pairs in one transaction, so a conflicting entry
+%     rolls back and never becomes queryable
+%     [tested test_declare_handles_rejects_a_conflict_eagerly]
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
 %   - Engine atom hooks exist only while a Python space subscription exists
@@ -18,6 +22,11 @@
 %     operation, formal functor, expected type and culprit, and every value it
 %     yields is one Janus can carry [tested
 %     test_operation_error_carries_its_parts]
+%   - Every wire tag decodes to its term in both the atom and the string
+%     spelling Janus may deliver, sharing a variable by name and never
+%     sharing an anonymous one, and a malformed wire term fails rather than
+%     decoding to something [tested 2026-08-16: shim_wire_decoding,
+%     shim_wire_variable_sharing in tests/prolog/shim.plt]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -44,12 +53,29 @@
 % itself is nested lists, which janus converts natively in both directions.
 
 %Encode a Prolog term as a tagged wire term:
+%The clauses are mutually exclusive and every one of them cuts, so their order
+%is a pure COST decision, and py_is_object/1 was in the wrong place: it is a
+%foreign call into janus and it ran on every argument, and on every ELEMENT of
+%every list, before anything asked whether the value was a number. It costs 915
+%instructions where number/1 and string/1 are VM instructions costing nothing
+%measurable [measured 2026-08-17, 3,000,000 iterations, min of 3: 1,765,021,710
+%for the bare loop, 4,510,067,594 with py_is_object/1, 2,914,057,131 with
+%blob/2]. Moving it behind the free tests is worth most on exactly the argument
+%shape the encoded path is worst at, since a 64-item list paid it 64 times.
+%
+%Sound because a janus reference satisfies NONE of the tests now in front of
+%it: it is atomic and not atom, number, string, is_list, compound or callable
+%[measured 2026-08-17 against py_call(builtins:object(), Obj), blob type py].
+%That is the same fact get_type_candidate/2 relies on where it writes
+%`atomic(X), \+ atom(X), python_object_blob(X)` to keep ordinary values out of
+%janus. Nothing else about the encoding moves; the relative order of every
+%other clause is unchanged.
 petta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A, Name).
-petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
-petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
 petta_py_encode(T, ["n", T])    :- number(T), !.
 petta_py_encode(T, ["g", T])    :- string(T), !.
+petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
 petta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
+petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
 petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es).
 petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
     petta_py_encode(H, EH),
@@ -62,6 +88,21 @@ petta_py_encode(T, ["e", [["s", FS] | Es]]) :-
     atom_string(F, FS),
     maplist(petta_py_encode, Args, Es).
 %Anything else (a blob, a dict) is carried as text, the printer's last resort:
+%A native handle (a C blob) crosses as a registry reference plus its own
+%printed text, so Python holds it opaquely and can hand back the very
+%same blob: identity, not a serialisation. It used to fall through to
+%the term_string clause below, which silently stringified it and made
+%the round trip impossible: 'vector-length' on what came back saw a
+%string [measured 2026-08-17]. The clause sits HERE, at the tail, so
+%only a term every other clause refused pays the blob/2 probe: placed
+%before the list clauses it taxed every encoded list node, and SWI's []
+%is itself a reserved non-text blob, so it also registered every () as
+%a handle, caught by the wire round-trip property over Expr('()'). A
+%blob is atomic, so nothing above claims one: atom/1 is false for
+%non-text blobs, and the compound clause needs compound/1.
+petta_py_encode(T, ["h", Id, S]) :- blob(T, Type), Type \== text, T \== [], !,
+    petta_py_handle_keep(T, Id),
+    term_string(T, S).
 petta_py_encode(T, ["g", S]) :- term_string(T, S).
 
 %Encode with an explicit Name-Var list, so parsed variables keep their names:
@@ -94,38 +135,220 @@ petta_py_bool(B, false) :- B == '@'(false), !.
 petta_py_bool(B, true)  :- B == "true", !.
 petta_py_bool(_, false).
 
-%Decode a tagged wire term; every v tag becomes its own fresh variable:
-petta_py_decode([T, Obj], Obj)  :- petta_py_tag(T, o), !.
-petta_py_decode([T, S], A)      :- petta_py_tag(T, s), !, atom_string(A, S).
-petta_py_decode([T, S], Str)    :- petta_py_tag(T, g), !,
-    ( string(S) -> Str = S ; atom_string(S, Str) ).
-petta_py_decode([T, N], N)      :- petta_py_tag(T, n), !.
-petta_py_decode([T, B], A)      :- petta_py_tag(T, b), !, petta_py_bool(B, A).
-petta_py_decode([T, _], _)      :- petta_py_tag(T, v), !.
-petta_py_decode([T, Es], Term)  :- petta_py_tag(T, e), !,
-    maplist(petta_py_decode, Es, Term).
+%Decode a tagged wire term; every v tag becomes its own fresh variable.
+%
+%The tag decides the clause, so it is normalised once and dispatched on.
+%Asking petta_py_tag/2 whether the tag is o, then s, then g, then n, walks
+%that list of alternatives and re-runs atom/1 and string/1 at every step,
+%which is how deciding that ['n',1] holds a number came to cost nine
+%inferences. Every Python term crossing into the engine is decoded this way,
+%so the walk was on the query path, the run path and the eval path alike
+%[measured 2026-08-16: (m6f 1) evaluated from Python, 72.00 inferences to
+%63.00 and 5.45us to 4.98us, of which the wire term's own decode fell 22.00
+%to 13.00 and a single number leaf 9.00 to 4.00].
+petta_py_decode([T0|Rest], Term) :-
+    ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),
+    petta_py_decode_(T, Rest, Term).
+
+petta_py_decode_(o, [Obj], Obj).
+%A handle reference resolves to the registered blob itself. A stale id
+%is an existence error naming it, never a fresh or empty value: the
+%handle's release is explicit on the Python side, so reaching a released
+%one is the caller's bug and silence would turn it into a wrong answer.
+petta_py_decode_(h, [Id|_], Blob) :-
+    (   petta_py_handle_store(Id, Blob)
+    ->  true
+    ;   throw(error(existence_error(petta_native_handle, Id),
+                    context(petta_py_decode_/3,
+                            'the handle was released or never issued')))
+    ).
+petta_py_decode_(s, [S], A)     :- atom_string(A, S).
+petta_py_decode_(g, [S], Str)   :- ( string(S) -> Str = S ; atom_string(S, Str) ).
+petta_py_decode_(n, [N], N).
+petta_py_decode_(b, [B], A)     :- petta_py_bool(B, A).
+petta_py_decode_(v, [_], _).
+petta_py_decode_(e, [Es], Term) :- maplist(petta_py_decode, Es, Term).
 
 %Decode sharing variables by name, so the $x in a head and in a body unify.
 %Bindings comes back as Name-Var pairs for reading answers off a query:
 petta_py_decode_shared(Tagged, Term, Bindings) :-
     petta_py_decode_shared_(Tagged, Term, [], Bindings).
 
-petta_py_decode_shared_([T, Name0], Var, B0, B) :- petta_py_tag(T, v), !,
+petta_py_decode_shared_([T0|Rest], Term, B0, B) :-
+    ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),
+    petta_py_decode_shared_tagged(T, Rest, Term, B0, B).
+
+%Only v and e differ from the plain decode: one shares a variable by name and
+%the other has to thread the bindings through its elements. Every leaf below
+%them carries no bindings, so it is the plain decode with B unchanged.
+petta_py_decode_shared_tagged(v, [Name0], Var, B0, B) :- !,
+    petta_py_shared_table(B0, Table),
     ( string(Name0) -> atom_string(Name, Name0) ; Name = Name0 ),
     %The anonymous variable is fresh at every occurrence and never binds,
     %exactly as the reader treats $_ in source; recording it would make two
     %underscores constrain each other.
-    ( Name == '_' -> Var = _, B = B0
-    ; memberchk(Name-Var, B0) -> B = B0
-    ; B = [Name-Var|B0] ).
-petta_py_decode_shared_([T, Es], Term, B0, B) :- petta_py_tag(T, e), !,
+    ( Name == '_' -> Var = _, B = Table
+    ; memberchk(Name-Var, Table) -> B = Table
+    ; B = [Name-Var|Table] ).
+petta_py_decode_shared_tagged(e, [Es], Term, B0, B) :- !,
     foldl_decode(Es, Term, B0, B).
-petta_py_decode_shared_(Tagged, Term, B, B) :- petta_py_decode(Tagged, Term).
+petta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
+    petta_py_decode_(T, Rest, Term).
 
 foldl_decode([], [], B, B).
 foldl_decode([E|Es], [T|Ts], B0, B) :-
     petta_py_decode_shared_(E, T, B0, B1),
     foldl_decode(Es, Ts, B1, B).
+
+%A seed table is built on FIRST USE, and only this clause ever uses one. An
+%operation dispatch seeds the decode with variables_of(Args) so a returned
+%variable resolves to the argument variable it came from, and nearly every
+%call has ground arguments and a result with no variable in it. Building the
+%table eagerly put a ground/1 walk on all of them, one inference on a
+%thirteen-inference call, for a table nothing was going to read
+%[measured 2026-08-17: the encoded operation went 13.01 to 14.01 eager, and
+%back to 13.01 this way]. A result with no variable never reaches here.
+petta_py_shared_table(variables_of(Args), Table) :- !,
+    term_variables(Args, Variables),
+    maplist(petta_py_named_variable, Variables, Table).
+petta_py_shared_table(Table, Table).
+
+%%%%%%%%%% The explicit answer form %%%%%%%%%%
+%
+%["a", Theta, Residue, K] and ["a", Theta, Residue, K, Value]: bindings
+%for the query's variables, crossing beside plain atom wires in one
+%stream. Theta pairs are [Name, ValueWire]; the names are the ones
+%petta_py_encode/2 wrote for the query's variables, so binding by name is
+%binding the caller's own variable. This is Hyperon's execute_bindings,
+%LeaTTa's ReduceResult.okBind: an answer atom together with the bindings
+%it is returned under, each set merged into the current frame. The wire
+%is transport-agnostic; janus is one carrier of it, and a Prolog-side
+%provider needs none of it because unification already binds.
+%
+%The head asks for four elements before it looks at the tag, so every
+%plain two-element wire falls through on the list spine without reaching
+%the comparison; the explicit form stays off the hot path's price.
+petta_py_answer_form([Tag, Theta, Residue, K], Theta, Residue, K, none) :-
+    ( Tag == "a" -> true ; Tag == a ).
+petta_py_answer_form([Tag, Theta, Residue, K, Value], Theta, Residue, K,
+                     value(Value)) :-
+    ( Tag == "a" -> true ; Tag == a ).
+
+%The annotation slot: the degenerate point is semiring 1 and costs
+%nothing; a real k is admitted exactly when its context declared a
+%non-Boolean semiring, and rides '$petta_answer_k' backtrackably for the
+%collapse-point consumers (top). An undeclared k is refused loudly
+%naming the declaration to add, because silently dropping it would
+%misweigh the answer and silently keeping it would smuggle an order the
+%context never declared.
+petta_py_answer_kappa('@'(none), _) :- !.
+petta_py_answer_kappa(K0, Ctx) :-
+    (   petta_annotations(Ctx, Semiring),
+        Semiring \== bool
+    ->  (   K0 = [_|_]
+        ->  petta_py_decode_shared(K0, K, _)
+        ;   K = K0
+        ),
+        b_setval('$petta_answer_k', K)
+    ;   throw(error(petta_answer_annotation_undeclared(Ctx, K0), none))
+    ).
+
+%Close an answer's residue: the part of the query the provider did not
+%discharge, evaluated by the engine under the bindings already made. The
+%residue decodes against the same name table, so its variables ARE the
+%query's, and each evaluation result that is not false contributes one
+%closure, composing bindings by ordinary sharing; false contributes
+%nothing. That rule is the language's own: a condition like (> $y 3)
+%reduces to a boolean and false drops the answer, a match form inside the
+%residue contributes one closure per solution, and a term with no
+%equation answers itself, exactly as !(edge a b) does at the top level.
+%This is one notion worn three ways already: 'residual-goals'/2 carries
+%dif/2 constraints an answer holds under, Undefined's residual carries
+%the delayed goals a WFS answer is conditional on, and a Planner's rest
+%is the part of a conjunction the provider left; the answer form carries
+%the same R across the wire.
+petta_py_answer_close('@'(true), _) :- !.
+petta_py_answer_close(ResidueW, Table) :-
+    petta_py_decode_shared_(ResidueW, Residue, Table, _),
+    eval(Residue, Out),
+    Out \== false.
+
+%A conditional answer under a pushed bound under-answers: the provider
+%truncated at the caller's k, and a residue can still drop answers after
+%that, so fewer than k arrive while more existed. Exact licensed the
+%bound; a residue is exactly what Exact rules out.
+petta_py_answer_bounded('@'(true), _, _) :- !.
+petta_py_answer_bounded(_, '@'(none), _) :- !.
+petta_py_answer_bounded(Residue, _, Pattern) :-
+    throw(error(petta_answer_conditional_under_bound(Pattern, Residue),
+                none)).
+
+%Merge Theta into the query frame: seed the name table with the query's
+%own variables, decode each bound value against it, so values may
+%reference the query's variables and each other while unknown names stay
+%fresh, and unify. A failing unification drops the ANSWER, exactly as a
+%candidate that does not unify is dropped, and is equally sound.
+petta_py_answer_theta(Pairs, Seed, Table) :-
+    term_variables(Seed, Variables),
+    maplist(petta_py_named_variable, Variables, Table0),
+    foldl(petta_py_answer_binding, Pairs, Table0, Table).
+
+petta_py_answer_binding([NameW, ValueW], Table0, Table) :-
+    ( atom(NameW) -> Name = NameW ; atom_string(Name, NameW) ),
+    petta_py_decode_shared_(ValueW, Value, Table0, Table1),
+    ( memberchk(Name-Variable, Table1) -> Table = Table1
+    ; Table = [Name-Variable|Table1] ),
+    Variable = Value.
+
+%One item of a provider's match stream against the query pattern. The
+%explicit form applies theta to the pattern's variables; its value, when
+%present, is the candidate-with-bindings reading and unifies under them,
+%and its residue closes through the engine, one answer per closure.
+petta_py_answer_match(Item, Pattern, Ctx) :-
+    petta_py_answer_match(Item, Pattern, '@'(none), Ctx).
+petta_py_answer_match(Item, Pattern, Limit, Ctx) :-
+    (   petta_py_answer_form(Item, Theta, Residue, K, ValueW)
+    ->  petta_py_answer_kappa(K, Ctx),
+        petta_py_answer_bounded(Residue, Limit, Pattern),
+        petta_py_answer_theta(Theta, Pattern, Table),
+        (   ValueW = value(VW)
+        ->  petta_py_decode_shared_(VW, Value, Table, _),
+            Pattern = Value
+        ;   true
+        ),
+        petta_py_answer_close(Residue, Table)
+    ;   petta_py_decode_shared(Item, Candidate, _),
+        Pattern = Candidate
+    ).
+
+%One result of an operation dispatch: the explicit form binds the CALL's
+%variables and reduces to its value, () when none, the relational
+%reading; a plain wire is the value itself, decoded with the lazy seed.
+petta_py_answer_result(Item, Name, Args, Result) :-
+    (   petta_py_answer_form(Item, Theta, Residue, K, ValueW)
+    ->  petta_py_answer_kappa(K, Name),
+        petta_py_answer_theta(Theta, Args, Table),
+        (   ValueW = value(VW)
+        ->  petta_py_decode_shared_(VW, Result, Table, _)
+        ;   Result = []
+        ),
+        petta_py_answer_close(Residue, Table)
+    ;   petta_py_decode_shared_(Item, Result, variables_of(Args), _)
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_answer_conditional_under_bound(Pattern, Residue)) -->
+    [ 'an answer for ~q carries a residue (~q) while the caller\'s bound \c
+       was pushed to the provider. A conditional answer can still drop \c
+       after the provider truncated, which under-answers; a residue is \c
+       exactly what an Exact claim rules out, so declare this shape \c
+       Sound instead'-[Pattern, Residue] ].
+prolog:error_message(petta_answer_annotation_undeclared(Ctx, K)) -->
+    [ 'this answer carries an annotation (~q) and ~w declares no \c
+       semiring for it. Declare (annotations ~w ranked) to admit ordered \c
+       annotations there; silently dropping k would misweigh the answer \c
+       and silently keeping it would smuggle an order the context never \c
+       declared'-[K, Ctx, Ctx] ].
 
 %%%%%%%%%% Errors %%%%%%%%%%
 %
@@ -136,7 +359,8 @@ petta_py_raise(Kind, Detail) :-
 
 petta_py_exception_info(
     error(petta_py_exception(Kind, Detail), context(petta, _)), Kind, Detail) :-
-    memberchk(Kind, [syntax, time_limit, inference_limit, interrupted]).
+    memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
+                     value, type]).
 
 petta_py_exception_kind(Error, Kind) :-
     petta_py_exception_info(Error, Kind, _).
@@ -188,12 +412,13 @@ petta_py_operation_formal(type_error(Expected, Culprit), type_error,
                           Expected, Culprit) :- !.
 petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
 
-petta_py_control_exception(inference_limit_exceeded).
-petta_py_control_exception(time_limit_exceeded).
-petta_py_control_exception('$aborted').
-petta_py_control_exception(error(resource_error(_), _)).
-petta_py_control_exception(
-    error(petta_py_exception(_, _), context(petta, _))).
+%The Python side's contributions to the engine's control-signal seam. There
+%was a petta_py_control_exception/1 here holding a SECOND copy of the list,
+%and nothing ever called it: it had drifted from the engine's, missing
+%petta_py_interrupted and both petta_py limit errors, so anyone who found it
+%and used it would have swallowed exactly the signals this side raises.
+:- multifile control_exception/1.
+control_exception(error(petta_py_exception(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
@@ -451,18 +676,243 @@ petta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
     sort(1, @>=, Keyed, SortedKeyed),
     findall(Row, member(_-Row, SortedKeyed), Nodes).
 
+%What the profiler cannot say about a registered function: which tier put it
+%there, and whether the clause index its callers rely on actually exists.
+%
+%Index quality is read from predicate_property/2 rather than
+%library(prolog_jiti)'s jiti_list/1, which prints its table instead of
+%answering it. `speedup` is the ratio SWI itself computes for the index it
+%chose, so 1.0 means the argument does not discriminate and every call walks
+%the clause list. `realised` matters as much: SWI builds an index on first
+%need, so an unrealised index is one no call has asked for yet rather than a
+%bad one.
+%The tier comes from the two engine facts lib_reflect.pl's 'engine-origin'/2
+%reads, not from that predicate, which lives in a library the profiler cannot
+%require to be loaded. Its builtin and special-form branches are absent here
+%on purpose: a profiled name is one an extension registered, and neither of
+%those can be.
+petta_py_function_shape(Name0, [Tier, Detail, Arities, Determinism]) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    (   catch(metta_function_determinism(Name, Mode), _, fail)
+    ->  atom_string(Mode, Determinism)
+    ;   Determinism = ""
+    ),
+    (   metta_function_origin(Name, Tier0, Detail0)
+    ->  atom_string(Tier0, Tier), petta_py_origin_part(Detail0, Detail)
+    ;   fun(Name)
+    ->  Tier = "equation",
+        ( fun_in(Module, Name) -> atom_string(Module, Detail) ; Detail = "" )
+    ;   Tier = "absent", Detail = ""
+    ),
+    ( fun_in(Home, Name) -> true ; Home = user ),
+    findall([Arity, Speedup, Realised],
+            ( arity(Name, Arity),
+              petta_py_index_quality(Home, Name, Arity, Speedup, Realised) ),
+            Arities).
+
+petta_py_origin_part(Part, String) :-
+    ( atom(Part) -> atom_string(Part, String)
+    ; string(Part) -> String = Part
+    ; term_string(Part, String) ).
+
+%The best index SWI has for this predicate, or 1.0 for none, which is the
+%same number a useless index scores and reads the same way: no discrimination.
+petta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
+    functor(Head, Name, Arity),
+    (   predicate_property(Module:Head, indexed(Indexes)),
+        Indexes \== []
+    ->  findall(S-R, ( member(Index, Indexes),
+                       get_dict(speedup, Index, S),
+                       get_dict(realised, Index, R0),
+                       ( R0 == true -> R = @(true) ; R = @(false) ) ), Pairs),
+        sort(1, @>=, Pairs, [Speedup-Realised|_])
+    ;   Speedup = 1.0, Realised = @(false)
+    ).
+
+%%%%%%%%%% Native handles %%%%%%%%%%
+%
+%The registry that keeps a blob alive while Python holds its reference.
+%A dynamic clause referencing the blob is what pins it: SWI's atom
+%garbage collector respects clause references, so the blob lives exactly
+%as long as its registry entry and release is one retract. Each crossing
+%issues a fresh id (two crossings of one blob resolve to the same blob
+%either way); flag/3 makes the counter atomic across threads.
+
+:- dynamic petta_py_handle_store/2.
+
+petta_py_handle_keep(Blob, Id) :-
+    flag(petta_py_handle_counter, Id, Id + 1),
+    assertz(petta_py_handle_store(Id, Blob)).
+
+petta_py_handle_release(Id) :-
+    retractall(petta_py_handle_store(Id, _)).
+
+%%%%%%%%%% JSON %%%%%%%%%%
+%
+%The JSON codec is the engine's own reader and writer, library(json),
+%under the janus value conventions: @(true), @(false) and @(none) are
+%what janus makes of Python True, False and None, and the option list
+%teaches the reader and writer that exact vocabulary, so a Python value
+%crosses, serializes and comes back with no Python-side JSON
+%implementation existing anywhere. SWI integers are unbounded, which is
+%what makes wide integers exact in both directions without any guard.
+
+:- use_module(library(json), [json_read_dict/3, json_write_dict/3]).
+
+petta_py_json_options([true(@(true)), false(@(false)), null(@(none))]).
+
+%Encode one janus-shaped value to JSON text. Non-finite floats are
+%refused before writing, because json_write_dict serializes NaN and the
+%infinities in SWI's own float syntax, which no JSON reader accepts
+%back. Errors leave through the reserved envelope so the Python side
+%raises ValueError and TypeError by kind rather than by message text.
+petta_py_json_encode(Value, Text) :-
+    catch(petta_py_json_encode_(Value, Text), Error,
+          petta_py_json_rethrow(Error)).
+
+petta_py_json_encode_(Value, Text) :-
+    petta_py_json_finite(Value),
+    petta_py_json_options(Options),
+    with_output_to(string(Text),
+                   json_write_dict(current_output, Value,
+                                   [width(0)|Options])).
+
+petta_py_json_finite(Value) :-
+    (   is_dict(Value)
+    ->  dict_pairs(Value, _, Pairs),
+        petta_py_json_finite_pairs(Pairs)
+    ;   is_list(Value)
+    ->  maplist(petta_py_json_finite, Value)
+    ;   float(Value)
+    ->  (   float_class(Value, Class),
+            ( Class == nan ; Class == infinite )
+        ->  throw(error(domain_error(finite_number, Value),
+                        context(petta_py_json_encode/2, _)))
+        ;   true
+        )
+    ;   true
+    ).
+
+petta_py_json_finite_pairs([]).
+petta_py_json_finite_pairs([_-Value|Pairs]) :-
+    petta_py_json_finite(Value),
+    petta_py_json_finite_pairs(Pairs).
+
+%Decode JSON text to a janus-shaped value. The reader stops after one
+%value, so the remainder must hold nothing but layout: a second value
+%in the same text is refused here, not silently dropped. The tag makes
+%read dicts cross janus exactly as written dicts arrive.
+petta_py_json_decode(Text, Value) :-
+    catch(petta_py_json_decode_(Text, Value), Error,
+          petta_py_json_rethrow(Error)).
+
+petta_py_json_decode_(Text, Value) :-
+    petta_py_json_options(Options),
+    open_string(Text, Stream),
+    call_cleanup(petta_py_json_read(Stream, Value, Options),
+                 close(Stream)).
+
+petta_py_json_read(Stream, Value, Options) :-
+    json_read_dict(Stream, Value, [tag(py)|Options]),
+    (   petta_py_json_rest_layout(Stream)
+    ->  true
+    ;   throw(error(syntax_error(json(trailing_content)),
+                    context(petta_py_json_decode/2, _)))
+    ).
+
+petta_py_json_rest_layout(Stream) :-
+    get_char(Stream, Char),
+    (   Char == end_of_file
+    ->  true
+    ;   char_type(Char, space),
+        petta_py_json_rest_layout(Stream)
+    ).
+
+%Each error class keeps its own clause, so Python raises by kind: a
+%value that JSON cannot carry is a ValueError, a term that is not JSON
+%data at all is a TypeError, and anything unrecognized stays a raw
+%engine error rather than being dressed as one of those.
+petta_py_json_rethrow(error(domain_error(finite_number, Culprit), _)) :-
+    format(string(Message),
+           "JSON cannot carry the non-finite number ~w", [Culprit]),
+    petta_py_raise(value, Message).
+petta_py_json_rethrow(error(type_error(Type, Culprit), _)) :-
+    format(string(Message),
+           "JSON cannot carry ~p, which is not a ~w", [Culprit, Type]),
+    petta_py_raise(type, Message).
+petta_py_json_rethrow(error(domain_error(Domain, Culprit), _)) :-
+    format(string(Message),
+           "JSON cannot carry ~p, which is not a ~w", [Culprit, Domain]),
+    petta_py_raise(type, Message).
+petta_py_json_rethrow(error(syntax_error(What), _)) :-
+    format(string(Message), "not valid JSON: ~w", [What]),
+    petta_py_raise(value, Message).
+petta_py_json_rethrow(error(duplicate_key(Key), _)) :-
+    format(string(Message), "JSON object repeats the key ~w", [Key]),
+    petta_py_raise(value, Message).
+petta_py_json_rethrow(Error) :-
+    throw(Error).
+
 %%%%%%%%%% Parse and print %%%%%%%%%%
 
 %Read one form into a tagged term, keeping variable names. sread/2 discards the
 %name map its own DCG builds; calling sexpr//3 directly keeps it:
 petta_py_parse(Source, Tagged) :-
+    petta_py_read_form(Source, Term, VarMap),
+    petta_py_encode_named(Term, VarMap, Tagged).
+
+%The reader half of petta_py_parse/2, on its own. An evaluation handed source
+%text needs the TERM, and reaching it through the wire form costs an encode
+%and a decode of a term that never left the engine, on top of the second janus
+%crossing Python makes to parse before it evaluates [measured 2026-08-16:
+%(structured (pair a b)) cost 516.00 inferences as parse-then-evaluate and
+%449.00 read straight to a term].
+petta_py_read_form(Source, Term, VarMap) :-
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     atom_string(A, S),
     atom_codes(A, Cs),
     ( phrase(sexpr(Term, [], VarMap), Cs)
-      -> petta_py_encode_named(Term, VarMap, Tagged)
+      -> true
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
       petta_py_raise(syntax, Msg) ).
+
+%An evaluation target arrives either as a wire term or, when the caller passed
+%source text, as that text. The test is whether it is a wire term, not what
+%type the text has: Janus hands a Python str over as an ATOM, so asking
+%string/1 sent every source evaluation down the decoder, where it failed and
+%findall/3 turned that into an empty answer list indistinguishable from a
+%query that truly answered nothing. Reading it here also keeps the variables
+%the reader shared by name, which is what the wire round trip was rebuilding.
+%Every wire term is exactly two elements, so the shape is decided here in O(1)
+%and the decode below is NOT wrapped in the test. Wrapping it, as an earlier
+%version did to turn a failed decode into a refusal, left a choice point over
+%the whole recursive walk and cost 11% of alpha-unique, whose operation
+%decodes one large term: 3,699,768,516 instructions became 4,106,476,179
+%[measured 2026-08-16]. That is the same last-call optimisation the plunit
+%gate's own choicepoint check exists to catch.
+%&self resolves where text is read, exactly as in loaded source: the text
+%branch substitutes the hosting space's name, gated by a C substring probe
+%so text that never says &self pays two inferences, not a term walk. A wire
+%term was built programmatically, so it keeps its atoms as written, the
+%same boundary stored data has; petta_py_parse/2 has no space and reads
+%unpinned, the reader LeaTTa gives include. An unconditional walk here
+%cost alpha-unique +400k inferences on its one large decoded term
+%[measured 2026-08-17].
+petta_py_target_term(Space, Target, Term) :-
+    (   Target = [_, _]
+    ->  petta_py_decode_shared(Target, Term, _)
+    ;   \+ is_list(Target)
+    ->  petta_py_read_form(Target, Term0, _),
+        (   Space == '&self'
+        ->  Term = Term0
+        ;   atom(Target), sub_atom(Target, _, _, _, '&self')
+        ->  substitute_self_(Space, Term0, Term)
+        ;   string(Target), sub_string(Target, _, _, _, "&self")
+        ->  substitute_self_(Space, Term0, Term)
+        ;   Term = Term0
+        )
+    ;   throw(error(domain_error(petta_py_wire_term, Target), none))
+    ).
 
 %Print a tagged term the way PeTTa prints it:
 petta_py_swrite(Tagged, String) :-
@@ -483,24 +933,56 @@ petta_py_add(Space, Tagged) :-
 petta_py_decode_for_add(Tagged, Term) :-
     petta_py_decode_shared(Tagged, Term, _).
 
+%The engine decides how a batch crosses. This chose for MORK itself and so
+%bypassed metta_add_atoms/2 entirely, which is where the rule that a batch may
+%not skip per-atom work lives: an equation added to a MORK space alongside any
+%other atom was stored inert [measured 2026-08-16].
 petta_py_add_many(Space, TaggedList) :-
     maplist(petta_py_decode_for_add, TaggedList, Terms),
-    ( current_predicate(mork_space_name/2), mork_space_name(Space, _)
-      -> 'mork-add-atoms'(Space, Terms, _)
-    ; metta_add_atoms(Space, Terms) ).
+    metta_add_atoms(Space, Terms).
 
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
     ( metta_foreign_space(Space)
       -> Existed = provider
     ; copy_term(Term, Pattern),
-      ( once(('get-atoms'(Space, Stored), Stored = Pattern)) -> Existed = true
+      ( petta_py_existed(Space, Pattern) -> Existed = true
       ; Existed = false ) ),
-    'remove-atom'(Space, Term, Removed0),
+    %metta_remove_atom/3, not `remove-atom`: the language-facing one answers the
+    %UNIT value now, because its type is `(-> spaceType Atom (->))` and the
+    %specification says absence is not reported there. This is the PYTHON API,
+    %where `space.remove(atom)` returning whether anything went is the useful
+    %answer and nothing in MeTTa's contract governs it.
+    metta_remove_atom(Space, Term, Removed0),
     ( Existed == provider -> Verdict = Removed0
     ; Removed0 == false -> Verdict = false
     ; Verdict = Existed ),
     petta_py_encode(Verdict, Removed).
+
+%Whether an atom unifying with Pattern is stored, without enumerating the
+%space when the answer is reachable by index. The first branch probes the
+%native storage predicate directly, which first-argument indexing makes O(1)
+%for the ground common case; it may only SUCCEED, never conclude absence,
+%because storage shapes this cannot express (a foreign layout, an atom that
+%is not a list) still exist. Failure falls back to the enumeration, so the
+%semantics are the old ones exactly and only the cost moves. Found because
+%the contract ontology's 65 resident atoms in &petta turned this check's
+%former get-atoms walk into +149 inferences per register-and-unregister
+%cycle on the register-op benchmark [measured 2026-08-18: a remove on an
+%80-atom &petta cost 303 inferences against 61 on a plain space, and the
+%engine-level remove path profiled flat].
+petta_py_existed(Space, Pattern) :-
+    is_list(Pattern),
+    Pattern = [Head|Arguments],
+    atom(Head),
+    catch(( native_storage_module(Space, Module),
+            Goal =.. [Space, Head|Arguments],
+            call(Module:Goal) ),
+          error(existence_error(procedure, _), _),
+          fail),
+    !.
+petta_py_existed(Space, Pattern) :-
+    once(('get-atoms'(Space, Stored), Stored = Pattern)).
 
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
@@ -544,11 +1026,11 @@ petta_py_clear(Space) :-
     petta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_clear(SpaceStr), _).
+%The engine owns this now, as clear_foreign_atoms/1 in src/spaces.pl, so a
+%Prolog provider's clear is reachable without the bridge in the process.
 petta_py_clear(Space) :-
     metta_foreign_space(Space), !,
-    ( metta_foreign_clear(Space) -> true
-    ; throw(error(permission_error(clear, foreign_space, Space),
-                  context(Space, 'this foreign space defines no clear'))) ).
+    clear_foreign_atoms(Space).
 petta_py_clear(Space) :-
     findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
     forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
@@ -680,8 +1162,29 @@ petta_py_query_guarded_all(Space, PatternsTagged, GuardTagged, VarNames, Limit, 
       -> findall(Row, limit(Limit, Query), Rows)
     ; findall(Row, Query, Rows) ).
 
+%The bound is applied here whatever happens below, so pushing it down cannot
+%change an answer. It is pushed only for ONE pattern against a foreign space:
+%across a join the bound belongs to the joined rows, and an outer match
+%truncated at N would lose the rows its later candidates would have joined
+%to. A guarded query keeps the bound here too, since the guard decides how
+%many candidates become answers.
 petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
-    findall(Row, limit(Limit, petta_py_query(Space, PatternsTagged, VarNames, Row)), Rows).
+    (   PatternsTagged = [PatternTagged],
+        metta_foreign_space(Space)
+    ->  findall(Row,
+                limit(Limit,
+                      petta_py_bounded_query(Space, PatternTagged, VarNames,
+                                             Limit, Row)),
+                Rows)
+    ;   findall(Row,
+                limit(Limit, petta_py_query(Space, PatternsTagged, VarNames, Row)),
+                Rows)
+    ).
+
+petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
+    petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
+    match_foreign(Space, Pattern, [limit(Limit)], answered, answered),
+    petta_py_row(VarNames, Bindings, Row).
 
 %A row holds one encoded value per requested name; a variable the answer left
 %unbound comes back as itself:
@@ -749,8 +1252,8 @@ petta_py_cast(Space, ValueW, TypeW, Out) :-
 petta_py_eval(Space, Tagged, Encoded) :-
     petta_py_eval_(Space, Tagged, plain, Encoded).
 
-petta_py_eval_(Space, Tagged, Residuals, Encoded) :-
-    petta_py_decode_shared(Tagged, Term, _),
+petta_py_eval_(Space, Target, Residuals, Encoded) :-
+    petta_py_target_term(Space, Target, Term),
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
@@ -898,16 +1401,97 @@ petta_py_eval_res_all(Space, Tagged, Encoded) :-
 %into failure here: the semidet reading of a Python None or a raised Decline.
 petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declined).
 
+%A variable that crosses and comes back is the CALLER'S variable, not a fresh
+%one with the same name. Without this the boundary silently broke variable
+%identity, which is the whole of why no relational use of a Python operation
+%worked: a native (= (mcons $h $t) ($h 2 3)) answers an expression whose head
+%IS $x, so binding the result to (9 2 3) binds $x to 9, while the same shape
+%through a registered operation answered a fresh $_34678 that binding did
+%nothing to [tested: test_a_variable_crossing_python_comes_back_the_same_variable].
+%
+%The decoder already shares by name WITHIN one term, which is what makes an
+%answer mentioning $x twice mention one variable. It just started from an
+%empty table. Seeding it with the arguments is the whole fix, and the seed is
+%expanded on first use by petta_py_shared_table/2, so a call whose result
+%holds no variable pays nothing at all for it.
+%petta_py_failure/2 is src/python.pl's, and a registered operation was the one
+%Python caller not reaching it. That is not a cosmetic gap: without it janus's
+%own error term reaches MeTTa carrying the live exception OBJECT and a live
+%TRACEBACK object, which is the defect petta_py_failure/2 was written to fix
+%for py-call and py-atom, and it names a Python file and line and no MeTTa
+%call at all. What a program gets instead is
+%(Error (python_error ZeroDivisionError "division by zero") (context (op 1) ...)),
+%which it can branch on, compare and print after the failure
+%[tested: test_an_operation_failure_names_the_metta_call].
+%
+%The catch is written out here rather than going through petta_py_guard/2, its
+%three other callers' spelling, because the wrapper is a predicate call and
+%this is the hot path: guard plus catch cost two inferences per call where the
+%catch alone costs one [measured 2026-08-17: the encoded operation at 14.01
+%through the wrapper, 13.01 written out]. Same catcher, same recovery.
 petta_py_dispatch_det(Name, Args, Result) :-
     maplist(petta_py_encode, Args, TA),
-    py_call(petta_ops:dispatch(Name, TA), TR),
-    \+ petta_py_declined(TR),
-    petta_py_decode_shared(TR, Result, _).
+    catch(py_call(petta_ops:dispatch(Name, TA), TR),
+          Error, TR = '$petta_op_error'(Error)),
+    (   TR = '$petta_op_error'(DetError)
+    ->  petta_py_op_erring(Name, Args, DetError, Result)
+    ;   \+ petta_py_declined(TR),
+        %The shape test and this whole branch are written out because
+        %this is the hot path: a plain wire is two elements, the explicit
+        %answer four or five, the inlined unification costs no inference,
+        %and even one helper call showed up as +1 per call on the extcost
+        %gate [measured 2026-08-17: encoded 57248 against its 54248
+        %baseline through a petta_py_dispatch_det_result/4 helper, and
+        %54248 written out].
+        (   TR = [_, _, _, _|_]
+        ->  petta_py_answer_result(TR, Name, Args, Result)
+        ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
+        )
+    ).
 
+%The guard wraps the whole enumeration and that is safe in both directions:
+%catch/3 keeps Goal's choice points and re-establishes the catcher on
+%backtracking, so a generator yielding two values and then raising is caught
+%on the third [measured 2026-08-17: catch/3 over member/2 gives all three
+%solutions, and a throw on the last one is caught].
 petta_py_dispatch_many(Name, Args, Result) :-
     maplist(petta_py_encode, Args, TA),
-    py_iter(petta_ops:dispatch_many(Name, TA), TR),
-    petta_py_decode_shared(TR, Result, _).
+    (   petta_on_error_mode(Name, [Name|Args], DeclaredMode),
+        DeclaredMode \== abort
+    ->  Mode = DeclaredMode
+    ;   Mode = abort
+    ),
+    catch(( py_iter(petta_ops:dispatch_many(Name, TA, Mode), TR0), TR = TR0 ),
+          Error, TR = '$petta_op_error'(Error)),
+    (   TR = '$petta_op_error'(ManyError)
+    ->  petta_py_op_erring(Name, Args, ManyError, Result)
+    ;   TR = [_, _, _, _|_]
+    ->  petta_py_answer_result(TR, Name, Args, Result)
+    ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
+    ).
+
+%An operation's declared error mode, consulted only in the recovery, so
+%the success path pays one functor test. keep reduces the failed call to
+%its (Error ...) atom; empty answers nothing, the semidet reading;
+%control signals and transport failures always pass to the thrower.
+petta_py_op_erring(Name, Args, Error, Result) :-
+    (   control_exception(Error)
+    ->  petta_py_failure([Name|Args], Error)
+    ;   petta_transport_failure(Error)
+    ->  petta_py_failure([Name|Args], Error)
+    ;   petta_on_error_mode(Name, [Name|Args], Mode)
+    ->  (   Mode == keep
+        ->  petta_error_answer([Name|Args], Error, Result)
+        ;   Mode == empty
+        ->  fail
+        ;   petta_py_failure([Name|Args], Error)
+        )
+    ;   petta_py_failure([Name|Args], Error)
+    ).
+
+%The name petta_py_encode/2 wrote for a variable, so a returned ["v", Name]
+%finds the variable it came from.
+petta_py_named_variable(Variable, Name-Variable) :- term_to_atom(Variable, Name).
 
 %Raw results skip the wire encoding, so a Python boolean arrives as janus's
 %@(true)/@(false); normalize to the language booleans exactly as 'py-call'
@@ -918,13 +1502,38 @@ petta_py_raw_norm(R, R).
 
 %A raw None is janus's @(none); it reads as no answer, the same semidet rule
 %the encoded path applies, since MeTTa has no None value to hand back:
+%The same catcher the encoded paths carry, and for the same reason: without it
+%a raw operation's failure reaches MeTTa as janus's own term, holding the live
+%exception OBJECT, a live TRACEBACK and an unbound context, so `(catch (op 1))`
+%answered
+%(Error (python_error ZeroDivisionError <ZeroDivisionError>)
+%       (context $_26320 (python_stack <traceback>)))
+%which names an address, cannot be compared and says nothing about which MeTTa
+%call failed. Skipping the wire encoding is a speed decision about ARGUMENTS
+%and results; it was never a decision to report failures differently
+%[tested: test_a_raw_operation_fails_like_an_encoded_one].
+%
+%It costs one inference, and that is the floor rather than a choice: "the
+%overhead of calling a goal through catch/3 is comparable to call/1"
+%[source: SWI-Prolog manual, catch/3]. The zero-cost alternative was looked
+%for and rejected. prolog:prolog_exception_hook/5 fires only on an actual
+%exception, and it is a process-global singleton `library(prolog_stack)`,
+%trap/1 and the GUI debugger already use, it "is never called recursively",
+%and converting this error means calling back into Python to render the
+%message, which is exactly what a non-reentrant hook must not do.
+%
+%Against the crossing it guards, one inference is not the number that matters:
+%a raw operation costs 0.87 microseconds where a MeTTa function costs 0.09
+%[measured 2026-08-17], so janus dominates it by an order of magnitude.
 petta_py_dispatch_raw_det(Name, Args, Result) :-
-    py_call(petta_ops:dispatch_raw(Name, Args), R0),
+    catch(py_call(petta_ops:dispatch_raw(Name, Args), R0),
+          Error, petta_py_failure([Name|Args], Error)),
     R0 \== '@'(none),
     petta_py_raw_norm(R0, Result).
 
 petta_py_dispatch_raw_many(Name, Args, Result) :-
-    py_iter(petta_ops:dispatch_raw_many(Name, Args), R0),
+    catch(py_iter(petta_ops:dispatch_raw_many(Name, Args), R0),
+          Error, petta_py_failure([Name|Args], Error)),
     R0 \== '@'(none),
     petta_py_raw_norm(R0, Result).
 
@@ -933,8 +1542,59 @@ petta_py_dispatch_raw_many(Name, Args, Result) :-
 %with a static procedure ((+)/3, say) throws HERE, with no state touched,
 %and every previously registered arity of the name is replaced rather than
 %left behind for calls the new callable no longer serves.
-petta_py_register_op_set(Name0, Arities, Kind) :-
+%The dogfood route: registration parameters read from the contract atoms in
+%&petta rather than passed. The Python keywords are sugar that asserts the
+%atoms ((op Name Arity Kind) per arity, (inverse Name) when a backwards
+%direction exists), and this compiles the predicate FROM them, through
+%exactly the builders the passed-parameter route uses, so the clause is
+%identical by construction and the cube gate proves it stays that way.
+petta_py_compile_op(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    findall(Arity-Kind, petta_contract_fact([op, Name, Arity, Kind]), Pairs),
+    (   Pairs == []
+    ->  throw(error(petta_contract_missing_op(Name), none))
+    ;   true
+    ),
+    pairs_keys(Pairs, Arities),
+    Pairs = [_-Kind|_],
+    (   forall(member(_-K, Pairs), K == Kind)
+    ->  true
+    ;   throw(error(petta_contract_conflict(Name, Pairs), none))
+    ),
+    (   petta_contract_fact([inverse, Name])
+    ->  Invertible = true
+    ;   Invertible = false
+    ),
+    petta_py_register_op_set(Name, Arities, Kind, Invertible).
+
+%A (handles ...) declaration, written and coherence-checked in one
+%transaction: the new entry is asserted, every critical pair over the
+%context is routed, and a disagreeing tie throws petta_contract_conflict,
+%which rolls the assert back. The overlap is caught at declaration time
+%naming both entries, not on the first query that falls into it.
+petta_py_declare_handles(Space, Tagged, Ctx0) :-
+    ( atom(Ctx0) -> Ctx = Ctx0 ; atom_string(Ctx, Ctx0) ),
+    transaction(( petta_py_add(Space, Tagged),
+                  petta_handles_coherent(Ctx) )).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_contract_missing_op(Name)) -->
+    [ 'compiling ~w from the contract found no (op ~w Arity Kind) atom in \c
+       &petta; the registration sugar asserts them before compiling, so \c
+       reaching this means the atoms and the compile call got out of \c
+       order'-[Name, Name] ].
+prolog:error_message(petta_contract_conflict(Name, Pairs)) -->
+    [ 'the contract atoms for ~w disagree on its kind across arities: ~w. \c
+       One operation has one kind'-[Name, Pairs] ].
+
+petta_py_register_op_set(Name0, Arities, Kind, Invertible) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    petta_py_set_invertible(Name, Invertible),
+    %First, and before the probe, because the probe's own diagnostic is SWI's:
+    %"assertz/2: No permission to modify static procedure 'f'/2" names a Prolog
+    %builtin and an arity the author never wrote, where this names the tier
+    %that owns it and what to do about it.
+    refuse_other_tiers_name(Name, python),
     %The probe is the same assert the registration will do, on a clause that
     %can never run; the engine's own permission error surfaces here, before
     %any existing registration has been touched. predicate_property cannot
@@ -947,7 +1607,11 @@ petta_py_register_op_set(Name0, Arities, Kind) :-
                                   true,
                                   erase(Ref)) ) )),
     forall(petta_py_op_spec(Name, Old, _), petta_py_unregister_op(Name, Old)),
-    forall(member(A, Arities), petta_py_register_op(Name, A, Kind)).
+    forall(member(A, Arities), petta_py_register_op(Name, A, Kind)),
+    %Last, and once for the whole set rather than once per arity: every
+    %unregister above releases the name when nothing defines it any more, so a
+    %claim made earlier would be dropped by the registration's own teardown.
+    claim_function_name(Name, python, Kind).
 
 %Register a Python-backed function of the given MeTTa arity. The compiled
 %predicate carries one extra output argument, the engine's own convention:
@@ -957,18 +1621,138 @@ petta_py_register_op(Name0, Arity, Kind) :-
     length(Args, Arity),
     append(Args, [Result], HeadArgs),
     Head =.. [Name | HeadArgs],
-    petta_py_op_body(Kind, Name, Args, Result, Body),
+    petta_py_op_body(Kind, Name, Args, Result, Forward),
+    petta_py_directed_body(Name, Kind, Args, Result, Forward, Body),
     assertz((Head :- Body)),
     assertz(petta_py_op_spec(Name, Arity, Kind)),
-    register_fun(Name),
+    %The clauses really are in user, and saying so is what keeps the operation
+    %callable after some named space defines an equation of the same name.
+    %register_fun/1 alone left it resolvable only while no space had claimed
+    %the name anywhere in the process, which is the same defect
+    %import_prolog_function/2 carried.
+    register_fun_in(user, Name),
     PredArity is Arity + 1,
     ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
     forall(metta_on_function_changed(Name), true).
+
+%The engine asks who a dispatch goal really is, so a purity refusal names the
+%operation rather than this file's dispatcher. The name is the goal's first
+%argument in all four kinds, which is why it is recoverable exactly.
+:- multifile metta_effect_operation_name/3.
+metta_effect_operation_name(petta_py_dispatch_det(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+metta_effect_operation_name(petta_py_dispatch_many(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+metta_effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+metta_effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+
+%The MeTTa arity, which is the argument list's length: the engine's extra
+%output slot is the dispatch goal's third argument and not one of these.
+petta_py_dispatch_arity(Args, Arity) :- is_list(Args), !, length(Args, Arity).
+petta_py_dispatch_arity(_, unknown).
 
 petta_py_op_body(det,      Name, Args, R, petta_py_dispatch_det(Name, Args, R)).
 petta_py_op_body(many,     Name, Args, R, petta_py_dispatch_many(Name, Args, R)).
 petta_py_op_body(raw_det,  Name, Args, R, petta_py_dispatch_raw_det(Name, Args, R)).
 petta_py_op_body(raw_many, Name, Args, R, petta_py_dispatch_raw_many(Name, Args, R)).
+
+:- dynamic petta_py_op_invertible/1.
+
+petta_py_set_invertible(Name, Invertible) :-
+    retractall(petta_py_op_invertible(Name)),
+    ( ( Invertible == true ; Invertible == "true" )
+      -> assertz(petta_py_op_invertible(Name)) ; true ).
+
+%An operation that declared an inverse compiles a MODE TEST into its clause,
+%and one that did not compiles exactly the body it compiled before. That is
+%the point of deciding it here rather than in the dispatch: a direction almost
+%no operation can serve must not cost every operation a check per call.
+%
+%The three modes read in the order a reader would ask them. Ground arguments
+%are an ordinary forward call whatever the result slot holds, so a forward
+%call never reaches the inverse even when the caller left the result unbound.
+%Otherwise a bound result with unbound arguments is the relational position,
+%which is what (let (f $h $t) (1 2 3) ...) compiles to. Anything else is
+%forwards, and fails the way it always did, because an operation cannot
+%invent a result from nothing.
+%
+%This is Curry's mode-directed reading of a function as a relation, done by
+%hand because a foreign function cannot be narrowed: Curry does not invert its
+%own `external` functions either, so an explicit backwards direction is the
+%same answer Prolog's plus/3 and succ/2 give for their non-narrowable
+%builtins [tested: test_a_registered_operation_runs_backwards].
+petta_py_directed_body(Name, Kind, Args, Result, Forward, Body) :-
+    (   petta_py_op_invertible(Name)
+    ->  petta_py_inverse_goal(Kind, Name, Result, Args, Backward),
+        Body = (   ground(Args)
+               ->  Forward
+               ;   nonvar(Result)
+               ->  Backward
+               ;   Forward
+               )
+    ;   Body = Forward
+    ).
+
+%The inverse crosses the way the operation's FORWARD direction crosses. An
+%author writes one function pair, and a raw operation whose inverse went
+%through the wire encoding saw `str` for a symbol going forwards and `Sym`
+%coming back, which is one pair and two value conventions
+%[tested: test_a_raw_operations_inverse_crosses_raw_too].
+petta_py_inverse_goal(Kind, Name, Result, Args, Goal) :-
+    (   petta_py_raw_kind(Kind)
+    ->  Goal = petta_py_dispatch_inverse_raw(Name, Result, Args)
+    ;   Goal = petta_py_dispatch_inverse(Name, Result, Args)
+    ).
+
+petta_py_raw_kind(raw_det).
+petta_py_raw_kind(raw_many).
+
+%One result in, argument tuples out. It enumerates, because an inverse is a
+%relation: a result with two preimages answers twice, and one with none fails,
+%which is failure rather than an error exactly as it is forwards.
+%
+%The arity is checked here rather than trusted, because the inverse is the
+%author's own Python and a tuple of the wrong width would otherwise unify
+%against nothing and read as "no solution" rather than as the mistake it is.
+petta_py_dispatch_inverse(Name, Result, Args) :-
+    petta_py_encode(Result, TR),
+    catch(py_iter(petta_ops:dispatch_inverse(Name, TR), TArgs),
+          Error, petta_py_failure([Name, Result], Error)),
+    petta_py_inverse_width(Name, Args, TArgs),
+    maplist(petta_py_decode_one, TArgs, Args).
+
+petta_py_dispatch_inverse_raw(Name, Result, Args) :-
+    catch(py_iter(petta_ops:dispatch_inverse_raw(Name, Result), RawArgs),
+          Error, petta_py_failure([Name, Result], Error)),
+    petta_py_inverse_width(Name, Args, RawArgs),
+    maplist(petta_py_raw_norm, RawArgs, Args).
+
+petta_py_inverse_width(Name, Args, Answered) :-
+    length(Args, Arity),
+    (   is_list(Answered), length(Answered, Arity)
+    ->  true
+    ;   petta_py_inverse_arity_error(Name, Arity, Answered)
+    ).
+
+petta_py_decode_one(Tagged, Term) :- petta_py_decode_shared(Tagged, Term, _).
+
+petta_py_inverse_arity_error(Name, Arity, TArgs) :-
+    ( is_list(TArgs) -> length(TArgs, Got) ; Got = 1 ),
+    throw(error(petta_py_inverse_arity(Name, Arity, Got),
+                context(petta, 'the inverse answered the wrong number of arguments'))).
+
+:- multifile prolog:error_message//1.
+
+%A tuple of the wrong width would otherwise unify against nothing and read as
+%"this result has no preimage", which is the one answer an inverse is entitled
+%to give and the one that hides the mistake.
+prolog:error_message(petta_py_inverse_arity(Name, Wanted, Got)) -->
+    [ 'the inverse of ~w answered an argument tuple of width ~d, and the \c
+       operation takes ~d'-[Name, Got, Wanted], nl,
+      '  an inverse returns the arguments as a tuple of that width, or the \c
+       bare value at arity one' ].
 
 %Remove one registered arity of an operation, leaving other arities alone.
 %When nothing defines the name any more, forget the function entirely, the
@@ -986,8 +1770,69 @@ petta_py_unregister_op(Name0, Arity) :-
     ( \+ ( current_predicate(Name/A), functor(H2, Name, A), clause(H2, _, _) )
       -> retractall(fun(Name)),
          retractall(arity(Name, _)),
+         unregister_fun_everywhere(Name),
+         release_function_name(Name),
          metta_on_function_removed(Name)
     ; true ).
+
+%The names a source declared for itself, so register_prolog can answer what it
+%registered without being told. The membership record is the engine's, not the
+%library's, which is what makes the extension a unit rather than a list the
+%library has to keep: it registers, and the engine remembers
+%[source: PostgreSQL, "the objects of the extension go together"].
+%The file is compared after resolving both sides, because the engine records
+%SWI's canonical absolute path and a caller passes whatever they typed.
+%Read off the FILE record rather than off extension membership. An extension
+%is optional on the Prolog side, so asking through one made a file with
+%`metta_export` and no `metta_extension` look like a failed registration when
+%every name in it had registered.
+%What a source declares, read WITHOUT running it, so register_prolog can
+%refuse a file that declares nothing before consulting it. It used to consult
+%first and check after, so a provider file with no declaration raised and
+%installed the provider anyway: catching the error made everything work, which
+%is the one outcome that teaches an author to ignore an error.
+petta_py_source_declares(Source0, Declares) :-
+    ( atom(Source0) -> Source = Source0 ; atom_string(Source, Source0) ),
+    metta_source_declarations(Source, Declarations),
+    petta_py_classify_declarations(Declarations, Declares).
+
+%The same question of source held in memory, which has no file to open.
+petta_py_string_declares(Text, Declares) :-
+    metta_string_declarations(Text, Declarations),
+    petta_py_classify_declarations(Declarations, Declares).
+
+petta_py_classify_declarations(Declarations, Declares) :-
+    ( memberchk(export(_), Declarations) -> Exports = true ; Exports = false ),
+    ( memberchk(extension(_), Declarations) -> Extension = true
+    ; Extension = false ),
+    petta_py_declares(Exports, Extension, Declares).
+
+petta_py_declares(true, true, "both").
+petta_py_declares(true, false, "exports").
+petta_py_declares(false, true, "extension").
+petta_py_declares(false, false, "nothing").
+
+petta_py_declared_exports(Source0, Names) :-
+    ( atom(Source0) -> Source = Source0 ; atom_string(Source, Source0) ),
+    ( absolute_file_name(Source, Resolved, [file_errors(fail)]) -> true
+    ; Resolved = Source ),
+    findall(S,
+            ( metta_file_export(Recorded, Name),
+              ( Recorded == Resolved -> true ; Recorded == Source ),
+              atom_string(Name, S) ),
+            Names0),
+    sort(Names0, Names).
+
+%The names one extension installed, asked before releasing them so the caller
+%can be told what went.
+petta_py_extension_members(Name0, Names) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    findall(S, ( metta_extension_member(Name, Member), atom_string(Member, S) ), Names).
+
+%Everything one extension installed, released together.
+petta_py_unregister_extension(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    unregister_metta_extension(Name).
 
 %Every function name the engine has registered, for completion and docs:
 petta_py_builtins(Names) :-
@@ -1193,29 +2038,136 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 % and soundness stays the engine's. Registration is dynamic, from Python.
 
 :- multifile metta_foreign_space/1.
-:- multifile metta_foreign_match/2.
+:- multifile metta_foreign_match/3.
 :- multifile metta_foreign_add/2.
+:- multifile metta_foreign_add_many/2.
+:- multifile metta_foreign_plan/5.
 :- multifile metta_foreign_remove/3.
 :- multifile metta_foreign_atoms/2.
+:- multifile metta_foreign_pushdown/3.
+:- multifile metta_foreign_capability/2.
+:- multifile metta_foreign_refuse/2.
 
 :- dynamic petta_py_foreign/1.
+:- dynamic petta_py_capability/2.
+
+%What a Python provider provides, in the ENGINE's vocabulary.
+%
+%The seam had two capability models that never met. foreign.py derives the set
+%from the narrow protocols a provider implements and enforces it well; the
+%Prolog side reads metta_foreign_capability/2 and saw nothing, so
+%foreign_provides/2 reported that every Python provider provides EVERYTHING.
+%Not a correctness bug, because the Python half raises anyway, but it meant
+%engine logic keyed on a declaration silently excluded exactly the providers
+%most likely to be incomplete, and a sixth capability could never be added to
+%the vocabulary: claimed by silence on one side, unheard on the other.
+%
+%A projection rather than a new obligation. The set is computed where it
+%already was, at registration, and provider authors write nothing new
+%[tested: test_a_python_providers_capabilities_reach_the_engine].
 
 %Each clause guards on the python registry: the foreign hooks are
 %multifile, and an engine-side foreign space (a Redis space, say) must
 %fall through to its own contribution instead of being claimed here.
-%metta_foreign_clear/1 is the clear hook an engine-side foreign space
-%may implement; a space without one refuses to clear, loudly.
-:- multifile metta_foreign_clear/1.
+%metta_foreign_clear/1 is declared with the other five in src/ext_points.pl
+%now, so it is part of the seam a library author reads rather than something
+%only this file knew about.
 
 metta_foreign_space(Space) :- petta_py_foreign(Space).
 
-metta_foreign_match(Space, Pattern) :-
+metta_foreign_capability(Space, Capability) :-
+    petta_py_foreign(Space),
+    petta_py_capability(Space, Capability).
+
+%The refusal, handed back to the side that has the words. This raises; see
+%petta.foreign.foreign_refuse for why it may not return.
+metta_foreign_refuse(Space, Capability) :-
+    petta_py_foreign(Space),
+    atom_string(Space, SpaceStr),
+    atom_string(Capability, CapabilityStr),
+    py_call(petta_ops:foreign_refuse(SpaceStr, CapabilityStr), _).
+
+%The declared-mode stream: the mode crosses WITH the call, the Python
+%side enforces it where the provider's exceptions are native (a
+%mid-iteration exception tunnels past every Prolog catch), and a kept
+%failure arrives as the reserved ["x","error",AtomWire] item. The
+%["x","end"] item marks exhaustion so an empty stream still claims the
+%route and the engine never re-consults the provider through the
+%fallback, which would consume a linear source twice.
+metta_foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
+    petta_py_foreign(Space),
+    ( memberchk(limit(Limit), Licensed) -> true ; Limit = @(none) ),
+    petta_py_encode(Pattern, W),
+    atom_string(Space, SpaceStr),
+    atom_string(Mode, ModeStr),
+    py_iter(petta_ops:foreign_match(SpaceStr, W, Limit, ModeStr), CW),
+    petta_py_erring_item(CW, Pattern, Limit, Space, Item).
+
+petta_py_erring_item([XTag, End], _, _, _, end) :-
+    ( XTag == "x" ; XTag == x ),
+    ( End == "end" ; End == end ), !.
+petta_py_erring_item([XTag, Err, ErrorW], _, _, _, kept(Kept)) :-
+    ( XTag == "x" ; XTag == x ),
+    ( Err == "error" ; Err == error ), !,
+    petta_py_decode_shared(ErrorW, Kept, _).
+petta_py_erring_item(CW, Pattern, Limit, Space, answer) :-
+    petta_py_answer_match(CW, Pattern, Limit, Space).
+
+%Custom matching for Python grounded values, Hyperon's CustomMatch: a
+%value whose class defines match_/1 owns its matching logic inside
+%`unify`, no registration, exactly as any grounded atom. The hook
+%streams the object's answers and holds each to the met operand through
+%the provider answer form, so bindings, an explicit value and a residue
+%all work; an annotation is refused by the kappa gate below because a
+%bare value has no context to declare a semiring on, and weighted
+%matching is a context's job. Errors abort: a value's matching logic
+%has no (on-error ...) home, so a raising match_ is a defect at its own
+%yield site.
+metta_matchable_value(Blob) :-
+    python_object_blob(Blob),
+    py_call(petta_ops:is_matchable(Blob), R),
+    R == @(true).
+metta_custom_match(Blob, Other) :-
+    petta_py_encode(Other, W),
+    py_iter(petta_ops:match_object(Blob, W), CW),
+    petta_py_answer_match(CW, Other, '$petta-matchable').
+
+%Transactional participation for Python providers, driven by (writes Ctx
+%transactional): the provider's own begin/commit/rollback methods.
+metta_foreign_begin(Space) :-
+    petta_py_foreign(Space),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_transaction(SpaceStr, "begin"), _).
+metta_foreign_commit(Space) :-
+    petta_py_foreign(Space),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_transaction(SpaceStr, "commit"), _).
+metta_foreign_rollback(Space) :-
+    petta_py_foreign(Space),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_transaction(SpaceStr, "rollback"), _).
+
+%The option reaches a provider whose match accepts a limit keyword and nobody
+%else, which foreign.py decides from the signature, so a provider that never
+%heard of it is called with none.
+metta_foreign_match(Space, Pattern, Options) :-
+    petta_py_foreign(Space),
+    ( memberchk(limit(Limit), Options) -> true ; Limit = @(none) ),
+    petta_py_encode(Pattern, W),
+    atom_string(Space, SpaceStr),
+    py_iter(petta_ops:foreign_match(SpaceStr, W, Limit), CW),
+    petta_py_answer_match(CW, Pattern, Limit, Space).
+
+%What the provider claims about its own filtering for this pattern, asked
+%only when there is a bound to act on, so an unbounded match does not pay for
+%a crossing it gains nothing from. A provider with no pushdown method answers
+%inexact, which is what every provider written before this says.
+metta_foreign_pushdown(Space, Pattern, Class) :-
     petta_py_foreign(Space),
     petta_py_encode(Pattern, W),
     atom_string(Space, SpaceStr),
-    py_iter(petta_ops:foreign_match(SpaceStr, W), CW),
-    petta_py_decode_shared(CW, Candidate, _),
-    Pattern = Candidate.
+    py_call(petta_ops:foreign_pushdown(SpaceStr, W), ClassStr),
+    atom_string(Class, ClassStr).
 
 metta_foreign_atoms(Space, Atom) :-
     petta_py_foreign(Space),
@@ -1229,6 +2181,60 @@ metta_foreign_add(Space, Term) :-
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_add(SpaceStr, W), _).
 
+%The claim seam. A provider without a Planner declares no plan capability, so
+%the engine never asks; one that does may still decline per conjunction, which
+%is a `None` on the Python side and a failure here.
+%
+%The rows are materialised and the goal replays them, rather than the goal
+%calling back into Python per row. A claim is answered as a whole, so streaming
+%would buy nothing and would hold a Python generator open across engine
+%backtracking, which is the shape that makes a provider's state hard to reason
+%about.
+metta_foreign_plan(Space, Patterns, Claimed, Rest, petta_py_plan_rows(Claimed, Rows)) :-
+    petta_py_foreign(Space),
+    petta_py_capability(Space, plan),
+    maplist(petta_py_encode, Patterns, PatternWs),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_plan(SpaceStr, PatternWs), Answer),
+    Answer \== @(none),
+    Answer = [ClaimedWs, RestWs, RowWs],
+    maplist(petta_py_decode_for_add, ClaimedWs, Claimed),
+    maplist(petta_py_decode_for_add, RestWs, Rest),
+    maplist(petta_py_decode_plan_row(Space), RowWs, Rows).
+
+petta_py_decode_row(RowW, Row) :- maplist(petta_py_decode_for_add, RowW, Row).
+
+%A theta row keeps its wire until replay: at decode time the claimed
+%patterns still hold fresh variables, and only refuse_lossy_plan's
+%partition check reconnects them with the caller's own, so applying the
+%bindings here would bind copies nobody reads.
+petta_py_decode_plan_row(Space, RowW, petta_answer(Space, RowW)) :-
+    petta_py_answer_form(RowW, _, _, _, _), !.
+petta_py_decode_plan_row(_, RowW, Row) :- petta_py_decode_row(RowW, Row).
+
+%One solution per row, the claimed patterns unified with it. Unifying rather
+%than trusting is what keeps a decoding mistake from becoming a wrong answer:
+%a row of the wrong shape fails here instead of binding something odd.
+%A plain row unifies with the claimed patterns, which is what forces the
+%re-unification a theta row deletes: bindings for the patterns' own
+%variables apply directly, one row per answer, residue closing as
+%everywhere else.
+petta_py_plan_rows(Claimed, Rows) :-
+    member(Row, Rows),
+    (   Row = petta_answer(Space, Wire)
+    ->  petta_py_answer_match(Wire, Claimed, Space)
+    ;   Claimed = Row
+    ).
+
+%The batch seam. A provider without a BulkAdder declares no add-many capability,
+%so this fails and the engine falls back to one metta_foreign_add/2 per atom.
+metta_foreign_add_many(Space, Terms) :-
+    petta_py_foreign(Space),
+    petta_py_capability(Space, 'add-many'),
+    maplist(petta_py_encode, Terms, Ws),
+    atom_string(Space, SpaceStr),
+    py_call(petta_ops:foreign_add_many(SpaceStr, Ws), _).
+
 metta_foreign_remove(Space, Term, Removed) :-
     petta_py_foreign(Space),
     petta_py_encode(Term, W),
@@ -1236,12 +2242,22 @@ metta_foreign_remove(Space, Term, Removed) :-
     py_call(petta_ops:foreign_remove(SpaceStr, W), R0),
     petta_py_bool(R0, Removed).
 
-petta_py_register_foreign(Space0) :-
+petta_py_register_foreign(Space0, Capabilities) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
-    ( petta_py_foreign(Space) -> true ; assertz(petta_py_foreign(Space)) ).
+    ( petta_py_foreign(Space) -> true ; assertz(petta_py_foreign(Space)) ),
+    %A newly registered provider is a new source: the linear-consumption
+    %mark belongs to the drained OBJECT, and this is the door a fresh one
+    %arrives through.
+    petta_source_reset(Space),
+    retractall(petta_py_capability(Space, _)),
+    forall(member(Capability0, Capabilities),
+           ( ( atom(Capability0) -> Capability = Capability0
+             ; atom_string(Capability, Capability0) ),
+             assertz(petta_py_capability(Space, Capability)) )).
 
 petta_py_unregister_foreign(Space0) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    retractall(petta_py_capability(Space, _)),
     retractall(petta_py_foreign(Space)).
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%
@@ -1343,43 +2359,23 @@ py_object_type_names(X, Names) :-
 :- multifile metta_on_function_changed/1.
 :- multifile metta_on_function_removed/1.
 
+%The invalidation is not guarded. Its failure mode is stale COMPILED CODE, so
+%swallowing it left a specialized call site answering from a definition that
+%had changed, which is a wrong answer with no symptom. The engine's own three
+%write sites already call it unguarded (src/filereader.pl, src/spaces.pl x2);
+%this is the register-an-operation path, where the hook fires with no write
+%behind it, and it was the one place a failure went unheard.
+%recompile_definitions_mentioning/1 is the engine's, in src/filereader.pl.
+%This file used to carry its own copy, which meant the engine could not repair
+%its own compiled code unless Python was in the process.
 metta_on_function_changed(Name) :-
-    forall(petta_py_stale_equation(Name, Module, Ref, Source),
-           petta_py_retranslate(Module, Ref, Source)),
-    ( catch_recover(invalidate_specializations(Name), true) -> true ; true ).
+    recompile_definitions_mentioning(Name),
+    invalidate_specializations(Name).
 
 %A fully removed function refreshes the other way: a mention that compiled as
 %a call goes back to data, since the name no longer names a function.
 metta_on_function_removed(Name) :-
-    forall(petta_py_stale_equation(Name, Module, Ref, Source),
-           petta_py_retranslate(Module, Ref, Source)).
-
-petta_py_stale_equation(Name, Module, Ref, Source) :-
-    translated_from(Ref, Source),
-    Source = [=, [Head|_], Body],
-    Head \== Name,
-    once(petta_py_mentions(Body, Name)),
-    catch_recover(clause(_, _, Ref), fail),
-    ( catch_recover(clause_property(Ref, module(M)), fail) -> Module = M
-    ; Module = user ).
-
-petta_py_mentions(T, _) :- var(T), !, fail.
-petta_py_mentions(T, Name) :- T == Name, !.
-petta_py_mentions(T, Name) :- is_list(T), member(X, T), petta_py_mentions(X, Name), !.
-
-petta_py_retranslate(Module, OldRef, Source) :-
-    Source = [=, [F|Args], Body],
-    erase(OldRef),
-    retractall(translated_from(OldRef, _)),
-    petta_py_drop_fun_meta(F, Args, Body),
-    petta_py_in_module(Module, once(translate_clause(Source, Clause))),
-    assertz(Module:Clause, NewRef),
-    assertz(translated_from(NewRef, Source)).
-
-%translate_clause/2 pushes a fun_meta entry per compile; dropping the stale
-%one first keeps the specializer's meta-clause list one entry per equation:
-petta_py_drop_fun_meta(F, Args, Body) :-
-    drop_fun_meta(F, Args, Body).
+    recompile_definitions_mentioning(Name).
 
 %%%%%%%%%% Silence %%%%%%%%%%
 %
@@ -1423,14 +2419,6 @@ petta_py_fast_has_object(Term) :-
     member(Arg, Args),
     petta_py_fast_has_object(Arg), !.
 
-%Symbols have no quoted text form in MeTTa. These characters either split a
-%token or change the form's structure, so every swrite-based seam refuses them.
-%token//1 owns the parser's delimiter rule. Quotes need an explicit check
-%because an embedded quote remains part of token//1's atom token.
-%The rule lives with the grammar it comes from [source: src/parser.pl,
-%metta_symbol_writable/1].
-petta_py_bad_text_symbol(Term, Bad) :- metta_unwritable_symbol(Term, Bad).
-
 %The first name in this list with no round-trip text spelling, so a host
 %validating a save asks the grammar instead of keeping a second copy of its
 %rules, which is how the host's copy came to miss three classes.
@@ -1440,6 +2428,12 @@ petta_py_unwritable_name(Names, Bad) :-
     \+ metta_symbol_writable(Symbol), !,
     atom_string(Symbol, Bad).
 
+%A fast save is a text file, so it refuses before it writes rather than after:
+%an object has no spelling at all, and a symbol whose name splits a token or
+%carries a quote has one that reads back as something else. metta_unwritable_
+%symbol/2 is the grammar's own answer to the second, one of the four text
+%services in src/ext_points.pl, and asking it is what keeps this from holding a
+%second copy of the delimiter rules; the copy it replaced missed three classes.
 petta_py_fast_save(File, Space, Result) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
     findall(Atom, 'get-atoms'(Space, Atom), Atoms),
@@ -1447,7 +2441,7 @@ petta_py_fast_save(File, Space, Result) :-
       -> petta_py_encode(ObjectAtom, Encoded),
          Result = ["object", Encoded]
     ; member(SymbolAtom, Atoms),
-      petta_py_bad_text_symbol(SymbolAtom, BadSymbol)
+      metta_unwritable_symbol(SymbolAtom, BadSymbol)
       -> petta_py_encode(BadSymbol, Encoded),
          Result = ["symbol", Encoded]
     ; setup_call_cleanup(
@@ -1529,7 +2523,14 @@ petta_py_fast_load(File, Space) :-
         ( petta_py_fast_expect_header(PrefixCodes, In),
           petta_py_fast_expect_hash(In, FA, _),
           petta_py_fast_read(In, FA, Atoms),
-          forall(member(Atom, Atoms), 'add-atom'(Space, Atom, _)) ),
+          %metta_add_atom/3 rather than the public `add-atom`: the space was
+          %resolved before the file was opened, so the space-argument check the
+          %public one owes a PROGRAM is pure cost on every atom in the file.
+          %metta_add_atoms/2 was tried here and is SLOWER, because a fast-format
+          %file is not store-only and its batch test scans every atom before
+          %falling back to this same loop [measured 2026-08-17: 4737359333
+          %against 4707855603].
+          forall(member(Atom, Atoms), metta_add_atom(Space, Atom, _)) ),
         close(In)).
 
 %%%%%%%%%% Content digest %%%%%%%%%%
@@ -1550,7 +2551,7 @@ petta_py_digest(Space, Result) :-
       -> petta_py_encode(ObjectAtom, Encoded),
          Result = ["object", Encoded]
     ; member(SymbolAtom, Atoms),
-      petta_py_bad_text_symbol(SymbolAtom, BadSymbol)
+      metta_unwritable_symbol(SymbolAtom, BadSymbol)
       -> petta_py_encode(BadSymbol, Encoded),
          Result = ["symbol", Encoded]
     ; findall(Line, ( member(Atom, Atoms),

@@ -10,13 +10,12 @@ Open Obligations:
 from _common import check, done, skip
 
 try:
-    import numpy
     import array_api_compat  # noqa: F401
+    import numpy
 except ImportError:
     skip("numpy and array-api-compat are needed")
 
-from petta import MeTTa, S, V, decode, expr, val
-from petta import arrays
+from petta import MeTTa, S, V, arrays, decode, expr, val
 
 m = MeTTa().fresh_space()
 arrays.install(m, default=numpy)

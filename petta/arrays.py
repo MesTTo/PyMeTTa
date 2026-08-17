@@ -35,7 +35,6 @@ from collections.abc import Iterator
 from typing import Any, Final
 
 from . import integrate as _integrate
-from . import matching
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
 from .atoms import Atom, Expr, Gnd, S, Var, decode, expr, val
@@ -638,23 +637,3 @@ class EmbeddingStore:
         if is_array(query) or isinstance(query, (list, tuple)):
             return query
         return self.vector_for(query)
-
-    def matcher(self, name: str = "semmatch", threshold: float = 0.0) -> str:
-        """This store as a first-class matcher: (name $q $key) scores a
-        candidate by cosine, (name $q $unbound) generates best first, both
-        answering (score value) pairs for the measure algebra. The
-        embedding-similarity move of neural theorem proving, packaged."""
-
-        def score(query: Any, candidate: Any) -> float:
-            a = self._resolve(query)
-            b = self._resolve(candidate)
-            xp, qa = self._normalized_query(a)
-            _, qb = self._normalized_query(b)
-            return round(float(xp.sum(qa * qb)), 6)
-
-        def generate(query: Any):
-            yield from self.ranked(query, len(self._keys))
-
-        return matching.matcher(
-            self._m, name, score=score, generate=generate, threshold=threshold
-        )

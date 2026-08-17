@@ -1,62 +1,176 @@
-"""Purpose: validate custom matcher thresholds and returned degrees in both
-scoring and generation modes.
+"""Purpose: custom matching as a property of grounded atoms. Any object
+whose class defines match_ owns its matching logic inside (unify ...) with
+no registration, answering bindings for the operand it met, exactly
+Hyperon's CustomMatch; a space operand routes through the engine's own
+match. The ground cases mirror the arbiter's measured answers
+[source: LeaTTa tests/semantics/matching/grounded_value_matching.metta,
+unify_branch_evaluation.metta, measured 2026-08-11].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-import math
-
 import pytest
 
-from petta import EngineError, S, matching
+from petta import Answer, Bindings, CustomMatch, EngineError, S, V, expr
+from petta.atoms import Gnd
 
 
-@pytest.mark.parametrize("threshold", [-0.1, 1.1, math.inf, math.nan])
-def test_matcher_refuses_an_invalid_threshold(metta, threshold):
-    with pytest.raises(ValueError, match=r"finite.*\[0, 1\]"):
-        matching.matcher(
-            metta,
-            "invalid-threshold",
-            score=lambda query, candidate: 0.5,
-            threshold=threshold,
-        )
+@pytest.fixture
+def m(metta):
+    return metta.fresh_space()
 
 
-@pytest.mark.parametrize("degree", [-0.1, 1.1, math.inf, math.nan])
-def test_matcher_validates_every_scored_degree(metta, degree):
-    name = f"invalid-score-{str(degree).replace('.', 'p').replace('-', 'n')}"
-    matching.matcher(metta, name, score=lambda query, candidate: degree)
-    with pytest.raises(EngineError, match=r"finite.*\[0, 1\]"):
-        metta.run(f"!({name} query candidate)")
+def test_unify_ground_cases_match_the_arbiter(m):
+    # The five measured decisions, including numeric promotion: 1 matches 1.0.
+    assert m.run("!(unify 1 1 same different)") == [[S.same]]
+    assert m.run("!(unify 1 2 same different)") == [[S.different]]
+    assert m.run("!(unify 1 1.0 same different)") == [[S.same]]
+    assert m.run('!(unify "x" "x" same different)') == [[S.same]]
+    assert m.run('!(unify "x" "y" same different)') == [[S.different]]
 
 
-@pytest.mark.parametrize("degree", [-0.1, 1.1, math.inf, math.nan])
-def test_matcher_validates_every_generated_degree(metta, degree):
-    name = f"invalid-generated-{str(degree).replace('.', 'p').replace('-', 'n')}"
-    matching.matcher(
-        metta,
-        name,
-        score=lambda query, candidate: 0.5,
-        generate=lambda query: [(S.candidate, degree)],
+def test_unify_binds_variables_both_ways(m):
+    assert m.run("!(unify (f $x b) (f a $y) (pair $x $y) nope)") == [
+        [expr(S.pair, S.a, S.b)]
+    ]
+
+
+def test_unify_runs_only_the_selected_branch(m):
+    # Branch non-evaluation, proven by markers as the arbiter proves it.
+    m.run("(= (then-probe) (chain (add-atom (context-space) then-ran) $_ 3))")
+    m.run("(= (else-probe) (chain (add-atom (context-space) else-ran) $_ 4))")
+    assert m.run("!(unify A A (then-probe) (else-probe))") == [[3]]
+    assert m.run("!(match (context-space) else-ran hit)") == [[]]
+    assert m.run("!(unify A B (then-probe) (else-probe))") == [[4]]
+    assert m.run("!(match (context-space) then-ran hit)") == [[S.hit]]
+
+
+def test_unify_rejects_a_cyclic_binding(m):
+    # The arbiter's variable cases carry the occurs check.
+    assert m.run("!(unify $x (f $x) cyclic sound)") == [[S.sound]]
+
+
+def test_a_space_operand_is_queried(m):
+    # Hyperon: a space is a grounded atom whose custom matching is query.
+    # &self is the reserved token for the space the code lives in, so the
+    # upstream spelling works in a library-hosted named space too, and
+    # the explicit name stays equivalent.
+    m.run("(friend Bob Alice)")
+    m.run("(friend Sam Alice)")
+    rows = m.run("!(unify &self (friend $who Alice) $who no-friends)")
+    assert rows == [[S.Bob, S.Sam]]
+    rows = m.run(f"!(unify {m.space_name} (friend $who Alice) $who no-friends)")
+    assert rows == [[S.Bob, S.Sam]]
+    (missing,) = m.run("!(unify &self (friend Pol $who) $who no-friends)")
+    assert missing == [S["no-friends"]]
+
+
+def test_self_token_means_this_space_at_every_door(m):
+    # The reader substitutes &self for the hosting space's name wherever
+    # source says it, exactly as it substitutes bind! tokens: runnables,
+    # equations and the eval door alike. Stored data expressions keep
+    # their literal atoms, the engine's own token boundary.
+    m.run("!(add-atom &self (sd here))")
+    assert m.run("!(match &self (sd $x) $x)") == [[S.here]]
+    m.run("(= (sd-count) (collapse (match &self (sd $y) $y)))")
+    (counted,) = m.run("!(sd-count)")[0]
+    assert list(counted.children) == [S.here]
+    assert m.eval("(match &self (sd $x) $x)") == [S.here]
+
+
+def test_a_variable_binds_a_space_without_querying_it(m):
+    # Variables bind before any grounded logic is consulted.
+    assert m.run("!(unify $s &self bound queried)") == [[S.bound]]
+
+
+def test_a_matchable_value_owns_its_matching(m):
+    class Interval:
+        def __init__(self, lo, hi):
+            self.lo, self.hi = lo, hi
+
+        def match_(self, other):
+            value = other.value if isinstance(other, Gnd) else other
+            if isinstance(value, (int, float)) and self.lo <= value <= self.hi:
+                yield other
+
+    inside = Gnd(Interval(1, 5))
+    assert m.eval(expr(S.unify, inside, 3, S.inside, S.outside)) == [S.inside]
+    assert m.eval(expr(S.unify, inside, 9, S.inside, S.outside)) == [S.outside]
+    # Left and right operands consult the same logic (the arbiter swaps
+    # arguments so the grounded side is always handed first).
+    assert m.eval(expr(S.unify, 3, inside, S.inside, S.outside)) == [S.inside]
+
+
+def test_a_matchable_answers_bindings_for_the_handed_variables(m):
+    class Solver:
+        def match_(self, other):
+            var = other.children[1]
+            yield Bindings({var: 2})
+            yield Bindings({var: -2})
+
+    rows = m.eval(
+        expr(S.unify, Gnd(Solver()), expr(S.root, V.x), expr(S.sol, V.x), S.none)
     )
-    with pytest.raises(EngineError, match=r"finite.*\[0, 1\]"):
-        metta.run(f"!(collapse ({name} query $answer))")
+    assert rows == [expr(S.sol, 2), expr(S.sol, -2)]
 
 
-def test_regex_lexicon_refuses_ambiguous_source(metta):
-    class AmbiguousLexicon:
-        def __iter__(self):
-            return iter(("alpha",))
+def test_a_matchable_with_no_answers_selects_else(m):
+    class Nothing:
+        def match_(self, other):
+            return iter(())
 
-        def __call__(self):
-            return ("alpha",)
+    assert m.eval(expr(S.unify, Gnd(Nothing()), S.a, S.t, S.e)) == [S.e]
 
-    matching.install_regex(
-        metta,
-        name="ambiguous-regex-source",
-        lexicon=AmbiguousLexicon(),
-    )
-    with pytest.raises(EngineError, match="both callable and iterable"):
-        metta.run('!(collapse (ambiguous-regex-source "a" $answer))')
+
+def test_a_matchable_error_aborts(m):
+    class Loud:
+        def match_(self, other):
+            raise ValueError("my matcher broke")
+
+    with pytest.raises(EngineError):
+        m.eval(expr(S.unify, Gnd(Loud()), S.a, S.t, S.e))
+
+
+def test_a_matchable_annotation_is_refused_loudly(m):
+    # A bare value has no context to declare a semiring on; weighted
+    # matching belongs to a registered context.
+    class Scored:
+        def match_(self, other):
+            yield Answer({}, k=0.9)
+
+    with pytest.raises(EngineError, match="declares no semiring"):
+        m.eval(expr(S.unify, Gnd(Scored()), S.a, S.t, S.e))
+
+
+def test_an_object_without_match_is_compared_by_identity(m):
+    class Plain:
+        pass
+
+    one, other = Gnd(Plain()), Gnd(Plain())
+    assert m.eval(expr(S.unify, one, one, S.same, S.different)) == [S.same]
+    assert m.eval(expr(S.unify, one, other, S.same, S.different)) == [S.different]
+
+
+def test_the_protocol_recognizes_matchables():
+    class WithHook:
+        def match_(self, other):
+            return iter(())
+
+    class Without:
+        pass
+
+    assert isinstance(WithHook(), CustomMatch)
+    assert not isinstance(Without(), CustomMatch)
+
+
+def test_empty_is_the_branch_remover(m):
+    # The pinned minimal-metta.md rule: a finished Empty result "is not
+    # returned among other results", literal or computed alike.
+    assert m.run("!(unify a b then Empty)") == [[]]
+    assert m.run("!(collapse (superpose (1 Empty 2)))") == [[expr(1, 2)]]
+    m.run("(= (maybe-e 1) Empty)")
+    m.run("(= (maybe-e 2) kept)")
+    (kept,) = m.run("!(collapse (superpose ((maybe-e 1) (maybe-e 2))))")[0]
+    assert list(kept.children) == [S.kept]

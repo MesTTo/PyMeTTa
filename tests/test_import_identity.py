@@ -61,7 +61,7 @@ import sys
 import petta
 
 lazy = {
-    'aio', 'arrays', 'das', 'matching', 'measure', 'persistent', 'remote', 'testing'
+    'aio', 'arrays', 'das', 'persistent', 'remote', 'testing'
 }
 assert all(f'petta.{name}' not in sys.modules for name in lazy)
 assert 'asyncio' not in sys.modules
@@ -88,15 +88,24 @@ def test_callback_facade_owns_no_state_and_delegates():
         name: importlib.import_module(f"petta.{module}")
         for name, module in {
             "dispatch": "_ops",
+            "dispatch_inverse": "_ops",
+            "dispatch_inverse_raw": "_ops",
             "dispatch_many": "_ops",
             "dispatch_raw": "_ops",
             "dispatch_raw_many": "_ops",
             "type_names": "_ops",
             "foreign_add": "foreign",
+            "foreign_add_many": "foreign",
             "foreign_atoms": "foreign",
             "foreign_clear": "foreign",
             "foreign_match": "foreign",
+            "foreign_plan": "foreign",
+            "foreign_pushdown": "foreign",
+            "foreign_refuse": "foreign",
             "foreign_remove": "foreign",
+            "foreign_transaction": "foreign",
+            "is_matchable": "foreign",
+            "match_object": "foreign",
             "atom_added": "subscribe",
             "atom_removed": "subscribe",
         }.items()

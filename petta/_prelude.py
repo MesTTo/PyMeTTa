@@ -12,6 +12,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from . import ops as _ops_module
@@ -53,6 +54,22 @@ def pythonic(value: Any) -> Any:
 def install(runtime) -> None:
     """Register the prelude on the shared engine, once per process."""
 
+    def _subscript(value, key, what):
+        """One subscript, with an error that names the type rather than the
+        repr. A million-element array printed into a TypeError is not a
+        message anybody reads."""
+        try:
+            return value[key]
+        except TypeError as exc:
+            raise TypeError(
+                f"a {type(value).__name__} cannot be {what}ed by "
+                f"{type(key).__name__}"
+            ) from exc
+        except (KeyError, IndexError) as exc:
+            raise type(exc)(
+                f"{key!r} is not in this {type(value).__name__}"
+            ) from exc
+
     def py_truthy(value) -> bool:
         return bool(pythonic(value))
 
@@ -90,25 +107,31 @@ def install(runtime) -> None:
         return Expr([Gnd(i) for i in range(*(pythonic(b) for b in bounds))])
 
     def py_at(sequence, index):
+        """Index anything Python can index, plus a MeTTa expression.
+
+        It used to know only `Expr` and `str`, which was enough while every
+        other container was flattened on the way in. `py-call` now hands back
+        the object itself, so a dict, a list, a numpy array or anything with
+        `__getitem__` arrives here intact and indexing it is Python's job.
+        """
         i = pythonic(index)
         if isinstance(sequence, Expr):
             return sequence.children[i]
-        v = pythonic(sequence)
-        if isinstance(v, str):
-            return v[i]
-        raise TypeError(f"{v!r} is not indexable")
+        return _subscript(pythonic(sequence), i, "index")
 
     def py_slice(sequence, start, stop):
         lower = None if start == _NO_BOUND else pythonic(start)
         upper = None if stop == _NO_BOUND else pythonic(stop)
         if isinstance(sequence, Expr):
             return Expr(list(sequence.children[lower:upper]))
-        v = pythonic(sequence)
-        if isinstance(v, str):
-            return v[lower:upper]
-        raise TypeError(f"{v!r} is not sliceable")
+        return _subscript(pythonic(sequence), slice(lower, upper), "slice")
 
-    for fn, name, arities in (
+    # register is typed as the identity it is, so the table has to say its
+    # element type or a checker picks the first function's signature and
+    # rejects the other eleven for not having it. A list rather than a tuple
+    # because ty keeps a tuple literal's precise heterogeneous type and
+    # ignores the declaration; the list form both checkers honour.
+    prelude: list[tuple[Callable[..., Any], str, list[int] | None]] = [
         (py_truthy, "py-truthy", None),
         (py_eq, "py-eq", None),
         (py_str, "py-str", None),
@@ -121,7 +144,8 @@ def install(runtime) -> None:
         (py_range, "py-range", [1, 2, 3]),
         (py_at, "py-at", None),
         (py_slice, "py-slice", None),
-    ):
+    ]
+    for fn, name, arities in prelude:
         _ops_module.register(
             runtime,
             fn,

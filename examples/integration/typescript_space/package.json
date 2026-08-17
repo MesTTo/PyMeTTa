@@ -1,0 +1,6 @@
+{
+  "name": "petta-typescript-space-example",
+  "private": true,
+  "type": "module",
+  "description": "A PeTTa remote space served from TypeScript; see README.md"
+}

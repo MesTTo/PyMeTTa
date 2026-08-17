@@ -297,3 +297,29 @@ def test_missing_relative_import_does_not_fall_back_to_cwd(
 
     with pytest.raises(Exception, match="source_sink"):
         petta_instance.load_metta_file(str(root))
+
+
+def test_minimal_metta_lib_install_is_idempotent(metta):
+    """The library's own header claims this and nothing checked it.
+
+    A notebook cell re-run, or two packages that both install it, calls
+    install() twice on one space. It registers process-wide, so a second call
+    that duplicated equations would double every answer.
+    """
+    import sys
+    from pathlib import Path
+
+    lib = Path(__file__).resolve().parents[2] / "lib"
+    sys.path.insert(0, str(lib))
+    try:
+        import minimal_metta_lib
+    finally:
+        sys.path.remove(str(lib))
+
+    space = metta.fresh_space()
+    first = minimal_metta_lib.install(space)
+    second = minimal_metta_lib.install(space)
+    assert first == second
+    assert first, "install answered no names"
+    # The instruction set still answers once, not twice.
+    assert space.run("!(function (return 42))") == [[42]]

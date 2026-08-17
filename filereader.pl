@@ -11,6 +11,9 @@
 %     twenty parses of 48,786 codes, 2026-08-15].
 %   - Loader diagnostics contain ANSI escapes only on terminal streams
 %     [tested 2026-08-14: filereader_terminal_output].
+%   - A type declaration that cannot type a function the same source defines
+%     is refused before any of that source's forms run [tested 2026-08-16:
+%     filereader_untypable_declaration].
 %   - A failed source load removes compiler metadata and generated predicates,
 %     and does not repair existing callers against definitions that rolled back
 %     [tested 2026-08-14: filereader_source_rollback].
@@ -28,6 +31,8 @@
 :- use_module(library(ansi_term)). % terminal-aware diagnostic colors
 :- use_module(library(pcre)). % re_replace/4
 :- use_module(library(zlib)). % gzopen/3, .gz program files
+:- use_module(library(ordsets)). % ord_memberchk/2
+:- use_module(library(pairs)). % group_pairs_by_key/2
 %Every compiled clause's source equation; asserted here and by
 %add-atom/3, read by removal and the tracer, so it must exist before
 %the first function ever compiles (a virgin-engine remove-atom read it
@@ -180,15 +185,63 @@ process_metta_string(S, Results, Space, CompileMode) :-
 
 prepare_metta_source(S, ParsedForms) :-
     parse_metta_source(S, ParsedForms),
+    refuse_untypable_source_declarations(ParsedForms),
     register_parsed_signatures(ParsedForms),
     % Pinned git dependencies declared in this file are fetched before any of
     % its forms run (gitimport.pl).
     acquire_declared_dependencies(ParsedForms).
 
+%A source text has ONE parse, so this commits to it. Without the once/1 the
+%grammar left a choice point behind every successful parse, and retrying it did
+%not offer a second reading, it THREW: the first solution for "(holds foo)" is
+%[parsed(expression,"(holds foo)",[holds,foo])] and backtracking into it raised
+%`Syntax error: expected '(' or '!('`. So the choice point was not merely
+%wasted memory, it was a trap for any caller that backtracked past this point,
+%turning a parsed file into a syntax error [reproduced 2026-08-15; it is what
+%plunit reported as 18 choicepoint warnings in parser.plt].
 parse_metta_source(S, ParsedForms) :-
     string_codes(S, Codes),
-    phrase(top_forms(Forms, 1), Codes),
+    once(phrase(top_forms(Forms, 1), Codes)),
     maplist(parse_form, Forms, ParsedForms).
+
+%Every name this source defines by an equation, against every type this source
+%declares for it. refuse_untypable_declaration/3 in metta.pl holds the rule and
+%says why it refuses; this is the collector for the case that matters most,
+%the declaration and the definition written in one file.
+%
+%The pass is here rather than at registration because a source's declarations
+%do not reach the space until its forms are processed, which is AFTER
+%register_parsed_signatures/1; and here rather than after the load because by
+%then the file's own !(...) forms have already run and a rollback would be
+%undoing effects the author already saw. Declarations for names this source
+%does not define are left alone: the space has no equations to contradict them,
+%and space.lint() reads the whole space, so the cross-file case is named there.
+%
+%The pass costs 0.05% to 0.23% of the parse it follows [measured 2026-08-16:
+%376 inferences against 770,612 over greedy_chess.metta's 128 forms, 418
+%against 180,156 over lib_pln.metta's 82].
+refuse_untypable_source_declarations(ParsedForms) :-
+    findall(F, source_equation_name(ParsedForms, F), Defined0),
+    sort(Defined0, Defined),
+    Defined \== [],
+    findall(Name-Type, source_declaration(ParsedForms, Defined, Name, Type),
+            Declarations0),
+    Declarations0 \== [],
+    !,
+    keysort(Declarations0, Declarations),
+    group_pairs_by_key(Declarations, Grouped),
+    forall(member(Name-Types, Grouped),
+           refuse_untypable_declaration(Name, Types)).
+refuse_untypable_source_declarations(_).
+
+source_equation_name(ParsedForms, F) :-
+    member(parsed(function, _, [=, [F|_], _]), ParsedForms),
+    atom(F).
+
+source_declaration(ParsedForms, Defined, Name, Type) :-
+    member(parsed(expression, _, [':', Name, Type]), ParsedForms),
+    atom(Name),
+    ord_memberchk(Name, Defined).
 
 % Register the complete signature set before repairing callers.  Translating a
 % caller while only the first overload is visible can otherwise leave it stale.
@@ -287,9 +340,62 @@ recompile_function_impl(G) :-
                                     translate_clause(Fresh, Clause))),
              assertz(Module:Clause, NewRef),
              record_source_assertion(NewRef),
-             assertz(translated_from(NewRef, Term), SourceRef),
+             record_translated_from(NewRef, Term, SourceRef),
              record_source_assertion(SourceRef) )),
     invalidate_specializations(G).
+
+%Recompile every stored definition whose body MENTIONS F. Wider than
+%uses_as_data/2's "compiled F as data": a caller that already compiled F as a
+%CALL is stale too when what changed is how its ARGUMENTS compile, which is
+%what a late type declaration changes. (: f (-> Atom Atom)) is the difference
+%between the argument arriving evaluated and arriving as written, so a call
+%site compiled before it kept evaluating for ever.
+%
+%This was the Python bridge's, as petta_py_stale_equation/4 and
+%petta_py_retranslate/3, which meant the engine could not repair its own
+%compiled code without Python in the process. It is engine machinery: the
+%rebuild it needs, recompile_function/1, was already here.
+%The guard first, because nothing mentions the name in the overwhelmingly
+%common case and one indexed lookup that fails is cheaper than a findall, a
+%sort and a forall over nothing. This runs on every compiled equation and on
+%every registration.
+recompile_definitions_mentioning(F) :-
+    (   definition_mentions(F, _)
+    ->  findall(G, ( definition_mentions(F, G), G \== F ), Callers0),
+        sort(Callers0, Callers),
+        forall(member(G, Callers), recompile_function(G))
+    ;   true
+    ).
+
+%Which stored definitions mention a symbol, indexed BY the symbol. Answering
+%it by scanning translated_from/2 walks every equation in the system once per
+%compiled equation, which is quadratic over a source load and was almost the
+%whole of one: a thousand equations cost 7,330,334 inferences with the scan
+%and 822,578 without it [measured 2026-08-16]. This is the same defect
+%run_source_repairs/1 already fixed for the other repair trigger, fixed once
+%rather than deferred per caller.
+%
+%The index may over-approximate, because a rollback erases a clause without
+%erasing its entry. That direction is safe: a stale entry costs one rebuild
+%from stored source that finds nothing, where a missing entry would leave
+%compiled code stale. Nothing removes entries for that reason.
+:- dynamic definition_mentions/2.
+
+record_translated_from(Ref, Term, SourceRef) :-
+    assertz(translated_from(Ref, Term), SourceRef),
+    index_definition_mentions(Term).
+
+index_definition_mentions([=, [G|_], Body]) :- !,
+    forall(mentioned_symbol(Body, Symbol),
+           ( definition_mentions(Symbol, G) -> true
+           ; assertz(definition_mentions(Symbol, G)) )).
+index_definition_mentions(_).
+
+mentioned_symbol(Term, _) :- var(Term), !, fail.
+mentioned_symbol(Term, Term) :- atom(Term), !.
+mentioned_symbol(Term, Symbol) :- is_list(Term),
+                                  member(Element, Term),
+                                  mentioned_symbol(Element, Symbol).
 
 %True if the term contains a call-shaped (list-head) occurrence of F:
 uses_as_data(F, Term) :- nonvar(Term),
@@ -310,11 +416,21 @@ parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
 % process_form/3 is the direct-string path used by named Python spaces. File
 % loads use process_form/4 so source clauses compile once while their atoms are
 % populated into each target space.
-process_form(Space, parsed(expression, _, Term), []) :-
-    'add-atom'(Space, Term, true),
+%Only the token substitution here, not the whole parsed-form rewrite: a data
+%atom is not a call site, so the py-call alias rewrite has nothing to do in one
+%and this path never ran it. The token lookup is one inference per atom and it
+%is what makes `(bind! x 1)` reach a stored `(fact x)`.
+process_form(Space, parsed(expression, _, Term0), []) :-
+    substitute_bound_tokens(Term0, Term),
+    %metta_add_atom/3, not the public `add-atom`: the loader has already
+    %resolved this space, so the space-argument check the public one owes a
+    %PROGRAM is pure cost here. It runs once per atom loaded, and save-load-metta
+    %measured it at exactly two inferences on each of its 20,001
+    %[measured 2026-08-17].
+    metta_add_atom(Space, Term, _),
     print_expression_form(Term).
 process_form(Space, parsed(runnable, FormStr, Term), Result) :-
-    bind_python_calls(Term, BoundTerm),
+    rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     space_module(Space, Module),
     with_metta_module(Module,
                       translate_runnable_expr([collapse, BoundTerm], Goals, Result)),
@@ -330,11 +446,11 @@ process_form(Space, parsed(function, FormStr, Term), []) :-
     record_source_assertion(SpaceRef),
     space_module(Space, Module),
     register_fun_in(Module, F),
-    bind_python_calls(Term, BoundTerm),
+    rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     once(with_metta_module(Module, translate_clause(BoundTerm, Clause))),
     assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
-    assertz(translated_from(Ref, BoundTerm), SourceRef),
+    record_translated_from(Ref, BoundTerm, SourceRef),
     record_source_assertion(SourceRef),
     forall(metta_on_function_changed(F), true),
     print_function_form(FormStr, Ref).
@@ -349,7 +465,7 @@ process_form(Space, _, parsed(expression, _, Term), []) :-
     record_source_assertion(SpaceRef),
     print_expression_form(Term).
 process_form(Space, _, parsed(runnable, FormStr, Term), Result) :-
-    bind_python_calls(Term, BoundTerm),
+    rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     space_module(Space, Module),
     with_metta_module(Module,
                       translate_runnable_expr([collapse, BoundTerm], Goals, Result)),
@@ -361,13 +477,13 @@ process_form(Space, populate, parsed(function, _, Term), []) :-
 process_form(Space, compile, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
-    bind_python_calls(Term, BoundTerm),
+    rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     BoundTerm = [=, [F|_], _],
     register_fun_in(user, F),
     once(with_metta_module(user, translate_clause(BoundTerm, Clause))),
     assert_function_clause(user, Clause, Ref),
     record_source_assertion(Ref),
-    assertz(translated_from(Ref, BoundTerm), SourceRef),
+    record_translated_from(Ref, BoundTerm, SourceRef),
     record_source_assertion(SourceRef),
     forall(metta_on_function_changed(F), true),
     print_function_form(FormStr, Ref).

@@ -41,6 +41,7 @@ import inspect
 import threading
 from collections.abc import Callable, Iterable
 from importlib import metadata
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from . import convert
@@ -118,10 +119,14 @@ def integrate(m, target: Any) -> str:
     elif hasattr(target, "install_petta"):
         name = getattr(target, "__name__", type(target).__name__)
         installer = target.install_petta
+    elif hasattr(target, "PETTA_PROLOG"):
+        name = getattr(target, "__name__", type(target).__name__)
+        installer = _prolog_installer(target)
     else:
         raise PettaError(
-            f"{target!r} is not an integration: define install_petta(m) on "
-            f"the module, or provide an object with .name and .install(m)"
+            f"{target!r} is not an integration: define install_petta(m), or "
+            f"PETTA_PROLOG naming the .pl files your package ships, or "
+            f"provide an object with .name and .install(m)"
         )
     key = (m.space_name, name)
     with _INSTALLED_LOCK:
@@ -129,6 +134,32 @@ def integrate(m, target: Any) -> str:
             installer(m)
             _INSTALLED[key] = target
     return name
+
+
+def _prolog_installer(target: Any) -> Callable:
+    """The installer for a package that ships Prolog and no Python setup.
+
+    A native library still had to hand-write an install() that hardcoded a
+    __file__-relative path to its .pl, which is what lib/minimal_metta_lib.py
+    does, so the standard plugin mechanism carried no Prolog at all. Name the
+    files instead:
+
+        PETTA_PROLOG = ["fast.pl"]        # beside the module
+
+    Each file declares its own exports with :- metta_export, so there is no
+    name list here either: the package says which files, the files say which
+    names, and `pip install` is the whole of the wiring.
+    """
+    package = Path(inspect.getfile(target)).resolve().parent
+    files = [package / name for name in target.PETTA_PROLOG]
+
+    def install(m) -> None:
+        alias = getattr(target, "__name__", "petta_integration").rsplit(".", 1)[-1]
+        m.register_library_path(package, alias)
+        for path in files:
+            m.register_prolog(path=path)
+
+    return install
 
 
 def installed() -> dict[tuple[str, str], Any]:

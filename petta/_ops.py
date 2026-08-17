@@ -19,19 +19,24 @@ Open Obligations:
 
 from __future__ import annotations
 
+import inspect
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from ._api_types import MettaName, SpaceName
-from .atoms import Atom, Box, Gnd, atom_from_wire, decode, encode
-from .errors import Decline
+from ._convert_project import explicit_projection
+from .answer import Answer
+from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, decode, encode
+from .errors import Decline, PettaError, is_transport_failure
 
 __all__ = [
     "REGISTRY",
     "Operation",
     "dispatch",
+    "dispatch_inverse",
+    "dispatch_inverse_raw",
     "dispatch_many",
     "dispatch_raw",
     "dispatch_raw_many",
@@ -54,6 +59,8 @@ class Operation:
     space: SpaceName | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
     arities: tuple = ()  # every registered arity, for reflection facts
+    inverse: Callable[..., Any] | None = None  # the backwards direction
+    pure: bool = False  # no effect a cache could hide
 
 
 REGISTRY: dict[str, Operation] = {}
@@ -69,12 +76,24 @@ def _decode_arg(wire: Any, pass_atoms: bool) -> Any:
 
 
 def _encode_result(value: Any) -> list:
+    if isinstance(value, Answer):
+        # The explicit answer: bindings for the call's variables, crossing
+        # as the seam's own wire form beside the plain atoms.
+        return value.to_wire()
     if value is None:
         # None is not a MeTTa value. A deterministic operation returning it
         # answers nothing, the semidet reading; return petta.expr() for unit.
         return _DECLINED
     if isinstance(value, Atom):
         return value.to_wire()
+    # An author's opt-in projects: an explicit register_type or a __metta__
+    # method makes the value cross as its declared image, so an operation
+    # returning a registered type answers (Pt 3 4) rather than an opaque
+    # handle. Everything undeclared keeps today's behaviour exactly, the
+    # opaque floor; the memoized defaults project() creates never fire here.
+    projected = explicit_projection(value)
+    if projected is not None:
+        return projected.to_wire()
     return encode(value).to_wire()
 
 
@@ -88,14 +107,90 @@ def dispatch(name: str, tagged_args: list) -> list:
         return _DECLINED
 
 
-def dispatch_many(name: str, tagged_args: list):
-    """A generator of encoded answers; each yield is one MeTTa answer."""
+def dispatch_inverse(name: str, tagged_result: Any):
+    """Run an operation BACKWARDS: one result in, argument tuples out.
+
+    The inverse is a relation, not a function, so this always enumerates: a
+    plain callable's single answer is yielded once and a generator's answers
+    are yielded in turn. Returning None or raising Decline means the result
+    has no preimage, which is failure rather than an error, exactly as it is
+    forwards.
+
+    Each answer is a sequence of the operation's arguments, encoded the same
+    way a forward answer is. A one-argument operation may return the bare
+    value rather than a one-tuple, because writing `(x,)` for it reads as a
+    typo and forgetting the comma would otherwise iterate a string.
+    """
+    op = REGISTRY[name]
+    for arguments in _preimages(name, _decode_arg(tagged_result, op.pass_atoms)):
+        yield [_encode_result(argument) for argument in arguments]
+
+
+def dispatch_inverse_raw(name: str, result: Any):
+    """The same relation for a raw operation, with janus's own conversions.
+
+    An operation registered raw takes those conversions forwards, so its
+    inverse takes them backwards. Sending the inverse through the wire
+    encoding instead gave one function pair two value conventions: `str` for a
+    symbol going out and `Sym` coming back.
+    """
+    for arguments in _preimages(name, _unbox(result)):
+        yield [_rebox(argument) for argument in arguments]
+
+
+def _preimages(name: str, result: Any):
+    """Every preimage the inverse gives for one result, as argument sequences.
+
+    A one-argument operation may answer the bare value rather than a one-tuple,
+    because writing `(x,)` for it reads as a typo and forgetting the comma
+    would otherwise iterate a string.
+    """
+    op = REGISTRY[name]
+    if op.inverse is None:
+        # Only an operation whose clause carries the mode test can reach here,
+        # so the two registries disagreeing is a bug rather than a user error.
+        raise PettaError(f"{name} was called backwards and declares no inverse")
+    try:
+        answers = op.inverse(result)
+    except Decline:
+        return
+    if answers is None:
+        return
+    if not inspect.isgeneratorfunction(op.inverse):
+        answers = [answers]
+    for answer in answers:
+        if answer is None:
+            continue
+        yield answer if isinstance(answer, (tuple, list)) else [answer]
+
+
+def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
+    """A generator of encoded answers; each yield is one MeTTa answer.
+
+    A declared error mode is enforced here, where the exceptions are
+    native, because a mid-iteration exception tunnels through py_iter
+    past every Prolog catch: keep reduces the failed call to its
+    (Error <call> <reason>) atom as the final answer, empty ends the
+    stream; control signals and transport failures re-raise, always.
+    """
     op = REGISTRY[name]
     args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
-    for value in op.fn(*args):
-        if value is None:
-            continue
-        yield _encode_result(value)
+    try:
+        for value in op.fn(*args):
+            if value is None:
+                continue
+            yield _encode_result(value)
+    # KeyboardInterrupt and SystemExit are BaseException, outside this
+    # handler by construction, so control signals pass through untouched.
+    except Exception as error:
+        if mode == "abort" or is_transport_failure(error):
+            raise
+        if mode == "keep":
+            call = Expr(
+                [Sym(name), *(encode(_decode_arg(a, True)) for a in tagged_args)]
+            )
+            reason = f"{type(error).__name__}: {error}"
+            yield Expr([Sym("Error"), call, Gnd(reason)]).to_wire()
 
 
 def _unbox(value: Any) -> Any:
@@ -125,14 +220,28 @@ def dispatch_raw(name: str, args: list) -> Any:
     janus @none, which the shim reads as no answer; Decline maps onto it.
     """
     try:
-        return _rebox(REGISTRY[name].fn(*[_unbox(a) for a in args]))
+        return _rebox(_refuse_raw_answer(REGISTRY[name].fn(*[_unbox(a) for a in args])))
     except Decline:
         return None
 
 
 def dispatch_raw_many(name: str, args: list):
     for value in REGISTRY[name].fn(*[_unbox(a) for a in args]):
-        yield _rebox(value)
+        yield _rebox(_refuse_raw_answer(value))
+
+
+def _refuse_raw_answer(value: Any) -> Any:
+    """A raw operation is the opaque fast path and its results skip the wire,
+    so an Answer here would cross as an inert handle and its bindings would
+    silently never bind. Refusing is the honest reading; bindings need the
+    wire, so the operation drops raw=True."""
+    if isinstance(value, Answer):
+        raise PettaError(
+            "a raw operation answered petta.Answer; raw results skip the "
+            "wire the bindings cross on, so register the operation without "
+            "raw=True to answer bindings"
+        )
+    return value
 
 
 def type_names(obj: Any) -> list[str]:

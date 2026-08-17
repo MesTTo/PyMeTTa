@@ -14,8 +14,9 @@ Open Obligations:
 from __future__ import annotations
 
 import itertools
-import typing
+import operator
 from collections.abc import Iterable
+from collections.abc import Iterator as IteratorABC
 from enum import Enum, EnumType
 from typing import Any, NamedTuple, cast
 
@@ -26,6 +27,7 @@ from ._convert_registry import (
     _Registration,
     constructor_for,
     ensure_registered,
+    resolved_hints,
 )
 from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, S, Sym, encode, val
@@ -110,6 +112,72 @@ def _project_unregistered(value: Any, cls: type) -> Projected:
     if not isinstance(atom, Atom):
         raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
     return Projected(atom, ())
+
+
+#Sixteen top-level elements: about 55 inferences of conversion at the
+#measured 3.4-per-element slope (220.54 inferences for a flat 64-item
+#argument against 10.51 raw), three raw crossings' worth, which is where
+#converting stops being obviously cheaper than handing over a handle the
+#program may never look inside. A constant, not a knob: a threshold nobody
+#tunes is a decision surface nobody has to own.
+_AUTO_TRANSPARENT_LIMIT = 16
+
+
+def auto_image(value: Any) -> str:
+    """"opaque" or "transparent" for one value, in O(1), reproducibly.
+
+    The auto rung of the image knob: never a third behaviour, only a choice
+    between the two declared ones. Scalars and small sized containers cross
+    transparent; unsized values (a generator, an iterator, anything
+    length_hint cannot answer) and large containers stay opaque, because an
+    unsized value cannot be converted without draining it and a large one
+    costs more to convert than the program is likely to read. A value whose
+    type declared an image does not reach this function: resolution order is
+    per call, per operation, per type, then auto.
+    """
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return "transparent"
+    # An iterator is a LINEAR source: converting it drains it, which is a
+    # side effect no image choice is allowed to have, so it stays a handle
+    # even when its length hint is tiny. This is the source-discipline rule
+    # (linear against repeated) surfacing inside auto.
+    if isinstance(value, IteratorABC):
+        return "opaque"
+    if isinstance(value, (list, tuple, set, frozenset, dict)):
+        if len(value) <= _AUTO_TRANSPARENT_LIMIT:
+            return "transparent"
+        return "opaque"
+    # Re-readable sized values outside the literal containers: a range, a
+    # custom Sequence. length_hint answers -1 for the unsized, which stays
+    # opaque because measuring it would consume it.
+    hint = operator.length_hint(value, -1)
+    if 0 <= hint <= _AUTO_TRANSPARENT_LIMIT:
+        return "transparent"
+    return "opaque"
+
+
+def explicit_projection(value: Any) -> Atom | None:
+    """The atom an AUTHOR's opt-in gives this value, or None.
+
+    Consulted by the operation result path: only an explicit register_type
+    or a __metta__ method projects there. The defaults project() memoizes
+    for an Enum, dataclass, NamedTuple or pydantic model deliberately do
+    NOT, because an operation author who returns a plain object gets a
+    handle unless somebody said otherwise: the image floor is opaque, and
+    a project() call elsewhere in the process must not change what an
+    operation answers.
+    """
+    cls = type(value)
+    registration = _lookup(cls)
+    if registration is not None and registration.explicit:
+        return _project_registered(value, cls, registration).atom
+    hook = getattr(value, "__metta__", None)
+    if hook is None:
+        return None
+    atom = hook()
+    if not isinstance(atom, Atom):
+        raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
+    return atom
 
 
 def _project_registered(value: Any, cls: type, registration: _Registration) -> Projected:
@@ -243,13 +311,7 @@ def _enum_declarations(cls: type[Enum]) -> tuple[Expr, ...]:
 
 def _expression_declarations(cls: type, registration: _Registration) -> tuple[Expr, ...]:
     fields = registration.fields or ()
-    try:
-        hints = typing.get_type_hints(cls)
-    except Exception as exc:
-        raise TypeError(
-            f"the field annotations of {cls.__name__} do not resolve "
-            f"({exc}); a declared field type must name something importable"
-        ) from exc
+    hints = resolved_hints(cls)
     alternative_lists = [
         type_atoms_for(hints[f]) if f in hints else [S["%Undefined%"]] for f in fields
     ]

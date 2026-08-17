@@ -21,6 +21,8 @@ from benchmarks.engine_workloads import (
     SORT_TERMS,
     SOURCE_FORMS,
     SPACE_NAME_CALLS,
+    TYPED_CALLS,
+    TYPED_SLOPE_SMALL,
     alpha_unique_case,
     close_engine_case,
     digest_case,
@@ -30,6 +32,8 @@ from benchmarks.engine_workloads import (
     sort_atom_case,
     source_load_case,
     space_name_case,
+    typed_call,
+    typed_space,
 )
 from benchmarks.workloads import (
     JSON_TRIPS,
@@ -41,7 +45,7 @@ from benchmarks.workloads import (
     wire_atom,
     wire_codec,
 )
-from petta import MeTTa, S, V, expr, measure
+from petta import Answer, MeTTa, S, V, expr
 from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
@@ -263,6 +267,42 @@ def test_let_heavy(benchmark, inference_baseline):
         large_operations=LET_ITERATIONS,
         large_operation=let_heavy,
         setup=let_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )
+
+
+def test_typed_call(benchmark, inference_baseline):
+    """Pin the typed call in BOTH units, because only one of them can see it.
+
+    The inference row here is real and it is not the point: a specialised type
+    check compiles to a VM instruction SWI does not count, so this workload's
+    inference count is identical with the specialisation and without it. The
+    instruction ceiling in benchmarks/baseline.json is what actually gates the
+    check, and it is the reason this case exists.
+    """
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="typed-call",
+        unit="calls",
+        operations=TYPED_CALLS,
+        operation=typed_call,
+        setup=typed_space,
+        teardown=_drop,
+        engine=lambda space: space,
+        rounds=3,
+        warmup_rounds=1,
+    )
+    benchmark_counter_slope(
+        inference_baseline,
+        name="typed-call",
+        unit="calls",
+        small_operations=TYPED_SLOPE_SMALL,
+        small_operation=lambda space: typed_call(space, TYPED_SLOPE_SMALL),
+        large_operations=TYPED_CALLS,
+        large_operation=typed_call,
+        setup=typed_space,
         teardown=_drop,
         engine=lambda space: space,
     )
@@ -499,13 +539,13 @@ def test_add_table_rows(benchmark, inference_baseline):
 
 def _weighted_space():
     space = _empty_space()
-    measure.install(space)
-    measure.weighted_relation(
-        space,
-        "benchmark-mood",
-        lambda _day: [0.25, 0.75],
-        [S.calm, S.tense],
-    )
+
+    def mood(_day, _class=None):
+        yield Answer(value=S.calm, k=0.25)
+        yield Answer(value=S.tense, k=0.75)
+
+    space.register_op(mood, name="benchmark-mood", typed=False)
+    space.declare_annotations("benchmark-mood", "prob")
     return space
 
 
@@ -514,18 +554,18 @@ def _drop_weighted(space):
     space.drop()
 
 
-def test_weighted_relation(benchmark, inference_baseline):
+def test_annotated_relation(benchmark, inference_baseline):
     repeats = 500
 
     def operation(space):
         for _ in range(repeats):
-            space.run("!(ws-best (collapse (benchmark-mood today)))")
+            space.run("!(collapse (top 1 (benchmark-mood today)))")
         return repeats
 
     benchmark_case(
         benchmark,
         inference_baseline,
-        name="weighted-relation",
+        name="annotated-relation",
         unit="evaluations",
         operations=repeats,
         operation=operation,
@@ -710,3 +750,156 @@ def test_save_load_metta(benchmark, inference_baseline):
 
 def test_save_load_fast(benchmark, inference_baseline):
     _save_case(benchmark, inference_baseline, "fast")
+
+
+def _provider_space():
+    """A minimal in-process provider, so the case prices the seam's own
+    dispatch and nothing else: no SQL, no wire, no subprocess."""
+    from petta.foreign import SpaceProvider
+
+    class Rows(SpaceProvider):
+        def __init__(self):
+            space = _empty_space()
+            self.stored = [space.parse("(edge a b)"), space.parse("(edge a c)")]
+            self.space = space
+
+        def atoms(self):
+            return iter(self.stored)
+
+        def match(self, pattern):
+            return iter(self.stored)
+
+    provider = Rows()
+    provider.space.register_space(provider, "&bench-provider")
+    return provider.space
+
+
+def _drop_provider(space):
+    space.unregister_space("&bench-provider")
+    space.drop()
+
+
+def test_foreign_match(benchmark, inference_baseline):
+    """The foreign-space seam priced per query: provider dispatch, the
+    candidate crossing, and the engine's own binding of each answer."""
+    repeats = 2_000
+
+    def operation(space):
+        result = None
+        for _ in range(repeats):
+            result = space.run("!(collapse (match &bench-provider (edge a $x) $x))")
+        (group,) = result
+        assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
+        return repeats
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="foreign-match",
+        unit="queries",
+        operations=repeats,
+        operation=operation,
+        setup=_provider_space,
+        teardown=_drop_provider,
+        engine=lambda space: space,
+    )
+
+
+def _bridge_space():
+    """The derived table bridge over stdlib SQLite, the schema one MeTTa
+    declaration, so the case prices the whole derivation live."""
+    import sqlite3
+
+    from petta.tables import TableBridge
+
+    space = _empty_space()
+    connection = sqlite3.connect(":memory:")
+    connection.execute("CREATE TABLE edges (a TEXT, b TEXT)")
+    provider = TableBridge(
+        space.parse,
+        connection,
+        "(bridge (edge $a $b) (row edges (a $a) (b $b)))",
+    )
+    provider.add(space.parse("(edge a b)"))
+    provider.add(space.parse("(edge a c)"))
+    space.register_space(provider, "&bench-bridge")
+    return space
+
+
+def _drop_bridge(space):
+    space.unregister_space("&bench-bridge")
+    space.drop()
+
+
+def test_table_bridge_match(benchmark, inference_baseline):
+    repeats = 2_000
+
+    def operation(space):
+        result = None
+        for _ in range(repeats):
+            result = space.run("!(collapse (match &bench-bridge (edge a $x) $x))")
+        (group,) = result
+        assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
+        return repeats
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="table-bridge-match",
+        unit="queries",
+        operations=repeats,
+        operation=operation,
+        setup=_bridge_space,
+        teardown=_drop_bridge,
+        engine=lambda space: space,
+    )
+
+
+def _handle_space():
+    from pathlib import Path
+
+    import pytest
+
+    library = (
+        Path(__file__).resolve().parents[2]
+        / "examples"
+        / "integration"
+        / "c_extension"
+        / "handle.so"
+    )
+    if not library.is_file():
+        pytest.skip("handle.so is not built; see examples/integration/c_extension")
+    space = _empty_space()
+    space.register_foreign_library(
+        library,
+        entry="install_handle",
+        names=["vector-new", "vector-nth", "vector-bump", "vector-length"],
+    )
+    return space
+
+
+def test_handle_round_trip(benchmark, inference_baseline):
+    """A native handle out and back per operation: the ["h"] wire form,
+    the registry keep, the resolve, and one C accessor through it."""
+    repeats = 2_000
+
+    def operation(space):
+        value = None
+        for _ in range(repeats):
+            (row,) = space.run("!(vector-new 4)")
+            with row[0] as handle:
+                value = space.run("!(vector-nth h 3)", using={"h": handle})[0][0]
+        assert str(value) == "3"
+        return repeats
+
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="handle-round-trip",
+        unit="round trips",
+        operations=repeats,
+        operation=operation,
+        setup=_handle_space,
+        teardown=_drop,
+        engine=lambda space: space,
+    )

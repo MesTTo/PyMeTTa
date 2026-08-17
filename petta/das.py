@@ -46,15 +46,28 @@ from ._network import HTTPEndpoint, validated_timeout
 from ._optional import optional_module
 from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms, parse
 from .errors import PettaError
+from .errors import is_transport_failure as _is_transport_failure
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DAS", "DASAnswer", "DASError", "DASSpace"]
+__all__ = ["DAS", "DASAnswer", "DASError", "DASSpace", "is_transport_failure"]
 
 
 class DASError(PettaError):
     """A DAS request failed, or an answer could not be read."""
+
+
+def is_transport_failure(error: BaseException) -> bool:
+    """Whether this DASError is the router being ABSENT rather than wrong.
+
+    The trichotomy this draws became the seam's own error vocabulary and
+    now lives in petta.errors; this name stays as the DAS spelling of it.
+    A caller retries or gives up on a transport failure; a protocol error,
+    a bad status or a malformed answer is the router being wrong and is
+    not retryable, which is why this is not simply "did anything go wrong".
+    """
+    return _is_transport_failure(error)
 
 
 def _websocket():
@@ -372,10 +385,39 @@ class DASSpace(SpaceProvider):
     def __init__(self, das: DAS) -> None:
         self._das = das
 
+    _READ_ONLY = "add", "clear", "enumerate", "remove", "subscribe"
+
     def can_run(self, capability: str, /, **request: Any) -> bool:
-        if capability in {"add", "clear", "enumerate", "remove", "subscribe"}:
+        if capability in self._READ_ONLY:
             return False
         return super().can_run(capability, **request)
+
+    def refusal(self, capability: str, /, **_request: Any) -> str | None:
+        """The one place this rule is written.
+
+        It used to be written twice and only the worse spelling was
+        reachable: _require_provider consults can_run BEFORE calling add, so
+        the DASError bodies below never ran, and the caller was told "its
+        DASSpace provider does not implement add", which is false on its face
+        and says nothing about what to do instead.
+        """
+        if capability == "enumerate":
+            return (
+                "a DAS space answers queries, not full dumps: match it with a "
+                "pattern instead of enumerating it"
+            )
+        if capability == "subscribe":
+            return (
+                "a DAS space never writes through this connection, so there are "
+                "no atom events to subscribe to"
+            )
+        if capability in self._READ_ONLY:
+            return (
+                f"a DAS space is read-only through the command router, so "
+                f"{capability} is not available; load knowledge with "
+                f"das-cli metta load"
+            )
+        return None
 
     def match(self, pattern: Atom):
         for answer in self._das.query(pattern):
@@ -384,16 +426,15 @@ class DASSpace(SpaceProvider):
             elif answer.bindings:
                 yield _substitute(pattern, answer.bindings)
 
+    # The methods exist and refuse, which is what makes "implements it and
+    # declines it" a real distinction the engine can report rather than a
+    # guess from the capability name. Both paths say the same sentence
+    # because there is one sentence: refusal() above.
     def add(self, atom: Atom) -> None:
-        raise DASError(
-            "DAS spaces are read-only through the command router; load "
-            "knowledge with das-cli metta load"
-        )
+        raise DASError(str(self.refusal("add")))
 
     def remove(self, atom: Atom) -> bool:
-        raise DASError(
-            "DAS spaces are read-only through the command router; manage knowledge with das-cli"
-        )
+        raise DASError(str(self.refusal("remove")))
 
 
 def _substitute(pattern: Atom, bindings: dict[str, Atom]) -> Atom:

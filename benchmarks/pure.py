@@ -19,13 +19,17 @@ from benchmarks.engine_workloads import (
     EngineCase,
     alpha_unique_case,
     close_engine_case,
+    close_save_load_case,
     digest_case,
     let_heavy,
     let_space,
     py_method_case,
+    save_load_case,
     sort_atom_case,
     source_load_case,
     space_name_case,
+    typed_call,
+    typed_space,
 )
 from benchmarks.workloads import (
     json_payload,
@@ -49,6 +53,9 @@ def _wire_codec() -> PerfCase:
 
 def _json_wire() -> PerfCase:
     payload = json_payload()
+    #One trip at build time boots the engine, whose codec this is now,
+    #so the measured window holds round trips and not the boot.
+    json_wire(payload, trips=1)
     return lambda: json_wire(payload), _no_teardown
 
 
@@ -61,6 +68,16 @@ def _engine_case(factory: Callable[[], EngineCase]) -> PerfCase:
     return state[1], lambda: close_engine_case(state)
 
 
+def _save_load(format: str) -> PerfCase:
+    state = save_load_case(format)
+    return state[1], lambda: close_save_load_case(state)
+
+
+def _typed_call() -> PerfCase:
+    space = typed_space()
+    return lambda: typed_call(space), space.drop
+
+
 def _let_heavy() -> PerfCase:
     space = let_space()
     return lambda: let_heavy(space), space.drop
@@ -71,11 +88,14 @@ _CASES = {
     "json-wire": _json_wire,
     "let-heavy": _let_heavy,
     "py-method-call": lambda: _engine_case(py_method_case),
+    "save-load-fast": lambda: _save_load("fast"),
+    "save-load-metta": lambda: _save_load("metta"),
     "sort-atom": lambda: _engine_case(sort_atom_case),
     "source-load": lambda: _engine_case(source_load_case),
     "space-digest": lambda: _engine_case(digest_case),
     "space-name": lambda: _engine_case(space_name_case),
     "term-operators": _term_operators,
+    "typed-call": _typed_call,
     "wire-codec": _wire_codec,
 }
 
@@ -115,6 +135,26 @@ def _controlled(operation) -> int:
         _acknowledge(acknowledge)
 
 
+# Cases measured in STEADY STATE rather than cold, by running the operation
+# once before the counters start.
+#
+# Only a workload that allocates one very large term in a SINGLE operation
+# needs it, and alpha-unique is the only one: its measured interval contained
+# the engine's one-time global-stack growth, and whether that stack expanded
+# once or twice depended on where the process heap happened to start. The
+# result was an instruction count with two modes 10.7% apart, deterministic per
+# program image and selected by nothing in the tree: adding TEN INERT CLAUSES
+# to src/python.pl moved it from 4176751912 to 3772644013 and removing them
+# moved it back, alternating, three rounds [measured 2026-08-16]. Its inference
+# count is identical across both modes, so no logical work ever changed.
+#
+# That is why it is per case rather than for all of them. A warm-up changes
+# what a workload MEANS when its second run differs from its first, and
+# source-load's does: run twice, it measures redefining a thousand equations
+# rather than defining them.
+_WARM_UP = frozenset({"alpha-unique"})
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run exactly one named workload."""
     parser = argparse.ArgumentParser()
@@ -123,6 +163,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
     operation, teardown = _CASES[arguments.case]()
     try:
+        if arguments.case in _WARM_UP:
+            operation()
         completed = _controlled(operation) if arguments.controlled else operation()
     finally:
         teardown()

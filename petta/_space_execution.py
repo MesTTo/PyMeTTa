@@ -15,10 +15,12 @@ Open Obligations:
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 from ._engine import Runtime
-from ._space_objects import EngineProfile, _limits
+from ._space_objects import EngineProfile, FunctionCost, _limits
 from .atoms import Atom, Gnd, Undefined, _to_atom, atom_from_wire, decode, encode, from_wire
 from .errors import EngineError
 
@@ -132,6 +134,87 @@ def profile_source(
     return _decode_groups(output), EngineProfile(samples, ticks, nodes)
 
 
+# The profiler names a predicate the way Prolog writes it, module and arity
+# included, so `user:'vec-dot'/2` has to be read back apart to be matched
+# against a registered function's name.
+_PROFILED_PREDICATE = re.compile(r"^(?:[^:]+:)?'?(.*?)'?/(\d+)$")
+
+
+def _profiled_rows(nodes: Iterable[Sequence[Any]]) -> dict[tuple[str, int], tuple[int, int, int]]:
+    """calls, redos and self-ticks per (name, arity), from the sampler."""
+    rows: dict[tuple[str, int], tuple[int, int, int]] = {}
+    for node in nodes:
+        predicate, calls, redos, ticks_self = node[0], node[1], node[2], node[3]
+        found = _PROFILED_PREDICATE.match(str(predicate))
+        if found is None:
+            continue
+        key = (found.group(1), int(found.group(2)))
+        # A predicate can appear once per calling context; the function's cost
+        # is their sum, not whichever the sampler listed first.
+        previous = rows.get(key, (0, 0, 0))
+        rows[key] = (
+            previous[0] + int(calls),
+            previous[1] + int(redos),
+            previous[2] + int(ticks_self),
+        )
+    return rows
+
+
+def profile_extension(
+    rt: Runtime,
+    space: str,
+    source: str,
+    using: dict[str, Any] | None,
+    names: Sequence[str],
+    *,
+    timeout: float | None,
+    inferences: int | None,
+) -> tuple[list[list[Atom]], list[FunctionCost]]:
+    """Run source under the profiler and report only the named functions.
+
+    The sampler already answers per predicate; what it cannot say is which
+    tier put a name there and whether the clause index its callers rely on
+    exists, which the engine knows and is asked for here.
+    """
+    groups, profile = profile_source(
+        rt, space, source, using, timeout=timeout, inferences=inferences
+    )
+    measured = _profiled_rows(profile.nodes)
+    costs: list[FunctionCost] = []
+    for name in names:
+        tier, detail, arities, determinism = rt.apply_must(
+            "petta_py_function_shape", name
+        )
+        shapes: list[tuple[int | None, float, bool]] = [
+            (int(arity), float(speedup), bool(indexed))
+            for arity, speedup, indexed in arities
+        ]
+        # A function with no recorded arity is still worth a row: it is the
+        # answer to "did my registration take", and a silent omission reads
+        # as "it cost nothing".
+        for arity, speedup, indexed in shapes or [(None, 1.0, False)]:
+            # No arity means no registered predicate, so the sampler cannot
+            # have a row for it either.
+            measurement = (0, 0, 0) if arity is None else measured.get((name, arity), (0, 0, 0))
+            calls, redos, ticks = measurement
+            costs.append(
+                FunctionCost(
+                    name=str(name),
+                    tier=str(tier),
+                    source=str(detail),
+                    arity=arity,
+                    calls=calls,
+                    redos=redos,
+                    ticks=ticks,
+                    speedup=speedup,
+                    indexed=indexed,
+                    determinism=str(determinism),
+                )
+            )
+    costs.sort(key=lambda cost: (-cost.ticks, -cost.calls, cost.name))
+    return groups, costs
+
+
 def evaluate(
     rt: Runtime,
     space: str,
@@ -143,7 +226,13 @@ def evaluate(
     residuals: bool,
 ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
     predicate = "petta_py_eval_res_all" if residuals else "petta_py_eval_all"
-    inputs = [space, _to_atom(target).to_wire()]
+    # Source text goes over as text. Parsing it here would cross to the engine's
+    # reader, build an Atom from the wire form it answers, and walk that Atom
+    # straight back to the same wire form for this call, so a string target cost
+    # two crossings and a round trip through a term that never left the engine
+    # [measured 2026-08-16: eval("(structured (pair a b))") 516.00 inferences
+    # parsed first against 449.00 read where it is evaluated].
+    inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
     limits = _limits(timeout, inferences)
     if limits is None and not capture:
         wires = rt.apply_must(predicate, *inputs)

@@ -5,8 +5,9 @@ Open Obligations:
   Future Enhancements: None
 """
 
-import os
-import subprocess
+# A launcher runs a program, which is the job rather than a risk; the call
+# below says why the specific one is safe.
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -31,20 +32,21 @@ def main(argv=None):
         *argv,
     ]
 
-    mork_library = runtime_root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
-    env = None
-    if mork_library.is_file():
-        env = os.environ.copy()
-        inherited = env.get("LD_PRELOAD")
-        env["LD_PRELOAD"] = (
-            os.pathsep.join((str(mork_library), inherited))
-            if inherited
-            else str(mork_library)
-        )
-        command.append("mork")
+    # Every native backend that is built, and this launcher names none of them.
+    # It used to test for MORK's shared library and LD_PRELOAD it, so a second
+    # backend needed a second branch in a file that has nothing to do with
+    # backends; whether one is usable is now that backend's own business, in
+    # backends/*.pl. The preload was never load-bearing either: the backend
+    # opens its own library with global visibility.
+    command.append("backends")
 
     try:
-        return subprocess.call(command, env=env)
+        # The list form and never shell=True, so nothing here is parsed by a
+        # shell. What B603 asks you to check is untrusted input, and the input
+        # is the caller's own argv forwarded to the program they invoked. The
+        # only element this file chooses is "swipl", resolved on PATH the way
+        # every launcher resolves the interpreter it wraps.
+        return subprocess.call(command)  # noqa: S603  # nosec B603
     except FileNotFoundError as exc:
         raise FileNotFoundError(
             "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"

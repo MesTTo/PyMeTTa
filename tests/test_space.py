@@ -20,6 +20,7 @@ from petta import (
     TimeLimitError,
     V,
     _engine,
+    alpha_eq,
     decode,
     expr,
     parse,
@@ -241,6 +242,54 @@ def test_eval(metta):
 def test_source_strings_are_parsed_where_atoms_are_expected(m):
     m.add("(likes Ada Coffee)")
     assert m.query("(likes $who Coffee)")[0].who == S.Ada
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "(pair-up 1 2)",
+        "(pair-up (pair-up 1 2) 3)",
+        "(pair-up $a $a)",
+        "(pair-up $_ $_)",
+        '(pair-up "text" sym)',
+        "(pair-up True 2.5)",
+        "(nondeterministic)",
+    ],
+)
+def test_a_source_target_evaluates_as_its_parsed_term_does(m, source):
+    """Source text is evaluated where it is read, in one crossing.
+
+    Parsing it in Python first crossed to the engine's reader, built an Atom
+    from the wire form it answered, and walked that Atom straight back to the
+    same wire form for the evaluation. Passing the text through leaves the two
+    spellings of one call to agree, which is what this checks.
+    """
+    m.run(
+        "(= (pair-up $x $y) ($x $y))\n"
+        "(= (nondeterministic) 1)\n(= (nondeterministic) 2)"
+    )
+    from_text, from_term = m.eval(source), m.eval(parse(source))
+    # Fresh variables carry machine names, so the answers agree up to renaming.
+    assert [alpha_eq(a, b) for a, b in zip(from_text, from_term, strict=True)] == [
+        True
+    ] * len(from_text)
+
+
+def test_a_source_target_shares_its_variables_by_name(m):
+    m.run("(= (twin $x $y) ($x $y))")
+    (shared,) = m.eval("(twin $a $a)")
+    (fresh,) = m.eval("(twin $b $c)")
+    assert shared[0] == shared[1]
+    assert fresh[0] != fresh[1]
+
+
+def test_a_malformed_wire_target_is_refused(m):
+    """A wire term is exactly two elements, and anything else reaching the
+    engine as a list is our own encoder's bug rather than a query that
+    answered nothing. Before this it failed, and findall turned that into an
+    empty answer list no caller could tell from a real one."""
+    with pytest.raises(EngineError, match="petta_py_wire_term"):
+        m._rt.apply_must("petta_py_eval_all", m.space_name, ["n", 1, "extra"])
 
 
 def test_parse_keeps_variable_names():

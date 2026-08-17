@@ -13,7 +13,6 @@ Open Obligations:
 """
 
 import dataclasses
-import difflib
 import enum
 import gc
 import importlib
@@ -30,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from petta import (
+    Bindings,
     EngineError,
     InferenceLimitError,
     PettaError,
@@ -40,8 +40,6 @@ from petta import (
     bridge,
     convert,
     expr,
-    matching,
-    measure,
     remote,
     val,
 )
@@ -340,33 +338,37 @@ def test_subscription_fires_for_engine_side_writes(m):
 # ---------------------------------------------------------------- matchers
 
 
-def test_custom_matcher_scores_and_generates(m):
-    lexicon = ["class", "clause", "close"]
+def test_a_grounded_matchable_composes_with_structural_match(m):
+    # Custom matching is a property of grounded atoms: an object with
+    # match_ gates candidates inside unify, composing with structural
+    # match through ordinary evaluation, no new syntax.
+    class Initial:
+        def __init__(self, letter):
+            self.letter = letter
 
-    def score(query, candidate):
-        common = len(set(str(query)) & set(matching.text_of(candidate)))
-        return common / max(len(set(str(query))), 1)
+        def match_(self, other):
+            if str(other)[:1] == self.letter:
+                yield other
 
-    def generate(query):
-        ranked = sorted(lexicon, key=lambda w: -score(query, w))
-        return ((w, score(query, w)) for w in ranked)
-
-    matching.matcher(m, "letters-like", score=score, generate=generate, threshold=0.5)
-    (answers,) = m.run('!(collapse (letters-like "clase" $w))')
-    assert len(answers[0]) >= 1
-    scored = m.run('!(letters-like "clase" "class")')
-    assert float(scored[0][0][0]) > 0.5
-
-
-def test_fuzzy_matcher_is_difflib(m):
-    matching.install_fuzzy(m, name="fz-match")
-    (answer,) = m.run('!(fz-match "kitten" "sitting")')[0]
-    expected = difflib.SequenceMatcher(None, "kitten", "sitting").ratio()
-    assert float(answer[0]) == pytest.approx(expected)
-    # Score-only matcher says so when asked to generate.
-    with pytest.raises(EngineError):
-        m.run("!(fz-match cat $unbound)")
-
+    m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
+    rows = m.eval(
+        expr(
+            S.collapse,
+            expr(
+                S.match,
+                expr(S["context-space"]),
+                S.person(V.p),
+                expr(
+                    S.unify,
+                    Gnd(Initial("a")),
+                    V.p,
+                    V.p,
+                    expr(S.superpose, expr()),
+                ),
+            ),
+        )
+    )
+    assert sorted(str(x) for x in rows[0]) == ["ada", "alan"]
 
 def test_embedding_store_is_a_semantic_matcher(m):
     numpy = pytest.importorskip("numpy")
@@ -375,13 +377,16 @@ def test_embedding_store_is_a_semantic_matcher(m):
     store.add(S.dog, numpy.array([1.0, 0.0]))
     store.add(S.cat, numpy.array([0.9, 0.4]))
     store.add(S.car, numpy.array([0.0, 1.0]))
-    store.matcher(name="sem-match", threshold=0.0)
-    # Generation, best first, then the measure algebra right on top.
-    m.run("!(import! (context-space) (library lib_measure))")
-    (best,) = m.run("!(ws-best (collapse (sem-match dog $k)))")[0]
-    assert best == S.dog
-    scored = m.run("!(sem-match dog cat)")
-    assert 0.8 < float(scored[0][0][0]) <= 1.0
+
+    class Nearest:
+        def match_(self, other):
+            query, out = other.children[0], other.children[1]
+            key, score = next(iter(store.ranked(query, 1)))
+            assert 0.0 <= score <= 1.0
+            yield Bindings({out: key})
+
+    rows = m.eval(expr(S.unify, Gnd(Nearest()), expr(S.dog, V.k), V.k, S.none))
+    assert rows == [S.dog]
 
 
 def test_faiss_and_argsort_rank_identically(m):
@@ -476,14 +481,10 @@ def test_save_refuses_live_objects(m):
 # ----------------------------------------------------------------- measure
 
 
-def test_measure_helpers_round_trip(m):
-    measure.install(m)
-    weighted = measure.ws((0.25, S.a), (0.75, S.b))
-    (best,) = m.eval(expr(S["ws-best"], weighted))
+def test_the_measure_library_runs_in_language(m):
+    m.run("!(import! (context-space) (library lib_measure))")
+    (best,) = m.run("!(ws-best ((0.25 a) (0.75 b)))")[0]
     assert best == S.b
-    (normalized,) = m.eval(expr(S["ws-normalize"], measure.ws((2.0, S.x), (6.0, S.y))))
-    assert measure.pairs(normalized) == [(0.25, S.x), (0.75, S.y)]
-
 
 def test_rows_table_is_the_dataframe_shape(m):
     m.add(S.Age(S.Tom, 62), S.Age(S.Bob, 40))
@@ -527,7 +528,7 @@ def test_rows_first_and_one(m):
     m.add(S.city(S.perth), S.city(S.sydney))
     assert m.query(S.town(V.x)).first() is None
     assert m.query(S.city(V.x)).first() is not None
-    with pytest.raises(ValueError):
+    with pytest.raises(EngineError):
         m.query(S.city(V.x)).one()  # two rows
     m.remove(S.city(S.perth))
     assert str(m.query(S.city(V.x)).one().x) == "sydney"
@@ -818,7 +819,9 @@ def test_capture_composes_with_limits(m):
 def test_eval_capture(m):
     answers, text = m.eval("(println! from-eval)", capture=True)
     assert "from-eval" in text
-    assert answers == [True]
+    # println! answers the UNIT value, `()`, which is what the specification
+    # types it with: "(-> %Undefined% (->))". It used to answer True.
+    assert answers == [expr()]
 
 
 def test_stats_block_counts_the_work(m):
@@ -830,6 +833,22 @@ def test_stats_block_counts_the_work(m):
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
     assert s.table_bytes == 0  # nothing tabled inside this block
     assert "inferences" in repr(s)
+
+
+def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
+    """A counter is a delta, so there is nothing to read before the block
+    that measures it has closed. Raising there rather than answering None
+    or 0 is what lets the counters be typed as the int and float they are,
+    which is what a caller writing `s.inferences > 100` needs."""
+    with m.stats() as s:
+        assert repr(s) == "<stats: pending>"
+        with pytest.raises(RuntimeError, match="after the with-block"):
+            _ = s.inferences
+        # An ordinary typo is still an ordinary typo.
+        with pytest.raises(AttributeError):
+            _ = s.no_such_counter
+        m.run("!(+ 1 2)")
+    assert s.inferences > 0
 
 
 # ---------------------------------------------- streaming, atomic, profiling
@@ -859,6 +878,60 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
     cursor.close()
     assert list(cursor) == []
     assert "exhausted" in repr(cursor)
+
+
+# The cheapest route was the only one that could not be spelled naturally.
+# Over 2,000 stored atoms, wanting the first three: query(pat)[:3] costs 26,055
+# inferences because slicing trims after computing everything, and pulling
+# three from a cursor costs 20. Convenience is free when it changes the
+# spelling and not the plan.
+def test_a_cursor_slice_pulls_only_what_it_takes(m):
+    space = m.fresh_space()
+    space.add(*[S.fact(i, i) for i in range(2000)])
+    with space.stats() as lazy, space.stream(S.fact(V.k, V.n)) as cursor:
+        first_three = cursor[:3]
+    with space.stats() as eager:
+        trimmed = space.query(S.fact(V.k, V.n))[:3]
+    assert len(first_three) == len(trimmed) == 3
+    # Two orders of magnitude, not a constant factor, and the gap grows with
+    # the space because one stops early and the other trims afterwards.
+    assert lazy.inferences * 100 < eager.inferences
+
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        assert cursor[0].k == first_three[0].k
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        assert [row.k for row in cursor[1:4]] == [row.k for row in first_three[1:]] + [
+            trimmed[3].k if len(trimmed) > 3 else space.query(S.fact(V.k, V.n))[3].k
+        ]
+
+
+def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
+    """Each refusal is the design, not a gap: every one of these needs every
+    row, which is exactly what a cursor exists to avoid."""
+    space = m.fresh_space()
+    space.add(*[S.fact(i, i) for i in range(10)])
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(TypeError, match="no len"):
+            len(cursor)
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(IndexError, match="indexed from the end"):
+            cursor[-1]
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(ValueError, match="takes no step"):
+            cursor[::2]
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(ValueError, match="counts from the start"):
+            cursor[-3:]
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(TypeError, match="int or a slice"):
+            cursor["a"]
+    # Running off the end is an IndexError naming how many it answered, and an
+    # empty window is an empty list rather than an error.
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        with pytest.raises(IndexError, match="fewer than 100"):
+            cursor[99]
+    with space.stream(S.fact(V.k, V.n)) as cursor:
+        assert cursor[3:1] == []
 
 
 def test_abandoned_stream_warns_before_reaping(m):
@@ -917,10 +990,83 @@ def test_profile_counts_samples_on_real_work(m):
     assert "samples" in repr(prof)
 
 
-def test_regex_matcher_is_the_crisp_lexical_modality(m):
-    matching.install_regex(m, name="rxm-t", lexicon=["alpha", "beta", "abbey"])
-    (matches,) = m.eval('(collapse (rxm-t "^a" $w))')
-    assert sorted(pair[1].value for pair in matches) == ["abbey", "alpha"]
-    assert all(pair[0] == 1.0 for pair in matches)
-    assert m.eval('(rxm-t "^a" "abbey")') == [expr(1.0, "abbey")]
-    assert m.eval('(rxm-t "^z" "abbey")') == []  # crisp: no answer below one
+# profile() answers over every predicate in the process. A library author's
+# question is narrower and needs two things the sampler does not carry: which
+# tier installed a name, and whether the clause index its callers rely on
+# exists. Both come from the engine, which knows them.
+X10_LIBRARY = """
+:- metta_extension(profile_demo, [version('0.1.0')]).
+:- metta_export("
+    (: pd-one (-> Number Number))
+    (: pd-table (-> Atom Number))
+    (: pd-many (-> Number Number))
+").
+'pd-one'(A, B) :- B is A * 2.
+""" + "\n".join(f"'pd-table'(k{index}, {index})." for index in range(300)) + """
+'pd-many'(_, B) :- member(B, [1, 2, 3]).
+"""
+
+
+@pytest.fixture()
+def profiled(m):
+    m.register_prolog(X10_LIBRARY)
+    m.run(
+        "(= (pd-spin $n) (if (== $n 0) done "
+        "(progn (pd-one $n) (pd-table k1) (pd-spin (- $n 1)))))"
+    )
+    yield m
+    m.unregister_prolog("profile_demo")
+
+
+def test_profile_extension_reports_every_declared_member(profiled):
+    groups, costs = profiled.profile_extension("!(pd-spin 500)",
+                                               extension="profile_demo")
+    assert groups == [[S.done]]
+    assert {cost.name for cost in costs} == {"pd-one", "pd-table", "pd-many"}
+    by_name = {cost.name: cost for cost in costs}
+    # Counted, not sampled, so these are exact.
+    assert by_name["pd-one"].calls == 500
+    assert by_name["pd-table"].calls == 500
+    # A member the workload never reached is reported as costing nothing,
+    # rather than omitted, which would read the same way.
+    assert by_name["pd-many"].calls == 0
+    assert all(cost.tier == "prolog" for cost in costs)
+    assert all(cost.arity == 2 for cost in costs)
+
+
+def test_profile_extension_separates_an_indexed_table_from_a_single_clause(profiled):
+    _, costs = profiled.profile_extension("!(pd-spin 500)", extension="profile_demo")
+    by_name = {cost.name: cost for cost in costs}
+    # 300 clauses SWI can discriminate on the first argument, against one
+    # clause with nothing to discriminate.
+    assert by_name["pd-table"].speedup > 100
+    assert by_name["pd-table"].indexed is True
+    assert by_name["pd-one"].speedup == 1.0
+
+
+def test_profile_extension_shows_a_left_behind_choice_point(profiled):
+    groups, costs = profiled.profile_extension("!(collapse (pd-many 1))",
+                                               extension="profile_demo")
+    assert groups == [[expr(1, 2, 3)]]
+    by_name = {cost.name: cost for cost in costs}
+    # Three answers from one call, so the engine re-enters twice for the
+    # second and third. That is what a leftover choice point looks like from
+    # outside, and the inference counter cannot see it at all.
+    assert by_name["pd-many"].calls == 1
+    assert by_name["pd-many"].redos == 2
+    assert by_name["pd-one"].redos == 0
+
+
+def test_profile_extension_takes_an_explicit_name_list(profiled):
+    _, costs = profiled.profile_extension("!(pd-spin 50)", names=["pd-one"])
+    assert [cost.name for cost in costs] == ["pd-one"]
+    assert costs[0].calls == 50
+    assert "pd-one/2" in repr(costs[0])
+
+
+def test_profile_extension_needs_exactly_one_of_extension_or_names(profiled):
+    for kwargs in ({}, {"extension": "profile_demo", "names": ["pd-one"]}):
+        with pytest.raises(ValueError, match="exactly one"):
+            profiled.profile_extension("!(pd-spin 1)", **kwargs)
+
+

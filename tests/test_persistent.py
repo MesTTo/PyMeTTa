@@ -19,7 +19,7 @@ import textwrap
 
 import pytest
 
-from petta import EngineError, PettaError, S, V, val
+from petta import EngineError, PettaError, S, V, expr, val
 from petta.persistent import PersistentFactSpace
 
 
@@ -28,7 +28,7 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):
     schema = {"edge": 2, "other": 1}
     provider = PersistentFactSpace(journal, schema)
     name = f"&persistent{id(provider)}"
-    metta.register_space(name, provider)
+    metta.register_space(provider, name)
     try:
         provider.add(S.edge(S.a, S.b))
         provider.add(S.edge(S.b, S.c))
@@ -41,7 +41,9 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):
             S.edge(S.b, S.c),
             S.edge(S.c, S.d),
         ]
-        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[True]]
+        # Unit, not True: remove-atom is typed (-> spaceType Atom (->)) and the
+        # specification says absence is not reported through it either.
+        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[expr()]]
         assert not provider.remove(S.edge(S.a, S.b))
     finally:
         metta.unregister_space(name)
@@ -408,6 +410,43 @@ def test_complete_invalid_terminal_record_is_not_treated_as_truncation(tmp_path)
         PersistentFactSpace(journal, {"edge": 2}, sync="close")
     assert journal.read_bytes() == corrupt
     assert not (tmp_path / "terminal-corruption.db.tail").exists()
+
+
+def test_two_records_glued_by_a_lost_newline_are_refused(tmp_path):
+    """The one torn shape where truncating would DESTROY data, so it does not.
+
+    Recovery works by finding the last newline and treating what follows as a
+    partially written record. If the newline BETWEEN two records is the byte
+    that was lost, the first of the two was fully written and synced, and
+    truncating would throw it away to repair damage it was not part of.
+
+    Nor can the two be split back apart. SWI reads `assert(a).assert(b).` as
+    ONE term, the full stop between them being an operator rather than an end
+    token, so there is nothing but a guess to say where the boundary was, and
+    guessing at the shape of a record is how a repair silently invents data.
+
+    What it does instead is name the glued term in the refusal, which is what
+    an operator needs to repair the file by hand.
+    """
+    journal = tmp_path / "glued.db"
+    space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    space.add(S.edge(S.first, S.record))
+    space.add(S.edge(S.second, S.record))
+    space.close()
+    whole = journal.read_bytes()
+    assert whole.count(b"\n") >= 2
+    # Lose the newline between the last two records, and nothing else.
+    boundary = whole.rfind(b"\n", 0, whole.rfind(b"\n"))
+    glued = whole[:boundary] + whole[boundary + 1 :]
+    journal.write_bytes(glued)
+
+    with pytest.raises(EngineError, match="corrupt before its terminal record") as caught:
+        PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    # Both records are named, so the repair is a text edit rather than a hunt.
+    assert "assert(edge(first,record)).assert(edge(second,record))" in str(caught.value)
+    # Refused UNCHANGED, which is the point: the operator still has both.
+    assert journal.read_bytes() == glued
+    assert not (tmp_path / "glued.db.tail").exists()
 
 
 def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):

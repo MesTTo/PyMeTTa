@@ -6,14 +6,20 @@ unification in registration order, path parameters are typed variables, the
 The router below is the whole implementation, not an import: some eighty
 lines on top of add, query, unify and eval carry FastAPI's routing
 semantics, and a MeTTa program extends the running table by adding a fact.
+What it deliberately is not: `path.strip("/")` makes "" and "/" one route, so
+a trailing-slash policy and its redirect are a real framework's job and not
+shown; and dispatch scans the method's whole table per request, which is the
+point being made legible rather than a routing index, so it is linear in the
+number of routes.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from _common import check, done
 
@@ -47,23 +53,44 @@ class Router:
 
     def get(self, path: str) -> Callable:
         def wrap(fn: Callable) -> Callable:
+            # Compile FIRST. Registering the operation and then compiling left
+            # an unknown converter raising with the handler registered and no
+            # route to reach it: a name the engine answers and the table has
+            # never heard of.
+            segments, casters = self.compile(path)
             handler = fn.__name__.replace("_", "-")
             self._m.register_op(fn, name=handler, typed=False)
-            self.add_route("GET", path, handler)
+            self.add_route("GET", segments, casters, handler)
             return fn
 
         return wrap
 
-    def add_route(self, method: str, path: str, handler: str) -> None:
-        segments, casters = [], []
+    def compile(self, path: str) -> tuple[list, tuple]:
+        segments, casters, named = [], [], set()
         for segment in path.strip("/").split("/"):
-            if segment.startswith("{") and segment.endswith("}"):
-                name, _, converter = segment[1:-1].partition(":")
-                segments.append(Var(name))
-                casters.append(CASTERS[converter or "str"])
-            else:
+            if not (segment.startswith("{") and segment.endswith("}")):
                 segments.append(Sym(segment))
-        self._casters[self._count] = tuple(casters)
+                continue
+            name, _, converter = segment[1:-1].partition(":")
+            if name in named:
+                # Two segments named $id are ONE variable, so unification ties
+                # them together and there is one binding for two casters.
+                # /{x:int}/{x:float} accepted /7/7/2.5 and passed the float as
+                # the next parameter.
+                raise ValueError(f"{path!r} names {name!r} twice")
+            named.add(name)
+            segments.append(Var(name))
+            if converter and converter not in CASTERS:
+                raise ValueError(
+                    f"{path!r} asks for the converter {converter!r}; "
+                    f"this router has {sorted(CASTERS)}"
+                )
+            casters.append(CASTERS[converter or "str"])
+        return segments, tuple(casters)
+
+    def add_route(self, method: str, segments: list, casters: tuple,
+                  handler: str) -> None:
+        self._casters[self._count] = casters
         self._m.add(
             expr(S.route, S[self.name], S[method], Expr(segments),
                  S[handler], self._count)
@@ -90,15 +117,28 @@ class Router:
                 tuple(str for c in pattern.children if isinstance(c, Var)),
             )
             try:
+                # strict, because the two lists agreeing is the whole reason
+                # a repeated parameter name is refused at compile time; a
+                # silent truncation here is how /{x:int}/{x:float} passed a
+                # float on as the next parameter.
                 values = [
                     caster(str(bindings[name]))
-                    for name, caster in zip(variables(pattern), casters)
+                    for name, caster in zip(variables(pattern), casters, strict=True)
                 ]
             except (ValueError, TypeError):
                 continue  # the parameter refused; a later route may accept
             answers = self._m.eval(expr(Sym(str(row.handler)),
                                         *[encode(v) for v in values]))
-            body = answers[0] if answers else None
+            # Exactly one. A handler that answers nothing is not a 404, and a
+            # handler that answers twice is not its first answer; both used to
+            # be rewritten into a response the caller could not tell from a
+            # real one.
+            if len(answers) != 1:
+                raise ValueError(
+                    f"{row.handler} answered {len(answers)} times for "
+                    f"{method} {path}; a route handler answers exactly once"
+                )
+            body = answers[0]
             return Response(200, decode(body) if isinstance(body, Gnd) else body)
         return Response(422 if matched else 404,
                         "unprocessable" if matched else "not found")
@@ -137,4 +177,32 @@ check(
     app.dispatch("GET", "/ping"),
     Response(200, "pong from metta"),
 )
+
+# A path naming one parameter twice is one variable with two casters, so it is
+# refused where it is written rather than misreading a request later.
+try:
+    app.get("/twice/{x:int}/{x:float}")(lambda x: x)
+    check("a repeated parameter name is refused", "not refused", "refused")
+except ValueError as refused:
+    check("a repeated parameter name is refused", "names 'x' twice" in str(refused), True)
+
+# An unknown converter is refused BEFORE the handler is registered, so no name
+# is left answering with nothing routing to it.
+try:
+    app.get("/unknown/{x:uuid}")(lambda x: x)
+    check("an unknown converter is refused", "not refused", "refused")
+except ValueError:
+    check("and its handler was never registered", m.is_function("<lambda>"), False)
+
+# A handler answers exactly once. Nothing and twice are both mistakes, and
+# rewriting either into a response hides them.
+m.run("(= (twice) a)")
+m.run("(= (twice) b)")
+m.run("!(add-atom (context-space) (route app GET (double) twice 98))")
+try:
+    app.dispatch("GET", "/double")
+    check("a two-answer handler is refused", "not refused", "refused")
+except ValueError as refused:
+    check("a two-answer handler is refused", "answered 2 times" in str(refused), True)
+
 done("web_routes")

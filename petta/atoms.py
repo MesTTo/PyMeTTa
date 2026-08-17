@@ -29,6 +29,7 @@ from ._atoms_core import (
     Box,
     Expr,
     Gnd,
+    Handle,
     Sym,
     Var,
     decode,
@@ -53,6 +54,7 @@ __all__ = [
     "Atom",
     "Expr",
     "Gnd",
+    "Handle",
     "S",
     "Sym",
     "Undefined",
@@ -66,6 +68,7 @@ __all__ = [
     "from_wire",
     "is_ground",
     "map_atoms",
+    "order_key",
     "parse",
     "register_object_repr",
     "register_object_repr_protocol",
@@ -79,7 +82,7 @@ __all__ = [
 ]
 
 # Keep the documented and pickled class location stable across internal cuts.
-for _atom_type in (Atom, Box, Expr, Gnd, Sym, Undefined, Var):
+for _atom_type in (Atom, Box, Expr, Gnd, Handle, Sym, Undefined, Var):
     _atom_type.__module__ = __name__
 
 # ----------------------------------------------------------------- constructors
@@ -125,10 +128,16 @@ def parse(source: str) -> Atom:
     variable names the DCG collects are kept, so parse("(Parent $x Bob)")
     contains Var('x') rather than a machine name, and the same pattern built
     with V.x compares equal.
+
+    Crossed through apply() rather than once(). petta_py_parse/2 already has
+    the functional shape, one ground input and one output, and every call that
+    passes source text to eval(), run() or match() parses first, so this is a
+    second crossing on top of the evaluation's own [measured 2026-08-16:
+    eval("(structured (pair a b))") 517.02 inferences and 34.70us, against
+    241.01 and 10.60us for the same term prebuilt].
     """
     engine = importlib.import_module(f"{__package__}._engine")
-    row = engine.runtime().once("petta_py_parse(Src, W)", Src=source)
-    return atom_from_wire(row["W"])
+    return atom_from_wire(engine.runtime().apply_must("petta_py_parse", source))
 
 
 def _to_atom(value: Any) -> Atom:
@@ -161,6 +170,48 @@ def variables(atom: Atom) -> list[str]:
 def is_ground(atom: Atom) -> bool:
     """True when the atom carries no variables."""
     return not variables(atom)
+
+
+#: Prolog's standard order of terms: Var < Number < Atom < String < Compound.
+#: A bool is a Python int, so it is ranked with the symbols it reads as rather
+#: than with the numbers it inherits from.
+_ORDER_VAR, _ORDER_NUMBER, _ORDER_SYMBOL = 0, 1, 2
+_ORDER_STRING, _ORDER_OBJECT, _ORDER_EXPR = 3, 4, 5
+
+
+def order_key(atom: Atom) -> tuple:
+    """A sort key for atoms, in Prolog's standard order of terms.
+
+        sorted(atoms, key=order_key)
+
+    A KEY rather than `__lt__`, because `<` already means something here:
+    `S.a < S.b` builds the term `(< a b)`, which is what the operators are
+    for, so `sorted()` over atoms raised "(< a c) is a comparison TERM, not a
+    truth value". That message is right and the order it refuses to invent
+    exists anyway, in the language underneath: variables before numbers before
+    symbols before strings before compounds, and compounds by arity, then by
+    functor, then argument by argument
+    [source: SWI-Prolog 10.1 Reference Manual, Standard Order of Terms].
+
+    Two atoms that compare equal here are not necessarily the same atom: a key
+    orders, `same_atom` decides identity.
+    """
+    if isinstance(atom, Var):
+        return (_ORDER_VAR, atom.name)
+    if isinstance(atom, Sym):
+        return (_ORDER_SYMBOL, atom.name)
+    if isinstance(atom, Expr):
+        children = tuple(order_key(child) for child in atom.children)
+        return (_ORDER_EXPR, len(children), children)
+    value = getattr(atom, "value", atom)
+    # bool before int: True is an int in Python and a symbol in MeTTa.
+    if isinstance(value, bool):
+        return (_ORDER_SYMBOL, str(value))
+    if isinstance(value, (int, float)):
+        return (_ORDER_NUMBER, value)
+    if isinstance(value, str):
+        return (_ORDER_STRING, value)
+    return (_ORDER_OBJECT, type(value).__name__, repr(value))
 
 
 def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:

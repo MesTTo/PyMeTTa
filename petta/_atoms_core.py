@@ -24,6 +24,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import contextlib
 import math
 import numbers as _numbers
 import re
@@ -32,7 +33,7 @@ import weakref
 from abc import ABCMeta
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
-from typing import Any, TypeVar, cast
+from typing import Any, Self, TypeVar, cast
 
 # A symbol prints bare only when PeTTa's tokeniser would read it back whole:
 # token//1 stops at whitespace, parentheses and quotes.
@@ -248,6 +249,33 @@ class Atom:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({str(self)!r})"
+
+    # Term structure is declared on the base because an engine answer is
+    # typed Atom and a checker cannot know which kind arrived. Expr's
+    # docstring already promises expr[0] and len(expr), and run, eval and
+    # query all return Atom, so without these the documented idiom does not
+    # type-check: ten of the 41 diagnostics a downstream user saw over the
+    # 16 example programs, across six files [measured 2026-08-17]. Expr
+    # overrides all four; a leaf refuses at the same point it always did,
+    # so the runtime is unchanged and the static story stops being a lie.
+    @property
+    def children(self) -> tuple[Atom, ...]:
+        raise TypeError(f"{self!r} is a leaf atom and has no children")
+
+    def __len__(self) -> int:
+        raise TypeError(f"{self!r} is a leaf atom and has no length")
+
+    # Declaring __len__ above would otherwise route bool() through it and
+    # make every leaf atom raise where it used to be truthy. Expr overrides
+    # this to keep refusing comparison terms.
+    def __bool__(self) -> bool:
+        return True
+
+    def __iter__(self) -> Iterator[Atom]:
+        raise TypeError(f"{self!r} is a leaf atom and is not iterable")
+
+    def __getitem__(self, i: int | slice) -> Any:
+        raise TypeError(f"{self!r} is a leaf atom and is not indexable")
 
     # Term-building operators, the query-builder lesson: arithmetic and
     # order comparisons on symbols, variables and expressions CONSTRUCT the
@@ -483,6 +511,86 @@ class Var(Atom):
         return "Variable"
 
 
+class Handle(Atom):
+    """A native engine value held by reference: the identity carrier for
+    anything a C extension hands back as a blob (EXTENDING.md section 3).
+
+    The value itself never crosses; this atom carries a registry id and
+    the blob's own printed text. Handing it back to the engine resolves
+    the very same blob, so identity, mutation and accessor calls all see
+    one object. Unpacking is whatever accessors the owning extension
+    registered; the handle is deliberately opaque here, for any blob
+    type, with nothing per-type anywhere.
+
+    release() retracts the engine-side registry entry that keeps the
+    blob alive; further use of a released handle raises in the engine,
+    naming the id. Garbage collection releases as a safety net, but an
+    interpreter tearing down cannot promise engine calls, so explicit
+    release is the deterministic path.
+    """
+
+    __slots__ = ("_released", "ident", "text")
+    __match_args__ = ("ident", "text")
+    ident: int
+    text: str
+    _released: bool
+
+    def __init__(self, ident: int, text: str) -> None:
+        object.__setattr__(self, "ident", ident)
+        object.__setattr__(self, "text", text)
+        object.__setattr__(self, "_released", False)
+
+    def __str__(self) -> str:
+        return self.text
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Handle) and other.ident == self.ident
+
+    def __hash__(self) -> int:
+        return hash(("handle", self.ident))
+
+    def __reduce__(self):
+        raise TypeError(
+            "a native handle has process-local identity and cannot be "
+            "pickled; read it out through its extension's accessors instead"
+        )
+
+    def to_wire(self) -> list:
+        return ["h", self.ident]
+
+    @property
+    def metatype(self) -> str:
+        return "Grounded"
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        self.release()
+
+    def release(self) -> None:
+        """Retract the engine-side registry entry keeping the value alive.
+
+        Handles are context managers, so the deterministic spelling is the
+        file-object idiom: `with` the handle and it releases on exit.
+        """
+        if self._released:
+            return
+        object.__setattr__(self, "_released", True)
+        from . import _engine  # noqa: I001,PLC0415 - atoms stay the base layer; the engine is reached only on release
+
+        runtime = _engine.active_runtime()
+        if runtime is not None:
+            runtime.do("petta_py_handle_release", self.ident)
+
+    def __del__(self) -> None:
+        # Interpreter teardown cannot promise engine calls, so collection
+        # is a best-effort release and explicit release() the deterministic
+        # path.
+        with contextlib.suppress(Exception):
+            self.release()
+
+
 class Gnd(Atom):
     """A grounded value: a host value carried whole.
 
@@ -499,6 +607,20 @@ class Gnd(Atom):
     __slots__ = ("value",)
     __match_args__ = ("value",)
     value: Any
+
+    # Truthiness follows equality, or `if answer:` reads a MeTTa False as
+    # true. Without this the library forces the PEP 8 violation it warns
+    # against: on a rule answering False, the conformant
+    # `any(a for a in answers)` was True and the explicit
+    # `any(a == True for a in answers)` was False, so a user tidying away
+    # the `# noqa: E712` introduced a silent wrong answer
+    # [measured 2026-08-17]. Expr.__bool__ already guards this class of
+    # mistake for comparison terms; Gnd had no guard for the same one.
+    # Restricted to bool on purpose: a Number 0 is not falsehood in MeTTa,
+    # so Gnd(0) and Gnd("") stay truthy.
+    def __bool__(self) -> bool:
+        value = self.value
+        return value if isinstance(value, bool) else True
 
     def __init__(self, value: Any) -> None:
         object.__setattr__(self, "value", _normalize_grounded(value))

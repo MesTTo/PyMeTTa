@@ -58,8 +58,12 @@ CASES = {
     "space-digest": "test_space_digest",
     "space-name": "test_space_name",
     "subscribe-tax": "test_subscription_tax",
+    "foreign-match": "test_foreign_match",
+    "handle-round-trip": "test_handle_round_trip",
+    "table-bridge-match": "test_table_bridge_match",
+    "typed-call": "test_typed_call",
     "term-operators": "test_term_operators",
-    "weighted-relation": "test_weighted_relation",
+    "annotated-relation": "test_annotated_relation",
     "wire-codec": "test_wire_codec",
 }
 

@@ -9,6 +9,7 @@ Open Obligations:
 """
 
 import copy
+import json
 import multiprocessing
 import pickle
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
@@ -28,6 +29,7 @@ from petta import (
     encode,
     expr,
     map_atoms,
+    parse,
     unify,
     val,
     variables,
@@ -45,6 +47,7 @@ from petta.atoms import (
     boxed,
     from_wire,
     is_ground,
+    order_key,
     register_object_repr,
     register_object_repr_protocol,
     unregister_object_repr,
@@ -458,3 +461,50 @@ def test_atom_from_wire_rejects_undefined_truth():
 def test_anonymous_variable_is_fresh_per_occurrence():
     assert unify(S.pair(V._, V._), S.pair(S.a, S.b)) == {}
     assert unify(S.pair(V._, V._), S.pair(S.a, S.a)) == {}
+
+
+# A KEY rather than __lt__, because `<` already means something: S.a < S.b
+# builds the term (< a b), which is what the operators are for, so sorted()
+# over atoms raised "(< a c) is a comparison TERM, not a truth value". The
+# message is right and the order it refuses to invent exists in the language
+# underneath.
+def test_atoms_sort_in_prologs_standard_order():
+    atoms = [
+        parse(source)
+        for source in [
+            "(edge b c)", '"text"', "a", "1", "$x", "(f a)", "2.5",
+            "True", "()", "(edge a b)",
+        ]
+    ]
+    assert [str(a) for a in sorted(atoms, key=order_key)] == [
+        "$x",              # variables first
+        "1", "2.5",        # then numbers, in value order
+        "True", "a",       # then symbols, and True IS one despite being a
+                           # Python int
+        '"text"',          # then strings
+        "()", "(f a)",     # then compounds, by arity first
+        "(edge a b)", "(edge b c)",   # then functor, then argument by argument
+    ]
+
+
+def test_the_sort_key_is_total_over_mixed_atoms():
+    """Every key must be comparable with every other, which a tuple key only
+    is when the rank leads and the payloads at one rank share a type."""
+    atoms = [
+        S.a, parse("1"), parse("2.5"), parse('"s"'), V.x, S.f(S.a),
+        S.f(S.a, S.b), parse("()"), parse("True"), Gnd(object()),
+    ]
+    for left in atoms:
+        for right in atoms:
+            assert isinstance(order_key(left) < order_key(right), bool)
+
+
+# The wire form IS a JSON document and it round-trips, preserving the variable
+# NAME, which storage does not. It was simply not exported.
+def test_an_atom_round_trips_through_json():
+    atom = S.edge(S.a, 1, V.x)
+    text = json.dumps(atom.to_wire())
+    assert text == '["e", [["s", "edge"], ["s", "a"], ["n", 1], ["v", "x"]]]'
+    back = atom_from_wire(json.loads(text))
+    assert alpha_eq(atom, back)
+    assert str(back) == "(edge a 1 $x)"

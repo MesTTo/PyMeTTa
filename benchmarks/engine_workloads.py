@@ -27,8 +27,9 @@ Open Obligations:
 
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Callable
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 from petta import Expr, MeTTa, S, V, expr
 
@@ -206,6 +207,71 @@ def space_name_case(calls: int = SPACE_NAME_CALLS) -> EngineCase:
     return space, operation
 
 
+TYPED_CALLS = 500_000
+TYPED_SLOPE_SMALL = 50_000
+
+
+def typed_space() -> MeTTa:
+    """Create a space holding a DECLARED function and a driver that calls it.
+
+    The argument arrives through a let rather than as a literal, because a
+    literal's type is settled while the call site compiles and its check is
+    dropped outright, which would measure the one path the check never runs on.
+    """
+    space = _space()
+    try:
+        space.run(
+            "(: benchmark-typed-abs (-> Number Number))\n"
+            "(= (benchmark-typed-abs $x) (if (>= $x 0) $x (* -1 $x)))\n"
+            "(= (benchmark-typed-drive $n $acc) "
+            "(if (> $n 0) "
+            "(let $v (- 0 $n) "
+            "(benchmark-typed-drive (- $n 1) (+ $acc (benchmark-typed-abs $v)))) "
+            "$acc))"
+        )
+    except BaseException:
+        space.drop()
+        raise
+    return space
+
+
+def typed_call(space: MeTTa, calls: int = TYPED_CALLS) -> int:
+    """Run one declared call per iteration, argument type unknown until run time.
+
+    This case exists because the INFERENCE counter cannot see what it measures,
+    which makes it the one benchmark here whose instruction ceiling is the
+    point rather than a companion. A declared call emits a type check per
+    argument and one on the result, and those are specialised to a Prolog
+    builtin when the declared type is Number, String or Bool. SWI compiles
+    number/1 to a VM instruction and does not count it as an inference
+    [measured 2026-08-17: 1.0000 inferences per iteration with and without a
+    number/1 call], so the specialisation reads as FREE on the counter every
+    other benchmark here is gated on, 18.11 inferences per call before and
+    10.11 after against a 10.11 undeclared baseline. That would say a declared
+    call is now exactly an undeclared one, and in retired instructions it is
+    not: disabling the specialisation by one token measures 9,368,378,515
+    against 6,590,122,843 with it, +42.2% [measured 2026-08-17, min of 3 under
+    --controlled, which is the interval the ceiling in baseline.json gates].
+    The gate is known to see that rather than claimed to: with the ceiling as
+    it stands, the unspecialised tree exits 1 and the specialised one exits 0.
+
+    Read that ceiling's noise allowance before attributing anything to a change
+    here. It is 5.0 rather than the 1.0 every other bench carries, because this
+    workload's instruction count moves 3.13% with code LAYOUT alone: ten
+    clauses nothing calls, appended to src/python.pl, move it 200 million
+    instructions and removing them move it back, with the inference count
+    identical throughout. baseline.json's instruction_noise_comment carries the
+    sweep. A change here of a few percent is layout until proven otherwise, and
+    the way to prove it is the inference counter, which does not move with
+    layout at all.
+    """
+    expected = calls * (calls + 1) // 2
+    result = space.eval(S["benchmark-typed-drive"](calls, 0))
+    if result != [expected]:
+        raise AssertionError(f"typed-call returned {result!r}, expected {[expected]!r}")
+    return calls
+
+
 __all__ = [
     "ALPHA_TERMS",
     "DIGEST_ATOMS",
@@ -215,6 +281,8 @@ __all__ = [
     "SORT_TERMS",
     "SOURCE_FORMS",
     "SPACE_NAME_CALLS",
+    "TYPED_CALLS",
+    "TYPED_SLOPE_SMALL",
     "alpha_unique_case",
     "close_engine_case",
     "digest_case",
@@ -224,4 +292,70 @@ __all__ = [
     "sort_atom_case",
     "source_load_case",
     "space_name_case",
+    "typed_call",
+    "typed_space",
 ]
+
+
+SAVE_LOAD_ATOMS = 20_000
+
+
+def save_load_case(format: str, atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
+    """Round-trip a whole space through a file, which is byte work.
+
+    The inference counter cannot see byte copying: `string-join` once moved 4x
+    in inferences and 476x in wall clock for the same change. These two
+    benchmarks had an inference baseline and no instruction one, so a change
+    that doubled the bytes written would have passed the gate silently. Wall
+    clock is the other instrument and it is unusable on a loaded box;
+    instructions:u sees the copying and does not move with the load.
+
+    The space is rebuilt per case rather than shared, so the file it writes is
+    the same size every round.
+    """
+    directory = tempfile.TemporaryDirectory(prefix="petta-benchmark-")
+    source = _space()
+    target = _space()
+    try:
+        source.add(*(S["benchmark-save-node"](index, index + 1) for index in range(atoms)))
+        source.run("(= (benchmark-save-next $x) (+ $x 1))")
+    except BaseException:
+        source.drop()
+        target.drop()
+        directory.cleanup()
+        raise
+    path = f"{directory.name}/roundtrip.{format}"
+    expected = atoms + 1
+
+    def operation() -> int:
+        saved = source.save(path, format=format)
+        groups = target.load(path)
+        if saved != expected or groups or target.count() != expected:
+            raise AssertionError(f"{format} did not round-trip {expected} atoms")
+        if target.run("!(benchmark-save-next 41)") != [[42]]:
+            raise AssertionError(f"{format} lost the stored equation")
+        target.clear()
+        target.run("(= (benchmark-save-next $x) (+ $x 1))")
+        return saved
+
+    _SAVE_LOAD_HELD[source.space_name] = (target, directory)
+    return (source, operation)
+
+
+# What close_save_load_case has to release beyond the space close_engine_case
+# drops: the second space the round trip loads into, and the directory the
+# file lives in. Keyed on the source space's name because EngineCase carries
+# exactly one space and one operation, and widening it would touch every
+# workload for the benefit of this one.
+_SAVE_LOAD_HELD: dict[str, tuple[MeTTa, Any]] = {}
+
+
+def close_save_load_case(state: EngineCase) -> None:
+    """Release a save-load workload: both spaces and the temporary directory."""
+    source = state[0]
+    held = _SAVE_LOAD_HELD.pop(source.space_name, None)
+    close_engine_case(state)
+    if held is not None:
+        target, directory = held
+        target.drop()
+        directory.cleanup()

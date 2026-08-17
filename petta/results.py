@@ -37,10 +37,10 @@ from functools import lru_cache
 from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
 
 from . import convert
-from ._api_types import SpaceName
 from ._config import config
 from ._optional import require_module
 from .atoms import Atom, Gnd, decode
+from .errors import EngineError
 
 __all__ = ["Row", "Rows"]
 
@@ -52,7 +52,7 @@ _BuildT = TypeVar("_BuildT")
 
 
 class _QueryContext(NamedTuple):
-    space: SpaceName
+    space: str
     patterns: tuple[Atom, ...]
     where: Atom | None
 
@@ -259,7 +259,7 @@ class Rows(UserList[Row]):
         none or several raise naming the count, so a lookup that silently
         picked an arbitrary row cannot hide."""
         if len(self) != 1:
-            raise ValueError(
+            raise EngineError(
                 f"one() expected exactly one row, got {len(self)}; "
                 f"use first() for row-or-None, or iterate for all"
             )

@@ -1,0 +1,53 @@
+{
+  "benchmarks": {
+    "extcost-c-foreign-predicate": {
+      "inferences": 18214,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-m-define-annotated": {
+      "comment": "Lowered from 75241 on 2026-08-16, -27000 over 3000 calls, which is nine inferences per call. A literal argument's type is settled while the call site compiles, so translate_args_by_type_dl/7 emits no has_type/2 check for one; a call whose arguments are all literals of the declared types now compiles to exactly what the untyped one does, with no once/1 wrapper either. The published table's annotated row moved 20.00 -> 11.00 inferences per call and 6.67x -> 3.67x against an ordinary MeTTa function. The drop is one-directional and never rejects: a literal of the WRONG declared type keeps its check and is still refused, because a get-type extension may give a literal a second type and deciding that statically would be unsound. Guarded by translator_literal_type_checks in tests/prolog/translator.plt.",
+      "inferences": 24238,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-m-define-no-annotations": {
+      "inferences": 24258,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-ordinary-metta-function": {
+      "inferences": 24230,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-prolog-grounded-predicate": {
+      "inferences": 21234,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-python-operation-encoded": {
+      "inferences": 54248,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-python-operation-raw-true": {
+      "inferences": 33230,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-the-driver-itself": {
+      "inferences": 15226,
+      "operations": 3000,
+      "unit": "calls"
+    },
+    "extcost-translator-rule-a-macro": {
+      "inferences": 21232,
+      "operations": 3000,
+      "unit": "calls"
+    }
+  },
+  "counter_policy": "stats().inferences minimum of three and fixed two-point growth slopes decide; wall time advises",
+  "instruction_policy": "perf instructions:u minimum of three, one percent noise allowance",
+  "schema": 1
+}

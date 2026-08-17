@@ -10,6 +10,8 @@ Open Obligations:
 
 from ._ops import (
     dispatch,
+    dispatch_inverse,
+    dispatch_inverse_raw,
     dispatch_many,
     dispatch_raw,
     dispatch_raw_many,
@@ -17,10 +19,17 @@ from ._ops import (
 )
 from .foreign import (
     foreign_add,
+    foreign_add_many,
     foreign_atoms,
     foreign_clear,
     foreign_match,
+    foreign_plan,
+    foreign_pushdown,
+    foreign_refuse,
     foreign_remove,
+    foreign_transaction,
+    is_matchable,
+    match_object,
 )
 from .subscribe import atom_added, atom_removed
 
@@ -28,13 +37,22 @@ __all__ = [
     "atom_added",
     "atom_removed",
     "dispatch",
+    "dispatch_inverse",
+    "dispatch_inverse_raw",
     "dispatch_many",
     "dispatch_raw",
     "dispatch_raw_many",
     "foreign_add",
+    "foreign_add_many",
     "foreign_atoms",
     "foreign_clear",
     "foreign_match",
+    "foreign_plan",
+    "foreign_pushdown",
+    "foreign_refuse",
     "foreign_remove",
+    "foreign_transaction",
+    "is_matchable",
+    "match_object",
     "type_names",
 ]

@@ -16,7 +16,7 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from petta import REFLECTION_SPACE, MeTTa, S, V, alpha_eq, expr, measure, val
+from petta import REFLECTION_SPACE, Answer, MeTTa, S, V, alpha_eq, expr, val
 from petta.atoms import Expr, Gnd, Var
 from petta.ops import referenced_classes, type_atoms_for
 
@@ -81,6 +81,23 @@ def test_comparison_terms_refuse_truthiness():
         sorted([V.a, V.b])
     with pytest.raises(TypeError):
         bool((V.a >= 1) & (V.b >= 2))
+
+
+def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
+    """PEP 8 says write `if greeting:` rather than `greeting == True`, and
+    without this the conformant spelling reads a MeTTa False as true: a user
+    who tidies away the `# noqa: E712` gets a silent wrong answer."""
+    m.run("(= (adult $a) (> $a 18))")
+    answers = m.eval("(adult 5)")
+    assert answers == [False]
+    assert not any(answer for answer in answers)
+    assert any(answer for answer in m.eval("(adult 21)"))
+
+    assert bool(Gnd(True)) is True
+    assert bool(Gnd(False)) is False
+    # A Number 0 is not falsehood in MeTTa, and neither is an empty string
+    # or an empty host container carried whole.
+    assert all(bool(Gnd(value)) for value in (0, 0.0, "", [], None))
 
 
 # ------------------------------------------------- generalised declarations
@@ -223,22 +240,27 @@ def test_prepared_query_with_given(m):
 # ------------------------------------------------------- weighted relations
 
 
-def test_weighted_relation_takes_any_callable(m):
-    measure.install(m)
+def test_a_weighted_relation_is_an_annotated_op(m):
+    # DeepProbLog's nn-predicate shape through the general seam: the op
+    # answers its classes, each weight riding as the answer's annotation,
+    # declared like any context; top orders, (annotation) reads.
+    def mood(day):
+        yield Answer(value=S.calm, k=0.25)
+        yield Answer(value=S.tense, k=0.75)
 
-    def mood_weights(day):
-        return [0.25, 0.75]
-
-    measure.weighted_relation(m, "mood", mood_weights, [S.calm, S.tense])
-    (pairs,) = m.run("!(collapse (mood today))")[0]
-    assert [(float(p[0]), str(p[1])) for p in pairs] == [
+    m.register_op(mood, name="mood", typed=False)
+    m.declare_annotations("mood", "prob")
+    (classes,) = m.run("!(collapse (mood today))")[0]
+    assert [str(c) for c in classes] == ["calm", "tense"]
+    (best,) = m.run("!(collapse (top 1 (mood today)))")[0]
+    assert list(best.children) == [S.tense]
+    (weighted,) = m.run(
+        "!(collapse (let $c (mood today) (pair (annotation) $c)))"
+    )[0]
+    assert [(p.children[1].value, str(p.children[2])) for p in weighted.children] == [
         (0.25, "calm"),
         (0.75, "tense"),
     ]
-    (best,) = m.run("!(ws-best (collapse (mood today)))")[0]
-    assert best == S.tense
-    (scored,) = m.run("!(mood today calm)")[0]
-    assert float(scored[0]) == 0.25 and scored[1] == S.calm
 
 
 # --------------------------------------------------------- reflection space
@@ -348,6 +370,27 @@ def test_registration_failure_leaves_nothing_half_registered(m):
     assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
     assert _arrows_of(m, "bad-op") == set()
+
+
+# `from __future__ import annotations` makes every annotation a STRING, which
+# is the default in a growing number of codebases and will be the default
+# outright. A declaration generator reading the raw __annotations__ sees "int"
+# rather than int and declares nothing useful, so the resolution has to happen
+# before the atoms are built.
+def test_postponed_annotations_generate_declarations(m):
+    namespace: dict = {}
+    exec(
+        "from __future__ import annotations\n"
+        "def widen(count: int, label: str) -> str:\n"
+        "    return label * count\n",
+        namespace,
+    )
+    widen = namespace["widen"]
+    assert widen.__annotations__["count"] == "int"
+
+    m.register_op(widen, name="widen-op")
+    assert _arrows_of(m, "widen-op") == {"(-> Number String String)"}
+    assert m.run('!(widen-op 2 "ab")') == [["abab"]]
 
 
 def test_union_expansion_is_bounded(m):

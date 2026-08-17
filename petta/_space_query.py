@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ._api_types import SpaceName
 from ._engine import Runtime
 from ._space_objects import _column_names, _limits, guard_atom
 from .atoms import Atom, _to_atom, atom_from_wire
@@ -26,7 +25,7 @@ from .results import Rows, _QueryContext
 
 
 def _query_target(
-    space: SpaceName,
+    space: str,
     wires: list[Any],
     columns: list[str],
     where: Atom | None,
@@ -47,7 +46,7 @@ def _query_target(
 
 def query_rows(
     rt: Runtime,
-    space: SpaceName,
+    space: str,
     patterns: tuple[Any, ...],
     *,
     where: Any | None,

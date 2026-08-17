@@ -1,6 +1,13 @@
 % Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
 %   imports, function registration, and named-space execution context.
 % Guarantees:
+%   - petta_handles_route/5 routes a query by the most specific matching
+%     (handles ...) entry in &petta, where specificity is pattern
+%     subsumption first and adornment-set inclusion between renaming-equal
+%     patterns, disagreeing maximal ties throw petta_contract_conflict/4
+%     naming both entries and the query, and a context with no entries
+%     fails in one indexed probe [tested 2026-08-17: metta_handles_route]
+%     [measured 2026-08-17: 15 inferences per undeclared-context miss].
 %   - get-type/2 returns each derived type once, while has_type/2 uses one
 %     witness for a fixed expected type [tested 2026-08-15:
 %     metta_type_answers, translator_typed_checks].
@@ -40,8 +47,75 @@
 %%%%%%%%%% Dependencies %%%%%%%%%%
 library(X, Path) :- standard_library_path(Base),
                     directory_file_path(Base, X, Path).
-library(X, Y, Path) :- git_library_path(X, Base),
+%A named library directory, git-fetched or registered. A library that
+%pip-installs is under neither: standard_library_path/1 is one directory,
+%<src>/../lib, so (library fast.pl) cannot reach a package's own files and a
+%downstream library has to pass absolute paths, which is what
+%lib/minimal_metta_lib.py does with os.path.dirname(os.path.abspath(__file__)).
+%
+%SWI already owns the answer. file_search_path/2 is a "dynamic multifile hook
+%predicate used to specify path aliases ... called by absolute_file_name/3 to
+%search files specified as Alias(Name)" [source: SWI-Prolog 10.1 Reference
+%Manual, section 4.36], it composes (the second argument may be another
+%alias), and every SWI tool that understands an alias understands one
+%registered here. So a package registers its directory once and
+%(library pettorch fast.pl) resolves
+%[tested: a_registered_library_path_resolves].
+library(X, Y, Path) :- git_library_path(X, Base), !,
                        directory_file_path(Base, Y, Path).
+library(X, Y, Path) :- Spec =.. [X, Y],
+                       (   absolute_file_name(Spec, Resolved,
+                                              [access(read), file_errors(fail)])
+                       ->  Path = Resolved
+                       ;   refuse_unresolved_library(X, Y)
+                       ).
+
+%An alias that resolves to nothing RAISES rather than failing, and the
+%distinction is CPython's: returning None from find_spec means "not mine, keep
+%looking" and raising means "definitively absent", because "the latter
+%indicates that the meta path search should continue, while raising an
+%exception terminates it immediately" [source: CPython, the import system,
+%finders and loaders].
+%
+%Failing was the keep-looking signal with nothing left to look with, so
+%(import! &self (library imp3 plain)) with the extension forgotten answered
+%the empty set, imported nothing, and left every name from that file
+%undefined. That surfaces much later as an expression evaluating to itself,
+%which is the hardest failure in this language to trace back to its cause. A
+%plain path that is absent already raised and named itself; this is the same
+%rule reaching the alias form
+%[tested: an_unresolvable_library_alias_raises].
+refuse_unresolved_library(Alias, File) :-
+    findall(Directory, file_search_path(Alias, Directory), Directories),
+    throw(error(petta_unresolved_library(Alias, File, Directories),
+                context(library/3, 'no readable file of that name'))).
+
+prolog:error_message(petta_unresolved_library(Alias, File, [])) -->
+    [ '(library ~w ~w) does not resolve: nothing is registered under the \c
+       alias ~w. Register the directory with register_metta_library_path, or \c
+       import the file by path.'-[Alias, File, Alias] ].
+prolog:error_message(petta_unresolved_library(Alias, File, Directories)) -->
+    [ '(library ~w ~w) does not resolve: no readable ~w under ~w. Check the \c
+       spelling, and that the file carries its extension.'
+      -[Alias, File, File, Directories] ].
+
+%Register a directory under a name, so a Python package can point MeTTa at
+%the Prolog and MeTTa files it ships beside itself. Idempotent, and a
+%directory that is not there is refused where the caller can still act on it
+%rather than at the first import that needs it.
+register_metta_library_path(Alias, Directory0, true) :-
+    must_be(atom, Alias),
+    ( atom(Directory0) -> Directory = Directory0 ; atom_string(Directory, Directory0) ),
+    (   exists_directory(Directory)
+    ->  true
+    ;   throw(error(existence_error(directory, Directory),
+                    context(register_metta_library_path/3,
+                            'a library path must be a directory that exists')))
+    ),
+    (   user:file_search_path(Alias, Directory)
+    ->  true
+    ;   assertz(user:file_search_path(Alias, Directory))
+    ).
 :- prolog_load_context(directory, Source),
    directory_file_path(Source, '..', Parent),
    directory_file_path(Parent, 'lib', LibPath),
@@ -54,20 +128,74 @@ library(X, Y, Path) :- git_library_path(X, Base),
 :- use_module(library(listing)).
 :- use_module(library(aggregate)).
 :- use_module(library(thread)).
+%alarm/4 and remove_alarm/1, which metta_timeout/2 uses instead of
+%call_with_time_limit/2 so a bounded goal keeps its answers.
+:- use_module(library(time)).
+%wrap_predicate/4, for making the pragma bound free when no bound is set.
+:- use_module(library(prolog_wrap)).
+%library(thread) does not declare its own dependency on option/2, and nothing
+%else loaded here pulls library(option) in, so jobs/2 resolved it by autoload
+%on the first concurrent_and/3 call [verified 2026-08-15: swi_option is absent
+%until something touches option/2]. Loading it up front keeps lazy loading off
+%the concurrent path. An `Unknown procedure: thread:option/2` was reported once
+%under concurrent hyperpose; a race was NOT reproduced in 12 runs of 24 workers
+%entering concurrent_and/2 on a barrier, so treat this as cheap hardening and
+%not as a diagnosed fix.
+:- use_module(library(option)).
 :- use_module(library(lists)).
 :- use_module(library(yall), except([(/)/3])).
 :- use_module(library(apply)).
 :- use_module(library(apply_macros)).
 :- use_module(library(process)).
 :- use_module(library(filesex)).
-:- current_prolog_flag(argv, Argv),
-   ( member(mork, Argv) -> ensure_loaded([ext_points, parser, translator, specializer, filereader, '../lib/lib_gitimport', '../mork_ffi/morkspaces', spaces, tracer])
-                         ; ensure_loaded([ext_points, parser, translator, specializer, filereader, '../lib/lib_gitimport', spaces, tracer])).
+:- ensure_loaded([ext_points, parser, translator, specializer, filereader,
+                  '../lib/lib_gitimport', spaces, tracer, duals, python]).
+
+%%%% Native backends %%%%
+%
+%A native backend is a space provider whose implementation is a shared library
+%rather than Prolog. Once loaded it is a foreign space like any other and this
+%file knows nothing more about it; what it needs from the engine is somewhere
+%to be loaded FROM, and that is all this does.
+%
+%One backend used to be named here instead, twice: `'../mork_ffi/morkspaces'`
+%in a second copy of the whole load list, and its three builtin names in a
+%second argv test further down. So a second native backend could not be added
+%without editing this file, which is the one thing EXTENDING.md promises an
+%extension author never has to do, and MORK was reaching the engine through a
+%door no other provider had. It goes through the seam now like everyone else.
+%
+%A backend is a file in backends/. Loading one is consulting that file, and
+%what it pulls in, where its build artefacts are, and whether they are present
+%at all is the backend's own business: a backend that is not built loads
+%nothing and says nothing, and one that is built and broken raises, which is
+%the split every host wants and none of them should have to implement.
+%
+%The engine's own position is fixed rather than the backend's: they load after
+%everything, because a provider is reached through metta_foreign_space/1 and
+%not through clause order. That was true before this change and is what made it
+%safe [verified 2026-08-16: moved, whole gate green including the MORK tests].
+:- prolog_load_context(directory, Src),
+   current_prolog_flag(argv, Argv),
+   (   memberchk(backends, Argv)
+   ->  directory_file_path(Src, '../backends/*.pl', Pattern),
+       expand_file_name(Pattern, Found),
+       msort(Found, Files),
+       forall(member(File, Files), ensure_loaded(File))
+   ;   true
+   ).
 
 %%%%%%%%%% Standard Library for MeTTa %%%%%%%%%%
 
 %%% Representation and parsing conversions: %%%
 id(X, X).
+%noeval is the Atom mask on both sides: the declaration in
+%lib/lib_builtin_types.metta stops the argument being reduced on the way in and
+%its Atom return type stops the answer being reduced on the way out, so the
+%body is the identity and the types are the whole implementation. That is how
+%the reference defines it [source: metta-lang-docs, types_basics/metatypes:
+%"This is the way noeval function is implemented"].
+noeval(X, X).
 repr(Term, R) :- swrite(Term, Text), R = Text.
 repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, R) :- sread(Str, R).
@@ -180,6 +308,24 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
                               rethrow_metta_operation_error('#\\=', E)), !.
 '#\\='(A, B, false) :- catch(A #= B, E,
                               rethrow_metta_operation_error('#\\=', E)).
+%The other two comparisons of the same family. Four of the six were defined and
+%these two were not, and nothing in examples/ or lib/ used any of them, so
+%nothing noticed.
+%
+%The absence was quiet rather than loud, and that part is the language working
+%correctly: an expression whose head has no definition is DATA, so (#=< 1 2)
+%answered (#=< 1 2). A symbol is data or a function depending on whether
+%something defines it, which is what makes an undefined name usable as a term
+%at all. The defect was the incomplete family, not the way it showed.
+'#=<'(A, B, true)  :- catch(A #=< B, E,
+                            rethrow_metta_operation_error('#=<', E)), !.
+'#=<'(A, B, false) :- catch(A #> B, E,
+                            rethrow_metta_operation_error('#=<', E)).
+'#>='(A, B, true)  :- catch(A #>= B, E,
+                            rethrow_metta_operation_error('#>=', E)), !.
+'#>='(A, B, false) :- catch(A #< B, E,
+                            rethrow_metta_operation_error('#>=', E)).
+
 'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
                                rethrow_metta_operation_error('pow-math', E)).
 'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
@@ -280,7 +426,47 @@ empty(_) :- fail.
 
 %%% Lists / Tuples: %%%
 'cons-atom'(H, T, [H|T]).
+%The grounded reading goes FIRST and fails fast, rather than after the cons
+%clause, because the cons clause has no cut: a variable-headed clause behind it
+%stays a candidate that indexing cannot rule out, so every decons of a real
+%list left a choicepoint, in loops that recurse on exactly this
+%[tested: decons_atom_is_total]. non_list/1 is false for both list shapes, so a
+%list pays two inferences and reaches the same clauses in the same order.
+'decons-atom'(Term, Out) :- non_list(Term), !,
+                            grounded_list_view(Term, [H|T]), !, Out = [H|[T]].
+%The second cut prunes the SEAM's remaining providers, which the first one
+%cannot: it fires on non_list/1, before the seam has been consulted at all, so
+%without this every decons of a grounded value carried a live choice point into
+%whatever loop it was in [tested: a_tuple_reads_as_an_expression]. It belongs
+%here, at the one caller whose own cut comes too early, rather than in the seam:
+%making the seam itself deterministic costs 400 million instructions on
+%alpha-unique, 10.7%, for reasons that outlive this comment
+%[measured 2026-08-16, ai-design-grounded-view.md records the reproduction].
 'decons-atom'([H|T], [H|[T]]).
+%The empty expression answers an error rather than nothing, so decons-atom is
+%TOTAL. Failing here is not "no decomposition", it is the whole continuation
+%vanishing: (chain (decons-atom ()) $l TEMPLATE) never runs its template and
+%the branch after it is unreachable. That cost the specification's own Turing
+%machine both of its blank-cell arms and mm-switch its "no case matched" arm,
+%and nothing in either program said why [source: lib/minimal_metta_lib.metta,
+%recorded there as C1b and C1d].
+%
+%The shape is the reference implementation's, because PeTTa had no considered
+%answer here to keep: failing was the absence of a clause rather than a
+%decision. LeaTTa's conformance evidence pins it to the Rust interpreter,
+%lib/src/metta/interpreter.rs:1750-1758, which tests the empty case as an
+%execution error, and records the byte-identical output
+%[source: /home/user/Dev/LeaTTa/tests/semantics/metaprogramming/EVIDENCE.md,
+%M06 "Empty deconstruction is an error"].
+%
+%Three elements, which the callers need. lib_measure.metta and lib_soft.metta
+%destructure with (let ($h $t) (decons-atom $ps) ...) and rely on the empty
+%case not matching; a two-element error would bind $h to Error and answer a
+%wrong result in silence, where a three-element one still fails to unify and
+%those loops terminate exactly as before [tested: decons_atom_is_total, the_empty_error_does_not_destructure_as_a_pair].
+'decons-atom'([], ['Error', ['decons-atom', []],
+                   "expected: (decons-atom (: <expr> Expression)), \c
+                    found: (decons-atom ())"]).
 'first-from-pair'([A, _], A).
 first([A, _], A).
 'second-from-pair'([_, A], A).
@@ -328,22 +514,73 @@ alpha_bucket_insert(Key, Term, SeenIn, SeenOut, IsNew) :-
 non_list(X) :- atomic(X), X \== [].
 non_list(X) :- compound(X), X \= [_|_].
 
-'sort-atom'(List, Sorted) :- non_list(List), !, Sorted = [].
+%%% Taking an expression apart, and the grounded values that also read as one.
+%
+%Each of these grew ONE clause, placed after the cut that a real list takes, so
+%a MeTTa expression costs exactly what it did before and only a term that is
+%not a list ever asks whether it has a structural view. The SWI manual's rule
+%for it: these predicates stay under ten clauses, so selection is "a linear
+%scan for a possible matching clause" on the primary index argument, and the
+%variable-headed clause that was already here is what decides that, not the new
+%one [source 2026-08-16, SWI-Prolog 10.1 Reference Manual 2.17].
+'sort-atom'(List, Sorted) :- non_list(List), !,
+                             ( grounded_list_view(List, View) -> msort(View, Sorted) ; Sorted = [] ).
 'sort-atom'(List, Sorted) :- msort(List, Sorted).
-'size-atom'(List, Size) :- non_list(List), !, Size = [].
+'size-atom'(List, Size) :- non_list(List), !,
+                           ( grounded_list_view(List, View) -> length(View, Size) ; Size = [] ).
 'size-atom'(List, Size) :- length(List, Size).
 'car-atom'([H|_], H) :- !.
+'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
 'car-atom'(Term, []) :- \+ Term = [_|_].
 'cdr-atom'([_|T], T) :- !.
+'cdr-atom'(Term, Out) :- grounded_list_view(Term, [_|T]), !, Out = T.
 'cdr-atom'(Term, []) :- \+ Term = [_|_].
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
 'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
                                 Elem = [].
 'index-atom'(List, Index, Elem) :- var(Index), !,
-                                  nth0(Index, List, Elem).
+                                  indexable_list(List, View),
+                                  nth0(Index, View, Elem).
 'index-atom'(List, Index, Elem) :-
-    ( nth0(Index, List, Value) -> Elem = Value ; Elem = [] ).
+    indexable_list(List, View),
+    ( nth0(Index, View, Value) -> Elem = Value ; Elem = [] ).
+
+indexable_list(List, List) :- is_list(List), !.
+indexable_list(Term, View) :- grounded_list_view(Term, View), !.
+indexable_list(List, List).
+
+%A grounded value's own reading of itself as an expression, asked only of terms
+%that are not expressions already. Nothing here knows Python: the provider is
+%whoever loaded one, and with none loaded this is a single failing call.
+%once/1 because this is an OWNERSHIP seam: a value has one structural reading,
+%and whichever provider recognises it is the one that answers. Without it every
+%caller inherits the choice point of the providers that have not been tried,
+%and a caller whose own cut comes BEFORE this call cannot prune it: decons-atom
+%cuts on non_list/1 first, so every decons of a Python tuple carried a live
+%choice point into whatever loop it was in
+%[tested: a_tuple_reads_as_an_expression].
+grounded_list_view(Term, View) :-
+    nonvar(Term),
+    (   metta_grounded_structure(Term, View)
+    ->  true
+    ;   compound(Term),
+        compound_name_arguments(Term, Name, Arguments),
+        View = [Name|Arguments]
+    ).
+
+%The fallback above is the writer's rule read backwards. A Prolog compound
+%already PRINTS as `(name arg ...)`, which is how an error reaches a program:
+%`(catch (f))` answers `(Error (python_error ZeroDivisionError "division by
+%zero") (context ...))`, and every part of that after `Error` was a compound. So
+%it printed as an expression and refused to behave as one, `car-atom` of the
+%formal answering `()` and a `let` over it matching nothing. A program could see
+%that a call failed and could not ask WHAT failed, which is most of what an
+%error is for.
+%
+%A provider is asked first and can disagree: a Python tuple is -/N and reads as
+%its elements NORMALIZED, so a None inside one reads as `()` rather than as
+%janus's spelling of it.
 member(X, L, true) :- member(X, L).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
@@ -423,6 +660,54 @@ type_declaration_in(user, X, T) :- !, match('&self', [':', X, T], T, _).
 type_declaration_in(Module, X, T) :- (   match(Module, [':', X, T], T, _)
                                      ;   match('&self', [':', X, T], T, _) ).
 
+%A declaration that is not an arrow types the SYMBOL and cannot type a call to
+%it, and nothing said so. `(: inc Number)` beside `(= (inc $x) (+ $x 1))`
+%compiles the call site as bare `inc("s", A)`, so the string travels into `+`
+%and the program dies inside arithmetic with `+: number expected`; the same
+%file written `(: inc (-> Number Number))` compiles
+%`once(has_type("s",'Number') *-> true ; get-metatype(...))` around the call
+%and refuses it at inc's own door [reproduced 2026-08-16, both goals are in
+%filereader_untypable_declaration].
+%
+%So this refuses rather than warns. The defect is not that the declaration is
+%wrong, it is that the declaration LOOKS like it types the function, does not,
+%and every diagnostic the author then gets points somewhere else entirely.
+%
+%The condition is semantic, not spelling. A first draft rejected any type
+%whose head merely LOOKED like a mistyped arrow, and this repository is its
+%own counter-example: lib_nars.metta writes NARS inheritance as `(--> $a $b)`
+%and lib_combinatorics.metta writes a lambda as `(|-> ...)`, 95 and 48
+%occurrences, every one of them a deliberate atom in a data position. What
+%decides here is whether the name has an arrow declaration AT ALL, which
+%neither of those ever claims to be.
+%
+%One arrow among several declarations is enough, because MeTTa lets a name
+%carry more than one. `%Undefined%` is the engine's own way of writing
+%"deliberately untyped" and is not an offender, and neither is a variable,
+%which a later binding may still fill.
+%
+%Judged over a name's WHOLE set of declarations, which is why the caller is
+%the source loader and not add-atom/3. A build that writes `(: f Number)` and
+%`(: f (-> Number Number))` as two atoms passes through a state where only the
+%first is stored, and refusing there refuses a program that is about to be
+%correct. Declarations that reach a space by any other route are named by
+%space.lint(), which reads the finished space instead of an intermediate one.
+untypable_declarations(Types, Offender) :-
+    Types \== [],
+    \+ ( member(Arrow, Types), nonvar(Arrow), Arrow = [->|_] ),
+    member(Offender, Types),
+    nonvar(Offender),
+    Offender \== '%Undefined%'.
+
+%The context is `none` rather than an unbound variable so that a file load
+%replaces it with the filename: rethrow_metta_file_error/2 leaves an error
+%whose context already unifies with context(_, _) exactly as it found it, and
+%an unbound context unifies with anything.
+refuse_untypable_declaration(Name, Types) :-
+    (   untypable_declarations(Types, Offender)
+    ->  throw(error(petta_untypable_declaration(Name, Offender), none))
+    ;   true ).
+
 %&self is always the engine's native space. Its fixed private storage module
 %keeps this recursive type probe on a compiled direct call, with no provider
 %dispatch or exception handler.
@@ -456,45 +741,217 @@ has_type(X, T) :- current_metta_module(Module),
 %later arguments must agree on, and once/1 commits to whichever witness came
 %first: with (: p1 (Pair A)), (: p1 (Pair B)) and (: p2 (Pair B)) declared,
 %(samepair p1 p2) answered nothing while (samepair p2 p1) answered True, from
-%one symmetric definition [tested metta_shared_type_variables].
+%one symmetric definition [tested: a_parametric_expected_type_enumerates_its_witnesses].
+%The widened list is consulted only AFTER the direct one has failed, which is
+%where every subtype answer lives anyway: a value whose declared type already
+%matches never pays for the graph, and a program with no (:< ...) edge pays one
+%failing indexed query on the branch that was going to fail regardless. This is
+%the check an argument goes through, so `(: Rex Dog)` with `(:< Dog Animal)`
+%now satisfies a parameter of type Animal
+%[tested: an_argument_is_accepted_through_its_supertype].
 has_type_in(Module, X, T) :-
     ( ground(T)
       -> ( T == '%Undefined%'
            -> \+ once(type_candidate_in(Module, X, _))
-            ; once(type_candidate_in(Module, X, T)) )
-       ; type_answers(Module, X, Types),
-         member(T, Types) ).
+            ; (   once(type_candidate_in(Module, X, T))
+              ->  true
+              ;   satisfies_metatype(X, T)
+              ->  true
+              ;   type_answers(Module, X, Types),
+                  once(( member(Widened, Types), Widened == T ))
+              ) )
+       ; any_super_type_edge(Module)
+         -> type_answers(Module, X, Types),
+            member(T, Types)
+        ; % No (:< ...) edge anywhere: the full set's order IS candidate
+          % order, so the answers can stream, deduplicated by variance
+          % exactly as unique_type_answers decides, first occurrence kept,
+          % and a checking caller's soft cut stops at its first witness
+          % instead of paying findall plus dedup for the whole set. On
+          % nilbc's 797k nonground-type judgements the materialized set
+          % was the remaining hot block [measured 2026-08-17, profile/2].
+          % The seen-list is a per-call compound mutated with nb_setarg,
+          % which library(solution_sequences) distinct/2 also does
+          % underneath but with a per-call hash table whose setup cost
+          % 1.6x the whole findall it replaced at one or two candidates
+          % per call [measured 2026-08-17: 17.6e9 to 28.4e9 and back].
+          (   lazy_unique_candidate(Module, X, C)
+          *-> T = C
+          ;   T = '%Undefined%'
+          ) ).
+
+%The first clause is the whole common case and pays no bookkeeping at
+%all: a deterministic check derives one candidate and commits. Only a
+%caller that actually RETRIES reaches the second clause, which re-seeds
+%the seen-list with the first candidate and streams the rest, so a
+%variant repeat of the first is excluded exactly as it was when the
+%whole set was materialized.
+lazy_unique_candidate(Module, X, Candidate) :-
+    once(type_candidate_in(Module, X, Candidate)).
+lazy_unique_candidate(Module, X, Candidate) :-
+    once(type_candidate_in(Module, X, First)),
+    duplicate_term(First, Seed),
+    State = seen([Seed]),
+    type_candidate_in(Module, X, Candidate),
+    arg(1, State, Seen),
+    \+ ( member(Previous, Seen), Previous =@= Candidate ),
+    duplicate_term(Candidate, Kept),
+    nb_setarg(1, State, [Kept|Seen]).
 
 type_answers(Module, X, Types) :-
     findall(Type, type_candidate_in(Module, X, Type), Candidates),
     unique_type_answers(Candidates, Unique),
-    ( Unique == [] -> Types = ['%Undefined%'] ; Types = Unique ).
+    widen_to_super_types(Module, X, Unique, Widened),
+    ( Widened == [] -> Types = ['%Undefined%'] ; Types = Widened ).
 
-%Canonical keys make alpha-equivalent polymorphic types equal. The two stable
-%sorts remove repeats in O(n log n) work and then restore derivation order,
-%which is observable through collapse.
+%%%% Subtyping: (:< Sub Super) %%%%
+%
+%`:<` is upstream's spelling, SUB_TYPE_SYMBOL at lib/src/metta/mod.rs:22, and
+%the arrow points from the subtype to the supertype, which is why it is not
+%`:>`. Read `(:< Dog Animal)` as "Dog is below Animal".
+%
+%The mechanism is not what the name suggests, and getting that wrong is the
+%whole of why this took a rewrite rather than a rule. Upstream never DECIDES a
+%subtyping relation while checking an argument: it WIDENS the argument's type
+%LIST, and the ordinary type check then runs unchanged against the wider list.
+%So the matcher learns nothing about subtyping, and `get-type` is the surface
+%where it shows [source: /home/user/Dev/LeaTTa/ai-report-subtype-graph.md,
+%against pinned hyperon 0.2.10 at 3f76dc4].
+%
+%What is NOT widened: a grounded literal's built-in type and an application's
+%return type, because upstream's get_atom_types_internal queries the space only
+%for symbols and expressions. So `(:< Number Foo)` leaves `(get-type 1)` at
+%Number, and `(: f (-> A B))` with `(:< B C)` leaves `(get-type (f a))` at B.
+%Two phases, because the ORDER is observable through collapse and upstream's
+%is not the order one pass produces: tuple products first, then the direct
+%declarations already widened, then one more widening over the whole list. With
+%(: (a b) D), (:< (A B) C) and (:< D E) that answers ((A B) D E C), where a
+%single pass over the whole list answers ((A B) D C E)
+%[source: LeaTTa ai-report-subtype-graph.md, get_tuple_types].
+widen_to_super_types(Module, X, Types0, Types) :-
+    (   widening_applies_to(Module, X),
+        any_super_type_edge(Module)
+    ->  findall(Declared, type_declaration_in(Module, X, Declared), Directs),
+        partition(type_already_listed(Directs), Types0, Direct, Products),
+        add_super_types(Module, Direct, DirectWidened),
+        append(Products, DirectWidened, Combined),
+        add_super_types(Module, Combined, Types)
+    ;   Types = Types0
+    ).
+
+%The dispatch mirrors type_candidate_in/3's, which sends the `user` module to
+%the /2 predicates and every named space to the /3 ones. Asking the /3 one
+%about `user` simply fails, so an application's return type was widened when it
+%must not be: (: f (-> A B)) with (:< B C) answered (B C) for (get-type (f a))
+%where upstream answers (B) [tested: an_application_return_type_is_not_widened].
+widening_applies_to(Module, X) :-
+    \+ number(X),
+    \+ string(X),
+    X \== true,
+    X \== false,
+    \+ application_return_type(Module, X).
+
+application_return_type(user, X) :- !, get_function_type(X, _).
+application_return_type(Module, X) :- get_function_type_in(Module, X, _).
+
+%One indexed query rather than one per type: with no edge declared anywhere,
+%which is every program that does not use the feature, this is the whole cost.
+%The native probe peeks the storage clause directly instead of walking the
+%match/4 chain: first-argument indexing answers an empty ':<' bucket in a
+%few instructions, where the chain cost ~25 inferences 797k times on
+%nilbc's type resolutions [measured 2026-08-17, profile/2]. A space
+%served by a foreign provider keeps the full chain, because its edges do
+%not live in a storage module.
+any_super_type_edge(Module) :-
+    (   Module == user
+    ->  native_edge_probe('&self')
+    ;   metta_foreign_space(Module)
+    ->  \+ \+ super_type_in(Module, _, _)
+    ;   native_edge_probe(Module)
+    ->  true
+    ;   %A native name with no storage module yet holds no clauses, so
+        %only &self can carry an edge for it; probing the full match
+        %chain here instead cost a fresh python space +400k inferences on
+        %alpha-unique's counter before its first native write [measured
+        %2026-08-17]. A provider that plugs in through raw multifile
+        %match/4 clauses without metta_foreign_space/1 is outside this
+        %probe, and outside the seam's documented contract (EXTENDING.md:
+        %"Do not add raw match/4 clauses instead"); declaring the seam is
+        %what buys module-local edge service.
+        native_edge_probe('&self')
+    ).
+
+native_edge_probe(Space) :-
+    native_storage_module_cache(Space, StorageModule),
+    (   Space == '&self'
+    ->  \+ \+ clause(StorageModule:'&self'(':<', _, _), _)
+    ;   Head =.. [Space, ':<', _, _],
+        \+ \+ clause(StorageModule:Head, _)
+    ).
+
+super_type_in(user, T, S) :- !, match('&self', [':<', T, S], S, _).
+super_type_in(Module, T, S) :- (   match(Module, [':<', T, S], S, _)
+                               ;   match('&self', [':<', T, S], S, _) ).
+
+%add_super_types, round by round: each round asks for the supertypes of exactly
+%what the PREVIOUS round appended, and appends every one that was not present
+%in the list AS IT STOOD WHEN THE ROUND BEGAN.
+%
+%That last clause is why the diamond A<:B, A<:C, B<:D, C<:D answers
+%(A B C D D) and not (A B C D). Both B and C reach D in the same round, and
+%presence is checked against the list from before the round, so D is appended
+%twice. It is a parity artifact and it is reproduced deliberately: answering
+%more tidily than the arbiter is still answering differently
+%[tested: the_diamond_reproduces_upstreams_duplicate].
+%
+%The three clauses below are upstream's own, read from the source rather than
+%inferred from its behaviour [source 2026-08-16,
+%hyperon-experimental lib/src/metta/types.rs:49-63]:
+%
+%    sub_types.iter().skip(from)          the frontier is only the last round
+%    if !sub_types.contains(&typ)         checked BEFORE this round appends
+%    add_super_types(space, sub_types, sub_types.len())   recurse over the new
+%
+%and the spelling is `:<` at lib/src/metta/mod.rs:22, `SUB_TYPE_SYMBOL`. There
+%is no `:>` in that source: the arrow points from the subtype UP to the
+%supertype, so `(:< Dog Animal)` is "Dog is below Animal".
+add_super_types(Module, Types, Widened) :-
+    super_type_rounds(Module, Types, Types, Widened).
+
+super_type_rounds(_, [], Widened, Widened) :- !.
+super_type_rounds(Module, Frontier, Accumulated, Widened) :-
+    findall(Super,
+            ( member(Type, Frontier), super_type_in(Module, Type, Super) ),
+            Supers),
+    exclude(type_already_listed(Accumulated), Supers, Fresh),
+    (   Fresh == []
+    ->  Widened = Accumulated
+    ;   append(Accumulated, Fresh, Grown),
+        super_type_rounds(Module, Fresh, Grown, Widened)
+    ).
+
+type_already_listed(Listed, Type) :- member(Present, Listed), Present == Type.
+
+%Alpha-equivalent polymorphic types are one answer, first occurrence
+%kept, which preserves derivation order (observable through collapse).
+%The equivalence is =@=, variance, the same relation canonical
+%numbervars keys decide: (List $x) repeats (List $y) and (F $x $x) does
+%not repeat (F $x $y). The earlier implementation built a numbervars
+%copy of every candidate and keysorted twice; candidate lists are almost
+%always one or two entries, and on nilbc's 797k resolutions the copies
+%and sorts were ~40% of the whole type-resolution profile [measured
+%2026-08-17, profile/2], so the quadratic identity walk with the
+%C-implemented =@= is the faster shape at every realistic length.
 unique_type_answers(Candidates, Unique) :-
-    type_answer_pairs(Candidates, 0, Pairs),
-    keysort(Pairs, ByType),
-    first_type_per_key(ByType, Indexed),
-    keysort(Indexed, ByIndex),
-    pairs_values(ByIndex, Unique).
+    variant_unique_(Candidates, [], Unique).
 
-type_answer_pairs([], _, []).
-type_answer_pairs([Type|Types], Index, [Key-(Index-Type)|Pairs]) :-
-    copy_term(Type, Key),
-    numbervars(Key, 0, _),
-    Next is Index + 1,
-    type_answer_pairs(Types, Next, Pairs).
-
-first_type_per_key([], []).
-first_type_per_key([Key-Indexed|Pairs], [Indexed|Unique]) :-
-    skip_type_key(Pairs, Key, Rest),
-    first_type_per_key(Rest, Unique).
-
-skip_type_key([Other-_|Pairs], Key, Rest) :- Other == Key, !,
-                                             skip_type_key(Pairs, Key, Rest).
-skip_type_key(Pairs, _, Pairs).
+variant_unique_([], _, []).
+variant_unique_([Type|Types], Seen, Out) :-
+    (   member(Present, Seen), Present =@= Type
+    ->  variant_unique_(Types, Seen, Out)
+    ;   Out = [Type|Rest],
+        variant_unique_(Types, [Type|Seen], Rest)
+    ).
 
 type_candidate_in(user, X, T) :- get_type_candidate(X, T).
 type_candidate_in(Module, X, T) :- Module \== user,
@@ -506,22 +963,37 @@ get_type_rule_in(Module, X, T) :- Module \== user,
                                   Module:get_type_rule(X, T).
 get_type_rule_in(_, X, T) :- get_type_rule(X, T).
 
+python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
+
+python_object_blob_name(py).
+python_object_blob_name('PyObject').
+
 get_type_candidate(X, 'Number')   :- number(X), !.
 get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
 get_type_candidate(false, 'Bool') :- !.
-%Only PyObject blobs can be Janus references. The blob guard avoids calling
-%into Janus, and initializing Python, while typing ordinary MeTTa values;
+%Only Python blobs can be Janus references. The blob guard avoids calling into
+%Janus, and initializing Python, while typing ordinary MeTTa values;
 %py_is_object/1 still validates a live reference and reports a freed one.
+%
+%The blob SWI registers is named `py`, and this asked for 'PyObject', so the
+%guard never held and every clause behind it was unreachable: in an engine
+%without the Python library loaded, `(get-type <a python object>)` answered
+%%Undefined% rather than the object's classes. The library has its own bridge
+%and hid it [measured 2026-08-16: `(Puppy Dog Animal)` through the library,
+%%Undefined% through run.sh]. Both names are accepted so the guard cannot
+%break again when one of them changes.
 get_type_candidate(X, T) :- atomic(X), \+ atom(X),
-                            blob(X, 'PyObject'), py_is_object(X), py_object_type(X, T).
+                            python_object_blob(X), py_is_object(X),
+                            py_object_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             maplist(has_type_in(user), X, T).
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
+get_type_candidate(X, T) :- builtin_type_declaration(X, T).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
 get_type_candidate_in(_, X, _) :- var(X), !.
@@ -529,12 +1001,14 @@ get_type_candidate_in(_, X, 'String')   :- string(X), !.
 get_type_candidate_in(_, true, 'Bool')  :- !.
 get_type_candidate_in(_, false, 'Bool') :- !.
 get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
-                                  blob(X, 'PyObject'), py_is_object(X), py_object_type(X, T).
+                                  python_object_blob(X), py_is_object(X),
+                                  py_object_type(X, T).
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
                                        is_list(X),
                                        maplist(has_type_in(Module), X, T).
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
+get_type_candidate_in(_, X, T) :- builtin_type_declaration(X, T).
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
@@ -543,7 +1017,16 @@ get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 %A bridge that knows how to read the object answers with every type name at
 %once, protocols included, as plain text the boundary cannot damage; without
 %one, the class walk below runs, plus any engine-side extra types:
-py_object_type(X, T) :- ( catch_recover(py_object_type_names(X, Names), fail)
+%No catch here, deliberately. A bridge whose py_object_type_names/2 clause
+%THROWS is the registrant's bug, and reading the throw as "no bridge answered"
+%ran the class walk instead: one broken protocol predicate silently destroyed
+%typing for every host object in the process, and get-type answered Box, the
+%envelope's own class, for all of them. python/petta/_ops.py says the rule in
+%as many words for the same probe on the Python side: "A broken probe is the
+%registrant's bug: surface it with the protocol's name attached, never as a
+%type quietly missing." The fallback is for a bridge that is ABSENT, which is
+%an ordinary configuration and stays one [tested: metta_object_types].
+py_object_type(X, T) :- ( py_object_type_names(X, Names)
                           -> member(N, Names),
                              ( atom(N) -> T = N ; atom_string(T, N) )
                         ; py_object_class_type(X, T) ).
@@ -559,16 +1042,1056 @@ py_object_class_type(X, T) :- py_call(builtins:type(X), Class),
 %point, so (-> DLTensor ...) holds for every array library at once:
 py_object_class_type(X, T) :- py_object_extra_type(X, T).
 
-'get-metatype'(X, 'Variable') :- var(X), !.
-'get-metatype'(X, 'Grounded') :- number(X), !.
-'get-metatype'(X, 'Grounded') :- string(X), !.
-'get-metatype'(true,  'Grounded') :- !.
-'get-metatype'(false, 'Grounded') :- !.
-'get-metatype'(X, 'Grounded') :- blob(X, 'PyObject'), py_is_object(X), !.
-'get-metatype'(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
-'get-metatype'(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
-'get-metatype'(X, 'Symbol') :- atom(X), !.            % e.g., a
-'get-metatype'(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
+%Computed from the VALUE and then unified, rather than dispatched on the answer.
+%The clauses below are ordered and cut on X, so they are only correct when the
+%second argument arrives unbound; with it bound, an earlier clause whose head
+%names a different metatype simply does not unify and the catch-all at the
+%bottom claims the call. That made `(get-metatype foo Grounded)` SUCCEED for a
+%symbol, and both callers ask with it bound: has_type/2 and the type guard the
+%translator compiles around every declared parameter, so a parameter declared
+%`Grounded` accepted anything at all
+%[tested: a_grounded_parameter_rejects_a_symbol].
+'get-metatype'(X, Metatype) :- metatype_of(X, Computed), Metatype = Computed.
+
+metatype_of(X, 'Variable') :- var(X), !.
+metatype_of(X, 'Grounded') :- number(X), !.
+metatype_of(X, 'Grounded') :- string(X), !.
+metatype_of(true,  'Grounded') :- !.
+metatype_of(false, 'Grounded') :- !.
+metatype_of(X, 'Grounded') :- python_object_blob(X), py_is_object(X), !.
+metatype_of(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
+metatype_of(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
+metatype_of(X, 'Symbol') :- atom(X), !.            % e.g., a
+metatype_of(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
+
+%A parameter declared with a METATYPE accepts any atom of that kind, which is
+%what makes a variadic constructor declarable: a container has no fixed arity
+%and the language's answer for that is `Expression`, which is how HE declares
+%`(: superpose (-> Expression Atom))`. Before this, no metatype checked in a
+%parameter position at all, so `(: PyList (-> Expression PyList))` typed a call
+%to it as the tuple product of its arguments rather than as PyList.
+%
+%`Atom` accepts everything, and the mechanism is NOT the subtype relation `:<`
+%spells even though the tutorial's wording invites that reading. It is one
+%equality with a wildcard, and the arbiter quotes the line:
+%
+%    *typ == ATOM_TYPE_ATOM || *typ == get_meta_type(atom)
+%
+%[source: LeaTTa tests/semantics/types-meta/00_metatypes.metta, quoting
+%hyperon-experimental@3f76dc4 lib/src/metta/types.rs:606-617]. So the check is
+%"the parameter is Atom, or it equals this value's metatype", which is what the
+%two clauses below are. The tutorial line calling Atom "a supertype for Symbol,
+%Expression, Variable, Grounded" is recorded there as tutorial prose that
+%"records intent only", and taking it literally would have routed metatypes
+%through add_super_types, where they do not belong: no widening happens and
+%nothing declares an edge [tested: metta_metatype_parameters]. Issue #611 is
+%the developers' own phrasing of the same thing, "Atom is the metatype that is
+%the sum of Symbol, Variable, Grounded and Expression".
+%
+%This is consulted only after the declared types have failed, so a value with a
+%matching declaration answers exactly as it did, and a program using none of
+%these names never reaches it.
+satisfies_metatype(_, 'Atom') :- !.
+satisfies_metatype(X, Metatype) :-
+    metatype_name(Metatype),
+    'get-metatype'(X, Metatype).
+
+metatype_name('Symbol').
+metatype_name('Variable').
+metatype_name('Grounded').
+metatype_name('Expression').
+
+%%%% Walking a compiled body for the effects a cache would hide %%%%
+%
+%One walk, shared by everything that may hand back a CACHED answer later.
+%Tabling and memoization both do, and both were written with their own idea of
+%what is safe: tabling's followed calls and treated everything it did not
+%recognise as inert, and memoization's had nothing at all beyond a deny-list of
+%names a library could mark volatile. The same body was sound for one and
+%unsound for the other with no way to compare the two judgements.
+%
+%What it answers is the SPACE READS reachable from a root, as read/3 terms, and
+%what it refuses is any goal not known pure. The reads are reported rather than
+%interpreted, because interpreting them is exactly where the two callers
+%differ: tabling resolves each to a storage predicate and invalidates the table
+%when that predicate changes, and memoization has no such machinery, so a read
+%it cannot invalidate on is a refusal there and ordinary work here.
+%
+%[source: ai-metta-python-seams.md item 1, which measured the fail-open default
+%accepting seven impure categories and caching four of them wrongly].
+metta_effect_walk(Module, Roots, Reads) :-
+    metta_effect_walk_(Module, Roots, [], [], Raw),
+    sort(Raw, Reads).
+
+metta_effect_walk_(_, [], _, Reads, Reads).
+metta_effect_walk_(Module, [PI|Rest], Seen, Reads0, Reads) :-
+    memberchk(PI, Seen), !,
+    metta_effect_walk_(Module, Rest, Seen, Reads0, Reads).
+metta_effect_walk_(Module, [Name/Arity|Rest], Seen, Reads0, Reads) :-
+    functor(Head, Name, Arity),
+    findall(Body, catch(clause(Module:Head, Body), _, fail), Bodies),
+    foldl(metta_effect_body(Module), Bodies, Rest-Reads0, Next-Reads1),
+    metta_effect_walk_(Module, Next, [Name/Arity|Seen], Reads1, Reads).
+
+metta_effect_body(Module, Body, Queue0-Reads0, Queue-Reads) :-
+    findall(Goal, metta_effect_goal(Body, Goal), Goals),
+    foldl(metta_effect_classify(Module), Goals, Queue0-Reads0, Queue-Reads).
+
+%The goals of a compiled body, conjunctions and control constructs opened. A
+%construct NOT opened here is judged as one goal, which under a refusing
+%default means refused: catch/3 was missing and hid everything inside it.
+%A control construct is inert BECAUSE its goal arguments were walked, and not
+%because its name is on a list. Those are two different claims and treating
+%them as one is what let `collapse` through: the walk descended wrappers only
+%at arity ONE, so the findall/3 the translator emits for collapse and the
+%forall/2 it emits for forall fell to the catch-all, and then a name list said
+%both were inert. A body refused in the open was accepted one word inside a
+%collapse, and cached a random draw
+%[tested: lib_tabling_purity:an_impure_goal_is_refused_inside_every_wrapper].
+%
+%So the shape changed rather than the list. metta_effect_construct/2 says which
+%ARGUMENTS of a construct hold goals, the walk yields those and nothing for the
+%construct itself, and a construct that is not there is a leaf that gets
+%refused by name. This is cut_in_clause_scope/1's closed shape, where an
+%unrecognised construct cannot silently become harmless; the open shape had
+%already missed catch/3 once before it missed these two.
+metta_effect_goal(Body, _) :- var(Body), !, fail.
+metta_effect_goal(Construct, Goal) :-
+    compound(Construct),
+    metta_effect_construct(Construct, Inners), !,
+    member(Inner, Inners),
+    metta_effect_goal(Inner, Goal).
+metta_effect_goal(Goal, Goal).
+
+%Every goal-bearing argument of each control construct a compiled body can
+%contain. Written as the construct's own shape rather than as name and arity,
+%so an argument that is a TEMPLATE rather than a goal cannot be walked as one:
+%findall/3 holds a goal in argument two and terms in one and three.
+%
+%What is deliberately NOT here is as load-bearing as what is. foldall/4,
+%with_mutex/2 and transaction/1 are refused today purely by being absent, and
+%that stays: a refusal is loud and someone fixes it, where a wrong entry here
+%is a silent wrong answer. This is the allow-list asymmetry the seam is built
+%on, applied to the walk as well as to the names.
+metta_effect_construct((A, B), [A, B]).
+metta_effect_construct((A ; B), [A, B]).
+metta_effect_construct((A -> B), [A, B]).
+metta_effect_construct((A *-> B), [A, B]).
+metta_effect_construct(\+ A, [A]).
+metta_effect_construct(call(A), [A]).
+metta_effect_construct(once(A), [A]).
+metta_effect_construct(catch(A, _, Recovery), [A, Recovery]).
+metta_effect_construct(findall(_, A, _), [A]).
+metta_effect_construct(forall(A, B), [A, B]).
+%take/2's own two forms. metta_take_match/4 is a bounded match and reports as
+%the read it is, which metta_effect_classify/4 does from the shape below.
+metta_effect_construct(metta_take(_, A), [A]).
+%top's plain form likewise calls its goal; metta_top_match/4 is a read the
+%classifier judges from its shape as it does the bounded take.
+metta_effect_construct(metta_top(_, A, _), [A]).
+%Anything else that CALLS one of its arguments, read from SWI's own
+%meta_predicate declaration rather than from a list here. This clause is last,
+%so every construct above keeps its exact handling and this catches the rest.
+%
+%It exists because a list of meta-predicates drifts the same way the list of
+%control constructs did, and had: maplist/3 and foldl/4 are what the collection
+%forms compile to, `maplist` and `foldl` are ALSO MeTTa builtins declared pure,
+%and the classifier judges by NAME, so the wrapper was inert and what it called
+%was never looked at. `(map-atom $l $x (random-int 1 1000000))` tabled clean
+%and answered one draw twice [measured 2026-08-17], which is the collapse
+%defect in two more wrappers.
+%
+%SWI says which argument is called and how many arguments it is called WITH:
+%maplist(2,?,?) is argument one applied to two more, foldl(3,+,+,-) to three.
+%Reading that covers include/3, exclude/3 and whatever a library adds next,
+%none of which anyone would have listed.
+metta_effect_construct(Meta, [Goal]) :-
+    functor(Meta, Name, Arity),
+    functor(Head, Name, Arity),
+    predicate_property(Head, meta_predicate(Spec)),
+    arg(Position, Spec, Extra),
+    integer(Extra),
+    arg(Position, Meta, Closure),
+    nonvar(Closure),
+    metta_effect_closure(Closure, Extra, Goal).
+
+%A closure applied to the arguments its meta-predicate will add. The already
+%bound arguments are KEPT, which is what makes the two-step case work:
+%include/3 holds metta_condition_holds(lambda_3), and losing that would leave
+%the walk classifying metta_condition_holds/2 and never reaching the lambda.
+metta_effect_closure(Closure, Extra, Goal) :-
+    (   atom(Closure)
+    ->  Name = Closure, Bound = []
+    ;   compound(Closure), Closure =.. [Name|Bound]
+    ),
+    length(Added, Extra),
+    append(Bound, Added, Args),
+    Goal =.. [Name|Args].
+
+%A space read is REPORTED; a call to another MeTTa function is followed; a
+%known-pure operation is inert; anything else is refused.
+metta_effect_classify(_, Goal, Queue-Reads, Queue-Reads) :-
+    var(Goal), !.
+metta_effect_classify(_, match(Space, Pattern, _, _), Queue-Reads0,
+                      Queue-[read(match, Space, Pattern)|Reads0]) :- !.
+metta_effect_classify(_, 'get-atoms'(Space, Pattern), Queue-Reads0,
+                      Queue-[read('get-atoms', Space, Pattern)|Reads0]) :- !.
+%A bridge's dispatch goal is classified under the OPERATION's name, not the
+%dispatcher's. Ahead of the generic compound clause because that clause would
+%read the functor and refuse petta_py_dispatch_det/3, naming an internal the
+%program never wrote and advising a declaration that could not be matched.
+metta_effect_classify(_, Dispatch, Queue-Reads, Next-Reads) :-
+    compound(Dispatch),
+    metta_effect_operation_name(Dispatch, Name, Arity), !,
+    (   metta_effect_inert(Name)
+    ->  Next = Queue
+    ;   throw(error(metta_impure_goal(Name/Arity), none))
+    ).
+
+%reduce/3 is the engine's RUNTIME dispatcher: it takes a MeTTa term and calls
+%whatever function heads it, so refusing it by its own name says nothing about
+%the program. `(forall (gen $k) True)` compiles its generator and its test to
+%two reduce/3 goals, and once forall/2 was descended, a wholly pure body was
+%refused as `reduce/3`.
+%
+%The head is fixed while COMPILING for every template a source program can
+%write, so the call it reaches is known here and is classified exactly as a
+%direct call to it would be. A head that is a VARIABLE is a higher-order call
+%whose target is decided by a value the walk cannot see, and that is refused
+%under its own description rather than the dispatcher's
+%[tested: lib_tabling_purity:a_pure_body_inside_a_wrapper_still_tables,
+%a_higher_order_call_is_refused_as_one].
+metta_effect_classify(Module, reduce(Template, _, _), Queue, Next) :- !,
+    metta_effect_reduced(Module, Template, Queue, Next).
+
+
+%A BUILTIN is judged by declaration and a USER function by its body, and the
+%order matters twice over. A builtin's implementation is engine Prolog nobody
+%can declare pure, so following it reports the wrong thing: `(py-call ...)` was
+%refused as `must_be/2`, `(println! ...)` as `swrite/2` and `(get-state ...)` as
+%`nb_getval/2`, each naming an internal the program never wrote. And following
+%it is wasted work, because the answer was already decided by whether the name
+%is on the allow-list.
+metta_effect_classify(Module, Goal, Queue-Reads, Next-Reads) :-
+    compound(Goal), !,
+    functor(Goal, Name, Arity),
+    (   builtin_fun(Name)
+    ->  (   metta_effect_inert(Name)
+        ->  Next = Queue
+        ;   throw(error(metta_impure_goal(Name/Arity), none))
+        )
+    ;   fun(Name), current_predicate(Module:Name/Arity)
+    ->  Next = [Name/Arity|Queue]
+    ;   metta_effect_inert(Name)
+    ->  Next = Queue
+    ;   throw(error(metta_impure_goal(Name/Arity), none))
+    ).
+metta_effect_classify(_, Goal, Queue-Reads, Queue-Reads) :-
+    atom(Goal), metta_effect_inert(Goal), !.
+metta_effect_classify(_, Goal, _, _) :-
+    functor(Goal, Name, Arity),
+    throw(error(metta_impure_goal(Name/Arity), none)).
+
+%A template that is not a call reaches nothing: a number, a string, a symbol
+%and the empty list are data whatever surrounds them.
+metta_effect_reduced(_, Template, Queue, Queue) :-
+    ( var(Template) ; \+ Template = [_|_] ), !.
+metta_effect_reduced(Module, [Head|Args], Queue, Next) :-
+    length(Args, ArgCount),
+    Arity is ArgCount + 1,
+    (   atom(Head)
+    ->  functor(Call, Head, Arity),
+        metta_effect_classify(Module, Call, Queue, Next)
+    ;   var(Head)
+    ->  throw(error(metta_higher_order_goal(Arity), none))
+    ;   %A number or a string in head position is not a call: reduce/3 reaches
+        %its last case and leaves the term unevaluated, so `(1 2)` is data and
+        %refusing it would refuse every list literal in a cached body.
+        Next = Queue
+    ).
+
+metta_effect_inert(Name) :- metta_pure_operation(Name), !.
+metta_effect_inert(Name) :- metta_effect_control(Name), !.
+metta_effect_inert(Name) :- metta_effect_prolog_primitive(Name).
+
+%Only the three that are LEAVES. Every compound control construct used to be
+%here too, and that list was the second half of the collapse defect: a name on
+%it was inert whether or not the walk had descended it, so adding a construct
+%to the walk and forgetting the name was safe while the reverse was silently
+%unsound. Now the walk is the only thing that makes a construct inert, and
+%these three have no goal arguments to walk.
+metta_effect_control(true).  metta_effect_control(fail).  metta_effect_control(!).
+
+%The Prolog primitives a compiled body contains that are not MeTTa operations:
+%the type tests the translator emits around a typed parameter, unification and
+%arithmetic. Each inspects its arguments and does nothing else.
+metta_effect_prolog_primitive(integer).  metta_effect_prolog_primitive(number).
+metta_effect_prolog_primitive(float).    metta_effect_prolog_primitive(atom).
+metta_effect_prolog_primitive(atomic).   metta_effect_prolog_primitive(compound).
+metta_effect_prolog_primitive(string).   metta_effect_prolog_primitive(is_list).
+metta_effect_prolog_primitive(var).      metta_effect_prolog_primitive(nonvar).
+metta_effect_prolog_primitive(ground).   metta_effect_prolog_primitive(is).
+%What `let` compiles to. Found by running every impure body through every
+%wrapper rather than by reading: under `take` the occurs check precedes the
+%impure goal, so the refusal fired on this and named it, which is the same
+%false refusal atom_string/2 gave before it was listed. Unification with an
+%occurs check inspects and binds and does nothing a cache could hide.
+metta_effect_prolog_primitive(unify_with_occurs_check).
+%What every computed collapse compiles to beside its findall: the Empty
+%prune is a read-free list transformation, and leaving it unlisted
+%refused a pure body one word inside a collapse
+%[tested: a_pure_body_inside_a_wrapper_still_tables].
+metta_effect_prolog_primitive(petta_prune_empty).
+metta_effect_prolog_primitive('=@=').    metta_effect_prolog_primitive('\\==').
+metta_effect_prolog_primitive(nth0).     metta_effect_prolog_primitive(nth1).
+metta_effect_prolog_primitive(between).  metta_effect_prolog_primitive(succ).
+metta_effect_prolog_primitive('=<').     metta_effect_prolog_primitive('>=').
+metta_effect_prolog_primitive('=:=').    metta_effect_prolog_primitive('=\\=').
+metta_effect_prolog_primitive(atom_string).   metta_effect_prolog_primitive(atom_number).
+metta_effect_prolog_primitive(atom_codes).    metta_effect_prolog_primitive(atom_length).
+metta_effect_prolog_primitive(number_codes).  metta_effect_prolog_primitive(string_codes).
+metta_effect_prolog_primitive(string_concat).  metta_effect_prolog_primitive(sub_atom).
+metta_effect_prolog_primitive(functor).        metta_effect_prolog_primitive(arg).
+metta_effect_prolog_primitive(compound_name_arguments).
+metta_effect_prolog_primitive(compound_name_arity).
+
+:- multifile prolog:error_message//1.
+%The higher-order case, which no declaration can answer: nothing names the
+%function, so there is nothing to declare pure. Saying so is the difference
+%between an author declaring the right thing and an author declaring
+%reduce/3 and watching nothing change.
+prolog:error_message(metta_higher_order_goal(Arity)) -->
+    [ 'caching refuses a call of arity ~w whose function is a value rather \c
+       than a name. Which function it reaches is decided while the program \c
+       RUNS, so no declaration can say whether a cached answer would hide \c
+       anything. Name the function, or do not cache this one'-[Arity] ].
+
+prolog:error_message(metta_impure_goal(Name/Arity)) -->
+    [ 'caching refuses ~w/~w: nothing declares it pure, and a cached answer \c
+       would hide whatever it does. Declare it with metta_pure_operation/1 if \c
+       it only inspects its arguments, or do not cache this function'
+      -[Name, Arity] ].
+
+%%%% Which operations a cache may hide %%%%
+%
+%The engine's own answer to metta_pure_operation/1: an operation with no effect
+%a cached result could hide. Anything that reads or writes a space, reads or
+%writes state, prints, draws at random, reads the clock, crosses to a host, or
+%evaluates something else is ABSENT, and absence is a refusal rather than a
+%default.
+%
+%The list is deliberately shorter than "everything that looks harmless". A name
+%missing here produces a loud refusal that someone adds a line for; a name
+%wrongly present produces a silent wrong answer, which is what the fail-open
+%default it replaces was producing.
+:- multifile metta_pure_operation/1.
+:- dynamic metta_host_pure_operation/1.
+
+%A HOST's own declarations, at run time. It was multifile only, so a library
+%file could add a name when it loaded and a running process could add none at
+%all: register_op(len, name="size") gave an operation nothing could ever
+%declare pure, and the refusal's advice, "declare it with
+%metta_pure_operation/1", was unreachable by any route.
+%
+%It is a SEPARATE predicate rather than more clauses of this one, and that is
+%not tidiness. The five clauses below are RULES with a variable head, so
+%retractall(metta_pure_operation(foo)), which is how a registration withdraws
+%one declaration, unifies with every one of them: five clauses to zero and
+%metta_pure_operation('+') true to false, from registering any operation at
+%all [measured 2026-08-17]. Retracting from here cannot reach them.
+metta_pure_operation(Name) :- metta_host_pure_operation(Name).
+
+%The same claim made from INSIDE MeTTa: (effect Name immutable) added to
+%&petta is what register_op(pure=True) asserts from Python, read from the
+%space's own storage at judgement time. The walk runs when a cache is
+%declared, never on the call path, so consulting storage here costs nothing
+%per call and installs no atom hook, which is what keeps every space's bulk
+%add path fast.
+metta_pure_operation(Name) :-
+    atom(Name),
+    petta_contract_fact([effect, Name, immutable]).
+
+%One contract atom, read from &petta's native storage. A space atom
+%[H|Args] is stored as Space(H, Args...) in the space's storage module, the
+%resolution the tabling walk documents; a space that has never been written
+%has no storage module yet, and that absence reads as "not declared".
+petta_contract_fact(Args) :-
+    native_storage_module('&petta', Module),
+    Goal =.. ['&petta'|Args],
+    catch(call(Module:Goal), error(existence_error(procedure, _), _), fail).
+
+%The deliberate override: (cache Name unchecked) in &petta says the CALLER
+%accepts stale answers for this function. lib_tabling and lib_memo consult
+%it before their purity walk; a library's explicit volatile declaration
+%still refuses, because the author's NO outranks the caller's insistence.
+metta_cache_unchecked(Name) :-
+    petta_contract_fact([cache, Name, unchecked]).
+
+%(annotations Ctx Semiring) declares the semiring a context's answer
+%annotations live in; silence is bool, the default at which everything
+%vanishes. A context is ordered when its declared semiring carries an
+%order, which is what (top k ...) needs; bool, bag and set do not.
+petta_annotations(Ctx, Semiring) :-
+    findall(Declared, petta_contract_fact([annotations, Ctx, Declared]),
+            Declarations),
+    sort(Declarations, Distinct),
+    (   Distinct == []
+    ->  Semiring = bool
+    ;   Distinct = [Semiring]
+    ->  true
+    ;   Distinct = [First, Second|_],
+        throw(error(petta_contract_conflict(Ctx, [annotations, Ctx, First],
+                                            [annotations, Ctx, Second],
+                                            [annotations, Ctx, Semiring]),
+                    none))
+    ).
+
+petta_annotations_ordered(Ctx) :-
+    petta_annotations(Ctx, Semiring),
+    memberchk(Semiring, [ranked, prob]).
+
+%(source Ctx Kind) declares a context's consumption discipline: repeated
+%(the default, re-enumerable), linear (consume once; a second physical
+%touch is a loud error, not a silent empty answer), and peek (reads do
+%not consume, the provider's promise the conformance kit checks). The
+%consumed mark is a prolog FLAG, process-global and transaction-immune,
+%because a rolled-back transaction does not un-drain a generator.
+petta_source(Ctx, Kind) :-
+    (   petta_contract_fact([source, Ctx, Declared])
+    ->  Kind = Declared
+    ;   Kind = repeated
+    ).
+
+petta_source_guard(Space) :-
+    \+ petta_ctx_declared(Space),
+    !.
+petta_source_guard(Space) :-
+    (   petta_contract_storage(Module),
+        Module:'&petta'(source, Space, linear)
+    ->  atom_concat('$petta_consumed:', Space, Key),
+        (   current_prolog_flag(Key, consumed)
+        ->  throw(error(petta_source_discipline(Space, linear), none))
+        ;   create_prolog_flag(Key, consumed, [keep(false)])
+        )
+    ;   true
+    ).
+
+petta_source_reset(Space) :-
+    atom_concat('$petta_consumed:', Space, Key),
+    (   current_prolog_flag(Key, _)
+    ->  set_prolog_flag(Key, fresh)
+    ;   true
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_source_discipline(Ctx, linear)) -->
+    [ '~w declares (source ~w linear) and this is its second \c
+       consumption: the first drained it, so answering would be a silent \c
+       empty set, exactly the wrong answer the declaration exists to \c
+       refuse. Re-register the provider for a fresh source, or declare \c
+       repeated for one that re-enumerates'-[Ctx, Ctx] ].
+
+%The last answer's annotation, first-class: rides '$petta_answer_k'
+%backtrackably, default 1, so (let $r (match &s P $r) (pair $r
+%(annotation))) pairs each answer with its own k, a score under ranked
+%and a source term under prov. Reading it OUTSIDE any answer reads the
+%semiring's 1.
+petta_annotation(K) :-
+    (   catch(b_getval('$petta_answer_k', K0), _, fail)
+    ->  K = K0
+    ;   K = 1
+    ).
+
+%Combine two annotations along a conjunction, in the declared semiring:
+%the polynomial provenance construction's product. Both 1 is the Boolean
+%point and stays 1 without a write.
+petta_k_times(1, K, K) :- !.
+petta_k_times(K, 1, K) :- !.
+petta_k_times(K1, K2, K) :-
+    (   number(K1), number(K2)
+    ->  K is K1 * K2
+    ;   K = [times, K1, K2]
+    ).
+
+%%%% explain: the route as atoms (H3) %%%%
+%
+%(explain (match &s P T)) and (explain (op ...)) answer the declarations
+%the seam would consult for that query, as atoms: which handles entry
+%routes it and with what fidelity, whether a take bound would push,
+%source, context world, annotations, emission, writes, error mode and
+%merge strategy. The self-honesty law is the lane: what explain says is
+%what instrumented execution then does, which answers the original
+%complaint that the split was invisible.
+petta_explain([match, Space, Pattern, _Template], Out) :-
+    atom(Space), !,
+    findall(Item, petta_explain_match_item(Space, Pattern, Item), Out).
+petta_explain([Op|Args], Out) :-
+    atom(Op), !,
+    findall(Item, petta_explain_op_item(Op, Args, Item), Out).
+petta_explain(Query, _) :-
+    throw(error(type_error(explainable, Query),
+                context(explain/1,
+                        'explain covers (match <space> <pattern> <out>) \c
+                         forms and operation calls'))).
+
+petta_explain_match_item(Space, Pattern, [handles|Route]) :-
+    (   catch(petta_handles_route(Space, Pattern, Entry, Fidelity, Det),
+              _, fail)
+    ->  Route = [Entry, Fidelity, Det]
+    ;   Route = [none]
+    ).
+petta_explain_match_item(Space, Pattern, [pushes, Pushes]) :-
+    (   nonvar(Space), metta_foreign_space(Space),
+        catch(foreign_pushdown_class(Space, Pattern, exact), _, fail)
+    ->  Pushes = 'True'
+    ;   Pushes = 'False'
+    ).
+petta_explain_match_item(Space, _, [source, Kind]) :-
+    petta_source(Space, Kind).
+petta_explain_match_item(Space, _, [context, World]) :-
+    petta_context_world(Space, World).
+petta_explain_match_item(Space, _, [annotations, Semiring]) :-
+    petta_annotations(Space, Semiring).
+petta_explain_match_item(Space, _, [emits, Policy]) :-
+    (   petta_emits(Space, Declared) -> Policy = Declared ; Policy = none ).
+petta_explain_match_item(Space, _, [writes, Atomicity]) :-
+    petta_writes(Space, Atomicity).
+petta_explain_match_item(Space, Pattern, ['on-error', Mode]) :-
+    (   catch(petta_on_error_mode(Space, Pattern, Declared), _, fail)
+    ->  Mode = Declared
+    ;   Mode = abort
+    ).
+petta_explain_match_item(_, Pattern, [merge, Policy]) :-
+    (   catch(petta_merge_route(Pattern, Declared), _, fail)
+    ->  Policy = Declared
+    ;   Policy = depth
+    ).
+
+petta_explain_op_item(Op, _, [op, Op, Arity, Kind]) :-
+    petta_contract_fact([op, Op, Arity, Kind]).
+petta_explain_op_item(Op, _, [effect, Effect]) :-
+    (   petta_contract_fact([effect, Op, Declared])
+    ->  Effect = Declared
+    ;   Effect = none
+    ).
+petta_explain_op_item(Op, _, [inverse, Inverse]) :-
+    (   petta_contract_fact([inverse, Op]) -> Inverse = 'True'
+    ;   Inverse = 'False' ).
+petta_explain_op_item(Op, _, [annotations, Semiring]) :-
+    petta_annotations(Op, Semiring).
+petta_explain_op_item(Op, Args, ['on-error', Mode]) :-
+    (   catch(petta_on_error_mode(Op, [Op|Args], Declared), _, fail)
+    ->  Mode = Declared
+    ;   Mode = abort
+    ).
+
+%(context Ctx closed-world|open-world) records what a context's absence
+%means. The mechanically checkable part gates: negation as failure reads
+%absence as falsity, which is sound only over a world the answerer
+%actually holds whole, so a negated goal may consult a foreign context
+%only when it declares closed-world. A native space IS the engine's own
+%database and closed by construction; an undeclared foreign one refuses
+%under negation loudly, because silently reading an open world's silence
+%as falsity was the wrong answer.
+petta_context_world(Ctx, World) :-
+    (   petta_contract_fact([context, Ctx, Declared])
+    ->  World = Declared
+    ;   World = undeclared
+    ).
+
+petta_in_negation :-
+    catch(b_getval('$petta_in_negation', true), _, fail).
+
+petta_negation_world_guard(Space) :-
+    (   petta_in_negation
+    ->  (   petta_context_world(Space, 'closed-world')
+        ->  true
+        ;   throw(error(petta_negation_open_world(Space), none))
+        )
+    ;   true
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_negation_open_world(Ctx)) -->
+    [ 'a negated goal consulted ~w, which does not declare \c
+       (context ~w closed-world). Negation as failure reads absence as \c
+       falsity, and that is only sound over a world the answerer holds \c
+       whole; declare closed-world if ~w is complete for what it \c
+       serves'-[Ctx, Ctx, Ctx] ].
+
+%%%% Declared bridges and admission (G5) %%%%
+%
+%(on Ctx Pattern Op) is an MCS bridge rule with a managed head: when an
+%atom matching Pattern lands in Ctx, Op runs under the match's bindings.
+%The subscribe callback is the special case this generalises. The heads
+%are insert, retract and revise, and they route through the same write
+%paths as direct writes, so a foreign target's capabilities and declared
+%atomicity govern a bridged write exactly as a direct one. Bridges fire
+%through the engine's own atom hooks, and the hook wrapper is installed
+%only when petta_install_bridges/0 runs (the declaration sugar calls it),
+%so an engine without bridges keeps the direct write path and its
+%measured cost. A cascade is bounded: depth 32 throws naming the chain,
+%because an unbounded insert loop is a bug, not a fixpoint.
+petta_install_bridges :-
+    (   petta_bridges_installed
+    ->  true
+    ;   assertz(petta_bridges_installed),
+        assertz(( metta_on_atom_added(Space, Term) :-
+                      petta_bridge_fire(Space, Term) )),
+        enable_metta_atom_hook(added)
+    ).
+
+:- dynamic petta_bridges_installed/0.
+
+petta_bridge_fire(Space, Term) :-
+    forall(petta_contract_fact([on, Space, Pattern, Op]),
+           petta_bridge_apply(Pattern, Term, Op)).
+
+petta_bridge_apply(Pattern, Term, Op) :-
+    (   Pattern = Term
+    ->  petta_bridge_descend(Op)
+    ;   true
+    ).
+
+petta_bridge_descend(Op) :-
+    (   catch(b_getval('$petta_bridge_depth', Depth0), _, fail)
+    ->  true
+    ;   Depth0 = 0
+    ),
+    Depth is Depth0 + 1,
+    (   Depth > 32
+    ->  throw(error(petta_bridge_cascade(Op), none))
+    ;   setup_call_cleanup(
+            b_setval('$petta_bridge_depth', Depth),
+            petta_bridge_op(Op),
+            b_setval('$petta_bridge_depth', Depth0))
+    ).
+
+petta_bridge_op([insert, Target, Template]) :- !,
+    metta_add_atom(Target, Template, _).
+petta_bridge_op([retract, Target, Template]) :- !,
+    metta_remove_atom(Target, Template, _).
+petta_bridge_op([revise, Target, Old, New]) :- !,
+    metta_remove_atom(Target, Old, _),
+    metta_add_atom(Target, New, _).
+petta_bridge_op(Op) :-
+    throw(error(petta_bridge_unknown_op(Op), none)).
+
+%(admits Pool Type) and (capacity Pool N): a pool is a space whose
+%membership is typed by the ontology, so only atoms carrying the
+%declared type enter, and whose size is bounded, an add beyond it
+%refused loudly. Both are ordinary contract atoms checked BEFORE the
+%write through a wrapper installed only when petta_install_admission/0
+%runs, so an engine without pools keeps the direct write path.
+petta_install_admission :-
+    (   petta_admission_installed
+    ->  true
+    ;   assertz(petta_admission_installed),
+        (   wrap_predicate(user:metta_add_atom(Space, Term, _R),
+                           petta_admission_guard, Wrapped,
+                           ( user:petta_admission_check(Space, Term),
+                             call(Wrapped) ))
+        ->  true
+        ;   throw(error(petta_atom_hook_install_failed(admission), none))
+        )
+    ).
+
+:- dynamic petta_admission_installed/0.
+
+petta_admission_check(Space, Term) :-
+    forall(petta_contract_fact([admits, Space, Type]),
+           (   has_type(Term, Type)
+           ->  true
+           ;   throw(error(petta_admission_refused(Space, Term, Type),
+                           none))
+           )),
+    (   petta_contract_fact([capacity, Space, Limit])
+    ->  findall(A, 'get-atoms'(Space, A), Held),
+        length(Held, Count),
+        (   Count < Limit
+        ->  true
+        ;   throw(error(petta_pool_full(Space, Limit), none))
+        )
+    ;   true
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_bridge_cascade(Op)) -->
+    [ 'a bridge cascade passed depth 32 at ~q: bridges firing bridges \c
+       must reach a fixed point, and this chain does not'-[Op] ].
+prolog:error_message(petta_bridge_unknown_op(Op)) -->
+    [ 'the bridge operation ~q is not a managed head; the heads are \c
+       (insert Ctx Atom), (retract Ctx Atom) and (revise Ctx Old \c
+       New)'-[Op] ].
+prolog:error_message(petta_admission_refused(Space, Term, Type)) -->
+    [ '~w admits ~w-typed atoms and ~q does not carry that type; declare \c
+       (: <atom> ~w) or widen the admission'-[Space, Type, Term, Type] ].
+prolog:error_message(petta_pool_full(Space, Limit)) -->
+    [ '~w declares (capacity ~w ~w) and holds that many already; this \c
+       add is refused rather than silently growing the pool'-[Space,
+                                                              Space,
+                                                              Limit] ].
+
+%(writes Ctx Atomicity) declares what a context's writes promise:
+%transactional providers participate in the engine's transactions through
+%the begin/commit/rollback hooks, best-effort is the author's declared
+%acceptance of partial application, and atomic-single promises single
+%writes only. Silence refuses a write inside a transaction loudly,
+%because the old behaviour, a foreign write surviving a rolled-back
+%transaction, was silent wrongness, not a floor worth keeping.
+petta_writes(Ctx, Atomicity) :-
+    (   petta_contract_fact([writes, Ctx, Declared])
+    ->  Atomicity = Declared
+    ;   Atomicity = undeclared
+    ).
+
+%The transaction form's runtime: SWI's transaction/1 for the engine's own
+%database, with foreign participation coordinated around it. Providers
+%enlist at their first write (petta_enlist_foreign/1, from
+%foreign_write/3), and the registry is finished HERE: commit on success,
+%rollback on failure or throw. A nested transaction runs inside the
+%outer's registry, so providers see one begin and one finish per
+%outermost transaction. Commit is single-coordinator: a provider whose
+%commit throws leaves earlier commits standing, and the throw says so;
+%two-phase commit is deliberately out of scope.
+petta_transaction(Goal) :-
+    (   current_transaction(_)
+    ->  transaction(Goal)
+    ;   nb_setval('$petta_tx_enlisted', []),
+        catch(( setup_call_cleanup(
+                    b_setval('$petta_user_tx', true),
+                    transaction(Goal),
+                    b_setval('$petta_user_tx', false))
+            ->  Outcome = committed ; Outcome = failed ),
+              Error,
+              Outcome = threw(Error)),
+        nb_getval('$petta_tx_enlisted', Enlisted),
+        nb_setval('$petta_tx_enlisted', []),
+        (   Outcome == committed
+        ->  forall(member(Space, Enlisted), metta_foreign_commit(Space))
+        ;   forall(member(Space, Enlisted),
+                   catch(metta_foreign_rollback(Space), RollbackError,
+                         print_message(error, RollbackError)))
+        ),
+        (   Outcome == committed -> true
+        ;   Outcome == failed -> fail
+        ;   Outcome = threw(E), throw(E)
+        )
+    ).
+
+%Only the USER's (transaction ...) form guards foreign writes: the
+%engine's own internal transactions (a rule registration compiles inside
+%one for atomic rollback of compiler state) keep their long-standing
+%behaviour, which the foreign-rules suite pins. The flag is
+%backtrackable and thread-local; the outermost user transaction sets it,
+%a nested one runs inside it untouched.
+petta_in_user_transaction :-
+    catch(b_getval('$petta_user_tx', true), _, fail).
+
+petta_enlist_foreign(Space) :-
+    nb_getval('$petta_tx_enlisted', Enlisted),
+    (   memberchk(Space, Enlisted)
+    ->  true
+    ;   metta_foreign_begin(Space),
+        nb_setval('$petta_tx_enlisted', [Space|Enlisted])
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_transaction_unsupported(Ctx, undeclared)) -->
+    [ 'a transaction wrote to ~w, which declares nothing about its \c
+       writes. The write cannot be rolled back with the transaction, and \c
+       silently keeping it is the wrong answer this error replaces. \c
+       Declare (writes ~w transactional) for a provider with \c
+       begin/commit/rollback, or (writes ~w best-effort) to accept \c
+       partial application deliberately'-[Ctx, Ctx, Ctx] ].
+prolog:error_message(petta_transaction_unsupported(Ctx, 'atomic-single')) -->
+    [ '~w declares (writes ~w atomic-single): single writes are atomic \c
+       and transactions are not offered, so this transactional write is \c
+       refused'-[Ctx, Ctx] ].
+
+%(emits Ctx Policy) declares the order a context emits its own answers
+%in; best-first is the promise (top k) needs before its bound may reach
+%the provider, since the first k of a best-first emission ARE the k
+%best. Distinct from (merge <pattern> <policy>), which is the ENGINE's
+%strategy for merging answers across several contexts.
+petta_emits(Ctx, Policy) :-
+    petta_contract_fact([emits, Ctx, Policy]).
+
+%%%% The handles route: declared fidelity per context and shape %%%%
+%
+%(handles Ctx Pattern Fidelity [Det]) atoms in &petta declare, per shape and
+%instantiation, how faithful a context's own filtering is. Entries are
+%patterns; a query is routed by the most specific entry that matches it,
+%where (in $x) in an entry position matches only a bound argument. Two
+%matching entries neither of which is more specific must agree on their
+%claim, the critical-pair reading of MeTTa's own non-exclusive equations;
+%disagreement is a loud conflict naming both. Consulted where the provider's
+%own pushdown method used to be the only voice, and only at query time,
+%never per answer.
+
+%One entry of a shape-routed declaration head that matches Query: the
+%stripped pattern and the adorned position paths feed the specificity
+%comparison, and the entry as declared is what an error names, since that
+%is the atom its author can find. The payload is whatever follows the
+%shape in the declaration, [Fidelity, Det] for handles, [Mode] for
+%on-error; one algorithm routes every per-shape declaration head.
+petta_shape_entry(Head, Ctx, Query, entry(Stripped, Paths, Entry, Payload)) :-
+    petta_shape_fact(Head, Ctx, Entry, Payload),
+    petta_adorn_strip(Entry, Stripped, Requirements, Paths),
+    subsumes_term(Stripped, Query),
+    \+ \+ ( Stripped = Query,
+            forall(member(Position, Requirements), nonvar(Position)) ).
+
+petta_shape_fact(handles, Ctx, Entry, [Fidelity, Det]) :-
+    (   petta_contract_fact([handles, Ctx, Entry, Fidelity, Det])
+    ;   petta_contract_fact([handles, Ctx, Entry, Fidelity]), Det = none
+    ).
+petta_shape_fact('on-error', Ctx, Entry, [Mode]) :-
+    petta_contract_fact(['on-error', Ctx, Entry, Mode]).
+%(merge <pattern> <policy>) has no context: it is the ENGINE's strategy
+%for merging answers across several contexts, keyed by the query shape,
+%so it rides the shape route under one global key.
+petta_shape_fact(merge, global, Entry, [Policy]) :-
+    petta_contract_fact([merge, Entry, Policy]).
+
+%Strip (in $x) wrappers, collecting the subterms that must arrive bound and
+%the position path of each, root-to-leaf indices reversed. Requirements are
+%checked against the query; paths are renaming-invariant, which is what the
+%specificity order needs to compare two entries' adornments.
+%The wrapper is recognised at expression POSITIONS only, by the literal atom
+%in its head: the spine walk below never offers a list tail to this test.
+%Offering tails was the bug this shape replaces, since a tail [X, Y] whose
+%head is an entry variable unifies with the marker pattern, binds X to in,
+%and mangles the entry into an open list that matches everything.
+petta_adorn_strip(Term, Stripped, Requirements) :-
+    petta_adorn_strip(Term, Stripped, Requirements, _).
+petta_adorn_strip(Term, Stripped, Requirements, Paths) :-
+    petta_adorn_strip(Term, [], Stripped, Requirements, Paths).
+
+petta_adorn_strip(Var, _, Var, [], []) :- var(Var), !.
+petta_adorn_strip(Term, Here, Inner, [Inner|Requirements], [Here|Paths]) :-
+    Term = [Marker, Inner0], Marker == in, !,
+    petta_adorn_strip(Inner0, Here, Inner, Requirements, Paths).
+petta_adorn_strip(List, Here, Stripped, Requirements, Paths) :-
+    List = [_|_], !,
+    petta_adorn_strip_spine(List, 0, Here, Stripped, Requirements, Paths).
+petta_adorn_strip(Atom, _, Atom, [], []).
+
+petta_adorn_strip_spine(Var, _, _, Var, [], []) :- var(Var), !.
+petta_adorn_strip_spine([], _, _, [], [], []).
+petta_adorn_strip_spine([Head0|Tail0], Index, Here,
+                        [Head|Tail], Requirements, Paths) :-
+    petta_adorn_strip(Head0, [Index|Here], Head, HeadReqs, HeadPaths),
+    Next is Index + 1,
+    petta_adorn_strip_spine(Tail0, Next, Here, Tail, TailReqs, TailPaths),
+    append(HeadReqs, TailReqs, Requirements),
+    append(HeadPaths, TailPaths, Paths).
+
+%The route: most specific matching entry, coherence-checked among the
+%maximal ones. No entry means no claim, which is today's behaviour exactly.
+petta_handles_route(Ctx, Query, Fidelity, Det) :-
+    petta_handles_route(Ctx, Query, _, Fidelity, Det).
+
+%The overwhelmingly common context has no such declarations and pays for
+%this on every foreign match, so the emptiness answer must be nearly free:
+%one indexed call per stored arity, against the storage module spaces.pl
+%pre-creates with unknown set to fail, so a missing arity FAILS here in a
+%handful of inferences instead of costing a thrown and caught existence
+%error [measured 2026-08-17: the guard at 15 inferences per miss against
+%137 through the catch-per-probe path]. The module name is computed once at
+%load through native_storage_module/2, the single source of that mapping.
+:- dynamic petta_contract_storage/1.
+:- native_storage_module('&petta', Module),
+   assertz(petta_contract_storage(Module)).
+
+petta_shape_declared(handles, Ctx) :-
+    petta_contract_storage(Module),
+    (   Module:'&petta'(handles, Ctx, _, _)
+    ->  true
+    ;   Module:'&petta'(handles, Ctx, _, _, _)
+    ->  true
+    ).
+petta_shape_declared('on-error', Ctx) :-
+    petta_contract_storage(Module),
+    Module:'&petta'('on-error', Ctx, _, _).
+petta_shape_declared(merge, _) :-
+    petta_contract_storage(Module),
+    Module:'&petta'(merge, _, _).
+
+petta_handles_route(Ctx, Query, Entry, Fidelity, Det) :-
+    petta_shape_route(handles, Ctx, Query, Entry, [Fidelity, Det]).
+
+%Route one query through one declaration head: the most specific matching
+%entry, coherence-checked among the maximal ones, exactly evaluation's own
+%dispatch of a call against equation heads.
+petta_shape_route(Head, Ctx, Query, Entry, Payload) :-
+    petta_shape_declared(Head, Ctx),
+    findall(E, petta_shape_entry(Head, Ctx, Query, E), Entries),
+    Entries \== [],
+    petta_shape_maximal(Entries, Maximal),
+    Maximal = [entry(_, _, Entry, Payload)|Rest],
+    forall(member(entry(_, _, E2, P2), Rest),
+           (   P2 == Payload
+           ->  true
+           ;   throw(error(petta_contract_conflict(Ctx, Entry, E2, Query),
+                           none))
+           )).
+
+%The entries no other entry is strictly more specific than.
+petta_shape_maximal(Entries, Maximal) :-
+    findall(E,
+            ( member(E, Entries),
+              \+ ( member(Q, Entries),
+                   petta_shape_stricter(Q, E) ) ),
+            Maximal).
+
+%Q strictly more specific than P: a strictly narrower pattern, or the same
+%pattern up to renaming with strictly more positions required bound. The
+%second clause is what makes the scan-only idiom coherent, (edge (in $a)
+%$b) Refuse beside (edge $x $y) Exact: the adorned entry matches strictly
+%fewer queries, so it wins the bound-subject overlap the way Mercury's
+%mode-indexed determinism declarations discriminate on modes. A narrower
+%pattern outranks any adornment difference, so requirements are compared
+%only between renaming-equal patterns, where paths line up positionally.
+petta_shape_stricter(entry(QP, _, _, _), entry(PP, _, _, _)) :-
+    \+ QP =@= PP,
+    subsumes_term(PP, QP),
+    \+ subsumes_term(QP, PP), !.
+petta_shape_stricter(entry(QP, QPaths, _, _), entry(PP, PPaths, _, _)) :-
+    QP =@= PP,
+    sort(QPaths, QSorted),
+    sort(PPaths, PSorted),
+    ord_subtract(PSorted, QSorted, []),
+    QSorted \== PSorted.
+
+%The declared error mode for one context and query shape; silence is
+%abort, which is exactly today's behaviour.
+petta_on_error_mode(Ctx, Query, Mode) :-
+    petta_ctx_declared(Ctx),
+    petta_shape_route('on-error', Ctx, Query, _, [Mode]).
+
+%The declared cross-context merge strategy for one query shape; silence
+%is depth, which is exactly today's behaviour.
+petta_merge_route(Query, Policy) :-
+    petta_shape_route(merge, global, Query, _, [Policy]).
+
+%Transport failure is never any declared mode's to keep or empty: the
+%backend is ABSENT rather than wrong, retrying is the caller's decision,
+%and an absent backend has said nothing about the data. The Python side
+%classifies at the crossing with isinstance, where subclassing is still
+%visible, and re-raises under this one name.
+petta_transport_failure(error(python_error('TransportFailure', _), _)).
+
+%A kept error as the answer it becomes: MeTTa's own (Error <culprit>
+%<reason>) shape, the culprit being the query pattern as asked, since the
+%failed attempt's bindings were undone with the throw.
+petta_error_answer(Pattern, error(python_error(Class, Message0), _),
+                   ['Error', Pattern, Reason]) :-
+    !,
+    (   string(Message0) -> Message = Message0
+    ;   petta_py_exception_message(Message0, Message)
+    ),
+    format(string(Reason), "~w: ~w", [Class, Message]).
+petta_error_answer(Pattern, Error, ['Error', Pattern, Reason]) :-
+    message_to_string(Error, Reason).
+
+%Critical-pair coherence over a context's entries, for checking a
+%declaration EAGERLY instead of on the first query that falls into an
+%overlap. Knuth-Bendix's move: for every pair of entries the pair's most
+%general common instance is itself routed, with the adorned positions
+%marked bound so the most demanding instance is the one examined, and the
+%route throws its own conflict if the pair is a disagreeing tie. An overlap
+%one entry is strictly more specific over is not a conflict, which is why
+%routing decides rather than a bare overlap test.
+petta_handles_coherent(Ctx) :-
+    findall(Pattern-Requirements,
+            ( (   petta_contract_fact([handles, Ctx, Entry, _, _])
+              ;   petta_contract_fact([handles, Ctx, Entry, _])
+              ),
+              petta_adorn_strip(Entry, Pattern, Requirements) ),
+            Entries),
+    forall(( append(_, [First|Rest], Entries), member(Second, Rest) ),
+           petta_handles_pair_coherent(Ctx, First, Second)).
+
+petta_handles_pair_coherent(Ctx, P1-R1, P2-R2) :-
+    \+ \+ (   P1 = P2
+          ->  term_variables(R1-R2, Unbound),
+              maplist(=('$petta_bound'), Unbound),
+              petta_handles_route(Ctx, P1, _, _)
+          ;   true
+          ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_contract_conflict(Ctx, E1, E2, Witness)) -->
+    [ 'two (handles ~w ...) entries match ~q and disagree: ~q and ~q. \c
+       Make one more specific, or declare the overlap itself with its \c
+       own entry'-[Ctx, Witness, E1, E2] ].
+prolog:error_message(petta_refused_shape(Ctx, Pattern, Entry)) -->
+    [ '~w declares (handles ... ~q Refuse) and this query is that shape: \c
+       ~q. The context cannot answer it, and the declaration makes that \c
+       loud here rather than a silent partial answer later'-[Ctx, Entry,
+                                                             Pattern] ].
+
+metta_pure_operation(Name) :- pure_arithmetic(Name).
+metta_pure_operation(Name) :- pure_comparison(Name).
+metta_pure_operation(Name) :- pure_structure(Name).
+metta_pure_operation(Name) :- pure_inspection(Name).
+metta_pure_operation(Name) :- pure_engine_helper(Name).
+
+%The engine's own helpers that a compiled body calls. They inspect and raise;
+%none of them writes anything a cache could hide.
+pure_engine_helper(metta_arith_operands).
+pure_engine_helper(throw_metta_type_error).
+pure_engine_helper(rethrow_metta_operation_error).
+pure_engine_helper(non_list).
+pure_engine_helper(type_answers).
+pure_engine_helper(satisfies_metatype).
+
+pure_arithmetic('+').  pure_arithmetic('-').  pure_arithmetic('*').
+pure_arithmetic('/').  pure_arithmetic('%').  pure_arithmetic(min).
+pure_arithmetic(max).  pure_arithmetic(exp).
+pure_arithmetic('abs-math').   pure_arithmetic('acos-math').
+pure_arithmetic('asin-math').  pure_arithmetic('atan-math').
+pure_arithmetic('ceil-math').  pure_arithmetic('cos-math').
+pure_arithmetic('exp-math').   pure_arithmetic('floor-math').
+pure_arithmetic('isinf-math'). pure_arithmetic('isnan-math').
+pure_arithmetic('log-math').   pure_arithmetic('pow-math').
+pure_arithmetic('round-math'). pure_arithmetic('sin-math').
+pure_arithmetic('sqrt-math').  pure_arithmetic('tan-math').
+pure_arithmetic('trunc-math').
+
+pure_comparison('<').  pure_comparison('>').  pure_comparison('<=').
+pure_comparison('>=').  pure_comparison('==').  pure_comparison('!=').
+pure_comparison('=').  pure_comparison('=?').  pure_comparison('=alpha').
+pure_comparison(dif).  pure_comparison(and).   pure_comparison(or).
+pure_comparison(not).  pure_comparison(xor).   pure_comparison(implies).
+
+pure_structure('car-atom').    pure_structure('cdr-atom').
+pure_structure('cons-atom').   pure_structure('decons-atom').
+pure_structure(cons).          pure_structure(decons).
+pure_structure('size-atom').   pure_structure('index-atom').
+pure_structure('sort-atom').   pure_structure('union-atom').
+pure_structure('intersection-atom'). pure_structure('subtraction-atom').
+pure_structure('unique-atom'). pure_structure('alpha-unique-atom').
+pure_structure('map-atom').    pure_structure('filter-atom').
+pure_structure('foldl-atom').  pure_structure('max-atom').
+pure_structure('min-atom').    pure_structure('exclude-item').
+pure_structure('first-from-pair'). pure_structure('second-from-pair').
+pure_structure(first).  pure_structure(last).  pure_structure(append).
+pure_structure(length). pure_structure(member). pure_structure('is-member').
+pure_structure('is-alpha-member'). pure_structure(reverse).
+pure_structure(sort).   pure_structure(msort).  pure_structure(list_to_set).
+pure_structure(foldl).  pure_structure(maplist). pure_structure(superpose).
+pure_structure(empty).  pure_structure(id).      pure_structure(noeval).
+pure_structure(copy_term). pure_structure(term_hash).
+
+pure_inspection('get-type').     pure_inspection('get-metatype').
+pure_inspection('is-var').       pure_inspection('is-ground').
+pure_inspection('is-expr').      pure_inspection('is-space').
+pure_inspection(repr).           pure_inspection(repra).
+pure_inspection(parse).          pure_inspection(sread).
+pure_inspection(atom_chars).     pure_inspection(atom_concat).
+pure_inspection(has_type).       pure_inspection(metatype_of).
 
 'is-var'(A,R) :- var(A) -> R=true ; R=false.
 'is-ground'(A,R) :- ground(A) -> R=true ; R=false.
@@ -585,12 +2108,99 @@ prolog:error_message(petta_assertion_failed(Goal)) -->
     [ 'MeTTa assertion failed: ~p'-[Goal] ].
 prolog:error_message(petta_test_no_answer) -->
     [ 'MeTTa test expression produced no answer'-[] ].
+prolog:error_message(petta_not_a_prolog_module(File)) -->
+    [ '~w is not a Prolog module, so its exports cannot be imported under \c
+       other names. Add :- module(name, [pred/arity, ...]) at its top, or \c
+       register it without renaming.'-[File] ].
+prolog:error_message(petta_not_exported(Module, Name, Exports)) -->
+    [ '~w does not export ~w, so it cannot be imported under another name. \c
+       It exports ~q.'-[Module, Name, Exports] ].
+%The two names a Prolog registration cannot take, thrown by
+%refuse_reserved_registration/1 below and rendered here so every
+%prolog:error_message//1 clause in this file stays together.
+prolog:error_message(permission_error(register, metta_builtin, Name)) -->
+    [ '~w is a builtin, so registering a Prolog predicate under that name \c
+       would replace the engine\'s own for every space in the process. A \c
+       named space compiles its own clauses, so an equation there shadows \c
+       the builtin for that space alone.'-[Name] ].
+prolog:error_message(permission_error(register, metta_special_form, Name)) -->
+    [ '~w is a special form, which the translator compiles directly, so a \c
+       registration under that name could never be reached. Pick another \c
+       name, or reach the predicate with (call (~w ...)), which needs no \c
+       registration.'-[Name, Name] ].
+prolog:error_message(petta_extension_api_mismatch(Name, Wanted, Ours)) -->
+    [ '~w was written against extension seam ~w and this engine offers ~w. \c
+       A major version differs, or the extension needs a hook this engine \c
+       does not have yet.'-[Name, Wanted, Ours] ].
+%Thrown by refuse_untypable_declaration/3 above. The type is written back
+%through swrite/2 so the author sees the MeTTa they wrote rather than its
+%Prolog list.
+prolog:error_message(petta_untypable_declaration(Name, Type)) -->
+    { swrite(Type, Written) },
+    [ '(: ~w ~w) is not an arrow, so it types the symbol ~w and not a call \c
+       to it: every (~w ...) compiles with no check at all, and a wrong \c
+       argument surfaces wherever it finally breaks instead of here. Write \c
+       (: ~w (-> ...)), or (: ~w %Undefined%) to say ~w is deliberately \c
+       untyped.'-[Name, Written, Name, Name, Name, Name, Name] ].
+prolog:error_message(petta_export_form(Text)) -->
+    [ 'this is not an export declaration: ~w. An export is (: name (-> ...)) \c
+       or (export name arity).'-[Text] ].
+prolog:error_message(petta_load_failed(Summary)) -->
+    [ 'the Prolog source did not load cleanly: ~w'-[Summary] ].
+prolog:error_message(petta_name_owned_by_source(Name, Owner)) -->
+    [ '~w is already registered from ~w. Two libraries defining one name \c
+       destroy each other\'s predicate, because a consulted file REPLACES a \c
+       static one of the same name and SWI only warns. Rename yours, or \c
+       unregister the extension that owns it first.'-[Name, Owner] ].
+prolog:error_message(permission_error(register, metta_function, Name)) -->
+    [ '~w is already registered by another extension tier. Unregister it \c
+       there first, or pick another name: two tiers sharing one name leaves \c
+       whichever registered second in place and the other one\'s registry \c
+       still claiming it.'-[Name] ].
 
-'println!'(Arg, true) :- swrite(Arg, RArg),
-                         format('~w~n', [RArg]).
+'println!'(Arg, Unit) :- swrite(Arg, RArg),
+                        format('~w~n', [RArg]),
+                        Unit = [].
 
+%One line, one form. A form spanning two lines is a syntax error here, which
+%is why 'read-form!'/1 exists beside it.
 'readln!'(Out) :- read_line_to_string(user_input, Str),
                   sread(Str, Out).
+
+%A whole form, however many lines it takes. Reads until the brackets balance,
+%so a console accepts (= (f $x)<enter>(+ $x 1)) the way every other language's
+%does, and an empty line re-prompts instead of erroring.
+%
+%This is CPython's InteractiveConsole half: the buffering and prompting sit
+%here, and the decision, sread_command/2, is in the reader with no I/O at all,
+%so a Jupyter kernel or an editor integration uses the same answer without
+%this loop [source: CPython, the code module's split between
+%InteractiveInterpreter and InteractiveConsole]
+%[tested: parser_reads_a_form_across_lines].
+'read-form!'(Out) :- read_form_lines("", Out).
+
+%The decision on its own, with no I/O: (complete Term), incomplete, or a
+%raise. A console that does its own reading asks this and keeps its own
+%buffer.
+%
+%sread_command/2 answers the Prolog compound complete(Term), which is the
+%right shape for a Prolog caller and the wrong one for a MeTTa program: it
+%would arrive as an opaque term rather than as an expression to match on.
+'sread-command'(Text, Result) :-
+    sread_command(Text, Answer),
+    ( Answer = complete(Term) -> Result = [complete, Term] ; Result = Answer ).
+
+read_form_lines(Buffered, Out) :-
+    read_line_to_string(user_input, Line),
+    (   Line == end_of_file
+    ->  ( Buffered == "" -> Out = end_of_file ; sread(Buffered, Out) )
+    ;   ( Buffered == "" -> Text = Line
+        ; string_concat(Buffered, "\n", WithBreak),
+          string_concat(WithBreak, Line, Text) ),
+        sread_command(Text, Result),
+        ( Result = complete(Term) -> Out = Term
+        ; read_form_lines(Text, Out) )
+    ).
 
 test(A,B,true) :- (A =@= B -> E = '✅' ; E = '❌'),
                   swrite(A, RA),
@@ -625,6 +2235,158 @@ assert(Goal, true) :- ( call(Goal) -> true
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
+
+%%% Filesystem tests: %%%
+%
+%SWI's exists_file/1 is a TEST, and the engine reads a registered predicate's
+%LAST argument as the output, so registering the name bare made its only
+%argument the answer slot: a path could never be passed in, and
+%(exists_file "run.sh") raised function_input_arities(exists_file,[0]) while
+%(exists_file) alone raised "Arguments are not sufficiently instantiated". A
+%declared type for it, (-> %Undefined% Bool), said it took a path all the same.
+%
+%That silence is already on the record from the other side. lib_import.metta
+%notes removing a former guard because "It made a missing file fail SILENTLY,
+%with no answer", which is exactly what a zero-input registration does: the
+%call site went and the registration stayed.
+%
+%The wrapper is sleep/2's shape below, and it answers false rather than
+%FAILING, because a test that fails is indistinguishable from a test that was
+%never reached, which is what made the original symptom so hard to read
+%[tested: builtin_exists_file].
+'exists_file'(Path, Result) :-
+    (   ( atom(Path) ; string(Path) )
+    ->  ( exists_file(Path) -> Result = true ; Result = false )
+    ;   throw_metta_type_error(exists_file, 'a path as a symbol or string', Path)
+    ).
+
+%%% Time control: %%%
+%Suspend this evaluation. In a thread, only this thread waits.
+'sleep'(Seconds, true) :- must_be(number, Seconds), sleep(Seconds).
+
+%Bound a goal by wall clock, keeping every answer.
+%
+%call_with_time_limit/2 runs its goal as once/1, so wrapping the goal directly
+%would collapse a three-answer expression to one, the trap with_mutex/2 sets.
+%The findall INSIDE the limit is what avoids that: the whole enumeration is
+%bounded as one unit and member/2 hands the answers back.
+%
+%Do not be tempted to replace this with a raw alarm/4 around the goal to get
+%lazy answers. It crashes: alarm/4 with throw/1 around a deeply recursive goal
+%took SIGSEGV where call_with_time_limit/2 on the identical goal unwound
+%cleanly [measured 2026-08-15, ai-tmp/pool/alarm.pl]. The cost of doing this
+%safely is that answers are collected before the first is yielded, which for a
+%deadline-bounded call is what you want anyway.
+%
+%A wall-clock bound is also the only one that survives concurrency. The
+%inference limit counts the calling thread only, so it does not stop work a
+%hyperpose branch or a spawned future is doing [measured 2026-08-15: a 50,000
+%inference limit did not stop two branches spending six million].
+%
+%Expiry throws rather than failing, so a partial answer set is never mistaken
+%for the whole one. time_limit_exceeded is already a control exception here.
+metta_timeout(Seconds, Goal, Value) :-
+    must_be(number, Seconds),
+    call_with_time_limit(Seconds, findall(Value, Goal, Values)),
+    member(Value, Values).
+
+%Time one answer and report what it cost, as (Value Seconds). Each answer is
+%timed from the start of the call, so backtracking into a later answer reports
+%the total spent reaching it rather than restarting the clock.
+metta_elapsed(Goal, Value, [Value, Seconds]) :-
+    get_time(Start),
+    Goal,
+    get_time(End),
+    Seconds is End - Start.
+
+%%% Interpreter pragmas: %%%
+%MeTTa HE spells interpreter settings (pragma! <key> <value>). PeTTa had none,
+%so this is the fallback-to-HE rule applied.
+:- dynamic metta_pragma/2.
+
+%An unrecognised key is a typo far more often than it is forward
+%compatibility, so it is an error that names the keys that exist rather than a
+%setting that silently never applies.
+%HE's own keys are type-check, interpreter and max-stack-depth
+%[source 2026-08-15: MeTTa HE stdlib reference, pragma!]. The two bounds are
+%PeTTa's, and are the ones this engine can actually enforce.
+metta_pragma_key('max-time', 'bound every runnable by wall-clock seconds').
+metta_pragma_key('max-inferences', 'bound every runnable by inference count').
+%These three are HE's. They are accepted so an HE program loads, and they are
+%NOT enforced here; setting one changes nothing. Recorded rather than silently
+%swallowed, and tracked in ai-todo-parallel.md B10.1.
+metta_pragma_key('max-stack-depth', 'HE spelling; accepted, NOT enforced').
+metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
+metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
+
+'pragma!'(Key, Value, true) :-
+    (   metta_pragma_key(Key, _)
+    ->  true
+    ;   findall(K-D, metta_pragma_key(K, D), Known),
+        throw(error(domain_error(metta_pragma_key, Key),
+                    context('pragma!'/2, Known)))
+    ),
+    retractall(metta_pragma(Key, _)),
+    (   Value == none
+    ->  true
+    ;   assertz(metta_pragma(Key, Value))
+    ),
+    sync_metta_pragma_bounds.
+
+%A bound costs nothing until one is set. call_goals_in/2 runs every runnable
+%form, so an unconditional wrapper there is paid by every directive: checking
+%two pragmas on each one cost 5 inferences per directive against the
+%run-source benchmark's 4-inference allowance [measured 2026-08-15]. Wrapping
+%the predicate only while a bound is active is how ext_points.pl keeps atom
+%hooks free when nobody is listening, and the same reasoning applies here.
+sync_metta_pragma_bounds :-
+    (   bounding_pragma_set
+    ->  enable_metta_pragma_bounds
+    ;   disable_metta_pragma_bounds
+    ).
+
+bounding_pragma_set :-
+    (   metta_pragma('max-time', Seconds), number(Seconds), Seconds > 0
+    ->  true
+    ;   metta_pragma('max-inferences', Limit), integer(Limit), Limit > 0
+    ).
+
+enable_metta_pragma_bounds :-
+    current_predicate_wrapper(user:call_goals_in(_, _), metta_pragma_bounds,
+                              _, _), !.
+enable_metta_pragma_bounds :-
+    wrap_predicate(user:call_goals_in(_Module, _Goals), metta_pragma_bounds,
+                   Wrapped, user:run_under_pragmas(Wrapped)).
+
+disable_metta_pragma_bounds :-
+    ( unwrap_predicate(user:call_goals_in/2, metta_pragma_bounds)
+      -> true ; true ).
+
+%What a bounded runnable form is wrapped in. Reading the pragmas here, rather
+%than baking them into the compiled clause, means a pragma set later applies
+%to everything after it and nothing before it.
+run_under_pragmas(Goal) :-
+    (   metta_pragma('max-time', Seconds), number(Seconds), Seconds > 0
+    ->  Timed = call_with_time_limit(Seconds, Goal)
+    ;   Timed = Goal
+    ),
+    (   metta_pragma('max-inferences', Limit), integer(Limit), Limit > 0
+    ->  call_with_inference_limit(Timed, Limit, Result),
+        (   Result == inference_limit_exceeded
+        ->  throw(error(resource_error(metta_inferences),
+                        context('pragma!'/2, Limit)))
+        ;   true
+        )
+    ;   call(Timed)
+    ).
+
+%%% MeTTa HE compatibility: %%%
+%HE's metta/3 is (-> Atom Type SpaceType Atom), "run the MeTTa interpreter on
+%an atom" in a named space. evalc/3 already is exactly that: PeTTa's eval is a
+%full evaluation rather than minimal MeTTa's single rewriting step, which its
+%own comment records, so this is the HE spelling over it. The Type argument is
+%accepted and ignored, as it is for %Undefined% in HE.
+'metta'(Atom, _Type, Space, Out) :- evalc(Atom, Space, Out).
 
 %%% Python bindings: %%%
 % janus converts Python booleans to @(true)/@(false); normalize them to the
@@ -671,6 +2433,20 @@ bind_python_call_spec(Spec, BoundSpec) :-
     python_import_alias(Module, ModuleKey), !,
     atomic_list_concat([ModuleKey, Function], '.', BoundSpec).
 bind_python_call_spec(Spec, Spec).
+%py-call is UPSTREAM PeTTa's, which is why it does not move. It converts by
+%janus's defaults and those defaults are wrong in four ways a program cannot
+%work around: a dict arrives as the ATOM 'py{a:1}', so py-len answers 11 for
+%two keys; a generator is DRAINED, so asking for its first element runs every
+%side effect and an infinite one cannot cross; a file handle becomes a
+%one-element list of its text; and a Python str becomes a Symbol, so
+%`(== "abc" (py-call (str "abc")))` is False and a (-> String Number)
+%parameter rejects it.
+%
+%Every one of those is fixed in src/python.pl, which is the language's own
+%surface rather than this one: `py-atom` RESOLVES where this APPLIES, and that
+%split is what makes a Python callable a value. Reach for that. Changing this
+%operator's defaults was tried and measured and it works, and it changes what
+%every program written against upstream sees, so it stays as upstream has it.
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
                                         must_be(atom, A),
@@ -697,11 +2473,129 @@ bind_python_call_spec(Spec, Spec).
                                                    ; Call0 =.. [A|Args] ),
                                                 py_call(builtins:Call0, R0, Opts), py_bool_norm(R0, Result) ).
 
+%A FRESH SPACE, which PeTTa did not have. Spaces here are named and created on
+%demand, so `(new-space)` reduced to nothing and `(bind! &s (new-space))` did
+%nothing at all: the program worked anyway because `&s` doubles as a name, and
+%that is an accident rather than a design. It answers a fresh unique name, so
+%the form means what it says and bind! has something to bind.
+:- dynamic petta_space_counter/1.
+
+'new-space'(Space) :- gensym('&petta-space-', Space).
+
 %%% States: %%%
-'bind!'(Var, ['new-state', Value], true) :-
+'bind!'(Var, ['new-state', Value], []) :- !,
     ( atom(Var) -> nb_setval(Var, Value)
     ; catch(nb_setval(Var, Value), E,
             rethrow_metta_operation_error('bind!', E)) ).
+%THE TOKEN FORM, which is what the specification says bind! is:
+%"(-> Symbol %Undefined% (->)) ... Registers a new token which is replaced with
+%an atom during the parsing of the rest of the program"
+%[source: metta-lang-docs/corelib-stdlib-reference.md, bind!]. PeTTa had only
+%the state-cell form above, so `(bind! six 6)` FAILED SILENTLY and the language's
+%own idiom `(bind! abs (py-atom numpy.absolute))` then `(abs -5)` could not work.
+%
+%The state form keeps its own clause and registers no token, because PeTTa
+%models a state cell by NAME: substituting the name away would take `get-state`
+%with it.
+'bind!'(Var, Value, []) :-
+    ( atom(Var)
+      -> true
+      ;  throw(error(type_error(symbol, Var),
+                     context('bind!'/2, 'a token name is a symbol'))) ),
+    %"Atom, which is associated with the token AFTER REDUCTION", so the value is
+    %evaluated before it is bound: `(bind! &s (new-space))` binds the space, not
+    %the expression that makes one.
+    ( is_list(Value) , Value \== []
+      -> once(reduce(Value, Reduced, _))
+      ;  Reduced = Value ),
+    register_metta_token(Var, Reduced).
+
+%A token, and the substitution that makes it one. Both are guarded on anything
+%being registered at all, so a program that binds no token pays one indexed
+%lookup per form it parses and nothing else.
+:- dynamic metta_token/2.
+
+register_metta_token(Name, Value) :-
+    retractall(metta_token(Name, _)),
+    assertz(metta_token(Name, Value)).
+
+%ONE indexed lookup when no token is bound, which is what a token table costs
+%and all it costs. A program that binds none pays that per parsed form and
+%nothing else; the walk below runs only once something is registered.
+substitute_bound_tokens(Term, Out) :-
+    metta_token(_, _), !,
+    substitute_bound_tokens_(Term, Out).
+substitute_bound_tokens(Term, Term).
+
+substitute_bound_tokens_(Term, Out) :- var(Term), !, Out = Term.
+substitute_bound_tokens_(Term, Out) :- atom(Term), !,
+                                       ( metta_token(Term, Bound)
+                                         -> Out = Bound ; Out = Term ).
+substitute_bound_tokens_(Term, Out) :- atomic(Term), !, Out = Term.
+substitute_bound_tokens_(Term, Out) :- is_list(Term), !,
+                                       maplist(substitute_bound_tokens_, Term, Out).
+substitute_bound_tokens_(Term, Term).
+
+%&self is the reserved token for the space the code lives in, upstream's
+%own reading where &self is a tokenizer substitution for the running
+%space. In the CLI the program space is literally named &self, so the
+%walk is skipped outright there and nothing changes; a named space (a
+%python-created one, or a (new-space) binding) gets its own name wherever
+%its source says &self, which is what makes `!(add-atom &self ...)` and
+%`(unify &self ...)` mean "this space" in library-hosted programs too.
+%It substitutes where the engine's own bind! tokens substitute, the
+%parsed-form rewrite, so stored data expressions keep their literal
+%atoms exactly as they do for every other token.
+substitute_self_('&self', Term, Term) :- !.
+substitute_self_(Space, Term, Out) :-
+    substitute_self_walk_(Term, Space, Out).
+
+substitute_self_walk_(Term, Space, Out) :- atom(Term), !,
+                                           ( Term == '&self'
+                                             -> Out = Space ; Out = Term ).
+substitute_self_walk_(Term, _, Out) :- atomic(Term), !, Out = Term.
+substitute_self_walk_(Term, Space, Out) :-
+    is_list(Term), !,
+    substitute_self_list_(Term, Space, Out).
+substitute_self_walk_(Term, _, Term).
+
+substitute_self_list_([], _, []).
+substitute_self_list_([Term|Terms], Space, [Out|Outs]) :-
+    substitute_self_walk_(Term, Space, Out),
+    substitute_self_list_(Terms, Space, Outs).
+
+%Every rewrite a freshly parsed form gets before anything else reads it.
+%The guards inline rather than calls to guarded predicates: each of
+%those costs its own call on top of its lookup, and this runs on every
+%form a source load parses. The &self walk is gated by a C substring
+%probe of the form's own source text, so a form that never says &self
+%pays a flat few inferences however large its data is: the unguarded
+%walk cost alpha-unique's counter +12% and every runnable +10, caught by
+%the gate.
+rewrite_parsed_form(Space, FormStr, Term, Rewritten) :-
+    (   Space == '&self'
+    ->  Term1 = Term
+    ;   string(FormStr)
+    ->  (   sub_string(FormStr, _, _, _, "&self")
+        ->  substitute_self_(Space, Term, Term1)
+        ;   Term1 = Term
+        )
+    ;   atom(FormStr)
+    ->  (   sub_atom(FormStr, _, _, _, '&self')
+        ->  substitute_self_(Space, Term, Term1)
+        ;   Term1 = Term
+        )
+    ;   %No source text to probe: walk, correctness over the shortcut.
+        substitute_self_(Space, Term, Term1)
+    ),
+    (   python_import_alias(_, _)
+    ->  bind_python_calls_(Term1, Bound)
+    ;   Bound = Term1
+    ),
+    (   metta_token(_, _)
+    ->  substitute_bound_tokens_(Bound, Rewritten)
+    ;   Rewritten = Bound
+    ).
 'change-state!'(Var, Value, true) :-
     ( atom(Var) -> nb_setval(Var, Value)
     ; catch(nb_setval(Var, Value), E,
@@ -722,10 +2616,14 @@ bind_python_call_spec(Spec, Spec).
 %The unset case is `user`, which is what a bare call/1 already resolves to, so
 %it keeps the original path and costs nothing on the default space; only a
 %named space pays for the qualification.
-eval(C, Out) :- translate_runnable_expr(C, Goals, Out),
-                ( nb_current('$petta_module', Module)
-                  -> call_goals_in_(Module, Goals)
-                  ;  call_goals(Goals) ).
+%eval takes its argument as written: &self resolved at the reader if the
+%expression came from source, and a runtime-built term keeps its literal
+%atoms, the same boundary stored data has. A substitution walk here re-ran
+%the reader's work on every eval and found nothing.
+eval(C0, Out) :- translate_runnable_expr(C0, Goals, Out),
+                 ( nb_current('$petta_module', Module)
+                   -> call_goals_in_(Module, Goals)
+                   ;  call_goals(Goals) ).
 
 %evalc is eval in a space you name, the counterpart to context-space, which
 %reports the space eval is already running in. Naming the space is the only
@@ -741,11 +2639,14 @@ eval(C, Out) :- translate_runnable_expr(C, Goals, Out),
 %
 %A space is an atom beginning with &, which is what is-space/2 tests, so an
 %argument that is not one is a type error rather than a silently empty space.
-evalc(C, Space, Out) :- ( 'is-space'(Space, true)
+%Like eval, evalc takes the expression as written: &self inside it named
+%the space hosting the SOURCE (the reader pinned it there), not the space
+%evalc is aimed at, so there is nothing left to substitute at run time.
+evalc(C0, Space, Out) :- ( 'is-space'(Space, true)
                           -> true
                           ;  throw_metta_type_error(evalc, 'SpaceType', Space) ),
                         space_module(Space, Module),
-                        with_metta_module(Module, eval(C, Out)).
+                        with_metta_module(Module, eval(C0, Out)).
 
 call_goals([]).
 call_goals([G|Gs]) :- call(G), 
@@ -780,7 +2681,567 @@ call_goals_in_(Module, [G|Gs]) :- call(Module:G),
 
 %%% Prolog interop: %%%
 argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number(A, N) -> Arg = N ; Arg = A ).
-import_prolog_function(N, true) :- register_fun(N).
+%A name with no predicate behind it is refused where the name is written.
+%A registered name with no arity recorded compiles every call to it into a
+%partial application rather than failing:
+%!(import_prolog_functions_from_file "mylib.pl" (no-such-predicate)) reported
+%success and !(no-such-predicate 1) answered (partial no-such-predicate (1)).
+%A silent wrong answer is the worst outcome available here.
+%
+%The Python side refuses the same name in MeTTa.register_prolog for the same
+%reason; this is the engine-level gate, so every route in gets it.
+%
+%register_fun_in(user, N), not register_fun/1: a registration that records no
+%home module resolves only while NO named space has claimed the name, because
+%fun_here/1's first clause is \+ fun_scoped(F). One named space defining an
+%equation of the same name therefore turned every registered predicate into
+%inert data in every space, with no error: !(rp-norm 3) answered (rp-norm 3).
+%user is the module the clauses really are in, so this states where they live
+%rather than adding a rule, and a named space that defines the name still
+%shadows it, which is the behaviour that should happen
+%[tested: a_registered_predicate_survives_a_named_space_claiming_its_name].
+import_prolog_function(N, true) :-
+    import_prolog_function_at(N, scan).
+
+%The DECLARED route knows the arity and registers that one, where the scan
+%registers every arity current_predicate/1 can see. That difference is a
+%defect when a declaration exists: `(: rc-scale (-> Number Number))` beside an
+%internal `'rc-scale'/3` published BOTH, so `(rc-scale 3 7)` answered 21
+%through a predicate the library never declared [reproduced 2026-08-16].
+%
+%The arity is already in hand at that moment. refuse_undeclared_arity/3
+%computes it to check the predicate exists, so threading it out costs nothing
+%and closes discovery on the route the whole metta_export design exists to
+%make the good one. The scan stays for the legacy `names=` route, where
+%nothing was declared and discovery is all there is
+%[tested: a_declared_export_publishes_only_its_declared_arity].
+import_prolog_function_at(N, Arity) :-
+    must_be(atom, N),
+    refuse_reserved_registration(N),
+    refuse_absent_prolog_function(N),
+    prolog_function_source(N, Source),
+    claim_function_name(N, prolog, Source),
+    register_fun_in(user, N),
+    (   Arity == scan
+    ->  register_prolog_arities(N)
+    ;   register_arity(N, Arity)
+    ).
+
+%The file the clauses in the database RIGHT NOW came from, read off a clause
+%rather than off the predicate. predicate_property(file(F)) is the wrong
+%question here and answers the wrong thing: after a second library redefines a
+%static predicate it still reports the FIRST library's file, which is exactly
+%the case this has to detect. A registration made from source held in memory
+%has no file, and says so.
+prolog_function_source(N, Source) :-
+    (   current_predicate(N/Arity),
+        functor(Head, N, Arity),
+        nth_clause(Head, 1, Ref),
+        clause_property(Ref, file(File))
+    ->  Source = File
+    ;   Source = unknown
+    ).
+
+%Two names a registration must not take, both of which it used to take
+%silently while reporting success.
+%
+%A builtin, because a consulted predicate REPLACES the engine's static one for
+%the whole process: registering a predicate named + made !(+ 1 2) answer
+%whatever the library said, and the only diagnostic was SWI's redefinition
+%warning on stderr, which no caller sees. The equation route already refuses
+%exactly this at spaces.pl through petta_builtin_redefinition/3, so this is
+%the same rule reaching the other road in rather than a new one.
+%
+%A special form, because translate_special_dl/5 is tried BEFORE function
+%dispatch, so the registration compiles nothing and can never be reached:
+%registering a predicate named if left !(if True 1 2) answering 1 from the
+%translator and the library's clauses dead, with nothing said at any point.
+%Accepting a registration that cannot run is telling the author their code is
+%installed when it is not
+%[tested: a_builtin_name_is_refused, a_special_form_name_is_refused].
+refuse_reserved_registration(N) :-
+    (   builtin_fun(N)
+    ->  throw(error(permission_error(register, metta_builtin, N),
+                    context(import_prolog_function/2,
+                            'the engine defines this name')))
+    ;   metta_special_form(N)
+    ->  throw(error(permission_error(register, metta_special_form, N),
+                    context(import_prolog_function/2,
+                            'the translator compiles this name')))
+    ;   true
+    ).
+
+%Who put a function's clauses where they are. fun/1 says a name IS a function
+%and fun_in/2 says which module its clauses live in; neither says which tier
+%put them there, and without that a registration from one tier silently took
+%a name another tier owned. Registering a Prolog predicate over a live Python
+%operation replaced it, left petta_py_op_spec/3 still claiming the name, and
+%wedged it for the life of the process: the operation could not be
+%unregistered, because retractall/1 on what was now a static predicate raised,
+%and could not be re-registered either.
+%
+%Equations are deliberately not recorded here. Their origin is already
+%answerable, from the space that holds the atom and from fun_in/2, and one
+%assertion per compiled equation is a cost on the hot path for a fact that is
+%already derivable [tested: a_name_another_tier_owns_is_refused,
+%test_a_python_operation_is_not_silently_replaced].
+:- dynamic metta_function_origin/3.   %metta_function_origin(Name, Tier, Detail)
+
+refuse_other_tiers_name(Name, Tier) :-
+    (   metta_function_origin(Name, Other, OtherDetail), Other \== Tier
+    ->  throw(error(permission_error(register, metta_function, Name),
+                    context(refuse_other_tiers_name/2,
+                            owned_by(Other, OtherDetail))))
+    ;   true
+    ).
+
+%The same refusal for two PROLOG sources, asked where it can still be acted
+%on: before the source that would take the name has been read.
+%
+%claim_function_name/3 asks the same question after the consult and has to,
+%because that is the only place the clobber can be DETECTED. But detection
+%after the fact told the wrong author: B was refused by name and A, which did
+%nothing, silently answered B's implementation from then on
+%[reproduced 2026-08-16: `A before B: 20`, `B refused`, `A after: 30`]. This
+%is the check moved to where refusing still prevents something, which is
+%exactly why check_prolog_function_names/3 exists for builtins ten lines
+%down, and it is the same error term so one diagnostic covers both positions.
+refuse_other_sources_name(Name, Source) :-
+    (   metta_function_origin(Name, prolog, Owner),
+        Owner \== unknown, Source \== unknown, Owner \== Source
+    ->  throw(error(petta_name_owned_by_source(Name, Owner),
+                    context(refuse_other_sources_name/2,
+                            'two Prolog sources claim one name')))
+    ;   true
+    ).
+
+%unknown is not an identity, it is prolog_function_source/2 saying it could
+%not tell, which is what a predicate installed by use_foreign_library/1
+%answers: it has no clause with a file behind it. Two of them are not the same
+%source and one is not a different source either, so comparing them decides
+%nothing and refusing on one refuses a library re-registering itself
+%[tested: test_a_compiled_library_registers_from_python]. A C predicate cannot
+%take a name this way in silence regardless, because installing over a static
+%predicate raises from SWI rather than warning.
+
+%What a source is CALLED, for comparing one against another. A file is
+%recorded under SWI's canonical absolute path, since that is what
+%clause_property(file(F)) answers, and a caller passes whatever they typed; a
+%load from memory has no file and is recorded under the name it loaded as, so
+%it passes through unchanged.
+canonical_prolog_source(Source, Canonical) :-
+    (   absolute_file_name(Source, Resolved, [file_errors(fail), access(read)])
+    ->  Canonical = Resolved
+    ;   Canonical = Source
+    ).
+
+%Re-registering under the same tier is replacement, which is what register_op
+%does on every call. Two different PROLOG SOURCES claiming one name is not
+%replacement, it is two libraries destroying each other's predicate, so that
+%is refused and the source that owns it is named.
+%
+%This fires AFTER the consult, and it has to, which is the shape of the
+%problem rather than a shortcut. SWI does warn about the redefinition, on
+%stderr, and it does not throw: "Redefined static procedure 'shared-norm'/2"
+%is printed and the load continues, so no catch/3 can see it and the only
+%reliable check is a positive one afterwards, asking whether the name still
+%resolves to what its owner loaded. CPython reaches the same answer for the
+%same reason and does it by name as a matter of course
+%[source: CPython, PyCapsule_Import, "a high degree of certainty that the
+%Capsule they load contains the correct C API"]. The clobber has happened by
+%the time this raises; what it buys is that the author hears about it instead
+%of shipping a library silently bound to someone else's code, and
+%unregister_metta_extension/1 is how they take it back out
+%[tested: two_sources_cannot_claim_one_name].
+claim_function_name(Name, Tier, Detail) :-
+    (   metta_function_origin(Name, Owner, OwnerDetail)
+    ->  claim_over(Name, Owner, OwnerDetail, Tier, Detail)
+    ;   assertz(metta_function_origin(Name, Tier, Detail))
+    ).
+
+claim_over(Name, Owner, _, Tier, Detail) :-
+    Owner == Tier, Owner \== prolog, !,
+    retractall(metta_function_origin(Name, _, _)),
+    assertz(metta_function_origin(Name, Tier, Detail)).
+claim_over(Name, prolog, Detail, prolog, Detail) :- !,
+    retractall(metta_function_origin(Name, _, _)),
+    assertz(metta_function_origin(Name, prolog, Detail)).
+claim_over(Name, prolog, OwnerDetail, prolog, _) :- !,
+    throw(error(petta_name_owned_by_source(Name, OwnerDetail),
+                context(claim_function_name/3,
+                        'two Prolog sources claim one name'))).
+claim_over(Name, _, _, Tier, _) :-
+    refuse_other_tiers_name(Name, Tier).
+
+release_function_name(Name) :- retractall(metta_function_origin(Name, _, _)).
+
+%%%% A library declares its own exports, in the file that implements them %%%%
+%
+%Registering one predicate took three statements in two languages: the name in
+%a Python call, the arity discovered by scanning whatever current_predicate/1
+%happened to hold, and the type in a third statement whose ordering against
+%call-site compilation nothing checked. Nothing kept the three in agreement,
+%and the arity was DISCOVERED rather than declared, so a library shipping a
+%public 'vec-dot'/3 and an internal helper 'vec-dot'/2 published both.
+%
+%Every comparable runtime puts the export declaration in the file that
+%implements it: PyMethodDef, R_CallMethodDef, ErlNifFunc, napi_property_
+%descriptor, SWI's own module/2 export list. R had exactly this engine's
+%mechanism, symbol discovery, and walked away from it, because "the use of
+%registration allows R to ensure that code compiled into packages does not
+%inadvertently call routines in other packages"
+%[source: R Extensions manual, section 5.4].
+%
+%The declaration is MeTTa, in a string, rather than a new Prolog operator. The
+%types are MeTTa types, the reader that parses them is the engine's own, and
+%the MeTTa arity comes from the type chain, so the arity cannot disagree with
+%the type it was written beside:
+%
+%    :- metta_extension(pettorch, [version('0.3.1')]).
+%    :- metta_export("
+%        (: vec-dot (-> Number Number Number))
+%        (: shape-of (-> Atom Atom))
+%        (export vec-helper 1)
+%    ").
+%
+%(export Name Arity) is the form for a name whose type the author does not
+%want to state; the arity is the MeTTa arity, one less than the predicate's.
+%
+%The directive records; the LOAD registers, once the file has finished and its
+%predicates exist. consult_global/1 and its two siblings are the funnel every
+%route enters through, so the MeTTa spelling, register_prolog and a bare
+%consult all get this [tested: prolog_interface_exports].
+:- dynamic pending_metta_export/3.     %pending_metta_export(File, Name, Type)
+:- dynamic metta_extension_info/3.     %metta_extension_info(Extension, File, Options)
+:- dynamic metta_extension_member/2.   %metta_extension_member(Extension, Name)
+
+%The version of the extension SEAM a library was written against. A library
+%built on today's ext_points.pl will be loaded into a later engine, and with
+%nothing to check against a removed or renamed hook shows up as silence.
+%
+%Erlang's NIF loader is the model for the check: the major version must match
+%and the minor must not be newer than the runtime's, or the load fails. The
+%rule here is the same and stated the same way, because a library that
+%declares nothing is the common case and must keep working: a declaration is
+%checked, silence is not.
+%
+%The number moves when a seam a library can SEE changes: a hook removed or
+%renamed, a hook's arguments changed, a refusal added where none was. Adding
+%a hook moves the minor.
+metta_extension_api_version(1, 0).
+
+metta_extension(Name, Options) :-
+    must_be(atom, Name),
+    must_be(list, Options),
+    check_extension_requirements(Name, Options),
+    declaring_file(File),
+    retractall(metta_extension_info(Name, File, _)),
+    assertz(metta_extension_info(Name, File, Options)).
+
+check_extension_requirements(Name, Options) :-
+    (   memberchk(requires(Major-Minor), Options)
+    ->  refuse_incompatible_extension(Name, Major, Minor)
+    ;   true
+    ).
+
+refuse_incompatible_extension(Name, Major, Minor) :-
+    metta_extension_api_version(OurMajor, OurMinor),
+    (   Major =:= OurMajor, Minor =< OurMinor
+    ->  true
+    ;   throw(error(petta_extension_api_mismatch(Name, Major-Minor,
+                                                 OurMajor-OurMinor),
+                    context(metta_extension/2,
+                            'this engine does not offer the seam the \c
+                             extension was written against')))
+    ).
+
+metta_export(Source) :-
+    declaring_file(File),
+    parse_metta_source(Source, ParsedForms),
+    forall(member(Parsed, ParsedForms), record_metta_export(File, Parsed)).
+
+%The file a directive is running in. prolog_load_context/2 answers it during a
+%consult; outside one, which is how a test or an inline snippet reaches here,
+%the exports are keyed on a name of their own so they still register.
+declaring_file(File) :-
+    ( prolog_load_context(source, Source) -> File = Source ; File = 'petta_inline' ).
+
+record_metta_export(File, parsed(_, Text, Term)) :-
+    (   Term = [':', Name, Type], atom(Name), is_list(Type), Type = [->|_]
+    ->  assertz(pending_metta_export(File, Name, Type))
+    ;   Term = [export, Name, Arity], atom(Name), integer(Arity)
+    ->  assertz(pending_metta_export(File, Name, arity(Arity)))
+    ;   Term = [volatility, Name, Level], atom(Name),
+        memberchk(Level, [volatile, stable, immutable])
+    ->  declare_function_volatility(Name, Level)
+    ;   Term = [determinism, Name, Mode], atom(Name),
+        memberchk(Mode, [det, semidet, nondet])
+    ->  declare_function_determinism(Name, Mode)
+    ;   throw(error(petta_export_form(Text),
+                    context(metta_export/1,
+                            'an export is (: name (-> ...)), (export name arity), \c
+                             (volatility name volatile|stable|immutable) or \c
+                             (determinism name det|semidet|nondet)')))
+    ).
+
+%How much a caller may assume about a function's answers, and therefore what
+%an optimiser or a cache is allowed to do with it. PostgreSQL's ladder,
+%because purity is not a boolean and its three rungs are the ones that turn
+%out to matter: VOLATILE "makes no assumptions", STABLE gives the same answer
+%within one statement so repeated calls may fold to one, and IMMUTABLE gives
+%the same answer forever so a call on constant arguments may be folded at
+%plan time [source: PostgreSQL documentation, Function Volatility Categories].
+%
+%The gap this closes was demonstrated rather than imagined: lib_memo will
+%happily cache a side-effecting registered predicate, because nothing records
+%whether caching it is sound, and the second call then skips the effect.
+%
+%SILENCE STAYS PERMISSION. PostgreSQL's default is the pessimistic rung and
+%this one's is not, deliberately: memoization here is already opt-in by the
+%CALLER, so making an undeclared function refuse would break every existing
+%(memoize f) without telling anyone anything they did not know. What was
+%missing is the library's ability to say NO, and a declared `volatile` is
+%that no [tested: a_volatile_function_refuses_memoization].
+:- dynamic metta_function_volatility/2.
+
+declare_function_volatility(Name, Level) :-
+    retractall(metta_function_volatility(Name, _)),
+    assertz(metta_function_volatility(Name, Level)).
+
+%True when a cache may serve this function's answers.
+metta_function_cacheable(Name) :- \+ metta_function_volatility(Name, volatile).
+
+%How many answers a caller may expect. Only det is ENFORCED, by handing the
+%predicate to SWI's own det/1, and it is worth having because a leaked choice
+%point is invisible to the counter and expensive in reality: no-cut, cut and
+%SSU dispatch all reported exactly 1,000,003 inferences while wall clock was
+%0.1887, 0.0928 and 0.1128 [measured, ai-todo-fast-libraries.md B5]. Declaring
+%it moves the failure to the library's own door instead of taxing every caller.
+%
+%Read det as EXACTLY one answer, not at most one: SWI raises "Deterministic
+%procedure f/2 failed" as readily as it raises on a choice point, so a
+%function whose empty answer set is a legitimate result is semidet and not det
+%[measured 2026-08-16]. semidet and nondet are recorded rather than checked,
+%because SWI has a directive for det alone; they are still read, by
+%profile_extension, where they say whether a redo was intended.
+:- dynamic metta_function_determinism/2.
+
+declare_function_determinism(Name, Mode) :-
+    retractall(metta_function_determinism(Name, _)),
+    assertz(metta_function_determinism(Name, Mode)).
+
+apply_declared_determinism(Name, Type) :-
+    (   metta_function_determinism(Name, det)
+    ->  declared_predicate_arity(Type, Arity),
+        det(Name/Arity)
+    ;   true
+    ).
+
+%The pending list is emptied BEFORE anything is checked, so a declaration
+%that raises leaves no residue for the next load to pick up: without that, a
+%file whose declaration named an arity it did not define left its exports
+%pending and the next unrelated consult failed on them.
+register_pending_exports :-
+    findall(File-Name-Type, pending_metta_export(File, Name, Type), Pending),
+    retractall(pending_metta_export(_, _, _)),
+    ( Pending == [] -> true ; register_declared_exports(Pending) ).
+
+%Every name is checked before any is registered, which is import_prolog_
+%functions/2's rule reaching this route too: a declaration with one bad entry
+%registers nothing.
+register_declared_exports(Pending) :-
+    catch(check_and_register_declared_exports(Pending), Error,
+          ( undo_declared_exports(Pending), throw(Error) )).
+
+check_and_register_declared_exports(Pending) :-
+    forall(member(_-Name-_, Pending), refuse_reserved_registration(Name)),
+    forall(member(_-Name-_, Pending), refuse_other_tiers_name(Name, prolog)),
+    forall(member(File-Name-_, Pending),
+           ( canonical_prolog_source(File, Source),
+             refuse_other_sources_name(Name, Source) )),
+    forall(member(_-Name-Type, Pending), refuse_undeclared_arity(Name, Type, _)),
+    forall(member(File-Name-Type, Pending),
+           ( refuse_undeclared_arity(Name, Type, Arity),
+             import_prolog_function_at(Name, Arity),
+             declare_export_type(Name, Type),
+             apply_declared_determinism(Name, Type),
+             record_extension_membership(File, Name) )).
+
+%All or nothing, and "nothing" has to reach past the registrations to the
+%SOURCE. Every refusal in here is post-load and cannot be otherwise, so every
+%one of them needs the rollback: a file refused for a reserved name has
+%already replaced the builtin's static predicate, and a file refused for a
+%wrong arity has already brought in whatever else it defines.
+%
+%THE SHAPE: By the time anything here can fail the file's clauses are already in
+%the database, and if one of them redefined a static predicate another library
+%loaded, that library's clauses are gone: SWI prints "Redefined static
+%procedure" and continues, so the damage lands before any check can speak.
+%Leaving the file loaded after refusing it left the OTHER author's function
+%silently answering this one's implementation.
+%
+%unload_file/1 is SWI's own way of taking a load back out, "Remove all clauses
+%loaded from File" [source: SWI-Prolog 10.1 Reference Manual, unload_file/1],
+%and it is what unregister_metta_extension/1 already uses for the same job.
+%What it does NOT do is restore the incumbent's clauses, which nothing can:
+%those were destroyed at compile time. What it buys is that the name is empty
+%and loud rather than full and wrong, and the recovery is the documented one,
+%re-registering the library that owned it
+%[tested: a_computed_declaration_is_refused_and_its_source_unloaded].
+%Release only what this source currently owns. A name it never reached has no
+%origin to retract and a name another source owns is not this one's to release,
+%so asking the registry who owns it now is both the test and the rollback list.
+undo_declared_exports(Pending) :-
+    forall(member(File-Name-_, Pending), undo_declared_export(File, Name)),
+    findall(File, member(File-_-_, Pending), Files),
+    sort(Files, Sources),
+    forall(member(Source, Sources), unload_declared_source(Source)).
+
+undo_declared_export(File, Name) :-
+    canonical_prolog_source(File, Source),
+    (   metta_function_origin(Name, prolog, Source)
+    ->  forget_registered_function(Name)
+    ;   true
+    ).
+
+%petta_inline is the name a declaration outside any load is keyed on, so there
+%is no file to take back out.
+unload_declared_source('petta_inline') :- !.
+unload_declared_source(Source) :- catch(unload_file(Source), _, true).
+
+%The MeTTa arity is the type chain's length less one, and the predicate's is
+%one more than that: (-> Number Number Number) is two inputs and an output,
+%so 'vec-dot'/3.
+declared_predicate_arity([->|Types], Arity) :- !, length(Types, Arity).
+declared_predicate_arity(arity(MettaArity), Arity) :- Arity is MettaArity + 1.
+
+%Answers the arity it checked, so the caller can register THAT rather than
+%rediscovering every arity the predicate happens to have.
+refuse_undeclared_arity(Name, Type, Arity) :-
+    declared_predicate_arity(Type, Arity),
+    (   current_predicate(Name/Arity)
+    ->  true
+    ;   throw(error(existence_error(procedure, Name/Arity),
+                    context(metta_export/1,
+                            'the declaration names an arity this file does not define')))
+    ).
+
+declare_export_type(_, arity(_)) :- !.
+declare_export_type(Name, Type) :-
+    Declaration = [':', Name, Type],
+    ( get_native_atom('&self', Declaration) -> true
+    ; 'add-atom'('&self', Declaration, _) ).
+
+%Two records, per EXTENSION and per FILE, because the two answer different
+%questions and only one of them was being asked.
+%
+%An extension is optional here by design, which is why this clause ends in
+%`; true`. The Python side then read what a registration produced by walking
+%extension MEMBERSHIP, so a file carrying `metta_export` and no
+%`metta_extension`, which is the natural shape for a single-file library,
+%registered everything correctly and then reported failure: `is_function` true
+%and the call answering 10, beside `ValueError: register_prolog needs the
+%names to register` [reproduced 2026-08-16]. The state was right and the
+%report was wrong, which is I15's wedged registry and I25's partial state
+%inverted.
+%
+%The file record makes the lookup exact and leaves extensions optional, which
+%is what the Prolog side already intended
+%[tested: a_declared_export_without_an_extension_reports_its_names].
+:- dynamic metta_file_export/2.
+
+record_extension_membership(File, Name) :-
+    (   metta_file_export(File, Name) -> true
+    ;   assertz(metta_file_export(File, Name)) ),
+    (   metta_extension_info(Extension, File, _)
+    ->  ( metta_extension_member(Extension, Name) -> true
+        ; assertz(metta_extension_member(Extension, Name)) )
+    ;   true
+    ).
+
+%Everything one extension installed, gone. PostgreSQL's rule, and its reason:
+%"PostgreSQL will not let you drop an individual object contained in an
+%extension, except by dropping the whole extension", which is what stops a
+%registry keeping a claim on a name it can no longer release. unload_file/1 is
+%SWI's own mechanism for taking a consulted file's clauses back out, so the
+%predicates go with the registrations rather than being left callable through
+%a name nothing records [tested: an_extension_unloads_whole].
+unregister_metta_extension(Extension) :-
+    must_be(atom, Extension),
+    loaded_extension_file(Extension, File),
+    findall(Name, metta_extension_member(Extension, Name), Names),
+    forall(member(Name, Names), forget_registered_function(Name)),
+    retractall(metta_extension_member(Extension, _)),
+    %The per-file record goes with them, or a re-registration of the same file
+    %would report names that are no longer there.
+    retractall(metta_file_export(File, _)),
+    retractall(metta_extension_info(Extension, File, _)),
+    ( File == 'petta_inline' -> true ; catch(unload_file(File), _, true) ).
+
+%Its own predicate so the file is a head argument: read inline, the binding
+%happens in one branch of an if-then-else whose other branch throws, and SWI's
+%var_branches check cannot see that the other branch never returns.
+loaded_extension_file(Extension, File) :-
+    (   metta_extension_info(Extension, Recorded, _)
+    ->  File = Recorded
+    ;   throw(error(existence_error(metta_extension, Extension),
+                    context(unregister_metta_extension/1,
+                            'no extension of that name is loaded')))
+    ).
+
+forget_registered_function(Name) :-
+    remove_sexp('&self', [':', Name, _]),
+    release_function_name(Name),
+    unregister_fun_everywhere(Name),
+    retractall(fun(Name)),
+    retractall(arity(Name, _)),
+    forall(metta_on_function_removed(Name), true).
+
+%Ask whether a whole list of names may be registered from Source, BEFORE
+%Source is loaded. Order is the whole point: consulting a file that defines a
+%builtin's name has already replaced the engine's static predicate by the time
+%any per-name refusal could fire, so refusing afterwards left !(+ 1 2)
+%answering the library's answer while reporting the registration as refused
+%[tested: a_reserved_name_is_refused_before_the_source_loads].
+%
+%The name another SOURCE owns is refused here for exactly that reason and it
+%was not: claim_function_name/3 refused it after the consult, which told the
+%wrong author. B heard "already registered from A" and A, which did nothing,
+%answered B's implementation from then on
+%[tested: a_name_another_source_owns_is_refused_before_the_load].
+check_prolog_function_names(Names, Source, true) :-
+    prolog_function_name_list(Names, check_prolog_function_names/3),
+    canonical_prolog_source(Source, Canonical),
+    forall(member(N, Names), refuse_reserved_registration(N)),
+    forall(member(N, Names), refuse_other_tiers_name(N, prolog)),
+    forall(member(N, Names), refuse_other_sources_name(N, Canonical)).
+
+%Register every name, or none. Validating inside the registration loop left a
+%typo in the third name with the first two registered and callable, and the
+%list of what had taken died inside the exception, so the caller could not
+%learn what to undo. This is the shape petta_py_register_op_set already uses
+%one file over: probe every name first, touch state only after
+%[tested: a_typo_in_the_list_registers_nothing].
+import_prolog_functions(Names, true) :-
+    prolog_function_name_list(Names, import_prolog_functions/2),
+    forall(member(N, Names), refuse_reserved_registration(N)),
+    forall(member(N, Names), refuse_absent_prolog_function(N)),
+    forall(member(N, Names), import_prolog_function(N, _)).
+
+prolog_function_name_list(Names, Context) :-
+    (   is_list(Names)
+    ->  forall(member(N, Names), must_be(atom, N))
+    ;   throw(error(type_error(list, Names),
+                    context(Context, 'the names to register')))
+    ).
+
+refuse_absent_prolog_function(N) :-
+    (   current_predicate(N/_)
+    ->  true
+    ;   throw(error(existence_error(procedure, N),
+                    context(import_prolog_functions/2,
+                            'no Prolog predicate of that name is loaded')))
+    ).
 
 %A Prolog library loaded from MeTTa belongs to the process, not to a space. Its
 %predicates are builtins once loaded, register_fun/1 reads their arity out of
@@ -790,8 +3251,229 @@ import_prolog_function(N, true) :- register_fun(N).
 %itself where register_fun/1 cannot see it: the arities never register and every
 %call to it compiles to a partial application instead. In &self the load module
 %already is user, so this states that behaviour rather than adding a rule.
-consult_global(File) :- user:consult(File).
-use_module_global(File) :- user:use_module(File).
+consult_global(File) :- refuse_claimed_source_exports(File),
+                        loading_loudly(user:consult(File)),
+                        register_pending_exports.
+use_module_global(File) :- refuse_claimed_source_exports(File),
+                           loading_loudly(user:use_module(File)),
+                           register_pending_exports.
+
+%%%% Read the manifest before running the payload %%%%
+%
+%A source declares its exports INSIDE the file that implements them, which is
+%the design the review argues for and the one that makes the arity and the
+%type impossible to disagree. It also means the names are not known until the
+%file has run, and by then a clause of the file has already replaced a static
+%predicate another library loaded: SWI prints "Redefined static procedure" and
+%CONTINUES, so the incumbent's clauses are gone before any refusal can speak.
+%A directive cannot stop that either, because a directive that throws is
+%reported and the load carries on [measured 2026-08-16: with the refusal in
+%the metta_export/1 directive itself, `A AFTER refusal` still answered B's 30].
+%
+%So read the manifest out of the source WITHOUT running the source. This is
+%PostgreSQL's control file, which the codebase already follows for the
+%extension model: the file that says what an extension is gets read before the
+%script that installs it. Python reads a package's entry points out of its
+%metadata rather than by importing it, for the same reason.
+%
+%The scan is exact for a literal declaration, which is every one written by
+%hand. It stops at the first term it cannot read, and does not run :- op/3, so
+%a file that defines its own operators and declares exports below them is
+%scanned only as far as the operator. Whatever the scan misses,
+%register_declared_exports_or_undo/1 still catches after the load, with the
+%rollback that is all that is left by then
+%[tested: a_second_source_claiming_a_name_never_loads].
+refuse_claimed_source_exports(Spec) :-
+    (   absolute_file_name(Spec, File,
+                           [file_type(prolog), access(read), file_errors(fail)])
+    ->  setup_call_cleanup(open(File, read, In),
+                           refuse_claimed_stream_exports(In, File),
+                           close(In))
+    ;   true
+    ).
+
+refuse_claimed_string_exports(Name, Text) :-
+    setup_call_cleanup(open_string(Text, In),
+                       refuse_claimed_stream_exports(In, Name),
+                       close(In)).
+
+refuse_claimed_stream_exports(In, File) :-
+    canonical_prolog_source(File, Source),
+    read_declarations(In, Declarations),
+    findall(Name, member(export(Name), Declarations), Names),
+    forall(member(Name, Names), refuse_reserved_registration(Name)),
+    forall(member(Name, Names), refuse_other_tiers_name(Name, prolog)),
+    forall(member(Name, Names), refuse_other_sources_name(Name, Source)).
+
+%Everything a source DECLARES, read without running it: export(Name) for each
+%name it publishes and extension(Name) for each extension it joins. Both
+%consumers of the scan filter this rather than reading the file twice.
+metta_source_declarations(Spec, Declarations) :-
+    (   absolute_file_name(Spec, File,
+                           [file_type(prolog), access(read), file_errors(fail)])
+    ->  setup_call_cleanup(open(File, read, In),
+                           read_declarations(In, Declarations),
+                           close(In))
+    ;   Declarations = []
+    ).
+
+metta_string_declarations(Text, Declarations) :-
+    setup_call_cleanup(open_string(Text, In),
+                       read_declarations(In, Declarations),
+                       close(In)).
+
+read_declarations(In, Declarations) :-
+    (   read_one_declaration(In, Some)
+    ->  read_declarations(In, Rest),
+        append(Some, Rest, Declarations)
+    ;   Declarations = []
+    ).
+
+%One term. quiet rather than dec10 on purpose: a syntax error here is not this
+%predicate's to report, the consult that follows reports it properly and with
+%the line, so the scan goes quiet and stops rather than printing a second copy.
+read_one_declaration(In, Declarations) :-
+    catch(read_term(In, Term, [syntax_errors(quiet), variable_names(_)]),
+          _, fail),
+    Term \== end_of_file,
+    declaration_of(Term, Declarations).
+
+declaration_of((:- metta_extension(Name, _)), [extension(Name)]) :-
+    atom(Name), !.
+declaration_of((:- metta_export(Text)), Names) :-
+    ( string(Text) ; atom(Text) ),
+    !,
+    catch(parse_metta_source(Text, Forms), _, fail),
+    findall(export(Name), claimed_export_name(Forms, Name), Names).
+declaration_of(_, []).
+
+%The two forms that CLAIM a name. volatility and determinism state a property
+%of a name claimed elsewhere, so they are not a claim to refuse.
+claimed_export_name(Forms, Name) :-
+    member(parsed(_, _, Term), Forms),
+    ( Term = [':', Name, [->|_]] ; Term = [export, Name, Arity], integer(Arity) ),
+    atom(Name).
+
+%The same load, importing chosen exports under chosen names. SWI's own import
+%list carries the renaming, so two libraries that both export norm/2 can both
+%be present: the second arrives as mylib-norm and neither is rebound. Without
+%it SWI refuses the second import, prints "No permission to import
+%libb:'norm'/2 into user (already imported from liba)" and CONTINUES, which
+%leaves the incumbent protected and the newcomer silently bound to the
+%incumbent's code. That is the one collision a name refusal cannot fix, since
+%neither library is wrong and neither can be asked to change.
+%
+%Loaded twice on purpose: with an empty import list first, so the module
+%exists and can be asked what it exports, and then with the renames built from
+%those arities. A caller therefore writes two names and no arity.
+use_module_global(File, Renames) :-
+    %SWI reaches a plain file first and raises domain_error(module_header, _),
+    %which says what is wrong and not what to do about it.
+    catch(loading_loudly(user:use_module(File, [])),
+          error(domain_error(module_header, _), _),
+          throw(error(petta_not_a_prolog_module(File),
+                      context(use_module_global/2,
+                              'renaming imports needs a module')))),
+    module_exports_of(File, Module, Exports),
+    maplist(renamed_import(Module, Exports), Renames, Imports),
+    loading_loudly(user:use_module(File, Imports)),
+    register_pending_exports.
+
+module_exports_of(File, Module, Exports) :-
+    absolute_file_name(File, Resolved,
+                       [file_type(prolog), access(read), file_errors(fail)]),
+    (   module_property(Module, file(Resolved))
+    ->  module_property(Module, exports(Exports))
+    ;   throw(error(petta_not_a_prolog_module(File),
+                    context(use_module_global/2,
+                            'renaming imports needs a module')))
+    ).
+
+%A name the module does not export cannot be imported under any name, and
+%saying so with the export list is the difference between fixing a typo and
+%guessing at one.
+renamed_import(Module, Exports, Rename, Name/Arity as To) :-
+    rename_pair(Rename, From0, To0),
+    petta_name_atom(From0, Name),
+    petta_name_atom(To0, To),
+    (   memberchk(Name/Arity, Exports)
+    ->  true
+    ;   throw(error(petta_not_exported(Module, Name, Exports),
+                    context(use_module_global/2,
+                            'a rename names an export')))
+    ).
+
+%A rename is written From-To in Prolog and arrives as [From, To] from Python,
+%since Janus carries a list and not a pair. Clauses rather than an
+%if-then-else, so the two names are bound on every branch that reaches a use.
+rename_pair(From-To, From, To) :- !.
+rename_pair([From, To], From, To) :- !.
+rename_pair(Rename, _, _) :-
+    throw(error(type_error(petta_rename, Rename),
+                context(use_module_global/2,
+                        'a rename is From-To or [From, To]'))).
+
+petta_name_atom(Name0, Name) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ).
+
+%The same load for source held in memory, which is how a library ships Prolog
+%inline beside its Python. Name identifies the source location of the loaded
+%clauses and is also what SWI removes clauses under when the same name is
+%loaded again, so it has to be derived from the CONTENT: an address, which is
+%what the caller used to pass, is reused by CPython the moment the string it
+%named is freed, and the second registration then erased the first library's
+%clauses [source: SWI-Prolog 10.1 Reference Manual, load_files/2, stream/1].
+consult_string_global(Name, Text) :-
+    refuse_claimed_string_exports(Name, Text),
+    setup_call_cleanup(open_string(Text, In),
+                       loading_loudly(user:load_files(Name, [stream(In)])),
+                       close(In)),
+    register_pending_exports.
+
+%Raise what SWI would only have printed. A syntax error inside a consulted
+%file goes through print_message/2 and the load then SUCCEEDS with the
+%predicate undefined, so a library author's whole diagnostic was one line on
+%stderr while the API reported success:
+%  ERROR: .../lib.pl:1:28: Syntax error: Operator expected
+%and register_prolog then said "no predicate named 'f' was defined by that
+%source", which names the symptom and not the cause. Wrapping the load in
+%catch/3 does not help, because these are printed rather than thrown.
+%
+%thread_message_hook/3 is SWI's own answer for exactly this, "intended to
+%catch messages that may be produced by calling some goal without affecting
+%other threads", and being thread-local is what lets a Pool worker load a file
+%without collecting another worker's messages
+%[source: SWI-Prolog 10.1 Reference Manual, section 4.11, message_hook/3].
+%
+%Only error-kind messages are collected. A warning is not a failed load:
+%singleton variables are a style note, and the redefinition warning that
+%matters is caught positively instead, by asking after the load whether each
+%name resolves where it should [tested: a_syntax_error_in_a_library_raises].
+:- thread_local petta_load_diagnostic/1, petta_watching_load/0.
+:- multifile user:thread_message_hook/3.
+user:thread_message_hook(Term, error, _Lines) :-
+    petta_watching_load,
+    message_to_string(Term, Text),
+    assertz(petta_load_diagnostic(Text)),
+    %Fail deliberately: SWI still prints the message with its full context,
+    %and the throw below carries the summary a caller can act on.
+    fail.
+
+:- meta_predicate loading_loudly(0).
+loading_loudly(Goal) :-
+    setup_call_cleanup(( retractall(petta_load_diagnostic(_)),
+                         assertz(petta_watching_load) ),
+                       Goal,
+                       retractall(petta_watching_load)),
+    findall(Text, petta_load_diagnostic(Text), Diagnostics),
+    retractall(petta_load_diagnostic(_)),
+    (   Diagnostics == []
+    ->  true
+    ;   atomic_list_concat(Diagnostics, '; ', Summary),
+        throw(error(petta_load_failed(Summary),
+                    context(loading_loudly/1,
+                            'the Prolog source reported an error while loading')))
+    ).
 %A predicate term headed by a space is a provider query, not a raw Prolog
 %call into the module where native atoms happen to be stored. Other heads keep
 %the Prolog interop constructor's original meaning.
@@ -972,8 +3654,23 @@ restore_python_path(PreviousPath) :-
     py_call(sys:path:extend(PreviousPath), _).
 
 'import!'(Space, File, true) :- importer_helper(Space, File).
-importer_helper(Space, File) :-
+%`(: import! (-> Atom Atom Bool))` says both arguments arrive UNREDUCED, which
+%is right: a module name is a name and evaluating it would look for a function
+%called `lib_constraints`. So the forms a module name can take are resolved
+%here rather than by the call site.
+%
+%`(library Name)` is the one form that needs it, and it used to work by
+%accident: the call site evaluated the argument because the Atom mask was not
+%honoured for builtins, so library/2 ran before import! ever saw it. With the
+%mask honoured the form arrives whole, and resolving it is import!'s job.
+importer_helper(Space, File0) :-
+    resolve_module_form(File0, File),
     with_mutex(metta_loader, importer_helper_impl(Space, File)).
+
+resolve_module_form(Form, Path) :-
+    nonvar(Form), Form = [library, Name], !,
+    library(Name, Path).
+resolve_module_form(Form, Form).
 importer_helper_impl(Space, File) :-
     ( python_import_file(File)
       -> resolve_python_import_path(File, CanonPath),
@@ -996,9 +3693,47 @@ register_fun(N) :- must_be(atom, N),
                    ( fun(N) -> true
                    ; assertz(fun(N), Ref),
                      record_source_assertion(Ref),
-                     forall((current_predicate(N/Arity), \+ (current_op(_, _, N), Arity =< 2)),
-                            register_arity(N, Arity)),
                      repair_after_late_registration(N) ).
+
+%The arities a loaded predicate is callable at, which is what a registration
+%from Prolog has to record: every other route knows its arity from the
+%equation head it just compiled and calls register_arity/2 with it directly.
+%An operator's name answers current_predicate/1 at arities 1 and 2 whether or
+%not a predicate of that name exists, so those two are not registrable.
+%
+%This walk used to live inside register_fun/1, guarded by "the name is new".
+%A library registering 'norm'/3 for a name some space already defined at MeTTa
+%arity 1 therefore recorded no arity at all, and incomplete_application_kind/3
+%reads a missing arity as "not applied far enough", so (norm a b) compiled to a
+%partial application. Reading it here instead means the arities are recorded
+%for the registration that asked for them, whatever else knows the name
+%[tested: a_registration_records_arities_for_a_name_that_is_already_a_function].
+%Every arity the name is CALLABLE at, and callable means defined here rather
+%than merely visible. The exclusion is not defensive: library(yall) exports
+%//2 through //9 into user as its free-variables lambda, so probing
+%current_predicate/1 alone recorded SEVEN arities for `/` where + and * have
+%one. (/ 1 2 3) then compiled to a direct '/'(1,2,3,_) call, which is yall's
+%lambda, and answered `type_error(lambda_free, 1)` where every other operator
+%answers the engine's own function_input_arities naming the operator
+%[tested: metta_registration_arities].
+%
+%imported_from/1 is the exact question, and the arity =< 2 clause below is the
+%older half-answer to the same thing: it excluded 1/2 the TERM and nothing
+%told it about 1/2 the lambda.
+register_prolog_arities(N) :-
+    forall(( current_predicate(N/Arity),
+             \+ (current_op(_, _, N), Arity =< 2),
+             \+ (current_op(_, _, N), imported_predicate(N, Arity)) ),
+           register_arity(N, Arity)).
+
+%Only for an OPERATOR, and the first attempt got that wrong: excluding every
+%imported predicate dropped length/2, which is library(lists)'s and a
+%perfectly good builtin, so (length ...) compiled to partial(length, [...])
+%and four gates went red. An imported predicate is normal; an imported
+%predicate whose name is also an OPERATOR is the collision.
+imported_predicate(N, Arity) :-
+    functor(Head, N, Arity),
+    predicate_property(user:Head, imported_from(_)).
 
 %Record each callable arity once, even when a function has many equations.
 register_arity(N, Arity) :- ( arity(N, Arity) -> true
@@ -1010,6 +3745,12 @@ register_arity(N, Arity) :- ( arity(N, Arity) -> true
 current_metta_module(Module) :-
     ( nb_current('$petta_module', M) -> Module = M ; Module = user ).
 
+%Skipping the switch when Module is already in force was tried and taken back
+%out. It saved 4 inferences on every Python evaluation and cost 2 on every
+%annotated typed call, which is the wrong side of that trade: the crossing
+%happens once and the typed call happens in a loop. Measured 2026-08-16, the
+%@m.define annotated tier of python/benchmarks/extension_cost.py went 20.00 to
+%22.00 with the test in place, against m.fn 68.00 to 64.00.
 with_metta_module(Module, Goal) :-
     current_metta_module(Previous),
     setup_call_cleanup(b_setval('$petta_module', Module),
@@ -1022,6 +3763,11 @@ with_metta_module(Module, Goal) :-
 %also DISARMS call_with_inference_limit for the rest of the call, measured
 %as six million inferences spent under a thousand-inference budget when a
 %recovery catch ate the signal mid-translation.
+%
+%The engine's own list. It is a SEAM, declared multifile in ext_points.pl, so
+%a library that introduces its own cancellation or budget signal adds a
+%clause instead of being swallowed by the first recovery catch it meets
+%[tested: a_librarys_own_control_signal_is_not_recovered_from].
 control_exception(time_limit_exceeded).
 control_exception(inference_limit_exceeded).
 control_exception(petta_py_interrupted).
@@ -1062,11 +3808,37 @@ throw_metta_type_error(Operation, Expected, Culprit) :-
 %its type errors with an unbound context, which a head pattern would unify
 %with and claim, renaming every unrelated type error in the process
 %[tested: metta_operation_error_message:an_unrelated_type_error_is_untouched].
+%petta_error_context(+Context, -Operation, +Detail) reads a context term
+%WITHOUT writing to it. Matching context(Operation, Detail) in the head looks
+%equivalent and is not: SWI's own errors carry context(PI, _) with the second
+%argument UNBOUND, so unifying a detail atom into it succeeds and the clause
+%then renders every ordinary error of that formal. This clause was hijacking
+%all of them, which is where I16's "system:(is)/2: evaluable expected, found
+%(/ foo 0)" came from: a library predicate's is/2 type error was being
+%reported in PeTTa's operation vocabulary, naming an engine internal and a
+%culprit the program never wrote [tested: metta_operation_errors,
+%an_unrelated_type_error_keeps_swi_s_own_message].
+petta_error_context(Context, Operation, Detail) :-
+    nonvar(Context),
+    Context = context(Operation, Actual),
+    nonvar(Actual),
+    Actual == Detail.
+
 prolog:message(error(type_error(Expected, Culprit), Context)) -->
-    { nonvar(Context),
-      Context = context(Operation, 'invalid MeTTa operation argument'),
+    { petta_error_context(Context, Operation, 'invalid MeTTa operation argument'),
       swrite(Culprit, CulpritText) },
     [ '~w: ~w expected, found ~w'-[Operation, Expected, CulpritText] ].
+%The ISO formal stays existence_error(procedure, Name), so a program can catch
+%it the standard way; only the wording changes, because SWI's default renders
+%it as "procedure `f' does not exist", which says nothing about why a
+%registration cares. What it costs is the reason worth printing: a name with
+%no predicate records no arity, and incomplete_application_kind/3 then reads
+%the missing arity as "not applied far enough", so the call compiles to a
+%partial application instead of failing.
+prolog:message(error(existence_error(procedure, Name), Context)) -->
+    { petta_error_context(Context, _, 'no Prolog predicate of that name is loaded') },
+    [ 'no predicate named ~w is loaded, so registering it would compile \c
+       every call to it into a partial application rather than failing'-[Name] ].
 
 %These builtins validate their own runtime inputs and provide their own error
 %context. The translator may therefore bypass reflective input filtering when
@@ -1077,6 +3849,16 @@ runtime_type_guarded('*').
 runtime_type_guarded('/').
 runtime_type_guarded('%').
 runtime_type_guarded('<').
+%== and != accept ANY two terms and always answer a Bool, so their declared
+%type (-> $a $b Bool) states exactly what the predicate already enforces and
+%the typed dispatch has nothing left to check. Classifying them here is what
+%makes lib_builtin_types.metta affordable: with the file loaded, a workload
+%calling == and != went from 102402 inferences to 181602, +77%, and back to
+%102402 with these two lines [measured 2026-08-16]. A user or named-space
+%equation overriding either still gets the full typed dispatch, because
+%runtime_guarded_builtin_call/1 requires the unmodified builtin.
+runtime_type_guarded('==').
+runtime_type_guarded('!=').
 runtime_type_guarded('>').
 runtime_type_guarded('<=').
 runtime_type_guarded('>=').
@@ -1095,6 +3877,8 @@ runtime_type_guarded('#<').
 runtime_type_guarded('#>').
 runtime_type_guarded('#=').
 runtime_type_guarded('#\\=').
+runtime_type_guarded('#=<').
+runtime_type_guarded('#>=').
 runtime_type_guarded('pow-math').
 runtime_type_guarded('sqrt-math').
 runtime_type_guarded('abs-math').
@@ -1127,10 +3911,6 @@ runtime_type_guarded(implies).
 :- meta_predicate catch_recover(0, 0).
 catch_recover(Goal, Recovery) :-
     catch(Goal, E, ( control_exception(E) -> throw(E) ; call(Recovery) )).
-
-%The hot recovery case needs no meta-call or compound handler term. Real
-%errors fail the candidate; control signals retain catch_recover/2 semantics.
-recover_failure(E) :- ( control_exception(E) -> throw(E) ; fail ).
 
 %Whether a symbol is callable from where we are: a process-wide function that
 %no named equation module claims, a function this module defines, or one &self
@@ -1169,6 +3949,7 @@ fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
 %fact for each meaning, so neither reading breaks the other.
 :- dynamic builtin_fun/1.
 register_builtin_fun(N) :- register_fun(N),
+                           register_prolog_arities(N),
                            ( builtin_fun(N) -> true ; assertz(builtin_fun(N)) ).
 
 register_fun_in(Module, N) :- register_fun(N),
@@ -1189,27 +3970,85 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
 :- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
-                          repr, repra, parse, 'println!', 'readln!', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, parse, 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, evalc, reduce, 'import!',
                           'git-import!',
-                          'add-atom', 'remove-atom', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
-                          decons, 'decons-atom', 'py-call', 'get-type', 'get-metatype', '=alpha', sread, cons, reverse,
-                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=',
+                          'add-atom', 'remove-atom', 'add-atoms', 'add-reduct', 'add-reducts', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
+                          decons, 'decons-atom', noeval, 'new-space',
+                          'py-call', 'py-atom', 'py-dot',
+                          'py-list', 'py-tuple', 'py-dict', 'py-iter',
+                          'get-type', 'get-metatype', '=alpha', sread, cons, reverse,
+                          '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','#=<','#>=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
-                          import_prolog_function, 'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
-                          'add-translator-rule!', 'remove-translator-rule!', argv]).
+                          sleep, 'pragma!', metta,
+                          import_prolog_function, check_prolog_function_names, import_prolog_functions,
+                          'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
+                          'add-translator-rule!', 'remove-translator-rule!', argv,
+                          register_metta_library_path,
+                          dif, 'residual-goals']).
 
-%The mork bridge's builtins come with morkspaces, which loads only in mork
-%mode, so their registration is gated the same way. Registering a name whose
-%predicate is absent records no arity, and incomplete_application_kind/3 reads
-%"no arity" as "not applied far enough": every call to it then compiled to a
-%partial application, so (mm2-exec &mork 1) answered (partial mm2-exec (&mork
-%1)) instead of running or failing.
-:- current_prolog_flag(argv, Argv),
-   ( member(mork, Argv)
-     -> maplist(register_builtin_fun, ['mm2-exec', 'mork-add-atoms', 'mork-flush'])
-      ; true ).
+%A backend's own builtins, registered here because this is where the engine's
+%are and the order matters. The NAMES are the backend's: it declares them in
+%the file that defines them, so they exist exactly when the predicates behind
+%them do. That conditionality used to be an argv test in this file, which meant
+%the engine had to know both that MORK had builtins and what they were called.
+%
+%Registering a name whose predicate is absent records no arity, and
+%incomplete_application_kind/3 reads "no arity" as "not applied far enough":
+%every call to it then compiled to a partial application, so (mm2-exec &mork 1)
+%answered (partial mm2-exec (&mork 1)) instead of running or failing. Declaring
+%the names beside the predicates is what makes that unable to happen again.
+:- forall(metta_backend_builtin(Name), register_builtin_fun(Name)).
+
+
+%%%%%%%%%% The engine's own type surface %%%%%%%%%%
+%
+%Without this, `get-type` misreported the engine to every tool that reads it.
+%`!=` IS a builtin, IS registered and IS declared (: != (-> $a $b Bool)) in
+%lib/lib_builtin_types.metta, but with nothing loading that file
+%`(get-type !=)` answered %Undefined% for an operation that works. Nothing was
+%missing; the type surface was simply not connected, and a reader like the
+%metta-lsp port has no way to tell "this has no type" from "this has a type
+%nobody loaded".
+%
+%FACTS RATHER THAN ATOMS IN &self, and that is the whole design decision.
+%Loading the file into &self was tried first and it changes what every program
+%SEES OF ITS OWN SPACE: `(match &self (: $what $type) ...)` then answers 41
+%engine declarations alongside the program's own, which broke
+%tests/regression/repro3_failed_specialization_self_leak.metta immediately.
+%The engine's types belong where the type system reads them and nowhere a
+%program enumerating its own atoms can trip over them.
+%
+%LAST, so a user wins. get_type_candidate/2 tries the intrinsic types, the
+%function's arrow, the element-wise reading and &self's own declarations
+%before reaching here, so `(: + (-> Foo Bar))` written by a program is
+%answered ahead of the engine's and this only ever fills a gap.
+%
+%ONE SOURCE OF TRUTH: the facts are built by parsing lib_builtin_types.metta
+%at boot, so the file a program can still import explicitly and the table the
+%engine answers from cannot drift apart.
+:- dynamic builtin_type_declaration/2.
+
+load_builtin_type_surface :-
+    library('lib_builtin_types.metta', Path),
+    exists_file(Path),
+    !,
+    read_file_to_string(Path, Text, []),
+    parse_metta_source(Text, Forms),
+    forall(( member(parsed(expression, _, [':', Name, Type]), Forms),
+             atom(Name) ),
+           ( builtin_type_declaration(Name, Type)
+             -> true
+             ;  assertz(builtin_type_declaration(Name, Type)) )),
+    %Derived from the surface just loaded rather than by a separate
+    %initialization, because two initialization/1 goals do not reliably order
+    %against each other and an empty index is a silent loss: a constructor like
+    %Error would quietly evaluate the argument it exists to carry.
+    index_masking_data_heads.
+load_builtin_type_surface :- index_masking_data_heads.
+
+:- initialization(load_builtin_type_surface).

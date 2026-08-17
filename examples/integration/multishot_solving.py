@@ -24,17 +24,30 @@ class External:
 
     def __init__(self, m, atom) -> None:
         self._m, self._atom = m, atom
-        self.value = False
         self.released = False
+
+    @property
+    def value(self) -> bool:
+        """Read the space, do not remember it.
+
+        A cached truth diverges the moment anything else touches the same
+        atom, and both directions were wrong: a MeTTa program removing the
+        fact left the handle saying True, and one adding it left release()
+        with nothing to take back out. The space owns the truth, which is
+        also clingo's own arrangement, where a #external's assignment lives
+        in the solver and not in the caller.
+        """
+        return bool(self._m.query(self._atom))
 
     def assign(self, value: bool) -> None:
         if self.released:
             raise RuntimeError(f"{self._atom} was released")
-        if value and not self.value:
-            self._m.add(self._atom)
-        elif not value and self.value:
-            self._m.remove(self._atom)
-        self.value = bool(value)
+        if value:
+            if not self.value:
+                self._m.add(self._atom)
+        else:
+            while self.value:
+                self._m.remove(self._atom)
 
     def release(self) -> None:
         if not self.released:
@@ -54,7 +67,11 @@ class Part:
     def ground(self, *args) -> None:
         if args in self.grounded:
             raise RuntimeError(f"part {self.name!r} already grounded for {args!r}")
-        self._m.run(self._template(*args))
+        # atomic=True, so a template that writes and then raises leaves
+        # nothing behind. Without it the writes it managed stayed while
+        # `grounded` stayed empty, and the retry the caller was invited to
+        # make duplicated them.
+        self._m.run(self._template(*args), atomic=True)
         self.grounded.add(args)
 
 
@@ -75,7 +92,7 @@ step = Part(
 
 
 def proved(goal: str, t: int) -> bool:
-    return any(a == True for a in m.eval(m.parse(f"(reach {goal} {t})")))  # noqa: E712
+    return any(m.eval(m.parse(f"(reach {goal} {t})")))
 
 
 # The multi-shot loop: solve, and if the goal is not yet proved, ground
@@ -98,5 +115,25 @@ check(
 )
 blocked.assign(False)
 check("and gone when withdrawn", m.query(S.blocked(V.x)), [])
+
+# The truth is the space's, not the handle's. A MeTTa program adding the same
+# fact is visible to the handle, and release() takes it back out; a handle
+# remembering its own last assignment would have disagreed with the space in
+# both directions.
+m.run("!(add-atom (context-space) (blocked c))")
+check("the handle reads the space", blocked.value, True)
 blocked.release()
+check("release takes back out what it finds", m.query(S.blocked(V.x)), [])
+
+# Grounding is all or nothing. A template that writes and then raises leaves
+# nothing behind, so the retry the caller is invited to make cannot duplicate
+# the rules the first attempt managed.
+broken = Part(m, "broken", lambda: "(kept one)\n!(+ 1 nope)")
+try:
+    broken.ground()
+    check("a failed grounding raises", "did not raise", "raised")
+except Exception:  # noqa: BLE001 - any failure inside the template
+    check("a failed grounding leaves nothing", m.query(S.kept(V.x)), [])
+    check("and is not recorded as grounded", broken.grounded, set())
+
 done("multishot_solving")

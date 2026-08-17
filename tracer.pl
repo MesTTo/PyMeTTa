@@ -15,6 +15,9 @@
 %     [tested 2026-08-15: tracer:a_symbol_that_looks_like_a_variable_stays_a_symbol].
 %   - Traced get-type extensions report their public function name
 %     [tested 2026-08-15: tracer:type_extensions_keep_the_public_name].
+%   - A registered predicate whose clauses clause/3 refuses, a foreign one or
+%     a builtin, is skipped rather than raising out of the whole trace
+%     [tested 2026-08-16: test_a_foreign_predicate_does_not_break_tracing].
 % Owns:
 %   - metta_trace_source/4 removes every petta_tracer wrapper and state fact,
 %     including after an event-limit error [tested 2026-08-14:
@@ -47,6 +50,21 @@ metta_trace_target(Module:F/A) :-
     current_predicate(Module:F/A),
     functor(Head, F, A),
     \+ predicate_property(Module:Head, imported_from(_)),
+    %clause/3 REFUSES a predicate it cannot show, raising
+    %permission_error(access, private_procedure, _) rather than failing, and a
+    %foreign predicate is one of those. Registering a single C extension
+    %anywhere in the process therefore made EVERY trace raise
+    %`clause/3: No permission to access private_procedure 'c-bump'/2', because
+    %this walks every registered arity looking for tracked clauses and reaches
+    %the foreign one on the way
+    %[tested: test_a_foreign_predicate_does_not_break_tracing].
+    %
+    %number_of_clauses is the guard rather than a list of kinds to skip: it is
+    %true for exactly the predicates clause/3 accepts and false for every one
+    %it refuses, foreign and builtin alike [measured 2026-08-16: false for
+    %is/2, atom_length/2 and format/2, all three of which raise; true for
+    %append/3, which does not].
+    predicate_property(Module:Head, number_of_clauses(_)),
     once(( clause(Module:Head, _, Ref),
            clause_property(Ref, module(Module)),
            translated_from(Ref, _) )).

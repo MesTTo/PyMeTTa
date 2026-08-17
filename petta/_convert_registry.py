@@ -39,6 +39,12 @@ class _Registration(NamedTuple):
     type_name: str
     fields: tuple[str, ...]
     field_types: tuple = ()
+    # An author's register_type call, as opposed to a default this module
+    # memoized for an Enum, dataclass, NamedTuple or pydantic model. The
+    # operation result path projects only explicit registrations, so calling
+    # project() on a type somewhere never changes what an operation returning
+    # that type answers.
+    explicit: bool = True
 
 
 # type -> registration, consulted before the defaults.
@@ -122,6 +128,8 @@ def unregister_type(cls: type) -> None:
         if _TYPE_OWNERS.get(registration.type_name) is cls:
             del _TYPE_OWNERS[registration.type_name]
         del _REGISTRY[cls]
+    if registration.explicit:
+        _notify(cls, registration, None)
 
 
 def ensure_registered(cls: type) -> _Registration:
@@ -195,9 +203,41 @@ def _lookup_locked(cls: type) -> _Registration | None:
     return None
 
 
+# Registration listeners, the seam that lets an engine reflect explicit
+# registrations as atoms without this module knowing engines exist. Each
+# callback receives (cls, old, new), new None on unregister; only EXPLICIT
+# entries notify, because the memoized defaults are this module's private
+# bookkeeping. Callbacks run OUTSIDE the lock, so a listener may call back
+# into the registry or into an engine without deadlocking; the ordering
+# guarantee is per-class, from the mutation order under the lock.
+_LISTENERS: list[Callable[[type, Any, Any], None]] = []
+
+
+def subscribe_registrations(
+    callback: Callable[[type, Any, Any], None],
+) -> list[tuple[type, _Registration]]:
+    """Subscribe to explicit registration changes; answers the current
+    explicit entries so the subscriber can reflect the past before it hears
+    the future."""
+    with _REGISTRY_LOCK:
+        snapshot = [
+            (cls, reg) for cls, reg in _REGISTRY.items() if reg.explicit
+        ]
+        _LISTENERS.append(callback)
+    return snapshot
+
+
+def _notify(cls: type, old: _Registration | None, new: _Registration | None) -> None:
+    for callback in list(_LISTENERS):
+        callback(cls, old, new)
+
+
 def _record_registration(cls: type, registration: _Registration) -> None:
     with _REGISTRY_LOCK:
+        old = _REGISTRY.get(cls)
         _record_registration_locked(cls, registration)
+    if registration.explicit:
+        _notify(cls, old if old is not None and old.explicit else None, registration)
 
 
 def _lookup(cls: type) -> _Registration | None:
@@ -220,7 +260,7 @@ def explicitly_registered(cls: type) -> bool:
 def _default_registration(cls: type) -> _Registration | None:
     """The image common types get without being registered."""
     if issubclass(cls, Enum):
-        return _Registration("symbol", None, None, cls.__name__, ())
+        return _Registration("symbol", None, None, cls.__name__, (), (), explicit=False)
     # A pydantic model is a constructor expression like a dataclass, its
     # fields read from model_fields and its rebuild through the class
     # itself, so validation runs exactly where pydantic runs it. Detected
@@ -263,6 +303,7 @@ def _pydantic_registration(cls: type) -> _Registration:
         cls.__name__,
         names,
         _field_types(cls, names),
+        explicit=False,
     )
 
 
@@ -284,6 +325,7 @@ def _dataclass_registration(cls: type) -> _Registration:
         cls.__name__,
         names,
         _field_types(cls, names),
+        explicit=False,
     )
 
 
@@ -304,7 +346,25 @@ def _named_tuple_registration(cls: type) -> _Registration:
         cls.__name__,
         names,
         _field_types(cls, names),
+        explicit=False,
     )
+
+
+def resolved_hints(cls: type) -> dict:
+    """A class's annotations, resolved, or a TypeError naming the class.
+
+    Shared because both callers need the same refusal: a field annotation
+    that does not resolve is a mistake in the declaration, and saying which
+    class it was in is the whole value of catching it here rather than
+    letting NameError surface from typing's internals.
+    """
+    try:
+        return typing.get_type_hints(cls)
+    except Exception as exc:
+        raise TypeError(
+            f"the field annotations of {cls.__name__} do not resolve "
+            f"({exc}); a declared field type must name something importable"
+        ) from exc
 
 
 def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
@@ -313,11 +373,5 @@ def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
     list[Colour] or Optional[Colour], which a bare-class filter would
     erase and leave as an unreconstructed symbol. Annotations that do not
     resolve are a hard error naming the class."""
-    try:
-        hints = typing.get_type_hints(cls)
-    except Exception as exc:
-        raise TypeError(
-            f"the field annotations of {cls.__name__} do not resolve "
-            f"({exc}); a declared field type must name something importable"
-        ) from exc
+    hints = resolved_hints(cls)
     return tuple(hints.get(n) for n in names)

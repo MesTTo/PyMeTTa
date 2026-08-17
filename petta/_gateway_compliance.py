@@ -1,0 +1,182 @@
+"""Purpose: the remote space protocol's conformance suite, pointed at a URL.
+
+check-space-provider lifted over the wire: `GatewayComplianceSuite` is a
+pytest class that certifies ANY implementation of the protocol
+documented in website/live/remote-protocol.md, with no PeTTa checkout
+knowledge on the serving side. The two TypeScript reference servers are
+certified by it, and a third party's gateway is certified the same way,
+by subclassing with a `gateway_url` fixture. "Speaks the space protocol"
+becomes a checkable claim instead of a compatibility rumor, which is the
+same reading SpaceComplianceSuite gives in-process providers.
+
+Guarantees:
+  - the four operations are exercised with the semantics the protocol
+    promises: multiset adds, match by pattern, removal by unification of
+    every occurrence [tested test_the_operations_keep_space_semantics,
+    test_add_many_lands_the_batch]
+  - the refusal ladder answers JSON errors with the documented statuses,
+    including the pre-body refusals only a raw socket can probe
+    [tested test_refusals_carry_json_errors]
+  - wide integers are refused, never rounded
+    [tested test_wide_integers_are_refused]
+  - the conformance kit certifies the attached RemoteSpace, match
+    contract and round-trip law included, so the wire, the store and the
+    kit agree about one live gateway
+    [tested test_the_kit_certifies_the_attached_space]
+Decides:
+  - the suite writes only into its own scratch space name and removes
+    what it stored, so it can be pointed at a running deployment
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+from __future__ import annotations
+
+import json
+import socket
+from typing import Any
+from urllib.parse import urlparse
+
+from . import remote, testing
+from ._network import HTTPEndpoint
+from ._optional import require_module
+from .atoms import parse
+from .errors import PettaError
+from .remote import RemoteSpace
+
+pytest = require_module(
+    "pytest",
+    "petta.testing.GatewayComplianceSuite is a pytest suite; install pytest "
+    "to run it against a gateway URL",
+)
+
+_SCRATCH = "&gateway-compliance-scratch"
+
+
+def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
+    """One POST against the gateway, refusal statuses answered rather than
+    raised, because reading them is half of what this suite is for."""
+    endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=PettaError)
+    status, _, raw = endpoint.request(
+        "POST",
+        operation,
+        body=json.dumps(payload).encode("utf-8"),
+        headers={"content-type": "application/json"},
+        timeout=30.0,
+    )
+    return status, json.loads(raw)
+
+
+def _raw(url: str, request_text: str) -> int:
+    """One hand-written HTTP request, for the refusals a client library
+    will not let us send; answers the status code."""
+    parts = urlparse(url)
+    with socket.create_connection((parts.hostname, parts.port), timeout=10) as sock:
+        sock.sendall(request_text.encode("utf-8"))
+        head = sock.recv(4096).decode("utf-8", "replace")
+    return int(head.split(" ", 2)[1])
+
+
+class GatewayComplianceSuite:
+    """Subclass with a `gateway_url` fixture answering the base URL of a
+    running gateway; every test below then certifies it."""
+
+    @pytest.fixture()
+    def gateway_url(self) -> str:
+        raise NotImplementedError(
+            "subclass GatewayComplianceSuite with a gateway_url fixture "
+            "answering the base URL of a running gateway"
+        )
+
+    @pytest.fixture()
+    def scratch(self, gateway_url):
+        provider = RemoteSpace(remote.connect(gateway_url), _SCRATCH)
+        yield provider
+        provider.remove(parse("$everything"))
+
+    def test_health_names_the_protocol(self, gateway_url):
+        endpoint = HTTPEndpoint(
+            gateway_url, subject="gateway under test", error_type=PettaError
+        )
+        status, _, raw = endpoint.request("GET", "health", timeout=30.0)
+        assert status == 200
+        health = json.loads(raw)
+        assert health["ok"] is True
+        assert health["protocol"] == 1
+        assert isinstance(health["atoms"], int)
+
+    def test_the_operations_keep_space_semantics(self, scratch):
+        atom = parse("(gc-edge a b)")
+        scratch.add(atom)
+        scratch.add(atom)
+        held = [str(a) for a in scratch.atoms()]
+        assert held.count("(gc-edge a b)") == 2, "a space is a multiset"
+        matched = [str(a) for a in scratch.match(parse("(gc-edge a $x)"))]
+        assert matched.count("(gc-edge a b)") == 2
+        # Removal is by unification, every occurrence, variables renamed
+        # apart: (gc-edge $q b) must take both stored atoms at once.
+        assert scratch.remove(parse("(gc-edge $q b)")) is True
+        assert scratch.remove(parse("(gc-edge $q b)")) is False
+
+    def test_add_many_lands_the_batch(self, gateway_url, scratch):
+        status, body = _post(
+            gateway_url,
+            "add_many",
+            {
+                "space": _SCRATCH,
+                "atoms": [parse(f"(gc-row {n})").to_wire() for n in range(5)],
+            },
+        )
+        assert (status, body) == (200, {"added": 5})
+        assert len(list(scratch.match(parse("(gc-row $n)")))) == 5
+
+    def test_refusals_carry_json_errors(self, gateway_url):
+        status, body = _post(gateway_url, "no-such-operation", {})
+        assert status == 400 and "error" in body
+        status, body = _post(gateway_url, "add", [1, 2])
+        assert status == 400 and "error" in body
+        status, body = _post(gateway_url, "add", {"atom": ["not-a-tag", 1]})
+        assert status == 400 and "error" in body
+
+        parts = urlparse(gateway_url)
+        host = f"{parts.hostname}:{parts.port}"
+        assert (
+            _raw(gateway_url, f"POST /atoms HTTP/1.1\r\nHost: {host}\r\n\r\n") == 411
+        ), "content-length is required"
+        assert (
+            _raw(
+                gateway_url,
+                f"POST /atoms HTTP/1.1\r\nHost: {host}\r\n"
+                "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
+            )
+            == 400
+        ), "transfer-encoding is refused"
+        assert (
+            _raw(gateway_url, f"PUT /atoms HTTP/1.1\r\nHost: {host}\r\nContent-Length: 0\r\n\r\n")
+            == 405
+        ), "only POST operates"
+
+    def test_wide_integers_are_refused(self, gateway_url):
+        parts = urlparse(gateway_url)
+        host = f"{parts.hostname}:{parts.port}"
+        body = '{"space": "' + _SCRATCH + '", "atom": ["n", 123456789012345678901]}'
+        status = _raw(
+            gateway_url,
+            f"POST /add HTTP/1.1\r\nHost: {host}\r\n"
+            f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n{body}",
+        )
+        assert status == 400
+
+    def test_the_kit_certifies_the_attached_space(self, scratch):
+        report = testing.check_space_provider(
+            scratch,
+            atoms_to_store=[
+                parse("(gc-fact a b)"),
+                parse("(gc-fact a c)"),
+                parse("(gc-fact (f $x) $x)"),
+            ],
+        )
+        assert any("over-approximation holds over" in line for line in report)
+        assert "round-trip: 3 stored atoms recovered intact" in report

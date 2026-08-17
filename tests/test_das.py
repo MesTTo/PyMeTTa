@@ -16,6 +16,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import contextlib
 import logging
 import os
 
@@ -23,7 +24,13 @@ import pytest
 
 from petta import EngineError, PettaError, S, V, expr
 from petta.atoms import Gnd, parse
-from petta.das import DAS, DASError, DASSpace, _render_tokens
+from petta.das import (
+    DAS,
+    DASError,
+    DASSpace,
+    _render_tokens,
+    is_transport_failure,
+)
 
 
 class ScriptedDAS(DAS):
@@ -188,7 +195,7 @@ def test_das_space_joins_with_native_facts(metta):
         },
         _COMPLETED,
     ])
-    metta.register_space("&das-scripted", DASSpace(das))
+    metta.register_space(DASSpace(das), "&das-scripted")
     try:
         space = metta.space("&das-scripted")
         rows = space.query(S.Similarity(S.human, V.who))
@@ -201,10 +208,14 @@ def test_das_space_joins_with_native_facts(metta):
         assert groups == [[expr(S.monkey, S.jungle)]]
         # Direct provider calls raise DASError; through the engine the
         # refusal crosses janus and surfaces as EngineError, the provider
-        # convention, still naming the unsupported operation.
+        # convention. Both say the same sentence, because there is one: the
+        # provider's own refusal(). The engine route used to say "does not
+        # implement add", which is false, since DASSpace implements add and
+        # DECLINES it, and the sentence saying what to do instead was
+        # unreachable.
         with pytest.raises(DASError, match="read-only"):
             DASSpace(das).add(S.f(S.a))
-        with pytest.raises(EngineError, match="does not implement add"):
+        with pytest.raises(EngineError, match="das-cli metta load"):
             space.add(S.f(S.a))
     finally:
         metta.unregister_space("&das-scripted")
@@ -266,16 +277,14 @@ def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):
 
 def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
     name = "&das-capability-test"
-    metta.register_space(name, DASSpace(ScriptedDAS([_COMPLETED])))
+    metta.register_space(DASSpace(ScriptedDAS([_COMPLETED])), name)
     try:
         space = metta.space(name)
-        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*match it with a pattern"):
             space.lint()
-        with pytest.raises(PettaError, match=r"DASSpace.*cannot enumerate"):
+        with pytest.raises(PettaError, match=r"DASSpace.*match it with a pattern"):
             space.digest()
-        with pytest.raises(
-            PettaError, match=r"DASSpace.*no event source.*subscription"
-        ):
+        with pytest.raises(PettaError, match=r"DASSpace.*no atom events"):
             space.subscribe(S.watched(V.x))
     finally:
         metta.unregister_space(name)
@@ -351,7 +360,36 @@ def live_das():
     return DAS(_LIVE_URL, timeout=20.0)
 
 
+@contextlib.contextmanager
+def _router_still_answering():
+    """Skip if the router stops answering mid-test, and only then.
+
+    The fixture probes liveness once, with a one-second timeout, and then
+    every later call assumes the service keeps up. It does not: run the suite
+    in parallel on a loaded box and one of the calls below times out, which
+    surfaced as an intermittent gate failure with nothing wrong in the tree.
+
+    The classification is the library's, because it is a fact about DAS and
+    not about this test: is_transport_failure separates the router being
+    ABSENT from the router being WRONG. This used to ask "is the cause an
+    OSError", which misses the shape a broken EVENT STREAM takes, since
+    websocket-client's WebSocketTimeoutException does not subclass OSError.
+    Observed once, as "DAS event stream for execution ... failed".
+    """
+    try:
+        yield
+    except DASError as error:
+        if is_transport_failure(error):
+            pytest.skip(f"the DAS router stopped answering mid-test: {error}")
+        raise
+
+
 def test_live_router_round_trip(live_das):
+    with _router_still_answering():
+        _live_router_round_trip(live_das)
+
+
+def _live_router_round_trip(live_das):
     das = live_das
     answers = das.query(S.Similarity(V.a, V.b), max_answers=5)
     assert answers, "the loaded knowledge base answered nothing"
@@ -365,3 +403,26 @@ def test_live_router_round_trip(live_das):
     assert das.status(execution_id)["status"] in (
         "pending", "running", "completed", "aborted"
     )
+
+
+# The classification the guard above rests on, tested rather than assumed,
+# because the obvious version of it was wrong in one direction: a websocket
+# timeout is not an OSError.
+def test_a_transport_failure_is_told_apart_from_a_wrong_router():
+    websocket = pytest.importorskip("websocket")
+    absent = [
+        OSError("connection refused"),
+        TimeoutError("timed out"),
+        websocket.WebSocketTimeoutException("read timed out"),
+        websocket.WebSocketConnectionClosedException("closed"),
+    ]
+    for cause in absent:
+        error = DASError("the DAS event stream broke mid-query")
+        error.__cause__ = cause
+        assert is_transport_failure(error), cause
+
+    wrong = [ValueError("malformed answer"), KeyError("status"), None]
+    for cause in wrong:
+        error = DASError("the router answered nonsense")
+        error.__cause__ = cause
+        assert not is_transport_failure(error), cause

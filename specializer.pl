@@ -152,7 +152,7 @@ specialize_call_locked(HV, _, _, _, SpecName, _, ready) :-
 %the first call in a named space with Unknown procedure: bump/2, and gave a
 %duplicate answer when an earlier &self engine had compiled the same name.
 %add_function_atom/5 in spaces.pl is the same job done correctly
-%[tested: specializer_named_spaces].
+%[tested: higher_order_code_runs_inside_a_named_space].
 specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
                        SpecName, Arity, Outcome) :-
     current_metta_module(Module),
@@ -177,7 +177,7 @@ specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
       forall(member(clause_info(Input, Clause), ClauseInfos),
              ( asserta(Module:Clause, Ref),
                record_source_assertion(Ref),
-               assertz(translated_from(Ref, Input), SourceRef),
+               record_translated_from(Ref, Input, SourceRef),
                record_source_assertion(SourceRef),
                add_sexp(Space, Input, SpaceRef),
                record_source_assertion(SpaceRef),
@@ -281,9 +281,31 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
                        retractall(ho_specialization(_, _, Name)).
 
 %Invalidate all specializations:
+%The recursion carries a visited set. It retracts only AFTER descending, so a
+%cycle among ho_specialization/3 facts would not terminate, and this runs
+%unguarded on the register-an-operation path now: a non-terminating
+%invalidation there is a hang rather than a swallowed failure. No cycle is
+%reachable today, because the recursive-specialization fold reuses the active
+%name rather than recording a new fact, so this guards a reachability one
+%change away rather than claiming one exists
+%[tested: an_invalidation_cycle_terminates].
 invalidate_specializations(F) :-
     retractall(ho_specialization_failed(_,_,_)),
     findall(Spec, ho_specialization(_, F, Spec), Specs),
-    forall(member(S, Specs), invalidate_specializations(S)),
+    forall(member(S, Specs), invalidate_specializations(S, [F])),
     forall(member(S, Specs), forget_symbol(S)),
     retractall(ho_specialization(_, F, _)).
+
+%The visited set rides on the DESCENT only, so the entry point above is
+%unchanged and a function with no specializations, which is nearly all of
+%them, pays nothing: routing the top level through here instead cost one
+%inference on every compiled equation [measured 2026-08-16: source-load
+%6921403 to 6922400 over a thousand].
+invalidate_specializations(F, Seen) :-
+    (   memberchk(F, Seen)
+    ->  true
+    ;   findall(Spec, ho_specialization(_, F, Spec), Specs),
+        forall(member(S, Specs), invalidate_specializations(S, [F|Seen])),
+        forall(member(S, Specs), forget_symbol(S)),
+        retractall(ho_specialization(_, F, _))
+    ).

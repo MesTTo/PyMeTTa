@@ -53,7 +53,9 @@ def test_optional_integrations_have_installable_extras():
     assert set(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
     assert extras["das"] == ["websocket-client"]
     assert set(extras["dataframes"]) == {"pandas", "polars"}
-    assert extras["orjson"] == ["orjson>=3.10,<4"]
+    # No orjson extra: the JSON codec is the engine's library(json), and
+    # no Python-side JSON implementation exists to accelerate.
+    assert "orjson" not in extras
     assert "pytest-xdist>=3.8,<4" in extras["test"]
     assert "pytest-xdist>=3.8,<4" in extras["checks"]
     assert "pylint>=3.3,<4" in extras["checks"]
@@ -82,11 +84,12 @@ def test_doc_gate_measures_the_public_surface_at_eighty_percent():
     assert interrogate["ignore-private"] is True
 
 
-def test_measure_integration_and_version_are_published_from_their_modules():
+def test_integrations_group_is_left_to_third_parties():
+    # The library ships no built-in integration: anything measure-like is
+    # built on top, in its own package, publishing into the
+    # petta.integrations entry-point group from its own manifest.
     manifest = _manifest()
-    assert manifest["project"]["entry-points"]["petta.integrations"] == {
-        "measure": "petta.measure"
-    }
+    assert "petta.integrations" not in manifest["project"].get("entry-points", {})
     assert manifest["tool"]["setuptools"]["dynamic"]["version"] == {
         "attr": "petta._version.__version__"
     }

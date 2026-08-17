@@ -1,13 +1,17 @@
-"""Purpose: custom matchers are first class: one name, two modes (score a
-bound candidate, generate unbound ones best first), every matcher answering
-(score value) pairs the measure algebra consumes, so attention runs through
-ANY notion of closeness: lexical (difflib), semantic (embeddings), or your
-own function. Structural match composes before or after, no new syntax.
+"""Purpose: custom matching logic as a property of grounded atoms, built
+entirely on the public surface. An object whose class defines match_ owns
+its matching inside (unify ...) with no registration; a scored matcher is
+an ordinary operation answering candidates with the degree as each
+answer's annotation. Fuzzy, regex, semantic: all outside the library,
+a few lines each, composing with structural match through evaluation.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+import difflib
+import re
 
 from _common import check, done, skip
 
@@ -16,43 +20,79 @@ try:
 except ImportError:
     skip("numpy is not installed")
 
-from petta import MeTTa, S, V, matching, measure  # noqa: E402
-from petta.arrays import EmbeddingStore  # noqa: E402
+from petta import Answer, Bindings, MeTTa, S, V, expr
+from petta.arrays import EmbeddingStore
+from petta.atoms import Gnd
 
 m = MeTTa().fresh_space()
-measure.install(m)
 
-# Lexical closeness, the standard library's own: a matcher in one call.
-matching.install_fuzzy(m, name="fuzmatch")
-(scored,) = m.run('!(fuzmatch "recieve" "receive")')[0]
-check("fuzzy scores typos", float(scored[0]) > 0.85)
+# Crisp lexical closeness: a regex value that matches inside unify. The
+# pattern IS the value; matching succeeds exactly when the operand's
+# printed form matches it.
+class Regex:
+    def __init__(self, pattern):
+        self.pattern = re.compile(pattern)
 
-# Semantic closeness: an embedding store IS a matcher.
+    def match_(self, other):
+        text = other.value if isinstance(other, Gnd) else str(other)
+        if self.pattern.search(str(text)):
+            yield other
+
+starts_with_a = Gnd(Regex("^a"))
+(hit,) = m.eval(expr(S.unify, starts_with_a, S.abbey, S.hit, S.miss))
+check("regex value matches", hit, S.hit)
+(miss,) = m.eval(expr(S.unify, starts_with_a, S.zebra, S.hit, S.miss))
+check("regex value refuses", miss, S.miss)
+
+# Composition with structural match, no new syntax: the matchable gates
+# candidates the pattern produced.
+m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
+(gated,) = m.eval(
+    expr(
+        S.collapse,
+        expr(
+            S.match,
+            expr(S["context-space"]),
+            S.person(V.p),
+            expr(S.unify, starts_with_a, V.p, V.p, expr(S.superpose, expr())),
+        ),
+    )
+)
+check("composes with structural match", sorted(str(x) for x in gated), ["ada", "alan"])
+
+# Scored matching is an annotated operation: candidates are the values,
+# degrees ride as annotations, top orders, (annotation) reads.
+lexicon = ["class", "clause", "close"]
+
+def fuzzy(query, candidate=None):
+    for word in lexicon:
+        degree = difflib.SequenceMatcher(None, str(query), word).ratio()
+        yield Answer(value=word, k=round(degree, 6))
+
+m.register_op(fuzzy, name="fuzmatch", typed=False)
+m.declare_annotations("fuzmatch", "ranked")
+(best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
+check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')
+(weighted,) = m.run(
+    '!(collapse (let $w (fuzmatch "clase" $c) (pair (annotation) $w)))'
+)[0]
+check("degrees read through (annotation)", len(weighted.children), 3)
+
+# Semantic closeness: the embedding store's retrieval as matching logic.
+# The store binds the variable it was handed to the nearest key.
 store = EmbeddingStore(m, name="vec", mirror=False)
 store.add(S.espresso, numpy.array([0.9, 0.1, 0.0]))
 store.add(S.latte, numpy.array([0.8, 0.3, 0.0]))
 store.add(S.granite, numpy.array([0.0, 0.1, 0.9]))
-store.matcher(name="semmatch", threshold=0.0)
 
-(best,) = m.run("!(ws-best (collapse (semmatch espresso $k)))")[0]
-check("nearest neighbour", best, S.espresso)
+class Nearest:
+    def match_(self, other):
+        query, out = other.children[0], other.children[1]
+        key, _score = next(iter(store.ranked(query, 1)))
+        yield Bindings({out: key})
 
-# Attention through a matcher: softmax the matches, a distribution over
-# candidates by THIS matcher's closeness.
-(dist,) = m.run("!(ws-softmax (collapse (semmatch latte $k)) 0.5)")[0]
-weights = {str(pair[1]): float(pair[0]) for pair in dist}
-check("a distribution", abs(sum(weights.values()) - 1.0) < 1e-9)
-check("coffee outweighs rock", weights["latte"] > weights["granite"])
-
-# Your own closeness: any scoring function, same shape, same algebra.
-def initials(query, candidate):
-    a, b = str(query), matching.text_of(candidate)
-    return 1.0 if a[:1] == b[:1] else 0.0
-
-matching.matcher(m, "same-initial", score=initials, threshold=0.5)
-m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
-(hits,) = m.run(
-    "!(collapse (match (context-space) (person $p) (same-initial a $p)))"
-)[0]
-check("composes with structural match", len(hits), 2)
+(nearest,) = m.eval(
+    expr(S.unify, Gnd(Nearest()), expr(S.espresso, V.k), V.k, S.none)
+)
+check("nearest neighbour", nearest, S.espresso)
 done("custom_matchers")

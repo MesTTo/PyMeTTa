@@ -4,7 +4,7 @@ Guarantees:
     settings remain live [tested test_runtime_settings_freeze_after_startup,
     test_live_limits_control_declarations_and_rows]
   - MORK startup never changes the host process working directory [tested
-    test_mork_startup_does_not_change_process_working_directory]
+    test_backend_startup_does_not_change_process_working_directory]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -90,14 +90,11 @@ def test_live_limits_control_declarations_and_rows():
         )
 
 
-def test_mork_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):
+def test_backend_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):
     runtime_root = tmp_path / "runtime"
     main_file = runtime_root / "src" / "main.pl"
-    mork_library = runtime_root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     main_file.parent.mkdir(parents=True)
-    mork_library.parent.mkdir(parents=True)
     main_file.touch()
-    mork_library.touch()
 
     class Bridge:
         def __init__(self):
@@ -121,6 +118,8 @@ def test_mork_startup_does_not_change_process_working_directory(monkeypatch, tmp
     consulted = runtime._consult_engine(str(runtime_root), 64_000_000)
 
     assert "set_prolog_flag(stack_limit, 64000000)" in bridge.queries
-    assert "set_prolog_flag(argv, ['mork'])" in bridge.queries
+    # Every native backend that is built, naming none of them: the embedding
+    # host used to test for MORK's shared library and pass `mork`.
+    assert "set_prolog_flag(argv, ['backends'])" in bridge.queries
     assert bridge.consulted == [str(main_file)]
     assert consulted is bridge

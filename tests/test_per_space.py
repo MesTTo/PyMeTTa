@@ -99,10 +99,70 @@ def test_eval_uses_the_spaces_own_equations(metta):
 def test_derivation_follows_the_spaces_module(metta):
     a = metta.fresh_space()
     a.run("(psp-par x y)\n(= (psp-anc $a $b) (match &self (psp-par $a $b) $b))")
-    # The equation lives in a's module; the fact was stored in a as well, but
-    # the equation's own match names &self, so the proof must still resolve
-    # the clause through a's module to exist at all.
-    proofs = a.derivation(S["psp-anc"](S.x, V.out))
-    # The match inside looks at &self, which does not hold (psp-par x y); the
-    # honest outcome is no proof, and no crash.
-    assert proofs == []
+    # &self in loaded source is the reserved token for the hosting space,
+    # so the equation's match reads a's own atoms: the fact is there, the
+    # proof exists, and the derivation shows the substituted space name.
+    # Before the token landed this asserted the divergence instead (the
+    # match consulted the engine-default &self and found nothing).
+    (proof,) = a.derivation(S["psp-anc"](S.x, V.out))
+    assert proof.answer == S.y
+    assert a.space_name in str(proof)
+
+
+def test_a_lambda_reaches_the_space_local_function_it_names(metta):
+    """A lambda body compiles to a clause of its own, and that clause has to
+    land in the space where the lambda was written. Asserted into `user` it
+    could not see the space at all, because a module inherits from `user` and
+    not the reverse, so every lambda form raised Unknown procedure on a
+    space-local function while the same call written directly answered."""
+    a = metta.fresh_space()
+    a.run("(= (psp-lam $x) (* $x 2))")
+    assert a.run("!(psp-lam 21)") == [[42]]
+    assert a.run("!(map-atom (1 2 3) $x (psp-lam $x))") == [[expr(2, 4, 6)]]
+    assert a.run("!(filter-atom (1 2 3) $x (> (psp-lam $x) 2))") == [[expr(2, 3)]]
+    assert a.run("!(foldl-atom (1 2 3) 0 $a $x (+ $a (psp-lam $x)))") == [[12]]
+    assert a.run("!((|-> ($y) (psp-lam $y)) 21)") == [[42]]
+
+
+def test_two_spaces_do_not_share_a_lambda_of_the_same_shape(metta):
+    a, b = metta.fresh_space(), metta.fresh_space()
+    a.run("(= (psp-lam-shape $x) (* $x 2))")
+    b.run("(= (psp-lam-shape $x) (* $x 10))")
+    source = "!(map-atom (1 2 3) $x (psp-lam-shape $x))"
+    assert a.run(source) == [[expr(2, 4, 6)]]
+    assert b.run(source) == [[expr(10, 20, 30)]]
+
+
+def test_equations_are_per_space_with_a_self_fallback_and_local_shadowing(metta):
+    """The three-part rule the MeTTa class docstring states as a table.
+
+    It used to say equations were "process-wide, which is the engine's own
+    rule", while fresh_space() two hundred lines below said the opposite, that
+    what it isolates is atoms AND equations. The second one is right, and it
+    is still not the whole rule: there is a dynamic fallback to &self and
+    local shadowing on top of the isolation.
+    """
+    s1 = metta.fresh_space()
+    s2 = metta.fresh_space()
+    try:
+        # Defined in a named space: private to it, unreduced elsewhere.
+        s1.run("(= (sc-only-s1) 1)")
+        unreduced = expr(S["sc-only-s1"])
+        assert s1.run("!(sc-only-s1)")[-1] == [1]
+        assert metta.run("!(sc-only-s1)")[-1] == [unreduced]
+        assert s2.run("!(sc-only-s1)")[-1] == [unreduced]
+
+        # Defined in &self: reachable from every space, which is the fallback.
+        metta.run("(= (sc-in-self) 9)")
+        for space in (metta, s1, s2):
+            assert space.run("!(sc-in-self)")[-1] == [9]
+
+        # Defined in both: the local one wins where it exists.
+        metta.run("(= (sc-both) fromself)")
+        s1.run("(= (sc-both) froms1)")
+        assert metta.run("!(sc-both)")[-1] == [S.fromself]
+        assert s1.run("!(sc-both)")[-1] == [S.froms1]
+        assert s2.run("!(sc-both)")[-1] == [S.fromself]
+    finally:
+        s1.drop()
+        s2.drop()

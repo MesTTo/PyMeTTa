@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 from . import convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
@@ -47,6 +47,9 @@ __all__ = [
     "unregister",
 ]
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
 #: The library's own space. Everything Python registers reflects here as
 #: ordinary atoms: (op name arity kind) per registered arity,
 #: (defined space name) per @define function, (subscription space pattern
@@ -59,7 +62,16 @@ REFLECTION_SPACE = "&petta"
 
 
 def _op_facts(op: Operation) -> list[Expr]:
-    return [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
+    """The operation's reflected surface: one (op name arity kind) per arity,
+    and (effect name immutable) when it declared itself pure. One list, so
+    the transaction, rollback, re-registration diff and unregister all treat
+    the effect atom exactly as they treat the op atoms."""
+    facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
+    if op.pure:
+        facts.append(expr(S.effect, S[op.name], S.immutable))
+    if op.inverse is not None:
+        facts.append(expr(S.inverse, S[op.name]))
+    return facts
 
 
 def _reflect_add(runtime, atom: Expr) -> None:
@@ -106,9 +118,9 @@ def class_declarations(cls: type) -> list[Expr]:
     return list(convert.declarations(cls))
 
 
-def _metta_name(fn: Callable, name: MettaName | None) -> MettaName:
+def _metta_name(fn: Callable, name: str | None) -> MettaName:
     """The MeTTa spelling: underscores read as hyphens unless overridden."""
-    return name if name is not None else MettaName(_callable_name(fn).replace("_", "-"))
+    return MettaName(name if name is not None else _callable_name(fn).replace("_", "-"))
 
 
 def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
@@ -196,12 +208,14 @@ def _rollback_registration(
     for declaration in retained:
         _release_declaration(runtime, operation.space or "&self", declaration)
     if previous is not None:
-        runtime.must(
-            "petta_py_register_op_set(Name, Arities, Kind)",
-            Name=previous.name,
-            Arities=list(previous.arities or (previous.arity,)),
-            Kind=previous.kind,
-        )
+        # The added atoms are gone again, so the previous life's atoms are
+        # what &petta holds; recompiling from them IS the restoration, the
+        # same route forward registration takes.
+        runtime.must("petta_py_compile_op(Name)", Name=previous.name)
+        # The purity claim is part of the previous life too. Without this, a
+        # failed re-registration of a pure operation left it impure in the
+        # engine while the registry still said pure.
+        _declare_purity(runtime, previous)
         return
     for arity in operation.arities:
         runtime.must(
@@ -209,6 +223,7 @@ def _rollback_registration(
             Name=operation.name,
             Arity=arity,
         )
+    _withdraw_purity(runtime, operation)
 
 
 def _register_transaction(
@@ -216,25 +231,37 @@ def _register_transaction(
     operation: Operation,
     previous: Operation | None,
 ) -> tuple[list[Expr], list[Expr]]:
-    """Publish one complete operation surface or restore its previous life."""
+    """Publish one complete operation surface or restore its previous life.
+
+    Declarations go in BEFORE the registration, which is the order that
+    matters rather than a detail. A declaration decides how a call site
+    compiles, and the engine recompiles what a late one made stale, so
+    registering first meant every typed registration triggered that recompile
+    over its own fresh function, scanning for stale call sites that could not
+    exist yet [measured 2026-08-16: +48 inferences per register-and-unregister
+    cycle on the register-op benchmark, gone with this order]. It is also the
+    order that closes the ordering trap here: the first call site ever
+    compiled against this name already sees its type.
+    """
     new_facts = _op_facts(operation)
     old_facts = _op_facts(previous) if previous is not None else []
-    runtime.must(
-        "petta_py_register_op_set(Name, Arities, Kind)",
-        Name=operation.name,
-        Arities=list(operation.arities),
-        Kind=operation.kind,
-    )
     retained: list[Expr] = []
     added_facts: list[Expr] = []
     try:
         for declaration in operation.declarations:
             _retain_declaration(runtime, operation.space or "&self", declaration)
             retained.append(declaration)
+        # The atoms are the registration: reflect them first, then compile
+        # the predicate FROM them. The keywords this function received are
+        # sugar; petta_py_compile_op reads (op ...) and (inverse ...) back
+        # out of &petta, and the cube gate holds the compiled clause
+        # identical to the passed-parameter route's.
         for fact in new_facts:
             if fact not in old_facts:
                 _reflect_add(runtime, fact)
                 added_facts.append(fact)
+        runtime.must("petta_py_compile_op(Name)", Name=operation.name)
+        _declare_purity(runtime, operation)
     except BaseException:
         _rollback_registration(runtime, operation, previous, retained, added_facts)
         raise
@@ -259,15 +286,17 @@ def _retire_previous(
 
 def register(
     runtime,
-    fn: Callable,
+    fn: Callable[_P, _R],
     *,
-    name: MettaName | None = None,
+    name: str | None = None,
     typed: bool = True,
     raw: bool = False,
     pass_atoms: bool = False,
-    space: SpaceName = _DEFAULT_SPACE,
+    space: str = _DEFAULT_SPACE,
     arities: list[int] | None = None,
-) -> Callable:
+    inverse: Callable | None = None,
+    pure: bool = False,
+) -> Callable[_P, _R]:
     """Make fn callable from MeTTa. Returns fn unchanged.
 
     A generator function registers as nondeterministic: each yield is one
@@ -275,6 +304,19 @@ def register(
     plain function is deterministic; returning None or raising Decline
     answers nothing. Defaults yield one registration per reachable arity;
     a variadic callable names its call forms with arities=[...].
+
+    inverse supplies the BACKWARDS direction, so the operation can stand in a
+    pattern position the way a MeTTa equation does. It takes the result and
+    returns the arguments, as a tuple, or the bare value at arity one; a
+    generator enumerates every preimage, and None or Decline means there is
+    none. It only ever runs when the arguments are not ground and the result
+    is, so a forward call never reaches it and an operation without one
+    compiles exactly what it compiled before.
+
+    pure declares that the operation has no effect a cache could hide, which
+    is what lets it appear in a `(tabled ...)` or memoized body. It is an
+    allow-list on purpose: an operation that does not say so is refused there
+    by name, loudly, rather than cached and quietly wrong.
     """
     metta_name = _metta_name(fn, name)
     arities, params = _arities(fn, arities)
@@ -286,6 +328,16 @@ def register(
     # touched); declaration and reflection writes follow with a rollback
     # that restores the previous registration whole, and the Python
     # registry commits last.
+    if inverse is not None and not callable(inverse):
+        raise TypeError(f"the inverse of {metta_name} is not callable: {inverse!r}")
+    if pure and raw and inspect.isgeneratorfunction(fn):
+        # A raw generator is the one shape whose answers the engine never
+        # sees whole, so "no effect a cache could hide" is not checkable even
+        # in principle. Refusing here beats a caller finding out later.
+        raise ValueError(
+            f"{metta_name} cannot be declared pure: a raw generator's answers "
+            f"cross one at a time and are never seen whole"
+        )
     declarations = _operation_declarations(metta_name, params, fn, typed)
     previous = REGISTRY.get(metta_name)
     operation = Operation(
@@ -294,9 +346,11 @@ def register(
         kind=kind,
         arity=max(arities),
         pass_atoms=pass_atoms,
-        space=space,
+        space=SpaceName(space),
         declarations=declarations,
         arities=tuple(arities),
+        inverse=inverse,
+        pure=pure,
     )
     new_facts, old_facts = _register_transaction(runtime, operation, previous)
     # Committed: the previous life retires, shared pieces surviving. Facts
@@ -308,7 +362,7 @@ def register(
     return fn
 
 
-def unregister(runtime, name: MettaName) -> None:
+def unregister(runtime, name: str) -> None:
     """Remove every arity of a registered operation, and every declaration
     registration added, so nothing keeps describing a function that no
     longer exists."""
@@ -326,7 +380,25 @@ def unregister(runtime, name: MettaName) -> None:
             _release_declaration(runtime, op.space or "&self", declaration)
         for fact in _op_facts(op):
             _reflect_remove(runtime, fact)
+        _withdraw_purity(runtime, op)
     REGISTRY.pop(name, None)
+
+
+def _declare_purity(runtime: Any, operation: Operation) -> None:
+    """Say the operation has no effect a cache could hide, or take it back.
+
+    Retract first either way, because a re-registration of the same name must
+    not leave the previous life's claim standing: an operation declared pure
+    and then re-registered without the flag would otherwise stay cacheable.
+    """
+    runtime.must("retractall(metta_host_pure_operation(Name))", Name=operation.name)
+    if operation.pure:
+        runtime.must("assertz(metta_host_pure_operation(Name))", Name=operation.name)
+
+
+def _withdraw_purity(runtime: Any, operation: Operation) -> None:
+    if operation.pure:
+        runtime.must("retractall(metta_host_pure_operation(Name))", Name=operation.name)
 
 
 def registered() -> dict[str, Operation]:

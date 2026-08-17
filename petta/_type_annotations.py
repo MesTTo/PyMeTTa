@@ -3,7 +3,7 @@ Guarantees:
   - postponed annotations resolve before declaration generation [tested
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit [tested
-    test_union_expansion_limit_is_enforced]
+    test_union_expansion_is_bounded]
 Open Obligations:
   To Do: None
   Hacks: None

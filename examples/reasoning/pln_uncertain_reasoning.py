@@ -9,7 +9,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V
+from petta import MeTTa
 
 # PLN's => writes derived equations into &self by design, so this
 # example lives there, the way the engine's own PLN examples do.

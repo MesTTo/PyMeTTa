@@ -29,6 +29,35 @@ def test_det_op_composes_with_equations(metta):
     assert metta.run(f"(= ({quad} $x) ({name} ({name} $x)))\n!({quad} 5)") == [[20]]
 
 
+def test_a_python_op_is_a_higher_order_argument(metta):
+    """A registered operation reaches the specializer by name, like `(+ 1)`.
+
+    examples/functions/specialize.metta tests the native partial application
+    in this position and nothing tested a Python operation there, so the
+    specializer taking one was true and unguarded. What is asserted is the
+    equivalence rather than the literal answer, because the claim is that the
+    Python operation behaves the same in this position and not merely that it
+    works. Both spellings count: the function argument of a user-defined
+    recursion, which is where the specializer runs, and the argument of the
+    builtin map-atom, which is a different path.
+    """
+    inc = unique("inc")
+
+    @metta.register_op(name=inc)
+    def increment(x: int) -> int:
+        return x + 1
+
+    hof = unique("hof-map")
+    metta.run(
+        f"(= ({hof} $f ()) ())\n"
+        f"(= ({hof} $f (cons $x $xs)) (cons ($f $x) ({hof} $f $xs)))"
+    )
+    native = metta.run(f"!({hof} (+ 1) (1 2 3))")[-1]
+    assert native == [expr(2, 3, 4)]
+    assert metta.run(f"!({hof} {inc} (1 2 3))")[-1] == native
+    assert metta.run(f"!(map-atom (1 2 3) {inc})")[-1] == native
+
+
 def test_generator_is_nondeterministic(metta):
     name = unique("upto")
 
@@ -81,6 +110,328 @@ def test_annotations_declare_types(metta):
         return x
 
     assert metta.run(f"!(get-type ({name} 1))") == [[S.Number]]
+
+
+def test_a_variable_crossing_python_comes_back_the_same_variable(metta):
+    """A variable that goes into an operation and comes back is the SAME one.
+
+    The boundary encodes a variable by its printed name and the decoder built a
+    fresh variable for that name, so identity was lost: a native
+    `(= (mcons $h $t) ($h 2 3))` answers an expression whose head IS `$x`, and
+    binding the answer to `(9 2 3)` binds `$x` to 9, while the same shape
+    through a registered operation answered an unrelated variable that binding
+    did nothing to. No relational use of a Python operation could work while
+    that held, which is the root of what looked like "inversion does not
+    cross".
+
+    The native function is measured alongside rather than assumed, because the
+    claim is that the two agree and not that the Python one does something in
+    particular.
+    """
+    op, native = unique("pcons"), unique("mcons")
+
+    @metta.register_op(name=op)
+    def cons(head, tail):
+        return (head, *tail)
+
+    metta.run(f"(= ({native} $h $t) ($h 2 3))")
+    bind_the_answer = "(let $r ({} $x (2 3)) (let $r (9 2 3) $x))"
+    assert metta.run(f"!{bind_the_answer.format(native)}") == [[9]]
+    assert metta.run(f"!{bind_the_answer.format(op)}") == [[9]]
+    # And a ground call is untouched by any of it.
+    assert metta.run(f"!({op} 1 (2 3))") == [[expr(1, 2, 3)]]
+
+
+def test_a_registered_operation_runs_backwards(metta):
+    """An inverse lets a Python operation stand in a pattern position.
+
+    A foreign function cannot be narrowed, which is why Curry does not invert
+    its own `external` functions either, so the backwards direction is
+    supplied rather than derived. The mode test compiles INTO the clause, so
+    an operation without an inverse keeps the body it had.
+    """
+    cons = unique("cons")
+    metta.register_op(
+        lambda head, tail: (head, *tail),
+        name=cons,
+        typed=False,
+        inverse=lambda whole: (whole[0], tuple(whole[1:])),
+    )
+    assert metta.run(f"!({cons} 1 (2 3))") == [[expr(1, 2, 3)]]
+    assert metta.run(f"!(let ({cons} $h $t) (1 2 3) ($h $t))") == [
+        [expr(1, expr(2, 3))]
+    ]
+
+    # An inverse is a RELATION, so it enumerates, and a result with no
+    # preimage fails rather than raising, exactly as it would forwards.
+    square = unique("sq")
+
+    def roots(value):
+        yield (int(value**0.5),)
+        yield (-int(value**0.5),)
+
+    metta.register_op(lambda x: x * x, name=square, typed=False, inverse=roots)
+    assert metta.run(f"!(collapse (let ({square} $r) 9 $r))") == [[expr(3, -3)]]
+    assert metta.run(f"!({square} 4)") == [[16]]
+
+    double = unique("double")
+    metta.register_op(
+        lambda x: x * 2,
+        name=double,
+        typed=False,
+        # A bare value at arity one, and None for no preimage.
+        inverse=lambda y: None if y % 2 else y // 2,
+    )
+    assert metta.run(f"!(let ({double} $n) 8 $n)") == [[4]]
+    assert metta.run(f"!(collapse (let ({double} $n) 7 $n))") == [[expr()]]
+
+
+def test_a_pure_python_operation_can_be_declared_and_cached(metta):
+    """An operation could not be declared pure by ANY route, and the refusal
+    that said to do it named the bridge instead of the operation.
+
+    Two halves. The refusal read the dispatch goal's functor, so it said
+    `petta_py_dispatch_det/3`, which is neither something an author wrote nor
+    something a declaration could match. And metta_pure_operation/1 was
+    multifile but not dynamic, so a running process could add nothing to it
+    even knowing the right name.
+    """
+    metta.run("!(import! &self (library lib_tabling))")
+    declared, silent = unique("psize"), unique("qsize")
+    metta.register_op(len, name=declared, typed=False, pure=True)
+    metta.register_op(len, name=silent, typed=False)
+    metta.run(f"(= (uses-{declared} $k) ({declared} $k))")
+    metta.run(f"(= (uses-{silent} $k) ({silent} $k))")
+
+    assert metta.run(f"!(tabled (uses-{declared} $k))") == [[True]]
+
+    with pytest.raises(EngineError) as refused:
+        metta.run(f"!(tabled (uses-{silent} $k))")
+    message = str(refused.value)
+    assert f"{silent}/1" in message, message
+    assert "petta_py_dispatch" not in message, message
+
+
+def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
+    """Withdrawing one declaration must not take the engine's list with it.
+
+    A host declaration went into metta_pure_operation/1 itself, and the
+    engine's own entries there are RULES with a variable head, so the
+    retractall that withdraws one declaration unified with every one of them:
+    five clauses to zero, and `+` stopped being pure, from registering any
+    operation at all. Host declarations live in their own table now.
+    """
+    metta.run("!(import! &self (library lib_tabling))")
+    metta.run("(= (arith-before $k) (+ $k 1))")
+    assert metta.run("!(tabled (arith-before $k))") == [[True]]
+
+    for index in range(3):
+        metta.register_op(len, name=unique(f"churn{index}"), typed=False, pure=True)
+
+    metta.run("(= (arith-after $k) (+ $k 1))")
+    assert metta.run("!(tabled (arith-after $k))") == [[True]], (
+        "registering an operation withdrew the engine's own purity list"
+    )
+
+
+def test_a_raw_operation_fails_like_an_encoded_one(metta):
+    """Skipping the wire encoding is a decision about ARGUMENTS and results.
+
+    It was never a decision to report failures differently, and it was: a raw
+    operation's Python failure reached MeTTa as janus's own term, carrying the
+    live exception object, a live traceback and an unbound context, which is
+    exactly the defect the encoded paths were fixed for.
+    """
+    raw, encoded = unique("rboom"), unique("eboom")
+    metta.register_op(lambda x: x // 0, name=raw, typed=False, raw=True)
+    metta.register_op(lambda x: x // 0, name=encoded, typed=False)
+
+    caught = {
+        label: str(metta.run(f"!(catch ({name} 1))")[-1][0])
+        for label, name in (("raw", raw), ("encoded", encoded))
+    }
+    for label, rendered in caught.items():
+        assert "ZeroDivisionError" in rendered, (label, rendered)
+        assert "division by zero" in rendered, (label, rendered)
+        assert "0x" not in rendered, (label, rendered)
+        assert "python_stack" not in rendered, (label, rendered)
+    # Same shape from both doors, with only the operation's own name differing.
+    assert caught["raw"].replace(raw, "N") == caught["encoded"].replace(encoded, "N")
+
+
+def test_a_raw_operations_inverse_crosses_raw_too(metta):
+    """One function pair should not see two value conventions.
+
+    A raw operation takes janus's conversions forwards, so a symbol reaches it
+    as `str`. Its inverse went through the wire encoding and got `Sym`, so an
+    author writing the pair had to write two different functions to handle one
+    value. Both directions now match whichever kind was registered.
+    """
+    seen: list[tuple[str, str]] = []
+
+    def forwards(value):
+        seen.append(("forwards", type(value).__name__))
+        return value
+
+    def backwards(value):
+        seen.append(("backwards", type(value).__name__))
+        return value
+
+    for label, raw in (("raw", True), ("encoded", False)):
+        name = unique(label)
+        metta.register_op(
+            forwards, name=name, typed=False, raw=raw, inverse=backwards
+        )
+        seen.clear()
+        metta.run(f"!({name} sym)")
+        metta.run(f"!(let ({name} $n) sym $n)")
+        kinds = {kind for _, kind in seen}
+        assert len(kinds) == 1, f"{label} saw {seen}"
+        assert kinds == ({"str"} if raw else {"Sym"}), f"{label} saw {seen}"
+
+
+def test_an_inverse_of_the_wrong_width_is_refused(metta):
+    """A tuple of the wrong width would unify against nothing and read as
+    "this result has no preimage", which is the one answer an inverse is
+    entitled to give and the one that would hide the mistake."""
+    name = unique("wide")
+    metta.register_op(
+        lambda a, b: (a, b), name=name, typed=False, inverse=lambda _: (1, 2, 3)
+    )
+    with pytest.raises(EngineError) as refused:
+        metta.run(f"!(let ({name} $a $b) (1 2) ($a $b))")
+    assert "width 3" in str(refused.value)
+    assert "takes 2" in str(refused.value)
+
+
+def test_an_operation_failure_names_the_metta_call(metta):
+    """A registered operation was the one Python caller outside the guard.
+
+    Without it janus's own error term reached MeTTa carrying the live
+    exception object and a live traceback object, naming a Python file and
+    line and no MeTTa call. That is the defect src/python.pl fixed for py-call
+    and py-atom, and an operation did not get it, so a caught error could not
+    be compared or printed after the failure.
+    """
+    name = unique("boom")
+
+    @metta.register_op(name=name)
+    def boom(x: int) -> int:
+        return x // 0
+
+    caught = metta.run(f"!(catch ({name} 1))")[-1]
+    assert len(caught) == 1
+    rendered = str(caught[0])
+    assert "ZeroDivisionError" in rendered
+    assert "division by zero" in rendered
+    assert f"({name} 1)" in rendered, rendered
+    # Nothing in it is a live object, so it survives the failure and prints.
+    assert "0x" not in rendered, rendered
+
+
+def test_an_unbound_argument_is_named_when_python_fails(metta):
+    """Naming the position is the difference between a Python internals
+    message and knowing that a pattern position was the mistake.
+
+    It is a note on a failure that already happened, not a check before the
+    call: an unbound argument is legitimate for an operation written to take a
+    pattern apart, so only the operations that cannot serve the position fail,
+    and only those get the note.
+    """
+    one, two = unique("ptail"), unique("pcons")
+
+    @metta.register_op(name=one)
+    def tail(rest):
+        return (0, *rest)
+
+    @metta.register_op(name=two)
+    def cons(head, rest):
+        return (head, *rest)
+
+    with pytest.raises(EngineError) as singular:
+        metta.run(f"!(let ({one} $t) (0 1) $t)")
+    assert "argument 1 was unbound" in str(singular.value)
+    assert "runs forwards only" in str(singular.value)
+
+    with pytest.raises(EngineError) as plural:
+        metta.run(f"!(let ({two} $h $t) (1 2 3) ($h $t))")
+    assert "arguments 1, 2 were unbound" in str(plural.value)
+
+    # A failure with every argument bound gets no note, so the note means
+    # something when it does appear.
+    grounded = unique("plain")
+
+    @metta.register_op(name=grounded)
+    def plain(x: int) -> int:
+        return x // 0
+
+    with pytest.raises(EngineError) as bound:
+        metta.run(f"!({grounded} 1)")
+    assert "unbound" not in str(bound.value)
+
+
+def test_every_argument_shape_reaches_python_as_its_own_kind(metta):
+    """The wire encoder's clauses are mutually exclusive, so their ORDER is a
+    pure cost decision, and py_is_object/1 was moved behind the free type
+    tests because it is a foreign call into janus that ran on every argument
+    and every list element before anything asked whether the value was a
+    number.
+
+    The property test in test_properties.py fuzzes that encoder over generated
+    atoms, and a generated atom is never a live Python object, which is the
+    one clause the move put at the END. So the shapes are pinned here from the
+    outside: what each one arrives as in Python is what says the reorder
+    changed nothing.
+    """
+    name = unique("kindof")
+
+    @metta.register_op(name=name, typed=False)
+    def kind_of(x):
+        return type(x).__name__
+
+    shapes = {
+        "1": "int",
+        "2.5": "float",
+        '"txt"': "str",
+        "sym": "Sym",
+        "True": "bool",
+        "(1 2)": "Expr",
+        "()": "Expr",
+        "(a (b 1))": "Expr",
+        '(py-atom "object()")': "object",
+    }
+    for source, expected in shapes.items():
+        assert metta.run(f"!({name} {source})") == [[expected]], source
+
+
+def test_the_three_typing_combinations_answer_differently(metta):
+    """typed=True without annotations is not a no-op, and reads like one.
+
+    It declares the ARROW SHAPE with both slots unconstrained, so get-type
+    answers that the name is a one-argument function, where typed=False leaves
+    it %Undefined%. Reading the middle row as "no declaration emitted" is a
+    mistake somebody has already made from the outside, so it is pinned here
+    rather than left to be re-derived. A %Undefined% slot also emits no check,
+    which is why the middle row costs exactly what the last one costs.
+    """
+    annotated, bare, untyped = unique("ann"), unique("bare"), unique("untyped")
+
+    @metta.register_op(name=annotated)
+    def with_annotations(x: int) -> int:
+        return x
+
+    @metta.register_op(name=bare)
+    def without_annotations(x):
+        return x
+
+    @metta.register_op(name=untyped, typed=False)
+    def not_typed(x):
+        return x
+
+    assert metta.run(f"!(get-type {annotated})") == [[expr(S["->"], S.Number, S.Number)]]
+    undefined = S["%Undefined%"]
+    assert metta.run(f"!(get-type {bare})") == [[expr(S["->"], undefined, undefined)]]
+    assert metta.run(f"!(get-type {untyped})") == [[undefined]]
 
 
 def test_defaults_register_every_arity(metta):

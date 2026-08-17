@@ -13,7 +13,7 @@ Open Obligations:
 """
 
 from ._convert_build import build
-from ._convert_project import Projected, declarations, project
+from ._convert_project import Projected, auto_image, declarations, project
 from ._convert_registry import (
     IMAGES,
     ensure_registered,
@@ -31,6 +31,7 @@ Projected.__module__ = __name__
 __all__ = [
     "IMAGES",
     "Projected",
+    "auto_image",
     "build",
     "declarations",
     "ensure_registered",

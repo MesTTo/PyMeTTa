@@ -20,7 +20,7 @@ import inspect
 import textwrap
 import types
 from collections.abc import Callable
-from typing import Any, NamedTuple, TypeVar, cast
+from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, cast
 
 from ._define_expression import ExpressionCompilerMixin
 from ._define_loops import LoopCompilerMixin
@@ -31,9 +31,11 @@ from ._define_twins import (
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
-__all__ = ["Defined", "compile_function"]
+__all__ = ["Defined", "PrologBacked", "compile_function"]
 
 _T = TypeVar("_T")
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 
 def _provided(value: _T | None, default: _T) -> _T:
@@ -79,7 +81,7 @@ def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...
     return tuple(cast(Expr, map_atoms(equation, rename)) for equation in equations)
 
 
-class Defined:
+class Defined(Generic[_P, _R]):
     """A function that exists twice: as MeTTa equations and as Python.
 
     Calling the name builds the term, exactly as applying a symbol does; the
@@ -105,7 +107,10 @@ class Defined:
         self,
         name: str,
         params: list[str],
-        body: Atom,
+        # None only for PrologBacked below, whose fast side is a registered
+        # predicate rather than a compiled equation; it overrides both of the
+        # readers.
+        body: Atom | None,
         py: Callable,
         space: Any,
         *,
@@ -134,7 +139,7 @@ class Defined:
         return Expr([Sym(self.name), *(encode(a) for a in args)])
 
     @property
-    def py(self) -> Callable:
+    def py(self) -> Callable[_P, _R]:
         """The ordinary Python function, recursion included."""
         return self._py
 
@@ -150,6 +155,43 @@ class Defined:
 
     def __repr__(self) -> str:
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
+
+
+class PrologBacked(Defined[_P, _R]):
+    """A function that exists twice, as Prolog and as Python.
+
+    The same pair as Defined and for the same reason, with the fast side
+    written in Prolog instead of compiled from the Python. Rewriting a
+    defined function in Prolog for speed used to mean deleting the Python,
+    and the differential oracle went with it; here the Python stays as the
+    reference the fast one is checked against.
+
+    There is no compiled body to print, so source() answers where the
+    Prolog came from.
+    """
+
+    __slots__ = ("origin",)
+
+    def __init__(
+        self,
+        name: str,
+        params: list[str],
+        py: Callable,
+        space: Any,
+        origin: str,
+    ):
+        super().__init__(name, params, None, py, space)
+        self.origin = origin
+
+    def source(self) -> str:
+        """Where the fast side came from, there being no equation to show."""
+        return f"% {self.name}/{len(self.params) + 1} registered from {self.origin}"
+
+    def __repr__(self) -> str:
+        return (
+            f"<defined {self.name}({', '.join(self.params)}) "
+            f"in prolog from {self.origin}, python twin as .py>"
+        )
 
 
 class Compiled(NamedTuple):

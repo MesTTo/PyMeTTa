@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import EngineError, S, V, val
+from petta import EngineError, S, V, parse, val
 
 _MORKLIB = (
     Path(__file__).resolve().parents[2]
@@ -76,6 +76,64 @@ def test_digest_names_mork_content_too(mork, metta):
     with metta.fresh_space() as native:
         native.add(S.dgm(2), S.dgm(1))
         assert native.digest() == first
+
+
+def test_mork_holds_rules_not_only_facts(mork):
+    """MORK declares the rules capability, so an equation stored in it is a
+    program the engine can run rather than an inert atom. The same space
+    stays a data source while it does: the rule and the fact sit together,
+    which is the point of a space in MeTTa rather than a nuance of one."""
+    mork.add(parse("(= (mork-doubled $x) (* 2 $x))"), S.seed(21))
+    assert mork.eval("(mork-doubled 21)") == [val(42)]
+    assert [row.n for row in mork.query(S.seed(V.n))] == [21]
+
+
+def test_mork_answers_the_whole_rule_set(mork):
+    """Two equations for one function are two answers, the way they are in a
+    native space. The bridge into MORK is one clause per function, so the
+    nondeterminism has to come from the provider's match, not from clauses."""
+    mork.add(
+        parse("(= (mork-colour) red)"),
+        parse("(= (mork-colour) blue)"),
+    )
+    assert sorted(str(a) for a in mork.eval("(mork-colour)")) == ["blue", "red"]
+
+
+def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
+    """A conjunction reaches MORK whole, so its worst-case-optimal join answers
+    it instead of the engine splitting it one pattern at a time. The oracle is
+    a native space holding the same atoms: whatever MORK claims, the engine's
+    own split must answer too. A claim is the one place in the seam where a
+    provider may not over-approximate, because there is no cheap re-check for a
+    join, so this differential stands in for one."""
+    atoms = [
+        S.edge(S.a, S.b), S.edge(S.b, S.c), S.edge(S.a, S.c), S.edge(S.c, S.a),
+        S.tag(S.b, S.one), S.tag(S.c, S.two),
+    ]
+    mork.add(*atoms)
+    queries = [
+        (S.edge(V.x, V.y), S.tag(V.y, V.t)),
+        (S.edge(V.x, V.y), S.edge(V.y, V.z)),
+        (S.edge(V.x, V.y), S.edge(V.y, V.z), S.edge(V.z, V.x)),
+        (S.edge(V.x, V.y), S.tag(V.y, S.nothing)),
+    ]
+    with metta.fresh_space() as native:
+        native.add(*atoms)
+        for query in queries:
+            claimed = sorted(str(row) for row in mork.query(*query))
+            split = sorted(str(row) for row in native.query(*query))
+            assert claimed == split, f"{query} diverged"
+
+
+def test_a_named_mork_space_claims_its_own_joins(metta):
+    space = metta.space("&mork:joins")
+    try:
+        space.add(S.friend(S.sam, S.tim), S.age(S.tim, 30))
+        rows = space.query(S.friend(S.sam, V.x), S.age(V.x, V.n))
+        assert [(row.x, row.n) for row in rows] == [(S.tim, 30)]
+    finally:
+        for atom in space.atoms():
+            space.remove(atom)
 
 
 def test_mm2_exec_transforms_inside_mork(mork, metta):

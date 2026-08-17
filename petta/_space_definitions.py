@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import builtins as _builtins
 import inspect as _inspect
+import os
 import threading
 import types
+from collections.abc import Callable
 from functools import partial
 from typing import Any
 
@@ -35,6 +37,7 @@ from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
 from .define import (
     Compiled,
     Defined,
+    PrologBacked,
     canonical_aux_set,
     compile_function,
 )
@@ -66,10 +69,52 @@ def clear_definitions(space: Any) -> None:
             space.runtime.must("petta_py_reflect_clear_defined(Space)", Space=space.space_name)
 
 
-def install_define(space: Any, fn: types.FunctionType):
+def install_define(space: Any, fn: Callable[..., Any]):
     """Install one compiled function while serializing shared definition state."""
     with _DEFINE_LOCK:
         return _install_define_locked(space, fn)
+
+
+def install_prolog_define(space: Any, fn: Callable[..., Any], prolog: Any):
+    """Register the Prolog side and keep the Python as the reference twin.
+
+    Nothing of the Python is compiled: the registered predicate IS the
+    function, and defining the same name from both would stack a second
+    clause the first would keep answering ahead of.
+    """
+    if not isinstance(fn, types.FunctionType):
+        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
+    name = fn.__name__.replace("_", "-")
+    origin = os.fspath(prolog)
+    registered = space.register_prolog(path=origin)
+    if name not in registered:
+        raise CompileError(
+            f"{origin} does not register {name!r}, which is the MeTTa name of "
+            f"{fn.__name__}; it registered {', '.join(sorted(registered)) or 'nothing'}. "
+            f"A twin has to name the predicate it is the reference for.",
+            construct="prolog twin",
+        )
+    params = list(_inspect.signature(fn).parameters)
+    _refuse_mismatched_twin_arity(space, name, params, origin)
+    return PrologBacked(name, params, fn, space, origin)
+
+
+def _refuse_mismatched_twin_arity(
+    space: Any, name: str, params: list[str], origin: str
+) -> None:
+    """A twin of a different shape is not a twin, and would only ever be
+    found by a caller. The predicate takes one argument per parameter plus
+    the output, which is the convention every registered predicate follows."""
+    expected = len(params) + 1
+    _, _, shapes, _ = space.runtime.apply_must("petta_py_function_shape", name)
+    arities = [int(arity) for arity, _speedup, _indexed in shapes]
+    if arities and expected not in arities:
+        raise CompileError(
+            f"{name} in {origin} takes {' or '.join(str(a) for a in sorted(arities))} "
+            f"argument(s), but its Python twin takes {len(params)}, so the "
+            f"predicate would need arity {expected}: inputs then one output.",
+            construct="prolog twin",
+        )
 
 
 def _is_nondeterministic(space: Any, called: str) -> bool:
@@ -220,7 +265,7 @@ def _declare_definition(
     _DECLARED_DEFINES[key] = True
 
 
-def _install_define_locked(space: Any, fn: types.FunctionType):
+def _install_define_locked(space: Any, fn: Callable[..., Any]):
     """Compile a Python function into MeTTa equations, decorator-style.
 
     Written for whoever is fluent in Python rather than s-expressions:

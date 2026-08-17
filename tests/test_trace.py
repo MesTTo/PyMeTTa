@@ -8,9 +8,15 @@ Open Obligations:
   Future Enhancements: None
 """
 
+from pathlib import Path
+
 import pytest
 
 from petta import S, Sym
+
+_C_EXTENSION = (
+    Path(__file__).resolve().parents[2] / "examples" / "integration" / "c_extension"
+)
 
 
 @pytest.fixture()
@@ -78,3 +84,22 @@ def test_the_wrap_disappears_after_the_run(m):
         e.kind == "call" and str(e.term) == "(tr-quiet 7)" for e in second
     )
     assert not any(str(e.term) == "(tr-quiet 5)" for e in second)
+
+
+@pytest.mark.skipif(
+    not (_C_EXTENSION / "cbump.so").is_file(),
+    reason="cbump.so is not built; a C toolchain is not an engine requirement",
+)
+def test_a_foreign_predicate_does_not_break_tracing(m):
+    """clause/3 refuses a foreign predicate by raising rather than failing, and
+    the trace walks every registered arity looking for tracked clauses. One C
+    extension registered anywhere in the process used to make every trace in
+    it raise, this one included, which is why the registration and the trace
+    are in one test."""
+    m.register_foreign_library(
+        _C_EXTENSION / "cbump.so", entry="install_cbump", names=["c-bump"]
+    )
+    m.run("(= (tr-foreign) (c-bump 41))")
+    events = m.trace("!(tr-foreign)")
+    assert [e.kind for e in events] == ["call", "exit"]
+    assert events[-1].answer == 42

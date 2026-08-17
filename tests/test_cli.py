@@ -59,34 +59,32 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
             "--",
             "program with spaces.metta",
             "--example",
-        ],
-        env=None,
+            "backends",
+        ]
     )
 
 
-def test_main_preserves_optional_mork_behavior(monkeypatch, tmp_path):
+def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
+    """The launcher asks the engine to load every backend that is built, and
+    knows about no backend in particular.
+
+    It used to test for MORK's shared library and LD_PRELOAD it, so a second
+    native backend needed a second branch in a file that has nothing to do with
+    backends. Which backends exist is backends/*.pl now, and whether one is
+    usable is that backend's own business. The preload went with it: a backend
+    opens its own library with global symbol visibility.
+    """
     runtime = tmp_path / "runtime"
-    mork_library = (
-        runtime / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
-    )
-    mork_library.parent.mkdir(parents=True)
-    mork_library.touch()
     call = Mock(return_value=0)
     monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
-    monkeypatch.setenv("PETTA_CLI_TEST", "inherited")
-    monkeypatch.setenv("LD_PRELOAD", "/caller/libexisting.so")
 
     assert cli.main(["program.metta"]) == 0
 
     command = call.call_args.args[0]
-    child_env = call.call_args.kwargs["env"]
-    assert command[-2:] == ["program.metta", "mork"]
-    assert child_env["LD_PRELOAD"] == os.pathsep.join(
-        (str(mork_library), "/caller/libexisting.so")
-    )
-    assert child_env["PETTA_CLI_TEST"] == "inherited"
-    assert child_env is not os.environ
+    assert command[-2:] == ["program.metta", "backends"]
+    assert not any("mork" in part for part in command)
+    assert "env" not in call.call_args.kwargs
 
 
 def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):

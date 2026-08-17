@@ -56,7 +56,7 @@ import weakref
 from collections.abc import Callable
 from typing import Any, Final, Self, TypeVar, overload
 
-from ._api_types import _DEFAULT_SPACE, MettaName, SaveFormat, SpaceName
+from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
 from ._engine import bridge, runtime
 from .atoms import Atom
 from .errors import Interrupted, PettaError
@@ -488,7 +488,7 @@ class AsyncMeTTa:
 
     def __init__(
         self,
-        space: SpaceName = _DEFAULT_SPACE,
+        space: str = _DEFAULT_SPACE,
         *,
         metta: MeTTa | None = None,
     ) -> None:
@@ -710,7 +710,7 @@ class AsyncMeTTa:
         """Return the stable content digest for this space."""
         return await self.call(lambda m: m.digest())
 
-    async def unregister_op(self, name: MettaName) -> None:
+    async def unregister_op(self, name: str) -> None:
         """Remove every registered operation overload under a name."""
         return await self.call(lambda m: m.unregister_op(name))
 
@@ -720,15 +720,15 @@ class AsyncMeTTa:
         """Return the names of engine builtins."""
         return await self.call(lambda m: m.builtins())
 
-    async def is_function(self, name: MettaName) -> bool:
+    async def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
         return await self.call(lambda m: m.is_function(name))
 
-    async def is_function_here(self, name: MettaName) -> bool:
+    async def is_function_here(self, name: str) -> bool:
         """Report whether this space defines a function itself."""
         return await self.call(lambda m: m.is_function_here(name))
 
-    async def arities(self, name: MettaName) -> list[int]:
+    async def arities(self, name: str) -> list[int]:
         """Return the registered arities for a function name."""
         return await self.call(lambda m: m.arities(name))
 
@@ -754,7 +754,7 @@ class AsyncMeTTa:
         """Explain why a pattern is not currently reducible."""
         return await self.call(lambda m: m.why(pattern))
 
-    async def space(self, name: SpaceName) -> AsyncMeTTa:
+    async def space(self, name: str) -> AsyncMeTTa:
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
         a no-op and closing the owner ends them all."""
@@ -812,7 +812,7 @@ class AsyncMeTTa:
 
 
 async def connect(
-    space: SpaceName = _DEFAULT_SPACE,
+    space: str = _DEFAULT_SPACE,
     *,
     metta: MeTTa | None = None,
 ) -> AsyncMeTTa:

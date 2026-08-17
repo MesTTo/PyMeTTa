@@ -194,9 +194,11 @@ def _return_module(key: tuple[tuple[str, int], ...], module: str) -> None:
 
 def _helper_names(module: str, schema: Mapping[str, int]) -> dict[str, str]:
     occupied = set(schema.items())
-    for head, arity in schema.items():
-        for prefix in ("assert_", "asserta_", "retract_", "retractall_"):
-            occupied.add((f"{prefix}{head}", arity))
+    occupied.update(
+        (f"{prefix}{head}", arity)
+        for head, arity in schema.items()
+        for prefix in ("assert_", "asserta_", "retract_", "retractall_")
+    )
 
     prefix = f"{module}_private"
     while any(
@@ -543,10 +545,7 @@ class PersistentFactSpace(SpaceProvider):
                     quoted_heads,
                     self._helpers,
                 )
-                try:
-                    self._janus.consult(f"{self._module}.pl", data=source)
-                except self._janus.PrologError as exc:
-                    self._runtime._raise(exc)
+                self._runtime.consult(f"{self._module}.pl", data=source)
             self._module_loaded = True
             with ExitStack() as unattached:
                 unattached.callback(self._release_module)

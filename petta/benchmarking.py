@@ -540,6 +540,10 @@ def _instruction_request(
     perf = shutil.which("perf")
     if perf is None:
         raise FileNotFoundError("perf is required to measure instructions:u")
+    if not os.access("/usr/bin/setarch", os.X_OK):
+        raise FileNotFoundError(
+            "setarch is required to measure instructions:u reproducibly"
+        )
     return perf, float(timeout)
 
 
@@ -566,7 +570,24 @@ def measure_instructions(
 ) -> tuple[int, ...]:
     """Run command under perf stat and return retired instructions per run."""
     perf, timeout = _instruction_request(command, rounds, timeout)
-    environment = os.environ | {"LC_ALL": "C"}
+    #The child environment is BUILT, not inherited, for two measured reasons.
+    #PYTHONHASHSEED pinned: per-launch hash randomization moves a dict-heavy
+    #workload's retired-instruction count by more than the gate's whole noise
+    #allowance (json-wire spread 1.46% across four launches, 0.098% with the
+    #seed pinned [measured 2026-08-17]), and a security feature has no place
+    #in a reproducibility harness. The allowlist: the SIZE of the environment
+    #block moves where the process heap starts, which selects how many times
+    #the engine's global stack grows mid-measurement; source-load measured a
+    #stable 957.6M instructions under check.sh's environment against a stable
+    #low mode under a bare shell, three samples each within 0.002%, inference
+    #counter identical [measured 2026-08-17]. A fixed environment makes the
+    #measurement caller-independent without touching the engine's own stack
+    #economics (presizing stacks instead cost save-load-metta +2.35%).
+    environment = {
+        name: os.environ[name]
+        for name in ("PATH", "HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR")
+        if name in os.environ
+    } | {"LC_ALL": "C", "PYTHONHASHSEED": "0"}
     samples: list[int] = []
     for _ in range(rounds):
         returncode, stdout, stderr = _run_perf(
@@ -618,7 +639,15 @@ def _run_perf(
                 "--delay=-1",
                 f"--control=fd:{control_read},{acknowledge_write}",
             ]
+        #setarch -R disables address-space randomization for the child tree:
+        #with the environment and hash seed already pinned, the residual
+        #spread (json-wire 0.3% across a triple) tracks the kernel moving
+        #the heap and stack bases per launch, which selects the same
+        #alignment modes the environment block does. ASLR is the third
+        #security feature with no place in a reproducibility harness.
         argv = [
+            "/usr/bin/setarch",
+            "-R",
             executable,
             "stat",
             "-x,",
@@ -634,7 +663,7 @@ def _run_perf(
         ]
         try:
             process = os.posix_spawn(
-                executable,
+                argv[0],
                 argv,
                 child_environment,
                 file_actions=file_actions,

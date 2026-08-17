@@ -132,18 +132,41 @@ class _Assuming:
             self._space.remove(fact)
 
 
+#: The counters a stats block fills on exit, named here so __getattr__ can
+#: tell "read too early" from an ordinary typo.
+_COUNTERS = frozenset(
+    {
+        "inferences",
+        "cputime",
+        "walltime",
+        "gc_count",
+        "gc_freed",
+        "gc_time",
+        "table_bytes",
+    }
+)
+
+
 class _StatsBlock:
     """MeTTa.stats(): engine counter deltas over one with-block.
 
-    Before exit the fields are None; after exit they carry the deltas the
-    block spent: inferences (int), cputime (seconds), walltime (seconds,
-    Python's perf_counter), gc_count, gc_freed (bytes), gc_time (seconds),
-    and table_bytes (answer-table bytes the block grew or, negative,
-    released; tabling's memory made visible where the counters live).
+    After exit the fields carry the deltas the block spent: inferences
+    (int), cputime (seconds), walltime (seconds, Python's perf_counter),
+    gc_count, gc_freed (bytes), gc_time (seconds), and table_bytes
+    (answer-table bytes the block grew or, negative, released; tabling's
+    memory made visible where the counters live).
+
+    A counter is a delta, so there is nothing to read before the block that
+    measures it has closed, and reading one there raises rather than
+    answering a number that means nothing. That also lets the counters be
+    typed as the int and float they are, which is what a caller writing
+    `s.inferences > 100` needs [measured 2026-08-17: it was the last
+    library-caused diagnostic a downstream editor showed].
     """
 
     __slots__ = (
         "_before",
+        "_counted",
         "_rt",
         "_wall",
         "cputime",
@@ -155,17 +178,33 @@ class _StatsBlock:
         "walltime",
     )
 
+    # Declared without an assignment, which __slots__ requires and which is
+    # what a checker reads: the counters ARE int and float wherever they can
+    # be read at all.
+    inferences: int
+    cputime: float
+    walltime: float
+    gc_count: int
+    gc_freed: int
+    gc_time: float
+    table_bytes: int
+
     def __init__(self, rt: Runtime) -> None:
         self._rt = rt
+        self._counted = False
         self._before: tuple[int | float, ...] | None = None
         self._wall: float | None = None
-        self.inferences: int | None = None
-        self.cputime: float | None = None
-        self.walltime: float | None = None
-        self.gc_count: int | None = None
-        self.gc_freed: int | None = None
-        self.gc_time: float | None = None
-        self.table_bytes: int | None = None
+
+    def __getattr__(self, name: str) -> Any:
+        # Reached only for a slot that was never assigned, which for a
+        # counter means the block has not closed. Any other name is an
+        # ordinary attribute error.
+        if name in _COUNTERS:
+            raise RuntimeError(
+                f"a stats block's {name} is the delta it measured, so it is "
+                f"readable after the with-block rather than inside it"
+            )
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     def __enter__(self) -> Self:
         self._before = _stats_snapshot(self._rt)
@@ -191,14 +230,37 @@ class _StatsBlock:
         self.gc_freed = int(gc_freed)
         self.gc_time = float(gc_ms) / 1000.0
         self.table_bytes = int(table_bytes)
+        self._counted = True
 
     def __repr__(self) -> str:
-        if self.inferences is None:
+        if not self._counted:
             return "<stats: pending>"
         return (
             f"<stats: {self.inferences} inferences, "
             f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
         )
+
+
+def _forward_window(window: slice) -> tuple[int, int | None]:
+    """A cursor slice's bounds, refusing the ones that need the whole stream.
+
+    Both refusals are the design. A step still PULLS the rows it skips, and a
+    negative bound means knowing where the end is, so accepting either would
+    quietly buy the full scan the cursor exists to avoid, in the spelling that
+    looks cheapest.
+    """
+    if window.step is not None and window.step != 1:
+        raise ValueError(
+            "a cursor slice takes no step: skipping rows still pulls them, "
+            "so [::2] costs what taking them all costs"
+        )
+    start = 0 if window.start is None else window.start
+    if start < 0 or (window.stop is not None and window.stop < 0):
+        raise ValueError(
+            "a cursor slice counts from the start only: a negative bound "
+            "needs the whole stream, which is what the cursor exists to avoid"
+        )
+    return start, window.stop
 
 
 class Cursor:
@@ -285,6 +347,63 @@ class Cursor:
             raise StopIteration
         return self._row_cls(atom_from_wire(v) for v in answer[0])
 
+    def __getitem__(self, index: int | slice):
+        """`cursor[:3]` and `cursor[0]`, pulling only what is asked for.
+
+        This is the one convenience worth adding here, because it changes the
+        SPELLING and not the plan. Measured over 2,000 stored atoms, wanting
+        the first three: `query(pat)[:3]` costs 26,049 inferences because
+        slicing trims after computing everything, `query(pat, limit=3)` costs
+        94, and pulling three from a cursor costs 13. The cheapest route was
+        the only one that could not be spelled naturally.
+
+        A negative index or a step is REFUSED, not supported. Both need the
+        whole stream, so accepting them would quietly buy the 26,049
+        inferences this exists to avoid, in the spelling that looks cheapest.
+        """
+        if isinstance(index, slice):
+            return self._take_slice(index)
+        if not isinstance(index, int):
+            raise TypeError(
+                f"a cursor is indexed by an int or a slice, not "
+                f"{type(index).__name__}"
+            )
+        if index < 0:
+            raise IndexError(
+                "a cursor cannot be indexed from the end: it does not know "
+                "where the end is without pulling every row, which is what "
+                "the cursor exists to avoid. Use query() if you want them all"
+            )
+        for position, row in enumerate(self):
+            if position == index:
+                return row
+        raise IndexError(f"the cursor answered fewer than {index + 1} rows")
+
+    def _take_slice(self, window: slice) -> list:
+        start, stop = _forward_window(window)
+        if stop is not None and stop <= start:
+            return []
+        taken = []
+        for position, row in enumerate(self):
+            if position >= start:
+                taken.append(row)
+            if stop is not None and position + 1 >= stop:
+                break
+        return taken
+
+    def __len__(self) -> int:
+        """Refused, and the refusal is the design.
+
+        A length cannot be known without consuming the cursor, so answering
+        one would silently materialise the very thing the cursor exists to
+        avoid.
+        """
+        raise TypeError(
+            "a cursor has no len(): counting its rows means pulling all of "
+            "them, which is what it exists to avoid. Use space.count(pattern) "
+            "for the count, or query() if you want the rows"
+        )
+
     def close(self) -> None:
         """Destroy the held engine; idempotent and distinct from exhaustion."""
         if self._closed or self._exhausted:
@@ -331,6 +450,75 @@ class EngineProfile:
     def __repr__(self) -> str:
         return (
             f"<profile: {self.samples} samples, {self.ticks} ticks, {len(self.nodes)} predicates>"
+        )
+
+
+class FunctionCost:
+    """One registered function's row in MeTTa.profile_extension().
+
+    `calls` and `redos` are counted rather than sampled, so they are exact;
+    `ticks` is the sampler's and carries its uncertainty. A `redo` is the
+    engine re-entering the predicate for another answer, which is what a
+    left-behind choice point looks like from outside: a function meant to be
+    deterministic showing redos is the signal to look for a missing cut or
+    an unindexed head.
+
+    `speedup` is the ratio SWI computes for the clause index it chose, so
+    1.0 means no argument discriminates and every call walks the clause
+    list. `indexed` says whether the index exists yet: SWI builds one on
+    first need, so False on a predicate nothing has called enough times is
+    an absent index rather than a bad one.
+    """
+
+    __slots__ = (
+        "arity",
+        "calls",
+        "determinism",
+        "indexed",
+        "name",
+        "redos",
+        "source",
+        "speedup",
+        "ticks",
+        "tier",
+    )
+
+    # Keyword-only, which the one call site already does and which is what
+    # makes ten fields safe: calls, redos and ticks are three adjacent ints
+    # nothing would catch transposed.
+    def __init__(
+        self,
+        *,
+        name: str,
+        tier: str,
+        source: str,
+        arity: int | None,
+        calls: int,
+        redos: int,
+        ticks: int,
+        speedup: float,
+        indexed: bool,
+        determinism: str,
+    ) -> None:
+        self.name = name
+        self.tier = tier
+        self.source = source
+        self.arity = arity
+        self.calls = calls
+        self.redos = redos
+        self.ticks = ticks
+        self.speedup = speedup
+        self.indexed = indexed
+        # What the library DECLARED, empty when it declared nothing. Read the
+        # redos against it: a redo on a nondet function is the function
+        # working, and one on a function declaring nothing is a question.
+        self.determinism = determinism
+
+    def __repr__(self) -> str:
+        return (
+            f"<{self.name}/{self.arity} {self.tier}: {self.calls} calls, "
+            f"{self.redos} redos, {self.ticks} ticks, index {self.speedup:g}x"
+            + (f", declared {self.determinism}>" if self.determinism else ">")
         )
 
 
@@ -408,17 +596,30 @@ class _EngineFunction:
         return Expr([Sym(self._name), *(encode(a) for a in args)])
 
     def __call__(self, *args: Any) -> Any:
-        answers = self._space.eval(self._term(args))
-        if len(answers) != 1:
-            # The same violated contract as value(): the same error class.
-            raise EngineError(
-                f"({self._name} ...) answered {len(answers)} results; calling "
-                f"expects exactly one. Use .all(...) for every answer."
-            )
-        return answers[0]
+        # value()'s own contract, through value()'s own decoder: exactly
+        # one answer, no Undefined, a Gnd decoded to its Python value. The
+        # two surfaces answered differently on the same call (value gave
+        # True where fn gave Gnd(True)) because this re-implemented only
+        # the first of value_one's three checks. Imported here because
+        # _space_execution imports this module at load.
+        from ._space_execution import value_one  # noqa: PLC0415
+
+        term = self._term(args)
+        return value_one(term, self._space.eval(term))
 
     def all(self, *args: Any) -> list:
         return self._space.eval(self._term(args))
+
+    def first(self, *args: Any) -> Any:
+        """The first answer decoded, or None for no answers: the same
+        tolerant member value()'s family has."""
+        from ._space_execution import value_one  # noqa: PLC0415  cycle
+
+        term = self._term(args)
+        answers = self._space.eval(term)
+        if not answers:
+            return None
+        return value_one(term, answers[:1])
 
     def __repr__(self) -> str:
         return f"<engine function {self._name} on {self._space.space_name}>"

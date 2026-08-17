@@ -37,7 +37,22 @@ swrite_numbered(Atom)  --> { atom(Atom) }, !, atom(Atom).
 swrite_numbered([H|T]) --> { \+ is_list([H|T]) }, !, "(", atom(cons), " ", swrite_numbered(H), " ", swrite_numbered(T), ")".
 swrite_numbered([H|T]) --> !, "(", seq_numbered([H|T]), ")".
 swrite_numbered([])    --> !, "()".
-swrite_numbered(Term)  --> { Term =.. [F|Args] }, "(", atom(F), ( { Args == [] } -> [] ; " ", seq_numbered(Args) ), ")".
+%Everything below here is not a MeTTa term, and these are the three ways of not
+%being one, each guarded and cutting like the clauses above them.
+%
+%The provider comes first because a Python tuple IS a compound, -/N being
+%janus's encoding for one, and `(- 1 2)` names an operator that is not there.
+swrite_numbered(Term)  --> { metta_grounded_text(Term, Text) }, !, { string_codes(Text, Cs) }, Cs.
+%compound_name_arguments/3 rather than =../2, because =../2 refuses a
+%zero-arity compound outright: it raises `compound_non_zero_arity' before the
+%empty-argument branch below can be reached, and the raise escapes the writer
+%and kills the run. Nothing about that is specific to where the term came from,
+%and janus hands one back for Python's `()`, so `!(py-atom "()")` took the whole
+%program down [tested: an_empty_compound_prints].
+swrite_numbered(Term)  --> { compound(Term), compound_name_arguments(Term, F, Args) }, !, "(", atom(F), ( { Args == [] } -> [] ; " ", seq_numbered(Args) ), ")".
+%A grounded value with no provider loaded: its own text, rather than nothing.
+%The writer is never the thing that fails.
+swrite_numbered(Term)  --> { term_string(Term, Text), string_codes(Text, Cs) }, Cs.
 seq_numbered([X])    --> !, swrite_numbered(X).
 seq_numbered([X|Xs]) --> swrite_numbered(X), " ", seq_numbered(Xs).
 %The five escapes hyperon's Str Display emits and this reader already
@@ -66,6 +81,84 @@ sread_codes(Cs, Source, T) :-
       -> true
        ; format(atom(Msg), 'Parse error in form: ~w', [Source]),
          throw(error(syntax_error(Msg), none)) ).
+
+%%%% Is this a whole form, or is the user still typing? %%%%
+%
+%sread/2 answers one way: it parses or it raises. Three different situations
+%collapse into that one outcome, and a console needs them apart:
+%
+%  (f a)     complete           [f, a]
+%  (f a      INCOMPLETE         syntax_error('Parse error in form: (f a')
+%  (f a))    malformed          syntax_error('Parse error in form: (f a))')
+%  ""        an empty line      syntax_error('Parse error in form: ')
+%
+%CPython names this as THE hard part of a console and answers it three ways:
+%"The tricky part is to determine when the user has entered an incomplete
+%command that can be completed by entering more text (as opposed to a complete
+%command or a syntax error)", and compile_command returns a code object,
+%None, or raises [source: CPython, the code and codeop modules]. This is that
+%contract: complete(Term), incomplete, or a raise.
+%
+%Without it examples/basics/repl.metta could not accept a multi-line form at
+%all, since 'readln!'/1 is one read_line_to_string then sread/2, and every
+%other console has to re-implement bracket counting. Which is not "just count
+%parens": a bracket inside a string or a comment must not count, and
+%string_state/3 below is what knows the difference
+%[tested: parser_command_tells_incomplete_from_malformed].
+sread_command(Text, Result) :-
+    text_to_command_codes(Text, Codes),
+    (   \+ command_has_content(Codes)
+    ->  Result = incomplete
+    ;   command_wants_more(Codes)
+    ->  Result = incomplete
+    ;   sread(Text, Term)
+    ->  Result = complete(Term)
+    ;   sread(Text, _)          % it raises; this reaches its error
+    ).
+
+text_to_command_codes(Text, Codes) :-
+    ( is_list(Text) -> Codes = Text
+    ; string(Text) -> string_codes(Text, Codes)
+    ; atom_codes(Text, Codes) ).
+
+%An empty line, or one holding only layout and comments, is INCOMPLETE rather
+%than an error: it is the commonest input in any console and it should
+%re-prompt.
+command_has_content(Codes) :- command_content(Codes, outside).
+
+command_content([C|Rest], State0) :-
+    string_state(State0, C, State1),
+    (   State0 == outside, \+ code_type(C, space), C =\= 0';
+    ->  true
+    ;   State0 == string
+    ->  true
+    ;   command_content(Rest, State1)
+    ).
+
+%Whether more text could still complete this: an open bracket, or an
+%unterminated string, which a MeTTa string may legitimately be because a
+%newline inside one keeps the string state.
+%
+%An unterminated COMMENT is not: a comment ends at end of input as readily as
+%at a newline, so `(f a) ; trailing` is a whole form and treating the comment
+%state as "wants more" made it hang the console.
+command_wants_more(Codes) :-
+    command_balance(Codes, 0, outside, Depth, State),
+    ( Depth > 0 -> true ; memberchk(State, [string, escaped]) ).
+
+%A closing bracket too many is MALFORMED, not incomplete: no amount of further
+%typing repairs it, so this fails and the reader's own error is the answer.
+command_balance([], Depth, State, Depth, State).
+command_balance([C|Rest], Depth0, State0, Depth, State) :-
+    string_state(State0, C, State1),
+    (   State0 == outside
+    ->  ( C =:= 0'( -> Depth1 is Depth0 + 1
+        ; C =:= 0') -> Depth1 is Depth0 - 1
+        ;               Depth1 = Depth0 )
+    ;   Depth1 = Depth0
+    ),
+    Depth1 >= 0,
+    command_balance(Rest, Depth1, State1, Depth, State).
 
 %The top-level form scanner uses the same string and comment states as the
 %token grammar. A backslash escapes exactly the next string character.

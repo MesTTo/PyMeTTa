@@ -657,3 +657,95 @@ def test_define_refuses_callable_objects(m):
 
     with pytest.raises(TypeError, match="define expects a Python function"):
         m.define(CallableObject())
+
+
+# M2: rewriting a defined function in Prolog for speed used to mean deleting
+# the Python, and the differential oracle went with it. The two are declared
+# together instead, and testing.check_twin runs the pair.
+FAST_PROLOG = """
+:- metta_extension(define_twin_demo, [version('0.1.0')]).
+:- metta_export("(: dt-dot (-> Expression Expression Number))").
+'dt-dot'(A, B, Out) :- dt_dot_(A, B, 0, Out).
+dt_dot_([], [], Acc, Acc).
+dt_dot_([X|Xs], [Y|Ys], Acc0, Out) :- Acc is Acc0 + X * Y, dt_dot_(Xs, Ys, Acc, Out).
+"""
+
+
+@pytest.fixture(scope="module")
+def fast_file(tmp_path_factory):
+    """One file for the whole module, deliberately.
+
+    Registration ownership is process-wide and by SOURCE, so a per-test copy
+    at a different path is a SECOND library claiming 'dt-dot', which the
+    engine refuses by design. Re-registering the same file is replacement.
+    """
+    source = tmp_path_factory.mktemp("define_twin") / "dt_fast.pl"
+    source.write_text(FAST_PROLOG)
+    return source
+
+
+def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, fast_file):
+    @m.define(prolog=fast_file)
+    def dt_dot(a, b):
+        """The readable reference."""
+        return sum(x * y for x, y in zip(a, b, strict=True))
+
+    # The engine answers from the Prolog, and the Python is still callable.
+    assert m.eval(dt_dot((1, 2, 3), (4, 5, 6))) == [32]
+    assert dt_dot.py((1, 2, 3), (4, 5, 6)) == 32
+    assert dt_dot.name == "dt-dot"
+    # There is no compiled equation to print, so source() says where it came from.
+    assert str(fast_file) in dt_dot.source()
+    assert "python twin as .py" in repr(dt_dot)
+
+
+def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):
+    from petta import testing
+
+    @m.define(prolog=fast_file)
+    def dt_dot(a, b):
+        return sum(x * y for x, y in zip(a, b, strict=True))
+
+    ran = testing.check_twin(dt_dot, [((1, 2, 3), (4, 5, 6)), ((0,), (9,)), ((), ())])
+    assert len(ran) == 3
+
+
+def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):
+    from petta import testing
+
+    source = tmp_path / "dt_wrong.pl"
+    source.write_text(
+        ':- metta_extension(dt_wrong, [version("0.1")]).\n'
+        ':- metta_export("(: dt-sum (-> Number Number Number))").\n'
+        "'dt-sum'(A, B, Out) :- Out is A + B + 1.\n"
+    )
+
+    @m.define(prolog=source)
+    def dt_sum(a, b):
+        return a + b
+
+    with pytest.raises(AssertionError, match="the engine answered"):
+        testing.check_twin(dt_sum, [(1, 2)])
+
+
+def test_a_prolog_file_that_does_not_register_the_name_is_refused(m, fast_file):
+    with pytest.raises(CompileError, match="does not register"):
+
+        @m.define(prolog=fast_file)
+        def dt_absent(a, b):
+            return a
+
+
+def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):
+    # dt-dot/3 is two inputs and one output; a one-parameter twin would need
+    # arity 2, and a caller is the only thing that would ever find that out.
+    with pytest.raises(CompileError, match="Python twin takes 1"):
+
+        @m.define(prolog=fast_file)
+        def dt_dot(a):
+            return a
+
+
+def test_define_needs_a_function_or_prolog_and_then_one(m):
+    with pytest.raises(TypeError, match="takes a function"):
+        m.define()

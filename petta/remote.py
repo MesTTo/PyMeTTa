@@ -160,6 +160,15 @@ class RemoteSpace(SpaceProvider):
     def add(self, atom: Atom) -> None:
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
+    def add_many(self, atoms: list[Atom]) -> None:
+        """One request carries the batch, the engine's own bulk-door law on
+        the wire: a batch is a transport optimisation and never a semantic
+        one, and the engine already routes only plain stores through it."""
+        self._transport(
+            "add_many",
+            {"space": self._space, "atoms": [atom.to_wire() for atom in atoms]},
+        )
+
     def remove(self, atom: Atom) -> bool:
         answer = self._transport("remove", {"space": self._space, "atom": atom.to_wire()})
         return bool(answer.get("removed"))
@@ -252,7 +261,7 @@ def attach(m, name: str, url_or_transport: Any, remote_space: str = "&self") -> 
     """
     transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
     provider = RemoteSpace(transport, remote_space)
-    m.register_space(name, provider)
+    m.register_space(provider, name)
     return provider
 
 

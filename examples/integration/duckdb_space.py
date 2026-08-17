@@ -14,7 +14,8 @@ Open Obligations:
     them; today equality on ground positions is what a pattern states.
 """
 
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from _common import check, done, skip
 
@@ -24,7 +25,7 @@ except ImportError:
     skip("duckdb is not installed")
 
 from petta import MeTTa, S, V, expr
-from petta.atoms import Atom, Expr, Gnd, Sym, decode
+from petta.atoms import Atom, Expr, Gnd, Sym, Var, decode
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider
 
@@ -107,7 +108,7 @@ class DuckDBSpace(SpaceProvider):
         if len(pattern.args) != len(columns):
             return
         where, parameters = [], []
-        for column, arg in zip(columns, pattern.args):
+        for column, arg in zip(columns, pattern.args, strict=True):
             if isinstance(arg, Gnd) or (isinstance(arg, Sym) and arg == NULL):
                 # A ground position states its value; IS NOT DISTINCT FROM
                 # is SQL equality that also finds NULL when NULL is asked.
@@ -121,6 +122,40 @@ class DuckDBSpace(SpaceProvider):
             sql += " where " + " and ".join(where)
         for row in self._conn.execute(sql, parameters).fetchall():
             yield Expr([Sym(table), *(_to_atom_value(v) for v in row)])
+
+    def pushdown(self, pattern: Atom) -> str:
+        """Exact when the WHERE clause covers everything the pattern constrains.
+
+        A ground position becomes an IS NOT DISTINCT FROM, so the query
+        answers it. A symbol position deliberately does not, because rows
+        carry text as grounded strings and a symbol never matches one: that
+        pattern is answered by a query that ignores the symbol, and the
+        engine's unification is what filters it out.
+
+        So the claim is about the WHOLE pattern, not the indexed column. A
+        provider filtering on one position while the pattern constrains
+        another is inexact however good that one filter is, and saying
+        otherwise loses answers, which is what check_space_provider catches.
+        """
+        if not (
+            isinstance(pattern, Expr)
+            and pattern.children
+            and isinstance(pattern.head, Sym)
+        ):
+            return "inexact"
+        table = pattern.head.name
+        if table not in self.table_names() or len(pattern.args) != len(
+            self.columns(table)
+        ):
+            return "inexact"
+        unfiltered = (
+            arg
+            for arg in pattern.args
+            if not isinstance(arg, Gnd)
+            and not (isinstance(arg, Sym) and arg == NULL)
+            and not isinstance(arg, Var)
+        )
+        return "inexact" if next(unfiltered, None) is not None else "exact"
 
     def atoms(self) -> Iterator[Atom]:
         for table in self.table_names():
@@ -191,74 +226,83 @@ def attach(m, name: str, database: Any = ":memory:", tables: list[str] | None = 
     else:
         provider = DuckDBSpace(duckdb.connect(database), tables)
         provider._owns_connection = True
-    m.register_space(name, provider)
+    m.register_space(provider, name)
     return provider
 
 
-m = MeTTa().fresh_space()
-conn = duckdb.connect(":memory:")
-conn.execute("create table users (id integer, name text)")
-conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")
-conn.execute("create table vips (id integer)")
-conn.execute("insert into vips values (1), (3)")
-provider = attach(m, "&crm", conn)
+def demo() -> None:
+    """The worked run, kept behind a function so the provider above can be
+    IMPORTED. A module that connects and queries at import time cannot be
+    pointed at by a test, and petta.testing.SpaceComplianceSuite is pointed at
+    DuckDBSpace in python/tests/test_compliance_duckdb.py."""
+    m = MeTTa().fresh_space()
+    conn = duckdb.connect(":memory:")
+    conn.execute("create table users (id integer, name text)")
+    conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")
+    conn.execute("create table vips (id integer)")
+    conn.execute("insert into vips values (1), (3)")
+    provider = attach(m, "&crm", conn)
 
-check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
-      [[expr("Ada", "Bob", "Cy")]])
-check("pushdown filter", m.run("!(match &crm (users 2 $n) $n)"), [["Bob"]])
+    check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
+          [[expr("Ada", "Bob", "Cy")]])
+    check("pushdown filter", m.run("!(match &crm (users 2 $n) $n)"), [["Bob"]])
 
-# The filter genuinely ran in SQL: a spy connection sees the WHERE clause.
-seen = []
-original = provider._conn
-
-
-class Spy:
-    def execute(self, sql, *a):
-        seen.append(sql)
-        return original.execute(sql, *a)
+    # The filter genuinely ran in SQL: a spy connection sees the WHERE clause.
+    seen = []
+    original = provider._conn
 
 
-provider._conn = Spy()
-m.run("!(match &crm (users 2 $n) $n)")
-provider._conn = original
-check("the WHERE ran where the data lives",
-      any("where" in s.lower() and "id" in s.lower() for s in seen), True)
+    class Spy:
+        def execute(self, sql, *a):
+            seen.append(sql)
+            return original.execute(sql, *a)
 
-# Provider-level match answers atoms directly.
-check("provider-level match", list(provider.match(S.users(2, V.n))),
-      [expr(S.users, 2, "Bob")])
 
-# One match joins SQL tables with each other and with native facts.
-m.run("(nickname 1 the-countess)")
-(group,) = m.run(
-    "!(collapse (match &crm (, (vips $id) (users $id $n)) "
-    "(match (context-space) (nickname $id $nick) ($n $nick))))"
-)
-check("SQL joined with native facts", group, [expr(expr("Ada", S["the-countess"]))])
+    provider._conn = Spy()
+    m.run("!(match &crm (users 2 $n) $n)")
+    provider._conn = original
+    check("the WHERE ran where the data lives",
+          any("where" in s.lower() and "id" in s.lower() for s in seen), True)
 
-# Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
-m.run('!(add-atom &crm (users 4 "Dee"))')
-check("insert landed in SQL",
-      conn.execute("select name from users where id = 4").fetchone()[0], "Dee")
-m.run('!(remove-atom &crm (users 4 "Dee"))')
-check("delete landed in SQL",
-      conn.execute("select count(*) from users where id = 4").fetchone()[0], 0)
+    # Provider-level match answers atoms directly.
+    check("provider-level match", list(provider.match(S.users(2, V.n))),
+          [expr(S.users, 2, "Bob")])
 
-# NULL and dates: the NULL symbol both ways, ISO text for scalar types,
-# a NULL binding finding exactly the NULL row, clear() keeping the schema.
-conn.execute("create table logs (day DATE, note TEXT)")
-conn.execute("insert into logs values (DATE '2026-08-13', 'shipped'), (NULL, 'undated')")
-rows = m.run("!(collapse (match &crm (logs $d $n) ($d $n)))")
-listed = {str(pair) for pair in rows[0][0]}
-check("a date crosses as its ISO text", '("2026-08-13" "shipped")' in listed, True)
-check("NULL crosses as the NULL symbol", '(NULL "undated")' in listed, True)
-check("a NULL binding finds the NULL row",
-      m.run("!(match &crm (logs NULL $n) $n)"), [["undated"]])
-check("a date binding finds the dated row",
-      m.run('!(match &crm (logs "2026-08-13" $n) $n)'), [["shipped"]])
-provider.clear()
-check("clear empties, schema stays",
-      m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
+    # One match joins SQL tables with each other and with native facts.
+    m.run("(nickname 1 the-countess)")
+    (group,) = m.run(
+        "!(collapse (match &crm (, (vips $id) (users $id $n)) "
+        "(match (context-space) (nickname $id $nick) ($n $nick))))"
+    )
+    check("SQL joined with native facts", group, [expr(expr("Ada", S["the-countess"]))])
 
-m.unregister_space("&crm")
-done("duckdb_space")
+    # Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
+    m.run('!(add-atom &crm (users 4 "Dee"))')
+    check("insert landed in SQL",
+          conn.execute("select name from users where id = 4").fetchone()[0], "Dee")
+    m.run('!(remove-atom &crm (users 4 "Dee"))')
+    check("delete landed in SQL",
+          conn.execute("select count(*) from users where id = 4").fetchone()[0], 0)
+
+    # NULL and dates: the NULL symbol both ways, ISO text for scalar types,
+    # a NULL binding finding exactly the NULL row, clear() keeping the schema.
+    conn.execute("create table logs (day DATE, note TEXT)")
+    conn.execute("insert into logs values (DATE '2026-08-13', 'shipped'), (NULL, 'undated')")
+    rows = m.run("!(collapse (match &crm (logs $d $n) ($d $n)))")
+    listed = {str(pair) for pair in rows[0][0]}
+    check("a date crosses as its ISO text", '("2026-08-13" "shipped")' in listed, True)
+    check("NULL crosses as the NULL symbol", '(NULL "undated")' in listed, True)
+    check("a NULL binding finds the NULL row",
+          m.run("!(match &crm (logs NULL $n) $n)"), [["undated"]])
+    check("a date binding finds the dated row",
+          m.run('!(match &crm (logs "2026-08-13" $n) $n)'), [["shipped"]])
+    provider.clear()
+    check("clear empties, schema stays",
+          m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
+
+    m.unregister_space("&crm")
+    done("duckdb_space")
+
+
+if __name__ == "__main__":
+    demo()

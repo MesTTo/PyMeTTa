@@ -19,8 +19,11 @@ __all__ = [
     "MettaSyntaxError",
     "PettaError",
     "ResourceLimitError",
+    "SourceNotFound",
     "StrictError",
     "TimeLimitError",
+    "TransportFailure",
+    "is_transport_failure",
 ]
 
 
@@ -30,6 +33,17 @@ class PettaError(Exception):
 
 class MettaSyntaxError(PettaError):
     """The reader refused the source. Carries the engine's own message."""
+
+
+class SourceNotFound(PettaError, FileNotFoundError):
+    """A file this library was asked to load is not there.
+
+    Both bases on purpose. A caller reaching for a source file writes
+    `except FileNotFoundError`, and a caller wrapping a whole registration
+    writes `except PettaError`; one exception answering to both is what
+    stops the second reading from silently missing this case, which is what
+    a plain FileNotFoundError did.
+    """
 
 
 class EngineError(PettaError):
@@ -121,6 +135,39 @@ class CompileError(PettaError):
         super().__init__(f"{message}{where}")
         self.construct = construct
         self.line = line
+
+
+class TransportFailure(PettaError):
+    """The backend is ABSENT rather than wrong: a connection, a timeout, a
+    closed stream. The seam's error trichotomy treats these differently
+    from application errors: a declared keep or empty mode never applies,
+    transport always aborts, because retrying or giving up is the caller's
+    decision and an absent backend has said nothing about the data."""
+
+
+def is_transport_failure(error: BaseException) -> bool:
+    """Whether an error is the backend being ABSENT rather than wrong.
+
+    The obvious test does not separate them: a socket timeout raises
+    OSError, but websocket-client's own timeout does NOT subclass it, so
+    "is the cause an OSError" misses exactly the shape a broken event
+    stream takes under load. Hoisted from the DAS surface to the seam,
+    because every remote backend needs the same trichotomy.
+    """
+    from ._optional import optional_module  # noqa: PLC0415  optional probe
+
+    cause = error.__cause__ if isinstance(error, PettaError) else error
+    if isinstance(error, TransportFailure):
+        return True
+    if isinstance(cause, (OSError, TimeoutError)):
+        return True
+    module = optional_module("websocket")
+    if module is None:
+        return False
+    return isinstance(
+        cause,
+        (module.WebSocketTimeoutException, module.WebSocketConnectionClosedException),
+    )
 
 
 class Decline(Exception):
