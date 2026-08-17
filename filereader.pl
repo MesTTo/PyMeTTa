@@ -445,19 +445,11 @@ process_form(Space, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     space_module(Space, Module),
-    %The user's word replaces the engine's, at THIS door too: the loader
-    %compiles equations without going through add_function_atom/6, so the
-    %prelude eviction lives at both (evict_prelude_definition/1 in
-    %metta.pl carries the reasoning).
-    (   Module == user -> evict_prelude_definition(F) ; true ),
-    register_fun_in(Module, F),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
-    once(with_metta_module(Module, translate_clause(BoundTerm, Clause))),
-    assert_function_clause(Module, Clause, Ref),
-    record_source_assertion(Ref),
-    record_translated_from(Ref, BoundTerm, SourceRef),
-    record_source_assertion(SourceRef),
-    forall(metta_on_function_changed(F), true),
+    %The one compile door (compile_metta_equation/4 in spaces.pl) carries
+    %the eviction, registration, translation, provenance, and the complete
+    %change notification this clause used to restate.
+    compile_metta_equation(Module, BoundTerm, _Clause, Ref),
     print_function_form(FormStr, Ref).
 process_form(_, In, _) :-
     throw(error(petta_translation_failed(In),
@@ -486,16 +478,9 @@ process_form(Space, compile, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
-    BoundTerm = [=, [F|_], _],
-    %Third compile door, same user-wins rule; this one hardcodes user.
-    evict_prelude_definition(F),
-    register_fun_in(user, F),
-    once(with_metta_module(user, translate_clause(BoundTerm, Clause))),
-    assert_function_clause(user, Clause, Ref),
-    record_source_assertion(Ref),
-    record_translated_from(Ref, BoundTerm, SourceRef),
-    record_source_assertion(SourceRef),
-    forall(metta_on_function_changed(F), true),
+    %Compile-mode targets the base tier, so the one door sees user and
+    %applies the same user-wins eviction it always applies there.
+    compile_metta_equation(user, BoundTerm, _Clause, Ref),
     print_function_form(FormStr, Ref).
 process_form(_, _, In, _) :-
     throw(error(petta_translation_failed(In),

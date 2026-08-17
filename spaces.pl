@@ -553,23 +553,34 @@ add_atoms_in_one_crossing(Space, Terms) :-
 %Compile and register a dynamic equation as one database transaction. A
 %translation or change-hook error therefore leaves no stored atom, function
 %marker, arity, meta-clause, or executable clause behind.
-add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
-    %The user's word replaces the engine's: an equation compiled into the
-    %base tier evicts the prelude's definition of the same name first, so
-    %a program defining its own match-types means ITS match-types
-    %(evict_prelude_definition/1 in metta.pl carries the reasoning).
-    (   Module == user -> evict_prelude_definition(FAtom) ; true ),
-    store_equation(Storage, Space, Term),
-    register_fun_in(Module, FAtom),
-    length(W, N),
-    Arity is N + 1,
-    register_arity(FAtom, Arity),
+%The one equation-compile spine: prelude eviction (user-wins), function
+%registration, translation, clause assertion, provenance records, and the
+%COMPLETE change notification. Three doors used to carry this separately,
+%this file's add_function_atom and filereader.pl's two process_form
+%clauses, so a cross-cutting rule had to be hooked one door at a time
+%(the prelude eviction was the precedent), and one rule HAD drifted: the
+%loader doors notified metta_on_function_changed but never
+%invalidate_specializations, so an equation added by a string run or a
+%compile-mode load left a prior specialization of the same name
+%answering stale clauses. One door means the next such rule lands once
+%[tested specializer:string_run_equation_invalidates_specializations].
+compile_metta_equation(Module, Term, Clause, Ref) :-
+    Term = [=, [F|_], _],
+    (   Module == user -> evict_prelude_definition(F) ; true ),
+    register_fun_in(Module, F),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
     assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
     record_translated_from(Ref, Term, SourceRef),
     record_source_assertion(SourceRef),
-    function_changed(FAtom),
+    function_changed(F).
+
+add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
+    store_equation(Storage, Space, Term),
+    length(W, N),
+    Arity is N + 1,
+    register_arity(FAtom, Arity),
+    compile_metta_equation(Module, Term, Clause, _Ref),
     maybe_print_compiled_clause("added function", Term, Clause).
 
 %A builtin is a static predicate compiled into the engine, so an equation for

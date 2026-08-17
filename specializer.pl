@@ -303,11 +303,23 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
 %change away rather than claiming one exists
 %[tested: an_invalidation_cycle_terminates].
 invalidate_specializations(F) :-
+    %The blanket memo clear is deliberate cross-function conservatism: a
+    %change to g can flip whether specializing f succeeds (the failed
+    %binding may have named g), so per-F clearing would be unsound. On an
+    %empty table it costs almost nothing. The spec walk behind it IS
+    %guarded, because nearly no function has specializations and this now
+    %runs once per compiled equation through the one compile door.
+    %Unguarded, source-load's own counter assertion measured the walk at
+    %+19,994 inferences over 1000 forms; guarded, the lane passes its
+    %unchanged 944,158 floor [measured 2026-08-18].
     retractall(ho_specialization_failed(_,_,_)),
-    findall(Spec, ho_specialization(_, F, Spec), Specs),
-    forall(member(S, Specs), invalidate_specializations(S, [F])),
-    forall(member(S, Specs), forget_symbol(S)),
-    retractall(ho_specialization(_, F, _)).
+    (   ho_specialization(_, F, _)
+    ->  findall(Spec, ho_specialization(_, F, Spec), Specs),
+        forall(member(S, Specs), invalidate_specializations(S, [F])),
+        forall(member(S, Specs), forget_symbol(S)),
+        retractall(ho_specialization(_, F, _))
+    ;   true
+    ).
 
 %The visited set rides on the DESCENT only, so the entry point above is
 %unchanged and a function with no specializations, which is nearly all of
