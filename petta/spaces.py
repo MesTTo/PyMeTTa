@@ -19,14 +19,16 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterator
 from typing import Any
 
 from .atoms import Atom, Expr, _to_atom, is_ground, substitute, unify
 from .errors import PettaError
 from .foreign import Matcher, SpaceProvider
+from .structures import _canonical
 
-__all__ = ["mapped", "overlay", "readonly", "union"]
+__all__ = ["diff", "mapped", "overlay", "readonly", "union"]
 
 
 class _Member:
@@ -272,3 +274,38 @@ def overlay(front: Any, back: Any) -> _Overlay:
     explicitly chosen form union() refuses to be: ChainMap semantics
     for spaces, deletes not forwarded to back."""
     return _Overlay(_Member(front), _Member(back))
+
+
+def _diff_key(atom: Atom) -> str:
+    """The multiset key: the alpha-canonical PRINTED form, digest()'s own
+    equivalence, so (f $x) and (f $y) count as one atom and a stored
+    unhashable ground value still keys."""
+    return str(_canonical(atom))
+
+
+def _surplus(these: list[Atom], those: list[Atom]) -> list[Atom]:
+    remaining = Counter(_diff_key(atom) for atom in those)
+    extras = []
+    for atom in these:
+        key = _diff_key(atom)
+        if remaining[key]:
+            remaining[key] -= 1
+        else:
+            extras.append(atom)
+    return extras
+
+
+def diff(a: Any, b: Any) -> tuple[list[Atom], list[Atom]]:
+    """What digest() cannot say: HOW two spaces differ.
+
+    Answers (only_in_a, only_in_b), the multiset difference over
+    enumeration, so a space holding an atom twice against one holding it
+    once differs by the one copy. Alpha-equivalent atoms count as the
+    same atom, digest()'s own equivalence, and each side's extras come
+    back in that side's enumeration order. Both arguments are anything
+    the combinators accept: a MeTTa handle or a provider. Each side is
+    enumerated exactly once, so a live space is compared at one moment.
+    """
+    a_atoms = list(_Member(a).atoms())
+    b_atoms = list(_Member(b).atoms())
+    return _surplus(a_atoms, b_atoms), _surplus(b_atoms, a_atoms)

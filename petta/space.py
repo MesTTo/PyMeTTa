@@ -796,6 +796,25 @@ class MeTTa:
         wrong."""
         return _lint(self)
 
+    def copy(self) -> MeTTa:
+        """This space's contents in a new anonymous space, cloned through
+        the bulk door, so equations copy as equations and keep running:
+        "a scratch space set up like production" is one line. The handle
+        is new_space()'s kind, so drop it, or use it as a context
+        manager, to return the name. copy.copy(m) answers the same
+        through the copy protocol. There is deliberately no __deepcopy__:
+        stored Python objects keep their identity across the clone, the
+        shallow reading, and a deep clone of a live engine handle has no
+        meaning to promise."""
+        require_capability(self._space, "enumerate", "copy")
+        clone = self.new_space()
+        atoms = list(self.atoms())
+        if atoms:
+            clone.add(*atoms)
+        return clone
+
+    __copy__ = copy
+
     def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset

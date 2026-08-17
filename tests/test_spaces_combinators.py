@@ -182,3 +182,38 @@ def test_combinators_compose(metta, pair):
             metta.space(name).add(S.w(1))
     finally:
         metta.unregister_space(name)
+
+
+def test_diff_answers_the_multiset_difference(metta):
+    with metta.new_space() as a, metta.new_space() as b:
+        a.add(parse("(dfact one)"), parse("(dfact one)"), parse("(dfact two)"))
+        a.run("(= (ddouble $x) (* $x 2))")
+        b.add(parse("(dfact one)"), parse("(dfact three)"))
+        only_a, only_b = spaces.diff(a, b)
+        shown = [str(x) for x in only_a]
+        # multiset: the SECOND copy of (dfact one) is a's alone, and the
+        # equation is an atom like any other
+        assert len(only_a) == 3
+        assert shown.count("(dfact one)") == 1
+        assert "(dfact two)" in shown
+        assert any(x.startswith("(= (ddouble") for x in shown)
+        assert [str(x) for x in only_b] == ["(dfact three)"]
+
+
+def test_diff_counts_alpha_equivalent_atoms_as_the_same(metta):
+    with metta.new_space() as a, metta.new_space() as b:
+        a.add(parse("(dg $x)"))
+        b.add(parse("(dg $y)"))
+        assert spaces.diff(a, b) == ([], [])
+
+
+def test_diff_takes_a_provider_side(metta):
+    class Bag:
+        def atoms(self):
+            yield parse("(dprov here)")
+
+    with metta.new_space() as a:
+        a.add(parse("(dprov here)"), parse("(dprov extra)"))
+        only_a, only_b = spaces.diff(a, Bag())
+        assert [str(x) for x in only_a] == ["(dprov extra)"]
+        assert only_b == []

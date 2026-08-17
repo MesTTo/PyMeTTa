@@ -678,6 +678,12 @@ class AsyncMeTTa:
         fresh = await self.call(lambda m: m.new_space())
         return AsyncMeTTa._sharing(fresh, self._worker)
 
+    async def copy(self) -> AsyncMeTTa:
+        """This space's contents in a new anonymous space; MeTTa.copy,
+        the clone borrowing this connection's worker."""
+        clone = await self.call(lambda m: m.copy())
+        return AsyncMeTTa._sharing(clone, self._worker)
+
     async def drop(self) -> None:
         """Drop this named space from the engine."""
         return await self.call(lambda m: m.drop())

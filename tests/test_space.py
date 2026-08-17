@@ -679,3 +679,27 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):
     # The acyclic twin still answers through both doors.
     m.add(parse("(rt-fact ok ok)"))
     assert len(m.query(parse("(rt-fact $y $y)"))) == 1
+
+
+def test_copy_clones_through_the_bulk_door(metta):
+    import copy as copy_module
+
+    with metta.new_space() as original:
+        original.run("(= (cp-double $x) (* $x 2))")
+        original.add(parse("(cp-fact one)"))
+        clone = original.copy()
+        try:
+            # equations copy as equations: the clone's function RUNS
+            assert list(clone.eval("(cp-double 21)")) == [42]
+            assert clone.count() == original.count()
+            assert clone.digest() == original.digest()
+            # and the spaces are independent after the clone
+            clone.add(parse("(cp-fact extra)"))
+            assert clone.count() == original.count() + 1
+        finally:
+            clone.drop()
+        protocol = copy_module.copy(original)
+        try:
+            assert protocol.digest() == original.digest()
+        finally:
+            protocol.drop()
