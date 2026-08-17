@@ -870,6 +870,17 @@ petta_space_operand(S) :-
     ;   native_storage_module_cache(S, _)
     ).
 
+%Every space name this engine registers: '&self' and '&petta' from load
+%time, every native space that has been written to, and every foreign
+%provider currently bound. Naming a space never registers it, only a
+%write or a binding does, so this is the same set petta_space_operand/1
+%accepts. sort/2 makes the answer stable and duplicate-free.
+metta_space_names(Names) :-
+    findall(S, native_storage_module_cache(S, _), Native),
+    findall(S, metta_foreign_space(S), Foreign),
+    append(Native, Foreign, All),
+    sort(All, Names).
+
 %The Empty prune behind every computed collapse. The gate is memberchk
 %NEGATED, which makes it sound AND C-fast: when nothing in the list
 %unifies with Empty (the overwhelmingly common all-ground case,

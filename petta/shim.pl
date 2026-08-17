@@ -1014,6 +1014,9 @@ petta_py_reflect_clear_defined(SpaceName) :-
 petta_py_count(Space, Count) :-
     aggregate_all(count, 'get-atoms'(Space, _), Count).
 
+petta_py_space_names(Names) :-
+    metta_space_names(Names).
+
 petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.

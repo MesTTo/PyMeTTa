@@ -233,6 +233,84 @@ def test_clear_removes_equations_too(m):
     assert m.run("!(clr-f)") == [[expr(S["clr-f"])]]
 
 
+def test_empty_space_is_still_true(m):
+    # The trap __bool__ exists for: without it bool() falls to __len__
+    # and `if space:` skips an empty space it was handed on purpose.
+    assert m.count() == 0
+    assert bool(m) is True
+    assert m
+
+
+def test_getitem_queries_and_a_tuple_joins(m):
+    m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
+    assert set(m[S.edge(V.x, V.y)]["x"]) == {S.a, S.b}
+    assert len(m["(edge $x $y)"]) == 2
+    joined = m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+    assert list(joined["c"]) == [S.c]
+
+
+def test_getitem_refuses_a_slice_naming_the_doors(m):
+    with pytest.raises(TypeError, match=r"query\(limit=n\)"):
+        m[0:3]
+    with pytest.raises(TypeError, match=r"stream\(\)"):
+        m[:]
+
+
+def test_delitem_removes_every_unifying_occurrence(m):
+    m.add(S.edge(S.a, S.b), S.edge(S.a, S.b), S.edge(S.b, S.c))
+    del m[S.edge(S.a, V.y)]
+    assert m.atoms() == [S.edge(S.b, S.c)]
+    with pytest.raises(KeyError):
+        del m[S.edge(S.zz, V.y)]
+    # remove() stays the door that reports absence instead of raising.
+    assert m.remove(S.edge(S.zz, V.y)) is False
+
+
+def test_ior_merges_a_space_equations_included(metta, m):
+    src = metta.new_space()
+    src.add(parse("(= (ior-double $x) (* 2 $x))"), S.edge(S.a, S.b))
+    m |= src
+    assert S.edge(S.a, S.b) in m
+    # The equation crossed as an atom AND compiled on arrival.
+    assert parse("(= (ior-double $x) (* 2 $x))") in m
+    assert m.run("!(ior-double 21)") == [[42]]
+
+
+def test_ior_merges_an_iterable_and_a_registered_name(metta, m):
+    m |= [S.note(1), "(note 2)"]
+    assert m.count() == 2
+    m |= m.space_name
+    assert m.count() == 4  # a space is a multiset: self-merge doubles
+    with pytest.raises(KeyError, match="space_names"):
+        m |= "&never-written-space"
+
+
+def test_ior_refuses_the_operands_add_would_lift(m):
+    # add({...}) lifts a dict into ONE grounded atom; iterating it here
+    # would read the same operand a second way, so |= refuses it.
+    with pytest.raises(TypeError, match="lift"):
+        m |= {"a": 1}
+    with pytest.raises(TypeError, match="lift"):
+        m |= b"ab"
+    with pytest.raises(TypeError, match="none of"):
+        m |= 3.5
+    # += keeps add()'s lifted reading: one expression atom, not two.
+    m += [1, 2]
+    assert m.atoms() == [expr(1, 2)]
+
+
+def test_space_names_lists_the_registered_spaces(metta, m):
+    names = metta.space_names()
+    assert names == sorted(names)
+    assert "&self" in names and "&petta" in names
+    assert "&named-but-never-written" not in names
+    # Registration happens on WRITE, not on naming: a fresh new_space is
+    # absent until its first atom lands.
+    assert m.space_name not in names
+    m.add(S.mark(1))
+    assert m.space_name in metta.space_names()
+
+
 def test_eval(metta):
     assert metta.eval(S["car-atom"](expr(1, 2, 3))) == [1]
     assert metta.eval(S.superpose(expr(S.x, S.y))) == [S.x, S.y]

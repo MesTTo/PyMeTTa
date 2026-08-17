@@ -45,6 +45,13 @@ Guarantees:
   - register_prolog reads a metta_export declaration from inline source as it
     does from a file [tested 2026-08-16:
     test_inline_source_declares_its_own_exports_too]
+  - del m[pattern] removes every unifying occurrence and raises KeyError
+    when none unified, remove() reporting the same absence as False
+    [tested test_delitem_removes_every_unifying_occurrence]
+  - |= merges a space, a registered space name, or an iterable, and refuses
+    an operand add() would lift into one atom [tested
+    test_ior_merges_a_space_equations_included,
+    test_ior_refuses_the_operands_add_would_lift]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -337,6 +344,15 @@ class MeTTa:
     def space(self, name: str) -> MeTTa:
         """Another space on the same engine."""
         return MeTTa(name)
+
+    def space_names(self) -> list[str]:
+        """Every space name this engine registers, sorted: '&self' and
+        '&petta' from boot, every native space that has been written to,
+        and every foreign space currently bound. Naming a space never
+        registers it, only writing or binding does, so a bind! token's
+        target appears here once something is stored under it."""
+        row = self._rt.once("petta_py_space_names(Names)")
+        return [str(name) for name in row["Names"]]
 
     def new_space(self) -> MeTTa:
         """An anonymous space with a name nothing else is using.
@@ -790,6 +806,14 @@ class MeTTa:
     def __len__(self) -> int:
         return self.count()
 
+    def __bool__(self) -> bool:
+        """Always true: a space is a handle to a store, not a value that
+        dwindles. Without this, bool() falls through to __len__ and an
+        empty space is falsy, so `if space:` skips a perfectly good empty
+        space, the bug class that made datetime stop treating midnight as
+        false in 3.5."""
+        return True
+
     def __contains__(self, atom: Any) -> bool:
         return self._rt.do("petta_py_contains", self._space, _to_atom(atom).to_wire())
 
@@ -798,6 +822,10 @@ class MeTTa:
         clear_definitions(self)
 
     def __iadd__(self, atom: Any) -> Self:
+        """add()'s operator spelling, one atom per use: `m += [1, 2]`
+        LIFTS the list into one expression atom, exactly as m.add([1, 2])
+        does, so the two spellings never read one operand two ways. The
+        bulk spelling is |=, whose operand has no lifted reading."""
         self.add(atom)
         return self
 
@@ -805,9 +833,78 @@ class MeTTa:
         self.remove(atom)
         return self
 
+    def __ior__(self, other: Any) -> Self:
+        """Merge into this space in one bulk crossing: every atom of
+        another space, of a registered space name, or of an iterable.
+
+            m |= other_space     # every atom, equations included
+            m |= "&kb"           # the space registered under this name
+            m |= [a, b, c]       # each element becomes one atom
+
+        Equations in the merge compile on arrival, the same rule add()
+        enforces. A space is a multiset, so merging a space into itself
+        doubles every atom. A Mapping is refused because add(d) reads the
+        same dict as ONE grounded atom and its values would silently
+        vanish here; spell the reading you mean. Strings name spaces, so
+        an unregistered name is a KeyError rather than a parse."""
+        if isinstance(other, MeTTa):
+            merged: list[Any] = other.atoms()
+        elif isinstance(other, str):
+            if other not in self.space_names():
+                raise KeyError(
+                    f"{other!r} is not a registered space name; "
+                    f"space_names() lists them. To add atoms, pass an "
+                    f"iterable: m |= [{other!r}]"
+                )
+            merged = self.space(other).atoms()
+        elif isinstance(other, (bytes, bytearray, _abc.Mapping)):
+            raise TypeError(
+                f"|= does not read a {type(other).__name__}: add() would "
+                f"lift it into one atom, and iterating it here would read "
+                f"the same operand a second way. Use m.add(x) for one "
+                f"atom, or spell the elements: m |= list-of-atoms"
+            )
+        elif isinstance(other, _abc.Iterable):
+            merged = list(other)
+        else:
+            raise TypeError(
+                f"|= merges a space, a registered space name, or an "
+                f"iterable of atoms; {type(other).__name__} is none of "
+                f"those"
+            )
+        self.add(*merged)
+        return self
+
     def __iter__(self):
         """Iterate the stored atoms: for atom in m."""
         return iter(self.atoms())
+
+    def __getitem__(self, pattern: Any) -> Rows:
+        """Subscription is query: m[pattern] answers query(pattern), and
+        m[p1, p2] arrives as a tuple, so the comma spells the join:
+
+            rows = m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+
+        A str key parses first, matching query()'s tolerance. A slice is
+        refused: a slice of a space has no one meaning, and the bounded
+        readings have their own doors, query(limit=) for a bounded answer
+        set and stream() for rows pulled until you have seen enough."""
+        if isinstance(pattern, slice):
+            raise TypeError(
+                "a space cannot be sliced; query(limit=n) bounds the "
+                "answer set, stream() pulls rows until you stop"
+            )
+        if isinstance(pattern, tuple):
+            return self.query(*pattern)
+        return self.query(pattern)
+
+    def __delitem__(self, pattern: Any) -> None:
+        """del m[pattern] removes every unifying occurrence, remove()'s
+        multiset semantics under deletion's mapping spelling. Nothing
+        unifying raises KeyError, as del d[k] does on a missing key;
+        remove() is the door that reports absence as False instead."""
+        if not self.remove(pattern):
+            raise KeyError(pattern)
 
     # ----------------------------------------------------------------- queries
 
