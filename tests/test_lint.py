@@ -18,7 +18,7 @@ import pickle
 import pytest
 
 from petta import Expr, S
-from petta.lint import Finding
+from petta.lint import Finding, lint
 
 
 @pytest.fixture()
@@ -269,3 +269,69 @@ def test_a_positional_read_of_an_untabled_function_is_not_a_finding(m):
     m.run("(= (untbl-pick a) one)\n(= (untbl-pick a) two)")
     m.run("(= (untbl-first) (car-atom (collapse (untbl-pick a))))")
     assert "tabled-answer-order-read" not in _kinds(m.lint())
+
+
+def test_findings_carry_the_lsp_diagnostic_fields(m):
+    m.run("(= (q1-f $x) (if True $x 0))\n(= (q1-g) (car-atomm 1))")
+    findings = {f.kind: f for f in lint(m)}
+    simplification = findings["constant-if-true"]
+    assert simplification.severity == "information"
+    assert str(simplification.autofix) == "(= (q1-f $_640) $_640)".replace(
+        "$_640", str(simplification.autofix[1][1])
+    )
+    assert simplification.payload["replacement"] is not None
+    assert simplification.docs_link.endswith("petta-lint.md")
+    # applying the fix is remove-then-add, no positions needed
+    assert m.remove(simplification.atom)
+    m.add(simplification.autofix)
+    assert m.one("(q1-f 7)") == 7
+    typo = findings["possibly-undefined-reference"]
+    assert typo.severity == "hint"
+    assert typo.suggestion == "car-atom"
+    assert "did you mean car-atom?" in str(typo)
+
+
+def test_the_seven_simplification_rules_fire(m):
+    m.run(
+        "(= (q3-a $x) (if True $x 0))\n"
+        "(= (q3-b $x) (if False $x 0))\n"
+        "(= (q3-c $x) (if (> $x 0) $x $x))\n"
+        "(= (q3-d $x) (if (> $x 0) True False))\n"
+        "(= (q3-e) (superpose ()))\n"
+        "(= (q3-f) (superpose (7)))\n"
+        "(= (q3-g $a) (let* (($y 1) ($y 2)) $y))\n"
+    )
+    kinds = {f.kind for f in lint(m)}
+    assert {
+        "constant-if-true",
+        "constant-if-false",
+        "if-same-branches",
+        "if-true-false",
+        "superposed-empty",
+        "superposed-single",
+        "duplicate-binder",
+    } <= kinds
+
+
+def test_inconsistent_arity_reports_and_an_arrow_silences(m):
+    m.run("(= (q3-multi $x) $x)\n(= (q3-multi $x $y) $x)")
+    assert any(f.kind == "inconsistent-arity" for f in lint(m))
+    m.run("(: q3-multi (-> Number Number))")
+    kinds = [f.kind for f in lint(m)]
+    assert "inconsistent-arity" not in kinds
+    # and no arrow-arity-mismatch either: the arrow matches ONE compiled
+    # arity, which the existing check reads as declared dispatch
+    assert "arrow-arity-mismatch" not in kinds
+
+
+def test_type_mismatch_uses_the_engines_total_get_type(m):
+    m.run(
+        '(: q3-typed (-> Number Number))\n'
+        "(= (q3-typed $x) $x)\n"
+        '(= (q3-bad) (q3-typed "oops"))\n'
+        "(= (q3-good) (q3-typed 4))\n"
+    )
+    mismatches = [f for f in lint(m) if f.kind == "type-mismatch"]
+    assert len(mismatches) == 1
+    assert mismatches[0].severity == "error"
+    assert "String where the declared arrow wants Number" in mismatches[0].detail

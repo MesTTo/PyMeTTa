@@ -19,30 +19,62 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from .atoms import Atom
 from .errors import EngineError
 
+#: Every kind is described on the lint reference page, so one link serves
+#: the whole family until findings carry source positions to anchor on.
+_LINT_DOCS = "https://github.com/trueagi-io/PeTTa/blob/main/website/reference/petta-lint.md"
+
 
 @dataclass(frozen=True)
 class Finding:
-    """One diagnostic with its kind, subject, explanation, and evidence."""
+    """One diagnostic in the LSP's own vocabulary: what and where in the
+    first four fields, and how much, what instead, where to read, the
+    structured parts, and the machine-applicable edit in the next five.
+
+    severity is LSP's: "error" (the program is wrong), "warning" (almost
+    certainly not what was meant), "information" (true and worth knowing),
+    "hint" (a heuristic). autofix, when present, is an ATOM: the stored
+    atom rewritten with the simplification applied, so applying the fix
+    is remove(finding.atom) then add(finding.autofix), no source
+    positions needed."""
 
     kind: str
     subject: str
     detail: str
     atom: Atom
+    severity: str = "warning"
+    suggestion: str | None = None
+    docs_link: str = _LINT_DOCS
+    payload: Mapping[str, Any] | None = None
+    autofix: Atom | None = None
 
     def __str__(self) -> str:
-        return f"[{self.kind}] {self.subject}: {self.detail}"
+        rendered = f"[{self.kind}] {self.subject}: {self.detail}"
+        if self.suggestion is not None:
+            rendered += f" (did you mean {self.suggestion}?)"
+        if self.autofix is not None:
+            rendered += f" (fix: {self.autofix})"
+        return rendered
 
 
 class EngineRegistry:
     """One cached view of engine function facts during a lint pass."""
 
-    __slots__ = ("_arities", "_functions", "_runtime", "_special", "_tabled")
+    __slots__ = (
+        "_arities",
+        "_functions",
+        "_known",
+        "_runtime",
+        "_special",
+        "_tabled",
+        "_types",
+    )
 
     def __init__(self, runtime: Any) -> None:
         self._runtime = runtime
@@ -50,6 +82,8 @@ class EngineRegistry:
         self._special: dict[str, bool] = {}
         self._arities: dict[str, frozenset[int]] = {}
         self._tabled: frozenset[str] | None = None
+        self._known: frozenset[str] | None = None
+        self._types: dict[str, str] = {}
 
     def tabled(self) -> frozenset[str]:
         """The function names tabled right now, in any space.
@@ -115,3 +149,29 @@ class EngineRegistry:
         result = frozenset(raw)
         self._arities[name] = result
         return result
+
+    def known_names(self) -> frozenset[str]:
+        """Every name fun/1 enumerates, once per pass: the pool a typo
+        suggestion draws from. metta_translated_head/1 is a checking
+        predicate and does not enumerate, so special forms come from the
+        caller's own vocabulary instead."""
+        if self._known is None:
+            row = self._runtime.once("findall(_F, fun(_F), L)")
+            raw = row.get("L")
+            names = raw if isinstance(raw, (list, tuple)) else []
+            self._known = frozenset(str(name) for name in names)
+        return self._known
+
+    def type_of(self, atom: Atom) -> str:
+        """The engine's own get-type answer for one atom, printed, cached
+        per printed form. Total: an untypable atom answers %Undefined%."""
+        key = str(atom)
+        cached = self._types.get(key)
+        if cached is None:
+            row = self._runtime.once(
+                "petta_py_decode_shared(W, X, _), 'get-type'(X, T0), swrite(T0, T)",
+                W=atom.to_wire(),
+            )
+            cached = str(row.get("T"))
+            self._types[key] = cached
+        return cached

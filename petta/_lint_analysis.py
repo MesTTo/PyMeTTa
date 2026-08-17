@@ -18,10 +18,11 @@ Open Obligations:
 from __future__ import annotations
 
 from collections import Counter
+from difflib import get_close_matches
 from typing import Any, TypeGuard
 
 from ._lint_model import EngineRegistry, Finding
-from .atoms import Atom, Expr, Sym, Var, map_atoms, variables
+from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, map_atoms, variables
 
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
 
@@ -130,6 +131,7 @@ def _types_the_symbol(
         f"declared {signature}, which is not an arrow, so it types the "
         f"symbol and not a call: every ({name} ...) compiles unchecked",
         declaration,
+        severity="warning",
     )
 
 
@@ -161,6 +163,7 @@ def _declaration_findings(
                     name,
                     f"declared {signature} but nothing defines it; every call will stay unreduced",
                     declaration,
+                    severity="warning",
                 )
             )
             continue
@@ -173,6 +176,7 @@ def _declaration_findings(
                     name,
                     f"the arrow declares {inputs} input(s) but its equations take {arities}",
                     declaration,
+                    severity="error",
                 )
             )
     return findings
@@ -236,6 +240,7 @@ def _tabling_findings(equations: list[Expr], registry: EngineRegistry) -> list[F
             read,
             _ORDER_READ_DETAIL.format(name=read),
             equation,
+            severity="warning",
         )
         for equation in equations
         if (read := _order_read(equation, tabled)) is not None
@@ -256,6 +261,7 @@ def _duplicate_findings(equations: list[Expr]) -> list[Finding]:
                     "an alpha-equivalent equation is stored twice; every "
                     "call answers the duplicate as an extra result",
                     equation,
+                    severity="warning",
                 )
             )
     return findings
@@ -279,6 +285,7 @@ def _unbound_findings(equation: Expr, head: Atom, body: Atom) -> list[Finding]:
             f"{', '.join(pretty)} appear(s) in the body but not in the head; "
             f"an unbound variable never matches what you meant",
             equation,
+            severity="error",
         )
     ]
 
@@ -324,9 +331,13 @@ def _call_findings(
                         name,
                         f"called with {arguments} argument(s) but defined for {arities}",
                         equation,
+                        severity="error",
                     )
                 )
         elif _nothing_carries(name, arguments, fact_heads, registry):
+            close = get_close_matches(
+                name, registry.known_names() | fact_heads, n=1, cutoff=0.8
+            )
             findings.append(
                 Finding(
                     "possibly-undefined-reference",
@@ -335,6 +346,8 @@ def _call_findings(
                     "this head; a call to it stays unreduced (heuristic: it may "
                     "be data on purpose)",
                     equation,
+                    severity="hint",
+                    suggestion=close[0] if close else None,
                 )
             )
     return findings
@@ -351,6 +364,215 @@ def _equation_findings(
     return findings
 
 
+
+
+# The seven syntactic simplification rules the TS linter carries, each
+# rewriting to something the engine provably answers identically, plus the
+# structural cases that cannot rewrite. The autofix is the STORED atom with
+# the inner expression replaced, so applying it is remove-then-add.
+def _is_truth(atom: Atom, value: bool) -> bool:
+    """Whether the atom is the boolean literal, under either spelling the
+    engine stores: True and true are one term there, arriving here as a
+    ground bool or as the symbol."""
+    if isinstance(atom, Gnd):
+        return atom.value is value
+    return atom in (Sym(str(value)), Sym(str(value).lower()))
+
+
+def _if_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+    if len(inner) != 4:
+        return None
+    _, condition, then_branch, else_branch = inner.children
+    if _is_truth(condition, True):
+        return ("constant-if-true", "the condition is literally True; only the then-branch can answer", then_branch)
+    if _is_truth(condition, False):
+        return ("constant-if-false", "the condition is literally False; only the else-branch can answer", else_branch)
+    if alpha_eq(then_branch, else_branch):
+        return ("if-same-branches", "both branches are the same expression; the condition decides nothing", then_branch)
+    if _is_truth(then_branch, True) and _is_truth(else_branch, False):
+        return ("if-true-false", "(if c True False) answers exactly what c answers", condition)
+    return None
+
+
+def _superpose_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+    if len(inner) != 2 or not isinstance(inner[1], Expr):
+        return None
+    branches = inner[1].children
+    if not branches:
+        return ("superposed-empty", "a superpose of nothing answers nothing; every containing expression dies here", None)
+    if len(branches) == 1:
+        return ("superposed-single", "a superpose of one thing is that thing", branches[0])
+    return None
+
+
+def _binder_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+    if len(inner) < 2 or not isinstance(inner[1], Expr):
+        return None
+    seen: set[str] = set()
+    for binding in inner[1].children:
+        if not (isinstance(binding, Expr) and binding.children):
+            continue
+        for name in variables(binding.children[0]):
+            if name in seen:
+                return (
+                    "duplicate-binder",
+                    f"${name} is bound twice in one let*; the second binding "
+                    f"unifies rather than shadows, so if an equality "
+                    f"constraint is meant, say == instead",
+                    None,
+                )
+            seen.add(name)
+    return None
+
+
+_SIMPLIFIERS = {"if": _if_simplified, "superpose": _superpose_simplified, "let*": _binder_simplified}
+
+
+def _simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+    """One nested expression's simplification, or None: (kind, detail,
+    replacement), replacement None when the finding has no rewrite."""
+    simplifier = _SIMPLIFIERS.get(_symbol_head(inner) or "")
+    return None if simplifier is None else simplifier(inner)
+
+
+def _replaced(stored: Expr, target: Atom, replacement: Atom) -> Atom:
+    """The stored atom with exactly this occurrence rewritten, by identity."""
+    return map_atoms(stored, lambda a: replacement if a is target else a)
+
+
+def _simplification_findings(equations: list[Expr]) -> list[Finding]:
+    findings: list[Finding] = []
+    for equation in equations:
+        for call in _walk_heads(equation[2]):
+            found = _simplified(call)
+            if found is None:
+                continue
+            kind, detail, replacement = found
+            findings.append(
+                Finding(
+                    kind,
+                    str(call),
+                    detail,
+                    equation,
+                    severity="information",
+                    payload={"expression": call, "replacement": replacement},
+                    autofix=None if replacement is None else _replaced(equation, call, replacement),
+                )
+            )
+    return findings
+
+
+def _arities_by_name(equations: list[Expr]) -> dict[str, dict[int, Expr]]:
+    """Each defined name's arities, with one witness equation per arity."""
+    by_name: dict[str, dict[int, Expr]] = {}
+    for equation in equations:
+        head = equation[1]
+        if isinstance(head, Expr) and head.children and isinstance(head.children[0], Sym):
+            by_name.setdefault(head.children[0].name, {}).setdefault(
+                len(head.children) - 1, equation
+            )
+    return by_name
+
+
+def _inconsistent_arity_findings(
+    equations: list[Expr], declarations: list[Expr]
+) -> list[Finding]:
+    """Equations for one name at differing arities with no arrow saying so.
+
+    Multi-arity dispatch is legal and sometimes meant, which is why this is
+    information rather than an error, and why an arrow declaration silences
+    it: the arrow states the intent, and disagreement with an arrow is
+    already arrow-arity-mismatch."""
+    arrowed = _arrowed_names(declarations)
+    by_name = _arities_by_name(equations)
+    return [
+        Finding(
+            "inconsistent-arity",
+            name,
+            f"defined at arities {sorted(arities)} with no arrow declaring "
+            f"either; if the spread is deliberate dispatch, an arrow per "
+            f"arity says so",
+            arities[min(arities)],
+            severity="information",
+            payload={"arities": sorted(arities)},
+        )
+        for name, arities in by_name.items()
+        if len(arities) > 1 and name not in arrowed
+    ]
+
+
+#: Declared slots these names admit anything of their kind, so a concrete
+#: argument type can never contradict them.
+_METATYPES = frozenset(
+    {"Atom", "Expression", "Symbol", "Grounded", "Variable", "%Undefined%", "Type"}
+)
+
+
+def _declared_arrows(declarations: list[Expr]) -> dict[str, tuple[Atom, ...]]:
+    """Each declared name's arrow input slots, first declaration winning."""
+    arrows: dict[str, tuple[Atom, ...]] = {}
+    for declaration in declarations:
+        name_atom, signature = declaration[1], declaration[2]
+        if (
+            isinstance(name_atom, Sym)
+            and isinstance(signature, Expr)
+            and _symbol_head(signature) == "->"
+        ):
+            arrows.setdefault(name_atom.name, signature.children[1:-1])
+    return arrows
+
+
+def _slot_mismatch(
+    slot: Atom, argument: Atom, registry: EngineRegistry
+) -> tuple[str, str] | None:
+    """(declared, actual) when the engine type contradicts one declared
+    slot, else None. A parametric slot, a metatype slot, a non-ground
+    argument, and an argument answering %Undefined% all pass, keeping the
+    check conservative; a nested call is the engine's own hoisted check's."""
+    if not isinstance(slot, Sym) or slot.name in _METATYPES:
+        return None
+    if isinstance(argument, (Var, Expr)):
+        return None
+    actual = registry.type_of(argument)
+    if actual in ("%Undefined%", slot.name):
+        return None
+    return slot.name, actual
+
+
+def _type_findings(
+    equations: list[Expr], declarations: list[Expr], registry: EngineRegistry
+) -> list[Finding]:
+    """A ground argument whose engine type contradicts the declared slot.
+
+    get-type/2 is total here, so the check is one cached engine question
+    per distinct argument, and only concrete Sym-against-Sym
+    disagreements report."""
+    arrows = _declared_arrows(declarations)
+    findings: list[Finding] = []
+    for equation in equations:
+        for call in _walk_heads(equation[2]):
+            slots = arrows.get(call[0].name)
+            if slots is None or len(call) - 1 != len(slots):
+                continue
+            for slot, argument in zip(slots, call.children[1:], strict=True):
+                mismatch = _slot_mismatch(slot, argument, registry)
+                if mismatch is None:
+                    continue
+                declared, actual = mismatch
+                findings.append(
+                    Finding(
+                        "type-mismatch",
+                        call[0].name,
+                        f"{argument} is {actual} where the declared arrow "
+                        f"wants {declared}",
+                        equation,
+                        severity="error",
+                        payload={"expected": slot, "actual": actual, "argument": argument},
+                    )
+                )
+    return findings
+
+
 def analyze(space: Any, atoms: list[Atom], registry: EngineRegistry) -> list[Finding]:
     """Analyze one enumerated space against one registry snapshot."""
     equations, declarations, fact_heads, defined_here = _index_atoms(atoms)
@@ -359,4 +581,7 @@ def analyze(space: Any, atoms: list[Atom], registry: EngineRegistry) -> list[Fin
         *_duplicate_findings(equations),
         *_tabling_findings(equations, registry),
         *_equation_findings(equations, fact_heads, registry),
+        *_simplification_findings(equations),
+        *_inconsistent_arity_findings(equations, declarations),
+        *_type_findings(equations, declarations, registry),
     ]
