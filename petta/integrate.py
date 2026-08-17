@@ -64,13 +64,18 @@ from .errors import PettaError
 from .foreign import SpaceProvider
 
 __all__ = [
+    "ENTRY_POINT_GROUP",
+    "LIBRARIES_GROUP",
+    "SPACES_GROUP",
     "Integration",
     "SpaceProvider",
     "discover",
+    "entry_points",
     "facts",
     "install_reflection_ops",
     "installed",
     "integrate",
+    "load_entry_point",
     "module_ops",
     "reflect",
     "register_object_type",
@@ -85,6 +90,16 @@ __all__ = [
 ]
 
 ENTRY_POINT_GROUP = "petta.integrations"
+
+#: The provider ecosystem's groups, pytest11's and SQLAlchemy dialects'
+#: precedent: a third-party package advertises a provider factory under
+#: petta.spaces, or the directory of MeTTa/Prolog sources it ships under
+#: petta.libraries, and the app loads by NAME. Nothing auto-registers on
+#: import; discovery answers names, and registration stays the app's
+#: explicit call, which is the control the engine's backends/*.pl door
+#: keeps on its side of the seam.
+SPACES_GROUP = "petta.spaces"
+LIBRARIES_GROUP = "petta.libraries"
 
 
 @runtime_checkable
@@ -180,6 +195,45 @@ def _resolve(name: str) -> Any:
         if entry.name == name:
             return entry.load()
     return importlib.import_module(name)
+
+
+def entry_points(group: str = SPACES_GROUP) -> dict[str, metadata.EntryPoint]:
+    """The names installed packages advertise for one group, UNLOADED:
+    asking imports nothing and registers nothing, so discovery is free to
+    call and the app keeps deciding what loads."""
+    return {entry.name: entry for entry in metadata.entry_points(group=group)}
+
+
+def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwargs: Any) -> Any:
+    """Load one advertised entry point by name, calling a callable target
+    with the given arguments, the factory contract:
+
+        m.register_space(integrate.load_entry_point("duck"), "&duck")
+        m.register_library_path(
+            integrate.load_entry_point("nars", group=integrate.LIBRARIES_GROUP),
+            "nars",
+        )
+
+    A petta.spaces target is a provider class or factory; a
+    petta.libraries target answers the directory of sources the package
+    ships. A non-callable target answers as-is, the module-level-instance
+    form, and refuses arguments it cannot take. An unknown name refuses,
+    listing what IS installed, so a typo reads as one."""
+    advertised = entry_points(group)
+    if name not in advertised:
+        known = ", ".join(sorted(advertised)) or "none"
+        raise PettaError(
+            f"no {group} entry point named {name!r}; installed: {known}"
+        )
+    target = advertised[name].load()
+    if callable(target):
+        return target(*args, **kwargs)
+    if args or kwargs:
+        raise PettaError(
+            f"the {group} entry point {name!r} is not callable, "
+            f"but arguments were given"
+        )
+    return target
 
 
 def discover(m) -> list[str]:

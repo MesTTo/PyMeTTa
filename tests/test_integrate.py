@@ -194,7 +194,7 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):
         space.drop()
 
 
-def test_integrate_module_protocol_and_idempotence(metta):
+def test_pi_protocol_and_idempotence(metta):
     calls = []
     fake = types.SimpleNamespace(
         __name__="fake_integration", install_petta=lambda m: calls.append(m)
@@ -293,3 +293,42 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     app.run('(= (logged $req) (let $res (handle $req) (Logged $req $res)))')
     (group,) = app.run("!(logged about)")
     assert group == [expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]
+
+
+def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch):
+    from importlib import metadata as importlib_metadata
+
+    advertised = (
+        importlib_metadata.EntryPoint("db", "sqlite3:connect", "petta.spaces"),
+        importlib_metadata.EntryPoint("paths", "sys:path", "petta.libraries"),
+    )
+
+    def fake_entry_points(*, group):
+        return tuple(entry for entry in advertised if entry.group == group)
+
+    monkeypatch.setattr(pi.metadata, "entry_points", fake_entry_points)
+
+    # discovery answers names without importing or registering anything
+    assert list(pi.entry_points()) == ["db"]
+    assert list(pi.entry_points(pi.LIBRARIES_GROUP)) == [
+        "paths"
+    ]
+
+    # a callable target is a factory: called with the caller's arguments
+    connection = pi.load_entry_point("db", ":memory:")
+    connection.execute("CREATE TABLE t (x)")
+    connection.close()
+
+    # a non-callable target answers as-is, and refuses arguments
+    import sys as sys_module
+
+    assert (
+        pi.load_entry_point("paths", group=pi.LIBRARIES_GROUP)
+        is sys_module.path
+    )
+    with pytest.raises(PettaError, match="not callable"):
+        pi.load_entry_point("paths", "extra", group=pi.LIBRARIES_GROUP)
+
+    # a typo reads as one: the refusal lists what IS installed
+    with pytest.raises(PettaError, match=r"no petta\.spaces entry point named 'nope'; installed: db"):
+        pi.load_entry_point("nope")
