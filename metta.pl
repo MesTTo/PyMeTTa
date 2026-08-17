@@ -2257,6 +2257,81 @@ assert(Goal, true) :- ( call(Goal) -> true
 'get-type-space'(Space, X, T) :- space_module(Space, Module),
                                  with_metta_module(Module, 'get-type'(X, T)).
 
+%%% Documentation, HE's vocabulary, first class %%%
+%
+%The design stays lib_doc's, which was already the right one:
+%documentation is ATOMS IN A SPACE, (@doc name (@desc ...) ...) is data
+%a program writes and can reason about, and retrieval is a match. What
+%promotion adds is reach and a second tier: these are builtins now, no
+%import, they resolve against the CURRENT context rather than literal
+%&self, each has a -space twin selecting any space, and get-doc falls
+%back to the engine's own register, where the prelude documents its
+%vocabulary, so help! answers for engine forms too.
+%
+%The tier split is deliberate and asymmetric. RESOLVERS (get-doc,
+%help!) consult the register, because "what does this name mean" wants
+%an answer wherever the name comes from. ENUMERATORS (documented,
+%defined-name, undocumented) are program-scoped and skip builtins,
+%because "what have I documented" and "what did I forget" are questions
+%about the program, and an engine that padded the answer with its own
+%vocabulary would bury the user's gap under noise.
+%
+%The register branch comes FIRST in get-doc for the same determinism
+%reason type_declaration_in orders its tiers: a first-arg-indexed miss
+%is fast for ordinary names, and the disjunction is exhausted when
+%match/4 ends, so raw first-solution callers keep match's own
+%choicepoint profile.
+:- dynamic prelude_doc_atom/2.
+
+'get-doc'(Name, Doc) :- current_metta_space(Space),
+                        'get-doc-space'(Space, Name, Doc).
+
+%One shape per arity rather than one open-tailed pattern, the library's
+%own load-bearing craft: @doc carries two, three or four parts depending
+%on how much was written, and the engine's matcher walks proper lists,
+%so an open tail matches nothing at all.
+doc_shape(Name, ['@doc', Name, _]).
+doc_shape(Name, ['@doc', Name, _, _]).
+doc_shape(Name, ['@doc', Name, _, _, _]).
+
+'get-doc-space'(Space, Name, Doc) :-
+    doc_shape(Name, Doc),
+    (   prelude_doc_atom(Name, Doc)
+    ;   match(Space, Doc, Doc, _)
+    ).
+
+'help!'(Name, []) :-
+    (   \+ 'get-doc'(Name, _)
+    ->  swrite(Name, S),
+        format("No documentation for ~w~n", [S])
+    ;   forall('get-doc'(Name, Doc),
+               ( swrite(Doc, DS), format("~w~n", [DS]) ))
+    ).
+
+documented(Name) :- current_metta_space(Space),
+                    'documented-space'(Space, Name).
+
+'documented-space'(Space, Name) :- doc_shape(Name, Doc),
+                                   match(Space, Doc, Name, _).
+
+%The library's exact semantics: every head of an equation THE SPACE
+%HOLDS, once each. Enumerating the space's own atoms is what excludes
+%builtins, engine-generated lambdas, and registered operations without
+%any filter list: none of them stores an equation atom here.
+'defined-name'(Name) :- current_metta_space(Space),
+                        distinct(Name,
+                                 ( get_native_atom(Space, [=, [Name|_], _]),
+                                   atom(Name) )).
+
+undocumented(Name) :- current_metta_space(Space),
+                      'undocumented-space'(Space, Name).
+
+'undocumented-space'(Space, Name) :-
+    distinct(Name,
+             ( get_native_atom(Space, [=, [Name|_], _]),
+               atom(Name) )),
+    \+ 'get-doc-space'(Space, Name, _).
+
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
@@ -4003,6 +4078,8 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'py-call', 'py-atom', 'py-dot',
                           'py-list', 'py-tuple', 'py-dict', 'py-iter',
                           'get-type', 'get-type-space', 'get-metatype', '=alpha', sread, cons, reverse,
+                          'get-doc', 'get-doc-space', 'help!', documented, 'documented-space',
+                          'defined-name', undocumented, 'undocumented-space',
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','#=<','#>=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
                           'pow-math', 'sqrt-math', 'sort-atom','abs-math', 'log-math', 'exp-math', 'trunc-math', 'ceil-math',
@@ -4127,6 +4204,7 @@ evict_prelude_definition(FAtom) :-
     (   retract(prelude_owned(FAtom))
     ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
         retract_prelude_declarations(FAtom),
+        retractall(prelude_doc_atom(FAtom, _)),
         function_changed(FAtom)
     ;   true
     ).
@@ -4209,6 +4287,16 @@ load_prelude_form(expression, _, [':', Name, Type]) :-
     (   prelude_type_declaration(Name, Type) -> true
     ;   assertz(prelude_type_declaration(Name, Type)),
         assertz(builtin_type_declaration(Name, Type))
+    ).
+%A (@doc ...) form in the prelude lands in the engine's doc register,
+%where get-doc's first tier reads it; the prelude documents its own
+%vocabulary the way lib_doc documented its own, because a vocabulary
+%that reports undocumented names and has none of its own would be
+%telling other people to do what it does not.
+load_prelude_form(expression, _, Term) :-
+    Term = ['@doc', Name | _], atom(Name), !,
+    (   prelude_doc_atom(Name, Term) -> true
+    ;   assertz(prelude_doc_atom(Name, Term))
     ).
 load_prelude_form(function, _, Term) :-
     Term = [=, [FAtom|W], _], atom(FAtom), !,

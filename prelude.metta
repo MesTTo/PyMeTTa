@@ -183,3 +183,131 @@
 (= (type-cast-holds $atom $type $space)
    (foldl-atom (collapse (get-type-space $space $atom)) False $acc $declared
       (match-type-or $acc $declared $type)))
+
+;;; Documentation ;;;
+;
+;The prelude documents its own vocabulary; the loader routes these into
+;the engine's doc register, get-doc's first tier, so (help! type-cast)
+;answers with no import and a program's own (@doc ...) atoms stay the
+;program's. Descriptions follow the pinned corelib's where it has them.
+
+(@doc if-equal
+  (@desc "Selects the third argument when the first two are alpha-equivalent, atoms equal up to a consistent variable renaming, and the fourth otherwise")
+  (@params ((@param "First atom") (@param "Second atom") (@param "Result on equivalence") (@param "Result otherwise")))
+  (@return "Third or fourth argument"))
+(@doc if-equal2
+  (@desc "if-equal under its second historical name")
+  (@params ((@param "First atom") (@param "Second atom") (@param "Result on equivalence") (@param "Result otherwise")))
+  (@return "Third or fourth argument"))
+(@doc assertEqual
+  (@desc "Compares the result sets of two expressions; passes silently or raises a failed assertion naming the expression")
+  (@params ((@param "First expression, not evaluated on the way in") (@param "Second expression, not evaluated on the way in")))
+  (@return "unit"))
+(@doc assertAlphaEqual
+  (@desc "assertEqual up to alpha-equivalence of the result sets")
+  (@params ((@param "First expression") (@param "Second expression")))
+  (@return "unit"))
+(@doc assertEqualToResult
+  (@desc "Checks all the results of the first expression against the second expression, which is not evaluated and is read as the set of expected results")
+  (@params ((@param "Expression to evaluate") (@param "Expected results, as written")))
+  (@return "unit"))
+(@doc assertAlphaEqualToResult
+  (@desc "assertEqualToResult up to alpha-equivalence")
+  (@params ((@param "Expression to evaluate") (@param "Expected results, as written")))
+  (@return "unit"))
+(@doc assertIncludes
+  (@desc "Passes when every expected result appears among the results the first expression produces")
+  (@params ((@param "Expression to evaluate") (@param "Expected subset, as written")))
+  (@return "unit"))
+(@doc assertEqualMsg
+  (@desc "assertEqual with a message argument, accepted and unused because the assertion already names the failing expression")
+  (@params ((@param "First expression") (@param "Second expression") (@param "Message")))
+  (@return "unit"))
+(@doc assertAlphaEqualMsg
+  (@desc "assertAlphaEqual with a message argument, accepted and unused")
+  (@params ((@param "First expression") (@param "Second expression") (@param "Message")))
+  (@return "unit"))
+(@doc assertEqualToResultMsg
+  (@desc "assertEqualToResult with a message argument, accepted and unused")
+  (@params ((@param "Expression to evaluate") (@param "Expected results") (@param "Message")))
+  (@return "unit"))
+(@doc assertAlphaEqualToResultMsg
+  (@desc "assertAlphaEqualToResult with a message argument, accepted and unused")
+  (@params ((@param "Expression to evaluate") (@param "Expected results") (@param "Message")))
+  (@return "unit"))
+(@doc if-error
+  (@desc "Selects the second argument when the first is an (Error ...) expression and the third otherwise")
+  (@params ((@param "Value to inspect") (@param "Result on error") (@param "Result otherwise")))
+  (@return "Second or third argument"))
+(@doc return-on-error
+  (@desc "Answers the first argument when it is an (Error ...) expression, stopping the computation there, and the second otherwise")
+  (@params ((@param "Value to inspect") (@param "Result when the first is not an error")))
+  (@return "The error, or the second argument"))
+(@doc for-each-in-atom
+  (@desc "Applies a function to every element of an expression; map-atom under its historical name")
+  (@params ((@param "Expression to walk") (@param "Function to apply")))
+  (@return "The mapped expression"))
+(@doc unquote
+  (@desc "Unquotes a quoted atom and evaluates it, e.g. (unquote (quote $x)) evaluates $x; a non-quote argument stays as written")
+  (@params ((@param "Quoted atom")))
+  (@return "Unquoted atom"))
+(@doc noreduce-eq
+  (@desc "Compares two atoms as written, neither evaluated")
+  (@params ((@param "First atom, as written") (@param "Second atom, as written")))
+  (@return "True or False"))
+(@doc is-function
+  (@desc "True when the argument is an arrow type")
+  (@params ((@param "Type atom")))
+  (@return "True or False"))
+(@doc match-types
+  (@desc "Checks if two types can be unified and returns the third argument if so, the fourth otherwise; %Undefined% and Atom on either side match anything")
+  (@params ((@param "First type") (@param "Second type") (@param "Atom to be returned if types can be unified") (@param "Atom to be returned if types cannot be unified")))
+  (@return "Third or fourth argument"))
+(@doc match-type-or
+  (@desc "Checks if two types (second and third arguments) can be unified and returns the result of OR between the first argument and the type checking result")
+  (@params ((@param "Boolean value") (@param "First type") (@param "Second type")))
+  (@return "True or False"))
+(@doc type-cast
+  (@desc "Casts atom passed as a first argument to the type passed as a second argument using space as a context")
+  (@params ((@param "Atom to be casted") (@param "Type to cast atom to") (@param "Context atomspace")))
+  (@return "Atom if casting is successful, (Error ... BadType) otherwise"))
+(@doc type-cast-holds
+  (@desc "Whether any declared type of the atom in the space unifies with the requested type; type-cast's fold, named because PeTTa is applicative where the corelib chains")
+  (@params ((@param "Atom") (@param "Requested type") (@param "Context atomspace")))
+  (@return "True or False"))
+(@doc get-type-space
+  (@desc "get-type run with the selected space as the context")
+  (@params ((@param "Space to select") (@param "Atom to type")))
+  (@return "The type, as get-type answers it in that space"))
+(@doc get-doc
+  (@desc "The documentation atom for a name, from the current space or the engine's own register, or nothing when there is none")
+  (@params ((@param "The name to look up")))
+  (@return "The (@doc ...) atom"))
+(@doc get-doc-space
+  (@desc "get-doc run against the selected space")
+  (@params ((@param "Space to select") (@param "The name to look up")))
+  (@return "The (@doc ...) atom"))
+(@doc help!
+  (@desc "Prints the documentation for a name, the engine's own vocabulary included")
+  (@params ((@param "The name to look up")))
+  (@return "unit"))
+(@doc documented
+  (@desc "Every name the CURRENT SPACE documents, one per solution; program-scoped on purpose, so the engine's own vocabulary does not bury yours")
+  (@params ())
+  (@return "A name"))
+(@doc documented-space
+  (@desc "documented, against the selected space")
+  (@params ((@param "Space to select")))
+  (@return "A name"))
+(@doc defined-name
+  (@desc "Every function name the current space defines, builtins excluded, once each")
+  (@params ())
+  (@return "A name"))
+(@doc undocumented
+  (@desc "Every defined name in the current space with no documentation anywhere; the gap worth closing")
+  (@params ())
+  (@return "A name"))
+(@doc undocumented-space
+  (@desc "undocumented, against the selected space")
+  (@params ((@param "Space to select")))
+  (@return "A name"))
