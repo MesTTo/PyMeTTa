@@ -142,18 +142,17 @@ def _boot(arguments) -> int:
 
 
 def _lint(arguments) -> int:
-    from .lint import lint  # noqa: PLC0415  deferred: --version and help must not boot
+    from .lint import lint_file  # noqa: PLC0415  deferred: --version and help must not boot
     from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
 
     m = MeTTa()
     failed = False
     for path in arguments.files:
-        with m.new_space() as space:
-            space.load(path)
-            findings = lint(space)
-        for finding in findings:
+        for finding in lint_file(path, m=m):
             failed = True
-            print(f"{path}: {finding}")
+            line = (finding.payload or {}).get("line")
+            where = f"{path}:{line}" if line is not None else str(path)
+            print(f"{where}: {finding}")
     if not failed:
         print("no findings")
     return 1 if failed else 0

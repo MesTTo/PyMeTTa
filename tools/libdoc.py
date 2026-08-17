@@ -30,7 +30,7 @@ _REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO / "python"))
 
 from petta import Expr, Gnd, Sym, parse  # noqa: E402
-from petta._engine import runtime  # noqa: E402
+from petta._source_forms import positioned_forms  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 
@@ -44,12 +44,15 @@ burn-down surface: a library appears below it by gaining `@doc` atoms
 beside its definitions."""
 
 
-def _forms(source: str) -> list:
-    """Every form in the source, read and never run: the same engine door
-    the boot manifest reads through, which is what lets a library whose
-    backend is absent still document itself."""
-    row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
-    return [parse(text) for kind, text in row["Forms"] if kind != "runnable"]
+def _forms(source: str) -> list[tuple]:
+    """Every form in the source with its line, read and never run: the
+    engine door the boot manifest reads through, which is what lets a
+    library whose backend is absent still document itself."""
+    return [
+        (parse(form.text), form.line)
+        for form in positioned_forms(source)
+        if form.kind != "runnable"
+    ]
 
 
 def _named(atom) -> str | None:
@@ -75,11 +78,11 @@ def _text(atom) -> str:
     return str(atom)
 
 
-def _entry(doc: Expr, declared: dict[str, str]) -> list[str]:
-    """One @doc atom as markdown: heading, declared type, description,
-    parameters, and return, in that order, parts absent when unwritten."""
+def _entry(doc: Expr, declared: dict[str, str], where: str) -> list[str]:
+    """One @doc atom as markdown: heading, source line, declared type,
+    description, parameters, and return, parts absent when unwritten."""
     name = doc.children[1]
-    lines = [f"### `{name}`", ""]
+    lines = [f"### `{name}`", "", f"*{where}*", ""]
     if str(name) in declared:
         lines += [f"```metta\n(: {name} {declared[str(name)]})\n```", ""]
     for part in doc.children[2:]:
@@ -103,20 +106,24 @@ def _entry(doc: Expr, declared: dict[str, str]) -> list[str]:
 def _library(path: pathlib.Path) -> tuple[str, int, int, list[str]]:
     """One library's coverage numbers and rendered section."""
     forms = _forms(path.read_text(encoding="utf-8"))
-    docs = [f for f in forms if isinstance(f, Expr) and f.children and f.children[0] == Sym("@doc")]
+    docs = [
+        (f, line)
+        for f, line in forms
+        if isinstance(f, Expr) and f.children and f.children[0] == Sym("@doc")
+    ]
     declared = {
         str(f.children[1]): str(f.children[2])
-        for f in forms
+        for f, _line in forms
         if isinstance(f, Expr) and len(f.children) == 3 and f.children[0] == Sym(":")
         and isinstance(f.children[1], Sym)
     }
-    names = {name for form in forms if (name := _named(form)) is not None}
-    documented = {str(d.children[1]) for d in docs if len(d.children) > 1}
+    names = {name for form, _line in forms if (name := _named(form)) is not None}
+    documented = {str(d.children[1]) for d, _line in docs if len(d.children) > 1}
     section: list[str] = []
     if docs:
         section = [f"## {path.stem}", ""]
-        for doc in docs:
-            section += _entry(doc, declared)
+        for doc, line in docs:
+            section += _entry(doc, declared, f"{path.name}:{line}")
         missing = sorted(names - documented)
         if missing:
             section += [

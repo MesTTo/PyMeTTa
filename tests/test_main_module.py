@@ -78,6 +78,8 @@ def test_lint_gates_on_findings(tmp_path):
     failing = _petta("lint", str(tmp_path / "bad.metta"))
     assert failing.returncode == 1
     assert "declared-but-undefined" in failing.stdout
+    # findings anchor to their source line, path:line fashion
+    assert f"{tmp_path / 'bad.metta'}:1:" in failing.stdout
     (tmp_path / "good.metta").write_text("(= (m-fine $x) $x)\n")
     passing = _petta("lint", str(tmp_path / "good.metta"))
     assert passing.returncode == 0, passing.stderr

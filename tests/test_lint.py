@@ -17,7 +17,7 @@ import pickle
 
 import pytest
 
-from petta import Expr, S
+from petta import Expr, PettaError, S
 from petta.lint import Finding, lint
 
 
@@ -335,3 +335,51 @@ def test_type_mismatch_uses_the_engines_total_get_type(m):
     assert len(mismatches) == 1
     assert mismatches[0].severity == "error"
     assert "String where the declared arrow wants Number" in mismatches[0].detail
+
+
+def test_positioned_forms_recover_exact_lines():
+    from petta._source_forms import positioned_forms
+
+    source = "; a comment quoting (f 1)\n(f 1)\n\n!(+ 1 2)\n(= (g $x)\n   $x)\n"
+    forms = positioned_forms(source)
+    assert [(f.kind, f.line, f.column) for f in forms] == [
+        ("expression", 2, 1),
+        ("runnable", 4, 2),
+        ("function", 5, 1),
+    ]
+    # the comment quoting (f 1) could not mislead the walk: the form
+    # anchors at line 2, not inside the line-1 comment
+
+
+def test_a_locator_mismatch_refuses(monkeypatch):
+    from petta import _source_forms
+
+    real = _source_forms.runtime
+
+    class Lying:
+        def must(self, goal, **inputs):
+            return {"Forms": [["expression", "(never-there)"]]}
+
+    monkeypatch.setattr(_source_forms, "runtime", lambda: Lying())
+    with pytest.raises(PettaError, match="the reader and the locator disagree"):
+        _source_forms.positioned_forms("(real form)")
+    monkeypatch.setattr(_source_forms, "runtime", real)
+
+
+def test_lint_file_anchors_findings_to_lines(metta, tmp_path):
+    target = tmp_path / "anchored.metta"
+    target.write_text(
+        "; prose first\n"
+        "(: q2-ghost (-> Number Number))\n"
+        "\n"
+        "(= (q2-fine $x) $x)\n"
+        "(= (q2-loose $x) (if True $x 0))\n"
+    )
+    from petta.lint import lint_file
+
+    findings = {f.kind: f for f in lint_file(target, m=metta)}
+    ghost = findings["declared-but-undefined"]
+    assert ghost.payload["line"] == 2
+    assert ghost.payload["file"] == str(target)
+    simplifiable = findings["constant-if-true"]
+    assert simplifiable.payload["line"] == 5
