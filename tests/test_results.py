@@ -13,12 +13,13 @@ Open Obligations:
 
 import copy
 import importlib.util
+import io
 import operator
 import pickle
 
 import pytest
 
-from petta import Rows, S, V
+from petta import Rows, S, V, parse
 from petta.results import _row_class
 
 
@@ -214,3 +215,32 @@ def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
 
 def test_empty_zero_column_rows_remain_an_empty_table():
     assert Rows((), []).table() == {}
+
+
+def test_pipe_chains_user_functions(metta):
+    metta.add(parse("(pipe-edge x y)"), parse("(pipe-edge y z)"))
+    rows = metta.query("(pipe-edge $a $b)")
+    assert rows.pipe(len) == 2
+    # arguments thread through, pandas' shape
+    assert rows.pipe(lambda r, k: [str(row[0]) for row in r[:k]], 1) == ["x"]
+
+
+def test_rich_renders_rows_as_a_table(metta):
+    pytest.importorskip("rich")
+    from rich.console import Console
+
+    metta.add(parse("(rich-edge x y)"))
+    rows = metta.query("(rich-edge $a $b)")
+    console = Console(file=io.StringIO(), width=80)
+    console.print(rows)
+    printed = console.file.getvalue()
+    assert "a" in printed and "b" in printed and "x" in printed and "y" in printed
+    # a zero-column answer set falls back to the plain repr
+    console2 = Console(file=io.StringIO(), width=80)
+    console2.print(metta.query("(rich-edge x y)"))
+    assert "Rows[]" in console2.file.getvalue()
+
+
+def test_rich_pretty_expands_an_expression_by_children():
+    term = parse("(edge (a b) $x)")
+    assert list(term.__rich_repr__()) == list(term.children)

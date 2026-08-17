@@ -36,7 +36,7 @@ import html
 import reprlib
 import typing
 from collections import UserList
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from difflib import get_close_matches
 from functools import lru_cache
 from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
@@ -418,6 +418,32 @@ class Rows(UserList[Row]):
         if self and not self.columns:
             return polars.DataFrame([{} for _ in self])
         return polars.DataFrame(self.table())
+
+    def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        """fn(self, *args, **kwargs), pandas' chaining shape, so a
+        pipeline reads left to right instead of inside out:
+
+            m.query(pattern).pipe(clean).pipe(score, weight=2)
+        """
+        return fn(self, *args, **kwargs)
+
+    def __rich__(self):
+        """A real table in rich-using terminals. Only rich itself calls
+        this, so the import cannot miss; plain terminals never pay it."""
+        from rich.table import Table  # noqa: PLC0415  rich's own protocol call
+
+        if not self.columns:
+            return repr(self)
+        shown = config.display_rows
+        caption = None
+        if len(self) > shown:
+            caption = f"\u2026 {len(self) - shown} more rows"
+        elif not self and self._query is not None:
+            caption = "No rows. rows.why() explains."
+        table = Table(*[str(c) for c in self.columns], caption=caption)
+        for row in self[:shown]:
+            table.add_row(*[str(v) for v in row])
+        return table
 
     def _repr_html_(self) -> str:
         """Notebook display: the columns as a header, one row per answer,

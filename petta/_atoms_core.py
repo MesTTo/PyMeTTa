@@ -897,6 +897,12 @@ class Expr(Atom):
     def __reduce__(self):
         return Expr, (self.children,)
 
+    def __rich_repr__(self):
+        """rich.pretty expands an expression by its children, so a deep
+        term prints as an indented tree instead of one long line. Only
+        rich consults this; plain repr() is unchanged."""
+        yield from self.children
+
     def __str__(self) -> str:
         # Iterative: deep expressions are ordinary data here, and a printer
         # must not hit Python's recursion ceiling on them.
