@@ -1261,6 +1261,12 @@ class _AsyncPrepared:
             )
         )
 
+    async def explain(self) -> str:
+        """The query's plan, reflected rather than run; Prepared.explain,
+        one worker round trip."""
+        prepared = self._prepared
+        return await self._am.call(lambda _m: prepared.explain())
+
     def __repr__(self) -> str:
         return f"<async prepared query {self.columns} on {self._am.space_name}>"
 
@@ -1295,6 +1301,12 @@ class _AsyncCursor:
         """The column names, opening the cursor if it is not yet open."""
         cursor = await self._ensure()
         return cursor.columns
+
+    async def explain(self) -> str:
+        """The query's plan, reflected rather than run; Cursor.explain,
+        opening the cursor if it is not yet open."""
+        cursor = await self._ensure()
+        return await self._am.call(lambda _m: cursor.explain())
 
     def __aiter__(self) -> Self:
         return self

@@ -311,6 +311,41 @@ def _forward_window(window: slice) -> tuple[int, int | None]:
     return start, window.stop
 
 
+def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
+    """The seam's own decisions for one conjunction, rendered. Pure
+    reflection through petta_py_explain: nothing runs, no row is pulled,
+    and the engine answers claimed/rest as indexes so the caller's own
+    atoms, variable names included, do the rendering."""
+    kind, detail, claimed, rest = rt.apply_must(
+        "petta_py_explain", space_name, [p.to_wire() for p in patterns]
+    )
+    shown = ", ".join(str(p) for p in patterns)
+    lines = [f"query over {space_name}: {shown}"]
+    if kind == "stored":
+        lines.append("  stored atoms: engine unification joins the conjunction left to right")
+    elif kind == "refused":
+        lines.append(f"  REFUSED: the declared entry {detail[0]} answers Refuse for this conjunction")
+    else:
+        width = max(len(str(p)) for p in patterns)
+        for pattern, (klass, origin) in zip(patterns, detail, strict=True):
+            lines.append(f"  {pattern!s:<{width}}  {klass:<8}  {origin}")
+        if claimed:
+            names = ", ".join(str(patterns[i]) for i in claimed)
+            lines.append(f"  conjunction: the provider claimed {names}")
+            if rest:
+                joined = ", ".join(str(patterns[i]) for i in rest)
+                lines.append(f"  the engine joins the rest: {joined}")
+            else:
+                lines.append("  the engine joins nothing further")
+        elif len(patterns) > 1:
+            lines.append("  conjunction: no provider claim; the engine joins left to right")
+        if any(k == "exact" for k, _ in detail):
+            lines.append("  a bound reaches the provider only where the class is exact")
+    if where is not None:
+        lines.append(f"  guard {where}: runs in the engine over each row")
+    return "\n".join(lines)
+
+
 class Cursor:
     """MeTTa.stream(): answers pulled one at a time from an engine-held
     query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
@@ -322,13 +357,16 @@ class Cursor:
 
     __slots__ = (
         "__weakref__",
+        "_atoms",
         "_closed",
         "_exhausted",
         "_finalizer",
         "_handle",
         "_row_cls",
         "_rt",
+        "_space_name",
         "_timeout",
+        "_where_atom",
         "columns",
     )
 
@@ -351,8 +389,11 @@ class Cursor:
         self._timeout = None if limits is None or limits[0] < 0 else limits[0]
         steps = -1 if limits is None else limits[1]
         self._rt = space.runtime
+        self._atoms = atoms
+        self._space_name = space.space_name
         wires = [a.to_wire() for a in atoms]
         checked = guard_atom(where)
+        self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
         self._handle = self._rt.apply_must(
             "petta_py_cursor_open", space.space_name, wires, guard, columns.copy(), steps
@@ -394,6 +435,13 @@ class Cursor:
             self._finalizer()
             raise StopIteration
         return self._row_cls(atom_from_wire(v) for v in answer[0])
+
+    def explain(self) -> str:
+        """The query's plan, reflected rather than run: which provider
+        decisions the seam already made for this conjunction. See
+        Prepared.explain for the whole story; a cursor explains the same
+        way, and explaining does not pull a row."""
+        return _explain_text(self._rt, self._space_name, self._atoms, self._where_atom)
 
     def __getitem__(self, index: int | slice):
         """`cursor[:3]` and `cursor[0]`, pulling only what is asked for.
@@ -625,6 +673,22 @@ class Prepared:
             answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
         decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
+
+    def explain(self) -> str:
+        """The query's plan, reflected rather than run: polars'
+        LazyFrame.explain and SQL's EXPLAIN, from decisions the seam has
+        already made. For a Python-backed space, each pattern's line says
+        whether its candidates push down exact (the provider's answers
+        are trusted as instantiations, a bound may reach it) or inexact
+        (candidates re-unify in the engine), and which rule decided:
+        a declared (handles ...) entry, the provider's own pushdown
+        method, or silence. A conjunction line names what a planning
+        provider claimed whole and what the engine joins. Stored spaces
+        answer the one true line: engine unification. No row is pulled
+        and no provider match is called; the provider's plan hook is
+        consulted exactly as a real query would consult it, since the
+        claim is the provider's to make."""
+        return _explain_text(self._space.runtime, self._space.space_name, self._patterns, self._where)
 
     def __repr__(self) -> str:
         shown = ", ".join(str(p) for p in self._patterns)

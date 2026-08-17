@@ -499,9 +499,11 @@ def test_aio_structural_surface_behaves():
             assert route.columns == ("a", "b")
             assert len(await route.solve()) == 2
             assert len(await route.solve(given=[S.edge(S.c, S.d)])) == 3
+            assert "stored atoms: engine unification" in await route.explain()
 
             async with m.stream(S.edge(V.a, V.b)) as rows:
                 assert await rows.columns() == ("a", "b")
+                assert "stored atoms: engine unification" in await rows.explain()
                 streamed = [row async for row in rows]
             assert len(streamed) == 2
 

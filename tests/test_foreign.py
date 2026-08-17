@@ -44,6 +44,7 @@ from petta import (
     V,
     Var,
     expr,
+    parse,
     unify,
 )
 from petta.foreign import SpaceProvider, register_provider, unregister_provider
@@ -765,3 +766,71 @@ def test_declining_a_conjunction_falls_back_to_the_split(metta):
 def test_plan_is_a_capability_derived_from_the_protocol():
     assert JoiningSpace().can_run("plan") is True
     assert ListSpace().can_run("plan") is False
+
+
+class _PlannedPairs(SpaceProvider):
+    """Claims any two-pattern conjunction whole, declines everything else."""
+
+    def atoms(self) -> Iterator[Atom]:
+        yield from ()
+
+    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
+        return iter(())
+
+    def pushdown(self, pattern: Atom) -> str:
+        return "inexact"
+
+    def plan(self, patterns: list[Atom]):
+        if len(patterns) == 2:
+            return list(patterns), [], iter(())
+        return None
+
+
+def test_explain_reflects_the_plan(metta):
+    # Stored space: the one true line, and the guard renders.
+    prepared = metta.prepare(
+        parse("(xedge $a $b)"), parse("(xedge $b $c)"), where=parse("(> 2 1)")
+    )
+    stored = prepared.explain()
+    assert "query over &self: (xedge $a $b), (xedge $b $c)" in stored
+    assert "stored atoms: engine unification" in stored
+    assert "guard (> 2 1): runs in the engine" in stored
+
+    # Foreign space: per-pattern class with its origin, the conjunction
+    # claim, and the bound rule, from the seam's own decisions.
+    metta.register_space(_PlannedPairs(), "&xplan")
+    sp = metta.space("&xplan")
+    try:
+        pair = sp.prepare(parse("(pe $a $b)"), parse("(pe $b $c)")).explain()
+        assert "(pe $a $b)" in pair and "inexact" in pair
+        assert "the provider's own pushdown method" in pair
+        assert "conjunction: the provider claimed (pe $a $b), (pe $b $c)" in pair
+        assert "the engine joins nothing further" in pair
+        triple = sp.prepare(
+            parse("(pe $a $b)"), parse("(pe $b $c)"), parse("(pe $c $d)")
+        ).explain()
+        assert "no provider claim; the engine joins left to right" in triple
+
+        # A declared (handles ...) entry outranks the provider's method,
+        # exact brings the bound line, and Refuse reports as a refusal.
+        sp.declare_handles("&xplan", "(pe $f $t)", "Exact", det="nondet")
+        sp.declare_handles("&xplan", "(xsecret $x)", "Refuse")
+        declared = sp.prepare(parse("(pe $a $b)")).explain()
+        assert "exact" in declared
+        assert "declared: (handles" in declared and "Exact nondet" in declared
+        assert "a bound reaches the provider only where the class is exact" in declared
+        refused = sp.prepare(parse("(xsecret $x)")).explain()
+        assert "REFUSED: the declared entry" in refused
+        assert "answers Refuse" in refused
+    finally:
+        metta.unregister_space("&xplan")
+
+
+def test_a_stream_explains_without_pulling_a_row(metta):
+    metta.add(parse("(sedge only)"))
+    with metta.stream(parse("(sedge $x)")) as cursor:
+        text = cursor.explain()
+        assert "query over &self: (sedge $x)" in text
+        assert "stored atoms: engine unification" in text
+        # explaining consumed nothing: the row is still there to pull
+        assert [str(row[0]) for row in cursor] == ["only"]

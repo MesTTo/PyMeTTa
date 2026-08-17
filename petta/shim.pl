@@ -1171,6 +1171,72 @@ petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
 
+%What the seam already decided for this query, shown without running it:
+%refusal preflighted through the same petta_refuse_guard match_foreign
+%consults, per-pattern classes through foreign_pushdown_class with each
+%pattern asked standalone, and the conjunction claim through the same
+%guarded metta_foreign_plan call foreign_claims_plan commits to, lossy-
+%partition check included. Claimed and Rest come back as indexes into
+%the input list, so the Python side renders its own atoms and the
+%caller's variable names survive. A stored space answers
+%["stored", [], [], []]: the engine joins by unification and no provider
+%decision exists to show [tested test_explain_reflects_the_plan].
+petta_py_explain(Space, PatternsTagged, Report) :-
+    petta_py_decode_shared(["e", PatternsTagged], Patterns, _),
+    (   \+ metta_foreign_space(Space)
+    ->  Report = ["stored", [], [], []]
+    ;   petta_py_match_goal(Space, Patterns, match(_, Whole, _, _)),
+        catch(
+            ( \+ \+ petta_refuse_guard(Space, Whole),
+              maplist(petta_py_explain_class(Space), Patterns, Classes),
+              petta_py_explain_plan(Space, Patterns, ClaimedIdx, RestIdx),
+              Report = ["foreign", Classes, ClaimedIdx, RestIdx] ),
+            error(petta_refused_shape(_, _, Entry), _),
+            ( swrite(Entry, EText),
+              Report = ["refused", [EText], [], []] ))
+    ).
+
+petta_py_explain_class(Space, Pattern, [Class, Origin]) :-
+    catch(
+        ( foreign_pushdown_class(Space, Pattern, ClassAtom),
+          atom_string(ClassAtom, Class),
+          petta_py_explain_origin(Space, Pattern, Origin) ),
+        error(petta_refused_shape(_, _, Refusing), _),
+        ( Class = "refused",
+          swrite(Refusing, RText),
+          format(string(Origin), "the declared entry ~w answers Refuse",
+                 [RText]) )).
+
+%The origin consult mirrors foreign_pushdown_class's own precedence:
+%a declared (handles ...) entry outranks the provider's method, and
+%silence is the closed-world inexact.
+petta_py_explain_origin(Space, Pattern, Origin) :-
+    (   petta_handles_route(Space, Pattern, Entry, Fidelity, Det)
+    ->  swrite(Entry, EText),
+        ( var(Det) -> DetText = unstated ; DetText = Det ),
+        format(string(Origin), "declared: (handles ~w ~w ~w)",
+               [EText, Fidelity, DetText])
+    ;   metta_foreign_pushdown(Space, Pattern, _)
+    ->  Origin = "the provider's own pushdown method"
+    ;   Origin = "unclaimed; silence is inexact and candidates re-unify"
+    ).
+
+petta_py_explain_plan(Space, Patterns, ClaimedIdx, RestIdx) :-
+    (   Patterns = [_, _|_],
+        foreign_provides(Space, plan),
+        once(metta_foreign_plan(Space, Patterns, Claimed, Rest, _Goal)),
+        Claimed \== []
+    ->  refuse_lossy_plan(Space, Patterns, Claimed, Rest),
+        maplist(petta_py_explain_index(Patterns), Claimed, ClaimedIdx),
+        maplist(petta_py_explain_index(Patterns), Rest, RestIdx)
+    ;   ClaimedIdx = [],
+        findall(I, nth0(I, Patterns, _), RestIdx)
+    ).
+
+petta_py_explain_index(Patterns, Term, Index) :-
+    nth0(Index, Patterns, Candidate),
+    Candidate == Term, !.
+
 %A query with a guard and a bound: the guard decodes IN THE SAME variable
 %scope as the patterns, so $age in both is one variable; after the match
 %joins, the guard evaluates in the space's module and must answer true.
