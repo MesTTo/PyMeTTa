@@ -526,6 +526,21 @@ petta_py_load(File, Space, Groups) :-
         ( retractall(working_dir(_)),
           forall(member(W, Saved), assertz(working_dir(W))) )).
 
+%Read every form in Source without processing any, the boot-manifest door:
+%one [Kind, Text] pair per form in source order, Kind the parser's own
+%classification (expression, function, runnable) and Text the form's own
+%source, which keeps variable names the wire encoding would renumber.
+%Nothing is compiled, stored, or run, and no space hosts the read, so
+%&self stays as written [tested test_a_manifest_neither_runs_nor_defines].
+petta_py_read_forms(Source, Forms) :-
+    ( string(Source) -> S = Source ; atom_string(Source, S) ),
+    petta_py_tag_reader(parse_metta_source(S, Parsed)),
+    maplist(petta_py_form_pair, Parsed, Forms).
+
+petta_py_form_pair(parsed(Kind, Text, _), [KindStr, TextStr]) :-
+    atom_string(Kind, KindStr),
+    ( string(Text) -> TextStr = Text ; atom_string(Text, TextStr) ).
+
 %%%%%%%%%% Guarded and captured calls %%%%%%%%%%
 %
 % Two meta entry points wrap the run, query and eval entry points without

@@ -42,14 +42,20 @@ _LAZY_MODULES = frozenset(
         "aio",
         "arrays",
         "das",
+        "manifest",
         "parallel",
         "persistent",
         "remote",
         "spaces",
         "structures",
+        "tables",
         "testing",
     }
 )
+
+# Manifest names resolved lazily so importing petta never imports the
+# HTTP and table machinery boot composes over.
+_LAZY_ATTRIBUTES = {"Boot": "manifest", "boot": "manifest"}
 
 
 class PeTTa:
@@ -93,12 +99,19 @@ def __getattr__(name: str):
         module = importlib.import_module(f".{name}", __name__)
         globals()[name] = module
         return module
+    if name in _LAZY_ATTRIBUTES:
+        module = importlib.import_module(f".{_LAZY_ATTRIBUTES[name]}", __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
-    """Include lazy public modules in package discovery."""
-    return sorted(globals().keys() | _LAZY_MODULES | {"janus"})
+    """Include lazy public modules and attributes in package discovery."""
+    return sorted(
+        globals().keys() | _LAZY_MODULES | _LAZY_ATTRIBUTES.keys() | {"janus"}
+    )
 
 
 from . import (  # noqa: E402
@@ -257,6 +270,7 @@ __all__ = [
     "Answer",
     "Atom",
     "Bindings",
+    "Boot",
     "Builtin",
     "CastError",
     "Clearer",
@@ -311,6 +325,7 @@ __all__ = [
     "arrays",
     "atom_from_wire",
     "backend_info",
+    "boot",
     "bridge",
     "cast",
     "config",
@@ -328,6 +343,7 @@ __all__ = [
     "integrate",
     "is_ground",
     "lint",
+    "manifest",
     "map_atoms",
     "order_key",
     "parallel",
@@ -341,6 +357,7 @@ __all__ = [
     "remove",
     "run",
     "sym",
+    "tables",
     "testing",
     "trace",
     "unify",
