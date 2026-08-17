@@ -177,7 +177,7 @@ class Rows(UserList[Row]):
         self, i: SupportsIndex | slice[SupportsIndex | None] | str
     ) -> Row | Rows | list[Any]:
         if isinstance(i, str):
-            return self.column(i)
+            return self._column(i)
         if isinstance(i, slice):
             return Rows(self.columns, self.data[i])
         return self.data[i]
@@ -235,8 +235,9 @@ class Rows(UserList[Row]):
     def __rmul__(self, n: int) -> Rows:
         return self * n
 
-    def column(self, name: str) -> list[Any]:
-        """Return one named column as a list."""
+    def _column(self, name: str) -> list[Any]:
+        #rows[name] is the one public door; this is its implementation,
+        #shared with the cast route.
         if name not in self.columns:
             # tuple.index would otherwise report this as
             # "tuple.index(x): x not in tuple", naming neither the column
@@ -296,7 +297,7 @@ class Rows(UserList[Row]):
     def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call."""
-        return [convert.build(value, cls) for value in self.column(column)]
+        return [convert.build(value, cls) for value in self._column(column)]
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Return one Python-native column-to-value mapping per row."""

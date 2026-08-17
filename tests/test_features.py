@@ -543,7 +543,7 @@ def test_space_iterates_and_subtracts(m):
 
 def test_atoms_destructure_with_match_statements(m):
     m.add(S.likes(S.cat, 9))
-    (atom,) = m.query(V.a).column("a")
+    (atom,) = m.query(V.a)["a"]
     match atom:
         case Expr([Sym("likes"), Sym(who), Gnd(count)]):
             assert who == "cat" and count == 9

@@ -721,7 +721,7 @@ class Gnd(Atom):
         return ~self.value
 
     # Grounded primitives order like their values, so answers sort and
-    # compare with plain numbers: max(rows.column("age")) and Gnd(7) >= 5
+    # compare with plain numbers: max(rows["age"]) and Gnd(7) >= 5
     # both mean what they read as. Anything else refuses loudly.
 
     def _ordered(self, other: Any):

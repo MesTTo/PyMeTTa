@@ -198,8 +198,8 @@ def test_query_join(m):
 def test_query_projection_and_column(m):
     m.add(S.age(S.Ada, 36), S.age(S.Bob, 41))
     rows = m.query(S.age(V.who, V.years))
-    assert set(rows.column("who")) == {S.Ada, S.Bob}
-    assert sorted(rows.column("years"), key=int) == [36, 41]
+    assert set(rows["who"]) == {S.Ada, S.Bob}
+    assert sorted(rows["years"], key=int) == [36, 41]
 
 
 def test_query_surfaces_share_column_order(m):
@@ -482,7 +482,7 @@ def test_add_table_reads_records_by_value(m):
     # Iterating a mapping yields keys, so this once stored ("x" "y").
     assert [str(atom) for atom in records.atoms()] == ['(p "a" "b")']
     lossless = m.new_space()
-    lossless.add_table(S.p, {c: rows.column(c) for c in rows.columns})
+    lossless.add_table(S.p, {c: rows[c] for c in rows.columns})
     assert lossless.digest() == m.digest()
 
 
@@ -570,7 +570,7 @@ def test_an_unknown_column_names_the_columns_that_exist(m):
     m.add(S.p(S.a))
     rows = m.query(S.p(V.who))
     with pytest.raises(KeyError, match="did you mean 'who'"):
-        rows.column("wh")
+        rows["wh"]
 
 
 @pytest.mark.parametrize(

@@ -684,7 +684,7 @@ class MeTTa:
         values, so a symbol comes back as a str and re-enters as a MeTTa
         String. For a lossless round trip keep the atoms:
 
-            m.add_table(head, {c: rows.column(c) for c in rows.columns})
+            m.add_table(head, {c: rows[c] for c in rows.columns})
         """
         head_atom = _to_atom(head)
         keys: list[Any] = []
