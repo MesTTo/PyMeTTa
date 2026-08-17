@@ -42,6 +42,7 @@ with a message when the dependency is absent.
 | [`integration/routing_equations.py`](integration/routing_equations.py) | dispatch as equations, with the catch-all as the 404 |
 | [`integration/web_routes.py`](integration/web_routes.py) | FastAPI-shaped routing: the table is facts and dispatch is unification |
 | [`integration/multishot_solving.py`](integration/multishot_solving.py) | clingo-shaped multi-shot solving: parts ground incrementally and externals toggle |
+| [`integration/networkx_space.py`](integration/networkx_space.py) | a space's links as a networkx graph, an nx answer written back as atoms, one projection rule for n-ary links |
 
 ## Reasoning
 
