@@ -1059,9 +1059,9 @@ def test_hyperpose_is_parallel_under_the_languages_name(metta):
 
 def test_fn_decodes_exactly_as_value(metta):
     metta.run("(= (ic-seven) 7)")
-    assert metta.value("(ic-seven)") == 7
+    assert metta.one("(ic-seven)") == 7
     assert metta.fn("ic-seven")() == 7
-    assert type(metta.fn("ic-seven")()) is type(metta.value("(ic-seven)"))
+    assert type(metta.fn("ic-seven")()) is type(metta.one("(ic-seven)"))
 
 
 def test_the_three_families_share_the_tolerant_member(metta):

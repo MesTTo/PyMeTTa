@@ -591,7 +591,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
             n -= 1
         return total
 
-    assert m.value(daux_replace(3)) == 3
+    assert m.one(daux_replace(3)) == 3
 
     @m.define
     def daux_replace(n):
@@ -601,7 +601,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
             n -= 1
         return total
 
-    assert m.value(daux_replace(3)) == 6
+    assert m.one(daux_replace(3)) == 6
     assert daux_replace.py(3) == 6
 
     @m.define
@@ -612,7 +612,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
             n -= 1
         return total
 
-    assert m.value(daux_replace(3)) == 6
+    assert m.one(daux_replace(3)) == 6
     assert daux_replace.py(3) == 6
     helpers = [
         atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")

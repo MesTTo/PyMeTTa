@@ -646,7 +646,7 @@ class AsyncMeTTa:
             )
         )
 
-    async def value(
+    async def one(
         self,
         target: Any,
         *,
@@ -655,7 +655,7 @@ class AsyncMeTTa:
     ) -> Any:
         """Evaluate a term that must produce exactly one value."""
         return await self.call(
-            lambda m: m.value(
+            lambda m: m.one(
                 target,
                 timeout=timeout,
                 inferences=inferences,

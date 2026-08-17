@@ -514,14 +514,14 @@ def test_add_table_refuses_ragged_columns(m):
 
 
 def test_value_answers_the_one_answer(m):
-    assert m.value("(+ 1 2)") == 3 and isinstance(m.value("(+ 1 2)"), int)
+    assert m.one("(+ 1 2)") == 3 and isinstance(m.one("(+ 1 2)"), int)
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
-    assert m.value(S.fact(5)) == 120
+    assert m.one(S.fact(5)) == 120
     with pytest.raises(EngineError):
-        m.value("(superpose (1 2))")  # two answers is not a value
+        m.one("(superpose (1 2))")  # two answers is not a value
     with pytest.raises(EngineError):
         m.run("(= (nothing) (empty))")
-        m.value(S.nothing())  # no answer is not a value either
+        m.one(S.nothing())  # no answer is not a value either
 
 
 def test_rows_first_and_one(m):
@@ -787,7 +787,7 @@ def test_limits_on_query_eval_value_and_prepared(m):
     with pytest.raises(InferenceLimitError):
         m.eval("(spin-d 100000000)", inferences=5_000)
     with pytest.raises(InferenceLimitError):
-        m.value("(spin-d 100000000)", inferences=5_000)
+        m.one("(spin-d 100000000)", inferences=5_000)
     prepared = m.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d))
     with pytest.raises(InferenceLimitError):
         prepared.solve(inferences=100)
@@ -861,7 +861,7 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):
         assert (first.a, first.b, first.c) == (0, 1, 2)
         # Unrelated engine work interleaves while the cursor stays open,
         # which a raw janus cursor forbids.
-        assert m.value("(+ 1 2)") == 3
+        assert m.one("(+ 1 2)") == 3
         second = next(rows)
         assert (second.a, second.b, second.c) == (1, 2, 3)
     with pytest.raises(PettaError):

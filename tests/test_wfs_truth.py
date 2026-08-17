@@ -70,7 +70,7 @@ def test_residuals_fill_on_request(m, wfs_program):
 
 def test_value_refuses_undefined_truth(m, wfs_program):
     with pytest.raises(EngineError, match="undefined truth"):
-        m.value("(translatePredicate (wfs_loop))")
+        m.one("(translatePredicate (wfs_loop))")
 
 
 def test_ordinary_evaluation_stays_plain(m):

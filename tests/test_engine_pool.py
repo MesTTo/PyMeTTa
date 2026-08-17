@@ -99,8 +99,8 @@ def test_pool_agrees_with_the_home_engine(m, p):
     m.add(S.pool_kind(S.rock, S.mineral))
 
     cases = {
-        "value": lambda: m.value("(pool-double 21)"),
-        "arith": lambda: m.value("(+ 1 (* 2 3))"),
+        "value": lambda: m.one("(pool-double 21)"),
+        "arith": lambda: m.one("(+ 1 (* 2 3))"),
         "query": lambda: sorted(str(r) for r in m.query(S.pool_kind(V.x, V.k))),
         "count": lambda: m.count(),
         "eval": lambda: sorted(str(a) for a in m.eval("(superpose (1 2 3))")),
@@ -115,9 +115,9 @@ def test_pool_agrees_with_the_home_engine(m, p):
 def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values):
     """Property: whatever the home engine answers, a worker answers too."""
     space = metta.new_space()
-    home = [space.value(f"(* {v} 3)") for v in values]
+    home = [space.one(f"(* {v} 3)") for v in values]
     with pool(workers=3) as engine_pool:
-        worker = engine_pool.map(lambda v: space.value(f"(* {v} 3)"), values)
+        worker = engine_pool.map(lambda v: space.one(f"(* {v} 3)"), values)
     assert worker == home
 
 
@@ -131,7 +131,7 @@ def test_a_worker_sees_what_the_home_engine_compiled(m, p):
     """Functions compile into shared Prolog modules, so a fresh engine
     inherits them; only global-variable state is per-engine."""
     m.run("(= (pool-later $x) (+ $x 100))")
-    assert p.map(lambda n: m.value(f"(pool-later {n})"), [1, 2]) == [101, 102]
+    assert p.map(lambda n: m.one(f"(pool-later {n})"), [1, 2]) == [101, 102]
 
 
 def test_pool_composes_with_in_engine_parallel(m, p):
@@ -167,7 +167,7 @@ def test_map_answers_in_input_order(p):
 
 
 def test_starmap_spreads_the_arguments(m, p):
-    assert p.starmap(lambda a, b: m.value(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
+    assert p.starmap(lambda a, b: m.one(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
 
 
 def test_imap_unordered_yields_every_result(p):
@@ -233,4 +233,4 @@ def test_the_context_manager_closes_on_an_exception():
 def test_metta_pool_is_the_same_pool(m):
     with m.pool(workers=2) as engine_pool:
         assert isinstance(engine_pool, EnginePool)
-        assert engine_pool.map(lambda n: m.value(f"(+ {n} 1)"), [1, 2]) == [2, 3]
+        assert engine_pool.map(lambda n: m.one(f"(+ {n} 1)"), [1, 2]) == [2, 3]

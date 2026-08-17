@@ -1061,7 +1061,7 @@ class MeTTa:
 
             m.run("(= (sq $x) (* $x $x))")
             with m.pool(workers=4) as p:
-                p.map(lambda n: m.value(f"(sq {n})"), range(64))
+                p.map(lambda n: m.one(f"(sq {n})"), range(64))
 
         Use it as a context manager so every engine is released. `workers`
         defaults to os.cpu_count(). This handle stays usable from the workers:
@@ -1113,7 +1113,7 @@ class MeTTa:
         _require_source(source, "run_status")
         return run_status(self._rt, self._space, source, timeout, inferences)
 
-    def value(
+    def one(
         self,
         target: Any,
         *,
@@ -1122,14 +1122,19 @@ class MeTTa:
     ) -> Any:
         """THE answer of evaluating target, as a plain Python value.
 
-            m.value("(+ 1 2)")            # 3
-            m.value(S.fact(5))            # 120
+            m.one("(+ 1 2)")            # 3
+            m.one(S.fact(5))            # 120
 
         Exactly one answer is the contract: none or several raise naming
         the count, because a caller asking for the value has asserted
         there is one. Grounded answers unwrap to their Python values;
-        symbols and structure stay atoms. eval() is the spelling for any
-        number of answers, and carries the same timeout/inferences bounds."""
+        symbols and structure stay atoms.
+
+        This is one point on the answer-cardinality axis, spelled the
+        same everywhere it appears: eval() takes every answer (MeTTa's
+        collapse), first() takes the first and tolerates absence, one()
+        demands exactly one. fn() and Rows carry the same triple, and
+        the same timeout/inferences bounds apply throughout."""
         answers = self.eval(target, timeout=timeout, inferences=inferences)
         return value_one(target, answers)
 
@@ -1374,7 +1379,7 @@ class MeTTa:
                 "'vec-dot'(A, B, Out) :- ... .",
                 names=["vec-dot"],
             )
-            m.value("(vec-dot (1 2) (3 4))")
+            m.one("(vec-dot (1 2) (3 4))")
 
         or, for a library shipping a file beside its Python:
 
@@ -1419,7 +1424,7 @@ class MeTTa:
             m.register_prolog("'shape-of'(A, Out) :- Out = [shape, A].",
                               names=["shape-of"])
             m.run("(: shape-of (-> Atom Atom))")
-            m.value("(shape-of (+ 1 2))")     # (shape (+ 1 2)), not (shape 3)
+            m.one("(shape-of (+ 1 2))")     # (shape (+ 1 2)), not (shape 3)
 
         Declare it BEFORE anything calls the function. A call site compiled
         while the declaration is absent keeps evaluating the argument even
@@ -1781,7 +1786,7 @@ class MeTTa:
             def vec_dot(a, b):
                 return sum(x * y for x, y in zip(a, b))
 
-            m.value("(vec-dot (1 2) (3 4))")    # the Prolog answers
+            m.one("(vec-dot (1 2) (3 4))")    # the Prolog answers
             vec_dot.py((1, 2), (3, 4))          # the reference answers
 
         Rewriting a defined function in Prolog for speed used to mean

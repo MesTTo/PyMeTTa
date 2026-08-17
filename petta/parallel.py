@@ -9,7 +9,7 @@ through hyperpose, below a single janus call. They compose: a pool worker may
 itself evaluate a hyperpose.
 
     with petta.parallel.pool(workers=8) as p:
-        answers = p.map(lambda n: m.value(f"(solve {n})"), range(64))
+        answers = p.map(lambda n: m.one(f"(solve {n})"), range(64))
 
 Assumes:
   - petta._engine.engine_thread attaches an engine to a bare foreign thread
@@ -276,7 +276,7 @@ def pool(workers: int | None = None) -> EnginePool:
     Use it as a context manager so the engines are released:
 
         with petta.parallel.pool(workers=4) as p:
-            answers = p.map(lambda n: m.value(f"(fib {n})"), range(20))
+            answers = p.map(lambda n: m.one(f"(fib {n})"), range(20))
 
     workers defaults to os.cpu_count().
     """

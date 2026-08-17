@@ -83,7 +83,7 @@ def test_engine_thread_owns_only_its_attachment(metta):
             observed["inside"] = petta.janus.engine()
             with petta.engine_thread():
                 observed["nested"] = petta.janus.engine()
-                observed["value"] = metta.value("(+ 20 22)")
+                observed["value"] = metta.one("(+ 20 22)")
             observed["after_nested"] = petta.janus.engine()
         observed["after"] = petta.janus.engine()
         try:

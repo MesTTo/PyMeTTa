@@ -47,7 +47,7 @@ def text_space(metta):
 
 
 def call(space, name, *args):
-    return space.value(expr(S[name], *args))
+    return space.one(expr(S[name], *args))
 
 
 # ------------------------------------------------------------------ strings

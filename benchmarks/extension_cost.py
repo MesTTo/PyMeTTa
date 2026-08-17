@@ -68,10 +68,10 @@ class Row:
 
 def _drive(space: MeTTa, prefix: str, name: str, calls: int) -> tuple[int, float]:
     source = f"({prefix}-{name} {calls})"
-    space.value(source)  # warm the compiled path
+    space.one(source)  # warm the compiled path
     start = time.perf_counter()
     with space.stats() as counted:
-        space.value(source)
+        space.one(source)
     return counted.inferences, time.perf_counter() - start
 
 

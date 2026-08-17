@@ -106,7 +106,7 @@ def test_every_cube_point_compiles_the_expected_clause(cube):
         name = f"cube-{index}"
         cube.register_op(fn, name=name, **kwargs)
         try:
-            verdict = cube.value(f'(cube_check "{name}" 1 "{kind}")')
+            verdict = cube.one(f'(cube_check "{name}" 1 "{kind}")')
             assert str(verdict) == "match", (name, kind, kwargs, str(verdict))
         finally:
             cube.unregister_op(name)
@@ -119,7 +119,7 @@ def test_multi_arity_compiles_every_declared_clause(cube):
     cube.register_op(spread, name="cube-multi", typed=False, arities=[1, 2, 3])
     try:
         for arity in (1, 2, 3):
-            verdict = cube.value(f'(cube_check "cube-multi" {arity} "det")')
+            verdict = cube.one(f'(cube_check "cube-multi" {arity} "det")')
             assert str(verdict) == "match", (arity, str(verdict))
     finally:
         cube.unregister_op("cube-multi")
@@ -131,7 +131,7 @@ def test_the_lane_can_fail(cube):
     # must NOT answer match.
     cube.register_op(_plain_untyped, name="cube-planted", typed=False)
     try:
-        verdict = cube.value('(cube_check "cube-planted" 1 "many")')
+        verdict = cube.one('(cube_check "cube-planted" 1 "many")')
         assert str(verdict) != "match"
         assert "mismatch" in str(verdict)
     finally:

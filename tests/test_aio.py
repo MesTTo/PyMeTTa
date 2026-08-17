@@ -41,7 +41,7 @@ def test_aio_mirrors_the_surface(m):
             await am.add(S.edge(1, 2), S.edge(2, 3))
             rows = await am.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
             groups = await am.run("!(+ 1 2)")
-            value = await am.value("(+ 2 3)")
+            value = await am.one("(+ 2 3)")
             count = await am.count()
             return rows, groups, value, count
 
@@ -125,7 +125,7 @@ def test_aio_interrupt_stops_the_running_evaluation(m):
             with pytest.raises(Interrupted):
                 await spin
             assert am.interrupt() is False  # idle again: the no-op reading
-            return await am.value("(+ 1 1)")  # the engine keeps working after
+            return await am.one("(+ 1 1)")  # the engine keeps working after
 
     assert asyncio.run(go()) == 2
 
@@ -182,7 +182,7 @@ def test_aio_timeout_cancellation_stops_the_engine(m):
             # The cancellation interrupted the engine: were the spin still
             # holding the worker, this next call would wait minutes.
             t0 = time.perf_counter()
-            value = await am.value("(+ 2 2)")
+            value = await am.one("(+ 2 2)")
             return value, time.perf_counter() - t0
 
     value, took = asyncio.run(go())
@@ -270,7 +270,7 @@ def test_aio_exposes_every_plain_request_response_method():
         "capture",
         "residuals",
     ]
-    assert list(inspect.signature(aio.AsyncMeTTa.value).parameters) == [
+    assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",
         "target",
         "timeout",

@@ -596,12 +596,16 @@ class _EngineFunction:
         return Expr([Sym(self._name), *(encode(a) for a in args)])
 
     def __call__(self, *args: Any) -> Any:
-        # value()'s own contract, through value()'s own decoder: exactly
-        # one answer, no Undefined, a Gnd decoded to its Python value. The
-        # two surfaces answered differently on the same call (value gave
-        # True where fn gave Gnd(True)) because this re-implemented only
-        # the first of value_one's three checks. Imported here because
-        # _space_execution imports this module at load.
+        """Sugar for one(): a Python call means exactly one answer."""
+        return self.one(*args)
+
+    def one(self, *args: Any) -> Any:
+        # one()'s own contract, through one()'s own decoder: exactly
+        # one answer, no Undefined, a Gnd decoded to its Python value.
+        # The two surfaces answered differently on the same call (one
+        # gave True where fn gave Gnd(True)) because this re-implemented
+        # only the first of value_one's three checks. Imported here
+        # because _space_execution imports this module at load.
         from ._space_execution import value_one  # noqa: PLC0415
 
         term = self._term(args)
