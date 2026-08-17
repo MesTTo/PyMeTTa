@@ -72,6 +72,7 @@ __all__ = [
     "parse",
     "register_object_repr",
     "register_object_repr_protocol",
+    "substitute",
     "sym",
     "unify",
     "unregister_object_repr",
@@ -286,6 +287,20 @@ def _alpha(a: Atom, b: Atom, ab: dict, ba: dict) -> bool:
         elif x != y:
             return False
     return True
+
+
+def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
+    """The atom with every bound variable replaced, unify's companion:
+    substitute(pattern, unify(pattern, atom)) is the matched instance.
+    An unbound variable stays itself, so a partial substitution is a
+    narrower pattern rather than an error."""
+    term = encode(atom)
+    if isinstance(term, Var):
+        bound = bindings.get(term.name)
+        return bound if bound is not None else term
+    if isinstance(term, Expr):
+        return Expr([substitute(child, bindings) for child in term.children])
+    return term
 
 
 def unify(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:

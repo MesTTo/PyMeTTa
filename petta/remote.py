@@ -47,7 +47,7 @@ from typing import Any
 from . import _json
 from ._engine import bridge
 from ._network import HTTPEndpoint, validated_timeout
-from .atoms import Atom, Expr, Var, atom_from_wire
+from .atoms import Atom, Expr, Var, atom_from_wire, substitute
 from .errors import PettaError
 from .foreign import SpaceProvider
 from .space import MeTTa
@@ -80,6 +80,8 @@ class _HTTPTransport:
 
     def health(self) -> dict:
         return self._health()
+
+
 _SERVER_TIMEOUT = 10.0
 _MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
@@ -552,17 +554,6 @@ class Server:
         return []
 
 
-def _instantiate(atom: Atom, bindings: dict) -> Atom:
-    """The pattern with one answer row's bindings substituted, which is
-    exactly the atom match's pattern-as-template form would answer."""
-    if isinstance(atom, Var):
-        bound = bindings.get(atom.name)
-        return bound if bound is not None else atom
-    if isinstance(atom, Expr):
-        return Expr([_instantiate(child, bindings) for child in atom.children])
-    return atom
-
-
 def serve(
     m,
     host: str = "127.0.0.1",
@@ -622,7 +613,7 @@ def serve(
                 rows = space.query(pattern, limit=bound)
                 names = rows.columns
                 atoms = [
-                    _instantiate(pattern, dict(zip(names, row, strict=True)))
+                    substitute(pattern, dict(zip(names, row, strict=True)))
                     for row in rows
                 ]
                 return {"atoms": [a.to_wire() for a in atoms]}

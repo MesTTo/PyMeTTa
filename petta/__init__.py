@@ -44,6 +44,7 @@ _LAZY_MODULES = frozenset(
         "parallel",
         "persistent",
         "remote",
+        "spaces",
         "testing",
     }
 )
