@@ -39,7 +39,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self._owner = MeTTa()
-        self.space = self._owner.fresh_space()
+        self.space = self._owner.new_space()
         self.model = Counter()
         self._temporary = TemporaryDirectory(prefix="petta-stateful-")
 
@@ -81,7 +81,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
     def save_load_round_trip(self, format):
         path = f"{self._temporary.name}/space.{format}"
         assert self.space.save(path, format=format) == sum(self.model.values())
-        with self._owner.fresh_space() as loaded:
+        with self._owner.new_space() as loaded:
             loaded.load(path)
             assert Counter(loaded.atoms()) == self.model
 

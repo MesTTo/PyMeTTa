@@ -16,7 +16,7 @@ from petta import MeTTa, S, V, val
 from petta.convert import build, project
 from petta.integrate import install_reflection_ops
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 
 
 class Mood(Enum):

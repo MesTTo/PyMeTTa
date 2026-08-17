@@ -50,7 +50,7 @@ EngineCase: TypeAlias = tuple[MeTTa, Callable[[], int]]
 
 
 def _space() -> MeTTa:
-    return MeTTa().fresh_space()
+    return MeTTa().new_space()
 
 
 def close_engine_case(state: EngineCase) -> None:

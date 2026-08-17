@@ -33,7 +33,7 @@ from petta.foreign import SpaceProvider, register_provider, unregister_provider
 @pytest.fixture()
 def m(metta):
     """A fresh anonymous space per test, on the shared engine."""
-    return metta.fresh_space()
+    return metta.new_space()
 
 
 def test_run_groups_answers_per_directive(metta):
@@ -319,7 +319,7 @@ def test_boxed_container_identity(m):
 
 
 def test_fact_isolation_between_spaces(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.add(S.fact(S.here))
     assert a.count() == 1
     assert b.count() == 0
@@ -427,14 +427,14 @@ def test_anonymous_variables_do_not_join(m):
     assert m.query(S.duo(V.x, V._)).columns == ("x",)
 
 
-def test_fresh_spaces_drop_and_names_recycle(metta):
+def test_new_spaces_drop_and_names_recycle(metta):
     """A dropped space's name returns to the pool, so churn does not grow
     the engine's module table; the with-block is the drop."""
-    with metta.fresh_space() as scratch:
+    with metta.new_space() as scratch:
         first = scratch.space_name
         scratch.add(S.noted(S.here))
         assert len(scratch) == 1
-    with metta.fresh_space() as again:
+    with metta.new_space() as again:
         assert again.space_name == first
         assert len(again) == 0
     with pytest.raises(TypeError):
@@ -459,12 +459,12 @@ def test_runtime_refuses_a_second_tree(metta):
 
 
 def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):
-    # fresh_space() pools names, so a live handle to a dropped space would
+    # new_space() pools names, so a live handle to a dropped space would
     # otherwise write into whatever space took the name next.
-    dead = metta.fresh_space()
+    dead = metta.new_space()
     released = dead.space_name
     dead.drop()
-    reused = metta.fresh_space()
+    reused = metta.new_space()
     assert reused.space_name == released
     with pytest.raises(PettaError) as failure:
         dead.add(S.ghost(1))
@@ -477,11 +477,11 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):
 def test_add_table_reads_records_by_value(m):
     m.add(S.p(S.a, S.b))
     rows = m.query(S.p(V.x, V.y))
-    records = m.fresh_space()
+    records = m.new_space()
     records.add_table(S.p, rows.to_dicts())
     # Iterating a mapping yields keys, so this once stored ("x" "y").
     assert [str(atom) for atom in records.atoms()] == ['(p "a" "b")']
-    lossless = m.fresh_space()
+    lossless = m.new_space()
     lossless.add_table(S.p, {c: rows.column(c) for c in rows.columns})
     assert lossless.digest() == m.digest()
 

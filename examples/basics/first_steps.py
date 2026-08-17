@@ -10,7 +10,7 @@ from _common import check, done
 
 from petta import MeTTa, S, V, expr
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 
 # Source runs through the engine's own reader and compiler; one answer list
 # per ! directive, grounded values arriving as Python values.

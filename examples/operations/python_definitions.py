@@ -11,7 +11,7 @@ from _common import check, done
 
 from petta import CompileError, MeTTa, S
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 
 
 @m.define

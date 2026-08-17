@@ -316,7 +316,7 @@ def test_minimal_metta_lib_install_is_idempotent(metta):
     finally:
         sys.path.remove(str(lib))
 
-    space = metta.fresh_space()
+    space = metta.new_space()
     first = minimal_metta_lib.install(space)
     second = minimal_metta_lib.install(space)
     assert first == second

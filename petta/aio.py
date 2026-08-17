@@ -662,9 +662,9 @@ class AsyncMeTTa:
             )
         )
 
-    async def fresh_space(self) -> AsyncMeTTa:
+    async def new_space(self) -> AsyncMeTTa:
         """Return an isolated space that borrows this connection's worker."""
-        fresh = await self.call(lambda m: m.fresh_space())
+        fresh = await self.call(lambda m: m.new_space())
         return AsyncMeTTa._sharing(fresh, self._worker)
 
     async def drop(self) -> None:

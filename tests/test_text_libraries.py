@@ -40,7 +40,7 @@ SEPARATOR = st.sampled_from([",", ";", "|", " ", ":"])
 
 @pytest.fixture(scope="module")
 def text_space(metta):
-    space = metta.fresh_space()
+    space = metta.new_space()
     space.run("!(import! &self (library lib_string))")
     space.run("!(import! &self (library lib_json))")
     return space

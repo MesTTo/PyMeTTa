@@ -16,7 +16,7 @@ from petta import MeTTa, S, V, decode, expr
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 
 for index in range(16):
     genome = [random.randint(0, 1) for _ in TARGET]

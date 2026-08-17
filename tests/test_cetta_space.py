@@ -52,7 +52,7 @@ def cetta_space():
 
 
 def test_metta_reaches_atoms_matched_by_cetta(cetta_space):
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     try:
         m.register_space(cetta_space, "&cetta")
         m.run("!(add-atom &cetta (edge a b))")
@@ -104,7 +104,7 @@ def test_cetta_answers_bind_inside_petta_unification():
     from petta import expr
     from petta.atoms import Gnd
 
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     try:
         module = _cetta_space_module()
         matcher = module.CettaMatch(

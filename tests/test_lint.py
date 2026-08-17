@@ -23,7 +23,7 @@ from petta.lint import Finding
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 
@@ -55,7 +55,7 @@ def test_declared_but_undefined(m):
 
 
 def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta):
-    with metta.fresh_space() as defining, metta.fresh_space() as declaring:
+    with metta.new_space() as defining, metta.new_space() as declaring:
         defining.run("(= (cross-space-only $x) $x)")
         declaring.run("(: cross-space-only (-> Number Number))")
 

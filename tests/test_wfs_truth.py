@@ -20,7 +20,7 @@ from petta.atoms import Undefined
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 

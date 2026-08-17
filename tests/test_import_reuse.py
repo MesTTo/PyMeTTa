@@ -27,11 +27,11 @@ def test_reused_pooled_space_reimports_complete_library(metta):
     free_count = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
-    parked = [metta.fresh_space() for _ in range(free_count)]
+    parked = [metta.new_space() for _ in range(free_count)]
     try:
         names = []
         for _ in range(2):
-            with metta.fresh_space() as scratch:
+            with metta.new_space() as scratch:
                 names.append(scratch.space_name)
                 assert scratch.run(DATETIME_IMPORT) == [[True]]
                 assert _format_date_clause_count(scratch) == 1
@@ -44,7 +44,7 @@ def test_reused_pooled_space_reimports_complete_library(metta):
 
 
 def test_same_life_double_import_is_a_no_op(metta):
-    with metta.fresh_space() as scratch:
+    with metta.new_space() as scratch:
         assert scratch.run(DATETIME_IMPORT) == [[True]]
         clauses_before = _format_date_clause_count(scratch)
         atoms_before = scratch.count()
@@ -56,7 +56,7 @@ def test_same_life_double_import_is_a_no_op(metta):
 
 
 def test_import_translation_leaves_variable_heads_dynamic(metta):
-    with metta.fresh_space() as scratch:
+    with metta.new_space() as scratch:
         assert scratch.run(
             "(= (apply-two $function $left $right) "
             "($function $left $right)) !(apply-two + 20 22)"
@@ -69,7 +69,7 @@ def test_imported_source_error_names_the_file(metta, tmp_path):
         "(= (partial-import $number) (+ $number 1))\n!(+ 1 2 3)\n"
     )
 
-    with metta.fresh_space() as scratch:
+    with metta.new_space() as scratch:
         with pytest.raises(EngineError) as caught:
             scratch.run(f'!(import! (context-space) "{broken}")')
 
@@ -89,7 +89,7 @@ def test_imported_source_error_names_the_file(metta, tmp_path):
 def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):
     missing = tmp_path / "missing-import.metta"
 
-    with metta.fresh_space() as scratch, pytest.raises(EngineError) as caught:
+    with metta.new_space() as scratch, pytest.raises(EngineError) as caught:
         scratch.run(f'!(import! (context-space) "{missing}")')
 
     assert str(missing) in str(caught.value)

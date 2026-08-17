@@ -29,7 +29,7 @@ _ARTEFACT = _PROVIDER.with_name("cstore.so")
 def cstore():
     if not _ARTEFACT.is_file():
         pytest.skip("cstore.so is not built; see examples/integration/c_space/README.md")
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     m.register_prolog(path=_PROVIDER)
     try:
         m.run("!(remove-atom &cstore $any)")

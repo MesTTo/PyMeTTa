@@ -52,7 +52,7 @@ _ROWS = 2_000
 
 
 def _empty_space():
-    return MeTTa().fresh_space()
+    return MeTTa().new_space()
 
 
 def _drop(space):

@@ -63,7 +63,7 @@ def demo() -> None:
     licensed bound reaches the SQL as LIMIT."""
     import petta
 
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     provider = attach_sqlite(m, "&crm")
     m.run("!(add-atom &crm (edge a b))")
     m.run("!(add-atom &crm (edge b b))")

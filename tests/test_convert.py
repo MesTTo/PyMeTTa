@@ -181,7 +181,7 @@ def test_declarations_without_an_instance():
 
 
 def test_projected_facts_reason_in_the_engine(metta):
-    space = metta.fresh_space()
+    space = metta.new_space()
     projected = project(Person("Ada", 36))
     space.add(*projected.declarations, projected.atom)
     space.add(project(Person("Bob", 41)).atom)

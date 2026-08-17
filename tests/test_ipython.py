@@ -34,7 +34,7 @@ def test_cell_magic_targets_a_named_space(shell):
 
 
 def test_ipython_magic_uses_selected_space(shell, metta):
-    with metta.fresh_space() as selected:
+    with metta.new_space() as selected:
         use(selected)
         try:
             shell.run_cell_magic("metta", "", "(selected-fact here)")

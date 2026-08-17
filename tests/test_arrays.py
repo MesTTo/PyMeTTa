@@ -58,7 +58,7 @@ def test_activations_are_standard_not_torch(am):
 
 def test_ndarray_identity_through_space(am):
     array = numpy.arange(4.0)
-    space = am.fresh_space()
+    space = am.new_space()
     space.add(S.holds(val(array)))
     assert decode(space.query(S.holds(V.a))[0].a) is array
 
@@ -81,7 +81,7 @@ def test_protocol_printing_covers_any_library(am):
 
 def test_cross_library_conversion_via_dlpack(am):
     pytest.importorskip("torch")
-    space = am.fresh_space()
+    space = am.new_space()
     space.add(S.np_vec(val(numpy.array([1.0, 2.0], dtype=numpy.float32))))
     (group,) = space.run(
         "!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))"
@@ -93,7 +93,7 @@ def test_mixed_library_binary_op_converts_rightward(am):
     torch = pytest.importorskip("torch")
     left = numpy.ones((2, 2), dtype=numpy.float32)
     right = torch.ones(2, 2)
-    space = am.fresh_space()
+    space = am.new_space()
     space.add(S.pairT(val(left), val(right)))
     (group,) = space.run(
         "!(t-item (t-sum (match (context-space) (pairT $a $b) (matmul $a $b))))"
@@ -102,7 +102,7 @@ def test_mixed_library_binary_op_converts_rightward(am):
 
 
 def test_embedding_store_runs_on_numpy(am):
-    space = am.fresh_space()
+    space = am.new_space()
     store = arrays.EmbeddingStore(space, name="npk")
     store.add(S.dog, numpy.array([1.0, 0.0, 0.0]))
     store.add(S.cat, numpy.array([0.9, 0.1, 0.0]))
@@ -150,7 +150,7 @@ def test_array_protocol_registration_is_idempotent(monkeypatch):
 
 
 def test_same_named_embedding_stores_route_per_space(metta):
-    with metta.fresh_space() as left, metta.fresh_space() as right:
+    with metta.new_space() as left, metta.new_space() as right:
         left_store = arrays.EmbeddingStore(left, name="shared-emb")
         right_store = arrays.EmbeddingStore(right, name="shared-emb")
         left_store.add(S.dog, numpy.array([1.0, 0.0]))
@@ -163,7 +163,7 @@ def test_same_named_embedding_stores_route_per_space(metta):
 
 
 def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="replace-emb")
         original = numpy.array([1.0, 0.0])
         store.add(S.same, original)
@@ -188,14 +188,14 @@ def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):
     ],
 )
 def test_embedding_store_validates_added_vectors(metta, vector, message):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="validated-emb")
         with pytest.raises(ValueError, match=message):
             store.add(S.bad, vector)
 
 
 def test_embedding_store_requires_one_width_and_positive_integer_k(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="bounded-emb")
         store.add(S.good, numpy.array([1.0, 0.0]))
         with pytest.raises(ValueError, match="width must be 2"):

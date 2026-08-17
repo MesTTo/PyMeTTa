@@ -39,7 +39,7 @@ def _module():
 @pytest.fixture
 def attached(request):
     name = f"&sqlite-{request.node.name[-16:].replace('_', '')}"
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     provider = _module().attach_sqlite(m, name)
     try:
         yield m, name, provider

@@ -24,7 +24,7 @@ from petta.results import _row_class
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 

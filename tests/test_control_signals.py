@@ -17,7 +17,7 @@ from petta import EngineError, InferenceLimitError, TimeLimitError
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 

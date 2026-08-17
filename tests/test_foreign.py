@@ -125,7 +125,7 @@ def test_writes_reach_the_provider(listspace):
 
 def test_mixed_native_and_foreign_join(listspace):
     name, provider, m = listspace
-    native = m.fresh_space()
+    native = m.new_space()
     native.add(S.blessed(S.a))
     r = native.run(
         f"!(collapse (match {name} (edge $x $y) "
@@ -730,7 +730,7 @@ def _both_ways(metta, provider, name, *query):
         space = metta.space(name)
         space.add(*_JOIN_ATOMS)
         claimed = sorted(str(row) for row in space.query(*query))
-        with metta.fresh_space() as native:
+        with metta.new_space() as native:
             native.add(*_JOIN_ATOMS)
             split = sorted(str(row) for row in native.query(*query))
         return claimed, split

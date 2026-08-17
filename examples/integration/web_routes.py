@@ -144,7 +144,7 @@ class Router:
                         "unprocessable" if matched else "not found")
 
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 app = Router(m, "app")
 
 

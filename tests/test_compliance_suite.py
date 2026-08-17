@@ -127,7 +127,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     `Unknown error term: petta_foreign_space_holds_no_rules(...)`, which names
     the capability without saying it is one or how to opt in.
     """
-    engine = MeTTa().fresh_space()
+    engine = MeTTa().new_space()
     name = SpaceName("&ruleless")
     engine.register_space(ListSpace([]), name)
     try:

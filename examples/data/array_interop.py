@@ -17,7 +17,7 @@ except ImportError:
 
 from petta import MeTTa, S, V, arrays, decode, expr, val
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 arrays.install(m, default=numpy)
 
 check("matmul over numpy",

@@ -23,7 +23,7 @@ from petta.ops import referenced_classes, type_atoms_for
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 
@@ -293,7 +293,7 @@ def test_the_library_reflects_into_its_own_space(m):
 
 def test_reflection_facts_follow_a_dropped_space(metta):
     reflection = MeTTa(REFLECTION_SPACE)
-    space = metta.fresh_space()
+    space = metta.new_space()
 
     @space.define
     def fleeting(x):
@@ -323,7 +323,7 @@ def test_metta_programs_steer_through_the_reflection_space(m):
 
 def test_drop_cancels_the_spaces_subscriptions(metta):
     reflection = MeTTa(REFLECTION_SPACE)
-    space = metta.fresh_space()
+    space = metta.new_space()
     name = space.space_name
     seen = []
     subscription = space.subscribe(S.ping(V.x), lambda e: seen.append(e))

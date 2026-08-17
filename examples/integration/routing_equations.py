@@ -12,7 +12,7 @@ from _common import check, done
 
 from petta import MeTTa, S, expr
 
-app = MeTTa().fresh_space()
+app = MeTTa().new_space()
 app.run(
     '(= (route home) (Page 200 "Welcome"))\n'
     '(= (route about) (Page 200 "About us"))\n'

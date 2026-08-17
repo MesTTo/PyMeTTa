@@ -18,7 +18,7 @@ from petta import CastError, Gnd, S, V, cast, integrate
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 
@@ -80,7 +80,7 @@ def test_protocol_types_duck_through_the_type_system(m, metta):
 
 
 def test_declarations_are_space_relative(metta):
-    with metta.fresh_space() as a, metta.fresh_space() as b:
+    with metta.new_space() as a, metta.new_space() as b:
         a.run("(: Bob Person)")
         assert a.cast(S.Bob, "Person") is S.Bob
         with pytest.raises(CastError):
@@ -118,7 +118,7 @@ else:
     def test_generated_atoms_cast_to_atom_and_refuse_the_absurd(metta, atom):
         """Atom admits everything unchecked; a type name nothing
         declares refuses everything, loudly and precisely."""
-        with metta.fresh_space() as space:
+        with metta.new_space() as space:
             assert space.cast(atom, "Atom") is not None
             with pytest.raises(CastError) as caught:
                 space.cast(atom, "Absurd987")

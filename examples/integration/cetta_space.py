@@ -178,7 +178,7 @@ def demo() -> None:
     from petta import S, V, expr
     from petta.atoms import Gnd
 
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     space = CettaSpace(cetta=cetta)
     m.register_space(space, "&cetta")
     m.run("!(add-atom &cetta (edge a b))")

@@ -258,7 +258,7 @@ class MeTTa:
     PeTTa keeps one engine per process; every MeTTa instance shares it. The
     default space is &self, the space the CLI itself uses, so source pasted
     from a .metta file behaves identically here. Two MeTTa() calls therefore
-    see the same &self state. Use fresh_space() when independent stored state
+    see the same &self state. Use new_space() when independent stored state
     is required.
 
     A named space isolates both its atoms and its EQUATIONS, and the rule for
@@ -275,7 +275,7 @@ class MeTTa:
     So a helper put in &self is reachable from every space, one put in a named
     space is private to it, and a name defined in both resolves to the local
     one where it exists. Registrations are the thing that really is
-    process-wide, which fresh_space() says.
+    process-wide, which new_space() says.
 
         from petta import MeTTa, S, V
 
@@ -316,7 +316,7 @@ class MeTTa:
 
         Every engine call reads the name through here, so a dropped handle
         cannot reach the engine at all. That matters because drop() returns
-        an anonymous name to the pool: without this, a later fresh_space()
+        an anonymous name to the pool: without this, a later new_space()
         hands the same name to a new handle and writes through the dead one
         land in the new space, silently.
         """
@@ -324,7 +324,7 @@ class MeTTa:
             raise PettaError(
                 f"{self._name} was dropped; this handle is dead. Its name may "
                 f"already belong to another space, so writes through it would "
-                f"land there. Take a new handle from fresh_space() or space()."
+                f"land there. Take a new handle from new_space() or space()."
             )
         return self._name
 
@@ -338,19 +338,19 @@ class MeTTa:
         """Another space on the same engine."""
         return MeTTa(name)
 
-    def fresh_space(self) -> MeTTa:
+    def new_space(self) -> MeTTa:
         """An anonymous space with a name nothing else is using.
 
         Works as a context manager: leaving the block drops the space, so a
         churn of short-lived spaces reuses names instead of growing the
         engine's module table.
 
-            with m.fresh_space() as scratch:
+            with m.new_space() as scratch:
                 scratch.add(...)
 
         What it isolates is STORED STATE: atoms and equations. Registrations
         are process-wide, so a register_prolog, a register_op or a define made
-        on a fresh space is visible from every other one. Reach for this to
+        on a new space is visible from every other one. Reach for this to
         isolate the data a test writes, not the names it registers; to isolate
         a name, unregister it.
         """
@@ -383,7 +383,7 @@ class MeTTa:
     def __enter__(self) -> Self:
         if not self._ephemeral:
             raise TypeError(
-                f"{self._space} was not created by fresh_space(); only an "
+                f"{self._space} was not created by new_space(); only an "
                 f"anonymous space scopes to a with-block, since leaving the "
                 f"block drops it. Call drop() deliberately for a named one."
             )
@@ -634,7 +634,7 @@ class MeTTa:
         """Add a text program or trusted fast cache to this space.
 
         Existing atoms remain, so loading the same file twice adds two copies.
-        Use clear() first or load into fresh_space() when replacement is wanted.
+        Use clear() first or load into new_space() when replacement is wanted.
         A .gz path is detected and read through the decompressed bytes.
         """
         return load_space(self._rt, self._space, path)
@@ -1401,7 +1401,7 @@ class MeTTa:
 
         **This is a method on a space and it registers PROCESS-WIDE.** So do
         register_op and define. Only equations are space-scoped, so a
-        fresh_space() isolates one of the three things you can register and
+        new_space() isolates one of the three things you can register and
         shares the other two. That is deliberate rather than overlooked: a
         Prolog predicate lives in `user`, every space has to be able to call
         it, and a library loaded inside a named space would define itself

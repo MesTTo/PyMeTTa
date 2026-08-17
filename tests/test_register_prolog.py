@@ -45,7 +45,7 @@ from petta import EngineError, PettaError, SourceNotFound
 
 @pytest.fixture()
 def space(metta):
-    return metta.fresh_space()
+    return metta.new_space()
 
 
 def test_inline_source_becomes_a_metta_function(space):

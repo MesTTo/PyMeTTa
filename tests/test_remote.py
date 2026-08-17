@@ -234,7 +234,7 @@ def test_remote_server_rejects_malformed_request_bodies(
 def test_authorize_can_serve_a_space_read_only(metta):
     # The hook saw the headers alone, so it could not tell a read from a
     # write and read-only was inexpressible.
-    served = metta.fresh_space()
+    served = metta.new_space()
     served.add(S.stock(S.apple))
     name = served.space_name
     seen = []

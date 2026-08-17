@@ -24,7 +24,7 @@ from petta import Answer, Bindings, MeTTa, S, V, expr
 from petta.arrays import EmbeddingStore
 from petta.atoms import Gnd
 
-m = MeTTa().fresh_space()
+m = MeTTa().new_space()
 
 # Crisp lexical closeness: a regex value that matches inside unify. The
 # pattern IS the value; matching succeeds exactly when the operand's

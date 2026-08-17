@@ -210,7 +210,7 @@ class SpaceComplianceSuite:
     def space(self, provider, exercised):
         """The provider registered on a fresh engine, under its own name."""
         del exercised
-        engine = MeTTa().fresh_space()
+        engine = MeTTa().new_space()
         name = SpaceName(f"&compliance{next(_NAMES)}")
         engine.register_space(provider, name)
         try:
@@ -385,7 +385,7 @@ class SpaceComplianceSuite:
         left = open_pattern(atom)
         right = Expr([atom.head, *left.args])
         claimed = sorted(str(row) for row in space.query(left, right))
-        with space.fresh_space() as native:
+        with space.new_space() as native:
             native.add(*stored)
             split = sorted(str(row) for row in native.query(left, right))
         assert claimed == split, (
@@ -536,7 +536,7 @@ class SpaceComplianceSuite:
         """
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
-        with space.fresh_space() as native:
+        with space.new_space() as native:
             native.add(Expr([Sym("petta-compliance-native"), atom.args[0]]))
             answered = native.run(
                 f"!(collapse (match {space.space_name} {open_pattern(atom)} "

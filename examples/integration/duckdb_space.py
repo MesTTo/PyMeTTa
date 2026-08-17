@@ -235,7 +235,7 @@ def demo() -> None:
     IMPORTED. A module that connects and queries at import time cannot be
     pointed at by a test, and petta.testing.SpaceComplianceSuite is pointed at
     DuckDBSpace in python/tests/test_compliance_duckdb.py."""
-    m = MeTTa().fresh_space()
+    m = MeTTa().new_space()
     conn = duckdb.connect(":memory:")
     conn.execute("create table users (id integer, name text)")
     conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")

@@ -73,7 +73,7 @@ def test_digest_names_mork_content_too(mork, metta):
     mork.add(S.dgm(1), S.dgm(2))
     first = mork.digest()
     assert len(first) == 64
-    with metta.fresh_space() as native:
+    with metta.new_space() as native:
         native.add(S.dgm(2), S.dgm(1))
         assert native.digest() == first
 
@@ -117,7 +117,7 @@ def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
         (S.edge(V.x, V.y), S.edge(V.y, V.z), S.edge(V.z, V.x)),
         (S.edge(V.x, V.y), S.tag(V.y, S.nothing)),
     ]
-    with metta.fresh_space() as native:
+    with metta.new_space() as native:
         native.add(*atoms)
         for query in queries:
             claimed = sorted(str(row) for row in mork.query(*query))

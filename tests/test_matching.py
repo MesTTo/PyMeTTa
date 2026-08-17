@@ -19,7 +19,7 @@ from petta.atoms import Gnd
 
 @pytest.fixture
 def m(metta):
-    return metta.fresh_space()
+    return metta.new_space()
 
 
 def test_unify_ground_cases_match_the_arbiter(m):

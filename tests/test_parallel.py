@@ -29,7 +29,7 @@ SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
 
 def test_parallel_answers_the_same_set_as_superpose(metta):
     """Same branches, same answers; hyperpose only changes the order."""
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run(SQUARE)
         branches = [expr(S["par-sq"], n) for n in (1, 2, 3, 4)]
         parallel = sorted(str(a) for a in space.parallel(*branches))
@@ -41,7 +41,7 @@ def test_parallel_answers_the_same_set_as_superpose(metta):
 
 def test_parallel_accepts_text_and_atoms(metta):
     """A target is a term or its source text, as everywhere else."""
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run(SQUARE)
         answers = space.parallel(expr(S["par-sq"], 5), "(par-sq 6)")
         assert sorted(str(a) for a in answers) == ["25", "36"]
@@ -49,7 +49,7 @@ def test_parallel_accepts_text_and_atoms(metta):
 
 def test_parallel_without_targets_answers_nothing(metta):
     """No branches is no answers, and no engine call to find that out."""
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         assert space.parallel() == []
 
 
@@ -59,7 +59,7 @@ def test_parallel_runs_branches_concurrently(metta):
     Wall clock is the only signal for parallelism, so the workload is sized
     well above this box's timing noise and the margin is generous.
     """
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run(SPIN)
         branch = expr(S["par-spin"], 3_000_000)
 
@@ -84,7 +84,7 @@ def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
     """timeout bounds the call; inferences is deliberately not a parameter."""
     from petta.errors import TimeLimitError
 
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run(SPIN)
         forever = expr(S["par-spin"], 200_000_000)
         with pytest.raises(TimeLimitError):
@@ -100,7 +100,7 @@ def test_parallel_reports_a_failing_branch(metta):
     """A branch that raises is not swallowed by the concurrency."""
     from petta.errors import EngineError
 
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run(SQUARE)
         with pytest.raises(EngineError):
             space.parallel(expr(S["par-sq"], 2), "(+ 1 not-a-number)")

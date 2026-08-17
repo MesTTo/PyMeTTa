@@ -21,7 +21,7 @@ from petta import REFLECTION_SPACE, EngineError, MeTTa, S, V
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run("!(import! (context-space) (library lib_tabling))")
         yield space
 
@@ -139,15 +139,15 @@ def test_pool_reuse_starts_tabling_clean(metta):
     free = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
-    held = [metta.fresh_space() for _ in range(free)]
+    held = [metta.new_space() for _ in range(free)]
     try:
-        with metta.fresh_space() as first_life:
+        with metta.new_space() as first_life:
             name = first_life.space_name
             first_life.run("!(import! (context-space) (library lib_tabling))")
             first_life.run("(= (leak-fn $n) (+ $n 1))")
             assert first_life.run("!(tabled (leak-fn $n))") == [[True]]
             assert first_life.run("!(leak-fn 5)") == [[6]]
-        with metta.fresh_space() as second_life:
+        with metta.new_space() as second_life:
             assert second_life.space_name == name
             assert _module_table_count(metta.runtime, name) == 0
             reflection = MeTTa(REFLECTION_SPACE)
@@ -168,7 +168,7 @@ def test_dropped_space_leaves_shared_tabling_alone(metta):
     metta.run("(= (shared-keeper $n) (+ $n 3))")
     assert metta.run("!(tabled (shared-keeper $n))") == [[True]]
     try:
-        with metta.fresh_space() as scratch:
+        with metta.new_space() as scratch:
             scratch.run("!(import! (context-space) (library lib_tabling))")
             scratch.run("(= (scratch-fn $n) (+ $n 1))")
             assert scratch.run("!(tabled (scratch-fn $n))") == [[True]]

@@ -11,7 +11,7 @@ from petta import S, V, expr
 
 
 def test_two_spaces_can_define_the_same_head(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-f) 1)")
     b.run("(= (psp-f) 2)")
     assert a.run("!(psp-f)") == [[1]]
@@ -19,7 +19,7 @@ def test_two_spaces_can_define_the_same_head(metta):
 
 
 def test_a_space_does_not_answer_from_anothers_equations(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-only-a) 42)")
     # In b the name is another space's function: the term stays inert data
     # rather than answering 42 or raising.
@@ -31,21 +31,21 @@ def test_self_still_shares_with_named_spaces(metta):
     # &self is the shared space: a function defined there reaches every space,
     # which is what keeps every existing single-space program working.
     metta.run("(= (psp-shared) 7)")
-    a = metta.fresh_space()
+    a = metta.new_space()
     assert a.run("!(psp-shared)") == [[7]]
 
 
 def test_declaration_in_a_named_space_is_visible_there(metta):
-    a = metta.fresh_space()
+    a = metta.new_space()
     a.run("(: psp-a PspA)")
     assert a.run("!(get-type psp-a)") == [[S.PspA]]
     # And invisible from a sibling space.
-    b = metta.fresh_space()
+    b = metta.new_space()
     assert b.run("!(get-type psp-a)") == [[S["%Undefined%"]]]
 
 
 def test_reduce_reaches_a_named_spaces_function(metta):
-    a = metta.fresh_space()
+    a = metta.new_space()
     a.run("(= (psp-dbl $x) (* $x 2))")
     # map-atom goes through reduce/2, the runtime dispatcher; it has to find
     # the equation in this space's module.
@@ -53,7 +53,7 @@ def test_reduce_reaches_a_named_spaces_function(metta):
 
 
 def test_equation_removal_is_per_space(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-r) 1)")
     b.run("(= (psp-r) 2)")
     a.remove("(= (psp-r) 1)")
@@ -66,7 +66,7 @@ def test_identical_equation_removal_keeps_the_twin(metta):
     library import produces. The compiled-clause erasure is term-keyed,
     so without the module filter removing one twin erased the other
     space's clause and its bookkeeping record with it."""
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-twin $n) (+ $n 1))")
     b.run("(= (psp-twin $n) (+ $n 1))")
     assert a.remove("(= (psp-twin $n) (+ $n 1))") is True
@@ -84,12 +84,12 @@ def test_python_ops_reach_every_space(metta):
     def psp_op_everywhere(x: int) -> int:
         return x + 1
 
-    a = metta.fresh_space()
+    a = metta.new_space()
     assert a.run("!(psp-op-everywhere 41)") == [[42]]
 
 
 def test_eval_uses_the_spaces_own_equations(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-e) here)")
     b.run("(= (psp-e) there)")
     assert a.eval(expr(S["psp-e"])) == [S.here]
@@ -97,7 +97,7 @@ def test_eval_uses_the_spaces_own_equations(metta):
 
 
 def test_derivation_follows_the_spaces_module(metta):
-    a = metta.fresh_space()
+    a = metta.new_space()
     a.run("(psp-par x y)\n(= (psp-anc $a $b) (match &self (psp-par $a $b) $b))")
     # &self in loaded source is the reserved token for the hosting space,
     # so the equation's match reads a's own atoms: the fact is there, the
@@ -115,7 +115,7 @@ def test_a_lambda_reaches_the_space_local_function_it_names(metta):
     could not see the space at all, because a module inherits from `user` and
     not the reverse, so every lambda form raised Unknown procedure on a
     space-local function while the same call written directly answered."""
-    a = metta.fresh_space()
+    a = metta.new_space()
     a.run("(= (psp-lam $x) (* $x 2))")
     assert a.run("!(psp-lam 21)") == [[42]]
     assert a.run("!(map-atom (1 2 3) $x (psp-lam $x))") == [[expr(2, 4, 6)]]
@@ -125,7 +125,7 @@ def test_a_lambda_reaches_the_space_local_function_it_names(metta):
 
 
 def test_two_spaces_do_not_share_a_lambda_of_the_same_shape(metta):
-    a, b = metta.fresh_space(), metta.fresh_space()
+    a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-lam-shape $x) (* $x 2))")
     b.run("(= (psp-lam-shape $x) (* $x 10))")
     source = "!(map-atom (1 2 3) $x (psp-lam-shape $x))"
@@ -137,13 +137,13 @@ def test_equations_are_per_space_with_a_self_fallback_and_local_shadowing(metta)
     """The three-part rule the MeTTa class docstring states as a table.
 
     It used to say equations were "process-wide, which is the engine's own
-    rule", while fresh_space() two hundred lines below said the opposite, that
+    rule", while new_space() two hundred lines below said the opposite, that
     what it isolates is atoms AND equations. The second one is right, and it
     is still not the whole rule: there is a dynamic fallback to &self and
     local shadowing on top of the isolation.
     """
-    s1 = metta.fresh_space()
-    s2 = metta.fresh_space()
+    s1 = metta.new_space()
+    s2 = metta.new_space()
     try:
         # Defined in a named space: private to it, unreduced elsewhere.
         s1.run("(= (sc-only-s1) 1)")

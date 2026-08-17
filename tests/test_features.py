@@ -54,7 +54,7 @@ subscribe_module = importlib.import_module("petta.subscribe")
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 
@@ -461,12 +461,12 @@ def test_run_using_carries_identity(m):
 
 
 def test_save_and_load_round_trip(metta, tmp_path):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         space.run("(= (greet $x) (hello $x)) (fact one) (fact two)")
         path = tmp_path / "kb.metta"
         count = space.save(str(path))
         assert count == 3
-    with metta.fresh_space() as reborn:
+    with metta.new_space() as reborn:
         reborn.load(str(path))
         assert len(reborn.query(S.fact(V.x))) == 2
         assert reborn.run("!(greet world)") == [[expr(S.hello, S.world)]]
@@ -564,8 +564,8 @@ def test_atoms_destructure_with_match_statements(m):
 
 
 def test_bridge_rules_connect_spaces(metta):
-    src = metta.fresh_space()
-    dst = metta.fresh_space()
+    src = metta.new_space()
+    dst = metta.new_space()
     rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
     try:
         src.add(S.alarm(S.kitchen))
@@ -590,7 +590,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
         text=True,
         env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
     )
-    local = metta.fresh_space()
+    local = metta.new_space()
     try:
         line = child.stdout.readline()
         assert line, child.stderr.read()
@@ -667,7 +667,7 @@ def test_enum_members_match_in_metta(m):
 
 
 def test_remote_auth_token_and_hook_requires_tls(metta):
-    served = metta.fresh_space()
+    served = metta.new_space()
     served.add(S.fact(1))
     server = remote.serve(
         metta,
@@ -712,7 +712,7 @@ def test_remote_serves_tls(metta, tmp_path):
     client_context = ssl.create_default_context(cafile=str(cert))
     client_context.check_hostname = False  # self-signed CN, loopback address
 
-    served = metta.fresh_space()
+    served = metta.new_space()
     served.add(S.tls(S.ok))
     server = remote.serve(
         metta,
@@ -886,7 +886,7 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):
 # three from a cursor costs 20. Convenience is free when it changes the
 # spelling and not the plan.
 def test_a_cursor_slice_pulls_only_what_it_takes(m):
-    space = m.fresh_space()
+    space = m.new_space()
     space.add(*[S.fact(i, i) for i in range(2000)])
     with space.stats() as lazy, space.stream(S.fact(V.k, V.n)) as cursor:
         first_three = cursor[:3]
@@ -908,7 +908,7 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):
 def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
     """Each refusal is the design, not a gap: every one of these needs every
     row, which is exactly what a cursor exists to avoid."""
-    space = m.fresh_space()
+    space = m.new_space()
     space.add(*[S.fact(i, i) for i in range(10)])
     with space.stream(S.fact(V.k, V.n)) as cursor:
         with pytest.raises(TypeError, match="no len"):

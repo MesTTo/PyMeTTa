@@ -28,7 +28,7 @@ _LIBRARY = (
 def vectors():
     if not _LIBRARY.is_file():
         pytest.skip("handle.so is not built; see examples/integration/c_extension/README.md")
-    m = petta.MeTTa().fresh_space()
+    m = petta.MeTTa().new_space()
     m.register_foreign_library(
         _LIBRARY,
         entry="install_handle",

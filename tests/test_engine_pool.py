@@ -35,7 +35,7 @@ st = hypothesis.strategies
 
 @pytest.fixture()
 def m(metta):
-    return metta.fresh_space()
+    return metta.new_space()
 
 
 @pytest.fixture()
@@ -114,7 +114,7 @@ def test_pool_agrees_with_the_home_engine(m, p):
 @given(st.lists(st.integers(min_value=-500, max_value=500), min_size=1, max_size=12))
 def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values):
     """Property: whatever the home engine answers, a worker answers too."""
-    space = metta.fresh_space()
+    space = metta.new_space()
     home = [space.value(f"(* {v} 3)") for v in values]
     with pool(workers=3) as engine_pool:
         worker = engine_pool.map(lambda v: space.value(f"(* {v} 3)"), values)

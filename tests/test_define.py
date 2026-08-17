@@ -29,7 +29,7 @@ st = hypothesis.strategies
 
 @pytest.fixture()
 def m(metta):
-    return metta.fresh_space()
+    return metta.new_space()
 
 
 def twin_base_probe(value):

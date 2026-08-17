@@ -19,7 +19,7 @@ from petta import S, val
 
 
 def test_digest_ignores_order_and_variable_names(metta):
-    with metta.fresh_space() as a, metta.fresh_space() as b:
+    with metta.new_space() as a, metta.new_space() as b:
         a.add(S.dg(1), S.dg(2))
         a.run("(= (dg-f $x) (+ $x 1))")
         b.run("(= (dg-f $renamed) (+ $renamed 1))")
@@ -31,7 +31,7 @@ def test_digest_ignores_order_and_variable_names(metta):
 
 
 def test_digest_counts_duplicates(metta):
-    with metta.fresh_space() as a, metta.fresh_space() as b:
+    with metta.new_space() as a, metta.new_space() as b:
         a.add(S.dup(S.x))
         b.add(S.dup(S.x))
         b.add(S.dup(S.x))
@@ -39,11 +39,11 @@ def test_digest_counts_duplicates(metta):
 
 
 def test_digest_matches_across_processes(metta):
-    with metta.fresh_space() as here:
+    with metta.new_space() as here:
         here.run("(dgx alpha) (dgx beta) (= (dgx-f $v) (* $v 2))")
         program = (
             "from petta import MeTTa\n"
-            "m = MeTTa().fresh_space()\n"
+            "m = MeTTa().new_space()\n"
             'm.run("(= (dgx-f $other) (* $other 2)) (dgx beta) (dgx alpha)")\n'
             "print(m.digest())\n"
         )
@@ -61,7 +61,7 @@ def test_digest_matches_across_processes(metta):
 
 
 def test_digest_refuses_live_objects(metta):
-    with metta.fresh_space() as m:
+    with metta.new_space() as m:
         m.add(S.holds(val(object())))
         with pytest.raises(ValueError, match="cross-process identity"):
             m.digest()
@@ -83,7 +83,7 @@ def test_digest_refuses_live_objects(metta):
     ],
 )
 def test_digest_refuses_symbols_without_round_trip_text(metta, name):
-    with metta.fresh_space() as m:
+    with metta.new_space() as m:
         m.add(S.container(S[name]))
         with pytest.raises(ValueError, match=r"cannot write symbol"):
             m.digest()
@@ -95,9 +95,9 @@ def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):
     # read back by the top-level form scanner, which tracks a string state
     # sread alone never sees.
     path = tmp_path / "one.metta"
-    with metta.fresh_space() as writer:
+    with metta.new_space() as writer:
         writer.add(S.container(S[name]))
         writer.save(path)
-    with metta.fresh_space() as reader:
+    with metta.new_space() as reader:
         reader.load(path)
         assert reader.atoms() == [S.container(S[name])]

@@ -82,7 +82,7 @@ def test_register_object_type_makes_protocols_types(metta):
             return "quack"
 
     pi.register_object_type(lambda x: hasattr(x, "quack"), "Duck")
-    space = metta.fresh_space()
+    space = metta.new_space()
     space.add(S.pet(val(Quacks())))
     (answers,) = space.run("!(collapse (get-type (match (context-space) (pet $p) $p)))")
     names = {str(a) for a in answers[0]}
@@ -149,7 +149,7 @@ def test_py_field_reasons_in_both_modes(metta):
         name: str
 
     pi.install_reflection_ops(metta)
-    space = metta.fresh_space()
+    space = metta.new_space()
     space.add(S.config(val(Config(3, "deep"))))
     # Bound mode: fetch one field.
     r = space.run(
@@ -178,7 +178,7 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):
 
     pi.install_reflection_ops(metta)
     target = Counted()
-    space = metta.fresh_space()
+    space = metta.new_space()
     try:
         space.add(S.target(val(target)))
         assert space.run(
@@ -206,7 +206,7 @@ def test_integrate_module_protocol_and_idempotence(metta):
     assert len(calls) == 1  # idempotent per process
     # Installation is per (space, name): a second space installs again.
     assert (metta.space_name, "fake_integration") in pi.installed()
-    other = metta.fresh_space()
+    other = metta.new_space()
     try:
         pi.integrate(other, fake)
         assert len(calls) == 2
@@ -244,7 +244,7 @@ def test_dropped_space_name_reinstalls_integrations(metta):
 
 
 def test_facts_bulk_load(metta):
-    space = metta.fresh_space()
+    space = metta.new_space()
     count = pi.facts(space, [S.n(1), S.n(2), (S.pair, 1, 2)])
     assert count == 3
     assert space.count() == 3
@@ -260,7 +260,7 @@ def test_networkx_integrates_in_a_page(metta):
     graph.add_edge("b", "c", weight=2.0)
     graph.add_edge("a", "c", weight=9.0)
 
-    space = metta.fresh_space()
+    space = metta.new_space()
     # Structure as facts:
     pi.facts(space, (expr(S.nx_edge, S[u], S[v], d["weight"]) for u, v, d in graph.edges(data=True)))
     # Behaviour as an operation:
@@ -280,7 +280,7 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     route is an equation, a request reduces through whichever route matches,
     and the catch-all equation is the 404. Clause order plus once is the
     dispatcher; nothing was built to make this work, which is the point."""
-    app = metta.fresh_space()
+    app = metta.new_space()
     app.run(
         '(= (route home) (Page 200 "Welcome"))\n'
         '(= (route about) (Page 200 "About us"))\n'

@@ -13,7 +13,7 @@ import pytest
 
 @pytest.fixture
 def m(metta):
-    space = metta.fresh_space()
+    space = metta.new_space()
     space.run("!(import! (context-space) (library lib_measure))")
     return space
 

@@ -31,7 +31,7 @@ from petta import (
 
 @pytest.fixture()
 def m(metta):
-    with metta.fresh_space() as space:
+    with metta.new_space() as space:
         yield space
 
 
@@ -215,7 +215,7 @@ def test_aio_cancelled_while_queued_never_runs(m):
 
 def test_aio_exposes_every_plain_request_response_method():
     expected = {
-        "fresh_space",
+        "new_space",
         "drop",
         "profile",
         "parse",
@@ -280,7 +280,7 @@ def test_aio_exposes_every_plain_request_response_method():
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
     async def go():
-        async with aio.AsyncMeTTa(metta=metta.fresh_space()) as am:
+        async with aio.AsyncMeTTa(metta=metta.new_space()) as am:
             parsed = await am.parse("(aio-forward value)")
             assert parsed == S["aio-forward"](S.value)
             assert await am.cast(3, int) == 3
@@ -320,7 +320,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
             path = tmp_path / "aio.fast"
             assert await am.save(path, format="fast") == 2
 
-            fresh = await am.fresh_space()
+            fresh = await am.new_space()
             assert fresh._worker is am._worker
             await fresh.add(S.temporary(1))
             assert await fresh.count() == 1
