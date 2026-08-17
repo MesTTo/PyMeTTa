@@ -47,17 +47,19 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import builtins as _builtins
 import logging
 import math
+import os
 import queue
 import threading
 import warnings
 import weakref
-from collections.abc import Callable
-from typing import Any, Final, Self, TypeVar, overload
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
-from ._engine import bridge, runtime
+from ._engine import Runtime, bridge, runtime
 from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
@@ -689,7 +691,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.parse(source))
 
     @overload
-    async def cast(self, value: Any, type_: type[_CastT], /) -> _CastT: ...
+    async def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
     @overload
     async def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
@@ -761,6 +763,356 @@ class AsyncMeTTa:
         named = await self.call(lambda m: m.space(name))
         return AsyncMeTTa._sharing(named, self._worker)
 
+    # ----------------------------------------------------- parity delegations
+    # One worker round trip each, the synchronous surface's own docstrings
+    # applying verbatim. The deliberate exclusions live in the parity test:
+    # pool (asyncio's fan-out is N workers and gather), prolog (an
+    # interactive toplevel belongs to a terminal thread), and transactional
+    # (a transaction body is a closed synchronous goal; transaction() is
+    # the async spelling).
+
+    async def first(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Any:
+        """The first answer decoded, or None for no answers."""
+        return await self.call(
+            lambda m: m.first(target, timeout=timeout, inferences=inferences)
+        )
+
+    async def parallel(self, *targets: Any, timeout: float | None = None) -> list:
+        """Evaluate every target concurrently inside the engine."""
+        return await self.call(lambda m: m.parallel(*targets, timeout=timeout))
+
+    async def hyperpose(self, *targets: Any, timeout: float | None = None) -> list:
+        """parallel() under its MeTTa name."""
+        return await self.call(lambda m: m.hyperpose(*targets, timeout=timeout))
+
+    async def integrate(self, target: Any) -> str:
+        """Install a library integration; see petta.integrate."""
+        return await self.call(lambda m: m.integrate(target))
+
+    async def profile_extension(
+        self,
+        source: str,
+        using: dict[str, Any] | None = None,
+        *,
+        extension: str | None = None,
+        names: Sequence[str] | None = None,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> tuple:
+        """Run source and report per-function engine cost."""
+        return await self.call(
+            lambda m: m.profile_extension(
+                source,
+                using,
+                extension=extension,
+                names=names,
+                timeout=timeout,
+                inferences=inferences,
+            )
+        )
+
+    async def eval_status(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list:
+        """Evaluate and report each answer's outcome kind."""
+        return await self.call(
+            lambda m: m.eval_status(target, timeout=timeout, inferences=inferences)
+        )
+
+    async def run_status(
+        self,
+        source: str,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list:
+        """Run source and report each directive's outcome kinds."""
+        return await self.call(
+            lambda m: m.run_status(source, timeout=timeout, inferences=inferences)
+        )
+
+    async def space_names(self) -> list[str]:
+        """Every space name this engine registers, sorted."""
+        return await self.call(lambda m: m.space_names())
+
+    async def disassemble(self, name: str) -> str:
+        """The Prolog clauses a function name compiled to."""
+        return await self.call(lambda m: m.disassemble(name))
+
+    async def declare_admits(self, name: str, type_name: str) -> Atom:
+        return await self.call(lambda m: m.declare_admits(name, type_name))
+
+    async def declare_annotations(
+        self, name: str, semiring: Literal["bool", "bag", "set", "ranked", "prob", "prov"]
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_annotations(name, semiring))
+
+    async def declare_capacity(self, name: str, limit: int) -> Atom:
+        return await self.call(lambda m: m.declare_capacity(name, limit))
+
+    async def declare_context(
+        self, name: str, world: Literal["closed-world", "open-world"]
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_context(name, world))
+
+    async def declare_emits(
+        self, name: str, policy: Literal["depth", "fair", "best-first"]
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_emits(name, policy))
+
+    async def declare_handles(
+        self,
+        name: str,
+        pattern: str | Atom,
+        fidelity: Literal["Exact", "Partial", "Sound", "Refuse"],
+        *,
+        det: str | None = None,
+    ) -> Atom:
+        return await self.call(
+            lambda m: m.declare_handles(name, pattern, fidelity, det=det)
+        )
+
+    async def declare_merge(
+        self, pattern: str | Atom, policy: Literal["depth", "fair", "best-first"]
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_merge(pattern, policy))
+
+    async def declare_on_error(
+        self,
+        name: str,
+        pattern: str | Atom,
+        mode: Literal["keep", "empty", "abort"],
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
+
+    async def declare_reaction(
+        self, name: str, pattern: str | Atom, operation: str | Atom
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_reaction(name, pattern, operation))
+
+    async def declare_source(
+        self, name: str, kind: Literal["linear", "repeated", "peek"]
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_source(name, kind))
+
+    async def declare_writes(
+        self,
+        name: str,
+        atomicity: Literal["transactional", "atomic-single", "best-effort"],
+    ) -> Atom:
+        return await self.call(lambda m: m.declare_writes(name, atomicity))
+
+    async def register_op(
+        self,
+        fn: Callable,
+        /,
+        *,
+        name: str | None = None,
+        typed: bool = True,
+        raw: bool = False,
+        pass_atoms: bool = False,
+        arities: list[int] | None = None,
+        inverse: Callable | None = None,
+        pure: bool = False,
+    ) -> Callable:
+        """Register a Python callable as a MeTTa function. The engine
+        calls it synchronously on the worker thread, exactly as the
+        synchronous surface does; the decorator spelling stays with the
+        synchronous surface, since decoration cannot await."""
+        return await self.call(
+            lambda m: m.register_op(
+                fn,
+                name=name,
+                typed=typed,
+                raw=raw,
+                pass_atoms=pass_atoms,
+                arities=arities,
+                inverse=inverse,
+                pure=pure,
+            )
+        )
+
+    async def op(
+        self,
+        fn: Callable,
+        /,
+        *,
+        name: str | None = None,
+        typed: bool = True,
+        raw: bool = False,
+        pass_atoms: bool = False,
+        arities: list[int] | None = None,
+        inverse: Callable | None = None,
+        pure: bool = False,
+    ) -> Callable:
+        """register_op under its short name."""
+        return await self.call(
+            lambda m: m.op(
+                fn,
+                name=name,
+                typed=typed,
+                raw=raw,
+                pass_atoms=pass_atoms,
+                arities=arities,
+                inverse=inverse,
+                pure=pure,
+            )
+        )
+
+    async def define(
+        self,
+        fn: Callable | None = None,
+        /,
+        *,
+        prolog: str | os.PathLike[str] | None = None,
+    ) -> Any:
+        """Compile a Python function into equations on the worker. The
+        returned handle's own calls are synchronous doors; evaluate
+        through fn(name) or run() from async code."""
+        if fn is not None:
+            return await self.call(lambda m: m.define(fn))
+        if prolog is None:
+            raise TypeError("define takes a function or prolog= source")
+        source = prolog
+        return await self.call(lambda m: m.define(prolog=source))
+
+    async def type(
+        self,
+        cls: _builtins.type,
+        /,
+        *,
+        accessors: bool = True,
+        methods: bool = True,
+    ) -> _builtins.type:
+        """Declare a Python class into this space. A call, not a
+        decorator: decoration cannot await."""
+        return await self.call(
+            lambda m: m.type(cls, accessors=accessors, methods=methods)
+        )
+
+    async def register_prolog(
+        self,
+        source: str | None = None,
+        *,
+        path: str | os.PathLike[str] | None = None,
+        names: Sequence[str] | Mapping[str, str] = (),
+    ) -> tuple[str, ...]:
+        """Register Prolog predicates as MeTTa functions."""
+        return await self.call(
+            lambda m: m.register_prolog(source, path=path, names=names)
+        )
+
+    async def register_space(self, provider: Any, name: str) -> Any:
+        """Register a Python-backed space. Its methods run on whichever
+        thread the engine is answering from, exactly as in sync use."""
+        return await self.call(lambda m: m.register_space(provider, name))
+
+    async def register_foreign_library(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        entry: str | None = None,
+        names: Sequence[str] = (),
+    ) -> tuple[str, ...]:
+        """Load a foreign library of Prolog predicates."""
+        return await self.call(
+            lambda m: m.register_foreign_library(path, entry=entry, names=names)
+        )
+
+    async def register_library_path(self, directory: Any, name: str) -> None:
+        """Register a directory for (library ...) imports."""
+        return await self.call(lambda m: m.register_library_path(directory, name))
+
+    async def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+        return await self.call(lambda m: m.unregister_prolog(extension))
+
+    async def unregister_space(self, name: str) -> None:
+        return await self.call(lambda m: m.unregister_space(name))
+
+    async def transaction(self, fn: Callable[[MeTTa], Any], /) -> Any:
+        """Run fn inside one engine transaction on the worker thread,
+        answering its return value. fn receives the worker's own
+        synchronous MeTTa, because a transaction body is a closed
+        synchronous goal (SWI's transaction/1 takes one), which is also
+        why there is no async body and no transactional decorator here.
+        A raise rolls every engine write back and re-raises as itself.
+
+            await am.transaction(lambda m: m.add(S.fact(1)))
+        """
+        return await self.call(lambda m: m.transaction(lambda: fn(m)))
+
+    @property
+    def runtime(self) -> Runtime:
+        """The engine bridge itself, for callers going under the surface.
+        Every call on it blocks the calling thread; from async code, wrap
+        such work in call()."""
+        return self._m.runtime
+
+    def stats(self) -> _AsyncStats:
+        """The engine's counters over an async with-block, as deltas.
+
+            async with am.stats() as s:
+                await am.query(...)
+            s.inferences
+        """
+        return _AsyncStats(self)
+
+    def assuming(self, *facts: Any) -> _AsyncAssuming:
+        """Facts held only inside an async with-block: added on entry,
+        removed on exit, exceptions included."""
+        return _AsyncAssuming(self, facts)
+
+    async def prepare(self, *patterns: Any, where: Any | None = None) -> _AsyncPrepared:
+        """A prepared query whose solve() is awaitable; the shape builds
+        once on the worker, columns readable without a round trip."""
+        prepared = await self.call(lambda m: m.prepare(*patterns, where=where))
+        return _AsyncPrepared(self, prepared)
+
+    def stream(
+        self,
+        *patterns: Any,
+        where: Any | None = None,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> _AsyncCursor:
+        """query(), pulled asynchronously: one row per worker round trip.
+
+            async with am.stream(S.edge(V.a, V.b)) as rows:
+                async for row in rows:
+                    ...
+
+        Iterating without the async-with also works; aclose() is then the
+        caller's duty, the finalization reading the data model gives
+        asynchronous iterators."""
+        return _AsyncCursor(self, patterns, where, timeout, inferences)
+
+    def subscribe(self, pattern: Any, *, on: str = "add") -> _AsyncSubscription:
+        """A standing query as an async event stream: every matching
+        write becomes an Event on an asyncio queue, consumed with
+        async-for. The synchronous surface's callback form stays there;
+        here the stream IS the delivery.
+
+            async with am.subscribe(S.order(V.id), on="add") as events:
+                async for event in events:
+                    ...
+        """
+        return _AsyncSubscription(self, pattern, on)
+
+    def fn(self, name: str) -> _AsyncEngineFunction:
+        """An engine function as an async callable: await f(3), with
+        .one, .first and .all carrying the same cardinality triple."""
+        return _AsyncEngineFunction(self, name)
+
     # -------------------------------------------------------------- lifecycle
 
     async def aclose(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
@@ -809,6 +1161,231 @@ class AsyncMeTTa:
     def __repr__(self) -> str:
         state = "closed" if self._closed else self._worker.state
         return f"AsyncMeTTa({self._m.space_name!r}, {state})"
+
+
+_EXHAUSTED: Final = object()
+_STREAM_CLOSED: Final = object()
+
+
+class _AsyncStats:
+    """MeTTa.stats() as an async context manager: the counters start and
+    stop on the worker, and the entered block object carries the deltas."""
+
+    def __init__(self, am: AsyncMeTTa) -> None:
+        self._am = am
+        self._block: Any = None
+
+    async def __aenter__(self) -> Any:
+        self._block = await self._am.call(lambda m: m.stats().__enter__())
+        return self._block
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        block = self._block
+        await self._am.call(lambda m: block.__exit__(None, None, None))
+
+
+class _AsyncAssuming:
+    """MeTTa.assuming() as an async context manager: facts added on
+    entry, removed on exit, exceptions included."""
+
+    def __init__(self, am: AsyncMeTTa, facts: tuple) -> None:
+        self._am = am
+        self._facts = facts
+        self._cm: Any = None
+
+    async def __aenter__(self) -> AsyncMeTTa:
+        facts = self._facts
+        self._cm = await self._am.call(lambda m: m.assuming(*facts))
+        cm = self._cm
+        await self._am.call(lambda m: cm.__enter__())
+        return self._am
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        cm = self._cm
+        await self._am.call(lambda m: cm.__exit__(None, None, None))
+
+
+class _AsyncPrepared:
+    """A Prepared whose solve() is awaitable. The shape lives on the
+    worker's engine; columns read without a round trip."""
+
+    def __init__(self, am: AsyncMeTTa, prepared: Any) -> None:
+        self._am = am
+        self._prepared = prepared
+
+    @property
+    def columns(self) -> tuple[str, ...]:
+        return self._prepared.columns
+
+    async def solve(
+        self,
+        given: list | None = None,
+        limit: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Rows:
+        """Answers now, with `given` facts present for this call alone."""
+        prepared = self._prepared
+        return await self._am.call(
+            lambda m: prepared.solve(
+                given, limit, timeout=timeout, inferences=inferences
+            )
+        )
+
+    def __repr__(self) -> str:
+        return f"<async prepared query {self.columns} on {self._am.space_name}>"
+
+
+class _AsyncCursor:
+    """MeTTa.stream() pulled asynchronously: one row per worker round
+    trip, closable, and an async context manager. Iterating without the
+    async-with works too; aclose() is then the caller's duty, the
+    finalization reading the data model gives asynchronous iterators."""
+
+    def __init__(self, am, patterns, where, timeout, inferences) -> None:
+        self._am = am
+        self._patterns = patterns
+        self._where = where
+        self._timeout = timeout
+        self._inferences = inferences
+        self._cursor: Any = None
+        self._closed = False
+
+    async def _ensure(self) -> Any:
+        if self._cursor is None:
+            patterns, where = self._patterns, self._where
+            timeout, inferences = self._timeout, self._inferences
+            self._cursor = await self._am.call(
+                lambda m: m.stream(
+                    *patterns, where=where, timeout=timeout, inferences=inferences
+                )
+            )
+        return self._cursor
+
+    async def columns(self) -> tuple[str, ...]:
+        """The column names, opening the cursor if it is not yet open."""
+        cursor = await self._ensure()
+        return cursor.columns
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self):
+        if self._closed:
+            raise StopAsyncIteration
+        cursor = await self._ensure()
+        row = await self._am.call(lambda m: next(cursor, _EXHAUSTED))
+        if row is _EXHAUSTED:
+            await self.aclose()
+            raise StopAsyncIteration
+        return row
+
+    async def aclose(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._cursor is not None:
+            cursor = self._cursor
+            await self._am.call(lambda m: cursor.close())
+
+    async def __aenter__(self) -> Self:
+        await self._ensure()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.aclose()
+
+
+class _AsyncSubscription:
+    """MeTTa.subscribe() as an async event stream: the synchronous
+    callback fires on whichever thread wrote and forwards each Event to
+    an asyncio queue through call_soon_threadsafe; async-for consumes.
+    A class rather than an async generator on purpose: the data model's
+    finalization duty for asynchronous generators is exactly what
+    aclose() makes explicit here."""
+
+    def __init__(self, am: AsyncMeTTa, pattern: Any, on: str) -> None:
+        self._am = am
+        self._pattern = pattern
+        self._on = on
+        self._subscription: Any = None
+        self._queue: asyncio.Queue[Any] | None = None
+        self._closed = False
+
+    async def _ensure(self) -> asyncio.Queue[Any]:
+        if self._queue is None:
+            loop = asyncio.get_running_loop()
+            events: asyncio.Queue[Any] = asyncio.Queue()
+            self._queue = events
+
+            def deliver(event: Any) -> None:
+                loop.call_soon_threadsafe(events.put_nowait, event)
+
+            pattern, on = self._pattern, self._on
+            self._subscription = await self._am.call(
+                lambda m: m.subscribe(pattern, deliver, on=on)
+            )
+        return self._queue
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self):
+        if self._closed:
+            raise StopAsyncIteration
+        events = await self._ensure()
+        event = await events.get()
+        if event is _STREAM_CLOSED:
+            raise StopAsyncIteration
+        return event
+
+    async def aclose(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._subscription is not None:
+            subscription = self._subscription
+            await self._am.call(lambda m: subscription.cancel())
+        if self._queue is not None:
+            self._queue.put_nowait(_STREAM_CLOSED)
+
+    async def __aenter__(self) -> Self:
+        await self._ensure()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.aclose()
+
+
+class _AsyncEngineFunction:
+    """One engine function as an async callable, the cardinality triple
+    spelled the same as everywhere: await f(3) is one(), .first
+    tolerates absence, .all answers the multiset."""
+
+    def __init__(self, am: AsyncMeTTa, name: str) -> None:
+        self._am = am
+        self._name = name
+        self.__name__ = name
+        self.__qualname__ = f"{am.space_name}.{name}"
+
+    async def __call__(self, *args: Any) -> Any:
+        return await self.one(*args)
+
+    async def one(self, *args: Any) -> Any:
+        name = self._name
+        return await self._am.call(lambda m: m.fn(name).one(*args))
+
+    async def first(self, *args: Any) -> Any:
+        name = self._name
+        return await self._am.call(lambda m: m.fn(name).first(*args))
+
+    async def all(self, *args: Any) -> list:
+        name = self._name
+        return await self._am.call(lambda m: m.fn(name).all(*args))
+
+    def __repr__(self) -> str:
+        return f"<async engine function {self._name} on {self._am.space_name}>"
 
 
 async def connect(

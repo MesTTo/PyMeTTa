@@ -213,25 +213,28 @@ def test_aio_cancelled_while_queued_never_runs(m):
     assert asyncio.run(go())
 
 
-def test_aio_exposes_every_plain_request_response_method():
-    expected = {
-        "new_space",
-        "drop",
-        "profile",
-        "parse",
-        "cast",
-        "trace",
-        "lint",
-        "digest",
-        "unregister_op",
-        "builtins",
-        "is_function",
-        "is_function_here",
-        "arities",
-        "derivation",
-        "why",
+def test_aio_covers_the_whole_synchronous_surface():
+    """Parity is computed, not hand-listed: every public MeTTa method is
+    on AsyncMeTTa except the ledger below, each exclusion with its
+    reason, so a new synchronous method fails here until it gains its
+    async twin or a stated reason not to."""
+    from petta.space import MeTTa
+
+    excluded = {
+        # asyncio's fan-out is N workers and asyncio.gather; a pool of
+        # engine threads is the synchronous spelling of the same thing.
+        "pool",
+        # an interactive Prolog toplevel belongs to a terminal thread.
+        "prolog",
+        # a transaction body is a closed synchronous goal (SWI's
+        # transaction/1 takes one); transaction() is the async spelling
+        # and there is no decorator because decoration cannot await.
+        "transactional",
     }
-    assert not expected.difference(dir(aio.AsyncMeTTa))
+    sync = {name for name in dir(MeTTa) if not name.startswith("_")}
+    missing = sync - set(dir(aio.AsyncMeTTa)) - excluded
+    assert not missing, f"AsyncMeTTa lacks {sorted(missing)}"
+    assert not excluded - sync, "the exclusion ledger names a method MeTTa lost"
     signature = inspect.signature(aio.AsyncMeTTa.save)
     assert list(signature.parameters) == ["self", "path", "format"]
     assert signature.parameters["format"].default == "metta"
@@ -460,3 +463,93 @@ def test_aio_logs_worker_attachment_and_shutdown(m, caplog):
 
     assert "worker attached a Prolog engine" in caplog.text
     assert "worker detached its Prolog engine" in caplog.text
+
+
+def test_aio_structural_surface_behaves():
+    """The non-mechanical parity pieces end to end: transaction rollback,
+    stats, assuming, prepared, the async cursor, the async subscription
+    stream, and the async function object."""
+
+    async def go():
+        async with aio.AsyncMeTTa() as am:
+            m = await am.new_space()
+            await m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
+
+            def failing(sync_m):
+                sync_m.add(S.tx(1))
+                raise ValueError("undo")
+
+            with pytest.raises(ValueError, match="undo"):
+                await m.transaction(failing)
+            assert await m.count() == 2  # the write rolled back
+
+            returned = await m.transaction(lambda sync_m: sync_m.count())
+            assert returned == 2
+
+            async with m.stats() as s:
+                await m.query(S.edge(V.x, V.y))
+            assert s.inferences > 0
+
+            async with m.assuming(S.closed(S.gate)):
+                assert len(await m.query(S.closed(V.w))) == 1
+            assert len(await m.query(S.closed(V.w))) == 0
+
+            route = await m.prepare(S.edge(V.a, V.b))
+            assert route.columns == ("a", "b")
+            assert len(await route.solve()) == 2
+            assert len(await route.solve(given=[S.edge(S.c, S.d)])) == 3
+
+            async with m.stream(S.edge(V.a, V.b)) as rows:
+                assert await rows.columns() == ("a", "b")
+                streamed = [row async for row in rows]
+            assert len(streamed) == 2
+
+            # A cursor iterated without async-with closes explicitly.
+            bare = m.stream(S.edge(V.a, V.b))
+            assert (await bare.__anext__()) is not None
+            await bare.aclose()
+            with pytest.raises(StopAsyncIteration):
+                await bare.__anext__()
+
+            await m.run("(= (aio-inc $x) (+ $x 1))")
+            inc = m.fn("aio-inc")
+            assert await inc(41) == 42
+            assert await inc.first(1) == 2
+            assert await inc.all(2) == [3]
+            assert inc.__qualname__.endswith(".aio-inc")
+
+            events = []
+            async with m.subscribe(S.order(V.n), on="both") as sub:
+                await m.add(S.order(1))
+                events.append(await asyncio.wait_for(sub.__anext__(), 5))
+                await m.remove(S.order(1))
+                events.append(await asyncio.wait_for(sub.__anext__(), 5))
+            assert [event.action for event in events] == ["add", "remove"]
+            # After aclose the stream ends rather than hanging.
+            with pytest.raises(StopAsyncIteration):
+                await sub.__anext__()
+            return True
+
+    assert asyncio.run(go())
+
+
+def test_aio_declare_and_register_delegations_land():
+    async def go():
+        async with aio.AsyncMeTTa() as am:
+            m = await am.new_space()
+            declared = await m.declare_source("aio-src", "linear")
+            assert "aio-src" in str(declared)
+
+            def double(x: int) -> int:
+                return 2 * x
+
+            await m.register_op(double, name="aio-double")
+            assert await m.one("(aio-double 21)") == 42
+            await m.unregister_op("aio-double")
+            await m.run("(= (aio-dis $x) $x)")
+            assert "aio-dis" in await m.disassemble("aio-dis")
+            names = await m.space_names()
+            assert "&self" in names
+            return True
+
+    assert asyncio.run(go())
