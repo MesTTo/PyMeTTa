@@ -76,3 +76,27 @@ def term_operators(terms: int = TERM_COUNT) -> int:
     for index in range(terms):
         (V.age >= index) & (V.age <= index + 10) | ~V.retired
     return terms
+
+
+def structures_dispatch(patterns: int = 200, probes: int = 2_000) -> int:
+    """Route ground probes through PatternMap and MatchIndex, returning
+    hits: the pure-Python structures priced at their dispatch job."""
+    from petta.atoms import Expr, Gnd, Sym, Var
+    from petta.structures import MatchIndex, PatternMap
+
+    routing = PatternMap()
+    index = MatchIndex()
+    for n in range(patterns):
+        pattern = Expr([Sym(f"topic{n % 20}"), Var("x"), Gnd(n)])
+        routing[pattern] = n
+        index.add(pattern, n)
+        ground = Expr([Sym(f"topic{n % 20}"), Sym("fixed"), Gnd(n)])
+        routing[ground] = n
+    hits = 0
+    for n in range(probes):
+        probe = Expr([Sym(f"topic{n % 20}"), Sym("fixed"), Gnd(n % patterns)])
+        hits += sum(1 for _ in routing.matching(probe))
+        hits += sum(1 for _ in index.matches(probe))
+    if not hits:
+        raise AssertionError("structures dispatch matched nothing")
+    return probes

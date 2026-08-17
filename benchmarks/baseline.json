@@ -35,17 +35,17 @@
       "unit": "evaluations"
     },
     "direct-join": {
+      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
       "inference_slope": {
+        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
         "delta_inferences": 1345302,
         "large_operations": 49975,
-        "small_operations": 1999,
-        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302]."
+        "small_operations": 1999
       },
       "inferences": 280275,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.78302382169037e-06,
-      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18]."
+      "wall_seconds_per_operation": 2.78302382169037e-06
     },
     "eval-arith": {
       "inferences": 172009,
@@ -54,16 +54,16 @@
       "wall_seconds_per_operation": 6.401210906915367e-06
     },
     "foreign-match": {
+      "comment": "Recorded 2026-08-17: the foreign-space seam priced per query against a minimal in-process Python provider holding two atoms, so the number is provider dispatch plus the candidate crossing plus the engine binding each answer, about 1214 inferences per collapse-match run, and nothing backend-specific. Raised from 2428081 on 2026-08-18: one-time first-compile share of the engine prelude's masking tier inside the measured block; the per-query cost is zero.",
       "inferences": 2428089,
       "operations": 2000,
-      "unit": "queries",
-      "comment": "Recorded 2026-08-17: the foreign-space seam priced per query against a minimal in-process Python provider holding two atoms, so the number is provider dispatch plus the candidate crossing plus the engine binding each answer, about 1214 inferences per collapse-match run, and nothing backend-specific. Raised from 2428081 on 2026-08-18: one-time first-compile share of the engine prelude's masking tier inside the measured block; the per-query cost is zero."
+      "unit": "queries"
     },
     "handle-round-trip": {
+      "comment": "Recorded 2026-08-17: one native handle out and back per operation, the [\"h\"] wire form, the registry keep, the resolve, and one C accessor through the handle, about 899 inferences per round trip including both run crossings. Raised from 1798067 on 2026-08-18, the engine prelude: each round trip run()s SOURCE, so the compile path pays the prelude masking-tier lookups, measured +4/op by A/B against the pre-prelude tree (887.065 vs 881.065 inferences per probe op, minus the removed get-type candidate clause), with ~2/op residual from the ten added builtin_type_declaration rows. The object path is untouched; a hot loop belongs on prepare()/objects per the source-vs-object measurement.",
       "inferences": 1806071,
       "operations": 2000,
-      "unit": "round trips",
-      "comment": "Recorded 2026-08-17: one native handle out and back per operation, the [\"h\"] wire form, the registry keep, the resolve, and one C accessor through the handle, about 899 inferences per round trip including both run crossings. Raised from 1798067 on 2026-08-18, the engine prelude: each round trip run()s SOURCE, so the compile path pays the prelude masking-tier lookups, measured +4/op by A/B against the pre-prelude tree (887.065 vs 881.065 inferences per probe op, minus the removed get-type candidate clause), with ~2/op residual from the ten added builtin_type_declaration rows. The object path is untouched; a hot loop belongs on prepare()/objects per the source-vs-object measurement."
+      "unit": "round trips"
     },
     "json-wire": {
       "comment": "RE-FLOORED 2026-08-17 from 3753315597: the codec changed, not the cost of the old one. dumps and loads now cross into the engine and run library(json), so one round trip pays two janus crossings and two Prolog passes, 62M instructions per trip against the removed orjson path's 1.9M, a factor of 33 on this bench. The wire paths this serves are network-latency-dominated DAS and remote-space messages, and the trade bought one JSON implementation for the whole system with unbounded integers native. Spread under the deterministic harness: 0.005% across the re-floor triple.",
@@ -89,11 +89,11 @@
       "wall_seconds_per_operation": 2.1706230309791863e-07
     },
     "loop-1m": {
+      "comment": " Raised from 5000812 on 2026-08-18: a one-time in-block first-compile share of the prelude masking tier; per-iteration cost is zero.",
       "inferences": 5000817,
       "operations": 1000000,
       "unit": "iterations",
-      "wall_seconds_per_operation": 9.513080096803606e-08,
-      "comment": " Raised from 5000812 on 2026-08-18: a one-time in-block first-compile share of the prelude masking tier; per-iteration cost is zero."
+      "wall_seconds_per_operation": 9.513080096803606e-08
     },
     "op-encoded": {
       "inferences": 214011,
@@ -108,17 +108,17 @@
       "wall_seconds_per_operation": 7.45732057839632e-06
     },
     "prepared-join": {
+      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
       "inference_slope": {
+        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
         "delta_inferences": 1345302,
         "large_operations": 49975,
-        "small_operations": 1999,
-        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302]."
+        "small_operations": 1999
       },
       "inferences": 280275,
       "operations": 9995,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.8308916356174156e-06,
-      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18]."
+      "wall_seconds_per_operation": 2.8308916356174156e-06
     },
     "py-method-call": {
       "comment": "LOWERED on 2026-08-16, 1828026371 to 1655770341 instructions. The wire decoder decided a tag by asking petta_py_tag/2 whether it was o, then s, then g, then n, re-running atom/1 and string/1 at every step, so a single ['n',1] leaf cost nine inferences to recognise. Normalising the tag once and dispatching on it lets first-argument indexing pick the clause: a number leaf falls to 4.00 and a three-element expression 29.00 to 20.00. Attributed by interleaved A/B of that change alone, min-of-3 instructions:u: 1770899831 to 1656177950, -6.48%.",
@@ -130,32 +130,32 @@
       "wall_seconds_per_operation": 1.0144315101206303e-05
     },
     "query-2k-rows": {
+      "comment": "Raised from 521145 on 2026-08-18, +1 inference per answer row (delta 39882 over 20 repeats * ~1994 rows): petta_py_row guards its bindings with acyclic_term/1 once per row, the occurs-check correctness fix recorded in full on direct-join [measured 2026-08-18].",
       "inferences": 561027,
       "operations": 40000,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.0797247299924494e-06,
-      "comment": "Raised from 521145 on 2026-08-18, +1 inference per answer row (delta 39882 over 20 repeats * ~1994 rows): petta_py_row guards its bindings with acyclic_term/1 once per row, the occurs-check correctness fix recorded in full on direct-join [measured 2026-08-18]."
+      "wall_seconds_per_operation": 2.0797247299924494e-06
     },
     "query-limit-guarded": {
+      "comment": "Raised from 78307 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the same per-row acyclic_term guard as direct-join [measured 2026-08-18; first invocation measured 85245 once, JIT-index timing, min stands].",
       "inferences": 83107,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 2.0604806020855903e-06,
-      "comment": "Raised from 78307 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the same per-row acyclic_term guard as direct-join [measured 2026-08-18; first invocation measured 85245 once, JIT-index timing, min stands]."
+      "wall_seconds_per_operation": 2.0604806020855903e-06
     },
     "query-limit-plain": {
+      "comment": "Raised from 75607 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18; one 82540 sample from JIT-index timing, min stands].",
       "inferences": 80407,
       "operations": 5000,
       "unit": "rows",
-      "wall_seconds_per_operation": 1.9979908131062986e-06,
-      "comment": "Raised from 75607 on 2026-08-18, +1 inference per answer row (delta 4800 over 100 repeats * 48 rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18; one 82540 sample from JIT-index timing, min stands]."
+      "wall_seconds_per_operation": 1.9979908131062986e-06
     },
     "query-where": {
+      "comment": "Raised from 648231 on 2026-08-18, +1 inference per answer row (delta 39482 over 20 repeats * ~1974 guard-passing rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18].",
       "inferences": 687713,
       "operations": 10160,
       "unit": "rows",
-      "wall_seconds_per_operation": 5.481676766868886e-06,
-      "comment": "Raised from 648231 on 2026-08-18, +1 inference per answer row (delta 39482 over 20 repeats * ~1974 guard-passing rows): the per-row acyclic_term guard, recorded in full on direct-join [measured 2026-08-18]."
+      "wall_seconds_per_operation": 5.481676766868886e-06
     },
     "register-op": {
       "comment": "Raised from 39705 on 2026-08-17, +2 per registration: each registration parses its declaration form through the named-space reader, so it pays the same two-inference &self probe run-source records [measured 2026-08-17]. Prior: Raised from 36605 on 2026-08-18, +3100 over 100 register-and-unregister cycles, +31.0 per cycle, all of it at SETUP. Registration now compiles the operation FROM its contract atoms: the Python keywords assert (op Name Arity Kind), (effect Name immutable) and (inverse Name) into &petta first, and petta_py_compile_op reads them back and builds the clause through the same petta_py_op_body/petta_py_directed_body builders as before, clause-identical by construction and held so by the exhaustive parameter-cube gate (test_contract_cube.py, 44 points plus a planted mismatch). Nothing was added to any call path, which the unchanged op-raw and op-encoded rows confirm. The 36605 floor itself was set the same day by the petta_py_existed indexed-probe fix, so the net move against the 2026-08-16 baseline of 47307 is -7602.",
@@ -221,12 +221,19 @@
     "space-name": {
       "comment": "LOWERED on 2026-08-16, 2551779767 to 2370220156 instructions. The wire decoder decided a tag by asking petta_py_tag/2 whether it was o, then s, then g, then n, re-running atom/1 and string/1 at every step, so a single ['n',1] leaf cost nine inferences to recognise. Normalising the tag once and dispatching on it lets first-argument indexing pick the clause: a number leaf falls to 4.00 and a three-element expression 29.00 to 20.00. Attributed by interleaved A/B of that change alone, min-of-3 instructions:u: 2565110755 to 2369523357, -7.62%.",
       "inferences": 2280095,
+      "instruction_comment": "RE-FLOORED 2026-08-18 from 2366706148 (+1.39%): not a per-op change, the inference counter is identical and gated green. The engine prelude's ~25 boot-compiled clauses shift the clause-layout mode plus a fixed boot share, the same alignment-mode class source-load's note records; stable at this mode across three prelude perturbations (2399659538/2399659559).",
       "instruction_noise_percent": 1.0,
       "instructions": 2399659538,
       "operations": 30000,
       "unit": "calls",
-      "wall_seconds_per_operation": 4.320945761476954e-06,
-      "instruction_comment": "RE-FLOORED 2026-08-18 from 2366706148 (+1.39%): not a per-op change, the inference counter is identical and gated green. The engine prelude's ~25 boot-compiled clauses shift the clause-layout mode plus a fixed boot share, the same alignment-mode class source-load's note records; stable at this mode across three prelude perturbations (2399659538/2399659559)."
+      "wall_seconds_per_operation": 4.320945761476954e-06
+    },
+    "structures-dispatch": {
+      "comment": "Recorded 2026-08-18: the pure-Python structures priced at their dispatch job, no engine in the process: 200 patterns (half ground, half variable-carrying) into PatternMap and MatchIndex, 2000 ground probes routed through both. PatternMap's ground hits are dict lookups plus the head/arity buckets; MatchIndex walks the discrimination tree and verifies candidates with unify.",
+      "instruction_noise_percent": 1.0,
+      "instructions": 741807763,
+      "operations": 2000,
+      "unit": "probes"
     },
     "subscribe-tax": {
       "inferences": 62041,
@@ -235,10 +242,10 @@
       "wall_seconds_per_operation": 2.682138467207551e-06
     },
     "table-bridge-match": {
+      "comment": "Recorded 2026-08-17: the same query through petta.tables' derived bridge over stdlib SQLite, about 1518 inferences per run; the ~304 over foreign-match is the derivation living (constraint reading, row to atom parse), with SQLite's own C work invisible to the counter by design.",
       "inferences": 3036109,
       "operations": 2000,
-      "unit": "queries",
-      "comment": "Recorded 2026-08-17: the same query through petta.tables' derived bridge over stdlib SQLite, about 1518 inferences per run; the ~304 over foreign-match is the derivation living (constraint reading, row to atom parse), with SQLite's own C work invisible to the counter by design."
+      "unit": "queries"
     },
     "term-operators": {
       "inferences": null,
@@ -255,12 +262,12 @@
         "small_operations": 50000
       },
       "inferences": 8500420,
+      "instruction_comment": "RE-FLOORED 2026-08-18 from 6482141737: typed-call runs in TWO environment-selected alignment modes (6425150113 and 6674588065, each stable to ~60 instructions within a run, 3.9% apart, inference counter identical and green in both), the same class source-load's note records. The floor is the low mode and the noise percent spans the high one, so a real regression on either mode still trips.",
       "instruction_noise_comment": "RAISED to 5.0 on 2026-08-17, from the 1.0 every other bench carries, because this workload's instruction count is LAYOUT-sensitive at 3.13% and nothing in the tree selects the mode. Ten clauses that NOTHING CALLS, appended to src/python.pl, moved it from 6590121734 to 6390136042, and removing them moved it back. A sweep of the same probe reads 6590121734, 6558144686, 6462134810, 6518142057, 6438133781, 6390136042 at 0, 1, 2, 3, 5 and 10 clauses, saturating there and unchanged at 20, so it is a continuum rather than the two modes alpha-unique had [measured 2026-08-17]. The INFERENCE count is identical across every one of them, which is what says no logical work ever changed. This is code-layout bias, the effect Mytkowicz, Diwan, Hauswirth and Sweeney measured in 'Producing Wrong Data Without Doing Anything Obviously Wrong!' (ASPLOS 2009), where link order and environment size alone move a benchmark by several percent and can reverse a conclusion. alpha-unique's warm-up does NOT fix this one: with typed-call added to pure.py's _WARM_UP the same two trees still measure 6591481484 and 6391492325, so the mode is not the one-time stack growth that was, and the warm-up was reverted rather than left in for nothing. The allowance is measured rather than guessed, and the ceiling still sees what it exists for: this bench is gated in instructions because the inference counter cannot see the type-check specialisation, and disabling that specialisation by one token measures 9368378515, +42.2% against a 3.13% noise floor, a 13x margin [measured 2026-08-17]. The baseline stays at the LOW end of the layout range rather than being re-recorded at the tree's current value, so a real regression sitting on top of the high mode still fails.",
       "instruction_noise_percent": 4.0,
       "instructions": 6425150113,
       "operations": 500000,
-      "unit": "calls",
-      "instruction_comment": "RE-FLOORED 2026-08-18 from 6482141737: typed-call runs in TWO environment-selected alignment modes (6425150113 and 6674588065, each stable to ~60 instructions within a run, 3.9% apart, inference counter identical and green in both), the same class source-load's note records. The floor is the low mode and the noise percent spans the high one, so a real regression on either mode still trips."
+      "unit": "calls"
     },
     "wire-codec": {
       "inferences": null,

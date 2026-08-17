@@ -34,6 +34,7 @@ from benchmarks.engine_workloads import (
 from benchmarks.workloads import (
     json_payload,
     json_wire,
+    structures_dispatch,
     term_operators,
     wire_atom,
     wire_codec,
@@ -94,6 +95,7 @@ _CASES = {
     "source-load": lambda: _engine_case(source_load_case),
     "space-digest": lambda: _engine_case(digest_case),
     "space-name": lambda: _engine_case(space_name_case),
+    "structures-dispatch": lambda: (structures_dispatch, _no_teardown),
     "term-operators": _term_operators,
     "typed-call": _typed_call,
     "wire-codec": _wire_codec,

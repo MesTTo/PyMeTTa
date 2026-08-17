@@ -23,6 +23,19 @@
 % as (evolve (twice $r) ...).
 maybe_specialize_call(HV, AVs, Out, Goal) :-
     specialization_plan(HV, AVs, CleanBindSet, MetaList, HasDirectBenefit),
+    %A tabled function must never specialize: the clone would carry the
+    %recursion without the tabling, turning SLG termination back into
+    %divergence. Found 2026-08-18 as a 27,525-frame loop in
+    %linkage-closure_Spec_[d]/3, reached whenever a tabled closure was
+    %called with an argument that happened to NAME a defined function (a
+    %graph node called d, with (= (d $x) ...) defined elsewhere). The
+    %(tabled Space Name Arity) reflection facts lib_tabling keeps in
+    %&petta are the module-agnostic record of what is tabled. AFTER the
+    %plan on purpose: the plan is the fail-fast for the overwhelming
+    %non-higher-order case, and putting this probe first taxed every
+    %translated call (+364 inferences per op on handle-round-trip,
+    %measured 2026-08-18); on a formed plan it is one indexed probe.
+    \+ get_native_atom('&petta', [tabled, _, HV, _]),
     length(AVs, N),
     Arity is N + 1,
     \+ ho_specialization_failed(HV, Arity, CleanBindSet),

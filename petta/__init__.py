@@ -45,6 +45,7 @@ _LAZY_MODULES = frozenset(
         "persistent",
         "remote",
         "spaces",
+        "structures",
         "testing",
     }
 )
