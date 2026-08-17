@@ -24,6 +24,7 @@ from petta import (
     S,
     Sym,
     V,
+    Var,
     _engine,
     alpha_eq,
     encode,
@@ -508,3 +509,17 @@ def test_an_atom_round_trips_through_json():
     back = atom_from_wire(json.loads(text))
     assert alpha_eq(atom, back)
     assert str(back) == "(edge a 1 $x)"
+
+
+def test_slot_docstrings_reach_help():
+    import inspect
+
+    # dict-form __slots__, data model 3.3.2.4: help() and inspect.getdoc
+    # document the attribute in place (the descriptor's own __doc__ stays
+    # None by CPython design).
+    assert inspect.getdoc(Expr.children) == "the ordered child atoms, as a tuple"
+    assert inspect.getdoc(Gnd.value) == "the ground Python value this atom carries"
+    assert (
+        inspect.getdoc(Sym.name) == "the symbol's name, exactly as written in source"
+    )
+    assert inspect.getdoc(Var.name) == "the variable's name without the $ sigil"

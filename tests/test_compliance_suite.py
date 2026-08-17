@@ -178,3 +178,15 @@ def test_a_provider_declaring_nothing_cannot_pass(tmp_path):
     )
     result = pytest.main([str(suite), "-q", "--no-header", "-p", "no:randomly"])
     assert result != 0
+
+
+def test_a_collectible_subclass_without_its_fixture_refuses_at_definition():
+    from petta.testing import GatewayComplianceSuite
+
+    with pytest.raises(TypeError, match=r"without a `provider` fixture"):
+        type("TestNoProvider", (SpaceComplianceSuite,), {})
+    with pytest.raises(TypeError, match=r"without a `gateway_url` fixture"):
+        type("TestNoGateway", (GatewayComplianceSuite,), {})
+    # a non-Test intermediate may leave the fixture to its leaves
+    middle = type("SharedBase", (SpaceComplianceSuite,), {})
+    assert middle.__name__ == "SharedBase"

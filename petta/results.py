@@ -343,6 +343,11 @@ class Rows(UserList[Row]):
         The explanation reads the space's current state. A nonempty result
         has nothing to explain, and a manually constructed or transformed
         Rows has no query to inspect, so both uses fail loudly.
+
+        One of nine observability doors: petta.derivation answers HOW a
+        result was derived, and prepare(...).explain() answers what a
+        query will do before it runs; the guide's observability page maps
+        the family.
         """
         if self:
             raise ValueError(

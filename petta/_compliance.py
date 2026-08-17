@@ -162,6 +162,24 @@ class SpaceComplianceSuite:
 
     destructive = False
 
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Refuse a collectible subclass with no provider fixture at CLASS
+        DEFINITION time, where the import traceback points at the class,
+        instead of at pytest collection where it points at the suite. A
+        non-Test-named intermediate base may leave the fixture to its
+        leaves, pytest's own collection contract."""
+        super().__init_subclass__(**kwargs)
+        if cls.__name__.startswith("Test") and not any(
+            "provider" in ancestor.__dict__
+            for ancestor in cls.__mro__
+            if ancestor not in (SpaceComplianceSuite, object)
+        ):
+            raise TypeError(
+                f"{cls.__name__} subclasses SpaceComplianceSuite without a "
+                f"`provider` fixture; define one answering the provider "
+                f"under test"
+            )
+
     # ------------------------------------------------------------ fixtures
 
     @pytest.fixture()

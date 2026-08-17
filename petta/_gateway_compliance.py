@@ -83,6 +83,21 @@ class GatewayComplianceSuite:
     """Subclass with a `gateway_url` fixture answering the base URL of a
     running gateway; every test below then certifies it."""
 
+    def __init_subclass__(cls, **kwargs) -> None:
+        """The same class-definition-time refusal SpaceComplianceSuite
+        makes: a collectible subclass must bring its gateway_url."""
+        super().__init_subclass__(**kwargs)
+        if cls.__name__.startswith("Test") and not any(
+            "gateway_url" in ancestor.__dict__
+            for ancestor in cls.__mro__
+            if ancestor not in (GatewayComplianceSuite, object)
+        ):
+            raise TypeError(
+                f"{cls.__name__} subclasses GatewayComplianceSuite without a "
+                f"`gateway_url` fixture; define one answering the base URL "
+                f"of a running gateway"
+            )
+
     @pytest.fixture()
     def gateway_url(self) -> str:
         raise NotImplementedError(

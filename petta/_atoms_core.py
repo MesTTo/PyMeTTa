@@ -124,7 +124,10 @@ class Box:
     dropped object costs nothing forever after.
     """
 
-    __slots__ = ("__weakref__", "value")
+    __slots__ = {
+        "__weakref__": "weak-referenceable so caches can hold boxes lightly",
+        "value": "the wrapped Python object, exactly as given",
+    }
 
     def __init__(self, value: Any) -> None:
         self.value = value
@@ -432,7 +435,10 @@ class Sym(Atom):
     and folding them together is the ambiguity the wire encoding removes.
     """
 
-    __slots__ = ("_wire", "name")
+    __slots__ = {
+        "_wire": "the cached wire form, built on first crossing",
+        "name": "the symbol's name, exactly as written in source",
+    }
     __match_args__ = ("name",)
     name: str
 
@@ -478,7 +484,10 @@ class Sym(Atom):
 class Var(Atom):
     """A variable: a hole a match may fill. $x in source."""
 
-    __slots__ = ("_wire", "name")
+    __slots__ = {
+        "_wire": "the cached wire form, built on first crossing",
+        "name": "the variable's name without the $ sigil",
+    }
     __match_args__ = ("name",)
     name: str
 
@@ -529,7 +538,11 @@ class Handle(Atom):
     release is the deterministic path.
     """
 
-    __slots__ = ("_released", "ident", "text")
+    __slots__ = {
+        "_released": "whether release() already retracted the registry entry",
+        "ident": "the engine-side registry id keeping the value alive",
+        "text": "the printed form the engine gave this handle",
+    }
     __match_args__ = ("ident", "text")
     ident: int
     text: str
@@ -604,7 +617,7 @@ class Gnd(Atom):
     A symbol never equals a string; that distinction is the point.
     """
 
-    __slots__ = ("value",)
+    __slots__ = {"value": "the ground Python value this atom carries"}
     __match_args__ = ("value",)
     value: Any
 
@@ -846,7 +859,10 @@ class Expr(Atom):
     that costs an engine call.
     """
 
-    __slots__ = ("_hash", "children")
+    __slots__ = {
+        "_hash": "the cached structural hash, computed on first use",
+        "children": "the ordered child atoms, as a tuple",
+    }
     __match_args__ = ("children",)
     children: tuple[Atom, ...]
     _hash: int | None
