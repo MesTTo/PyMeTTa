@@ -1,0 +1,137 @@
+"""Purpose: the python -m petta subcommands, each driven as a real
+subprocess: run prints answer groups, the repl reads multi-line forms
+and exits cleanly, lint gates on findings, doc answers or refuses, and
+serve and boot expose spaces until interrupted.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+import pytest
+
+from petta.__main__ import _complete_form
+
+_PACKAGE_ROOT = str(Path(__file__).resolve().parents[1])
+
+
+def _environment():
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{_PACKAGE_ROOT}{os.pathsep}{existing}" if existing else _PACKAGE_ROOT
+    )
+    return environment
+
+
+def _petta(*arguments, stdin=None):
+    return subprocess.run(
+        [sys.executable, "-m", "petta", *arguments],
+        capture_output=True,
+        text=True,
+        timeout=240,
+        env=_environment(),
+        input=stdin,
+    )
+
+
+def test_run_prints_answer_groups(tmp_path):
+    (tmp_path / "prog.metta").write_text("(= (m-double $x) (* $x 2))\n!(m-double 21)\n")
+    finished = _petta("run", str(tmp_path / "prog.metta"))
+    assert finished.returncode == 0, finished.stderr
+    assert finished.stdout.strip() == "42"
+
+
+def test_repl_reads_multi_line_forms_and_exits():
+    finished = _petta("repl", stdin="(= (m-inc $x)\n   (+ $x 1))\n!(m-inc 41)\nexit\n")
+    assert finished.returncode == 0, finished.stderr
+    assert "42" in finished.stdout
+
+
+def test_repl_reports_an_error_and_keeps_going():
+    # A stray closer is a complete-but-broken form: the error prints to
+    # stderr and the loop keeps answering.
+    finished = _petta("repl", stdin=")\n!(+ 1 2)\nexit\n")
+    assert finished.returncode == 0, finished.stderr
+    assert "error:" in finished.stderr
+    assert "3" in finished.stdout
+
+
+def test_complete_form_reads_strings_and_comments():
+    assert _complete_form('(f "a)b" ; c)\n)')
+    assert not _complete_form('(f "a)b"')
+    assert not _complete_form('(f ")')
+    assert not _complete_form("(f ; )\n")
+    assert _complete_form("plain-symbol")
+
+
+def test_lint_gates_on_findings(tmp_path):
+    (tmp_path / "bad.metta").write_text("(: m-ghost (-> Number Number))\n")
+    failing = _petta("lint", str(tmp_path / "bad.metta"))
+    assert failing.returncode == 1
+    assert "declared-but-undefined" in failing.stdout
+    (tmp_path / "good.metta").write_text("(= (m-fine $x) $x)\n")
+    passing = _petta("lint", str(tmp_path / "good.metta"))
+    assert passing.returncode == 0, passing.stderr
+    assert "no findings" in passing.stdout
+
+
+def test_doc_answers_and_refuses(tmp_path):
+    found = _petta("doc", "car-atom")
+    assert found.returncode == 0, found.stderr
+    assert "car-atom" in found.stdout
+    missing = _petta("doc", "m-no-such-name")
+    assert missing.returncode == 1
+    assert "no documentation" in missing.stderr
+
+
+def test_the_parser_requires_a_subcommand_and_answers_version():
+    bare = _petta()
+    assert bare.returncode == 2
+    version = _petta("--version")
+    assert version.returncode == 0
+    assert version.stdout.startswith("petta ")
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [("serve", "{file}", "--port", "0"), ("boot", "{manifest}")],
+    ids=["serve", "boot"],
+)
+def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):
+    (tmp_path / "facts.metta").write_text("(m-served fact)\n")
+    (tmp_path / "app.metta").write_text(
+        '(boot (load "facts.metta"))\n(boot (serve (&self) 0))\n'
+    )
+    filled = [
+        a.format(file=tmp_path / "facts.metta", manifest=tmp_path / "app.metta")
+        for a in arguments
+    ]
+    process = subprocess.Popen(
+        [sys.executable, "-m", "petta", *filled],
+        stdout=subprocess.PIPE,
+        text=True,
+        env=_environment(),
+    )
+    try:
+        url = None
+        for _ in range(300):
+            line = process.stdout.readline()
+            if line.startswith("serving "):
+                url = line.split()[1]
+                break
+        assert url, "the subcommand never printed its serving line"
+        health = json.loads(urllib.request.urlopen(url + "/health", timeout=5).read())
+        assert health["protocol"] == 2
+    finally:
+        process.send_signal(signal.SIGINT)
+        assert process.wait(timeout=30) == 0
+        process.stdout.close()
