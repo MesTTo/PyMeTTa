@@ -593,9 +593,14 @@ class Runtime:
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
 
-    def _original_python_error(self, term: object) -> PettaError | None:
-        """The live PettaError a Python callback raised, when the Prolog
-        term still carries the object reference."""
+    def _original_python_error(
+        self, term: object, base: type[BaseException] = PettaError
+    ) -> BaseException | None:
+        """The live exception a Python callback raised, when the Prolog
+        term still carries the object reference and the object is a
+        `base`. _raise keeps the default, the library's own exceptions;
+        transaction() widens it, because a transaction body is the
+        caller's own code and its ValueError should arrive as itself."""
         try:
             row = self._janus.query_once(
                 "petta_py_original_exception(Error, Obj)", {"Error": term}
@@ -605,7 +610,7 @@ class Runtime:
         if not row or row.get("truth") is False:
             return None
         obj = row.get("Obj")
-        return obj if isinstance(obj, PettaError) else None
+        return obj if isinstance(obj, base) else None
 
     def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
         """Raise MettaOperationError when the term names a MeTTa operation."""

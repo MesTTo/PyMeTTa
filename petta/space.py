@@ -64,6 +64,7 @@ Open Obligations:
 from __future__ import annotations
 
 import builtins as _builtins
+import functools
 import hashlib
 import os
 from collections import abc as _abc
@@ -987,6 +988,74 @@ class MeTTa:
                 detour = m.query(S.route(V.r), where=...)
         """
         return _Assuming(self, [_to_atom(f) for f in facts])
+
+    def transaction(self, callable_: Callable[[], _R], /) -> _R:
+        """Run a zero-argument callable inside one engine transaction,
+        now, answering its return value: the Python door of the MeTTa
+        (transaction ...) form, riding the same petta_transaction/1, so
+        foreign-space enlistment and nesting behave identically in both
+        languages.
+
+            m.transaction(lambda: migrate(m))
+
+        Every engine write the callable makes, stored atoms, equations
+        and their compiled clauses included, commits or rolls back
+        together. An exception is the one rollback trigger, because a
+        Python callable cannot fail the Prolog way, and it re-raises AS
+        ITSELF: your ValueError arrives as ValueError with the engine
+        boundary in its chain. Only the engine's dynamic state rolls
+        back; what the callable did on the Python side (a list appended,
+        a file written) is yours to undo, SWI transactions being
+        database-scoped.
+
+        Transactions nest, SWI's own semantics: an inner commit is
+        relative to its outer transaction, so an outer rollback discards
+        inner work too.
+
+        There is deliberately no `with m.transaction():` form. SWI's
+        transaction/1 takes a closed goal; there is no open begin/commit
+        to hold across a block, and pretending otherwise would lie about
+        the isolation actually provided. transactional() is the
+        decorator twin."""
+        try:
+            row = self._rt.once("petta_py_transaction(F, R)", F=callable_)
+        except PettaError as error:
+            term = getattr(error.__cause__, "term", None)
+            original = (
+                self._rt._original_python_error(term, base=BaseException)
+                if term is not None
+                else None
+            )
+            if original is not None and original is not error:
+                raise original from error
+            raise
+        if not row:
+            raise EngineError(
+                "the transaction goal failed without an exception, which "
+                "petta_py_transaction does not do on purpose"
+            )
+        return cast("_R", row["R"])
+
+    def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
+        """transaction()'s decorator twin, the atomic shape Django made
+        familiar: each CALL of the wrapped function runs inside its own
+        engine transaction. Decorating runs nothing, exactly as a
+        decorator should not; reach for transaction() to run one
+        callable now.
+
+            @m.transactional
+            def migrate():
+                m.add(...)
+                m.remove(...)
+
+            migrate()     # one transaction; a raise rolls it all back
+        """
+
+        @functools.wraps(fn)
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            return self.transaction(lambda: fn(*args, **kwargs))
+
+        return wrapper
 
     def prepare(self, *patterns: Any, where: Any | None = None) -> Prepared:
         """A query whose shape is fixed and whose facts are not: the wire

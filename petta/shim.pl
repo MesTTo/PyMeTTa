@@ -1024,6 +1024,15 @@ petta_py_space_names(Names) :-
 petta_py_original_exception(error(python_error(_, Obj), _), Obj) :-
     py_is_object(Obj).
 
+%Run a Python callable inside one engine transaction: the same
+%petta_transaction/1 the MeTTa (transaction ...) form compiles to, so
+%foreign-space enlistment and nesting behave identically from both
+%languages. py_call re-enters Python on the calling thread; an exception
+%there aborts the transaction, every dynamic change rolls back, and the
+%Python side re-raises the original.
+petta_py_transaction(F, R) :-
+    petta_transaction(py_call(F:'__call__'(), R)).
+
 petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.
