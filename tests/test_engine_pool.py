@@ -8,9 +8,9 @@ Guarantees:
     test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic]
   - map answers in input order however the workers finish
     [tested test_map_answers_in_input_order]
-  - the first failure in INPUT order is the one raised, so the error does not
-    depend on which worker lost the race
-    [tested test_map_raises_the_first_failure_in_input_order]
+  - every failure raises, one plainly and several as one ExceptionGroup in
+    INPUT order, so the error never depends on which worker lost the race
+    [tested test_map_raises_every_failure_in_input_order]
   - close releases every engine and is idempotent
     [tested test_close_releases_every_engine, test_close_is_idempotent]
 Open Obligations:
@@ -177,14 +177,15 @@ def test_imap_unordered_yields_every_result(p):
 # -------------------------------------------------------------------- failure
 
 
-def test_map_raises_the_first_failure_in_input_order(p):
+def test_map_raises_every_failure_in_input_order(p):
     def boom(n):
         if n in (2, 5):
             raise ValueError(f"item {n}")
         return n
 
-    with pytest.raises(ValueError, match="item 2"):
+    with pytest.raises(ExceptionGroup) as caught:
         p.map(boom, range(8))
+    assert [str(e) for e in caught.value.exceptions] == ["item 2", "item 5"]
 
 
 def test_a_worker_error_does_not_kill_the_pool(p):
@@ -234,3 +235,18 @@ def test_metta_pool_is_the_same_pool(m):
     with m.pool(workers=2) as engine_pool:
         assert isinstance(engine_pool, EnginePool)
         assert engine_pool.map(lambda n: m.one(f"(+ {n} 1)"), [1, 2]) == [2, 3]
+
+
+def test_several_failures_raise_together_one_raises_plain(m):
+    def half_broken(n):
+        if n % 2 == 0:
+            raise ValueError(f"even {n}")
+        return n
+
+    with m.pool(workers=2) as pool:
+        with pytest.raises(ExceptionGroup) as caught:
+            pool.map(half_broken, [0, 1, 2, 3])
+        # every failure, in INPUT order, not just the race's first
+        assert [str(e) for e in caught.value.exceptions] == ["even 0", "even 2"]
+        with pytest.raises(ValueError, match="even 0"):
+            pool.map(half_broken, [0, 1, 3])

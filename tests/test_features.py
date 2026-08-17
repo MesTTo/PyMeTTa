@@ -1070,3 +1070,44 @@ def test_profile_extension_needs_exactly_one_of_extension_or_names(profiled):
             profiled.profile_extension("!(pd-spin 1)", **kwargs)
 
 
+
+
+def test_subscription_is_a_context_manager_and_events_stream(m):
+    seen = []
+    with m.subscribe(S.dwatch(V.x)) as subscription:
+
+        def consume():
+            for event in subscription.events():
+                seen.append(str(event.atom))
+
+        consumer = threading.Thread(target=consume)
+        consumer.start()
+        m.add(S.dwatch(S.one))
+        m.add(S.dwatch(S.two))
+        deadline = time.monotonic() + 5
+        while len(seen) < 2 and time.monotonic() < deadline:
+            time.sleep(0.005)
+    # leaving the with-block cancelled, which ends the stream
+    consumer.join(timeout=5)
+    assert not consumer.is_alive()
+    assert seen == ["(dwatch one)", "(dwatch two)"]
+
+
+def test_events_times_out_quiet_and_refuses_callback_mode(m):
+    quiet = m.subscribe(S.dnothing(V.x))
+    try:
+        started = time.monotonic()
+        assert list(quiet.events(timeout=0.05)) == []
+        assert time.monotonic() - started < 2
+    finally:
+        quiet.cancel()
+    with m.subscribe(S.dnothing(V.x), lambda event: None) as with_callback:
+        with pytest.raises(PettaError, match="delivers through its callback"):
+            next(iter(with_callback.events()))
+
+
+def test_events_delivers_leftovers_queued_before_cancel(m):
+    subscription = m.subscribe(S.dleft(V.x))
+    m.add(S.dleft(S.kept))
+    subscription.cancel()
+    assert [str(e.atom) for e in subscription.events()] == ["(dleft kept)"]

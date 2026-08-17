@@ -25,9 +25,9 @@ Guarantees:
     [tested test_pool_agrees_with_the_home_engine]
   - map answers in input order however the workers finish
     [tested test_map_answers_in_input_order]
-  - a worker exception is raised to the caller rather than swallowed, and the
-    first failure in input order is the one raised
-    [tested test_map_raises_the_first_failure_in_input_order]
+  - a worker exception is raised to the caller rather than swallowed: one
+    plainly, several together as one ExceptionGroup in input order
+    [tested test_map_raises_every_failure_in_input_order]
   - branches really run at once [measured 2026-08-15: 1.94x, 3.90x and 7.26x
     at 2, 4 and 8 workers on a 12ms MeTTa evaluation, ai-tmp/pool/lock_check.py;
     tested test_pool_runs_work_concurrently]
@@ -192,9 +192,11 @@ class EnginePool:
         """Run fn on every item across the workers, in input order.
 
         Answers a list, not an iterator, because the whole point is that the
-        work already ran. The first failure in INPUT order is raised, so the
-        exception a caller sees does not depend on which worker lost the
-        race; the remaining work is left to finish rather than half-cancelled.
+        work already ran. One failure raises plainly; several raise together
+        as one ExceptionGroup in INPUT order, so what a caller sees never
+        depends on which worker lost the race and no failure after the first
+        goes unreported; the remaining work is left to finish rather than
+        half-cancelled.
         """
         return self._gather([self.submit(fn, item) for item in items])
 
@@ -203,27 +205,34 @@ class EnginePool:
         return self._gather([self.submit(fn, *tuple(item)) for item in items])
 
     def _gather(self, futures: list[Future[R]]) -> list[R]:
-        """Every future's result, or the first failure in INPUT order.
+        """Every future's result, or every failure, in INPUT order.
 
         The loop finishes even after a failure, and that is the point rather
         than tidiness: a Future whose result is never fetched drops its
         exception without a word, so leaving the rest undrained would lose
-        every failure after the first instead of reporting one of them.
+        every failure after the first. One failure raises plainly; several
+        raise as one group, the library's raise_for_errors policy, and
+        BaseExceptionGroup picks the Exception-only subclass itself when it
+        can.
 
         BaseException is caught deliberately. A worker's KeyboardInterrupt has
-        to reach the caller, and filtering it out for not being an Exception
-        is exactly how an interrupt gets swallowed.
+        to reach the caller, grouped if it arrived beside other failures, and
+        filtering it out for not being an Exception is exactly how an
+        interrupt gets swallowed.
         """
         results: list[R] = []
-        failure: BaseException | None = None
+        failures: list[BaseException] = []
         for future in futures:
             try:
                 results.append(future.result())
             except BaseException as exc:  # noqa: BLE001
-                if failure is None:
-                    failure = exc
-        if failure is not None:
-            raise failure
+                failures.append(exc)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            raise BaseExceptionGroup(
+                f"{len(failures)} of {len(futures)} pool tasks failed", failures
+            )
         return results
 
     # --------------------------------------------------------------- lifecycle

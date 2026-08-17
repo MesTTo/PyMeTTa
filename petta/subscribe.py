@@ -33,9 +33,10 @@ Open Obligations:
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Self
 
 from .atoms import Atom, Expr, Sym, Var, _to_atom, atom_from_wire, map_atoms, unify
 from .errors import EngineError, PettaError
@@ -72,6 +73,33 @@ class Subscription:
     def drain(self) -> list[Event]:
         """Every queued event, oldest first; the queue empties."""
         return _REGISTRY.drain(self)
+
+    def events(self, timeout: float | None = None):
+        """Incoming events as a blocking stream: the no-callback queue
+        mode consumed without polling, so a consumer thread writes
+        `for event in sub.events(): ...` and sleeps on a condition
+        variable between arrivals. The stream ends when the subscription
+        cancels, queued leftovers delivered first, or when `timeout`
+        seconds pass with nothing arriving. A callback subscription
+        delivers through its callback and has no queue, so it refuses.
+        Bare `iter(sub)` is deliberately absent: iteration that blocks
+        should say so by name."""
+        if self.callback is not None:
+            raise PettaError(
+                "events() consumes the no-callback queue; this subscription "
+                "delivers through its callback"
+            )
+        while True:
+            arrived = _REGISTRY.take(self, timeout)
+            if not arrived:
+                return
+            yield from arrived
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self.cancel()
 
     def cancel(self) -> None:
         with _TRANSACTION_LOCK:
@@ -121,6 +149,7 @@ class _SubscriptionRegistry:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._delivery_changed = threading.Condition(self._lock)
+        self._arrived = threading.Condition(self._lock)
         self._subscriptions: list[Subscription] = []
         self._deliveries: dict[Subscription, dict[int, int]] = {}
         self.runtime = None
@@ -160,6 +189,7 @@ class _SubscriptionRegistry:
             self._publish_locked(self.runtime, candidate)
             self._subscriptions = candidate
             subscription._active = False
+            self._arrived.notify_all()  # events() streams end at cancel
             return _Cancellation(self.runtime, order, index)
 
     def restore(self, cancellation: _Cancellation, subscription: Subscription) -> None:
@@ -184,6 +214,22 @@ class _SubscriptionRegistry:
     def queue(self, subscription: Subscription, event: Event) -> None:
         with self._lock:
             subscription._queue.append(event)
+            self._arrived.notify_all()
+
+    def take(self, subscription: Subscription, timeout: float | None) -> list[Event]:
+        """Queued events, blocking until something arrives, the
+        subscription cancels, or the timeout elapses; empty means the
+        stream is over. The condition is shared, so a wake for another
+        subscription re-checks against the remaining deadline."""
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._lock:
+            while subscription._active and not subscription._queue:
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    return []
+                self._arrived.wait(remaining)
+            events, subscription._queue = subscription._queue, []
+            return events
 
     def begin_delivery(self, subscription: Subscription) -> bool:
         with self._lock:
