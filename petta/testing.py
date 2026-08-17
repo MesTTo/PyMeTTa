@@ -54,11 +54,13 @@ __all__ = [
     "check_twin",
     "count_atoms",
     "expressions",
+    "ground_atoms",
     "grounded",
     "measure_instructions",
     "names",
     "numbers",
     "numpy_scalars",
+    "patterns",
     "record_replay",
     "symbols",
     "texts",
@@ -199,6 +201,29 @@ def expressions(max_leaves: int = 8, *, ground: bool = False):
     """Non-empty expression-rooted atoms, the shape spaces store."""
     st = _st()
     return st.lists(atoms(max_leaves, ground=ground), min_size=1, max_size=4).map(Expr)
+
+
+def ground_atoms(max_leaves: int = 8):
+    """Atoms carrying no variables: what a store holds after matching.
+    atoms(ground=True) under the name provider fuzzing reaches for."""
+    return atoms(max_leaves, ground=True)
+
+
+def patterns(max_leaves: int = 8):
+    """Expression-rooted atoms guaranteed to carry at least one variable:
+    the query side of match, built rather than filtered so hypothesis
+    never discards an example."""
+    st = _st()
+
+    def weave(parts):
+        before, variable, after = parts
+        return Expr([*before, variable, *after])
+
+    return st.tuples(
+        st.lists(atoms(max_leaves, ground=False), max_size=2),
+        variables(),
+        st.lists(atoms(max_leaves, ground=False), max_size=2),
+    ).map(weave)
 
 
 # ------------------------------------------------------ conformance for seams
@@ -603,7 +628,8 @@ def record_replay(provider):
     return recording, lambda: _Replayer(recording.log)
 
 
-def check_replay(provider, patterns) -> list[str]:
+# The parameter name is public API, older than the patterns() strategy.
+def check_replay(provider, patterns) -> list[str]:  # pylint: disable=redefined-outer-name
     """The ec_determ lane: for a fixed host state, evaluation is a
     function. Each pattern is matched live and recorded, then the log's
     replay must serve byte-identical answers, which is what makes a

@@ -746,6 +746,24 @@ metta_space_expression(Operation, Terms, _) :-
 %was added has to un-compile when it is taken out, wherever it was stored. This
 %dispatched on storage first for the same reason the write path did, so a
 %foreign space's equation kept its compiled clause after the atom was gone.
+%A pattern that is ITSELF a variable is the remove-everything reading a
+%multiset space gives it, and it must be answered here: left to the next
+%clause, the unbound term UNIFIED into the equation shape and took the
+%equation-removal path with an unbound function symbol, whose behaviour
+%then depended on whatever equations the whole process happened to hold
+%(found 2026-08-18: (remove-atom &cstore $any) raised
+%atomic_list_concat/2 instantiation errors only when other suites had
+%run first). Enumerating and removing each atom through its own proper
+%path keeps equations, their compiled clauses, and foreign providers
+%all handled by the code that owns them.
+metta_remove_atom(Space, Term, Removed) :- var(Term), !,
+    findall(A, 'get-atoms'(Space, A), Atoms),
+    (   Atoms == []
+    ->  Removed = false
+    ;   forall(member(A, Atoms),
+               ( metta_remove_atom(Space, A, _) -> true ; true )),
+        Removed = true
+    ).
 metta_remove_atom(Space, Term, Removed) :- Term = [=, [F|Args], Body], !,
                                            remove_equation(Space, Term, F, Args,
                                                            Body, Removed).

@@ -107,12 +107,16 @@ from ._space_execution import (
     value_one,
 )
 from ._space_objects import (
+    _ACTIVE_BATCHES,
     Cursor,
     EngineProfile,
     FunctionCost,
     Prepared,
+    ScopedLimits,
     _Assuming,
+    _Batch,
     _EngineFunction,
+    _refuse_in_batch,
     _StatsBlock,
     guard_atom,
 )
@@ -145,7 +149,7 @@ from .foreign import (
     unregister_provider,
 )
 from .lint import lint as _lint
-from .results import Rows, raise_error_answers
+from .results import Rows, raise_error_answers, rows_into
 from .subscribe import _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
@@ -672,6 +676,10 @@ class MeTTa:
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once."""
+        pending = _ACTIVE_BATCHES.get().get(self._space)
+        if pending is not None:
+            pending.extend(atoms)
+            return
         wires = [_to_stored_atom(atom).to_wire() for atom in atoms]
         if not wires:
             return
@@ -729,9 +737,16 @@ class MeTTa:
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: an equation removal reports
         whether it existed; a plain atom removal removes every copy and
-        reports whether at least one copy existed."""
+        reports whether at least one copy existed. A bare variable is
+        the remove-everything reading a multiset space gives it, each
+        atom leaving through its own proper path, equations and their
+        compiled clauses included."""
+        _refuse_in_batch(self._space, "remove")
+        pattern = _to_atom(atom)
+        if not isinstance(pattern, Var):
+            pattern = _to_stored_atom(pattern)
         removed = self._rt.apply_must(
-            "petta_py_remove", self._space, _to_stored_atom(atom).to_wire()
+            "petta_py_remove", self._space, pattern.to_wire()
         )
         result = atom_from_wire(removed)
         return bool(getattr(result, "value", True))
@@ -820,6 +835,7 @@ class MeTTa:
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
+        _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
 
     def __iadd__(self, atom: Any) -> Self:
@@ -916,7 +932,8 @@ class MeTTa:
         limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> Rows:
+        into: _builtins.type | None = None,
+    ) -> Any:
         """Match patterns against this space as one conjunction.
 
         Variables shared between patterns join, the engine's own match/4
@@ -940,9 +957,14 @@ class MeTTa:
         when you want a bounded answer set, and for stream() when you want to
         take rows until you have seen enough.
 
+        `into=` shapes each row into a dataclass, NamedTuple, or
+        TypedDict matched by field name, sqlite3's row_factory reading:
+        `m.query(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
+        and Rows stays the default so nothing is lost.
+
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
-        return query_rows(
+        rows = query_rows(
             self._rt,
             self._space,
             patterns,
@@ -951,6 +973,9 @@ class MeTTa:
             timeout=timeout,
             inferences=inferences,
         )
+        if into is None:
+            return rows
+        return rows_into(rows, into)
 
     def stream(
         self,
@@ -1035,6 +1060,45 @@ class MeTTa:
                 "petta_py_transaction does not do on purpose"
             )
         return cast("_R", row["R"])
+
+    def limits(
+        self,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> ScopedLimits:
+        """Scoped default bounds for every call in the with-block:
+
+            with m.limits(inferences=1_000_000, timeout=2.0):
+                m.query(...)      # bounded without saying so again
+
+        decimal.localcontext's shape, contextvars underneath, so the
+        scope is async-correct and per-task. A per-call timeout= or
+        inferences= still overrides, which is the whole ladder: one
+        block replaces the parameter forest, and the forest remains
+        for whoever wants per-call control."""
+        return ScopedLimits(timeout, inferences)
+
+    def batch(self) -> _Batch:
+        """Collect this space's add() calls and cross once at exit:
+
+            with m.batch():
+                for edge in edges:
+                    m.add(edge)          # collected, no crossing yet
+            # one add_many crossing happened here
+
+        The write ladder reads: add one; add(*atoms) several; batch a
+        region; transaction all-or-nothing; a provider's own bulk door
+        underneath. A batch is a transport economy and must not invent
+        semantics, so the sharp edges are stated and enforced: reads
+        inside the block see the space WITHOUT the pending adds; a
+        remove() or clear() on this space inside the block refuses,
+        because it would otherwise silently order around writes the
+        program already made; and an exception discards the pending
+        batch rather than landing writes the code after the raise never
+        saw. Compose with transaction() for atomicity: batch for
+        economy, transaction for all-or-nothing, or both."""
+        return _Batch(self)
 
     def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
         """transaction()'s decorator twin, the atomic shape Django made

@@ -22,6 +22,7 @@ import time
 import warnings
 import weakref
 from collections.abc import Iterable
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
@@ -63,8 +64,43 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
         raise ValueError(f"{called} must be positive, got {value!r}")
 
 
+#: The scoped defaults `with m.limits(...)` sets: a contextvar, so the
+#: scope is async-correct and thread-local the way decimal.localcontext
+#: is. Per-call kwargs override by simply not being None.
+_SCOPED_LIMITS: ContextVar[tuple[float | None, int | None]] = ContextVar(
+    "petta_scoped_limits", default=(None, None)
+)
+
+
+class ScopedLimits:
+    """The with-block m.limits() answers: sets the scoped defaults on
+    entry, restores the previous scope on exit, exceptions included."""
+
+    def __init__(self, timeout: float | None, inferences: int | None) -> None:
+        _require_bound(timeout, "timeout", (int, float), "seconds as a number")
+        _require_bound(inferences, "inferences", (int,), "a positive int")
+        self._value = (timeout, inferences)
+        self._token: Any = None
+
+    def __enter__(self) -> Self:
+        self._token = _SCOPED_LIMITS.set(self._value)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _SCOPED_LIMITS.reset(self._token)
+
+
 def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
-    """Validate the per-call bounds into the shim's (-1 = none) pair."""
+    """Validate the per-call bounds into the shim's (-1 = none) pair.
+    A bound the call did not name falls back to the scoped default
+    m.limits() set, which is how one with-block replaces a parameter
+    forest while every per-call kwarg still overrides."""
+    if timeout is None or inferences is None:
+        scoped_timeout, scoped_inferences = _SCOPED_LIMITS.get()
+        if timeout is None:
+            timeout = scoped_timeout
+        if inferences is None:
+            inferences = scoped_inferences
     if timeout is inferences is None:
         return None
     _require_bound(timeout, "timeout", (int, float), "seconds as a number")
@@ -793,3 +829,58 @@ class _EngineFunction:
 
     def __repr__(self) -> str:
         return f"<engine function {self._name} on {self._space.space_name}>"
+
+
+#: Active batch collectors by space name; a contextvar mapping, so a
+#: batch region is task-scoped exactly as limits() scopes are. The
+#: default mapping is never mutated: entering copies.
+_EMPTY_BATCHES: dict[str, list] = {}  # never mutated; entering copies
+_ACTIVE_BATCHES: ContextVar[dict[str, list]] = ContextVar(
+    "petta_active_batches", default=_EMPTY_BATCHES
+)
+
+
+def _refuse_in_batch(space_name: str, operation: str) -> None:
+    """Refuse an operation that would order around pending batched adds."""
+    if space_name in _ACTIVE_BATCHES.get():
+        raise PettaError(
+            f"{operation}() on {space_name} inside its own batch block "
+            f"would silently order around the adds the block is holding; "
+            f"leave the `with m.batch():` block first"
+        )
+
+
+class _Batch:
+    """The write collector m.batch() answers; see its docstring for the
+    stated edges (reads see the pre-batch space, remove and clear
+    refuse, an exception discards)."""
+
+    __slots__ = ("_pending", "_space", "_token")
+
+    def __init__(self, space: MeTTa) -> None:
+        self._space = space
+        self._pending: list[Any] = []
+        self._token: Any = None
+
+    def __enter__(self) -> Self:
+        current = _ACTIVE_BATCHES.get()
+        name = self._space.space_name
+        if name in current:
+            raise PettaError(
+                f"a batch is already collecting for {name} in this "
+                f"context; batches do not nest per space"
+            )
+        self._pending = []
+        self._token = _ACTIVE_BATCHES.set(current | {name: self._pending})
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _ACTIVE_BATCHES.reset(self._token)
+        pending, self._pending = self._pending, []
+        if exc_type is None and pending:
+            # The batch is no longer active here, so this is the one real
+            # crossing, the engine's own bulk door underneath.
+            self._space.add(*pending)
+
+    def __len__(self) -> int:
+        return len(self._pending)

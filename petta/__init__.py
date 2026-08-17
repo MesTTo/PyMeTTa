@@ -24,6 +24,7 @@ Open Obligations:
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
 """
 
+import functools
 import importlib
 import logging
 import sys
@@ -171,6 +172,60 @@ from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
 
+# ------------------------------------------------------ the module-level tier
+# Tier 1 of the ladder: one lazily created default engine behind module
+# functions, random's and logging's own shape. The hidden instance is fine
+# because the sugar is thin, named, and escapable: every function below is
+# one line over MeTTa(), and default_engine() hands the instance over the
+# moment control is wanted. There is deliberately no module-level space():
+# petta.space is the space MODULE, a public import target, and a function
+# would clobber it; spell it default_engine().space(name).
+
+@functools.cache
+def default_engine() -> MeTTa:
+    """The engine behind the module-level functions, created on first
+    use: escape hatch and inspection point in one. Construct MeTTa()
+    yourself for isolation; there is one engine per process either way,
+    so this is about who holds the handle, not about capacity.
+    functools.cache carries the once-and-locked semantics."""
+    return MeTTa()
+
+
+def run(source: str, **kwargs):
+    """Run MeTTa source. Sugar for MeTTa().run(...); construct your own
+    engine for isolation."""
+    return default_engine().run(source, **kwargs)
+
+
+def query(*patterns, **kwargs):
+    """Query patterns as one conjunction. Sugar for MeTTa().query(...);
+    construct your own engine for isolation."""
+    return default_engine().query(*patterns, **kwargs)
+
+
+def add(*atoms):
+    """Add atoms. Sugar for MeTTa().add(...); construct your own engine
+    for isolation."""
+    return default_engine().add(*atoms)
+
+
+def remove(atom):
+    """Remove every copy of an atom. Sugar for MeTTa().remove(...);
+    construct your own engine for isolation."""
+    return default_engine().remove(atom)
+
+
+def eval(target, **kwargs):
+    """Evaluate a term, every answer. Sugar for MeTTa().eval(...);
+    construct your own engine for isolation."""
+    return default_engine().eval(target, **kwargs)
+
+
+def fn(name: str):
+    """An engine function as a Python callable. Sugar for
+    MeTTa().fn(...); construct your own engine for isolation."""
+    return default_engine().fn(name)
+
 
 def backend_info() -> dict[str, str | None]:
     """Return backend versions and the PeTTa runtime tree in use.
@@ -250,6 +305,7 @@ __all__ = [
     "V",
     "Var",
     "__version__",
+    "add",
     "aio",
     "alpha_eq",
     "arrays",
@@ -262,9 +318,12 @@ __all__ = [
     "current_space",
     "das",
     "decode",
+    "default_engine",
     "encode",
     "engine_thread",
+    "eval",
     "expr",
+    "fn",
     "foreign",
     "integrate",
     "is_ground",
@@ -274,9 +333,12 @@ __all__ = [
     "parallel",
     "parse",
     "persistent",
+    "query",
     "register_object_repr",
     "register_object_repr_protocol",
     "remote",
+    "remove",
+    "run",
     "sym",
     "testing",
     "trace",

@@ -639,22 +639,13 @@ def serve(
             return {"added": len(atoms)}
         if operation == "remove":
             pattern = atom_from_wire(payload["atom"])
-            space = space_of(payload)
-            if isinstance(pattern, Var):
-                # The protocol's law is removal by unification, and a bare
-                # variable unifies with every stored atom. The engine's own
-                # removal wants a storage-shaped pattern, so "everything"
-                # is spelled as one removal per stored atom, equations and
-                # their compiled clauses included.
-                removed = False
-                for atom in space.atoms():
-                    removed = space.remove(atom) or removed
-                return {"removed": removed}
-            if not isinstance(pattern, Expr):
+            if not isinstance(pattern, (Expr, Var)):
                 # A stored atom is always an expression; a symbol or a
                 # grounded value can unify with none of them.
                 return {"removed": False}
-            return {"removed": space.remove(pattern)}
+            # A bare variable is the remove-everything reading, and the
+            # engine owns it now, each atom leaving through its own path.
+            return {"removed": space_of(payload).remove(pattern)}
         if operation == "health":
             return {
                 "ok": True,

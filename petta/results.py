@@ -31,8 +31,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+import dataclasses
 import html
 import reprlib
+import typing
 from collections import UserList
 from collections.abc import Iterable, Iterator
 from difflib import get_close_matches
@@ -456,3 +458,67 @@ class Rows(UserList[Row]):
 
     def __iter__(self) -> Iterator[Row]:
         return iter(self.data)
+
+
+def _into_fields(cls: type) -> dict[str, Any]:
+    """Field name to resolved annotation for a dataclass, NamedTuple, or
+    TypedDict; anything else is refused naming the three."""
+    if dataclasses.is_dataclass(cls):
+        hints = typing.get_type_hints(cls)
+        return {field.name: hints.get(field.name) for field in dataclasses.fields(cls)}
+    named_fields = getattr(cls, "_fields", None)
+    if isinstance(cls, type) and issubclass(cls, tuple) and named_fields is not None:
+        hints = typing.get_type_hints(cls)
+        return {name: hints.get(name) for name in named_fields}
+    if hasattr(cls, "__annotations__") and hasattr(cls, "__total__"):
+        return dict(typing.get_type_hints(cls))
+    raise TypeError(
+        f"into= takes a dataclass, NamedTuple, or TypedDict; "
+        f"{getattr(cls, '__name__', cls)!r} is none of those"
+    )
+
+
+def rows_into(rows: Rows, cls: type) -> list:
+    """Each row as one cls instance, matched by field name: sqlite3's
+    row_factory reading, over the existing conversion machinery. A field
+    annotated with a registered class builds through the two-way
+    translator; a primitive annotation decodes and is CHECKED, so a
+    symbol landing in an int field is an error at the door rather than
+    a surprise downstream; an unannotated field decodes plainly."""
+    fields = _into_fields(cls)
+    missing = [name for name in fields if name not in rows.columns]
+    if missing:
+        raise TypeError(
+            f"{cls.__name__} needs column(s) {missing}; the query answered "
+            f"{list(rows.columns)}"
+        )
+    indices = {name: rows.columns.index(name) for name in fields}
+    primitives = (str, int, float, bool)
+    built = []
+    for row in rows:
+        kwargs = {}
+        for name, annotation in fields.items():
+            atom = row[indices[name]]
+            if annotation in (None, Any):
+                kwargs[name] = _plain(atom)
+            elif annotation in primitives:
+                value = _plain(atom)
+                if annotation is float and isinstance(value, int) and not isinstance(value, bool):
+                    value = float(value)
+                if isinstance(value, bool) and annotation is not bool:
+                    raise TypeError(
+                        f"column {name!r} answered {value!r}, not {annotation.__name__}"
+                    )
+                if not isinstance(value, annotation):
+                    raise TypeError(
+                        f"column {name!r} answered {value!r}, not {annotation.__name__}"
+                    )
+                kwargs[name] = value
+            elif annotation is Atom or (
+                isinstance(annotation, type) and issubclass(annotation, Atom)
+            ):
+                kwargs[name] = atom
+            else:
+                kwargs[name] = convert.build(atom, annotation)
+        built.append(cls(**kwargs))
+    return built

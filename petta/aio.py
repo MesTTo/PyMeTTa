@@ -48,6 +48,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 import builtins as _builtins
+import contextvars
 import logging
 import math
 import os
@@ -86,7 +87,7 @@ def _set_future_result(future: asyncio.Future[None]) -> None:
 
 
 class _Request:
-    __slots__ = ("abandoned", "fn", "future", "loop", "target")
+    __slots__ = ("abandoned", "context", "fn", "future", "loop", "target")
 
     def __init__(self, fn, target, loop, future) -> None:
         self.fn = fn
@@ -94,6 +95,11 @@ class _Request:
         self.loop = loop
         self.future = future
         self.abandoned = threading.Event()
+        # The submitting task's contextvars, so scoped state (limits(),
+        # an open batch) crosses to the worker thread with the request,
+        # which is what makes the with-blocks async-correct THROUGH the
+        # thread hop and not only beside it.
+        self.context = contextvars.copy_context()
 
 
 class _EngineThread:
@@ -202,7 +208,7 @@ class _EngineThread:
                         )
                         continue
                     try:
-                        result = request.fn(request.target)
+                        result = request.context.run(request.fn, request.target)
                     except BaseException as exc:  # noqa: BLE001
                         # Base exceptions cross to the awaiting task too.
                         outcome, failed = exc, True
@@ -616,8 +622,10 @@ class AsyncMeTTa:
         limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> Rows:
-        """Query patterns with the synchronous surface's bounds and guard."""
+        into: _builtins.type | None = None,
+    ) -> Any:
+        """Query patterns with the synchronous surface's bounds, guard,
+        and into= row shaping."""
         return await self.call(
             lambda m: m.query(
                 *patterns,
@@ -625,6 +633,7 @@ class AsyncMeTTa:
                 limit=limit,
                 timeout=timeout,
                 inferences=inferences,
+                into=into,
             )
         )
 
@@ -1039,6 +1048,25 @@ class AsyncMeTTa:
     async def unregister_space(self, name: str) -> None:
         return await self.call(lambda m: m.unregister_space(name))
 
+    def limits(
+        self,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ):
+        """Scoped default bounds, the synchronous surface's own block:
+        enter and exit only touch a contextvar, so this is an ordinary
+        `with` inside async code, and every awaited call in the scope
+        carries it to the worker."""
+        return self._m.limits(timeout=timeout, inferences=inferences)
+
+    def batch(self) -> _AsyncBatch:
+        """Collect this space's add() calls and cross once at exit,
+        the synchronous batch's async twin: `async with am.batch():`.
+        The same stated edges apply: reads see the pre-batch space,
+        remove and clear refuse, an exception discards."""
+        return _AsyncBatch(self)
+
     async def transaction(self, fn: Callable[[MeTTa], Any], /) -> Any:
         """Run fn inside one engine transaction on the worker thread,
         answering its return value. fn receives the worker's own
@@ -1356,6 +1384,34 @@ class _AsyncSubscription:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.aclose()
+
+
+class _AsyncBatch:
+    """The batch block's async twin: entering opens the synchronous
+    collector in THIS task's context (which every awaited call carries
+    to the worker), and a clean exit flushes through one awaited bulk
+    crossing."""
+
+    def __init__(self, am: AsyncMeTTa) -> None:
+        self._am = am
+        self._batch = am.metta.batch()
+
+    async def __aenter__(self) -> Self:
+        self._batch.__enter__()
+        return self
+
+    def __len__(self) -> int:
+        return len(self._batch)
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        batch = self._batch
+        pending = list(batch._pending)
+        # Close the collector without flushing on the caller thread ...
+        batch._pending = []
+        batch.__exit__(exc_type, exc, tb)
+        # ... and flush on the worker, where engine calls belong.
+        if exc_type is None and pending:
+            await self._am.call(lambda m: m.add(*pending))
 
 
 class _AsyncEngineFunction:
