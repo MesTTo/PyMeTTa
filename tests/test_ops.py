@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-from petta import Atom, Decline, EngineError, Expr, S, Sym, expr, val
+from petta import Atom, Decline, EngineError, Expr, MeTTa, S, Sym, V, expr, val
 
 
 def unique(prefix: str) -> str:
@@ -540,3 +540,56 @@ def test_var_kw_params_are_refused(metta):
         @metta.register_op
         def bad2(*, key=1):
             return 0
+
+
+def test_engine_injection_by_annotation(metta):
+    # FastAPI's Depends read the house way: a petta.MeTTa annotation is
+    # the request, the framework fills it, and the MeTTa call site never
+    # sees the slot.
+    metta.run("(inj-link a b) (inj-link b c)")
+
+    @metta.register_op
+    def inj_related(term, engine: MeTTa):
+        for row in engine.query(expr(S["inj-link"], term, V.x)):
+            yield row[0]
+
+    try:
+        assert metta.run("!(collapse (inj-related a))") == [[expr(S.b)]]
+        # the declared arrow has ONE argument slot: the engine is not a type
+        (group,) = metta.run("!(get-type inj-related)")
+        assert str(group[0]) == "(-> %Undefined% %Undefined%)"
+    finally:
+        metta.unregister_op("inj-related")
+
+
+def test_injection_binds_the_calling_space(metta):
+    # The engine injects ITSELF bound to the current context's space, the
+    # &self reading, so one op behaves per-space without a space argument.
+    @metta.register_op
+    def inj_here(engine: MeTTa):
+        return str(engine.space_name)
+
+    try:
+        with metta.new_space() as other:
+            other.run("(= (inj-probe) (inj-here))")
+            (group,) = other.run("!(inj-probe)")
+            assert group[0] == str(other.space_name)
+        (group,) = metta.run("!(inj-here)")
+        assert group[0] == "&self"
+    finally:
+        metta.unregister_op("inj-here")
+
+
+def test_injection_composes_with_defaults_and_position(metta):
+    # The engine slot may sit anywhere; remaining defaults still ladder
+    # the arities, so (inj-mid x) and (inj-mid x y) both serve.
+    @metta.register_op
+    def inj_mid(a, engine: MeTTa, b=10):
+        assert isinstance(engine, MeTTa)
+        return int(a) + int(b)
+
+    try:
+        assert metta.run("!(inj-mid 1)") == [[11]]
+        assert metta.run("!(inj-mid 1 2)") == [[3]]
+    finally:
+        metta.unregister_op("inj-mid")

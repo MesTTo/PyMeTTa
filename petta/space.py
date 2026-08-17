@@ -1524,6 +1524,19 @@ class MeTTa:
         are not ground and the result is, so a forward call never reaches it,
         and an operation without one compiles exactly what it did before.
 
+        A parameter annotated `petta.MeTTa` is the framework's to fill,
+        FastAPI's Depends read with the house convention that the
+        annotation is the request. The engine injects itself bound to the
+        CALLING context's space, so an operation invoked from a program
+        running in &kb queries &kb; the slot never counts toward MeTTa
+        arities or the declared arrow, and only operations that ask pay
+        the weaving:
+
+            @m.register_op
+            def related(term, engine: petta.MeTTa):
+                for row in engine.query(expr(S.link, term, V.x)):
+                    yield row[0]
+
         pure=True says the operation has no effect a cache could hide, which
         is what lets it appear in a `(tabled ...)` or memoized body:
 

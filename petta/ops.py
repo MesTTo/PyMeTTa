@@ -14,6 +14,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import functools
 import inspect
 import threading
 from collections.abc import Callable
@@ -336,6 +337,44 @@ def _retire_previous(
         _release_declaration(runtime, previous.space or fallback_space, declaration)
 
 
+def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int]:
+    """The positions whose annotation asks for the engine itself: FastAPI's
+    Depends read with the house convention that the annotation IS the
+    request. A `m: petta.MeTTa` parameter is the framework's to fill, so it
+    never counts toward MeTTa arities or the declared arrow. Detection uses
+    resolved annotations only when they resolve: an unresolvable signature
+    injects nothing here and keeps failing exactly where it fails today,
+    in the typed declaration pass."""
+    from .space import MeTTa  # noqa: PLC0415  space imports ops at top; the cycle breaks here
+
+    try:
+        hints = resolved_annotations(fn)
+    except TypeError:
+        return []
+    return [i for i, p in enumerate(params) if hints.get(p.name) is MeTTa]
+
+
+def _with_engine(fn: Callable, positions: list[int]) -> Callable:
+    """Wrap fn so the engine weaves itself into the injected slots at each
+    call, bound to the CURRENT context's space: an operation called from a
+    program running in &kb queries &kb, the &self reading, so the op
+    composes across spaces without the space being an argument. Only an
+    operation that asked pays the wrapper; every other registration calls
+    its function untouched."""
+
+    @functools.wraps(fn)
+    def woven(*args):
+        from .space import MeTTa, current_space  # noqa: PLC0415  the same deliberate cycle break
+
+        engine = MeTTa(current_space())
+        threaded = list(args)
+        for position in positions:
+            threaded.insert(position, engine)
+        return fn(*threaded)
+
+    return woven
+
+
 def register(
     runtime,
     fn: Callable[_P, _R],
@@ -371,7 +410,16 @@ def register(
     by name, loudly, rather than cached and quietly wrong.
     """
     metta_name = _metta_name(fn, name)
+    explicit_arities = arities
     arities, params = _arities(fn, arities)
+    injected = _engine_positions(params, fn)
+    if injected:
+        params = [p for i, p in enumerate(params) if i not in injected]
+        if explicit_arities is None:
+            # The derivation in _arities counted the engine slots; the MeTTa
+            # call site never fills them, so the range re-derives without.
+            required = sum(1 for p in params if p.default is inspect.Parameter.empty)
+            arities = list(range(required, len(params) + 1))
     kind = _operation_kind(fn, raw)
     # Everything computable is computed BEFORE the engine changes: a
     # refusing annotation or an over-expanded Union leaves nothing half
@@ -394,7 +442,7 @@ def register(
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
-        fn=fn,
+        fn=_with_engine(fn, injected) if injected else fn,
         kind=kind,
         arity=max(arities),
         pass_atoms=pass_atoms,
