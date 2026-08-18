@@ -44,8 +44,12 @@ Decides:
 Fails when:
   - an example's answers are nondeterministically ordered: groups are
     compared in order, so a genuinely unordered answer set would report a
-    difference that is not one. None in the corpus does today
-    [measured 2026-08-18]
+    difference that is not one. One in the corpus was, and this lane is
+    what found it: examples/control/thin_forms.metta asserted `(2 4)` for a
+    collapse over `hyperpose`, whose branches race, so the example's own
+    `test` failed at 4 runs in 30 and the lane read a per-run coin flip as
+    a library difference [measured 2026-08-18, engine alone]. It sorts now,
+    and nothing else in the corpus does this today
 Open Obligations:
   To Do: None
   Hacks: None
