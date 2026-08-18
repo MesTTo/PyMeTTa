@@ -582,8 +582,14 @@ class ClosureView:
     SWI's incremental tabling invalidates on writes).
 
         deps = ClosureView(m, "imports")
-        ("app", "libc") in deps
-        deps.reachable("app")
+        (S.app, S.libc) in deps
+        deps.reachable(S.app)
+
+    Nodes are ATOMS, not names: the relation holds whatever atoms were
+    stored in it, and a Python str is a MeTTa String rather than the
+    symbol of the same spelling, so reachable("app") answers nothing
+    where reachable(S.app) answers the closure. The relation NAME is a
+    str because it names a function rather than an atom.
 
     symmetric=True adds the reversed base case, the undirected reading;
     without tabling that spelling never terminates, which is why the
