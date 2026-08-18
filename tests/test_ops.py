@@ -517,7 +517,7 @@ def test_operation_registration_names_are_symmetric(metta):
     assert metta.op.__func__ is metta.register_op.__func__
     assert metta.unregister.__func__ is metta.unregister_op.__func__
 
-    @metta.register_op
+    @metta.register_op(name="very-unique-op-name-xyz")
     def very_unique_op_name_xyz(x: int) -> int:
         return x
 
@@ -548,7 +548,7 @@ def test_engine_injection_by_annotation(metta):
     # sees the slot.
     metta.run("(inj-link a b) (inj-link b c)")
 
-    @metta.register_op
+    @metta.register_op(name="inj-related")
     def inj_related(term, engine: MeTTa):
         for row in engine.query(expr(S["inj-link"], term, V.x)):
             yield row[0]
@@ -565,7 +565,7 @@ def test_engine_injection_by_annotation(metta):
 def test_injection_binds_the_calling_space(metta):
     # The engine injects ITSELF bound to the current context's space, the
     # &self reading, so one op behaves per-space without a space argument.
-    @metta.register_op
+    @metta.register_op(name="inj-here")
     def inj_here(engine: MeTTa):
         return str(engine.space_name)
 
@@ -583,7 +583,7 @@ def test_injection_binds_the_calling_space(metta):
 def test_injection_composes_with_defaults_and_position(metta):
     # The engine slot may sit anywhere; remaining defaults still ladder
     # the arities, so (inj-mid x) and (inj-mid x y) both serve.
-    @metta.register_op
+    @metta.register_op(name="inj-mid")
     def inj_mid(a, engine: MeTTa, b=10):
         assert isinstance(engine, MeTTa)
         return int(a) + int(b)
@@ -593,3 +593,67 @@ def test_injection_composes_with_defaults_and_position(metta):
         assert metta.run("!(inj-mid 1 2)") == [[3]]
     finally:
         metta.unregister_op("inj-mid")
+
+
+def test_registering_over_a_prolog_predicate_is_refused_not_silent(metta):
+    """A MeTTa name compiles to a Prolog predicate of one higher arity, and
+    for several ordinary words that predicate already belongs to SWI.
+
+    The dangerous half was that the assert SUCCEEDED. Registering an
+    operation called `format` put a user:format/2 in front of SWI's own, so
+    every println! the engine ran afterwards reached the operation, printed
+    nothing and raised nothing. succ, plus, print, between and nb_getval were
+    all shadowable the same way. The refusal has to happen before the assert,
+    which is why predicate_property and not the assert's own error decides it.
+    """
+    for name, arity in [
+        ("format", 1),   # Prolog format/2, a system builtin
+        ("print", 1),    # print/2, likewise
+        ("succ", 1),     # succ/2
+        ("between", 2),  # between/3
+        ("digit", 2),    # digit/3, a weak import from library(dcg/basics)
+        ("last", 1),     # last/2, from library(lists)
+        ("select", 2),   # select/3, likewise
+    ]:
+        with pytest.raises(EngineError) as refused:
+            metta.register_op(lambda *a: 1, name=name, typed=False, arities=[arity])
+        message = str(refused.value)
+        assert f"{name}/{arity + 1}" in message, message
+        assert "already owns" in message
+        assert "name=" in message
+
+    # The engine is untouched by the refusals: it still prints its own output,
+    # which is the half that broke silently. Containment rather than equality
+    # because the fixture is shared and an earlier test may have left the
+    # compiled-goal dump on.
+    _, printed = metta.run("!(println! (still here))", capture=True)
+    assert "(still here)\n" in printed
+
+
+def test_a_free_name_that_merely_looks_prolog_still_registers(metta):
+    # digit/2 is free even though digit/3 is not, so the refusal has to be
+    # per arity rather than per name, or it would take names nothing owns.
+    name = unique("digit")
+    metta.register_op(lambda x: 7, name=name, typed=False, arities=[1])
+    try:
+        assert metta.run(f"!({name} 1)") == [[7]]
+    finally:
+        metta.unregister_op(name)
+
+
+def test_unregistering_a_name_a_system_predicate_shares_does_not_throw(metta):
+    """Unregistering asks whether any clause of the name survives, and it
+    asked that of every arity of the name, so a name sharing ANY arity with a
+    protected system predicate called clause/3 on it and got
+    permission_error(access, private_procedure, _) instead of an answer.
+
+    print/6 is free, so this registration is legitimate; print/1 and print/2
+    are SWI's and are what the walk trips over. A builtin is never a clause
+    of ours, so it is skipped rather than inspected.
+    """
+    metta.register_op(lambda *a: 1, name="print", typed=False, arities=[5])
+    try:
+        assert metta.run("!(print 1 2 3 4 5)") == [[1]]
+    finally:
+        metta.unregister_op("print")
+    assert metta.run("!(print 1 2 3 4 5)") == [[metta.parse("(print 1 2 3 4 5)")]]

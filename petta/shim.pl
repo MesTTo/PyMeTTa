@@ -1742,23 +1742,100 @@ petta_py_register_op_set(Name0, Arities, Kind, Invertible) :-
     %builtin and an arity the author never wrote, where this names the tier
     %that owns it and what to do about it.
     refuse_other_tiers_name(Name, python),
-    %The probe is the same assert the registration will do, on a clause that
-    %can never run; the engine's own permission error surfaces here, before
-    %any existing registration has been touched. predicate_property cannot
-    %stand in for it: autoloadable names report static yet accept clauses.
-    forall(member(A, Arities),
-           ( PredArity is A + 1,
-             functor(Probe, Name, PredArity),
-             ( petta_py_op_spec(Name, A, _) -> true
-             ; setup_call_cleanup(assertz((Probe :- fail), Ref),
-                                  true,
-                                  erase(Ref)) ) )),
+    forall(member(A, Arities), petta_py_probe_op_name(Name, A)),
     forall(petta_py_op_spec(Name, Old, _), petta_py_unregister_op(Name, Old)),
     forall(member(A, Arities), petta_py_register_op(Name, A, Kind)),
     %Last, and once for the whole set rather than once per arity: every
     %unregister above releases the name when nothing defines it any more, so a
     %claim made earlier would be dropped by the registration's own teardown.
     claim_function_name(Name, python, Kind).
+
+%The probe is the same assert the registration will do, on a clause that can
+%never run; the engine's own permission error surfaces here, before any
+%existing registration has been touched. predicate_property cannot stand in
+%for it: autoloadable names report static yet accept clauses.
+%
+%What predicate_property CAN do is name the owner once the assert has already
+%refused, and that is the half SWI's own message leaves out. Unrendered it
+%reads "assertz/2: No permission to modify static procedure `dcg_basics:digit/3'",
+%naming a module the author never imported and a Prolog arity one higher than
+%the MeTTa one they wrote. src/spaces.pl:assert_function_clause/3 turns exactly
+%this error into MeTTa's terms for the EQUATION route; this is the operation
+%route's twin, and it differs in the advice because the two routes differ in
+%where their clauses live: an equation may go to a named space's own module,
+%while a registered operation's clauses are in user by design, so the way out
+%is a different MeTTa name
+%[tested test_registering_over_a_prolog_predicate_is_refused_not_silent].
+petta_py_probe_op_name(Name, Arity) :-
+    petta_py_op_spec(Name, Arity, _), !.
+%Nothing at all is defined at this name and arity, so nothing can refuse the
+%clause and there is nothing to ask about it. Worth its own clause because it
+%is the case every ordinary registration takes, and it skips the probe's
+%assert and erase as well as the two property calls: a registration of a
+%fresh name got CHEAPER than before this check existed, because the assert
+%and erase it replaces cost more than the lookup that proves them
+%unnecessary [measured 2026-08-18: register-op 39907 -> 38830 over 100
+%registrations, -10.8 each, min of 3 samples reproduced on 3 runs].
+petta_py_probe_op_name(Name, Arity) :-
+    PredArity is Arity + 1,
+    \+ current_predicate(Name/PredArity),
+    !.
+petta_py_probe_op_name(Name, Arity) :-
+    PredArity is Arity + 1,
+    functor(Probe, Name, PredArity),
+    %Asked BEFORE the assert, because for a BUILTIN the assert succeeds and
+    %that is the dangerous outcome, not the safe one: SWI let a local
+    %user:format/2 override its own, and the engine's every println! then
+    %reached the operation instead, printing nothing and raising nothing
+    %[reproduced 2026-08-18: captured output went from '(hi)\n' to ''].
+    %succ/2, plus/3, print/2, between/3 and nb_getval/2 were shadowable the
+    %same way.
+    %
+    %built_in and nothing wider. A library predicate that is merely
+    %AUTOLOADABLE reports defined, imported_from and a home module before it
+    %has ever been loaded, so refusing on any of those would refuse
+    %module_ops over library(math), whose sqrt lands on quintus:sqrt/2, a
+    %compatibility shim nothing here calls
+    %[tested test_module_ops_bulk_registers_a_stdlib_module]. Where a library
+    %predicate really is in use the assert below still refuses it, which is
+    %the case that test covers for dcg_basics:digit/3 and lists:last/2
+    %[tested test_registering_over_a_prolog_predicate_is_refused_not_silent].
+    %
+    %The name for what that assert refuses is a WEAK IMPORT, and the manual's
+    %own advice for avoiding one is to import selectively: "using use_module/2
+    %to only import the predicates from the lists library that are actually
+    %used" [source: SWI-Prolog manual, "Local definition ... overrides weak
+    %import"]. The engine imports whole libraries into user, so its weak
+    %imports are 434 names [measured 2026-08-18]. Importing selectively would
+    %shrink that, and it would not free the names that actually bite:
+    %parser.pl really does call digit//1, so digit/3 stays taken however the
+    %import is spelled.
+    (   predicate_property(user:Probe, built_in)
+    ->  petta_py_refuse_op_name(Name, Arity, PredArity, Probe)
+    ;   true
+    ),
+    %The other half, and the one that was here first: the same assert the
+    %registration will do, on a clause that can never run.
+    catch(setup_call_cleanup(assertz((Probe :- fail), Ref), true, erase(Ref)),
+          error(permission_error(modify, static_procedure, _), _),
+          petta_py_refuse_op_name(Name, Arity, PredArity, Probe)).
+
+petta_py_refuse_op_name(Name, Arity, PredArity, Probe) :-
+    (   predicate_property(user:Probe, imported_from(Owner))
+    ->  true
+    ;   Owner = user
+    ),
+    throw(error(petta_op_name_taken(Name, Arity, PredArity, Owner),
+                context(register_op/2, 'the name is not free in user'))).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_op_name_taken(Name, Arity, PredArity, Owner)) -->
+    [ 'registering ~w at ~w MeTTa argument(s) would assert into Prolog\'s \c
+       ~w/~w, which ~w already owns in this process'-[Name, Arity, Name,
+                                                      PredArity, Owner], nl,
+      '  a registered operation\'s clauses live in user, so its name has to be \c
+       free there: register it under another name with name=, or write it as \c
+       an equation in a named space, which compiles into a module of its own' ].
 
 %Register a Python-backed function of the given MeTTa arity. The compiled
 %predicate carries one extra output argument, the engine's own convention:
@@ -1914,7 +1991,15 @@ petta_py_unregister_op(Name0, Arity) :-
          retractall(petta_py_op_spec(Name, Arity, _)),
          retractall(arity(Name, PredArity))
     ; true ),
-    ( \+ ( current_predicate(Name/A), functor(H2, Name, A), clause(H2, _, _) )
+    %"does anything still define this name at any arity" is a question about
+    %OUR clauses, and clause/3 raises permission_error(access,
+    %private_procedure, _) on a protected system predicate rather than
+    %answering it, so unregistering an operation named print or format threw
+    %from here instead of unregistering. A builtin is never a clause of ours
+    %[tested test_unregistering_a_name_a_system_predicate_shares_does_not_throw].
+    ( \+ ( current_predicate(Name/A), functor(H2, Name, A),
+          \+ predicate_property(H2, built_in),
+          clause(H2, _, _) )
       -> retractall(fun(Name)),
          retractall(arity(Name, _)),
          unregister_fun_everywhere(Name),
