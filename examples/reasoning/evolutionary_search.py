@@ -41,7 +41,7 @@ def breed(a, b):
     return expr(*child)
 
 
-@m.register_op
+@m.register_op(name="next-generation")
 def next_generation() -> bool:
     rows = m.query(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))

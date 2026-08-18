@@ -263,7 +263,7 @@ def _require_callable(module: Any, pyname: str) -> Callable:
 
 
 def _operation_name(pyname: str, prefix: str | None, rename: dict[str, str]) -> str:
-    name = rename.get(pyname, pyname.replace("_", "-"))
+    name = rename.get(pyname, pyname)
     return f"{prefix}{name}" if prefix else name
 
 

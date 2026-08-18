@@ -227,7 +227,8 @@ def compile_function(
     a host value. `nondet` answers whether a name is known to answer
     nondeterministically, which decides how `for` and `yield from` iterate
     a call to it. `metta_name` is the equation's own name; it defaults to
-    the Python name with underscores as hyphens, the operation rule.
+    the Python name verbatim, since nothing here rewrites a name the
+    author wrote.
     """
     if not isinstance(fn, types.FunctionType):
         raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
@@ -264,7 +265,7 @@ def compile_function(
         return identifier in fn.__globals__ or identifier in closure_names
 
     compiler = _Compiler(
-        metta_name or fn.__name__.replace("_", "-"),
+        metta_name or fn.__name__,
         scope,
         known,
         nondet=nondet,

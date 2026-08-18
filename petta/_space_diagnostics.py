@@ -75,13 +75,9 @@ def _unstored_explanation(space: Any, name: str) -> str:
             f"no {name} atoms are stored here; {name} is a function, so its "
             f"answers come from evaluation, not matching: try eval"
         )
-    renamed = name.replace("_", "-")
-    if renamed != name and space.is_function_here(renamed):
-        return (
-            f"nothing here is headed by {name}, and no function has that name; "
-            f"did you mean {renamed}? define() and register_op() both read "
-            f"underscores as hyphens"
-        )
+    # get_close_matches already covers the near-miss this used to special-case
+    # by hand: with no underscore-to-hyphen rewriting left in the surface,
+    # nn_next against a stored nn-next is just a close match like any other.
     close = get_close_matches(name, space.builtins(), n=1, cutoff=0.75)
     suggestion = f"; did you mean {close[0]}?" if close else ""
     return f"nothing here is headed by {name}, and no function has that name{suggestion}"

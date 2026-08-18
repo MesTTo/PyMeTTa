@@ -80,7 +80,7 @@ def test_identical_equation_removal_keeps_the_twin(metta):
 
 
 def test_python_ops_reach_every_space(metta):
-    @metta.register_op
+    @metta.register_op(name="psp-op-everywhere")
     def psp_op_everywhere(x: int) -> int:
         return x + 1
 

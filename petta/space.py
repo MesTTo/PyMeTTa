@@ -2078,7 +2078,12 @@ class MeTTa:
 
     @overload
     def define(
-        self, *, prolog: str | os.PathLike[str]
+        self, *, name: str
+    ) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
+
+    @overload
+    def define(
+        self, *, prolog: str | os.PathLike[str], name: str | None = None
     ) -> Callable[[Callable[_P, _R]], PrologBacked[_P, _R]]: ...
 
     def define(
@@ -2086,6 +2091,7 @@ class MeTTa:
         fn: Callable[..., Any] | None = None,
         *,
         prolog: str | os.PathLike[str] | None = None,
+        name: str | None = None,
     ) -> Any:
         """Compile a Python function into MeTTa equations, decorator-style.
 
@@ -2121,8 +2127,16 @@ class MeTTa:
             m.run("!(add-one 5)")       # [[6]]
             add_one.py(5)               # 6, ordinary Python
 
-        The equation name follows the operation naming rule: underscores
-        in the Python name become hyphens in MeTTa.
+        The equation's name is the Python name, verbatim, or `name=`
+        when given. Hyphens are the MeTTa convention and Python cannot
+        spell one, so a hyphenated name is asked for rather than inferred:
+
+            @m.define(name="add-one")
+            def add_one(n):
+                return n + 1
+
+        Nothing is rewritten behind the author's back, which is the whole
+        of the rule: the name in the source is the name in the space.
 
         A generator compiles to nondeterminism (each yield one answer), a
         lambda to the engine's own |->, a comprehension to map-atom and
@@ -2136,15 +2150,19 @@ class MeTTa:
                     "define(prolog=...) is applied as a decorator, so the "
                     "function comes from the definition below it"
                 )
-            return lambda function: install_prolog_define(self, function, prolog)
+            return lambda function: install_prolog_define(self, function, prolog, name)
         if fn is None:
-            raise TypeError("define takes a function, or prolog= and then one")
+            if name is None:
+                raise TypeError(
+                    "define takes a function, or name= or prolog= and then one"
+                )
+            return lambda function: install_define(self, function, name)
         # The annotation widened to Callable so the overloads can carry the
         # decorated signature through. install_definition still refuses
         # anything without Python source, which is where the narrowing the
         # annotation used to imply is actually enforced
         # [tested test_define_refuses_callable_objects].
-        return install_define(self, fn)
+        return install_define(self, fn, name)
 
     def type(
         self,

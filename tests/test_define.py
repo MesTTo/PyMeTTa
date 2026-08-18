@@ -100,6 +100,12 @@ def test_early_return_reads_as_else(m):
 
 
 def test_bindings_become_let_star(m):
+    # A body calls engine functions by the name it writes, and Python cannot
+    # spell a hyphen, so the engine's sqrt-math is reached through an alias
+    # the body CAN write. Explicit, one line, and visible in the space; the
+    # compiler no longer retries a hyphenated spelling behind the author.
+    m.run("(= (sqrt_math $x) (sqrt-math $x))")
+
     @m.define
     def dhyp(a, b):
         aa = a * a
@@ -148,20 +154,28 @@ def test_lambda_is_first_class(m):
         f = lambda v: v + 10  # noqa: E731
         return f(f(x))
 
-    # One naming policy across both decorators: underscores read as hyphens.
-    assert m.run("!(dapply-twice 1)") == [[21]]
+    # One naming policy across both decorators: the Python name, verbatim.
+    assert m.run("!(dapply_twice 1)") == [[21]]
 
 
-def test_underscore_rename_is_exposed_and_diagnosed(m):
+def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
+    """No implicit rewriting. The identifier in the source is the name in
+    the space, and the hyphenated spelling MeTTa prefers is asked for."""
+
     @m.define
     def add_one(value):
         return value + 1
 
-    assert m.run("!(add-one 5)") == [[6]]
-    assert m.run("!(add_one 5)") == [[S.add_one(5)]]
-    explanation = m.why(S.add_one(5))
-    assert "did you mean add-one?" in explanation
-    assert "underscores as hyphens" in explanation
+    assert m.run("!(add_one 5)") == [[6]]
+    assert m.run("!(add-one 5)") == [[S["add-one"](5)]]
+
+    @m.define(name="add-two")
+    def add_two(value):
+        return value + 2
+
+    assert m.run("!(add-two 5)") == [[7]]
+    assert m.run("!(add_two 5)") == [[S.add_two(5)]]
+    assert add_two.py(5) == 7
 
 
 def test_comprehension_is_map_atom(m):
@@ -615,7 +629,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert m.one(daux_replace(3)) == 6
     assert daux_replace.py(3) == 6
     helpers = [
-        atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")
+        atom for atom in m.atoms() if str(atom).startswith("(= (daux_replace--loop")
     ]
     assert len(helpers) == 1
 
@@ -644,7 +658,7 @@ def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
     def dhazard_guard(n):  # noqa: F811
         return n + 1
 
-    assert m.run("!(dhazard-guard 2)") == [[3]]
+    assert m.run("!(dhazard_guard 2)") == [[3]]
     assert dhazard_guard.py(2) == 3
     with pytest.raises(RuntimeError, match="match against the space"):
         dhazard_guard.py(0)
@@ -685,7 +699,7 @@ def fast_file(tmp_path_factory):
 
 
 def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, fast_file):
-    @m.define(prolog=fast_file)
+    @m.define(prolog=fast_file, name="dt-dot")
     def dt_dot(a, b):
         """The readable reference."""
         return sum(x * y for x, y in zip(a, b, strict=True))
@@ -702,7 +716,7 @@ def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, f
 def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):
     from petta import testing
 
-    @m.define(prolog=fast_file)
+    @m.define(prolog=fast_file, name="dt-dot")
     def dt_dot(a, b):
         return sum(x * y for x, y in zip(a, b, strict=True))
 
@@ -720,7 +734,7 @@ def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):
         "'dt-sum'(A, B, Out) :- Out is A + B + 1.\n"
     )
 
-    @m.define(prolog=source)
+    @m.define(prolog=source, name="dt-sum")
     def dt_sum(a, b):
         return a + b
 
@@ -741,7 +755,7 @@ def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):
     # arity 2, and a caller is the only thing that would ever find that out.
     with pytest.raises(CompileError, match="Python twin takes 1"):
 
-        @m.define(prolog=fast_file)
+        @m.define(prolog=fast_file, name="dt-dot")
         def dt_dot(a):
             return a
 
@@ -749,3 +763,4 @@ def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):
 def test_define_needs_a_function_or_prolog_and_then_one(m):
     with pytest.raises(TypeError, match="takes a function"):
         m.define()
+

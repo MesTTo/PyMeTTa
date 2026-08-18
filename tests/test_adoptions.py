@@ -278,7 +278,7 @@ def test_the_library_reflects_into_its_own_space(m):
     m.unregister_op("reflect-probe")
     assert not reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
 
-    @m.define
+    @m.define(name="probe-twice")
     def probe_twice(x):
         return x + x
 

@@ -172,8 +172,12 @@ def class_declarations(cls: type) -> list[Expr]:
 
 
 def _metta_name(fn: Callable, name: str | None) -> MettaName:
-    """The MeTTa spelling: underscores read as hyphens unless overridden."""
-    return MettaName(name if name is not None else _callable_name(fn).replace("_", "-"))
+    """The MeTTa spelling: the Python name verbatim unless overridden.
+
+    Nothing is rewritten. A hyphenated MeTTa name is one Python cannot
+    spell, so it is asked for with name=, where it is visible at the
+    registration rather than inferred from the identifier."""
+    return MettaName(name if name is not None else _callable_name(fn))
 
 
 def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:

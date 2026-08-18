@@ -69,13 +69,15 @@ def clear_definitions(space: Any) -> None:
             space.runtime.must("petta_py_reflect_clear_defined(Space)", Space=space.space_name)
 
 
-def install_define(space: Any, fn: Callable[..., Any]):
+def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Install one compiled function while serializing shared definition state."""
     with _DEFINE_LOCK:
-        return _install_define_locked(space, fn)
+        return _install_define_locked(space, fn, name)
 
 
-def install_prolog_define(space: Any, fn: Callable[..., Any], prolog: Any):
+def install_prolog_define(
+    space: Any, fn: Callable[..., Any], prolog: Any, name: str | None = None
+):
     """Register the Prolog side and keep the Python as the reference twin.
 
     Nothing of the Python is compiled: the registered predicate IS the
@@ -84,7 +86,7 @@ def install_prolog_define(space: Any, fn: Callable[..., Any], prolog: Any):
     """
     if not isinstance(fn, types.FunctionType):
         raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
-    name = fn.__name__.replace("_", "-")
+    name = name or fn.__name__
     origin = os.fspath(prolog)
     registered = space.register_prolog(path=origin)
     if name not in registered:
@@ -119,13 +121,10 @@ def _refuse_mismatched_twin_arity(
 
 def _is_nondeterministic(space: Any, called: str) -> bool:
     """Whether a registered operation or compiled definition has many answers."""
-    for spelling in (called, called.replace("_", "-")):
-        operation = REGISTRY.get(spelling)
-        if operation is not None and operation.kind in ("many", "raw_many"):
-            return True
-        if (space.space_name, spelling) in _DEFINED_GENERATORS:
-            return True
-    return False
+    operation = REGISTRY.get(called)
+    if operation is not None and operation.kind in ("many", "raw_many"):
+        return True
+    return (space.space_name, called) in _DEFINED_GENERATORS
 
 
 def _validate_clause_order(
@@ -265,7 +264,7 @@ def _declare_definition(
     _DECLARED_DEFINES[key] = True
 
 
-def _install_define_locked(space: Any, fn: Callable[..., Any]):
+def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Compile a Python function into MeTTa equations, decorator-style.
 
     Written for whoever is fluent in Python rather than s-expressions:
@@ -281,8 +280,10 @@ def _install_define_locked(space: Any, fn: Callable[..., Any]):
         m.run("!(add-one 5)")       # [[6]]
         add_one.py(5)               # 6, ordinary Python
 
-    The equation name follows the operation naming rule: underscores
-    in the Python name become hyphens in MeTTa.
+    The equation's name is the Python name, verbatim. Hyphens are the
+    MeTTa convention and Python cannot spell one, so a hyphenated name is
+    asked for rather than inferred: @m.define(name="add-one"). Nothing is
+    rewritten behind the author's back.
 
     A generator compiles to nondeterminism (each yield one answer), a
     lambda to the engine's own |->, a comprehension to map-atom and
@@ -293,9 +294,10 @@ def _install_define_locked(space: Any, fn: Callable[..., Any]):
     if not isinstance(fn, types.FunctionType):
         raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
 
-    # The equation's name follows the operation rule: underscores read
-    # as hyphens, one policy across both decorators.
-    name = fn.__name__.replace("_", "-")
+    # The equation's name is the Python name, verbatim, or the one asked
+    # for: one policy across both decorators, and neither rewrites what the
+    # author wrote.
+    name = name or fn.__name__
     compiled = compile_function(
         fn,
         known=space.is_function,
@@ -452,7 +454,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         arities = list(range(1 + required, len(parameters) + 2))
         space.register_op(
             wrapper_for(fn),
-            name=f"{type_name}-{method_name}".replace("_", "-"),
+            name=f"{type_name}-{method_name}",
             typed=False,
             pass_atoms=True,
             arities=arities,

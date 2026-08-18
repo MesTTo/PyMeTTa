@@ -106,26 +106,28 @@ class ExpressionCompilerMixin(CompilerContext):
             return self._constructor_symbol(node)
         raise CompileError(
             f"{node.id!r} is not a parameter of {self.name}, not a function "
-            f"the engine knows (as written or with underscores as hyphens), "
-            f"and not a capitalized data constructor. A compiled body is pure "
-            f"atoms; closing over a host value would pin it to this process. "
-            f"Define {node.id!r} first, pass it as an argument, or capitalize "
-            f"it if it is data.",
+            f"the engine knows, and not a capitalized data constructor. "
+            f"A compiled body is pure atoms; closing over a host value would "
+            f"pin it to this process. Define {node.id!r} first, pass it as an "
+            f"argument, or capitalize it if it is data. Names are matched "
+            f"exactly and nothing is rewritten, so a function registered "
+            f"under a hyphenated name is reached by an alias a body can "
+            f"spell: (= ({node.id} $x) (the-hyphenated-name $x)).",
             construct="free identifier",
             line=node.lineno,
         )
 
     def _known_symbol(self, identifier: str) -> Sym | None:
-        candidate = identifier
-        if not self.known(candidate):
-            # Python cannot spell a hyphen, and the engine's own names carry
-            # them, so sqrt_math reaches sqrt-math when that is what exists.
-            candidate = identifier.replace("_", "-")
-            if candidate == identifier or not self.known(candidate):
-                return None
+        # The identifier as written and nothing else. A body used to fall
+        # back to the hyphenated spelling, so sqrt_math reached sqrt-math;
+        # a name the author did not write is a name they cannot see in the
+        # equation the decorator stored, so a hyphenated engine function is
+        # reached by giving the wrapper that name with name= instead.
+        if not self.known(identifier):
+            return None
         if not self._python_resolvable(identifier):
-            self.hazards.add(f"the engine function {candidate}")
-        return Sym(candidate)
+            self.hazards.add(f"the engine function {identifier}")
+        return Sym(identifier)
 
     def _constructor_symbol(self, node: ast.Name) -> Sym:
         if self.host(node.id):

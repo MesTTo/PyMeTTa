@@ -141,11 +141,11 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
             names=["c-bump"],
         )
 
-    @space.define
+    @space.define(name="ec-defined")
     def ec_defined(x: int) -> int:
         return x + 1
 
-    @space.define
+    @space.define(name="ec-plain")
     def ec_plain(x):
         return x + 1
 
