@@ -7,6 +7,13 @@
 %   - Concurrent translation creates one specialization for a function and
 %     normalized key [tested 2026-08-15:
 %     specializer:concurrent_translation_creates_one_specialization].
+%   - A recursive specialization returns to neither the generic predicate nor
+%     the reducer after its first step, so the saving is per step
+%     [tested 2026-08-18:
+%     specializer:exact_recursive_key_folds_to_specialized_predicate,
+%     specializer:the_recursive_specialization_never_re_enters_the_reducer]
+%     [measured 2026-08-18: 8,004 against 24,004 inferences over 1,000 steps,
+%     the same third at 100].
 % Guarded by: '$petta_specializer' serializes the existence check and the
 %   transaction that publishes a specialization.
 % Open Obligations:

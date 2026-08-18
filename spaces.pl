@@ -7,6 +7,12 @@
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
+%   - A selective native match is one indexed probe rather than a scan, and
+%     the acyclic guard does not change that because it runs on the answer
+%     [tested 2026-08-18:
+%     a_selective_match_costs_the_same_on_a_hundredfold_larger_space]
+%     [measured 2026-08-18: 6,502 inferences per 500 matches on spaces of
+%     100, 1,000 and 10,000 atoms].
 %   - Removing one scoped get-type rule keeps sibling extension rules visible
 %     [tested 2026-08-15: spaces_type_extensions].
 %   - Clearing a native space clears its import life without making wildcard

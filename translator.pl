@@ -36,8 +36,22 @@
 %     goals it emits, including a constant folded at compile time, and is
 %     refused when a quote leaves that expansion as data
 %     [tested 2026-08-16: translator_prolog_authored_rules].
-%   - Higher-arity dynamic calls bypass the operator-table lookup
-%     [tested 2026-08-14: tests/performance/reduce_dispatch.pl].
+%   - Higher-arity dynamic calls bypass the operator-table lookup, because
+%     reduce/3's guard tests the arity before it consults current_op/3
+%     [tested 2026-08-18: translator_operator_dispatch].
+%   - Recording an equation does not copy the equations already held for its
+%     function, so filling a store is linear in the equation count
+%     [tested 2026-08-18: recording_equations_costs_no_more_than_linear_time]
+%     [measured 2026-08-18: 79 inferences per equation plus a fixed 7, at
+%     250, 500, 1,000 and 2,000 equations].
+%   - Expression translation is linear in nesting depth for the call, head,
+%     let and conditional shapes [tested 2026-08-18:
+%     every_nesting_shape_compiles_in_linear_work] [measured 2026-08-18:
+%     59.01, 8.01, 13.01 and 79.01 inferences per level at depth 400].
+%   - Branch-return merging stays far from quadratic in nesting depth, which
+%     is what carrying its candidate returns in an assoc buys
+%     [tested 2026-08-18: merging_stays_far_from_quadratic_in_nesting_depth]
+%     [measured 2026-08-18: 2.11x to 2.14x per doubling from depth 50 to 400].
 %   - Prolog import forms have exactly one translation
 %     [tested 2026-08-14: translator_prolog_imports].
 %   - Space-headed translatePredicate forms use the space provider instead of
