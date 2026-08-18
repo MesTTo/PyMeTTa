@@ -12,6 +12,7 @@ Open Obligations:
 
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from hypothesis import given
@@ -145,8 +146,19 @@ def test_structures_are_engine_free():
         "assert 'janus_swi' not in sys.modules, 'the engine was imported'\n"
         "print('engine-free ok')\n"
     )
+    # cwd=python/, because a bare subprocess inherits THIS process's working
+    # directory and `petta` is only importable from there. The pytest gate
+    # lane happens to run from python/ and passed; the invocation the docs
+    # give, `pytest python/tests/ --rootdir=python` from the repo root,
+    # failed this one test and nothing else [measured 2026-08-19]. A test
+    # that passes or fails on where it was launched from is not testing what
+    # it claims to.
     done = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=60
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=Path(__file__).resolve().parents[1],
     )
     assert done.returncode == 0, done.stderr
     assert "engine-free ok" in done.stdout
