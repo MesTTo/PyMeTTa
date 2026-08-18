@@ -17,6 +17,11 @@ Guarantees:
     to 9190bbd^, test_nested_loops_agree fails in 5 of 5 seeded runs and
     test_engine_and_twin_agree in 4 of 5, where this file's own previous
     version passed 5 of 5 against the same broken compiler]
+  - MAX_LOOP_NEST's depth cap keeps loop_block's recursion bounded rather
+    than runaway [measured 2026-08-18: recursion the only variable held
+    constant, the shared test_engine_and_twin_agree (60 examples) moved from
+    a 0.48s to a 0.71s min-of-3; the file's own min-of-3 moved from 0.77s (3
+    tests, no loop nesting reachable) to 1.28s (these 5 tests)]
 Open Obligations:
   To Do: None
   Hacks: None
