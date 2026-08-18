@@ -35,6 +35,10 @@
 %     three different one-form sources, then 4.006 per plain form and 23.073
 %     per definition beyond it [measured 2026-08-18: interleaved A/B over
 %     eight benchmark lanes, python/benchmarks/baseline.json records each].
+%   - print_runnable_form/2 and print_function_form/2's trace output, and
+%     library(pcre)-backed regex, both work under autoload=false, not only
+%     under the engine's default [measured 2026-08-18: NO_AUTOLOAD=1 sh
+%     test.sh, the full examples/ corpus].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -48,6 +52,13 @@
 :- use_module(library(readutil)). % read_file_to_string/3
 :- use_module(library(ansi_term)). % terminal-aware diagnostic colors
 :- use_module(library(pcre)). % re_replace/4
+%pcre.pl declares four local :- autoload/2 lines (apply, error, dcg/basics,
+%lists) but reads its own Options list with option/2 (library(option))
+%without declaring THAT one, so it too resolves by global autoload today
+%[measured 2026-08-18: examples/libraries/regex_lib.metta under
+%NO_AUTOLOAD=1, existence_error(procedure,pcre:option/2)]. Same trap as
+%ugraphs.pl and clpb.pl (lib/lib_constraints.pl has both), same fix.
+:- pcre:use_module(library(option), [option/2]).
 :- use_module(library(zlib)). % gzopen/3, .gz program files
 :- use_module(library(ordsets)). % ord_memberchk/2
 :- use_module(library(pairs)). % group_pairs_by_key/2
@@ -544,8 +555,21 @@ print_runnable_form(FormStr, Goals) :-
     ansi_format([fg(cyan)], "!~w~n", [FormStr]),
     ansi_format([fg(yellow)], "-->  prolog goal  -->", []),
     ansi_format([fg(magenta)], " ~n", []),
+    %Module-qualified on purpose: ansi_format/4 (library(ansi_term)) calls a
+    %~@ goal argument from ITS OWN module context, not this file's, so an
+    %unqualified portray_clause here resolves (or fails to) as
+    %ansi_term:portray_clause/N. ansi_term.pl does not declare its own
+    %dependency on library(listing), relying on autoload the same way
+    %library(prolog_clause) relies on it for nth1/3 (metta.pl's Dependencies
+    %section has that finding in full); with autoload=false the unqualified
+    %spelling raised existence_error(procedure,ansi_term:portray_clause/1)
+    %for EVERY runnable form this prints, i.e. most of the example corpus
+    %[measured 2026-08-18: examples/basics/math.metta under NO_AUTOLOAD=1].
+    %Naming the predicate's real home module sidesteps the gap in
+    %ansi_term.pl entirely, rather than trying to patch a library this repo
+    %does not ship.
     forall(member(G, Goals),
-           ansi_format([fg(magenta)], "~@", [portray_clause((:- G))])),
+           ansi_format([fg(magenta)], "~@", [prolog_listing:portray_clause((:- G))])),
     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^^^~n", []).
 
 print_function_form(_, _) :- silent(true), !.
@@ -555,7 +579,8 @@ print_function_form(FormStr, Ref) :-
     ansi_format([fg(yellow)], "--> prolog clause -->~n", []),
     clause(Head, Body, Ref),
     ( Body == true -> Show = Head ; Show = (Head :- Body) ),
-    ansi_format([fg(green)], "~@", [portray_clause(current_output, Show)]),
+    %Same ansi_format/module trap as print_runnable_form/2 above.
+    ansi_format([fg(green)], "~@", [prolog_listing:portray_clause(current_output, Show)]),
     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^^~n", []).
 
 %Top-level comments are layout too. Count their terminating newline for source

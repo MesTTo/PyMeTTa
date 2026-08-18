@@ -59,6 +59,9 @@
 %     translator_special_dispatch:space_predicates_use_space_storage].
 %   - Source-load rollback removes retained metadata, generated lambdas, and
 %     symbol-head notes [tested 2026-08-14: filereader_source_rollback].
+%   - maybe_print_compiled_clause/3's trace output works under autoload=false
+%     too [measured 2026-08-18: NO_AUTOLOAD=1 sh test.sh, the full
+%     examples/ corpus].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -345,7 +348,12 @@ maybe_print_compiled_clause(Label, FormTerm, Clause) :-
     ansi_format([fg(yellow)], "-->  ~w  -->~n", [Label]),
     ansi_format([fg(cyan)], "~w~n", [FormStr]),
     ansi_format([fg(yellow)], "--> prolog clause -->~n", []),
-    ansi_format([fg(green)], "~@", [portray_clause(current_output, Clause)]),
+    %Module-qualified: ansi_format/4 calls its ~@ goal from library(ansi_term)'s
+    %own context, so an unqualified portray_clause here resolves as
+    %ansi_term:portray_clause/N, which is missing under autoload=false because
+    %ansi_term.pl does not declare its own dependency on library(listing)
+    %[same trap as filereader.pl:print_runnable_form/2, measured there].
+    ansi_format([fg(green)], "~@", [prolog_listing:portray_clause(current_output, Clause)]),
     ansi_format([fg(yellow)], "^^^^^^^^^^^^^^^^^^^^^~n", []).
 
 %Conjunction builder, turning goals list to a flat conjunction:
