@@ -523,3 +523,21 @@ def test_slot_docstrings_reach_help():
         inspect.getdoc(Sym.name) == "the symbol's name, exactly as written in source"
     )
     assert inspect.getdoc(Var.name) == "the variable's name without the $ sigil"
+
+
+def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):
+    from petta.atoms import pretty
+
+    source = (
+        "(alpha (beta (gamma delta epsilon) (zeta eta theta)) "
+        "(iota (kappa lambda mu) (nu xi omicron)) "
+        "(pi (rho sigma tau) (upsilon phi chi)))"
+    )
+    term = parse(source)
+    laid_out = pretty(term)
+    assert laid_out.startswith("(alpha\n  (beta")
+    assert laid_out.count("\n") == 3
+    # the engine's (pretty-atom ...) is the SAME layout, differentially
+    assert metta.one(f"(pretty-atom {source})") == laid_out
+    # a fitting term stays inline
+    assert pretty(parse("(f 1 2)")) == "(f 1 2)"

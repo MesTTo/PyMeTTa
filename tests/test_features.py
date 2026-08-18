@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+import petta
 from petta import (
     Bindings,
     EngineError,
@@ -1128,3 +1129,41 @@ def test_bare_threads_share_the_home_engine_serialized(m):
     for worker in workers:
         worker.join(timeout=30)
     assert answers == {n: n * 2 for n in range(6)}
+
+
+def test_relational_arithmetic_runs_backwards(m):
+    assert m.run("!(let 4 (- $x 1) $x)") == [[5]]
+    assert m.run("!(let 6 (* $x 2) $x)") == [[3]]
+    # no integer doubles to 7, so that branch answers nothing
+    assert m.run("!(collapse (let 7 (* $x 2) $x))") == [[expr()]]
+    assert m.run("!(let 2 (/ 6 $b) $b)") == [[3]]
+    with pytest.raises(petta.MettaOperationError):
+        m.run("!(+ $x $y)")
+
+
+def test_in_language_bounds_and_scoped_pragmas(m):
+    m.run("(= (bnd-spin $n) (if (== $n 0) done (bnd-spin (- $n 1))))")
+    assert m.run("!(inferences 100000 (bnd-spin 5))") == [[S.done]]
+    with pytest.raises(InferenceLimitError):
+        m.run("!(inferences 300 (bnd-spin 1000000))")
+    with pytest.raises(InferenceLimitError):
+        m.run("!(with-pragma! ((max-inferences 300)) (bnd-spin 1000000))")
+    # the scope restored: the same spin runs free afterwards
+    assert m.run("!(bnd-spin 2000)") == [[S.done]]
+
+
+def test_wrapper_forms_reach_a_named_spaces_own_functions(metta):
+    # timeout, take, top, elapsed, transaction and the bound forms hand
+    # their goal to helper predicates; without meta_predicate the goal
+    # loses its module and a named space's functions are unreachable.
+    with metta.new_space() as space:
+        space.run("(= (wrap-f $n) (+ $n 1))")
+        space.run("(= (wrap-many) (superpose (3 1 2)))")
+        assert space.run("!(timeout 30 (wrap-f 1))") == [[2]]
+        assert space.run("!(inferences 100000 (wrap-f 1))") == [[2]]
+        assert space.run("!(with-pragma! ((max-time 30)) (wrap-f 1))") == [[2]]
+        assert space.run("!(transaction (wrap-f 1))") == [[2]]
+        assert space.run("!(take 2 (wrap-many))") == [[3, 1]]
+        assert space.run("!(top 1 (wrap-many))") == [[3]]
+        (group,) = space.run("!(elapsed (wrap-f 1))")
+        assert group[0][0] == 2

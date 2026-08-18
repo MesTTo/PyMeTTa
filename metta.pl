@@ -228,18 +228,69 @@ metta_arith_operands(Op, A, B) :-
     ( var(A) -> true ; number(A) -> true ; throw_metta_type_error(Op, number, A) ),
     ( var(B) -> true ; number(B) -> true ; throw_metta_type_error(Op, number, B) ).
 
+%The four operators run BACKWARDS over integers: exactly one unbound
+%argument among integers solves for it, so (let 4 (- $x 1) $x) answers 5
+%and (unify 6 (* $x 2) ...) binds 3, the WAM plus/3 reading MeTTaLog
+%compiles to. The ground fast path is untouched and stays first;
+%petta_int_solve sits BEHIND the ground-number path, so ground floats
+%never meet it (annotated-relation measured +1 inference per float op
+%with the solver between the paths, and par with it behind them
+%[measured 2026-08-18]); strings and the two-var case behave exactly as
+%before (two unbound arguments stay an instantiation error: bounded
+%solving is this file's job, constraint propagation is
+%lib_constraints'). Multiplicative
+%backward modes are exact-division only, and a non-divisible pair FAILS
+%rather than errors, the relational reading: no integer solves it.
 '+'(A,B,R)  :- ( integer(A), integer(B) -> R is A + B
+                ; number(A), number(B)
+                  -> catch(R is A + B, E, rethrow_metta_operation_error('+', E))
+                ; petta_int_solve('+', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('+', A, B),
                   catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
 '-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
+                ; number(A), number(B)
+                  -> catch(R is A - B, E, rethrow_metta_operation_error('-', E))
+                ; petta_int_solve('-', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('-', A, B),
                   catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
 '*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
+                ; number(A), number(B)
+                  -> catch(R is A * B, E, rethrow_metta_operation_error('*', E))
+                ; petta_int_solve('*', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('*', A, B),
                   catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
 '/'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A / B
+                ; number(A), number(B)
+                  -> catch(R is A / B, E, rethrow_metta_operation_error('/', E))
+                ; petta_int_solve('/', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('/', A, B),
                   catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
+
+%One unbound slot among integers: the verdict says whether the mode
+%applied at all (fail: not this shape, fall through to the float/error
+%path) and whether it solved (none: the mode fits but no integer answers
+%it, so the operator FAILS, the relational reading of (* $x 2) = 7).
+%plus/3 carries the additive family in C.
+petta_int_solve('+', A, B, R, solved) :-
+    ( var(A), integer(B), integer(R) -> plus(A, B, R)
+    ; var(B), integer(A), integer(R) -> plus(A, B, R)
+    ).
+petta_int_solve('-', A, B, R, solved) :-
+    ( var(A), integer(B), integer(R) -> plus(B, R, A)
+    ; var(B), integer(A), integer(R) -> plus(B, R, A)
+    ).
+petta_int_solve('*', A, B, R, Verdict) :-
+    ( var(A), integer(B), integer(R), B =\= 0
+    ->  ( 0 =:= R mod B -> A is R // B, Verdict = solved ; Verdict = none )
+    ; var(B), integer(A), integer(R), A =\= 0
+    ->  ( 0 =:= R mod A -> B is R // A, Verdict = solved ; Verdict = none )
+    ).
+petta_int_solve('/', A, B, R, Verdict) :-
+    ( var(A), integer(B), integer(R)
+    ->  A is R * B, Verdict = solved
+    ; var(B), integer(A), integer(R), R =\= 0
+    ->  ( 0 =:= A mod R -> B is A // R, Verdict = solved ; Verdict = none )
+    ).
 '%'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A mod B
                 ; metta_arith_operands('%', A, B),
                   catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
@@ -2175,6 +2226,11 @@ prolog:error_message(permission_error(register, metta_function, Name)) -->
        whichever registered second in place and the other one\'s registry \c
        still claiming it.'-[Name] ].
 
+%The value laid out for reading: (pretty-atom $x) answers the multi-line
+%string swrite_pretty produces, so (println! (pretty-atom $big)) is the
+%readable dump. Data in, data out; the printing stays println!'s job.
+'pretty-atom'(Term, String) :- swrite_pretty(Term, String).
+
 'println!'(Arg, Unit) :- swrite(Arg, RArg),
                         format('~w~n', [RArg]),
                         Unit = [].
@@ -2385,9 +2441,49 @@ undocumented(Name) :- current_metta_space(Space),
 %
 %Expiry throws rather than failing, so a partial answer set is never mistaken
 %for the whole one. time_limit_exceeded is already a control exception here.
+:- meta_predicate metta_timeout(+, 0, ?),
+                  metta_inferences(+, 0, ?),
+                  metta_elapsed(0, ?, ?),
+                  metta_with_pragmas(+, 0, ?),
+                  petta_transaction(0).
+%Why these seven: a runnable's goals run as call(Module:G), so a goal a
+%special form passes to a HELPER used to lose the module on the way in,
+%and the helper's findall called it back in user: every one of these
+%forms was silently unusable in a named space, which is every space the
+%Python surface creates ("Unknown procedure" for a function the space
+%plainly defines). meta_predicate makes the call site wrap the goal
+%argument as Module:Goal, the manual's own maplist example. metta_take/2
+%and metta_top/3 take the same declaration beside their own clauses in
+%spaces.pl, because a meta_predicate directive above a predicate defined
+%in another file warns that it has no clauses. Baking the
+%qualification at translate time was measured as the alternative and
+%costs MORE where wrapper forms are retranslated per run
+%(annotated-relation +2498 baked against +996 wrapped, over 500
+%named-space evaluations); the wrap is free in user because an
+%already-plain goal in a user-context call needs no module hop
+%[source: SWI-Prolog 10.1 manual, ch. 6 defining a meta-predicate;
+%measured 2026-08-18; tested spaces:wrapper_forms_run_in_named_spaces].
+
 metta_timeout(Seconds, Goal, Value) :-
     must_be(number, Seconds),
     call_with_time_limit(Seconds, findall(Value, Goal, Values)),
+    member(Value, Values).
+
+%timeout's deterministic twin, the kwarg vocabulary at the language tier:
+%(inferences N Expr) bounds Expr by engine steps, the same limit
+%m.run(inferences=) applies one level up, so a program bounds its own
+%subexpression and the bound stops at the same step on every machine.
+%The whole answer set is computed under the bound, timeout's own rule, so
+%a partial set is never mistaken for the whole one; expiry throws the
+%reserved resource envelope the Python tier already classifies.
+metta_inferences(Limit, Goal, Value) :-
+    must_be(positive_integer, Limit),
+    call_with_inference_limit(findall(Value, Goal, Values), Limit, Result),
+    (   Result == inference_limit_exceeded
+    ->  throw(error(petta_py_exception(inference_limit, Limit),
+                    context(petta, inference_limit)))
+    ;   true
+    ),
     member(Value, Values).
 
 %Time one answer and report what it cost, as (Value Seconds). Each answer is
@@ -2433,6 +2529,38 @@ metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
     ),
     sync_metta_pragma_bounds.
 
+%pragma! scoped to one expression, MeTTaLog's with-pragma! adopted:
+%each (key value) pair validates exactly as pragma! validates it, the
+%previous values come back on every exit path, reversed so a key set
+%twice in one scope restores its true pre-scope value, and the whole
+%answer set is computed under the scope, timeout's own rule, so a later
+%answer cannot escape it.
+metta_with_pragmas(Settings, Goal, Value) :-
+    must_be(list, Settings),
+    maplist(petta_pragma_pair, Settings, Pairs),
+    setup_call_cleanup(
+        maplist(petta_apply_pragma, Pairs, Restores),
+        %The global bounds wrap call_goals_in, one level above this body,
+        %so the scope applies them itself: whatever bounds are in force
+        %here, scoped ones included, bound this findall.
+        run_under_pragmas(findall(Value, Goal, Values)),
+        ( reverse(Restores, Undo),
+          maplist(petta_restore_pragma, Undo) )),
+    member(Value, Values).
+
+petta_pragma_pair([Key, ValueIn], Key-ValueIn) :- !.
+petta_pragma_pair(Other, _) :-
+    throw(error(domain_error(metta_pragma_setting, Other),
+                context('with-pragma!'/2,
+                        'each setting is a (key value) pair'))).
+
+petta_apply_pragma(Key-Value, Key-Previous) :-
+    ( metta_pragma(Key, P) -> Previous = P ; Previous = none ),
+    'pragma!'(Key, Value, _).
+
+petta_restore_pragma(Key-Previous) :-
+    'pragma!'(Key, Previous, _).
+
 %A bound costs nothing until one is set. call_goals_in/2 runs every runnable
 %form, so an unconditional wrapper there is paid by every directive: checking
 %two pragmas on each one cost 5 inferences per directive against the
@@ -2465,16 +2593,23 @@ disable_metta_pragma_bounds :-
 %What a bounded runnable form is wrapped in. Reading the pragmas here, rather
 %than baking them into the compiled clause, means a pragma set later applies
 %to everything after it and nothing before it.
+%Expiry throws the RESERVED limit envelopes, the exact shapes
+%petta_py_limited throws, so a pragma bound and a per-call kwarg bound
+%classify identically one level up: TimeLimitError and
+%InferenceLimitError rather than a generic engine error.
 run_under_pragmas(Goal) :-
     (   metta_pragma('max-time', Seconds), number(Seconds), Seconds > 0
-    ->  Timed = call_with_time_limit(Seconds, Goal)
+    ->  Timed = catch(call_with_time_limit(Seconds, Goal),
+                      time_limit_exceeded,
+                      throw(error(petta_py_exception(time_limit, Seconds),
+                                  context(petta, time_limit))))
     ;   Timed = Goal
     ),
     (   metta_pragma('max-inferences', Limit), integer(Limit), Limit > 0
     ->  call_with_inference_limit(Timed, Limit, Result),
         (   Result == inference_limit_exceeded
-        ->  throw(error(resource_error(metta_inferences),
-                        context('pragma!'/2, Limit)))
+        ->  throw(error(petta_py_exception(inference_limit, Limit),
+                        context(petta, inference_limit)))
         ;   true
         )
     ;   call(Timed)
@@ -3874,6 +4009,13 @@ control_exception(petta_py_interrupted).
 control_exception('$aborted').
 control_exception(error(petta_py_time_limit(_), _)).
 control_exception(error(petta_py_inference_limit(_), _)).
+%The reserved seam envelopes for the same two signals: the shim declares
+%every petta_py_exception kind control on the Python side, and these two
+%are thrown by the ENGINE's own bound forms (inferences, with-pragma!),
+%so the CLI must agree or a program could catch its own budget there and
+%disarm the counter.
+control_exception(error(petta_py_exception(time_limit, _), _)).
+control_exception(error(petta_py_exception(inference_limit, _), _)).
 control_exception(error(resource_error(_), _)).
 
 %Keep the ISO Formal term because callers and the MeTTa catch form inspect it.
@@ -4070,7 +4212,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
 :- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
-                          repr, repra, parse, 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
+                          repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
                           foldl, first, last, append, length, 'size-atom', sort, msort, member, 'is-member', 'is-alpha-member', 'exclude-item', list_to_set, maplist, eval, evalc, reduce, 'import!',
                           'git-import!',
                           'add-atom', 'remove-atom', 'add-atoms', 'add-reduct', 'add-reducts', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',

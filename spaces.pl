@@ -971,7 +971,12 @@ foreign_claims_plan(Space, Conjuncts, Rest, Goal) :-
     Claimed \== [],
     refuse_lossy_plan(Space, Conjuncts, Claimed, Rest).
 
-%Claimed and Rest have to PARTITION the conjunction. A provider that drops a
+%Claimed and Rest have to PARTITION the conjunction. Both sides hold the
+%CALLER'S OWN pattern terms (the Python seam resolves its answer back to
+%them by wire identity), so this compares like with like and is a real
+%check; it used to double as the mechanism that reconnected freshly
+%decoded copies to the caller, which worked only while both lists
+%happened to sort into the same order. A provider that drops a
 %conjunct answers more rows than the query asks for, and nothing downstream
 %would catch it: the engine plans Rest and never looks at the original patterns
 %again, so the dropped conjunct is simply not part of the query any more. Once
@@ -1240,6 +1245,11 @@ metta_take_count(Form, Count) :-
 %backtrackably: the seam sets it per explicit answer and the default 1
 %is restored on redo, so an unannotated answer between two annotated
 %ones reads 1 rather than a stale neighbour.
+:- meta_predicate metta_take(+, 0), metta_top(+, 0, ?).
+%The same reason the block above metta_timeout/3 in metta.pl records:
+%without this the bounded goal loses its module and a named space's own
+%functions are unreachable inside take and top.
+
 metta_top(Count, Goal, Out) :-
     metta_take_count(top, Count),
     findall(Annotation-Out,

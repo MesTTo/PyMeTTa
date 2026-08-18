@@ -70,6 +70,7 @@ __all__ = [
     "map_atoms",
     "order_key",
     "parse",
+    "pretty",
     "register_object_repr",
     "register_object_repr_protocol",
     "substitute",
@@ -120,6 +121,24 @@ V = _Namespace(Var)
 
 
 # -------------------------------------------------------------------- reading
+
+
+def pretty(atom: Any, width: int = 78) -> str:
+    """The atom laid out for reading: a subterm prints inline when it fits
+    the remaining width, and otherwise breaks after its head with each
+    child on its own line two deeper, the classic s-expression
+    convention. The engine's (pretty-atom $x) is the same layout on the
+    MeTTa side, so a dump reads identically from either tier."""
+
+    def render(a: Atom, indent: int) -> str:
+        inline = str(a)
+        if len(inline) <= width - indent or not isinstance(a, Expr) or len(a.children) < 2:
+            return inline
+        joiner = "\n" + " " * (indent + 2)
+        parts = [render(child, indent + 2) for child in a.children[1:]]
+        return "(" + str(a.children[0]) + joiner + joiner.join(parts) + ")"
+
+    return render(_to_atom(atom), 0)
 
 
 def parse(source: str) -> Atom:

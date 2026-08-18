@@ -70,6 +70,12 @@
 %`atomic(X), \+ atom(X), python_object_blob(X)` to keep ordinary values out of
 %janus. Nothing else about the encoding moves; the relative order of every
 %other clause is unchanged.
+%The wire name is an IDENTITY, never a display name: the same cell must
+%encode the same on every crossing, and two different cells must never
+%collide, so the source-name attribute (petta_var_name) deliberately does
+%NOT reach here. Sending it was measured breaking round-trip identity
+%(a variable through a registered op stopped unifying home) and aliasing
+%distinct answer variables that shared a spelling.
 petta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A, Name).
 petta_py_encode(T, ["n", T])    :- number(T), !.
 petta_py_encode(T, ["g", T])    :- string(T), !.
@@ -2342,9 +2348,56 @@ metta_foreign_plan(Space, Patterns, Claimed, Rest, petta_py_plan_rows(Claimed, R
     py_call(petta_ops:foreign_plan(SpaceStr, PatternWs), Answer),
     Answer \== @(none),
     Answer = [ClaimedWs, RestWs, RowWs],
-    maplist(petta_py_decode_for_add, ClaimedWs, Claimed),
-    maplist(petta_py_decode_for_add, RestWs, Rest),
+    %The claim is a PARTITION of the caller's own patterns, so each
+    %returned wire is resolved back to the caller's TERM by matching the
+    %wire it was sent as. Decoding the wires instead built fresh copies:
+    %a variable shared across two patterns (every join variable) split
+    %into two, and the identity was then restored only as a side effect
+    %of refuse_lossy_plan's msort unification pairing the two lists in
+    %the same order. That coincidence held for plain variables, whose
+    %addresses sorted alike on both sides, and broke the moment the
+    %caller's variables carried attributes: the lists paired crosswise,
+    %the join variable aliased wrongly, and a planning provider silently
+    %lost answers [tested test_planner_rows_may_be_bindings].
+    petta_py_plan_selection(ClaimedWs, PatternWs, Patterns, Claimed),
+    petta_py_plan_selection(RestWs, PatternWs, Patterns, Rest),
     maplist(petta_py_decode_plan_row(Space), RowWs, Rows).
+
+%Each returned wire is one of the wires we sent, so the caller's own term
+%is at the same position. Positions are consumed, so a conjunction that
+%repeats a pattern maps one occurrence to one occurrence rather than
+%collapsing them.
+petta_py_plan_selection(Ws, PatternWs, Patterns, Selected) :-
+    maplist(petta_py_wire_key, PatternWs, Keys),
+    petta_py_plan_selection_(Ws, Keys, Patterns, Selected).
+
+petta_py_plan_selection_([], _, _, []).
+petta_py_plan_selection_([W|Ws], Keys, Patterns, [P|Ps]) :-
+    petta_py_wire_key(W, Key),
+    (   nth0(I, Keys, K), K == Key
+    ->  nth0(I, Patterns, P),
+        petta_py_plan_drop(I, Keys, RestWs, Patterns, RestPatterns)
+    ;   throw(error(petta_foreign_plan_is_not_a_partition(unknown, Patterns,
+                                                          [W], []),
+                    context(metta_foreign_plan/5,
+                            'a claim names a pattern that was not offered')))
+    ),
+    petta_py_plan_selection_(Ws, RestWs, RestPatterns, Ps).
+
+%A wire crossing to Python and back is the same structure with janus's own
+%text convention applied, so the comparison normalizes every leaf to an
+%atom rather than demanding string-for-string identity.
+petta_py_wire_key(W, Key) :-
+    (   is_list(W)
+    ->  maplist(petta_py_wire_key, W, Key)
+    ;   string(W)
+    ->  atom_string(Key, W)
+    ;   Key = W
+    ).
+
+petta_py_plan_drop(I, Ws, RestWs, Ps, RestPs) :-
+    nth0(I, Ws, _, RestWs),
+    nth0(I, Ps, _, RestPs).
 
 petta_py_decode_row(RowW, Row) :- maplist(petta_py_decode_for_add, RowW, Row).
 

@@ -837,6 +837,14 @@ translate_special_dl(timeout, [Seconds, Expr], AfterHead, Goals, Out) :-
     translate_expr_to_conj(Expr, Conj, Out),
     translate_expr_dl(Seconds, AfterHead, BeforeTimeout, SecondsValue),
     BeforeTimeout = [metta_timeout(SecondsValue, Conj, Out)|Goals].
+translate_special_dl('with-pragma!', [Settings, Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Out),
+    translate_expr_dl(Settings, AfterHead, BeforeScope, SettingsValue),
+    BeforeScope = [metta_with_pragmas(SettingsValue, Conj, Out)|Goals].
+translate_special_dl(inferences, [CountExpr, Expr], AfterHead, Goals, Out) :-
+    translate_expr_to_conj(Expr, Conj, Out),
+    translate_expr_dl(CountExpr, AfterHead, BeforeBound, Count),
+    BeforeBound = [metta_inferences(Count, Conj, Out)|Goals].
 translate_special_dl(elapsed, [Expr], AfterHead, Goals, Out) :-
     translate_expr_to_conj(Expr, Conj, Value),
     AfterHead = [metta_elapsed(Conj, Value, Out)|Goals].

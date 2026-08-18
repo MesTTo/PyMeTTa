@@ -30,6 +30,43 @@ stable_print_term(Term, Printable) :-
     copy_term_nat(Term, Printable),
     numbervars(Printable, 0, _, [functor_name('$petta_variable')]).
 
+%A width-aware layout for deep terms: a subterm prints inline when it
+%fits the remaining width, and otherwise breaks after its head with each
+%child on its own line two deeper, the classic s-expression convention.
+%The head itself always inlines, heads being symbols in practice. The
+%measuring pass re-renders subterms, quadratic in the worst case, which
+%a printer can afford and no hot path calls
+%[tested parser_pretty_printing].
+swrite_pretty(Term, String) :- swrite_pretty(Term, 78, String).
+swrite_pretty(Term, Width, String) :-
+    stable_print_term(Term, Printable),
+    with_output_to(string(String), petta_pretty_print(Printable, 0, Width)).
+
+petta_pretty_print(T, Indent, Width) :-
+    petta_inline_text(T, Inline),
+    string_length(Inline, L),
+    Budget is Width - Indent,
+    (   L =< Budget
+    ->  write(Inline)
+    ;   is_list(T), T = [H|Rest], Rest \== []
+    ->  petta_inline_text(H, HeadText),
+        format("(~w", [HeadText]),
+        Sub is Indent + 2,
+        petta_pretty_children(Rest, Sub, Width),
+        write(")")
+    ;   write(Inline)
+    ).
+
+petta_pretty_children([], _, _).
+petta_pretty_children([C|Cs], Indent, Width) :-
+    nl, tab(Indent),
+    petta_pretty_print(C, Indent, Width),
+    petta_pretty_children(Cs, Indent, Width).
+
+petta_inline_text(T, S) :-
+    phrase(swrite_numbered(T), Codes),
+    string_codes(S, Codes).
+
 swrite_numbered('$petta_variable'(Index)) --> !, "$_", { number_codes(Index, Cs) }, Cs.
 swrite_numbered(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_numbered(Str)   --> { string(Str) }, !, "\"", { string_codes(Str, Cs), escape_quotes(Cs, Es) }, Es, "\"".
