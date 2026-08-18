@@ -1164,6 +1164,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         capture: Literal[False] = False,
@@ -1175,6 +1176,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         capture: Literal[True],
@@ -1186,6 +1188,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool,
@@ -1196,6 +1199,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
@@ -1216,6 +1220,13 @@ class MeTTa:
         program, the clauses of the loop itself. run() does not carry the
         third truth value; evaluate through eval() when it matters.
 
+        `using` binds named host values into the term before it evaluates,
+        exactly as it does for run(): `m.eval("(decide $x)", using={"x":
+        tensor})` hands the tensor itself to the rule, by identity, rather
+        than a printed form of it. The evaluation doors take the same
+        vocabulary the source door takes, so reaching for a term instead
+        of source text costs no change of spelling.
+
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. With
         `capture=True` the return value is (answers, text), text being
@@ -1229,6 +1240,7 @@ class MeTTa:
             inferences,
             capture=capture,
             residuals=residuals,
+            using=using,
         )
 
     def parallel(
@@ -1368,6 +1380,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -1391,7 +1404,9 @@ class MeTTa:
         atom: an error among the answers is the evaluation reporting
         failure, and failure outranks the count. eval() is the door
         that keeps errors as data."""
-        answers = self.eval(target, timeout=timeout, inferences=inferences)
+        answers = self.eval(
+            target, using=using, timeout=timeout, inferences=inferences
+        )
         raise_error_answers(answers, space=self._space, target=target)
         return value_one(target, answers)
 
@@ -1399,6 +1414,7 @@ class MeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -1413,7 +1429,9 @@ class MeTTa:
         does, because None must keep meaning "no answers" and an error
         used as a value is the silent kind of wrong.
         """
-        answers = self.eval(target, timeout=timeout, inferences=inferences)
+        answers = self.eval(
+            target, using=using, timeout=timeout, inferences=inferences
+        )
         if not answers:
             return None
         raise_error_answers(answers[:1], space=self._space, target=target)

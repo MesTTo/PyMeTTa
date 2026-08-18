@@ -703,3 +703,31 @@ def test_copy_clones_through_the_bulk_door(metta):
             assert protocol.digest() == original.digest()
         finally:
             protocol.drop()
+
+
+def test_eval_using_carries_identity(m):
+    # using= binds named host values into a TERM, the same vocabulary run()
+    # takes for source, so reaching for eval instead of run costs no change
+    # of spelling. The value crosses by identity, not as a printed form.
+    class Blob:
+        def __init__(self, n):
+            self.n = n
+
+    blob = Blob(7)
+    m.register_op(lambda o: o.n, name="blob-n", raw=True, typed=False)
+    m.run("(= (describe $o) (Seen (blob-n $o)))")
+    try:
+        assert str(m.one("(describe o)", using={"o": blob})) == "(Seen 7)"
+        assert m.eval("(describe o)", using={"o": blob}) == [parse("(Seen 7)")]
+        assert str(m.first("(describe o)", using={"o": blob})) == "(Seen 7)"
+        # a built atom is the same door
+        assert str(m.one(parse("(describe o)"), using={"o": blob})) == "(Seen 7)"
+        # and the object arrived itself, not a copy
+        assert m.one("(blob-n o)", using={"o": blob}) == 7
+    finally:
+        m.unregister_op("blob-n")
+
+
+def test_eval_using_refuses_to_pretend_it_composes_with_residuals(m):
+    with pytest.raises(petta.PettaError, match="do not compose"):
+        m.eval("(+ 1 2)", using={"x": 1}, residuals=True)

@@ -641,6 +641,7 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
@@ -650,6 +651,7 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.eval(
                 target,
+                using=using,
                 timeout=timeout,
                 inferences=inferences,
                 capture=capture,
@@ -661,6 +663,7 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -668,6 +671,7 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.one(
                 target,
+                using=using,
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -790,12 +794,15 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
         """The first answer decoded, or None for no answers."""
         return await self.call(
-            lambda m: m.first(target, timeout=timeout, inferences=inferences)
+            lambda m: m.first(
+                target, using=using, timeout=timeout, inferences=inferences
+            )
         )
 
     async def parallel(self, *targets: Any, timeout: float | None = None) -> list:

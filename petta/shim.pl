@@ -567,6 +567,7 @@ petta_py_wrappable(petta_py_query_all).
 petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
+petta_py_wrappable(petta_py_eval_using_all).
 petta_py_wrappable(petta_py_eval_res_all).
 petta_py_wrappable(petta_py_eval_status_all).
 petta_py_wrappable(petta_py_run_status).
@@ -1452,6 +1453,32 @@ petta_py_call_goals(Module, [G|Gs]) :-
 
 petta_py_eval_all(Space, Tagged, Encoded) :-
     findall(E, petta_py_eval(Space, Tagged, E), Encoded).
+
+%eval with named host values, the same door petta_py_run_using opens for
+%run: each Name-Value pair substitutes the bare symbol Name throughout the
+%target before it evaluates, so a tensor or any other object reaches a
+%rule by name and by IDENTITY rather than through a printed form. The
+%target is read first, because substitution is over the term
+%[tested test_eval_using_carries_identity].
+petta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
+    petta_py_target_term(Space, Target, Term0),
+    maplist(petta_py_using_pair, Pairs, Bindings),
+    petta_py_substitute(Bindings, Term0, Term),
+    %The substituted TERM evaluates directly. Re-encoding it to a wire and
+    %handing that back to the ordinary entry point looks tidier and is
+    %wrong: a substituted host value is a boxed reference, and a round
+    %trip through the encoder is exactly the copy `using` exists to
+    %avoid.
+    findall(E, petta_py_eval_term(Space, Term, E), Encoded).
+
+petta_py_eval_term(Space, Term, Encoded) :-
+    petta_py_module(Space, Module),
+    ( petta_py_direct_goal(Module, Term, Goal, Out)
+      -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
+    ; petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
+                                   call_delays(petta_py_call_goals(Module, Goals),
+                                               Delays) )) ),
+    petta_py_encode_truth(Out, Delays, plain, Encoded).
 
 %Which of PeTTa's own evaluation paths produced each answer, reported without
 %changing what the ordinary entry points return:

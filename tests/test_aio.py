@@ -269,6 +269,7 @@ def test_aio_covers_the_whole_synchronous_surface():
     assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [
         "self",
         "target",
+        "using",
         "timeout",
         "inferences",
         "capture",
@@ -277,6 +278,7 @@ def test_aio_covers_the_whole_synchronous_surface():
     assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",
         "target",
+        "using",
         "timeout",
         "inferences",
     ]
