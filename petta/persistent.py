@@ -9,6 +9,13 @@ Guarantees:
     module [tested test_constructor_failure_releases_path_and_unattached_module]
   - terminal-tail recovery syncs the backup file and its directory before
     truncating the journal [tested test_tail_backup_is_durable_before_truncation]
+  - EVERY proper prefix of a record classifies as an incomplete tail and is
+    recovered, and a tail carrying its terminating full stop is refused
+    instead of truncated [measured 2026-08-19: 7 of the 18 truncation points
+    of `assert(edge(a,b)).` were refused before this, six of them prefixes
+    of the action name] [tested
+    test_every_truncation_point_of_the_torn_tail_classifies,
+    test_a_terminated_record_is_refused_rather_than_truncated]
 Owns:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback [tested
@@ -395,12 +402,27 @@ def _module_source(
         {helpers["validate_stream"]}(Stream),
         close(Stream)).
 
+%A record is complete when it carries its terminating full stop, so the
+%reader that DEMANDS one is the one to ask. read_term/2 over a string stream
+%raises syntax_error(end_of_file) without it; read_term_from_atom/3 does not,
+%and its documentation says so outright: "It is not required for Atom to end
+%with a full-stop" [source:
+%https://www.swi-prolog.org/pldoc/doc_for?object=read_term_from_atom/3].
+%That is why `assert` and `assert(edge(a,b))` used to read as COMPLETE
+%records and be refused rather than repaired. A tail of nothing but layout
+%reads as end_of_file and is incomplete too: no record was finished in it.
 {helpers["tail_status"]}(Text, Status) :-
-    atom_string(Atom, Text),
     catch(
-        ( read_term_from_atom(Atom, _, [module(db)]), Status = complete ),
+        setup_call_cleanup(
+            open_string(Text, Stream),
+            read_term(Stream, Term, [module(db)]),
+            close(Stream)),
         error(syntax_error(_), _),
-        Status = incomplete).
+        Term = '$petta_torn_record'),
+    (   ( Term == '$petta_torn_record' ; Term == end_of_file )
+    ->  Status = incomplete
+    ;   Status = complete
+    ).
 
 {helpers["attach"]}(File, Sync) :- db_attach(File, [sync(Sync)]).
 {helpers["sync"]} :- with_mutex({mutex}, db_sync(reload)).
