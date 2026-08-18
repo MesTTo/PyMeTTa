@@ -45,12 +45,39 @@
 %     python/tests/test_ops.py::test_a_declared_type_survives_the_library_being_loaded]
 %     [measured 2026-08-18: +2 inferences per get-type on a Python object and
 %     0 on every other value].
+%   - The engine loads and runs the full examples/ corpus with
+%     set_prolog_flag(autoload, false) already in effect: the
+%     directory_file_path/3 directive below needs library(filesex) before
+%     the rest of this section's use_module block would otherwise supply
+%     it, and next_lambda_name/1 (translator.pl) needs library(gensym) for
+%     every foldl-atom/map-atom/filter-atom/'|->' compile, both silently
+%     supplied by autoload before now [measured 2026-08-18: NO_AUTOLOAD=1
+%     sh test.sh, 200/200 examples; run.sh's own header has the mechanism].
+%     Cost: +1.50% instructions:u on a bare boot (swipl -s src/metta.pl,
+%     no backends), +0.54% with backends loaded too, +0.14% over a full
+%     example run that also exercises the opt-in libraries' own fixes
+%     (lib/lib_constraints.pl, lib/lib_memo.pl) [measured 2026-08-18:
+%     interleaved min-of-3, perf stat -e instructions:u, spread under
+%     0.003% within each side].
 % Open Obligations:
-%   To Do: None
+%   To Do: check.sh does not yet gate autoload=false; the exact line is
+%     `run GATE   no-autoload  sh -c "cd '$HERE' && NO_AUTOLOAD=1 sh
+%     test.sh"`, reusing test.sh's own parallel runner and skip list
+%     unchanged (check.sh is single-owner, so this is not wired in here).
 %   Hacks: None
 %   Future Enhancements: None
 
 %%%%%%%%%% Dependencies %%%%%%%%%%
+%directory_file_path/3 is library(filesex)'s, not a built-in, and the
+%directive a few lines down calls it immediately at load time to compute
+%standard_library_path/1, before the rest of this section's use_module
+%block would otherwise supply it. Autoload papers over the ordering when
+%it is on; with autoload=false the directive fails on an unknown
+%procedure and standard_library_path/1 is never asserted, which then
+%aborts the boot at load_builtin_type_surface's first (library ...) call.
+%So this one import has to come first, ahead of even the section header's
+%own first clause.
+:- use_module(library(filesex)).
 library(X, Path) :- standard_library_path(Base),
                     directory_file_path(Base, X, Path).
 %A named library directory, git-fetched or registered. A library that
@@ -133,6 +160,11 @@ register_metta_library_path(Alias, Directory0, true) :-
 :- use_module(library(error)).
 :- use_module(library(listing)).
 :- use_module(library(aggregate)).
+%distinct/2, which 'defined-name'/1 and 'undocumented-space'/2 call to
+%dedupe function names read off a space's own equation atoms
+%[measured 2026-08-18: examples/libraries/doc_lib.metta under
+%NO_AUTOLOAD=1, existence_error(procedure,distinct/2)].
+:- use_module(library(solution_sequences)).
 :- use_module(library(thread)).
 %alarm/4 and remove_alarm/1, which metta_timeout/2 uses instead of
 %call_with_time_limit/2 so a bounded goal keeps its answers.
@@ -152,8 +184,24 @@ register_metta_library_path(Alias, Directory0, true) :-
 :- use_module(library(yall), except([(/)/3])).
 :- use_module(library(apply)).
 :- use_module(library(apply_macros)).
+%next_lambda_name/1 (translator.pl) calls gensym/2 to name every compiled
+%closure: '|->' itself and, through collection_closure/3, every inline body
+%argument of foldl-atom, map-atom and filter-atom. Nothing else loaded here
+%pulls library(gensym) in, so today it resolves by autoload on the first
+%such compile. With autoload=false that call raises
+%existence_error(procedure,gensym/2) from inside the engine's own prelude
+%(src/prelude.metta's type-cast-holds is the one equation there that uses
+%foldl-atom with an inline body), and SWI's OWN initialization-error
+%reporting then masks that primary error: building a source-location
+%diagnostic for it calls into library(prolog_clause)'s
+%inlined_unification/7, which has its own undeclared, autoload-only
+%dependency on nth1/3, so THAT is the only message that ends up printed.
+%The visible symptom is "Unknown procedure: prolog_clause:nth1/3" from
+%deep inside SWI's shipped library; the actual missing dependency is this
+%one, in the engine's own source, and fixing it here removes the secondary
+%failure too because the primary error it was papering over never occurs.
+:- use_module(library(gensym)).
 :- use_module(library(process)).
-:- use_module(library(filesex)).
 :- ensure_loaded([ext_points, parser, translator, specializer, filereader,
                   '../lib/lib_gitimport', spaces, tracer, duals, python]).
 
