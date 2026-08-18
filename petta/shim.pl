@@ -86,10 +86,27 @@ petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es
 petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
     petta_py_encode(H, EH),
     petta_py_encode(T, ET).
-%A non-list compound prints as (f a b) under swrite, so it encodes the same way:
+%A non-list compound encodes as (f a b). compound_name_arguments/3 rather
+%than =../2, because =.. RAISES on a ZERO-ARITY compound and janus hands us
+%one for every empty Python tuple: py_call(builtins:tuple(), X) binds X to
+%-() [measured 2026-08-18]. That reached here as
+%`Domain error: compound_non_zero_arity expected, found -()` out of an
+%ordinary Python return value, ''.split() of an empty string among them,
+%and only through the LIBRARY: the engine has its own writer and never ran
+%this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
+%
+%Known disagreement, deliberately left visible rather than papered over.
+%janus renders a Python tuple as a `-` compound (`(1,2)` is `1-2`), so this
+%clause encodes one as `(- 1 2)` while the engine's swrite prints `(1, 2)`,
+%Python's own syntax, which sread cannot read back: it answers the two-item
+%expression `('1,' 2)` [measured 2026-08-18]. Both configurations are
+%self-consistent and they do not agree with each other. What a Python tuple
+%IS at this seam is a boundary decision, not an encoder detail, and it is
+%tracked as its own item; encoding every arity the same way here is what
+%stops the empty one being a crash while the rest are silent.
 petta_py_encode(T, ["e", [["s", FS] | Es]]) :-
     compound(T),
-    T =.. [F|Args],
+    compound_name_arguments(T, F, Args),
     atom(F), !,
     atom_string(F, FS),
     maplist(petta_py_encode, Args, Es).

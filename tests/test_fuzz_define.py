@@ -7,15 +7,26 @@ variable with its own successor, so the engine answered nothing while the
 twin answered the value) is exactly the class only this kind of test
 catches: every program compiles cleanly, so refusal tests see nothing, and
 hand-written examples exercise the spellings their author thought of.
+Guarantees:
+  - every generated program compiles, so a red run is a lowering defect and
+    not a refusal [tested test_engine_and_twin_agree, test_nested_loops_agree]
+  - a loop whose body holds another loop is generated, in both the `for` and
+    the `while` spelling [tested test_the_fuzzer_reaches_a_loop_inside_a_loop]
+  - that shape catches a continuation resolving a loop's remaining sequence
+    in the wrong equation [measured 2026-08-18: with _define_loops.py reverted
+    to 9190bbd^, test_nested_loops_agree fails in 5 of 5 seeded runs and
+    test_engine_and_twin_agree in 4 of 5, where this file's own previous
+    version passed 5 of 5 against the same broken compiler]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import ast
 import itertools
 
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, Phase, find, given, settings
 from hypothesis import strategies as st
 
 from petta.atoms import Expr, Gnd
@@ -157,17 +168,48 @@ def assignments(draw, scope: list, indent: str, count: int, protected: tuple = (
     return lines
 
 
+# The deepest loop nest generated here. programs() stops one short of it;
+# nested_loop_programs spends the whole budget, since three levels is where
+# two enclosing loops each have a remaining sequence to carry into the
+# innermost equation.
+MAX_LOOP_NEST = 3
+
+
 @st.composite
-def loop_block(draw, scope: list, indent: str):
+def loop_nest(draw, minimum: int = 1, maximum: int = MAX_LOOP_NEST - 1):
+    """The kinds of one loop nest, outermost first."""
+    return tuple(
+        draw(st.sampled_from(("while", "for")))
+        for _ in range(draw(st.integers(minimum, maximum)))
+    )
+
+
+@st.composite
+def loop_block(draw, scope: list, indent: str, nest: tuple, protected: tuple = ()):
     """A terminating loop: a bounded while over a fresh counter, or a for
-    over a literal tuple, each mutating accumulators from the scope."""
+    over a literal tuple, each mutating accumulators from the scope.
+
+    `nest` holds the kinds still to place, outermost first, and every loop
+    but the last one holds the next in its body. Recursing on nest[1:]
+    bounds the depth by the tuple's length rather than by a coin, and the
+    tuple comes from loop_nest, which draws at most MAX_LOOP_NEST kinds.
+
+    A loop that holds another runs at least once, or the nested shape is
+    generated and never executed. That shape is the one a fixed
+    continuation variable got wrong: a nested construct compiles into its
+    own equation with a fresh variable namespace, so the outer loop's
+    remaining sequence resolved there to the INNER loop's tail and the
+    outer loop resumed on the wrong list [source
+    python/petta/_define_loops.py:116-123].
+    """
+    kind, deeper = nest[0], nest[1:]
     counter = draw(st.sampled_from(("i", "j", "k")))
     while counter in scope:
         counter += "x"
     lines: list[str] = []
     inner = indent + "    "
-    if draw(st.booleans()):
-        bound = draw(st.integers(0, 4))
+    if kind == "while":
+        bound = draw(st.integers(1, 3)) if deeper else draw(st.integers(0, 4))
         lines.append(f"{indent}{counter} = 0")
         scope.append(counter)
         lines.append(f"{indent}while {counter} < {bound}:")
@@ -176,21 +218,30 @@ def loop_block(draw, scope: list, indent: str):
         # refusal), so only body-local or pre-bound names appear, and body
         # additions do not escape into the outer scope.
         body_scope = list(scope)
-        lines.extend(
-            draw(assignments(body_scope, inner, draw(st.integers(1, 2)), (counter,)))
-        )
-        if draw(st.integers(0, 3)) == 0:
-            lines.append(f"{inner}if {draw(bool_expr(tuple(body_scope), 1))}:")
-            lines.append(f"{inner}    return {draw(int_expr(tuple(body_scope)))}")
-        lines.append(f"{inner}{counter} += 1")
+        # Clobbering any enclosing counter, not just this loop's own, would
+        # generate a genuinely nonterminating program.
+        body_protected = (*protected, counter)
     else:
-        lines.append(
-            f"{indent}for {counter} in {_tuple_literal(draw, 0, 4)}:"
-        )
+        source = _tuple_literal(draw, 1, 3) if deeper else _tuple_literal(draw, 0, 4)
+        lines.append(f"{indent}for {counter} in {source}:")
         body_scope = [*list(scope), counter]
-        lines.extend(draw(assignments(body_scope, inner, draw(st.integers(1, 2)))))
         # Neither the loop variable nor a body-first binding survives the
         # loop: reading either after it is refused (or unbound in Python).
+        # The target itself stays assignable, since the next round rebinds it.
+        body_protected = protected
+    lines.extend(
+        draw(assignments(body_scope, inner, draw(st.integers(1, 2)), body_protected))
+    )
+    if deeper:
+        lines.extend(draw(loop_block(body_scope, inner, deeper, body_protected)))
+        lines.extend(
+            draw(assignments(body_scope, inner, draw(st.integers(0, 2)), body_protected))
+        )
+    if draw(st.integers(0, 3)) == 0:
+        lines.append(f"{inner}if {draw(bool_expr(tuple(body_scope), 1))}:")
+        lines.append(f"{inner}    return {draw(int_expr(tuple(body_scope)))}")
+    if kind == "while":
+        lines.append(f"{inner}{counter} += 1")
     return lines
 
 
@@ -200,8 +251,8 @@ def statements(draw, names: tuple, indent: str, depth: int = 0):
     lines: list[str] = []
     scope = list(names)
     lines.extend(draw(assignments(scope, indent, draw(st.integers(0, 3)))))
-    if depth == 0 and draw(st.integers(0, 2)) == 0:
-        lines.extend(draw(loop_block(scope, indent)))
+    if draw(st.integers(0, 2)) == 0:
+        lines.extend(draw(loop_block(scope, indent, draw(loop_nest()))))
     if depth < 2 and draw(st.integers(0, 2)) == 0:
         test = draw(bool_expr(tuple(scope)))
         then = draw(statements(tuple(scope), indent + "    ", depth + 1))
@@ -223,6 +274,40 @@ def programs(draw):
     name = f"fz{next(_COUNTER)}"
     body = draw(statements(("a", "b"), "    "))
     return name, f"def {name}(a, b):\n" + "\n".join(body) + "\n"
+
+
+@st.composite
+def nested_loop_programs(draw):
+    """Programs whose loop body holds another loop, every example.
+
+    programs() reaches this shape too, in 35.6% of 2000 generated programs
+    [measured 2026-08-18], which leaves the class to chance at a budget of
+    60. It deserves its own budget because it is silent everywhere else:
+    the program compiles clean, and the engine then resumes the outer loop
+    on the wrong remaining sequence, so it answers nothing (or something
+    else) while the twin answers the value.
+    """
+    name = f"fz{next(_COUNTER)}"
+    scope = ["a", "b"]
+    lines = draw(assignments(scope, "    ", draw(st.integers(0, 2))))
+    nest = draw(loop_nest(minimum=2, maximum=MAX_LOOP_NEST))
+    lines.extend(draw(loop_block(scope, "    ", nest)))
+    lines.append(f"    return {draw(int_expr(tuple(scope)))}")
+    return name, f"def {name}(a, b):\n" + "\n".join(lines) + "\n"
+
+
+def _nested_loop_kinds(source: str) -> set[str]:
+    """The kinds of every loop whose body holds another loop, so the empty
+    set means the program has no loop inside a loop at all."""
+    kinds = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.For, ast.While)) and any(
+            isinstance(sub, (ast.For, ast.While))
+            for statement in node.body
+            for sub in ast.walk(statement)
+        ):
+            kinds.add("for" if isinstance(node, ast.For) else "while")
+    return kinds
 
 
 @st.composite
@@ -272,18 +357,54 @@ def collection_programs(draw):
     return name, f"def {name}(xs):\n    return {expression}\n"
 
 
-@settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
-@given(program=programs(), data=st.data())
-def test_engine_and_twin_agree(metta, tmp_path_factory, program, data):
+def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
+    """The differential itself: one two-parameter program, its equations on
+    the engine and its Python twin on the same ground inputs, `rounds` fresh
+    pairs of them, and the two answer lists required identical."""
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
-    for _ in range(3):
+    for _ in range(rounds):
         a = data.draw(st.integers(-9, 9))
         b = data.draw(st.integers(-9, 9))
         engine = metta.eval(defined(a, b))
         twin = defined.py(a, b)
         assert [_normalize(e) for e in engine] == [_normalize(twin)], source
+
+
+@settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@given(program=programs(), data=st.data())
+def test_engine_and_twin_agree(metta, tmp_path_factory, program, data):
+    _answers_agree(metta, tmp_path_factory, program, data, rounds=3)
+
+
+@settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@given(program=nested_loop_programs(), data=st.data())
+def test_nested_loops_agree(metta, tmp_path_factory, program, data):
+    """A loop inside a loop, every example. Each loop compiles to its own
+    equation, so the continuation the outer loop hands its body is closed
+    over in the inner loop's namespace; anything it holds as a fixed
+    variable instead of resolving through the scope means the outer loop
+    resumes on the inner loop's state. Two rounds rather than three: a
+    nested program costs more to run and the shape is what matters here."""
+    _answers_agree(metta, tmp_path_factory, program, data, rounds=2)
+
+
+def test_the_fuzzer_reaches_a_loop_inside_a_loop():
+    """The shape this suite exists to reach, asserted rather than hoped for.
+    loop_block once took no depth and never recursed, so no generated
+    program held a loop inside a loop and the differential above proved
+    nothing about that class."""
+    # Generate only: find would otherwise shrink each witness to its minimal
+    # form, which answers a question nobody asked and cost 13.12s of the
+    # suite's 14.55s [measured 2026-08-18].
+    reachable = settings(max_examples=200, deadline=None, phases=[Phase.generate])
+    for kind in ("for", "while"):
+        find(
+            nested_loop_programs(),
+            lambda program, kind=kind: kind in _nested_loop_kinds(program[1]),
+            settings=reachable,
+        )
 
 
 @settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.too_slow])

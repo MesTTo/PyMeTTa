@@ -101,8 +101,18 @@ def counts() -> list[tuple[str, int]]:
         len(p.read_text().splitlines()) for p in sorted((ROOT / "src").glob("*.pl"))
     )
     main = (ROOT / "python" / "petta" / "__main__.py").read_text()
+    # The example count comes from the runners' own definition rather than a
+    # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
+    # aliases for files already in the list and 12 fixtures that are inputs
+    # rather than programs, so the gate endorsed a number no runner uses
+    # [measured 2026-08-18: 242 paths, 218 regular files, 206 discovered,
+    # 200 run]. examples/README.md and this file disagreed with each other
+    # and with the runner, each by a different amount.
+    sys.path.insert(0, str(ROOT / "python" / "tools"))
+    from example_parity import corpus
+
     return [
-        (r"(\d+) executable programs", len(list(ROOT.glob("examples/**/*.metta")))),
+        (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/petta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/*.plt")))),
         (r"(\d+) files, blackbox", len(list(ROOT.glob("python/tests/*.py")))),
