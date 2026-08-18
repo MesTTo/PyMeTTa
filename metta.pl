@@ -2511,6 +2511,8 @@ metta_pragma_key('max-inferences', 'bound every runnable by inference count').
 %These three are HE's. They are accepted so an HE program loads, and they are
 %NOT enforced here; setting one changes nothing. Recorded rather than silently
 %swallowed, and tracked in ai-todo-parallel.md B10.1.
+metta_pragma_key('verify-specializations',
+                 'check every specialization against the generic call once').
 metta_pragma_key('max-stack-depth', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').

@@ -16,6 +16,13 @@
 
 :- dynamic ho_specialization/3.
 :- dynamic ho_specialization_failed/3.
+%Verified once per specialization, under the checking mode only.
+:- dynamic ho_specialization_agrees/1.
+%Recorded when the generic side could not be run inside the bound.
+:- dynamic ho_specialization_unverified/2.
+%Held while a specialization's own check is running, so the recursive
+%calls inside it do not each start another check.
+:- dynamic ho_specialization_checking/1.
 
 % Specialize HV(AVs), or fold an exact recursive specialization back to the
 % predicate currently being generated. A same-function call with a different
@@ -210,7 +217,118 @@ specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
 
 specialization_goal(SpecName, AVs, Out, Goal) :-
     append(AVs, [Out], CallArgs),
-    Goal =.. [SpecName|CallArgs].
+    Spec =.. [SpecName|CallArgs],
+    (   petta_verifying_specializations
+    ->  Goal = petta_verified_specialization(SpecName, Spec)
+    ;   Goal = Spec
+    ).
+
+%The specializer's whole claim is that a specialized call answers exactly
+%what the generic one answers. MeTTaLog makes that self-enforcing at run
+%time (metta_improve.pl compares interpreter against compiler on first
+%use and demotes the loser), and the shape transfers, but running both
+%ways in production would run a function's EFFECTS twice, which is worse
+%than the optimisation is worth. So it is a checking MODE instead: off,
+%the emitted goal is byte-identical to what it always was and costs
+%nothing; on, every specialization is compared against the generic call
+%the first time it runs, and a disagreement THROWS rather than silently
+%demoting, because a checking mode that hides the defect it found is
+%worth less than no check. The mode is what turns the workspace's
+%"validate every optimisation with a differential that runs it both
+%ways" from a thing tests must remember into a property the whole
+%example corpus asserts on every gate run.
+petta_verifying_specializations :-
+    (   metta_pragma('verify-specializations', V), V \== false, V \== none
+    ->  true
+    ;   getenv('PETTA_VERIFY_SPECIALIZATIONS', Set), Set \== '0'
+    ).
+
+%Answers exactly what the specialization answers, after establishing once
+%per specialization that the generic call agrees. The comparison is over
+%COMPLETE answer lists with variant equality, so a renaming is not a
+%difference and a missing, extra or reordered answer is.
+petta_verified_specialization(SpecName, Spec) :-
+    (   ho_specialization_agrees(SpecName)
+    ->  call(Spec)
+    ;   ho_specialization_unverified(SpecName, _)
+    ->  call(Spec)
+    ;   ho_specialization_checking(SpecName)
+    ->  %Re-entry: the clone under check calls itself, which is what a
+        %recursive specialization IS. Checking again from inside its own
+        %check nests a full comparison per recursive step, so the cost is
+        %exponential in the recursion depth rather than paid once: with
+        %the marker holbenchmark's four specializations verify in under a
+        %second, without it the same file did not finish in ninety
+        %[measured 2026-08-18]. The specializer's own compile-time
+        %recursion guard ($petta_spec_stack) is the same pattern.
+        call(Spec)
+    ;   setup_call_cleanup(assertz(ho_specialization_checking(SpecName)),
+                           petta_check_specialization(SpecName, Spec),
+                           retractall(ho_specialization_checking(SpecName))),
+        call(Spec)
+    ).
+
+%The check, run once per specialization and BOUNDED WHOLE. Both sides are
+%bounded, not just the slow one: comparing answer sets means forcing all
+%answers of a call the program may only have wanted one of, so the
+%specialized side can blow up exactly as the generic side can, and a
+%generator with infinitely many answers would never return from either.
+%Exceeding the bound records the specialization as unverified and leaves
+%the call to run normally, lazily, as it always did; the count is
+%REPORTED so coverage is a number rather than a claim of completeness.
+%This is translation validation's own shape: the check is bounded and
+%says what it could not check, instead of being trusted or being
+%unbounded [source: Pnueli, Siegel and Singerman, Translation Validation,
+%TACAS 1998].
+petta_check_specialization(SpecName, Spec) :-
+    Spec =.. [_|Args],
+    copy_term(Args, SpecArgs),
+    copy_term(Args, PlainArgs),
+    SpecCopy =.. [SpecName|SpecArgs],
+    petta_specialization_generic(SpecName, PlainArgs, Generic),
+    petta_specialization_budget(Budget),
+    catch(
+        (   call_with_inference_limit(
+                (   findall(SpecArgs, call(SpecCopy), Specialized),
+                    findall(PlainArgs, call(Generic), Plain)
+                ), Budget, Result),
+            (   Result == inference_limit_exceeded
+            ->  Outcome = unbounded
+            ;   Outcome = both(Specialized, Plain)
+            )
+        ),
+        Error,
+        (   control_exception(Error) -> throw(Error) ; Outcome = raised(Error) )),
+    petta_specialization_verdict(SpecName, Outcome).
+
+petta_specialization_verdict(SpecName, both(Specialized, Plain)) :-
+    (   Specialized =@= Plain
+    ->  assertz(ho_specialization_agrees(SpecName))
+    ;   throw(error(petta_specialization_disagrees(SpecName, Specialized, Plain),
+                    context(petta_verified_specialization/2,
+                            'a specialization answered differently from \c
+                             the generic call')))
+    ).
+petta_specialization_verdict(SpecName, unbounded) :-
+    assertz(ho_specialization_unverified(SpecName, inference_limit)).
+petta_specialization_verdict(SpecName, raised(Error)) :-
+    throw(error(petta_specialization_disagrees(SpecName, raised, Error),
+                context(petta_verified_specialization/2,
+                        'one side raised where the other answered'))).
+
+%The bound, in inferences, tunable for a deeper sweep.
+petta_specialization_budget(Budget) :-
+    (   getenv('PETTA_VERIFY_BUDGET', Text), atom_number(Text, N), N > 0
+    ->  Budget = N
+    ;   Budget = 200000
+    ).
+
+%The generic twin of a specialized call: the same arguments through the
+%function the specialization was cloned from, which is exactly what would
+%have run had the plan been refused.
+petta_specialization_generic(SpecName, Args, Generic) :-
+    ho_specialization(_, HV, SpecName), !,
+    Generic =.. [HV|Args].
 
 %Extracts clause-head variables and their call-site copies, producing eligible Var–Copy pairs for specialization:
 specializable_vars(BodyExpr, Value, Arg, HoVars) :-

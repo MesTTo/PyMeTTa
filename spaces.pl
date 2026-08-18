@@ -568,12 +568,26 @@ compile_metta_equation(Module, Term, Clause, Ref) :-
     Term = [=, [F|_], _],
     (   Module == user -> evict_prelude_definition(F) ; true ),
     register_fun_in(Module, F),
+    %Stale specializations go FIRST, before this body compiles. They are
+    %clones of the PREVIOUS definition, and that is the whole content of
+    %the claim; a clone this compilation creates for its own recursive
+    %call belongs to the NEW definition and must survive. Invalidating
+    %afterwards abolished exactly those clones while the clause naming
+    %them stood, so (= (f $g) (... (f (+ 2)) ...)) compiled a generic
+    %clause calling an empty predicate: the direct call answered through
+    %its own specialization and a call that reached the generic clause,
+    %(let $h (+ 1) (f $h)), silently answered NOTHING. Found by the
+    %verify-specializations differential over examples/
+    %[tested specializer:a_recursive_specialization_survives_its_compile].
+    invalidate_specializations(F),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
     assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
     record_translated_from(Ref, Term, SourceRef),
     record_source_assertion(SourceRef),
-    function_changed(F).
+    %The dependent-recompile hooks run AFTER the clause is in place, so
+    %a definition that mentions F recompiles against the new one.
+    forall(metta_on_function_changed(F), true).
 
 add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
     store_equation(Storage, Space, Term),
