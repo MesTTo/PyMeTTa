@@ -1,5 +1,6 @@
 """Purpose: engine-backed tests for Python-backed MeTTa functions: kinds,
-typing from annotations, defaults as arities, declines, errors, raw mode.
+typing from annotations, defaults as arities, declines, errors, raw mode,
+and the py-atom surface where the shim's presence changes the answer.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -685,3 +686,37 @@ def test_a_zero_arity_compound_crosses_without_raising(metta):
     # the shapes that already worked are untouched
     assert metta.run('!(py-atom "None")') == [[metta.parse("()")]]
     assert metta.run('!(py-atom "[1,2,3]" Expression)') == [[metta.parse("(1 2 3)")]]
+
+
+def test_a_declared_type_survives_the_library_being_loaded(metta):
+    """`(py-atom f Type)` keeps its declaration in the shipped configuration.
+
+    The declaration is published through py_object_extra_type/2, a
+    DECLARATION seam, whose every clause is meant to stay reachable
+    [source: src/ext_points.pl, ext_point_every_clause_runs/1]. It hung off
+    the ELSE branch of the ownership seam py_object_type_names/2, and the
+    shim answers that one for every Python object, so the whole branch was
+    dead here and the declaration was accepted and dropped
+    [measured 2026-08-18: `(builtin_function_or_method)` through the
+    library against `(builtin_function_or_method (-> Number Number Number))`
+    through run.sh].
+
+    This test lives at the LIBRARY door for that reason. The engine-door
+    pin, python_surface.plt's a_declared_type_is_reported_beside_the_objects_own,
+    was green throughout: plunit loads src/metta.pl without the shim, so it
+    exercises the configuration where the branch is alive. Only the two
+    doors together see the defect.
+    """
+    both = "(builtin_function_or_method (-> Number Number Number))"
+    assert metta.run(
+        "!(let $f (py-atom math.pow (-> Number Number Number))"
+        " (collapse (get-type $f)))"
+    ) == [[metta.parse(both)]], "the declared arrow is dropped"
+    # A DIFFERENT object, one nothing declares, answers its classes and
+    # nothing else, so the union adds no candidate of its own. It has to be
+    # a different one: the declaration is keyed on the object and resolving
+    # the same name twice resolves to the same object, which is what stops
+    # a repeated declaration stacking duplicates.
+    assert metta.run("!(let $f (py-atom math.sqrt) (collapse (get-type $f)))") == [
+        [metta.parse("(builtin_function_or_method)")]
+    ]

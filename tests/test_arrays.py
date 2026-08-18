@@ -73,6 +73,27 @@ def test_dltensor_is_a_protocol_type_the_engine_checks(am):
     assert am.run("!(t-item (t-sum (matmul (eye 2) (eye 2))))") == [[2.0]]
 
 
+def test_a_protocol_and_a_declaration_are_both_answered_once(am):
+    """The two sources of extra types compose instead of hiding each other.
+
+    A protocol name reaches the engine through the shim's bridge, which
+    computes it in Python; a `(py-atom f Type)` declaration reaches it
+    through py_object_extra_type/2, in Prolog. The engine used to CHOOSE
+    between the bridge and the branch the declaration hangs off, so with
+    the library loaded the declaration was dropped
+    [tested test_ops.py::test_a_declared_type_survives_the_library_being_loaded].
+    Answering both raises the opposite question, whether a name can now
+    arrive twice, so this pins the whole list rather than a membership:
+    the classes, then the protocol, then the declaration, each once.
+    """
+    source = "\"__import__('numpy').arange(3.0)\""
+    (answers,) = am.run(
+        f"!(let $a (py-atom {source} (-> Number Number)) (collapse (get-type $a)))"
+    )
+    names = [str(a) for a in answers[0]]
+    assert names == ["ndarray", "DLTensor", "(-> Number Number)"], names
+
+
 def test_protocol_printing_covers_any_library(am):
     (group,) = am.run("!(tensor ((1.0 2.0)))")
     printed = repr(group[0])
