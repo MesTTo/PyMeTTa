@@ -407,9 +407,31 @@ specializable_arg(Arg) :- nonvar(Arg),
                           ( fun(Arg) ; Arg = partial(_, _) ).
 
 %Forget function symbol:
+%
+%The clauses are in the module of the space whose code triggered the
+%specialization, which is what specialize_call_locked/7 registers and what
+%fun_in/2 and ho_specialization/3 both record. Asking current_predicate/1 and
+%clause/3 UNQUALIFIED read the engine's own module, which found &self's
+%clauses only for as long as &self WAS that module and never found a named
+%space's at all. A stale specialization then outlived the equation it cloned
+%and answered beside the new one: removing one of two equations for a
+%higher-order function gave (2 2 42) where (2) was asked for
+%[tested: examples/functions/functionremoval.metta,
+%specializer:a_removed_equation_forgets_its_specialization].
+%
+%clause_property(module/1) is the filter that keeps this from erasing a
+%PARENT's clauses: clause/3 sees inherited ones through the base chain, and a
+%named space asking to forget a name &self defines must not erase &self's.
 forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
                        remove_sexp('&self', [':', Name, _]),
-                       findall(Ref, ( current_predicate(Name/A), functor(H, Name, A), clause(H, _, Ref) ), Refs),
+                       findall(Ref,
+                               ( forget_symbol_module(Name, Module),
+                                 current_predicate(Module:Name/A),
+                                 functor(H, Name, A),
+                                 clause(Module:H, _, Ref),
+                                 clause_property(Ref, module(Module)) ),
+                               Refs0),
+                       sort(Refs0, Refs),
                        forall(member(R, Refs), erase(R)),
                        forall(metta_on_function_removed(Name), true),
                        retractall(arity(Name,_)),
@@ -417,6 +439,13 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
                        clear_fun_meta(Name),
                        retractall(ho_specialization(_, Name, _)),
                        retractall(ho_specialization(_, _, Name)).
+
+%Both registries are consulted because they are written at different moments:
+%register_fun_in/2 records the module before the clauses are asserted, and
+%ho_specialization/3 records it beside them. The failure branch retracts the
+%second one immediately after calling this, so neither alone is total.
+forget_symbol_module(Name, Module) :- fun_in(Module, Name).
+forget_symbol_module(Name, Module) :- ho_specialization(Module, _, Name).
 
 %Invalidate all specializations:
 %The recursion carries a visited set. It retracts only AFTER descending, so a

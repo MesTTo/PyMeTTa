@@ -172,6 +172,19 @@ metta_not_functor(X, Name, Arity) :-
 %
 %copy_term/4 copies only the quantified variables, leaving the head variables
 %shared, which is exactly s(CASP)'s my_copy_term/4.
+%Every one of these carries a goal that was COMPILED IN A SPACE'S MODULE and
+%is being called from this file, which is the engine's. Without the
+%declaration the call resolves here instead, and a dual over a function the
+%program defined raised Unknown procedure for it
+%[tested: examples/reasoning/constructive_negation.metta]. It was invisible
+%while &self compiled into this same module and would have bitten any named
+%space that used a dual; the declaration is the manual's own remedy
+%[source: SWI-Prolog 10.1 Reference Manual, chapter 6, defining a
+%meta-predicate].
+:- meta_predicate metta_forall_c(+, 0),
+                  forall_cover(?, 0),
+                  domain_coverage(?, ?, 0),
+                  forall_excluded(+, ?, 0).
 metta_forall_c([], Goal) :- !, call(Goal).
 metta_forall_c([Var|Vars], Goal) :-
     forall_cover(Var, metta_forall_c(Vars, Goal)).
@@ -368,6 +381,10 @@ metta_ensure_duals(Needed) :-
 %Local holds the variables quantify_negations/3 found to occur nowhere but
 %inside this negation. It stays unbound when nothing analysed the site, which
 %is the same as having none.
+%True and Dual are compiled in the space's module and called from here, so
+%they carry it in. Local is a variable list and Out a result, neither of them
+%a goal.
+:- meta_predicate metta_negation(?, ?, 0, 0, ?).
 metta_negation(Local, _, True, Dual, Out) :-
     %The world flag rides the whole negation, both the provability probe
     %and the dual: either side consulting an open-world foreign context
@@ -461,6 +478,7 @@ metta_dual_goal(Fun, Args) :-
 %`not-provable` create one: every other edge a dual follows is the dual OF a
 %positive goal, which is the same node seen from the other side and not a
 %negation of the program.
+:- meta_predicate metta_crossed_negation(0), push_dual_frame(?, ?, 0).
 metta_crossed_negation(Goal) :-
     dual_stack(Stack),
     push_dual_frame(Stack, negation, Goal).
@@ -1059,6 +1077,10 @@ body_true(Expr, Goal) :-
 %nested let then answered a second time from its own complement branch:
 %(not-provable (both bob)) had four answers where it has one [traced
 %2026-08-15 with trace/2 on the generator quantifier, +exit].
+%The generator and the dual body are both compiled in the space's module and
+%reached from here through foreach/2 and findall/3, so both carry it in.
+:- meta_predicate metta_generator_forall(?, ?, 0, 0, ?),
+                  metta_narrowed_forall(?, 0, 0, ?).
 metta_generator_forall(GeneratorVariables, Local, Generator, DualBody, Value) :-
     generator_outer_variables(GeneratorVariables, Local, OuterVariables),
     (   OuterVariables == []

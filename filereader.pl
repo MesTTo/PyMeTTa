@@ -534,9 +534,10 @@ process_form(Space, compile, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
-    %Compile-mode targets the base tier, so the one door sees user and
-    %applies the same user-wins eviction it always applies there.
-    compile_metta_equation(user, BoundTerm, _Clause, Ref),
+    %Compile-mode targets the base tier, so the one door sees &self's module
+    %and applies the same user-wins eviction it always applies there.
+    metta_self_module(Self),
+    compile_metta_equation(Self, BoundTerm, _Clause, Ref),
     print_function_form(FormStr, Ref).
 process_form(_, _, In, _) :-
     throw(error(petta_translation_failed(In),

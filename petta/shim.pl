@@ -775,7 +775,7 @@ petta_py_function_shape(Name0, [Tier, Detail, Arities, Determinism]) :-
         ( fun_in(Module, Name) -> atom_string(Module, Detail) ; Detail = "" )
     ;   Tier = "absent", Detail = ""
     ),
-    ( fun_in(Home, Name) -> true ; Home = user ),
+    ( fun_in(Home, Name) -> true ; petta_py_module('&self', Home) ),
     findall([Arity, Speedup, Realised],
             ( arity(Name, Arity),
               petta_py_index_quality(Home, Name, Arity, Speedup, Realised) ),
@@ -1898,12 +1898,15 @@ petta_py_register_op(Name0, Arity, Kind) :-
     petta_py_directed_body(Name, Kind, Args, Result, Forward, Body),
     assertz((Head :- Body)),
     assertz(petta_py_op_spec(Name, Arity, Kind)),
-    %The clauses really are in user, and saying so is what keeps the operation
+    %The claim is the BASE TIER's, and saying so is what keeps the operation
     %callable after some named space defines an equation of the same name.
     %register_fun/1 alone left it resolvable only while no space had claimed
     %the name anywhere in the process, which is the same defect
-    %import_prolog_function/2 carried.
-    register_fun_in(user, Name),
+    %import_prolog_function/2 carried. The base tier is &self's module, which
+    %every other space inherits; a claim recorded against any other module
+    %would set fun_scoped/1 and make the operation invisible everywhere.
+    petta_py_module('&self', Base),
+    register_fun_in(Base, Name),
     PredArity is Arity + 1,
     ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
     forall(metta_on_function_changed(Name), true).

@@ -580,21 +580,36 @@ metta_atom_hook_clause(removed, Ref) :- clause(metta_on_atom_removed(_, _), _, R
 %total; these were not. Nothing observed fails, so this is the seam's own
 %installer being made unable to fail quietly rather than a live bug
 %[tested: a_handler_survives_its_own_installation].
+%The wrapped predicate is the ENGINE's, so the module is asked rather than
+%written: petta_engine_module/1 (src/metta.pl) answers where this file's
+%clauses went. Writing `user` here meant "the engine" in one breath and "the
+%host" in the next, and only the second reading survives Phase 11.
+%
+%The WRAPPER BODY is left unqualified deliberately. wrap_predicate/4 declares
+%it `0` [source: library(prolog_wrap), meta_predicate wrap_predicate(:,+,-,0)],
+%so SWI qualifies it with this file's own module at compile time, which is the
+%same answer and is one SWI's code walker can follow: qualifying it by hand
+%with a run-time variable made three live wrapper bodies unreachable from any
+%root in tests/prolog/reachability.pl [measured 2026-08-19].
 enable_metta_atom_hook(added) :-
-    current_predicate_wrapper(user:metta_add_atom(_, _, _), metta_atom_added_hooks, _, _), !.
+    petta_engine_module(Engine),
+    current_predicate_wrapper(Engine:metta_add_atom(_, _, _), metta_atom_added_hooks, _, _), !.
 enable_metta_atom_hook(added) :-
-    (   wrap_predicate(user:metta_add_atom(Space, Term, _Result), metta_atom_added_hooks, Wrapped,
-                       user:run_metta_atom_added_hooks(Wrapped, Space, Term))
+    petta_engine_module(Engine),
+    (   wrap_predicate(Engine:metta_add_atom(Space, Term, _Result), metta_atom_added_hooks, Wrapped,
+                       run_metta_atom_added_hooks(Wrapped, Space, Term))
     ->  true
     ;   throw(error(petta_atom_hook_install_failed(added),
                     context(enable_metta_atom_hook/1,
                             'the write wrapper could not be installed')))
     ).
 enable_metta_atom_hook(removed) :-
-    current_predicate_wrapper(user:metta_remove_atom(_, _, _), metta_atom_removed_hooks, _, _), !.
+    petta_engine_module(Engine),
+    current_predicate_wrapper(Engine:metta_remove_atom(_, _, _), metta_atom_removed_hooks, _, _), !.
 enable_metta_atom_hook(removed) :-
-    (   wrap_predicate(user:metta_remove_atom(Space, Term, Removed), metta_atom_removed_hooks, Wrapped,
-                       user:run_metta_atom_removed_hooks(Wrapped, Space, Term, Removed))
+    petta_engine_module(Engine),
+    (   wrap_predicate(Engine:metta_remove_atom(Space, Term, Removed), metta_atom_removed_hooks, Wrapped,
+                       run_metta_atom_removed_hooks(Wrapped, Space, Term, Removed))
     ->  true
     ;   throw(error(petta_atom_hook_install_failed(removed),
                     context(enable_metta_atom_hook/1,
@@ -617,9 +632,11 @@ run_metta_atom_removed_hooks(Wrapped, Space, Term, Removed) :-
       ; true ).
 
 disable_metta_atom_hook(added) :-
-    ( unwrap_predicate(user:metta_add_atom/3, metta_atom_added_hooks) -> true ; true ).
+    petta_engine_module(Engine),
+    ( unwrap_predicate(Engine:metta_add_atom/3, metta_atom_added_hooks) -> true ; true ).
 disable_metta_atom_hook(removed) :-
-    ( unwrap_predicate(user:metta_remove_atom/3, metta_atom_removed_hooks) -> true ; true ).
+    petta_engine_module(Engine),
+    ( unwrap_predicate(Engine:metta_remove_atom/3, metta_atom_removed_hooks) -> true ; true ).
 
 sync_metta_atom_hook(Kind) :- ( metta_atom_hook_clause(Kind, _)
                                 -> enable_metta_atom_hook(Kind)

@@ -423,7 +423,12 @@ reduce([], Out, Status) :- !, Out = [], Status = 'not-reducible'.
 %to nothing.
 reduce([F|Args], Out, Status) :- !,
     (   nonvar(F), atom(F),
-        ( fun(F), \+ fun_scoped(F) -> Module = user
+        %Read once and reused twice below. A function no named space claims is
+        %the base tier's, and the base tier is &self's module: an unqualified
+        %call from here would resolve in the ENGINE's module instead, which is
+        %the parent and cannot see a child's clauses.
+        metta_self_module(Self),
+        ( fun(F), \+ fun_scoped(F) -> Module = Self
         ; current_metta_module(Module), fun_here_in(Module, F) )
     ->  % --- Case 1: callable predicate ---
         length(Args, N),
@@ -438,12 +443,11 @@ reduce([F|Args], Out, Status) :- !,
         %records those arities, and reading the registry is free where asking
         %predicate_property/2 per operator cost 2.39% on the typed-call
         %counter [measured 2026-08-17].
-        (   ( Module == user -> arity(F, Arity)
+        (   ( Module == Self -> arity(F, Arity)
                               ; current_predicate(Module:F/Arity) ),
             \+ (Arity =< 2, current_op(_, _, F))
         ->  resolve_dispatch(F, Args, Out, Goal),
-            ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
-            call(CallGoal),
+            call(Module:Goal),
             Status = reduced
         ;   incomplete_application_kind(F, Arity, partial)
         ->  Out = partial(F,Args),
@@ -530,7 +534,17 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                                                 ; translate_args_dl(T, AfterHead, AfterArgs, T1) ),
                                              append(T1,[Gs],Args),
                                              HookCall =.. [HV|Args],
-                                             call(HookCall),
+                                             %A translator rule is an ordinary
+                                             %MeTTa equation, so it lives in
+                                             %the module of the space that
+                                             %wrote it. Called unqualified it
+                                             %resolved in the ENGINE's module
+                                             %and raised Unknown procedure for
+                                             %every rule
+                                             %[tested:
+                                             %examples/libraries/patrick_test.metta].
+                                             current_metta_module(RuleModule),
+                                             call(RuleModule:HookCall),
                                              translate_expr_dl(Gs, AfterArgs, Goals, Out),
                                              refuse_seam_expanded_to_data(HV, Out)
         ; atom(HV), translate_special_dl(HV, T, AfterHead, Goals, Out) -> true
@@ -670,7 +684,8 @@ atom_position_or_undefined(T, Masked) :-
 %predicate owns the complete input contract.
 runtime_guarded_builtin_call(Fun) :-
     runtime_type_guarded(Fun),
-    \+ fun_in(user, Fun),
+    metta_self_module(Self),
+    \+ fun_in(Self, Fun),
     current_metta_module(Module),
     \+ fun_in(Module, Fun).
 
@@ -682,8 +697,13 @@ runtime_guarded_builtin_call(Fun) :-
 %(not-provable (case 1 ((1 True)))) answer True beside its correct False
 %[measured 2026-08-15]. Asked of translate_special_dl/5 rather than kept as a
 %list, so a form added below is covered the day it is added.
+%translate_special_dl/5 is the ENGINE's own clause table, so the module is
+%asked rather than written: after Phase 11 `user` no longer means "where the
+%engine's clauses are" everywhere else in the tree, and a clause/2 read that
+%kept saying it would silently answer for no forms at all.
 metta_special_form(Name) :-
-    clause(user:translate_special_dl(Name, _, _, _, _), _),
+    petta_engine_module(Engine),
+    clause(Engine:translate_special_dl(Name, _, _, _, _), _),
     !.
 
 %Every head the translator gives meaning to, across BOTH of its compilation
@@ -707,7 +727,8 @@ metta_special_form(Name) :-
 %[tested: translator_special_dispatch:an_ordinary_name_is_not_a_translated_head].
 metta_translated_head(Name) :- metta_special_form(Name), !.
 metta_translated_head(Name) :-
-    clause(user:rewrite_streamops(Pattern, _), _),
+    petta_engine_module(Engine),
+    clause(Engine:rewrite_streamops(Pattern, _), _),
     nonvar(Pattern),
     Pattern = [Name|_],
     !.
@@ -719,7 +740,7 @@ metta_translated_head(Name) :-
 %must give way to a user or named-space equation of the same name, which is the
 %guard runtime_guarded_builtin_call/1 uses for the same reason.
 metta_builtin_overridden(Fun) :-
-    (   fun_in(user, Fun)
+    (   metta_self_module(Self), fun_in(Self, Fun)
     ->  true
     ;   current_metta_module(Module), fun_in(Module, Fun)
     ).

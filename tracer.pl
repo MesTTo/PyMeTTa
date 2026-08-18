@@ -38,14 +38,14 @@
 :- dynamic metta_trace_session/0.
 :- dynamic metta_trace_wrapped/1.
 
-%Every name the translator compiled from equations, in user and in each
-%space module that registered it: exactly the predicates owning at least
-%one translated_from-tracked clause. Builtins and imports never do,
+%Every name the translator compiled from equations, in &self's module and in
+%each other space module that registered it: exactly the predicates owning at
+%least one translated_from-tracked clause. Builtins and imports never do,
 %which keeps a trace about the program, not the engine, and keeps the
 %wrap away from library predicates a weak import makes visible.
 metta_trace_target(Module:F/A) :-
     arity(LogicalF, A),
-    ( fun_in(Module, LogicalF) ; Module = user ),
+    ( fun_in(Module, LogicalF) ; metta_self_module(Module) ),
     compiled_function_name(LogicalF, F),
     current_predicate(Module:F/A),
     functor(Head, F, A),
