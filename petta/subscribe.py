@@ -18,6 +18,12 @@ Guarantees:
   - identical subscriptions share one reflection descriptor until the last
     subscription cancels [tested
     test_identical_subscriptions_share_one_reflection_fact]
+  - a watcher that raises reaches the writer as SubscriberError, naming the
+    subscription and saying the write stands, where a refused write does
+    not [measured 2026-08-19: both arrived as EngineError with the same
+    "Python '<Type>': <text>" message template, so a caller could only tell
+    them apart by reading the sentence] [tested
+    test_a_watcher_failure_is_distinguishable_from_a_failed_write]
 Guarded by:
   - _SubscriptionRegistry._lock protects subscription state, the active
     runtime, delivery counts, and engine subscription snapshots [tested
@@ -39,7 +45,7 @@ from dataclasses import dataclass, field
 from typing import Any, Self
 
 from .atoms import Atom, Expr, Sym, Var, _to_atom, atom_from_wire, map_atoms, unify
-from .errors import EngineError, PettaError
+from .errors import EngineError, PettaError, SubscriberError
 from .foreign import require_capability
 from .ops import REFLECTION_SPACE, _reflect_add, _reflect_remove
 
@@ -391,7 +397,24 @@ def _dispatch(action: str, space: str, wire: list) -> bool:
         bindings = unify(subscription.pattern, atom)
         if bindings is None:
             continue
-        subscription._deliver(Event(action, space, atom, bindings))
+        try:
+            subscription._deliver(Event(action, space, atom, bindings))
+        # A control signal is BaseException and passes through untouched:
+        # KeyboardInterrupt is not a watcher saying no.
+        except Exception as failure:
+            raise SubscriberError(
+                f"{space} applied the {action} of {atom}, and then the "
+                f"watcher of {subscription.pattern} raised "
+                f"{type(failure).__name__}: {failure}. This is not a failed "
+                f"write. Retrying it stores a second copy, because a space "
+                f"is a multiset. An enclosing atomic run or a "
+                f"(transaction ...) scope is the one thing that undoes it, "
+                f"and it does so as this error leaves the scope.",
+                subscription=subscription,
+                action=action,
+                atom=atom,
+                space=space,
+            ) from failure
     return True
 
 

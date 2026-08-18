@@ -170,6 +170,7 @@ from .errors import (  # noqa: E402
     ResourceLimitError,
     SourceNotFound,
     StrictError,
+    SubscriberError,
     TimeLimitError,
 )
 from .foreign import (  # noqa: E402
@@ -312,6 +313,7 @@ __all__ = [
     "SpaceProvider",
     "Step",
     "StrictError",
+    "SubscriberError",
     "Subscription",
     "Sym",
     "TimeLimitError",

@@ -28,6 +28,7 @@ __all__ = [
     "ResourceLimitError",
     "SourceNotFound",
     "StrictError",
+    "SubscriberError",
     "TimeLimitError",
     "TransportFailure",
     "is_transport_failure",
@@ -136,6 +137,38 @@ class MettaResultError(PettaError):
         super().__init__(message, atom=atom, space=space)
         self.culprit = culprit
         self.reason = reason
+
+
+class SubscriberError(PettaError):
+    """A watcher raised, and the write it was watching had already landed.
+
+    A subscription callback runs inside the write that triggered it, so its
+    exception comes back out through the writer. Told apart from a refused
+    write only by reading the message, the two invited opposite responses to
+    the same sentence: retry a refused write, never retry an applied one.
+    A space is a multiset, so the second copy the retry stores is permanent.
+
+    `subscription` is the standing query whose callback raised, `atom` and
+    `space` are what was written and where, `action` is "add" or "remove",
+    and `__cause__` is what the callback actually raised.
+
+    The write is applied when this is raised. An enclosing atomic run or
+    `(transaction ...)` scope is the one thing that undoes it, and it does
+    so as this error leaves the scope.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        subscription: object,
+        action: str,
+        atom: object | None = None,
+        space: str | None = None,
+    ):
+        super().__init__(message, atom=atom, space=space)
+        self.subscription = subscription
+        self.action = action
 
 
 class ResourceLimitError(EngineError):
