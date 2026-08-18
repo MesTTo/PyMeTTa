@@ -57,8 +57,12 @@ def test_failed_import_rolls_back_partial_definitions(
 
     python_file.write_text("RETRY_SUCCEEDED = True\n")
     petta_instance.load_metta_file(str(dependency_file))
+    # &self compiles into a module of its own, so the clause is not in `user`,
+    # which is where janus resolves a goal by default. space_module/2 answers
+    # which module it IS, so the test follows the engine instead of naming one.
     result = petta_module.janus.query_once(
-        f"aggregate_all(count, clause('{function_name}'(_), _), Count)"
+        "space_module('&self', M), "
+        f"aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
     assert result["Count"] == 1
@@ -78,7 +82,8 @@ def test_entry_file_breaks_direct_import_cycle(
 
     petta_instance.load_metta_file(str(entry_file))
     result = petta_module.janus.query_once(
-        f"aggregate_all(count, clause('{function_name}'(_), _), Count)"
+        "space_module('&self', M), "
+        f"aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
     assert result["Count"] == 1

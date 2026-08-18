@@ -422,8 +422,9 @@ specializable_arg(Arg) :- nonvar(Arg),
 %clause_property(module/1) is the filter that keeps this from erasing a
 %PARENT's clauses: clause/3 sees inherited ones through the base chain, and a
 %named space asking to forget a name &self defines must not erase &self's.
-forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
-                       remove_sexp('&self', [':', Name, _]),
+forget_symbol(Name) :- forall(forget_symbol_space(Name, Space),
+                                     ( remove_sexp(Space, [=, [Name|_], _]),
+                                       remove_sexp(Space, [':', Name, _]) )),
                        findall(Ref,
                                ( forget_symbol_module(Name, Module),
                                  current_predicate(Module:Name/A),
@@ -432,7 +433,16 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
                                  clause_property(Ref, module(Module)) ),
                                Refs0),
                        sort(Refs0, Refs),
-                       forall(member(R, Refs), erase(R)),
+                       %The provenance record dies with the clause it names.
+                       %Erasing without retracting it left translated_from/2
+                       %pointing at a dead reference, and remove_equation/6
+                       %then found that reference, called erase/1 on it and
+                       %FAILED, so removing the specialization's own atom
+                       %failed and every caller of it failed with it
+                       %[tested: python/tests/test_import_reuse.py::
+                       %test_import_translation_leaves_variable_heads_dynamic].
+                       forall(member(R, Refs),
+                              ( erase(R), retractall(translated_from(R, _)) )),
                        forall(metta_on_function_removed(Name), true),
                        retractall(arity(Name,_)),
                        retractall(fun(Name)),
@@ -446,6 +456,17 @@ forget_symbol(Name) :- remove_sexp('&self', [=, [Name|_], _]),
 %second one immediately after calling this, so neither alone is total.
 forget_symbol_module(Name, Module) :- fun_in(Module, Name).
 forget_symbol_module(Name, Module) :- ho_specialization(Module, _, Name).
+
+%And the space each of those modules serves, because a specialization's SOURCE
+%atoms were written into the space whose code triggered it
+%(specialize_call_locked/7 adds them with current_metta_space/1), not into
+%&self. Naming &self here left every named space holding the source atoms of
+%a specialization whose clauses were gone.
+forget_symbol_space(Name, Space) :-
+    distinct(Space,
+             ( ( forget_symbol_module(Name, Module),
+                 metta_module_space(Module, Space)
+               ; Space = '&self' ) )).
 
 %Invalidate all specializations:
 %The recursion carries a visited set. It retracts only AFTER descending, so a
