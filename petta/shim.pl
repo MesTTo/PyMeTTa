@@ -27,6 +27,21 @@
 %     sharing an anonymous one, and a malformed wire term fails rather than
 %     decoding to something [tested 2026-08-16: shim_wire_decoding,
 %     shim_wire_variable_sharing in tests/prolog/shim.plt]
+%   - petta_py_run/3, petta_py_run_using/4 and petta_py_run_status/3 register a
+%     source's whole signature set before processing any of its forms, through
+%     the engine's own prepare_parsed_forms/1, so a ! may NAME a function the
+%     same source defines lower down and run() and load() answer what the
+%     engine's file reader answers. What is registered is the signature, not
+%     the clauses, so a ! that CALLS one still cannot answer, in either
+%     configuration [tested 2026-08-18:
+%     test_a_source_registers_every_signature_before_any_form_runs,
+%     test_run_using_registers_signatures_over_the_forms_that_will_run,
+%     test_run_status_registers_signatures_before_any_form_runs,
+%     test_load_memoizes_a_function_the_same_file_defines_lower_down,
+%     test_a_declaration_that_cannot_type_what_the_source_defines_is_refused]
+%   - petta_py_read_forms/2 is the exception and stays one: it neither compiles
+%     nor stores nor runs, so it parses without preparing
+%     [tested test_a_manifest_neither_runs_nor_defines]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -445,10 +460,20 @@ control_exception(error(petta_py_exception(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
-% The engine's own pipeline is parse_metta_source/2 then process_form/3, and
+% The engine's own pipeline is prepare_metta_source/2 then process_form/3, and
 % process_metta_string/3 flattens every directive's answers into one list at
 % the end. These entry points run the identical pipeline and keep the grouping
 % instead: one answer list per ! directive, in source order.
+%
+% The prepare half is prepare_parsed_forms/1 in src/filereader.pl: a source
+% registers every signature it defines BEFORE any of its own forms run, so a !
+% may name a function the same source defines lower down. Parsing without it is
+% what made seven shipped examples pass in the engine and fail here, each an
+% `!(memoize f)` above its own `(= (f ...) ...)` [measured 2026-08-18]. These
+% call the two halves apart rather than prepare_metta_source/2, because
+% petta_py_tag_reader/1 has to wrap the PARSE alone: it exists to turn a reader
+% failure into the reserved envelope, and the prepare passes raise their own
+% errors, which the Python side classifies by shape.
 
 %Reader failures use the reserved petta_py_exception/2 envelope, so the
 %Python side classifies the thrown term rather than hunting arbitrary text.
@@ -462,6 +487,7 @@ petta_py_run(Source, Space, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     petta_py_tag_reader(parse_metta_source(S, Parsed)),
+    prepare_parsed_forms(Parsed),
     petta_py_process_forms(Parsed, Space, Groups), !.
 
 %The CLI asserts working_dir/1 from the file it loads, and import! reads it
@@ -482,6 +508,11 @@ petta_py_run_using(Source, Space, Pairs, Groups) :-
     petta_py_tag_reader(parse_metta_source(S, Parsed0)),
     maplist(petta_py_using_pair, Pairs, Bindings),
     maplist(petta_py_substitute_form(Bindings), Parsed0, Parsed),
+    %After the substitution, not before it: the pass has to read the forms
+    %that will RUN. A name bound to a host value is gone from them, and
+    %registering a signature for a head that no longer exists would leave a
+    %fun/1 nothing can ever define.
+    prepare_parsed_forms(Parsed),
     petta_py_process_forms(Parsed, Space, Groups), !.
 
 petta_py_using_pair([Name0, Wire], Name-Value) :-
@@ -515,6 +546,7 @@ petta_py_run_status(Source, Space, Groups) :-
     petta_py_ensure_working_dir,
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
     petta_py_tag_reader(parse_metta_source(S, Parsed)),
+    prepare_parsed_forms(Parsed),
     petta_py_process_forms_status(Parsed, Space, Groups), !.
 
 petta_py_process_forms_status([], _, []).

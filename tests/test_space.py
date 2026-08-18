@@ -1,5 +1,11 @@
 """Purpose: engine-backed tests for the MeTTa runtime surface: run, load,
 space edits, queries, eval, parse, and the semantics matching the CLI's own.
+Guarantees:
+  - run(), run_status() and load() register a source's whole signature set
+    before processing any of its forms, as the engine's file reader does, so a
+    `!` may name a function the same source defines lower down [tested
+    test_a_source_registers_every_signature_before_any_form_runs,
+    test_run_status_registers_signatures_before_any_form_runs]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -731,3 +737,73 @@ def test_eval_using_carries_identity(m):
 def test_eval_using_refuses_to_pretend_it_composes_with_residuals(m):
     with pytest.raises(petta.PettaError, match="do not compose"):
         m.eval("(+ 1 2)", using={"x": 1}, residuals=True)
+
+
+def test_a_source_registers_every_signature_before_any_form_runs(metta):
+    """The engine's file reader registers a source's WHOLE signature set
+    before processing any of its forms, so a `!` may name a function the same
+    source defines lower down [source: src/filereader.pl
+    register_parsed_signatures/1]. run() and load() reach the engine through
+    python/petta/shim.pl rather than through that reader, and until this they
+    skipped the pass: seven shipped examples passed in the engine and failed
+    here with `Domain error: function_symbol expected` [measured 2026-08-18].
+    """
+    metta.run("!(import! &self (library lib_reflect))")
+    groups = metta.run(
+        "!(engine-knows p111-later)\n"
+        "!(engine-arity p111-later)\n"
+        "(= (p111-later $x) (+ $x 1))\n"
+    )
+    assert groups == [[True], [2]]
+
+
+def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):
+    """using= rewrites the parsed forms before they run, so the pass reads
+    what will actually run rather than the text it was read from."""
+    metta.run("!(import! &self (library lib_reflect))")
+    groups = metta.run(
+        "!(engine-knows p111-scaled)\n(= (p111-scaled $x) (* $x factor))\n",
+        using={"factor": 3},
+    )
+    assert groups == [[True]]
+    assert metta.run("!(p111-scaled 4)") == [[12]]
+
+
+def test_run_status_registers_signatures_before_any_form_runs(metta):
+    """run_status reads a source through its own entry point, so it carries
+    the same pre-pass.
+
+    What the pass registers is the SIGNATURE, not the clauses: `!(p111-status
+    4)` above its own definition still cannot answer, in either configuration,
+    because nothing has compiled a clause for it yet. A `!` that NAMES the
+    function is what this buys, which is how `memoize` is written.
+    """
+    metta.run("!(import! &self (library lib_reflect))")
+    reported = metta.run_status(
+        "!(engine-knows p111-status)\n(= (p111-status $x) (* $x 2))"
+    )
+    assert [[(kind, str(answer)) for kind, answer in group] for group in reported] == [
+        [("value", "True")]
+    ]
+
+
+def test_a_declaration_that_cannot_type_what_the_source_defines_is_refused(metta):
+    """The other half the shared pre-pass brings: the engine refuses a
+    non-arrow type on a function the same source defines, before any of that
+    source's forms run, and run() went straight past it."""
+    with pytest.raises(EngineError, match="is not an arrow"):
+        metta.run("(: p111-decl Number)\n(= (p111-decl $x) $x)\n")
+
+
+def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_path):
+    """The shape the seven shipped examples are written in: `!(memoize f)`
+    reads fun/1, and under load() nothing had asserted it yet
+    [source: lib/lib_memo.pl:888]."""
+    source = tmp_path / "p111_memo.metta"
+    source.write_text(
+        "!(import! &self (library lib_memo))\n"
+        "!(memoize p111-sq)\n"
+        "(= (p111-sq $x) (* $x $x))\n"
+        "!(p111-sq 9)\n"
+    )
+    assert metta.load(source)[-2:] == [[True], [81]]

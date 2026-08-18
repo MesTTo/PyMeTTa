@@ -142,6 +142,12 @@ def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):
         petta.boot(tmp_path / "defn.metta", m=metta)
     # the refusal happened at the read: nothing was compiled
     assert list(metta.query("(= (manifest-smuggled) $b)")) == []
+    # and nothing was REGISTERED either, which is the half a compiled-clause
+    # query cannot see. run() and load() register a source's whole signature
+    # set before processing its forms; a manifest read is the one door that
+    # must not, because it neither compiles nor stores nor runs.
+    metta.run("!(import! &self (library lib_reflect))")
+    assert metta.run("!(engine-knows manifest-smuggled)") == [[False]]
 
 
 def test_an_empty_manifest_refuses(metta, tmp_path):

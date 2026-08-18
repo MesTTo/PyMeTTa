@@ -22,10 +22,28 @@
 %     tracer:function_defined_in_named_trace_stays_in_that_space].
 %   - File functions remain a global fallback when a named space defines the
 %     same symbol [tested 2026-08-14: filereader_global_function_scope].
+%   - prepare_parsed_forms/1 is the ONE definition of what a source does before
+%     any of its own forms run, so a reader that parses for itself
+%     (python/petta/shim.pl does, to keep one answer group per directive) gets
+%     the same signature set registered up front, and the same refusal of a
+%     declaration that cannot type what the source defines, rather than a
+%     second copy of either [tested 2026-08-18:
+%     test_a_source_registers_every_signature_before_any_form_runs,
+%     test_load_memoizes_a_function_the_same_file_defines_lower_down,
+%     test_a_declaration_that_cannot_type_what_the_source_defines_is_refused].
+%   - That pass costs 31 inferences for a one-form source, identical across
+%     three different one-form sources, then 4.006 per plain form and 23.073
+%     per definition beyond it [measured 2026-08-18: interleaved A/B over
+%     eight benchmark lanes, python/benchmarks/baseline.json records each].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
-%   Future Enhancements: None
+%   Future Enhancements: the pass walks the form list three times, once per
+%     concern, and three of the 4.006 a plain form costs are those walks
+%     [measured 2026-08-18: 60,024 inferences over 20,001 forms]. One merged
+%     walk would collect all three, but acquire_declared_dependencies/1
+%     belongs to lib/lib_gitimport.pl and takes the form list itself, so
+%     merging changes a library's interface; left alone here for that reason.
 
 :- use_module(library(readutil)). % read_file_to_string/3
 :- use_module(library(ansi_term)). % terminal-aware diagnostic colors
@@ -185,6 +203,19 @@ process_metta_string(S, Results, Space, CompileMode) :-
 
 prepare_metta_source(S, ParsedForms) :-
     parse_metta_source(S, ParsedForms),
+    prepare_parsed_forms(ParsedForms).
+
+%Everything a source does BEFORE any of its own forms run, over forms already
+%parsed. It is named apart from prepare_metta_source/2 because the parse is
+%not the only door onto it: python/petta/shim.pl reads a source, rewrites the
+%parsed forms when run() was given host values, and then processes them one by
+%one to keep a group of answers per directive, so it has to prepare the forms
+%that will actually RUN rather than the text they were read from. Skipping
+%this is what made the library disagree with the engine on seven shipped
+%examples, each `!(memoize f)` above the `(= (f ...) ...)` the same file
+%defines: fun/1 was not asserted yet and memoize refused the name
+%[measured 2026-08-18: 193 of 200 examples agreed, all seven the same root].
+prepare_parsed_forms(ParsedForms) :-
     refuse_untypable_source_declarations(ParsedForms),
     register_parsed_signatures(ParsedForms),
     % Pinned git dependencies declared in this file are fetched before any of
@@ -256,6 +287,20 @@ register_parsed_signatures(ParsedForms) :-
 register_function_signature(F, Arity) :-
     register_function_signatures([F-Arity]).
 
+%A source that defines nothing is now the COMMON caller, because the Python
+%library's every run() prepares its forms through here, and the clause below
+%runs ten list operations over empty lists to conclude that: 43 of the 73
+%inferences the whole pre-pass costs `!(+ 1 2)`, more than the other two
+%passes together [measured 2026-08-18].
+%
+%The cut is load-bearing rather than decoration. SWI recognises two clauses
+%where one argument is [] and the SAME argument is [_|_] as a special case and
+%selects between them deterministically; the clause below takes a VARIABLE
+%there, so that case does not apply and indexing leaves a choice point
+%[source: SWI-Prolog 10.1 manual, 2.17 Just-in-time clause indexing]. Writing
+%it [_|_] to earn the indexing was rejected: a caller passing a non-list would
+%then fail silently where sort/2 raises a type error today.
+register_function_signatures([]) :- !.
 register_function_signatures(Signatures0) :-
     sort(Signatures0, Signatures),
     findall(F,
