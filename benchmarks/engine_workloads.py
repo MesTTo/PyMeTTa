@@ -5,7 +5,8 @@ Guarantees:
     test_primitive_workloads_check_public_results]
   - let-heavy performs bignum arithmetic through one let per iteration
     [tested test_let_workload_checks_its_bignum_result]
-  - let-heavy reaches occurs checking and arithmetic [source: src/translator.pl:550]
+  - let-heavy reaches occurs checking and arithmetic
+    [source: src/translator.pl, unify_with_occurs_check in translate_let_dl/6]
   - alpha-unique and sort-atom reach copying, term hashing, and msort
     [source: src/metta.pl:152-168]
   - digest reaches findall, copying, and msort [source: python/petta/shim.pl:1304]
