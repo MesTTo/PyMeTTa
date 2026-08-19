@@ -62,7 +62,11 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):
     first.add(S.plain(1))
     first.run("(= (past-life) inherited)")
     first.run("(: past-typed (-> Number Number))\n(= (past-typed $x) $x)")
-    first.run("(= (past-tabled $x) $x)\n!(tabled past-tabled)")
+    # Tabling instruments the compiled function, so it is declared after the
+    # equation and with the call's own shape; `(tabled past-tabled)` on the
+    # bare name is refused, loudly, by lib_tabling.
+    first.run("!(import! &self (library lib_tabling))")
+    first.run("(= (past-tabled $x) $x)\n!(tabled (past-tabled $x))")
     assert first.run("!(past-life)") == [[S.inherited]]
     assert first.run("!(past-typed 1)") == [[1]]
     assert first.run("!(past-tabled 1)") == [[1]]

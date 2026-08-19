@@ -1110,29 +1110,64 @@ unstore_atom(Space, Term, Removed) :- metta_foreign_space(Space), !,
 %and subtracting from a multiset takes one occurrence.
 unstore_atom(Space, Term, Removed) :- remove_sexp(Space, Term, Removed).
 
-%Choose the provider once for the whole match. A conjunction may enumerate
-%millions of native candidates, so routing every conjunct back through match/4
-%would repeat the foreign-space probe for every candidate.
+%A CONJUNCTION finds every row before any of them leaves, which is specified
+%behaviour and not an implementation detail we are free to pick: "match first
+%finds all the matches, and then instantiates the output pattern with them,
+%which is evaluated outside match. If remove-atom and add-atom would be
+%executed right away for each found matching, the condition of circular links
+%would be broken after the first rewrite" [source: the language's Working with
+%spaces, the graph-rewriting example]. The arbiter pins it with an experiment
+%built to tell an eager snapshot from a lazy query that happens to be fully
+%consumed: both implementations retain every row through a template that
+%removes the other one, and only the effect ORDER is a recorded free
+%divergence [source: LeaTTa tests/semantics/matching/
+%nondeterministic_match_snapshot.metta and its EVIDENCE entry].
+%
+%A SINGLE pattern needs nothing here and still streams. It is one goal over
+%one dynamic predicate, and the logical update view already fixes what it sees
+%at the call, so a template that writes cannot change what the goal still has
+%to answer; the arbiter's own single-pattern experiment passes on that alone.
+%A conjunction is where it runs out, because each later conjunct is a fresh
+%goal STARTED AFTER the previous row's template ran, and a fresh goal sees the
+%new generation. Measured on the doc's own example: upstream reverses all
+%three loop edges, and this reversed one, the first template's remove-atom
+%breaking the cycle for every later conjunct [measured 2026-08-19,
+%ai-tmp/spaces-p1/p116/linkloop.metta].
+%
+%What is collected is the BINDINGS, term_variables over the pattern and the
+%output template together, because that is where a row lives: the translator
+%compiles the template into goals reading the PATTERN's own variables,
+%`'remove-atom'('&self', [link, B, C], _)` beside `match('&self', [',',
+%[link,B,C], ...], A, A)`, so collecting the output slot alone would collect a
+%variable the match never binds and lose every row. Taking both terms'
+%variables keeps whatever they share.
+%
+%Cheaper than the arbiter, which collects a BindingsSet for every match; this
+%pays only where a conjunction is written, and leaves
+%(once (match &big (foo $x) $x)) streaming
+%[tested: spaces_match_snapshot:a_conjunction_finds_every_row_before_any_
+%template_runs, test_match_snapshots_rows_before_template_effects].
+%A row carries its annotation as well as its bindings, because that rides
+%'$petta_answer_k' BACKTRACKABLY and findall would undo it: reset-call-read is
+%metta_top/3's own idiom two hundred lines down, and the write after member/2
+%is what hands the row's k to the template that reads (annotation)
+%[tested: test_a_join_multiplies_provenance].
+match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
+                                             metta_space_argument(Space), !,
+                                             term_variables(Pattern-OutPattern, Row),
+                                             findall(Row-K,
+                                                     ( b_setval('$petta_answer_k', 1),
+                                                       match_conjunction(Space, Pattern, OutPattern),
+                                                       b_getval('$petta_answer_k', K) ),
+                                                     Rows),
+                                             member(Row-K, Rows),
+                                             b_setval('$petta_answer_k', K),
+                                             Result = OutPattern.
+%A single pattern over a foreign space: the provider answers, and the
+%conjunction door above has already taken the conjunctive case.
 match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
                                              metta_foreign_space(Space), !,
                                              match_foreign(Space, Pattern, OutPattern, Result).
-%A native space is a Prolog predicate named after the space. Its conjunction
-%can stay on the direct helper; a space implemented by an earlier multifile
-%match/4 clause, such as MORK, must route each conjunct through match/4 so its
-%own provider clause sees it.
-match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
-                                             nonvar(Space),
-                                             native_storage_module_cache(Space, Module), !,
-                                             match_native(Module, Space, Pattern, OutPattern, Result).
-%metta_space_argument/1 here so a conjunction over a space that is not one
-%falls through to the refusal below instead of committing to the router, which
-%would have carried the refusal into match_routed/4's conj slot and lost it:
-%the error atom does not unify with `conj`, so the whole directive answered
-%nothing at all [tested: test_a_conjunctive_match_on_an_unbound_space_refuses_
-%the_same_way].
-match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
-                                             metta_space_argument(Space), !,
-                                             match_routed(Space, Pattern, OutPattern, Result).
 %An unbound space would make this dynamic call enumerate every space that has
 %ever been written to, so a program in &self could read &kb without naming it.
 %Matching is against a space you NAME, and the refusal is the write path's
@@ -1153,6 +1188,17 @@ match(Space, Pattern, OutPattern, Result) :-
         match_native(Module, Space, Pattern, OutPattern, Result)
     ;   space_argument_error('match', [Space, Pattern, OutPattern], Result)
     ).
+
+%Choose the provider once for the whole conjunction. It may enumerate millions
+%of native candidates, so deciding per candidate would repeat the foreign-space
+%probe every time. A native space is a Prolog predicate named after the space
+%and stays on the direct helper; anything else routes each conjunct back
+%through match/4, which is how a space implemented by its own clause sees it.
+match_conjunction(Space, Pattern, OutPattern) :- metta_foreign_space(Space), !,
+                                                 match_foreign(Space, Pattern, OutPattern, _).
+match_conjunction(Space, Pattern, OutPattern) :- native_storage_module_cache(Space, Module), !,
+                                                 match_native(Module, Space, Pattern, OutPattern, _).
+match_conjunction(Space, Pattern, OutPattern) :- match_routed(Space, Pattern, OutPattern, _).
 
 match_routed(_, LComma, OutPattern, Result) :- LComma == [','], !,
                                                Result = OutPattern.

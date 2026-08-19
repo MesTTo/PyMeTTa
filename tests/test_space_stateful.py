@@ -4,8 +4,8 @@ Guarantees:
     model after every generated operation [tested TestSpaceStateMachine]
   - text and fast saves load into a fresh space with the same multiset
     [tested TestSpaceStateMachine]
-  - remove deletes every matching plain-fact copy, matching remove-atom's
-    documented retractall semantics [tested TestSpaceStateMachine]
+  - remove subtracts ONE matching plain-fact copy, remove-atom's multiset
+    law, and reports whether one was there [tested TestSpaceStateMachine]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -55,9 +55,13 @@ class SpaceStateMachine(RuleBasedStateMachine):
 
     @rule(atom=testing.expressions(max_leaves=5, ground=True))
     def remove(self, atom):
+        """Multiset subtraction: one copy leaves and the answer says whether
+        one did. The model used to pop the whole count, which is what the
+        engine used to do; hypothesis found the disagreement on the first
+        add_duplicate-then-remove history it generated."""
         expected = atom in self.model
         assert self.space.remove(atom) is expected
-        self.model.pop(atom, None)
+        self.model -= Counter({atom: 1})
 
     @rule()
     def clear(self):
