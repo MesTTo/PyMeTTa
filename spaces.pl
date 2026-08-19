@@ -86,9 +86,31 @@ native_storage_ready(Module) :-
 native_storage_module_ready(Space, Module) :-
     native_storage_module_cache(Space, Module).
 
+%Whether a NAME is a space, which is the wider question: one this engine
+%already holds, or one it would create by being written to. A space is created
+%on demand here, so the second half cannot be the registry, and the rule for it
+%is the engine's own: an atom beginning with `&`, which is what is-space/2
+%answers, what evalc/3 has enforced at its door since it was written, and what
+%python/petta/space.py enforces at the library's
+%[tested: space_argument_refusals].
+petta_space_name(S) :- atom(S), sub_atom(S, 0, 1, _, '&'), !.
+petta_space_name(S) :- petta_space_operand(S).
+%HERE rather than beside petta_space_operand/1 below, because the two
+%directives that create &self's and &petta's storage modules run while this
+%file loads and a directive can only call what is already defined.
+
 ensure_native_storage_module(Space, Module) :-
     native_storage_module_cache(Space, Module), !.
+%CREATION is where a name that is not a space is refused, and refusing here is
+%what makes the check free: a space this engine already holds answered from the
+%cache above without asking, and only a name it would have to CREATE reaches
+%the question. The doors above turn this failure into the arbiter's own error
+%answer [tested: space_argument_refusals]. Asking at each door instead cost one
+%to three inferences on every space operation and four benchmarks saw it
+%[measured 2026-08-20: direct-join +10, prepared-join +10, register-op +200,
+%py-method-call +30,002].
 ensure_native_storage_module(Space, Module) :-
+    petta_space_name(Space),
     native_storage_module(Space, Module),
     with_mutex('$petta_native_storage',
                ensure_native_storage_module_locked(Space, Module)).
@@ -482,9 +504,18 @@ module_owns_function(Module, F) :- compiled_function_name(F, Predicate),
 %with itself, `trace!` answering `()` beside these answering `true`, and the
 %arbiter's spaces corpus disagreed on every file
 %[tested: an_effectful_operation_answers_unit].
+%The write itself decides whether the first argument is a space: a name that is
+%not one reaches no storage module, so nothing is written and this refuses.
+%Asking BEFORE the write cost an inference on every add
+%[measured 2026-08-20: register-op +200], and asking after costs nothing
+%because the failure branch runs only when the write did not happen. A write
+%that failed for its own reasons, a foreign provider refusing one, still fails
+%without an answer, which is what it did before.
 'add-atom'(Space, Term, Result) :-
-    (   metta_space_argument(Space)
-    ->  metta_add_atom(Space, Term, _), Result = []
+    (   atom(Space), metta_add_atom(Space, Term, _)
+    ->  Result = []
+    ;   petta_space_name(Space)
+    ->  fail
     ;   space_argument_error('add-atom', [Space, Term], Result)
     ).
 
@@ -934,7 +965,7 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %rollback, the storage modules, and the seam's removal hooks all ask "did the
 %store hold it" rather than "what does a program see".
 'remove-atom'(Space, Term, Result) :-
-    (   metta_space_argument(Space)
+    (   petta_space_name(Space)
     ->  metta_remove_atom(Space, Term, Removed),
         (   Removed == true
         ->  Result = []
@@ -945,38 +976,52 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
     ;   space_argument_error('remove-atom', [Space, Term], Result)
     ).
 
-%A space is a SYMBOL, and that is the whole of what can be decided here.
+%WHY THE DOORS ASK IT WHERE THEY DO, which is the decision this section makes.
 %
-%The arbiter refuses `(add-atom not-a-space (bad add))` with a diagnostic, and
-%this engine CANNOT reproduce that one, because the two model spaces
-%differently: upstream's is a grounded atom wrapping a space object, so a
-%symbol in that position is obviously not one, while PeTTa's IS a symbol and a
-%write to a name that does not exist yet creates it. `not-a-space` and
-%`my_space_name` are the same kind of thing here, and
-%examples/spaces/add_atom_fun_space.metta turns exactly that into a feature: a
-%function returns a space name and the write lands in it.
+%A space is a NAME that is one, and petta_space_name/1 decides which. The doors
+%used to share a metta_space_argument/1 whose whole body was `atom(Space)`, on
+%the reading that PeTTa CANNOT reproduce the arbiter's
+%`(add-atom not-a-space (bad add))` diagnostic: the two model spaces
+%differently, upstream's being a grounded atom wrapping a space object while
+%PeTTa's is a symbol, and a write to a name that does not exist yet creates it,
+%so `not-a-space` and a program's own fresh name looked like the same kind of
+%thing. That reading was wrong on its own terms, and the engine already
+%disagreed with it in three places: is-space/2 answers False for a name without
+%`&`, evalc/3 refuses one as a type error rather than reading a silently empty
+%space, and python/petta/space.py refuses one with "the prefix is
+%load-bearing". Only these doors did not, so `(add-atom not-a-space (bad add))`
+%made a space called `not-a-space` while `(is-space not-a-space)` answered
+%False in the same program.
 %
-%So the check catches what it can decide, a first argument that is not a symbol
-%at all, and the divergence on a symbol that names no space is recorded rather
-%than papered over. Requiring an `&` prefix would have reproduced the
-%diagnostic and broken that example, which is trading a real capability for a
-%conformance line.
+%The arbiter decides it the same way for the same reason. LeaTTa dispatches by
+%name as this engine does, and its `spaceName` says "bare symbols resolve only
+%through the running context's token table; an unbound symbol is not a space",
+%with every space-consuming operation resolving through `resolveSpace`
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean:1565-1573,1621-1627].
+%What it does not have is creation on demand, which is why the second half of
+%petta_space_name/1 is the prefix rather than the registry: a fresh `&kb` is a
+%space the moment a program writes to it, and that capability is kept whole.
+%The one example that used a name without the prefix,
+%examples/spaces/add_atom_fun_space.metta, still returns a space name from a
+%function and still lands its write there, spelled `&my_space_name`.
 %
 %The atom is ANSWERED rather than thrown, because that is what the arbiter
 %does: `(collapse (add-atom not-a-space (bad add)))` is a one-element collapse
 %holding the error, and a raise would have emptied the collapse instead
-%[source: LeaTTa tests/semantics/spaces/add_atom.metta].
-%The two READ doors below spell the same test as a bare atom/1 instead of
-%calling this, and that is a measurement rather than an oversight: atom/1 is a
-%type test SWI compiles inline, while this is a predicate call costing one
-%inference on every match and every get-atoms. The benchmarks saw exactly that
-%one inference per operation, +20,002 on py-method-call and +102 on
-%query-limit-guarded, and inlining put all seven back on their baselines
-%[measured 2026-08-19]. It is the split metta_self_module/1 already draws
-%against space_module/2, and it is kept honest the same way, by a test that
-%asserts the two spellings agree rather than by hoping they do
-%[tested: spaces_registration:the_inlined_space_test_is_the_named_one].
-metta_space_argument(Space) :- atom(Space).
+%[source: LeaTTa tests/semantics/spaces/add_atom.metta]
+%[tested: space_argument_refusals].
+%
+%NO DOOR ASKS ON THE PATH THAT SUCCEEDS. A shared test called before the
+%operation cost one to three inferences on every space operation and four
+%benchmarks saw it [measured 2026-08-20: direct-join +10, prepared-join +10,
+%register-op +200, py-method-call +30,002], so each door asks the question it
+%was already asking: a write reaches no storage module for a name that is not a
+%space, a read misses the storage lookup it was already making, and a
+%conjunctive match answers no rows. Only then, on a path that was going to
+%answer nothing, is petta_space_name/1 consulted to tell a space that is empty
+%from a name that is not one. That is why metta_space_argument/1 is gone rather
+%than renamed: one shared test in front of every door is exactly the shape the
+%measurements refuse.
 
 %The shape every space operation refuses in: the arbiter's `errAtom a0`, whose
 %subject is the CALL that failed rather than a generic complaint, which is
@@ -1049,8 +1094,13 @@ space_argument_error(Operation, Arguments, Error) :-
 %still one write rather than n. A bad space is refused before any of it, and
 %the error names the first atom because that is the one add-atom would have
 %refused first.
+%The batch door asks BEFORE the crossing rather than reading its failure, which
+%the two doors above can do: a batch has its own crossing and a per-atom
+%fallback that answers the error atom instead of failing, so a failure here
+%does not mean what it means there. It costs the test once per batch and not
+%once per atom.
 add_expression_to_space(Space, List, Result) :-
-    (   metta_space_argument(Space)
+    (   petta_space_name(Space)
     ->  metta_add_atoms(Space, List), Result = []
     ;   List = [First|_]
     ->  space_argument_error('add-atom', [Space, First], Result)
@@ -1220,23 +1270,24 @@ unstore_atom(Space, Term, Removed) :- remove_sexp(Space, Term, Removed).
 %against 289,819 without it, over 10,000 rows]
 %[tested: test_a_join_multiplies_provenance,
 %test_a_conjunction_carries_each_rows_annotation].
+%atom/1 rather than a space test, and the refusal reached through the SOFT CUT
+%below: a conjunction that answered rows was a space, and only one that
+%answered none has anything left to decide. A space test in the guard cost one
+%inference on every join [measured 2026-08-20: direct-join and prepared-join
+%+10 each].
 match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
-                                             metta_space_argument(Space), !,
-                                             term_variables(Pattern-OutPattern, Row),
-                                             (   petta_annotations(Space, bool)
-                                             ->  findall(Row,
-                                                         match_conjunction(Space, Pattern, OutPattern),
-                                                         Rows),
-                                                 member(Row, Rows)
-                                             ;   findall(Row-K,
-                                                         ( b_setval('$petta_answer_k', 1),
-                                                           match_conjunction(Space, Pattern, OutPattern),
-                                                           b_getval('$petta_answer_k', K) ),
-                                                         Rows),
-                                                 member(Row-K, Rows),
-                                                 b_setval('$petta_answer_k', K)
-                                             ),
-                                             Result = OutPattern.
+                                             atom(Space), !,
+                                             (   conjunctive_match(Space, Pattern,
+                                                                   OutPattern, Result)
+                                             *-> true
+                                             ;   petta_space_name(Space)
+                                             ->  fail
+                                             ;   space_argument_error('match',
+                                                                      [Space, Pattern,
+                                                                       OutPattern],
+                                                                      Result)
+                                             ).
+
 %A single pattern over a foreign space: the provider answers, and the
 %conjunction door above has already taken the conjunctive case.
 match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
@@ -1253,16 +1304,64 @@ match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
 %kind of answer [tested: test_get_atoms_on_an_unbound_space_names_the_operation,
 %spaces_storage_modules:matching_requires_a_named_space].
 %
-%atom/1 rather than metta_space_argument/1, which is the same test inlined:
-%this clause runs on every match a MeTTa program makes, and the predicate call
-%cost one inference each time. See the note above metta_space_argument/1 for
-%the measurement and for the test that keeps the two spellings agreeing.
+%The storage lookup this clause was already making IS the space test for every
+%name the engine holds, so a match against a space that exists reaches
+%match_native/5 exactly as it did and the two clauses below it never run. The
+%CUT is what lets them exist: without it an answered match would produce the
+%refusal as a second answer.
 match(Space, Pattern, OutPattern, Result) :-
-    (   atom(Space)
-    ->  native_storage_module_cache(Space, Module),
-        match_native(Module, Space, Pattern, OutPattern, Result)
-    ;   space_argument_error('match', [Space, Pattern, OutPattern], Result)
-    ).
+    atom(Space),
+    native_storage_module_cache(Space, Module), !,
+    match_native(Module, Space, Pattern, OutPattern, Result).
+%Only a name the engine holds no space for reaches here, and the question left
+%is which kind it is: a space nothing has written to yet answers nothing, which
+%is what an empty space answers, and anything else is refused by name.
+%
+%GUARDED RATHER THAN LEFT TO THE CUT ABOVE, and that is load-bearing: the
+%derivation meta-interpreter walks a predicate by enumerating clause/3 and
+%calling each body through call/1, where a cut in an earlier body cannot prune
+%this clause. Written without the guard, every match against a real space grew
+%a second answer, the refusal, and `(anc-d $x $y)` recursed on it until the
+%process hung [reproduced 2026-08-20: python/tests/test_derivation.py]. Every
+%clause of a predicate a proof can walk has to say for itself when it applies,
+%which is what the three clauses above already do.
+match(Space, Pattern, OutPattern, Result) :-
+    \+ petta_space_name(Space),
+    space_argument_error('match', [Space, Pattern, OutPattern], Result).
+
+conjunctive_match(Space, Pattern, OutPattern, Result) :-
+    term_variables(Pattern-OutPattern, Row),
+    (   petta_annotations(Space, bool)
+    ->  findall(Row,
+                match_conjunction(Space, Pattern, OutPattern),
+                Rows),
+        member(Row, Rows)
+    ;   findall(Row-K,
+                ( b_setval('$petta_answer_k', 1),
+                  match_conjunction(Space, Pattern, OutPattern),
+                  b_getval('$petta_answer_k', K) ),
+                Rows),
+        member(Row-K, Rows),
+        b_setval('$petta_answer_k', K)
+    ),
+    Result = OutPattern.
+
+%THE ENGINE'S OWN READ of a space, the counterpart of get_native_atom/2 behind
+%'get-atoms'/2 and there for the same reason: its callers hold a space name the
+%ENGINE gave them rather than one a program wrote, so there is nothing to
+%refuse and an error atom would be read back as a stored atom. The type lookups
+%are why it has to exist rather than being a tidy split: a declaration lookup
+%runs on every typed call, and routing those through the door made each one pay
+%the door's refusal decision whenever the space had no atoms yet
+%[measured 2026-08-20: py-method-call 2,250,095 inferences against 2,220,093,
+%three per call over 10,000 evaluations in a space nothing had written to].
+match_stored(Space, Pattern, OutPattern, Result) :-
+    nonvar(Space), metta_foreign_space(Space), !,
+    match_foreign(Space, Pattern, OutPattern, Result).
+match_stored(Space, Pattern, OutPattern, Result) :-
+    atom(Space),
+    native_storage_module_cache(Space, Module),
+    match_native(Module, Space, Pattern, OutPattern, Result).
 
 %Choose the provider once for the whole conjunction. It may enumerate millions
 %of native candidates, so deciding per candidate would repeat the foreign-space
@@ -1330,6 +1429,7 @@ petta_space_operand(S) :-
     ->  true
     ;   native_storage_module_cache(S, _)
     ).
+
 
 %Every space name this engine registers: '&self' and '&petta' from load
 %time, every native space that (new-space) made or that has been written
@@ -1934,10 +2034,18 @@ native_expression(Module, Space, Rel, PatArgs) :-
 %storage read below is an engine internal whose callers hold a space name
 %already and would read an error atom as a stored atom
 %[tested: test_get_atoms_on_an_unbound_space_names_the_operation].
-%atom/1 is metta_space_argument/1 inlined, for the reason its own note gives.
+%The storage lookup decides it here too, for match/4's reason: a read of a
+%space the engine holds pays nothing, and only an unknown name reaches
+%petta_space_name/1. get_native_atom/3 rather than /2 because the lookup /2
+%would repeat has already happened in the condition.
 'get-atoms'(Space, Pattern) :-
     (   atom(Space)
-    ->  get_native_atom(Space, Pattern)
+    ->  (   native_storage_module_ready(Space, Module)
+        ->  get_native_atom(Module, Space, Pattern)
+        ;   petta_space_name(Space)
+        ->  fail
+        ;   space_argument_error('get-atoms', [Space], Pattern)
+        )
     ;   space_argument_error('get-atoms', [Space], Pattern)
     ).
 

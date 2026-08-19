@@ -1453,13 +1453,18 @@ type_declaration(X, T) :- current_metta_module(Module),
 %&self, so a module could be handed to match/4 where a SPACE was asked for.
 %They are different atoms now, and metta_module_space/2 is the one step
 %between them.
+%match_stored/4 rather than match/4: this runs on every typed call, and the
+%door's refusal decision is not one a declaration lookup can ever need, since
+%the space it reads is the engine's own context rather than anything a program
+%wrote [measured 2026-08-20: py-method-call paid three inferences per
+%evaluation through the door].
 type_declaration_in(Module, X, T) :- metta_self_module(Module), !,
                                      (   prelude_type_declaration(X, T)
-                                     ;   match('&self', [':', X, T], T, _) ).
+                                     ;   match_stored('&self', [':', X, T], T, _) ).
 type_declaration_in(Module, X, T) :- metta_module_space(Module, Space),
                                      (   prelude_type_declaration(X, T)
-                                     ;   match(Space, [':', X, T], T, _)
-                                     ;   match('&self', [':', X, T], T, _) ).
+                                     ;   match_stored(Space, [':', X, T], T, _)
+                                     ;   match_stored('&self', [':', X, T], T, _) ).
 
 %A declaration that is not an arrow types the SYMBOL and cannot type a call to
 %it, and nothing said so. `(: inc Number)` beside `(= (inc $x) (+ $x 1))`
@@ -1748,11 +1753,13 @@ native_edge_probe(Space) :-
         \+ \+ clause(StorageModule:Head, _)
     ).
 
+%match_stored/4 for type_declaration_in/3's reason: a supertype lookup reads
+%the engine's own context and never a space a program named.
 super_type_in(Module, T, S) :- metta_self_module(Module), !,
-                               match('&self', [':<', T, S], S, _).
+                               match_stored('&self', [':<', T, S], S, _).
 super_type_in(Module, T, S) :- metta_module_space(Module, Space),
-                               (   match(Space, [':<', T, S], S, _)
-                               ;   match('&self', [':<', T, S], S, _) ).
+                               (   match_stored(Space, [':<', T, S], S, _)
+                               ;   match_stored('&self', [':<', T, S], S, _) ).
 
 %add_super_types, round by round: each round asks for the supertypes of exactly
 %what the PREVIOUS round appended, and appends every one that was not present
@@ -3372,9 +3379,24 @@ assert(Goal, true) :- current_metta_module(Module),
 %replaces matched the literal &self and answered nothing for any named
 %space; the engine's type machinery is module-parameterized already, so
 %selection is one with_metta_module/2 around the ordinary get-type.
+%A name that is not a space is refused here as it is at every other space
+%door, and in the same shape, an ANSWER rather than a throw: the arbiter's
+%`(Error (get-type-space not-a-space scoped-atom) get-type-space expects a
+%space as the first argument)` is what the four get-doc files read back through
+%this operation [source: LeaTTa tests/semantics/spaces/get_type_space.metta,
+%STATUS conforms] [tested: space_argument_refusals]. Without it, space_module/2
+%made a module for the name and the lookup answered &self's own declarations
+%through it.
 'get-type-space'(Space, _, _) :- var(Space), !,
                                  refuse_unbound_input('get-type-space', 1).
-'get-type-space'(Space, X, T) :- space_module(Space, Module),
+%Both clauses guard themselves rather than leaning on a cut, for the reason
+%match/4's last clause records: a proof walk enumerates clauses and calls each
+%body, where an earlier cut prunes nothing.
+'get-type-space'(Space, X, T) :- \+ petta_space_name(Space), !,
+                                 space_argument_error('get-type-space',
+                                                      [Space, X], T).
+'get-type-space'(Space, X, T) :- petta_space_name(Space),
+                                 space_module(Space, Module),
                                  with_metta_module(Module, 'get-type'(X, T)).
 
 %%% Documentation, HE's vocabulary, first class %%%
@@ -3414,10 +3436,13 @@ doc_shape(Name, ['@doc', Name, _]).
 doc_shape(Name, ['@doc', Name, _, _]).
 doc_shape(Name, ['@doc', Name, _, _, _]).
 
+%match_stored/4, not the door: the door answers an error atom for a name that
+%is not a space, and the slot it would land in here is discarded, so the doc
+%shape would come back unbound as though a document had been found.
 'get-doc-space'(Space, Name, Doc) :-
     doc_shape(Name, Doc),
     (   prelude_doc_atom(Name, Doc)
-    ;   match(Space, Doc, Doc, _)
+    ;   match_stored(Space, Doc, Doc, _)
     ).
 
 'help!'(Name, []) :-
@@ -3432,7 +3457,7 @@ documented(Name) :- current_metta_space(Space),
                     'documented-space'(Space, Name).
 
 'documented-space'(Space, Name) :- doc_shape(Name, Doc),
-                                   match(Space, Doc, Name, _).
+                                   match_stored(Space, Doc, Name, _).
 
 %The library's exact semantics: every head of an equation THE SPACE
 %HOLDS, once each. Enumerating the space's own atoms is what excludes
