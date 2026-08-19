@@ -12,8 +12,10 @@ the same file; this module is how the two codecs that ship here run it.
 Assumes:
   - a driver refuses by raising, whatever its host's exception type
     [assumed 2026-08-20]
-  - tests/codec/corpus.json ships beside the engine tree, so an installed
-    wheel carries it [tested test_the_corpus_ships_in_the_wheel]
+  - tests/codec/corpus.json ships beside the engine tree
+    [tested test_the_packaging_map_carries_the_corpus]
+    [measured 2026-08-20: the built wheel installed into a venv outside the
+    checkout loads the corpus, which the checks.yml wheel job now asserts]
 Guarantees:
   - wire terms compare up to a renaming of v payloads and byte-exactly
     everywhere else, so the two shipped variable-naming schemes both pass
@@ -35,6 +37,7 @@ Open Obligations:
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -158,7 +161,14 @@ def alpha_equal(left: Any, right: Any) -> bool:
             continue
         if a is b:
             continue
-        if type(a) is not type(b) or a != b:
+        if type(a) is not type(b):
+            return False
+        if a != b:
+            # The one value not equal to itself. The wire carries THE NaN,
+            # so two decodings of it are the same term even though IEEE-754
+            # says the values differ.
+            if isinstance(a, float) and math.isnan(a) and math.isnan(b):
+                continue
             return False
     return True
 

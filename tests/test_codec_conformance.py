@@ -187,6 +187,9 @@ def test_the_plan_names_what_each_codec_leaves_out(codecs):
         "boolean-lowercase-source": "tags ['b']",
         "expression-every-tag": "tags ['b']",
         "host-reference": "tags ['o']",
+        "float-infinity": "needs non_finite",
+        "float-negative-infinity": "needs non_finite",
+        "float-nan": "needs non_finite",
         "answer-bindings": "frame a",
         "answer-empty-theta": "frame a",
         "answer-with-value": "frame a",
@@ -194,13 +197,16 @@ def test_the_plan_names_what_each_codec_leaves_out(codecs):
     }
 
 
-def test_the_corpus_ships_in_the_wheel(repo_root):
+def test_the_packaging_map_carries_the_corpus(repo_root):
     """The corpus is data a third party reads out of an installed tree, so
     the packaging map has to carry it; a checkout alone would leave anyone
     certifying their own codec cloning the repository.
 
-    Read from setup.py's AST rather than imported, because importing it runs
-    setup() against pytest's own argv.
+    This reads the map. The ARTEFACT is checked where it exists, by the
+    wheel job in .github/workflows/checks.yml, which installs the built
+    wheel into a fresh venv outside the checkout and loads the corpus from
+    it. Read from setup.py's AST rather than imported, because importing it
+    runs setup() against pytest's own argv.
     """
     import ast
 
