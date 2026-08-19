@@ -30,6 +30,9 @@
 %     metta_alpha_unique].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
+%   - petta_transaction/1 answers everything its body answers, and every
+%     answer's writes commit or roll back together [tested 2026-08-19:
+%     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
 %   - get-type/2 and get-type-space/3 answer from declarations without running
 %     the inspected expression, so inspection has no effects of its own
 %     [tested 2026-08-19:
@@ -2005,12 +2008,13 @@ petta_writes(Ctx, Atomicity) :-
 %commit throws leaves earlier commits standing, and the throw says so;
 %two-phase commit is deliberately out of scope.
 petta_transaction(Goal) :-
+    term_variables(Goal, Vars),
     (   current_transaction(_)
-    ->  transaction(Goal)
+    ->  transaction(petta_transaction_answers(Goal, Vars, Answers))
     ;   nb_setval('$petta_tx_enlisted', []),
         catch(( setup_call_cleanup(
                     b_setval('$petta_user_tx', true),
-                    transaction(Goal),
+                    transaction(petta_transaction_answers(Goal, Vars, Answers)),
                     b_setval('$petta_user_tx', false))
             ->  Outcome = committed ; Outcome = failed ),
               Error,
@@ -2027,7 +2031,37 @@ petta_transaction(Goal) :-
         ;   Outcome == failed -> fail
         ;   Outcome = threw(E), throw(E)
         )
-    ).
+    ),
+    member(Vars, Answers).
+
+%COLLECT, COMMIT, THEN REPLAY, which is what preserving a body's answers
+%costs. SWI's transaction/1 runs its goal as once/1 and cannot be made
+%nondeterministic in place, so `(collapse (transaction (superpose (1 2 3))))`
+%answered `(1)`: two of three answers gone and nothing said so
+%[reproduced 2026-08-19]. Dropping answers is an OPACITY violation in the
+%transactional-memory sense (Guerraoui and Kapalka, PPoPP 2008), since a
+%reader of the transaction's result sees a state no serial execution of the
+%body produces.
+%
+%Refusing a nondeterministic body was the other branch offered, and it is not
+%implementable at a lower cost: knowing a Prolog goal is nondeterministic
+%means running it to a second answer, at which point the answers are already
+%in hand and refusing them throws away work already done. So the branch that
+%CAN be built is the one that is also correct.
+%
+%The whole body runs inside the transaction, so every answer's writes commit
+%or roll back together, and the replay happens after the commit, so a consumer
+%that stops after the first answer cannot leave a transaction open. An
+%answerless body fails the guard, which rolls the transaction back and fails
+%petta_transaction/1 exactly as it did before.
+%
+%The cost is that the answers are materialized: a body with an unbounded
+%answer set exhausts the stack here where it used to yield once. That is the
+%honest price of atomicity over a whole answer set, and it raises a resource
+%error rather than silently answering a prefix.
+petta_transaction_answers(Goal, Vars, Answers) :-
+    findall(Vars, Goal, Answers),
+    Answers \== [].
 
 %Only the USER's (transaction ...) form guards foreign writes: the
 %engine's own internal transactions (a rule registration compiles inside
