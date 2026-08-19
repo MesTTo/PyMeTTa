@@ -104,6 +104,25 @@ def test_duplicate_equations(m):
     assert "duplicate-equation" in _kinds(findings)
 
 
+def test_a_semantically_redundant_equation_is_reported_with_its_bound(m):
+    """Plotkin's reduction step, bounded to pairwise instance subsumption.
+
+    (= (redun-fn a) (wrap a)) is an instance of (= (redun-fn $x) (wrap $x)):
+    every answer the instance gives, the general equation gives identically,
+    so calls on the overlap answer twice. The near-twin pair differs in a
+    constant on both sides, is NOT redundant, and must not be flagged.
+    """
+    m.run("(= (redun-fn $x) (wrap $x))")
+    m.run("(= (redun-fn a) (wrap a))")
+    m.run("(= (near-fn a) (wrap a))")
+    m.run("(= (near-fn b) (wrap b))")
+    findings = [f for f in m.lint() if f.kind == "subsumed-equation"]
+    assert len(findings) == 1
+    assert findings[0].subject == "(redun-fn a)"
+    assert findings[0].severity == "information"
+    assert "pairwise" in findings[0].detail
+
+
 def test_possibly_undefined_reference_is_labeled_a_heuristic(m):
     m.run("(= (typo-caller) (no-such-fn 1))")
     findings = m.lint()

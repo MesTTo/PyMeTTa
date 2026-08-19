@@ -2,6 +2,9 @@
 Guarantees:
   - duplicate equations are found by one canonicalization per equation
     [tested test_each_extra_duplicate_equation_is_reported]
+  - a strict instance of a stored equation is reported as subsumed, with
+    the pairwise bound stated in the finding [tested
+    test_a_semantically_redundant_equation_is_reported_with_its_bound]
   - atom traversal treats expression depth as data [tested
     test_lint_walks_deep_expression_trees_iteratively]
   - possible undefined calls remain explicitly labelled as heuristic
@@ -264,6 +267,75 @@ def _duplicate_findings(equations: list[Expr]) -> list[Finding]:
                     severity="warning",
                 )
             )
+    return findings
+
+
+def _instantiates(general: Atom, specific: Atom) -> bool:
+    """One-way matching: does binding general's variables yield specific?
+
+    Iterative for the same reason the walker is: expression depth is data.
+    A bound variable must reproduce the identical subtree on every later
+    occurrence, so shared variables constrain the whole equation at once.
+    """
+    bindings: dict[str, Atom] = {}
+    stack: list[tuple[Atom, Atom]] = [(general, specific)]
+    while stack:
+        into_general, into_specific = stack.pop()
+        if isinstance(into_general, Var):
+            bound = bindings.get(into_general.name)
+            if bound is None:
+                bindings[into_general.name] = into_specific
+            elif bound != into_specific:
+                return False
+        elif isinstance(into_general, Expr):
+            if not isinstance(into_specific, Expr) or len(into_general) != len(
+                into_specific
+            ):
+                return False
+            stack.extend(zip(into_general, into_specific, strict=True))
+        elif into_general != into_specific:
+            return False
+    return True
+
+
+def _subsumed_findings(equations: list[Expr]) -> list[Finding]:
+    """Plotkin's reduction step, bounded to pairwise instance subsumption.
+
+    Plotkin (1972, theorem 3.3.1.2) reduces a program by dropping any
+    clause the REST of the program subsumes. The general test needs
+    resolution, so this check keeps the decidable pair of it: an equation
+    that is a strict instance of one other stored equation answers nothing
+    the general equation does not already answer, and calls on the overlap
+    answer twice. Alpha-equivalent twins stay `duplicate-equation`'s.
+    """
+    keys = [_alpha_key(equation) for equation in equations]
+    by_head: dict[tuple[str | None, int], list[int]] = {}
+    for position, equation in enumerate(equations):
+        head = equation[1]
+        arity = len(head) if isinstance(head, Expr) else 0
+        by_head.setdefault((_symbol_head(head), arity), []).append(position)
+    findings: list[Finding] = []
+    for group in by_head.values():
+        for specific in group:
+            for general in group:
+                if specific == general or keys[specific] == keys[general]:
+                    continue
+                if _instantiates(equations[general], equations[specific]):
+                    findings.append(
+                        Finding(
+                            "subsumed-equation",
+                            str(equations[specific][1]),
+                            "an instance of another stored equation: every "
+                            "answer it gives, the general equation gives "
+                            "too, so calls on the overlap answer twice. The "
+                            "check is pairwise against single equations, "
+                            "Plotkin's reduction step; redundancy through "
+                            "combinations of equations is not searched",
+                            equations[specific],
+                            severity="information",
+                        )
+                    )
+                    break
     return findings
 
 
@@ -579,6 +651,7 @@ def analyze(space: Any, atoms: list[Atom], registry: EngineRegistry) -> list[Fin
     return [
         *_declaration_findings(space, declarations, defined_here, registry),
         *_duplicate_findings(equations),
+        *_subsumed_findings(equations),
         *_tabling_findings(equations, registry),
         *_equation_findings(equations, fact_heads, registry),
         *_simplification_findings(equations),
