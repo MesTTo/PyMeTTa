@@ -565,20 +565,28 @@ ext_point_kind(metta_module_space/2, service).
 %Extra type candidates for grounded host objects, beyond the object's own
 %classes: a protocol the object satisfies may name a type, so a declared
 %(-> DLTensor ...) can hold across libraries.
-:- multifile py_object_extra_type/2.
-ext_point_kind(py_object_extra_type/2, declaration).
+:- multifile metta_grounded_extra_type/2.
+ext_point_kind(metta_grounded_extra_type/2, declaration).
 
 %A host bridge may compute an object's type names itself: values can sit in
 %envelope objects the boundary must not rewrite, so the names, plain text,
 %are what crosses rather than the value. What a bridge owns is the CLASS
 %WALK: when one answers, its names stand in for the walk, and with none the
-%local walk applies. It does not own py_object_extra_type/2 above, which is
+%local walk applies. It does not own metta_grounded_extra_type/2 above, which is
 %consulted either way, because a declaration seam is additive and reading
 %this one as owning the whole answer silently dropped every declared type
 %in the shipped configuration
 %[tested: python/tests/test_ops.py::test_a_declared_type_survives_the_library_being_loaded].
-:- multifile py_object_type_names/2.
-ext_point_kind(py_object_type_names/2, ownership).
+:- multifile metta_grounded_type_names/2.
+ext_point_kind(metta_grounded_type_names/2, ownership).
+
+%The host's own class enumeration, the fallback when no envelope bridge
+%answered: walking a value's classes is host code by nature, so the host
+%bridge supplies it and an engine with no host loaded has no clause here,
+%which is the correct answer for a configuration in which no host value
+%can exist.
+:- multifile metta_grounded_class_type/2.
+ext_point_kind(metta_grounded_class_type/2, ownership).
 
 :- use_module(library(prolog_wrap)).
 

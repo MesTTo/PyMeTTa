@@ -101,8 +101,8 @@
 %   - Python source imports restore sibling modules and sys.path after setup
 %     or execution errors [tested 2026-08-14:
 %     metta_python_import_cleanup].
-%   - Every py_object_extra_type/2 clause is consulted whether or not a host
-%     bridge answers py_object_type_names/2, so a (py-atom f Type)
+%   - Every metta_grounded_extra_type/2 clause is consulted whether or not a host
+%     bridge answers metta_grounded_type_names/2, so a (py-atom f Type)
 %     declaration survives the Python library being loaded [tested 2026-08-18:
 %     python/tests/test_ops.py::test_a_declared_type_survives_the_library_being_loaded]
 %     [measured 2026-08-18: +2 inferences per get-type on a Python object and
@@ -1902,7 +1902,7 @@ get_type_candidate(false, 'Bool') :- !.
 %break again when one of them changes.
 get_type_candidate(X, T) :- atomic(X), \+ atom(X),
                             python_object_blob(X), py_is_object(X),
-                            py_object_type(X, T).
+                            metta_grounded_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
@@ -1928,7 +1928,7 @@ get_type_candidate_in(_, true, 'Bool')  :- !.
 get_type_candidate_in(_, false, 'Bool') :- !.
 get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
                                   python_object_blob(X), py_is_object(X),
-                                  py_object_type(X, T).
+                                  metta_grounded_type(X, T).
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
                                        is_list(X),
@@ -1967,10 +1967,12 @@ tuple_type(Members, Type) :-
 %(-> Tensor Tensor Tensor) hold for values the host created.
 %A bridge that knows how to read the object answers with every type name at
 %once, protocols included, as plain text the boundary cannot damage; without
-%one, the class walk below runs. What a bridge owns is the CLASS WALK and
+%one, the host's own class walk runs, which the HOST BRIDGE supplies through
+%metta_grounded_class_type/2 because enumerating a value's classes is host
+%code by nature. What a bridge owns is the CLASS WALK and
 %nothing else, so the engine-side extra types are a second clause rather than
 %a branch of this one.
-%No catch here, deliberately. A bridge whose py_object_type_names/2 clause
+%No catch here, deliberately. A bridge whose metta_grounded_type_names/2 clause
 %THROWS is the registrant's bug, and reading the throw as "no bridge answered"
 %ran the class walk instead: one broken protocol predicate silently destroyed
 %typing for every host object in the process, and get-type answered Box, the
@@ -1979,16 +1981,16 @@ tuple_type(Members, Type) :-
 %registrant's bug: surface it with the protocol's name attached, never as a
 %type quietly missing." The fallback is for a bridge that is ABSENT, which is
 %an ordinary configuration and stays one [tested: metta_object_types].
-py_object_type(X, T) :- ( py_object_type_names(X, Names)
-                          -> member(N, Names),
-                             ( atom(N) -> T = N ; atom_string(T, N) )
-                        ; py_object_class_type(X, T) ).
+metta_grounded_type(X, T) :- ( metta_grounded_type_names(X, Names)
+                               -> member(N, Names),
+                                  ( atom(N) -> T = N ; atom_string(T, N) )
+                             ; metta_grounded_class_type(X, T) ).
 %A protocol the object satisfies may name a type too, and so may a
-%(py-atom f Type) declaration, both through py_object_extra_type/2, so a
+%(py-atom f Type) declaration, both through metta_grounded_extra_type/2, so a
 %declared (-> DLTensor ...) holds for every array library at once. This is a
 %DECLARATION seam, where every clause has to stay reachable, and not an
 %ownership one [source: src/ext_points.pl, ext_point_every_clause_runs/1]. It
-%used to hang off py_object_class_type/2, which is the ELSE arm above, and
+%used to hang off the class walk, which is the ELSE arm above, and
 %the shipped library answers the bridge for every Python object: the arm was
 %dead in that configuration and a declared type was accepted and then
 %dropped. `(py-atom math.pow (-> Number Number Number))` answered
@@ -2000,15 +2002,7 @@ py_object_type(X, T) :- ( py_object_type_names(X, Names)
 %Shapiro give for lifting entitlement/2 out of pension/2: a cut that picks a
 %default correctly still prevents the alternatives being found
 %[source: The Art of Prolog 2nd ed, 11.5 "Default Rules", pp 206-207].
-py_object_type(X, T) :- py_object_extra_type(X, T).
-
-py_object_class_type(X, T) :- py_call(builtins:type(X), Class),
-                              py_call(builtins:getattr(Class, '__mro__'), MRO),
-                              py_call(builtins:list(MRO), Classes),
-                              member(C, Classes),
-                              py_call(builtins:getattr(C, '__name__'), Name),
-                              ( atom(Name) -> T = Name ; atom_string(T, Name) ),
-                              T \== object.
+metta_grounded_type(X, T) :- metta_grounded_extra_type(X, T).
 
 %Computed from the VALUE and then unified, rather than dispatched on the answer.
 %The clauses below are ordered and cut on X, so they are only correct when the

@@ -300,7 +300,7 @@ petta_py_element_text(Element, Text) :-
 %%Undefined% otherwise, so a Python function could not participate in typed
 %dispatch, be checked, or be reported by get-type as anything at all.
 %
-%It goes through py_object_extra_type/2, the extension point that already
+%It goes through metta_grounded_extra_type/2, the extension point that already
 %exists for exactly this: "a protocol the object satisfies may name a type".
 %A declared type is one more candidate beside the object's own class walk,
 %so `(get-type (py-atom numpy.absolute (-> Number Number)))` answers the
@@ -367,7 +367,7 @@ petta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     ).
 
 :- dynamic petta_py_declared_type/2.
-:- multifile py_object_extra_type/2.
+:- multifile metta_grounded_extra_type/2.
 
 %Keyed on the object, and recorded once: resolving the same name twice gives
 %the same Python object, so a repeated (py-atom f T) must not stack duplicate
@@ -378,7 +378,23 @@ assert_declared_python_type(Obj, Type) :-
     ;   assertz(petta_py_declared_type(Obj, Type))
     ).
 
-py_object_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
+metta_grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
+
+%The class walk, this host's clause of the fallback seam: every class on the
+%value's MRO except object, each a type candidate, which is what lets a torch
+%Linear be a Linear and a Module at once. It lived in the engine and called
+%the host directly, which is exactly the line the seam exists to draw; the
+%engine asks metta_grounded_class_type/2 and this bridge answers for the
+%values it created [tested: metta_object_types].
+:- multifile metta_grounded_class_type/2.
+metta_grounded_class_type(X, T) :-
+    py_call(builtins:type(X), Class),
+    py_call(builtins:getattr(Class, '__mro__'), MRO),
+    py_call(builtins:list(MRO), Classes),
+    member(C, Classes),
+    py_call(builtins:getattr(C, '__name__'), Name),
+    ( atom(Name) -> T = Name ; atom_string(T, Name) ),
+    T \== object.
 
 petta_py_resolve(Spec, Result) :-
     (   string(Spec)

@@ -2752,16 +2752,16 @@ petta_py_subscriptions_locked(SpaceAtoms) :-
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %
-% The engine asks py_object_extra_type/2 for names beyond an object's own
+% The engine asks metta_grounded_extra_type/2 for names beyond an object's own
 % classes; the answer comes from the Python-side protocol registry, so a
 % library teaches typing without touching Prolog.
 
-:- multifile py_object_type_names/2.
+:- multifile metta_grounded_type_names/2.
 
 %Values cross the boundary boxed so janus cannot rewrite them; the names
 %are computed on the held value, in Python, and cross as plain text: the
 %classes off the method resolution order, then every satisfied protocol.
-py_object_type_names(X, Names) :-
+metta_grounded_type_names(X, Names) :-
     py_is_object(X),
     py_call(petta_ops:type_names(X), Names).
 

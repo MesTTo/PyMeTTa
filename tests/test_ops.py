@@ -707,10 +707,10 @@ def test_a_zero_arity_compound_crosses_without_raising(metta):
 def test_a_declared_type_survives_the_library_being_loaded(metta):
     """`(py-atom f Type)` keeps its declaration in the shipped configuration.
 
-    The declaration is published through py_object_extra_type/2, a
+    The declaration is published through metta_grounded_extra_type/2, a
     DECLARATION seam, whose every clause is meant to stay reachable
     [source: src/ext_points.pl, ext_point_every_clause_runs/1]. It hung off
-    the ELSE branch of the ownership seam py_object_type_names/2, and the
+    the ELSE branch of the ownership seam metta_grounded_type_names/2, and the
     shim answers that one for every Python object, so the whole branch was
     dead here and the declaration was accepted and dropped
     [measured 2026-08-18: `(builtin_function_or_method)` through the
