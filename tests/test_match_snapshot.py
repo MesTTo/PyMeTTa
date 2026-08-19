@@ -74,7 +74,7 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
     A single pattern is one goal over one dynamic predicate, and the logical
     update view already fixes what it sees, so it keeps streaming: taking one
     answer costs the same whether the space holds ten atoms or two thousand.
-    Measured 2026-08-19 on this box: 731 inferences either way, against the
+    Measured 2026-08-19 on this box: 683 inferences either way, after a one-time first-use cost of 99 the probe below pays before comparing, first-use index and cache build; without the warm-up the verdict depended on which worker ran this file first, against the
     thousands a collapse over the same two thousand atoms spends.
     """
     def first_answer_cost(size):
@@ -86,6 +86,8 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
             return spent.inferences
         finally:
             space.drop()
+
+    first_answer_cost(2)  # the session's one-time first-use cost lands here, not in the comparison
 
     first_answer_cost(10)  # the first run compiles the directive; warm first
     small, large = first_answer_cost(10), first_answer_cost(2000)
