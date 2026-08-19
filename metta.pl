@@ -1131,7 +1131,7 @@ empty(_) :- fail.
 %decision. LeaTTa's conformance evidence pins it to the Rust interpreter,
 %lib/src/metta/interpreter.rs:1750-1758, which tests the empty case as an
 %execution error, and records the byte-identical output
-%[source: /home/user/Dev/LeaTTa/tests/semantics/metaprogramming/EVIDENCE.md,
+%[source: LeaTTa tests/semantics/metaprogramming/EVIDENCE.md,
 %M06 "Empty deconstruction is an error"].
 %
 %Three elements, which the callers need. lib_measure.metta and lib_soft.metta
@@ -1725,7 +1725,7 @@ type_answers(Module, X, Types) :-
 %subtyping relation while checking an argument: it WIDENS the argument's type
 %LIST, and the ordinary type check then runs unchanged against the wider list.
 %So the matcher learns nothing about subtyping, and `get-type` is the surface
-%where it shows [source: /home/user/Dev/LeaTTa/ai-report-subtype-graph.md,
+%where it shows [source: LeaTTa ai-report-subtype-graph.md,
 %against pinned hyperon 0.2.10 at 3f76dc4].
 %
 %What is NOT widened: a grounded literal's built-in type and an application's
@@ -3955,7 +3955,7 @@ eval(C0, Out) :- translate_runnable_expr(C0, Goals, Out),
 %PeTTa's eval is a full evaluation of compiled goals rather than the single
 %rewriting step of minimal MeTTa, and evalc keeps that, so the two agree
 %everywhere except which space's equations answer
-%[source: /home/user/Dev/LeaTTa/stdlib.md, evalc's SpaceType is the "Space to
+%[source: LeaTTa stdlib.md, evalc's SpaceType is the "Space to
 %evaluate atom in its context"] [tested: metta_evalc].
 %
 %A space is an atom beginning with &, which is what is-space/2 tests, so an
