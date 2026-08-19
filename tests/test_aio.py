@@ -13,6 +13,7 @@ import inspect
 import logging
 import threading
 import time
+from collections import Counter
 
 import pytest
 
@@ -504,7 +505,28 @@ def test_aio_structural_surface_behaves():
             assert "stored atoms: engine unification" in await route.explain()
 
             cloned = await am.copy()
-            assert await cloned.count() == await am.count()
+            # Counts alone made this the suite's one flake, failing 1 in 12
+            # parallel runs as `assert 51 == 47` and naming nothing. Compared
+            # as atom multisets instead, the failure named its own cause in
+            # one firing [measured 2026-08-19]: the clone held four
+            # specializer-generated `_Spec_` equations that &self no longer
+            # did. No concurrency is involved. An earlier test in the same
+            # worker leaves a specialized function's stored spec atoms in
+            # &self; copy() re-adds every atom into the clone, and re-adding
+            # the BASE equation fires invalidate_specializations/1, which is
+            # keyed by bare name with the module a wildcard, so it retracts
+            # &self's spec clauses and their stored atoms. copy()
+            # self-invalidates its source. The engine-side fix is scoping
+            # that invalidation to the writing space's module.
+            clone_atoms = Counter(str(a) for a in await cloned.atoms())
+            self_atoms = Counter(str(a) for a in await am.atoms())
+            extra = sorted((clone_atoms - self_atoms).elements())
+            missing = sorted((self_atoms - clone_atoms).elements())
+            assert not extra and not missing, (
+                f"&self moved between copy and count: the clone holds "
+                f"{extra} that &self does not, and &self holds "
+                f"{missing} the clone never saw"
+            )
             await cloned.drop()
 
             async with m.stream(S.edge(V.a, V.b)) as rows:
