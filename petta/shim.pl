@@ -197,12 +197,6 @@ petta_py_wire_bool('@'(false), false).
 petta_py_wire_bool("true",     true).
 petta_py_wire_bool("false",    false).
 
-%A name payload: janus delivers a Python str as a Prolog atom or a Prolog
-%string depending on the call, so both spellings are the same payload and
-%anything else is not one.
-petta_py_wire_text(S) :- atom(S), !.
-petta_py_wire_text(S) :- string(S).
-
 %Decode a tagged wire term; every v tag becomes its own fresh variable.
 %
 %The tag decides the clause, so it is normalised once and dispatched on.
@@ -241,16 +235,32 @@ petta_py_decode_(h, [Id|_], Blob) :-
 %which refuses all six]. A wire term is written by an encoder, so nothing
 %conforming loses a shape here; what changes is that a boundary bug now
 %reports as one [tested: shim_wire_decoding:a_payload_outside_its_tags_class_fails].
-%The checks are free: number/1, atom/1 and string/1 compile to VM
-%instructions costing no inference, and the boolean payload went from a
-%chain of ==/2 with cuts to indexed facts. A 3000-leaf term decodes in
-%19,505.01 inferences plain and 24,507.01 sharing, identical before and
-%after to two decimal places, three runs each [measured 2026-08-20].
-petta_py_decode_(s, [S], A)     :- petta_py_wire_text(S), atom_string(A, S).
+%Every check is a TYPE TEST WRITTEN OUT, never a call to a shared one, and
+%that is a measurement rather than a preference: number/1, atom/1 and
+%string/1 compile to VM instructions costing no inference, while a call to
+%a predicate wrapping them costs one on a path that runs per leaf of every
+%answer. Per-leaf inferences, before against after, as the atom payload /
+%as the string payload, both being spellings janus delivers
+%[measured 2026-08-20, 10,000 decodes each, three runs identical]:
+%
+%  s        4.00/5.00  ->  3.00/5.00     g   4.00/4.00  ->  4.00/4.00
+%  v        3.00/4.00  ->  3.00/4.00     n   4.00       ->  4.00
+%  v shared 8.00/10.00 ->  8.00/10.00    b   4.00/8.00  ->  4.00/5.00
+%
+%Faster or equal on every tag and every spelling: the boolean payload
+%replaced a chain of ==/2 with indexed facts, and the symbol payload stopped
+%calling atom_string/2 on an atom that already is the symbol.
+%
+%A shared petta_py_wire_text/1 helper was written first and cost +1.00 on s
+%and on v, which the alpha-unique benchmark saw as +1.54% and the counter
+%gate refused. The A/B behind it had measured zero and was wrong: its
+%synthetic term held 1000 s, 500 v and 500 b leaves, whose +1000 +500 -1500
+%cancels exactly. A per-tag change needs a per-tag measurement.
+petta_py_decode_(s, [S], A)     :- ( atom(S) -> A = S ; string(S), atom_string(A, S) ).
 petta_py_decode_(g, [S], Str)   :- ( string(S) -> Str = S ; atom(S), atom_string(S, Str) ).
 petta_py_decode_(n, [N], N)     :- number(N).
 petta_py_decode_(b, [B], A)     :- petta_py_wire_bool(B, A).
-petta_py_decode_(v, [Name], _)  :- petta_py_wire_text(Name).
+petta_py_decode_(v, [Name], _)  :- ( atom(Name) -> true ; string(Name) ).
 petta_py_decode_(e, [Es], Term) :- maplist(petta_py_decode, Es, Term).
 
 %Decode sharing variables by name, so the $x in a head and in a body unify.
@@ -266,9 +276,12 @@ petta_py_decode_shared_([T0|Rest], Term, B0, B) :-
 %the other has to thread the bindings through its elements. Every leaf below
 %them carries no bindings, so it is the plain decode with B unchanged.
 petta_py_decode_shared_tagged(v, [Name0], Var, B0, B) :- !,
-    petta_py_wire_text(Name0),
     petta_py_shared_table(B0, Table),
-    ( string(Name0) -> atom_string(Name, Name0) ; Name = Name0 ),
+    %The atom branch carries the payload check with it: a name arriving as
+    %anything but text has no identity to share by, and testing it here
+    %rather than ahead of the table keeps the check on a branch that was
+    %already being taken.
+    ( string(Name0) -> atom_string(Name, Name0) ; atom(Name0), Name = Name0 ),
     %The anonymous variable is fresh at every occurrence and never binds,
     %exactly as the reader treats $_ in source; recording it would make two
     %underscores constrain each other.
