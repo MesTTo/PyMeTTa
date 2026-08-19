@@ -213,7 +213,7 @@ specialize_call_locked(HV, CleanBindSet, MetaList, HasDirectBenefit,
     -> Outcome = ready
     ; ( silent(true) -> true
       ; format("Not specialized ~w~n", [SpecName/Arity]) ),
-      forget_symbol(SpecName),
+      forget_symbol(Module, SpecName),
       retractall(ho_specialization(Module, HV, SpecName)),
       ( ho_specialization_failed(HV, Arity, CleanBindSet)
         -> true
@@ -427,67 +427,60 @@ var_use_check(Mode, Var, L) :- is_list(L),
 specializable_arg(Arg) :- nonvar(Arg), 
                           ( fun(Arg) ; Arg = partial(_, _) ).
 
-%Forget function symbol:
+%Forget a specialization, IN ONE MODULE. It is keyed by name and by module
+%because a specialization is: ho_specialization/3 records both, and the same
+%generated name exists in two modules the moment two spaces specialize the
+%same call. Keyed by name alone, forgetting the clone one space no longer
+%needs removed the OTHER space's clauses and, through remove_sexp/2, the
+%other space's stored equation with them: dropping a space that had been
+%copied from &self took atoms out of &self
+%[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone,
+%test_adding_in_one_space_never_removes_atoms_from_another].
 %
 %The clauses are in the module of the space whose code triggered the
-%specialization, which is what specialize_call_locked/7 registers and what
-%fun_in/2 and ho_specialization/3 both record. Asking current_predicate/1 and
-%clause/3 UNQUALIFIED read the engine's own module, which found &self's
-%clauses only for as long as &self WAS that module and never found a named
-%space's at all. A stale specialization then outlived the equation it cloned
-%and answered beside the new one: removing one of two equations for a
-%higher-order function gave (2 2 42) where (2) was asked for
+%specialization, which is what specialize_call_locked/7 registers. Asking
+%current_predicate/1 and clause/3 UNQUALIFIED read the engine's own module,
+%which found &self's clauses only for as long as &self WAS that module and
+%never found a named space's at all. A stale specialization then outlived the
+%equation it cloned and answered beside the new one: removing one of two
+%equations for a higher-order function gave (2 2 42) where (2) was asked for
 %[tested: examples/functions/functionremoval.metta,
 %specializer:a_removed_equation_forgets_its_specialization].
 %
 %clause_property(module/1) is the filter that keeps this from erasing a
 %PARENT's clauses: clause/3 sees inherited ones through the base chain, and a
 %named space asking to forget a name &self defines must not erase &self's.
-forget_symbol(Name) :- forall(forget_symbol_space(Name, Space),
-                                     ( remove_sexp(Space, [=, [Name|_], _]),
-                                       remove_sexp(Space, [':', Name, _]) )),
-                       findall(Ref,
-                               ( forget_symbol_module(Name, Module),
-                                 current_predicate(Module:Name/A),
-                                 functor(H, Name, A),
-                                 clause(Module:H, _, Ref),
-                                 clause_property(Ref, module(Module)) ),
-                               Refs0),
-                       sort(Refs0, Refs),
-                       %The provenance record dies with the clause it names.
-                       %Erasing without retracting it left translated_from/2
-                       %pointing at a dead reference, and remove_equation/6
-                       %then found that reference, called erase/1 on it and
-                       %FAILED, so removing the specialization's own atom
-                       %failed and every caller of it failed with it
-                       %[tested: python/tests/test_import_reuse.py::
-                       %test_import_translation_leaves_variable_heads_dynamic].
-                       forall(member(R, Refs),
-                              ( erase(R), retractall(translated_from(R, _)) )),
-                       forall(metta_on_function_removed(Name), true),
-                       retractall(arity(Name,_)),
-                       retractall(fun(Name)),
-                       clear_fun_meta(Name),
-                       retractall(ho_specialization(_, Name, _)),
-                       retractall(ho_specialization(_, _, Name)).
-
-%Both registries are consulted because they are written at different moments:
-%register_fun_in/2 records the module before the clauses are asserted, and
-%ho_specialization/3 records it beside them. The failure branch retracts the
-%second one immediately after calling this, so neither alone is total.
-forget_symbol_module(Name, Module) :- fun_in(Module, Name).
-forget_symbol_module(Name, Module) :- ho_specialization(Module, _, Name).
-
-%And the space each of those modules serves, because a specialization's SOURCE
-%atoms were written into the space whose code triggered it
-%(specialize_call_locked/7 adds them with current_metta_space/1), not into
-%&self. Naming &self here left every named space holding the source atoms of
-%a specialization whose clauses were gone.
-forget_symbol_space(Name, Space) :-
-    distinct(Space,
-             ( ( forget_symbol_module(Name, Module),
-                 metta_module_space(Module, Space)
-               ; Space = '&self' ) )).
+forget_symbol(Module, Name) :-
+    metta_module_space(Module, Space),
+    remove_sexp(Space, [=, [Name|_], _]),
+    remove_sexp(Space, [':', Name, _]),
+    findall(Ref,
+            ( current_predicate(Module:Name/A),
+              functor(H, Name, A),
+              predicate_property(Module:H, number_of_clauses(_)),
+              clause(Module:H, _, Ref),
+              clause_property(Ref, module(Module)) ),
+            Refs0),
+    sort(Refs0, Refs),
+    %The provenance record dies with the clause it names. Erasing without
+    %retracting it left translated_from/2 pointing at a dead reference, and
+    %remove_equation/6 then found that reference, called erase/1 on it and
+    %FAILED, so removing the specialization's own atom failed and every caller
+    %of it failed with it [tested: python/tests/test_import_reuse.py::
+    %test_import_translation_leaves_variable_heads_dynamic].
+    forall(member(R, Refs), ( erase(R), retractall(translated_from(R, _)) )),
+    forall(metta_on_function_removed(Name), true),
+    unregister_fun_in(Module, Name),
+    %The name-wide registers go only when NO module still defines it, because
+    %the same generated name can belong to two spaces at once.
+    (   function_still_defined(Name)
+    ->  true
+    ;   retractall(arity(Name, _)),
+        retractall(fun(Name)),
+        clear_fun_meta(Name)
+    ),
+    retractall(ho_specialization(Module, Name, _)),
+    retractall(ho_specialization(Module, _, Name)).
 
 %Invalidate all specializations:
 %The recursion carries a visited set. It retracts only AFTER descending, so a
@@ -498,22 +491,48 @@ forget_symbol_space(Name, Space) :-
 %name rather than recording a new fact, so this guards a reachability one
 %change away rather than claiming one exists
 %[tested: an_invalidation_cycle_terminates].
+%SCOPED TO ONE MODULE, which is the space doing the writing. A specialization
+%belongs to the space whose code triggered it, ho_specialization/3 has said so
+%in its first argument since it was written, and this read it with a wildcard:
+%adding an equation for a name in ANY space invalidated that name's
+%specializations in EVERY space, retracting their compiled clauses and, since
+%specialize_call_locked/7 stores each generated equation into its space,
+%their stored ATOMS. One space's write changed another space's atom count.
+%
+%Reproduced through MeTTa.copy(), which enumerates &self and re-adds every
+%atom into a fresh space: re-adding the base equation THERE fired the
+%module-blind invalidation and stripped four spec atoms from &self, so the
+%source of the copy lost atoms to the copy [measured 2026-08-19, and it was
+%the suite's one known flake, 1 firing in 12 parallel runs]
+%[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone].
+%
+%The wrapper reads the current module for the callers that have none in hand:
+%a change hook fires outside the compile door's own module switch, and the
+%ambient module there is the space the write came through.
 invalidate_specializations(F) :-
+    current_metta_module(Module),
+    invalidate_specializations(Module, F).
+
+invalidate_specializations(Module, F) :-
     %The blanket memo clear is deliberate cross-function conservatism: a
     %change to g can flip whether specializing f succeeds (the failed
-    %binding may have named g), so per-F clearing would be unsound. On an
-    %empty table it costs almost nothing. The spec walk behind it IS
-    %guarded, because nearly no function has specializations and this now
-    %runs once per compiled equation through the one compile door.
-    %Unguarded, source-load's own counter assertion measured the walk at
-    %+19,994 inferences over 1000 forms; guarded, the lane passes its
-    %unchanged 944,158 floor [measured 2026-08-18].
+    %binding may have named g), so per-F clearing would be unsound. It is
+    %deliberately cross-MODULE for the same reason and at the same price:
+    %ho_specialization_failed/3 is a memo of a REFUSAL, so clearing it can
+    %only make the specializer try again, never make a call answer
+    %differently, which is the opposite of the walk below. On an empty table
+    %it costs almost nothing. The spec walk IS guarded, because nearly no
+    %function has specializations and this runs once per compiled equation
+    %through the one compile door. Unguarded, source-load's own counter
+    %assertion measured the walk at +19,994 inferences over 1000 forms;
+    %guarded, the lane passes its unchanged 944,158 floor
+    %[measured 2026-08-18].
     retractall(ho_specialization_failed(_,_,_)),
-    (   ho_specialization(_, F, _)
-    ->  findall(Spec, ho_specialization(_, F, Spec), Specs),
-        forall(member(S, Specs), invalidate_specializations(S, [F])),
-        forall(member(S, Specs), forget_symbol(S)),
-        retractall(ho_specialization(_, F, _))
+    (   ho_specialization(Module, F, _)
+    ->  findall(Spec, ho_specialization(Module, F, Spec), Specs),
+        forall(member(S, Specs), invalidate_specializations(Module, S, [F])),
+        forall(member(S, Specs), forget_symbol(Module, S)),
+        retractall(ho_specialization(Module, F, _))
     ;   true
     ).
 
@@ -522,11 +541,11 @@ invalidate_specializations(F) :-
 %them, pays nothing: routing the top level through here instead cost one
 %inference on every compiled equation [measured 2026-08-16: source-load
 %6921403 to 6922400 over a thousand].
-invalidate_specializations(F, Seen) :-
+invalidate_specializations(Module, F, Seen) :-
     (   memberchk(F, Seen)
     ->  true
-    ;   findall(Spec, ho_specialization(_, F, Spec), Specs),
-        forall(member(S, Specs), invalidate_specializations(S, [F|Seen])),
-        forall(member(S, Specs), forget_symbol(S)),
-        retractall(ho_specialization(_, F, _))
+    ;   findall(Spec, ho_specialization(Module, F, Spec), Specs),
+        forall(member(S, Specs), invalidate_specializations(Module, S, [F|Seen])),
+        forall(member(S, Specs), forget_symbol(Module, S)),
+        retractall(ho_specialization(Module, F, _))
     ).

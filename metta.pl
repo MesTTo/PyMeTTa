@@ -4549,7 +4549,9 @@ evict_prelude_definition(FAtom) :-
     ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
         retract_prelude_declarations(FAtom),
         retractall(prelude_doc_atom(FAtom, _)),
-        function_changed(FAtom)
+        %The prelude is the base tier's, so its eviction is &self's change.
+        metta_self_module(Self),
+        function_changed(Self, FAtom)
     ;   true
     ).
 

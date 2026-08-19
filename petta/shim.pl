@@ -1930,7 +1930,10 @@ petta_py_register_op(Name0, Arity, Kind) :-
     register_fun_in(Base, Name),
     PredArity is Arity + 1,
     ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
-    forall(metta_on_function_changed(Name), true).
+    %The engine's own door rather than the hook alone, so the specializations
+    %this registration makes stale are invalidated in the module the
+    %operation's clauses went into.
+    function_changed(Base, Name).
 
 %The engine asks who a dispatch goal really is, so a purity refusal names the
 %operation rather than this file's dispatcher. The name is the goal's first
@@ -2768,8 +2771,17 @@ py_object_type_names(X, Names) :-
 %This file used to carry its own copy, which meant the engine could not repair
 %its own compiled code unless Python was in the process.
 metta_on_function_changed(Name) :-
-    recompile_definitions_mentioning(Name),
-    invalidate_specializations(Name).
+    recompile_definitions_mentioning(Name).
+
+%And NOT invalidate_specializations/2 beside it. It was here, with no module
+%to give it, so it read the ambient one: adding an atom into a space while a
+%DIFFERENT space's module was in force invalidated the wrong space, and that
+%is how MeTTa.copy() stripped its own source. The engine's function_changed/2
+%does the invalidation at every write door with the module the write is going
+%to, which is the only place that knows it; this hook is the recompile half
+%and nothing else
+%[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone,
+%test_adding_in_one_space_never_removes_atoms_from_another].
 
 %A fully removed function refreshes the other way: a mention that compiled as
 %a call goes back to data, since the name no longer names a function.

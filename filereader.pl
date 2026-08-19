@@ -379,26 +379,48 @@ repair_stale_definitions_impl(F) :-
 recompile_function(G) :-
     transaction(recompile_function_impl(G)).
 
+%One MODULE at a time, because the erase and the re-translation are two
+%phases and the second one reads the database the first one emptied. The same
+%name compiled into two spaces was erased in BOTH before either was
+%retranslated, so a clause whose translation consults that name's definition
+%elsewhere saw it as undefined: `(super (f $x))` in a space resolved to
+%whatever lay above the erased definition instead of to the definition itself
+%[tested: translator_super:a_later_definition_retargets_an_earlier_super].
+%Within one module the two phases stay, because that is what keeps the
+%rebuilt clauses in their original order behind any the Prolog interop
+%asserted untracked.
 recompile_function_impl(G) :-
-    findall(compiled(Ref, Module, Term),
+    findall(Module,
+            ( translated_from(Ref, Term),
+              Term = [=, [G0|_], _],
+              G0 == G,
+              clause_property(Ref, module(Module)) ),
+            Modules0),
+    sort(Modules0, Modules),
+    clear_fun_meta(G),
+    forall(member(Module, Modules), recompile_function_in_module(Module, G)),
+    %Per module the recompile touched, because the invalidation is scoped to
+    %one space now and this rebuilds a function's clauses wherever they are.
+    forall(member(Module, Modules), invalidate_specializations(Module, G)).
+
+recompile_function_in_module(Module, G) :-
+    findall(compiled(Ref, Term),
             ( translated_from(Ref, Term),
               Term = [=, [G0|_], _],
               G0 == G,
               clause_property(Ref, module(Module)) ),
             Clauses),
-    forall(member(compiled(Ref, _, Term), Clauses),
+    forall(member(compiled(Ref, Term), Clauses),
            ( erase(Ref),
              retract(translated_from(Ref, Term)) )),
-    clear_fun_meta(G),
-    forall(member(compiled(_, Module, Term), Clauses),
+    forall(member(compiled(_, Term), Clauses),
            ( copy_term(Term, Fresh),
              once(with_metta_module(Module,
                                     translate_clause(Fresh, Clause))),
              assertz(Module:Clause, NewRef),
              record_source_assertion(NewRef),
              record_translated_from(NewRef, Term, SourceRef),
-             record_source_assertion(SourceRef) )),
-    invalidate_specializations(G).
+             record_source_assertion(SourceRef) )).
 
 %Recompile every stored definition whose body MENTIONS F. Wider than
 %uses_as_data/2's "compiled F as data": a caller that already compiled F as a

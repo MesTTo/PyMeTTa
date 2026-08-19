@@ -12,6 +12,8 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import re
+
 import pytest
 
 import petta
@@ -807,3 +809,49 @@ def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_pa
         "!(p111-sq 9)\n"
     )
     assert metta.load(source)[-2:] == [[True], [81]]
+
+
+def _atom_multiset(space):
+    """A space's atoms as a comparable multiset. Each read hands back fresh
+    variables, so the printed names differ between two reads of one atom and
+    comparing the raw strings compares nothing."""
+    return sorted(re.sub(r"\$_\d+", "$V", str(atom)) for atom in space)
+
+
+def test_adding_in_one_space_never_removes_atoms_from_another(metta):
+    """A specialization belongs to the space whose code triggered it, and
+    invalidate_specializations/1 read ho_specialization/3's module argument
+    with a WILDCARD, so an equation added in ANY space invalidated that name's
+    specializations in EVERY space and took their stored equations with them.
+
+    copy() is where it showed: it enumerates the source and re-adds every atom
+    into a fresh space, so re-adding the base equation THERE stripped the
+    specialization's atom from HERE and the source of a copy lost atoms to the
+    copy. It was the suite's one known flake, `assert 51 == 47`, 1 firing in 12
+    parallel runs, with no concurrency involved.
+    """
+    metta.run("(= (p6-inc $x) (+ $x 1))")
+    metta.run("(= (p6-map $f $x) ($f $x))")
+    metta.run("(= (p6-use $z) (p6-map p6-inc $z))")
+    assert metta.run("!(p6-use 1)") == [[2]]
+
+    before = _atom_multiset(metta)
+    # The specialization the call above planned is a stored equation of the
+    # source space, so this is not an abstract multiset: it is what copy() went
+    # on to delete.
+    assert any("p6-map_Spec_" in atom for atom in before), before
+
+    clone = metta.copy()
+    try:
+        assert _atom_multiset(metta) == before
+    finally:
+        clone.drop()
+
+    # The direct form, with no copy in it: two spaces defining one name, and
+    # neither losing atoms to the other.
+    with metta.new_space() as other:
+        other.run("(= (p6-map $f $x) ($f $x))")
+        assert _atom_multiset(metta) == before
+        other_before = _atom_multiset(other)
+        metta.run("(= (p6-map $f $x) ($f $x))")
+        assert _atom_multiset(other) == other_before

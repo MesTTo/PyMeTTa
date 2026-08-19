@@ -461,7 +461,8 @@ metta_add_atom(Space, Term, true) :- Term = [':', FAtom, _], atom(FAtom),
                                      ),
                                      store_atom(Space, Term),
                                      recompile_definitions_mentioning(FAtom),
-                                     function_changed(FAtom).
+                                     space_module(Space, DeclModule),
+                                     function_changed(DeclModule, FAtom).
 metta_add_atom(Space, Term, true) :- metta_foreign_space(Space), !,
                                      foreign_write(Space, add,
                                                    metta_foreign_add(Space, Term)).
@@ -547,8 +548,13 @@ store_equation(Storage, Space, Term) :- add_sexp_in(Storage, Space, Term, Ref),
 
 %Everything a change to FAtom leaves stale, in one place because three callers
 %need exactly it: a new equation, a new declaration, and a removed equation.
-function_changed(FAtom) :- forall(metta_on_function_changed(FAtom), true),
-                           invalidate_specializations(FAtom).
+%
+%The MODULE is threaded rather than read, because a change hook fires outside
+%the compile door's own module switch and the invalidation behind it is scoped
+%to one space now: reading the ambient module here would have made a write in
+%one space invalidate whichever space happened to be in force.
+function_changed(Module, FAtom) :- forall(metta_on_function_changed(FAtom), true),
+                                   invalidate_specializations(Module, FAtom).
 
 %The caller has classified the atom as an equation, so the shape test that used
 %to be here is gone with it.
@@ -721,7 +727,7 @@ compile_metta_equation(Module, Term, Clause, Ref) :-
     %(let $h (+ 1) (f $h)), silently answered NOTHING. Found by the
     %verify-specializations differential over examples/
     %[tested specializer:a_recursive_specialization_survives_its_compile].
-    invalidate_specializations(F),
+    invalidate_specializations(Module, F),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
     assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
@@ -963,7 +969,8 @@ metta_remove_atom(Space, Term, Removed) :- Term = [=, [F|Args], Body], !,
 metta_remove_atom(Space, Term, Removed) :- Term = [':', F, _], atom(F), fun(F), !,
                                            unstore_atom(Space, Term, Removed),
                                            recompile_definitions_mentioning(F),
-                                           function_changed(F).
+                                           space_module(Space, DeclModule),
+                                           function_changed(DeclModule, F).
 metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
 
 remove_equation(Space, Term, F, Args, Body, Removed) :-
@@ -977,7 +984,7 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     findall(Ref, ( translated_from(Ref, Term),
                    clause_property(Ref, module(Module)) ), Refs),
     forall(member(Ref, Refs), ( erase(Ref), retractall(translated_from(Ref, _)) )),
-    function_changed(F),
+    function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),
