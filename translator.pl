@@ -1219,6 +1219,26 @@ translate_special_dl(prog1, [First|Rest], AfterHead, Goals, Out) :-
     translate_expr_dl(First, AfterHead, AfterFirst, Out),
     translate_args_dl(Rest, AfterFirst, Goals, _).
 
+%progn's other half: every argument is evaluated and the answer is unit, at
+%whatever arity the caller wrote. `(nop)`, `(nop 1)` and `(nop 1 2 3)` all
+%answer `()`.
+%
+%Upstream's standard library says out loud that it could not write this one,
+%"; TODO: there is no way to define operation which consumes any number of
+%arguments and returns unit" immediately above nop's own doc block, and answers
+%it in Rust instead: `grounded_op!(NopOp, "nop")` whose execute ignores its
+%whole argument list [source: hyperon-experimental@3f76dc4 stdlib.metta:608-609
+%and core.rs:58,61-63,70-74]. Here a variadic special form is the way to ignore
+%an argument list, which is the same reason progn above is one.
+%
+%Ignoring the VALUES is not ignoring the calls: translate_args_dl/4 still
+%compiles each argument, so an effect inside a nop still happens, which is what
+%a grounded operation's evaluated arguments do upstream. The empty case needs
+%no clause of its own because translate_args_dl([], Goals, Goals, []) already
+%leaves the goal list alone [tested: nop_answers_unit_at_every_arity].
+translate_special_dl(nop, Exprs, AfterHead, Goals, []) :-
+    translate_args_dl(Exprs, AfterHead, Goals, _).
+
 translate_special_dl(if, [Cond, Then], AfterHead, Goals, Out) :-
     translate_expr_to_conj(Cond, CondConj, CondValue),
     translate_expr_to_conj(Then, ThenConj, ThenValue),
