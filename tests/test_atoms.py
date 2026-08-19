@@ -380,6 +380,45 @@ def test_wire_round_trip():
         assert from_wire(a.to_wire()) == a
 
 
+def test_expr_defers_its_wire_form_until_asked():
+    """An expression builds its wire form on the first crossing, not before.
+
+    Reads the private `_wire` slot, which is the only way to tell a slot
+    that was never written from one written with an equal value. That one
+    peek is the whole reason this test is not blackbox; everything else
+    here goes through to_wire().
+    """
+    unset = object()
+    atom = expr(S.node, 1, expr(S.inner, V.x), "text")
+
+    # Construction writes nothing: the slot is absent, not None.
+    assert getattr(atom, "_wire", unset) is unset
+    assert getattr(atom.children[2], "_wire", unset) is unset
+
+    wire = atom.to_wire()
+    assert wire == [
+        "e",
+        [["s", "node"], ["n", 1], ["e", [["s", "inner"], ["v", "x"]]], ["g", "text"]],
+    ]
+
+    # Asking populated it, and asking again answers the very same list
+    # rather than rebuilding one that compares equal.
+    assert getattr(atom, "_wire", unset) is wire
+    assert atom.to_wire() is wire
+    assert from_wire(wire) == atom
+
+    # A child expression stays deferred until it is crossed on its own.
+    inner = atom.children[2]
+    assert getattr(inner, "_wire", unset) is unset
+    assert inner.to_wire() is inner.to_wire()
+
+    # The empty expression is not a special case.
+    empty = expr()
+    assert getattr(empty, "_wire", unset) is unset
+    assert empty.to_wire() == ["e", []]
+    assert empty.to_wire() is empty.to_wire()
+
+
 def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
     """Interning a fresh name costs the same at a bound of 512 and of 65,536.
 

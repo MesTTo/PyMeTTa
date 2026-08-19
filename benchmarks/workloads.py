@@ -28,13 +28,20 @@ def wire_atom():
 
 
 def wire_codec(atom, trips: int = WIRE_TRIPS) -> int:
-    """Encode and decode a fixed tree, returning processed atom nodes."""
-    decoded = None
+    """Encode and decode a fixed tree, returning processed atom nodes.
+
+    Each trip encodes the atom the PREVIOUS trip decoded, never the same
+    object twice, so encoding stays cold. Re-encoding one long-lived atom
+    would answer Expr's memoized wire slot from the second trip on, and this
+    would stop being a codec measurement at all: measured 2026-08-19, that
+    shape reported -31.61% for a change that adds a cache and encodes once.
+    """
+    source = atom
     for _ in range(trips):
-        decoded = from_wire(atom.to_wire())
-    if decoded != atom:
+        atom = from_wire(atom.to_wire())
+    if atom != source:
         raise AssertionError("wire codec workload did not round-trip its atom")
-    return trips * count_atoms(atom)
+    return trips * count_atoms(source)
 
 
 def json_payload() -> dict:

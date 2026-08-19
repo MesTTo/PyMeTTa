@@ -242,9 +242,9 @@
       "wall_seconds_per_operation": 2.682138467207551e-06
     },
     "subscription-dispatch": {
-      "comment": "LOWERED on 2026-08-19, 47898205 to 45890647, -4.19% from encode's type fast path, and 48243225 to 47898205 before that from the intern cache's O(1) eviction and single tier. Both attributed by interleaved A/B of the change alone. Prior: Recorded 2026-08-19 with the item that introduced it. 1000 standing queries on ONE space, 200 writes, exactly one subscription matching each write, so the strategy is the whole cost: the scan pays a unify per non-match and the discrimination tree does not. A/B on this workload, controlled instructions:u, min of 3: the linear scan 4012009981, the tree 48243634, 83.2x fewer. Both delivered 200 of 200, so the ratio is the same work done two ways.",
+      "comment": "RAISED on 2026-08-19, 45890022 to 46833741, +2.09%, and the cost is Expr's lazy _wire slot. This lane builds 200 expressions and crosses each exactly ONCE, which is the shape the slot cannot pay for: the first crossing reads an unset slot, and getattr with a default on one costs 2667 instructions building the AttributeError it then swallows, plus 568 to write the cache, against a rebuild of about 10900 that a second crossing would have saved. Accepted deliberately: the bound cost is one first crossing per expression and the gain is unbounded in re-crossings, 10.1x flat and 98.1x nested per call. Prior: LOWERED on 2026-08-19, 47898205 to 45890647, -4.19% from encode's type fast path, and 48243225 to 47898205 before that from the intern cache's O(1) eviction and single tier. Both attributed by interleaved A/B of the change alone. Prior: Recorded 2026-08-19 with the item that introduced it. 1000 standing queries on ONE space, 200 writes, exactly one subscription matching each write, so the strategy is the whole cost: the scan pays a unify per non-match and the discrimination tree does not. A/B on this workload, controlled instructions:u, min of 3: the linear scan 4012009981, the tree 48243634, 83.2x fewer. Both delivered 200 of 200, so the ratio is the same work done two ways.",
       "instruction_noise_percent": 1.0,
-      "instructions": 45890647,
+      "instructions": 46833741,
       "operations": 200,
       "unit": "writes"
     },
@@ -278,10 +278,10 @@
       "unit": "calls"
     },
     "wire-codec": {
-      "comment": "LOWERED on 2026-08-19, 3522689581 to 3457054691. Same change as term-operators: Expr writes its slots through their descriptors. Attributed by interleaved A/B, 3536110132 to 3457065051, -2.24%. from_wire builds one Expr per decoded node, so this lane pays the two writes 51 times per trip.",
+      "comment": "RAISED on 2026-08-19, 3457164978 to 3467063880, +0.286%, from Expr's lazy _wire slot on a workload that now CHAINS its trips. The workload changed in the same commit and the change is the honest half of that number: it used to re-encode one long-lived atom 2000 times, which the new slot answers from cache after the first, and the lane reported -31.61% for a change that stopped encoding rather than encoding faster. Each trip now encodes the atom the previous trip decoded, so encoding stays cold and the +0.286% is the slot's real cost on a cold crossing. Prior: LOWERED on 2026-08-19, 3522689581 to 3457054691. Same change as term-operators: Expr writes its slots through their descriptors. Attributed by interleaved A/B, 3536110132 to 3457065051, -2.24%. from_wire builds one Expr per decoded node, so this lane pays the two writes 51 times per trip.",
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 3457054691,
+      "instructions": 3467063880,
       "operations": 504000,
       "unit": "atom round-trips",
       "wall_seconds_per_operation": 3.075987162504582e-07

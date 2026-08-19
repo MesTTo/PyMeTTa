@@ -23,6 +23,11 @@ Guarantees:
     either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
+  - Expr builds its wire form on the first crossing and never on
+    construction, 10.1x per call flat and 98.1x nested against rebuilding
+    it [measured 2026-08-19: 20,000 crossings, minimum of three
+    instructions:u runs with the interpreter floor subtracted; tested
+    test_expr_defers_its_wire_form_until_asked]
   - encode answers common types from a table keyed on the exact class and
     falls through to its singledispatch otherwise, 4603 instructions per
     call against 2306 [measured 2026-08-19: 800,000 calls over eight leaf
@@ -879,6 +884,7 @@ class Expr(Atom):
 
     __slots__ = {
         "_hash": "the cached structural hash, computed on first use",
+        "_wire": "the cached wire form, built on the first crossing",
         "children": "the ordered child atoms, as a tuple",
     }
     __match_args__ = ("children",)
@@ -1000,11 +1006,19 @@ class Expr(Atom):
         return iter(self.children)
 
     def to_wire(self) -> list:
-        # Iterative for the same reason __str__ is: depth is data. Leaf
-        # symbols and variables answer their cached wire cells; the
-        # expression skeleton itself is one-shot in the hot paths (a fact
-        # is added once), so it builds fresh, measured cheaper than
-        # memoizing it.
+        # Memoized lazily, exactly as Sym and Var are: the slot is written
+        # by the first crossing and never on construction, so a term that
+        # is built and thrown away pays nothing. Iterative for the same
+        # reason __str__ is: depth is data.
+        #
+        # Only the node that was ASKED caches. A child expression keeps its
+        # own slot unwritten, because the parent's cached list already holds
+        # that subtree and writing a slot per node would charge every
+        # one-shot term for a cache nothing reads [tested
+        # test_expr_defers_its_wire_form_until_asked].
+        wire = getattr(self, "_wire", None)
+        if wire is not None:
+            return wire
         out: list = ["e", []]
         stack: list[tuple[Expr, list]] = [(self, out[1])]
         while stack:
@@ -1016,6 +1030,7 @@ class Expr(Atom):
                     stack.append((child, slot[1]))
                 else:
                     sink.append(child.to_wire())
+        _set_wire(self, out)
         return out
 
     @property
@@ -1043,6 +1058,7 @@ cast(ABCMeta, Sequence).register(Expr)
 # lookup was being paid twice for every node of every answer.
 _set_children = Expr.__dict__["children"].__set__
 _set_hash = Expr.__dict__["_hash"].__set__
+_set_wire = Expr.__dict__["_wire"].__set__
 
 
 # --------------------------------------------------------------------- encoding
