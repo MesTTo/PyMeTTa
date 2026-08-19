@@ -60,6 +60,11 @@
 %     and the prelude's, with each row written once and evicted only by the
 %     register that wrote it [tested 2026-08-19:
 %     metta_builtin_type_surface:a_shared_declaration_is_evicted_only_from_the_register_that_wrote_it].
+%   - The prelude loads exactly three form shapes: a declaration, an equation,
+%     and `!(add-translator-rule! NAME)` for a name it defines itself, which
+%     is how a DERIVED form ships. A program that defines such a name takes
+%     the whole form over, so the registration is withdrawn with the clauses
+%     [tested 2026-08-19: prelude_derived_forms].
 %   - Test assertions distinguish no answer from one empty-expression answer
 %     [tested 2026-08-14: translator_test_answers].
 %   - petta_assertion_failure/4 classifies the three assertion formals, so a
@@ -4942,6 +4947,12 @@ load_builtin_type_surface :- index_masking_data_heads.
 :- dynamic petta_engine_src_dir/1.
 :- dynamic prelude_owned/1.
 :- dynamic prelude_clause_ref/2.
+%Which names the prelude registered as TRANSLATOR RULES. A derived form ships
+%as an equation plus that registration, and the registration is the prelude's
+%to withdraw: a program that defines the name itself takes the whole form
+%over, and a rule pointing at the program's equations would call them as a
+%compile-time expander, which is not what an ordinary definition means.
+:- dynamic prelude_translator_rule/1.
 %Which builtin_type_declaration/2 rows the prelude PUT THERE, as opposed to
 %found there. The two registers overlap once a name needs its Atom mask
 %honoured at call sites AND belongs to the engine's reported type surface:
@@ -4970,6 +4981,10 @@ evict_prelude_definition(FAtom) :-
     ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
         retract_prelude_declarations(FAtom),
         retractall(prelude_doc_atom(FAtom, _)),
+        (   retract(prelude_translator_rule(FAtom))
+        ->  retractall(translator_rule(FAtom))
+        ;   true
+        ),
         %The prelude is the base tier's, so its eviction is &self's change.
         metta_self_module(Self),
         function_changed(Self, FAtom)
@@ -5078,6 +5093,21 @@ load_prelude_form(expression, _, Term) :-
     Term = ['@doc', Name | _], atom(Name), !,
     (   prelude_doc_atom(Name, Term) -> true
     ;   assertz(prelude_doc_atom(Name, Term))
+    ).
+%A DERIVED form: an equation that expands the call plus the registration
+%that makes the translator consult it. The loader takes only this one
+%runnable shape, so the prelude cannot smuggle arbitrary execution into
+%boot, and the name has to be one the prelude itself defines, so a
+%registration can never point at somebody else's equations.
+load_prelude_form(runnable, Src, ['add-translator-rule!', Name]) :-
+    atom(Name), !,
+    (   prelude_owned(Name)
+    ->  'add-translator-rule!'(Name, _),
+        (   prelude_translator_rule(Name) -> true
+        ;   assertz(prelude_translator_rule(Name))
+        )
+    ;   throw(error(existence_error(prelude_definition, Name),
+                    context(load_engine_prelude/0, Src)))
     ).
 load_prelude_form(function, _, Term) :-
     Term = [=, [FAtom|W], _], atom(FAtom), !,

@@ -105,6 +105,14 @@
 %     group, and a call costs a flat 3 inferences at 2 and at 16 bindings
 %     against 62 and 370 for the same bindings handed over
 %     [measured 2026-08-19].
+%   - A form the engine's prelude ships as a translator rule compiles to what
+%     its expansion compiles to, goal for goal, and a rule that does not
+%     apply leaves the call to ordinary dispatch rather than failing the
+%     equation around it [tested 2026-08-19: translator_derived_forms]. Eight
+%     forms moved out of translate_special_dl/5 and rewrite_streamops/2 that
+%     way, for -0.2313% of the corpus's deterministic inference count and no
+%     change to any answer [measured 2026-08-19; KERNEL.md carries the
+%     per-head ledger].
 %   - An equation head is a PATTERN at every depth, matched structurally,
 %     whatever a label inside it happens to have equations for, so a head and
 %     a match that reads the same shape back agree
@@ -762,27 +770,34 @@ agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc, _).
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
                                             goals_list_to_conj(Goals, Conj).
 
-%Special stream operation rewrite rules before main translation
-rewrite_streamops(['trace!', Arg1, Arg2],
-                  [progn, ['println!', Arg1], Arg2]) :- !.
-rewrite_streamops([unique, Arg],
-                  [call, [superpose, ['unique-atom', [collapse, Arg]]]]) :- !.
-rewrite_streamops(['alpha-unique', Arg],
-                  [call, [superpose, ['alpha-unique-atom', [collapse, Arg]]]]) :- !.
-rewrite_streamops([union, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['union-atom', [collapse, [superpose|A]],
-                                                    [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops([intersection, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['intersection-atom', [collapse, [superpose|A]],
-                                                           [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops([subtraction, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['subtraction-atom', [collapse, [superpose|A]],
-                                                          [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops(X, X).
-
-%Guarded stream ops rewrite rule application, successfully avoiding copy_term:
-safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
-                                                                          ; Out = In).
+%Expand one call through a translator rule. The rule is an ordinary MeTTa
+%equation, so it lives in the module of the space that wrote it: called
+%unqualified it resolved in the ENGINE's module and raised Unknown procedure
+%for every rule [tested: examples/libraries/patrick_test.metta].
+%
+%A rule that does not APPLY fails here rather than raising, and the dispatch
+%above then carries on down the chain exactly as it does for a special form
+%no clause of translate_special_dl/5 fits. That is what lets a rule carry a
+%guard in its head: `(= (union (superpose $a) (superpose $b)) ...)` rewrites
+%the shape it names and leaves `(union foo bar)` to data dispatch, which is
+%what rewrite_streamops/2's identity clause used to do for the same six
+%forms. Wired as the THEN of its own if-then-else, a rule that did not match
+%took the whole enclosing equation down with it: `(= (f) (union foo bar))`
+%failed to translate and the message named process_form/4
+%[tested: translator_derived_forms].
+apply_translator_rule_dl(HV, Args, AfterHead, Goals, Out) :-
+    (   catch_recover(type_declaration(HV, TypeChain), fail)
+    ->  TypeChain = [->|Xs],
+        append(ArgTypes, [_], Xs),
+        translate_args_by_type_dl(Args, ArgTypes, AfterHead, AfterArgs, Values)
+    ;   translate_args_dl(Args, AfterHead, AfterArgs, Values)
+    ),
+    append(Values, [Expansion], RuleArgs),
+    HookCall =.. [HV|RuleArgs],
+    current_metta_module(RuleModule),
+    call(RuleModule:HookCall),
+    translate_expr_dl(Expansion, AfterArgs, Goals, Out),
+    refuse_seam_expanded_to_data(HV, Out).
 
 %Turn a MeTTa S-expression into a goal list. The internal difference list
 %keeps a nested call from copying every goal produced below it.
@@ -791,30 +806,11 @@ translate_expr(Input, Goals, Out) :-
 
 translate_expr_dl(X, Goals, Goals, X) :-
     ((var(X) ; atomic(X)) ; X = partial(_,_)), !.
-translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
-        safe_rewrite_streamops([H0|T0],[H|T]),
+translate_expr_dl([H|T], Goals0, Goals, Out) :-
         translate_expr_dl(H, Goals0, AfterHead, HV),
         %--- Translator rules ---:
-        ( nonvar(HV), translator_rule(HV) -> ( catch_recover(type_declaration(HV, TypeChain), fail)
-                                               -> TypeChain = [->|Xs],
-                                                  append(ArgTypes, [_], Xs),
-                                                  translate_args_by_type_dl(T, ArgTypes, AfterHead, AfterArgs, T1)
-                                                ; translate_args_dl(T, AfterHead, AfterArgs, T1) ),
-                                             append(T1,[Gs],Args),
-                                             HookCall =.. [HV|Args],
-                                             %A translator rule is an ordinary
-                                             %MeTTa equation, so it lives in
-                                             %the module of the space that
-                                             %wrote it. Called unqualified it
-                                             %resolved in the ENGINE's module
-                                             %and raised Unknown procedure for
-                                             %every rule
-                                             %[tested:
-                                             %examples/libraries/patrick_test.metta].
-                                             current_metta_module(RuleModule),
-                                             call(RuleModule:HookCall),
-                                             translate_expr_dl(Gs, AfterArgs, Goals, Out),
-                                             refuse_seam_expanded_to_data(HV, Out)
+        ( nonvar(HV), translator_rule(HV),
+          apply_translator_rule_dl(HV, T, AfterHead, Goals, Out) -> true
         ; atom(HV), translate_special_dl(HV, T, AfterHead, Goals, Out) -> true
         %The Prolog importer consumes its function-name list as data. Keeping
         %that argument literal makes its translation stable after those names
@@ -977,29 +973,18 @@ metta_special_form(Name) :-
 %Every head the translator gives meaning to, across BOTH of its compilation
 %routes. metta_special_form/1 above answers for one of them and is the
 %narrower question its callers want; this is the wider one, and the
-%difference is the six stream ops, which safe_rewrite_streamops/2 rewrites at
-%translate_expr_dl/4 one line before any special form or function dispatch is
-%tried. Asked of the clause heads for the same reason as above, so a rewrite
-%added at rewrite_streamops/2 is covered the day it is added.
+%difference is the TRANSLATOR RULES, which translate_expr_dl/4 consults one
+%line before any special form or function dispatch is tried. The register is
+%asked directly, so a rule the engine's prelude ships and a rule a program
+%adds are both covered the moment they are registered.
 %
 %Written for the linter, whose possibly-undefined-reference check asks "does
 %anything in the engine give this head meaning". Answering that with fun/1
 %alone reported 1623 findings over PeTTa/examples, 712 of them special forms
 %used correctly, `if` alone accounting for 378 [measured 2026-08-17]
 %[tested: test_calling_a_special_form_is_not_an_undefined_reference].
-%The nonvar guard is load-bearing. rewrite_streamops/2's last clause is the
-%identity fallthrough, whose head argument is a bare variable, so asking
-%clause/2 for rewrite_streamops([Name|_], _) unifies with it for ANY Name and
-%answers true for every symbol in the language. Binding the pattern first and
-%testing it afterwards reads only the six real rewrites
-%[tested: translator_special_dispatch:an_ordinary_name_is_not_a_translated_head].
 metta_translated_head(Name) :- metta_special_form(Name), !.
-metta_translated_head(Name) :-
-    petta_engine_module(Engine),
-    clause(Engine:rewrite_streamops(Pattern, _), _),
-    nonvar(Pattern),
-    Pattern = [Name|_],
-    !.
+metta_translated_head(Name) :- translator_rule(Name), !.
 
 %First-argument indexing keeps each special form independent of the number of
 %other forms. A clause fails on an unsupported arity so ordinary function or
@@ -1241,19 +1226,6 @@ translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
       ; translate_expr_dl(KeyExpr, AfterHead, AfterKey, KeyValue),
         translate_case(PairsExpr, KeyValue, Out, CaseGoal, KeyGoals),
         append(KeyGoals, [CaseGoal|Goals], AfterKey) ).
-
-translate_special_dl('and-then', [A, B], AfterHead, Goals, Out) :-
-    translate_expr_to_conj(A, ConjA, ValueA),
-    translate_expr_to_conj(B, ConjB, ValueB),
-    AfterHead = [(ConjA,
-                  (ValueA == true -> (ConjB, Out = ValueB)
-                                    ; Out = false))|Goals].
-translate_special_dl('or-else', [A, B], AfterHead, Goals, Out) :-
-    translate_expr_to_conj(A, ConjA, ValueA),
-    translate_expr_to_conj(B, ConjB, ValueB),
-    AfterHead = [(ConjA,
-                  (ValueA == true -> Out = true
-                                    ; (ConjB, Out = ValueB)))|Goals].
 
 translate_special_dl(let, Args, AfterHead, Goals, Out) :-
     translate_let_dl(Args, AfterHead, Goals, Out).
