@@ -588,6 +588,28 @@ ext_point_kind(metta_grounded_type_names/2, ownership).
 :- multifile metta_grounded_class_type/2.
 ext_point_kind(metta_grounded_class_type/2, ownership).
 
+%A host bridge's own builtins, registered by the engine's registry directive
+%from these declarations, so no list inside the engine names a host: the
+%bridge declares, the engine registers whatever was declared.
+:- multifile metta_host_builtin/1.
+ext_point_kind(metta_host_builtin/1, declaration).
+
+%A host claims an import whose source is its own kind of file and performs
+%the whole job itself, lifecycle included, through the published
+%import_when/4; with no host loaded, or none claiming, every import is a
+%MeTTa import.
+:- multifile metta_host_import/1.
+ext_point_kind(metta_host_import/1, ownership).
+
+%A registered rewriter runs over every loaded form; a host installs one only
+%while it is needed (the Python bridge registers its import-as alias rewrite
+%when the first alias lands), so a program that never uses the feature pays
+%one failed lookup per form and nothing more, the same install-on-demand
+%shape the atom hooks use.
+:- dynamic metta_form_rewriter/1.
+:- multifile metta_form_rewriter/1.
+ext_point_kind(metta_form_rewriter/1, ownership).
+
 :- use_module(library(prolog_wrap)).
 
 metta_dispatch_call(_, _, _, _) :- fail.

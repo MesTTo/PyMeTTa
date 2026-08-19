@@ -3782,98 +3782,6 @@ run_under_pragmas(Goal) :-
                                                                 Space) ),
                                      evalc(Atom, Space, Out).
 
-%%% Python bindings: %%%
-% janus converts Python booleans to @(true)/@(false); normalize them to the
-% language booleans, through lists too, so py-call results compose with if,
-% and, or, == whether the boolean is the answer or sits inside one.
-py_bool_norm('@'(true), true) :- !.
-py_bool_norm('@'(false), false) :- !.
-py_bool_norm(L, L1) :- is_list(L), !, maplist(py_bool_norm, L, L1).
-py_bool_norm(R, R).
-% The same conversion outward: the language booleans are the atoms true and
-% false, which janus would pass as the strings 'true' and 'false'; map them
-% (through lists too) to @(true)/@(false) so Python receives real booleans.
-py_arg_norm(true, '@'(true)) :- !.
-py_arg_norm(false, '@'(false)) :- !.
-py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
-py_arg_norm(X, X).
-
-:- dynamic python_import_alias/2.
-python_call_module(Name, ModuleKey) :- python_import_alias(Name, ModuleKey), !.
-python_call_module(Name, Name).
-%The rewrite below only ever changes a spec that python_import_alias/2 names,
-%so with no alias registered it is the identity, and its whole effect is to
-%rebuild the term through maplist/3. The loader runs it over every form it
-%reads, which measured at 71 inferences per form on a program that never
-%touches Python. Ask first.
-bind_python_calls(Term, Bound) :-
-    ( python_import_alias(_, _)
-      -> bind_python_calls_(Term, Bound)
-       ; Bound = Term ).
-
-bind_python_calls_(Term, Term) :- var(Term), !.
-bind_python_calls_(Term, Term) :- atomic(Term), !.
-bind_python_calls_([Call, [Spec|Args]], ['py-call', [BoundSpec|BoundArgs]]) :-
-    Call == 'py-call', !,
-    bind_python_call_spec(Spec, BoundSpec),
-    maplist(bind_python_calls_, Args, BoundArgs).
-bind_python_calls_(Terms, BoundTerms) :-
-    maplist(bind_python_calls_, Terms, BoundTerms).
-
-bind_python_call_spec(Spec, BoundSpec) :-
-    atom(Spec),
-    atomic_list_concat([Module, Function], '.', Spec),
-    Module \== '',
-    python_import_alias(Module, ModuleKey), !,
-    atomic_list_concat([ModuleKey, Function], '.', BoundSpec).
-bind_python_call_spec(Spec, Spec).
-%py-call is UPSTREAM PeTTa's, which is why it does not move. It converts by
-%janus's defaults and those defaults are wrong in four ways a program cannot
-%work around: a dict arrives as the ATOM 'py{a:1}', so py-len answers 11 for
-%two keys; a generator is DRAINED, so asking for its first element runs every
-%side effect and an infinite one cannot cross; a file handle becomes a
-%one-element list of its text; and a Python str becomes a Symbol, so
-%`(== "abc" (py-call (str "abc")))` is False and a (-> String Number)
-%parameter rejects it.
-%
-%Every one of those is fixed in src/python.pl, which is the language's own
-%surface rather than this one: `py-atom` RESOLVES where this APPLIES, and that
-%split is what makes a Python callable a value. Reach for that. Changing this
-%operator's defaults was tried and measured and it works, and it changes what
-%every program written against upstream sees, so it stays as upstream has it.
-%The DECLARED arity, which is the one the type surface names and the one a
-%program writes. py-call is also registered at 3, and guarding that form too
-%was measured and dropped: it costs 6 inferences on the handle-round-trip
-%benchmark, 2 over that counter's own 4-inference allowance, to name an
-%operation in a spelling the type surface does not declare. So
-%(py-call $u opts) still raises a context-less instantiation_error
-%[measured 2026-08-19], the same residue src/parser.pl's sread carries.
-'py-call'(SpecList, _) :- var(SpecList), !, refuse_unbound_input('py-call', 1).
-'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
-'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
-                                        must_be(atom, A),
-                                        maplist(py_arg_norm, Args0, Args),
-                                        ( sub_atom(A, 0, 1, _, '.')         % ".method"
-                                          -> sub_atom(A, 1, _, 0, Fun),
-                                             Args = [Obj|Rest],
-                                             ( py_is_object(Obj)            % on a Python object reference
-                                               -> ( Rest == []
-                                                    -> compound_name_arguments(Meth, Fun, [])
-                                                     ; Meth =.. [Fun|Rest] ),
-                                                  py_call(Obj:Meth, R0, Opts), py_bool_norm(R0, Result)
-                                                ; py_call(builtins:type(Obj), Ty), % on a converted value (str, int, ...)
-                                                  Call =.. [Fun, Obj|Rest],
-                                                  py_call(Ty:Call, R0, Opts), py_bool_norm(R0, Result) )
-                                           ; atomic_list_concat([M,F], '.', A) % "mod.fun"
-                                             -> ( Args == []
-                                                  -> compound_name_arguments(Call0, F, [])
-                                                   ; Call0 =.. [F|Args] ),
-                                                python_call_module(M, PyModule),
-                                                py_call(PyModule:Call0, R0, Opts), py_bool_norm(R0, Result)
-                                              ; ( Args == []                      % bare "fun"
-                                                  -> compound_name_arguments(Call0, A, [])
-                                                   ; Call0 =.. [A|Args] ),
-                                                py_call(builtins:Call0, R0, Opts), py_bool_norm(R0, Result) ).
 
 %A FRESH SPACE, which PeTTa did not have. Spaces here are named and created on
 %demand, so `(new-space)` reduced to nothing and `(bind! &s (new-space))` did
@@ -3999,8 +3907,8 @@ rewrite_parsed_form(Space, FormStr, Term, Rewritten) :-
     ;   %No source text to probe: walk, correctness over the shortcut.
         substitute_self_(Space, Term, Term1)
     ),
-    (   python_import_alias(_, _)
-    ->  bind_python_calls_(Term1, Bound)
+    (   metta_form_rewriter(Rewriter)
+    ->  call(Rewriter, Term1, Bound)
     ;   Bound = Term1
     ),
     (   metta_token(_, _)
@@ -4935,8 +4843,6 @@ current_working_dir(Base) :- absolute_file_name('.', Base, [file_type(directory)
 import_file_string(File, SFile) :- string(File), !, SFile = File.
 import_file_string(File, SFile) :- atom_string(File, SFile).
 
-python_import_file(File) :- import_file_string(File, SFile),
-                            file_name_extension(_, py, SFile).
 
 resolve_existing_import_path(Base, RequestedPath, CanonPath) :-
     ( is_absolute_file_name(RequestedPath)
@@ -4951,7 +4857,6 @@ throw_missing_import(File) :-
 
 resolve_metta_import_path(File, CanonPath) :-
     import_file_string(File, SFile),
-    \+ python_import_file(SFile),
     metta_module_path(SFile, Base, Relative),
     ensure_metta_ext(Relative, RequestedPath),
     ( resolve_existing_import_path(Base, RequestedPath, CanonPath)
@@ -5023,13 +4928,6 @@ metta_import_base(top, Directory) :-
     ;   current_working_dir(Directory)
     ).
 
-resolve_python_import_path(File, CanonPath) :-
-    import_file_string(File, SFile),
-    python_import_file(SFile),
-    current_working_dir(Base),
-    ( resolve_existing_import_path(Base, SFile, CanonPath)
-      -> true
-       ; throw_missing_import(File) ).
 
 :- dynamic imported_metta_source/2.
 :- dynamic import_life/3.
@@ -5119,77 +5017,6 @@ import_load_needed(changed, Space, CanonPath) :-
     ;   metta_source_changed(CanonPath)
     ).
 
-python_module_names(CanonPath, ModuleKey, ModuleName) :-
-    crypto_data_hash(CanonPath, Hash, [algorithm(sha256)]),
-    atom_concat('_petta_import_', Hash, ModuleKey),
-    file_base_name(CanonPath, BaseName),
-    file_name_extension(ModuleName, _, BaseName).
-
-python_sibling_module_names(ParentDir, ModuleNames) :-
-    directory_files(ParentDir, Entries),
-    findall(ModuleName,
-            ( member(Entry, Entries),
-              file_name_extension(ModuleName, py, Entry) ),
-            Names),
-    sort(Names, ModuleNames).
-
-save_python_module(Name, module_state(Name, true, Module)) :-
-    py_call(sys:modules:'__contains__'(Name), @(true)), !,
-    py_call(sys:modules:pop(Name), Module, [py_object(true)]).
-save_python_module(Name, module_state(Name, false, @(none))).
-
-restore_python_module(module_state(Name, true, Module)) :- !,
-    py_call(sys:modules:'__setitem__'(Name, Module), _).
-restore_python_module(module_state(Name, false, _)) :-
-    clear_python_module(Name).
-
-clear_python_module(Name) :-
-    ( py_call(sys:modules:'__contains__'(Name), @(true))
-      -> py_call(sys:modules:pop(Name), _)
-       ; true ).
-
-with_saved_python_modules([], Goal) :-
-    call(Goal).
-with_saved_python_modules([Name|Names], Goal) :-
-    setup_call_cleanup(
-        save_python_module(Name, State),
-        with_saved_python_modules(Names, Goal),
-        restore_python_module(State)).
-
-load_python_source(CanonPath) :-
-    python_module_names(CanonPath, ModuleKey, ModuleName),
-    py_call(sys:path:copy(), PreviousPath),
-    file_directory_name(CanonPath, ParentDir),
-    python_sibling_module_names(ParentDir, SiblingNames),
-    with_saved_python_modules(
-        SiblingNames,
-        load_python_source_in_context(CanonPath, ModuleKey, ModuleName,
-                                      ParentDir, PreviousPath)),
-    retractall(python_import_alias(ModuleName, _)),
-    assertz(python_import_alias(ModuleName, ModuleKey)).
-
-load_python_source_in_context(CanonPath, ModuleKey, ModuleName, ParentDir,
-                              PreviousPath) :-
-    catch(load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
-                             PreviousPath),
-          Error,
-          ( clear_python_module(ModuleKey),
-            throw(Error) )).
-
-load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
-                   PreviousPath) :-
-    py_call(importlib:util:spec_from_file_location(ModuleKey, CanonPath), Spec),
-    py_call(importlib:util:module_from_spec(Spec), Module),
-    py_call(sys:modules:'__setitem__'(ModuleKey, Module), _),
-    py_call(sys:modules:'__setitem__'(ModuleName, Module), _),
-    setup_call_cleanup(
-        py_call(sys:path:insert(0, ParentDir), _),
-        py_call(Spec:loader:exec_module(Module), _),
-        restore_python_path(PreviousPath)).
-
-restore_python_path(PreviousPath) :-
-    py_call(sys:path:clear(), _),
-    py_call(sys:path:extend(PreviousPath), _).
 
 %The UNIT value, for the reason add-atom and pragma! answer it: importing is
 %an effect and `()` is what the arbiter records for every one of its module
@@ -5256,11 +5083,14 @@ metta_top_context :-
     findall(Held, working_dir(Held), Directories),
     length(Directories, Depth),
     Depth =< 1.
+%A HOST claims and performs an import whose source is its own kind of
+%file, through the ownership seam; with no host loaded, or none claiming,
+%every import is a MeTTa import. The claiming clause does the whole job,
+%lifecycle included, through the same published import_when/4 the engine
+%uses itself.
 importer_helper_impl(Space, File) :-
-    ( python_import_file(File)
-      -> resolve_python_import_path(File, CanonPath),
-         import_when(not_loaded, '$python', CanonPath,
-                     load_python_source(CanonPath))
+    ( metta_host_import(File)
+      -> true
        ; resolve_metta_import_path(File, CanonPath),
          import_when(changed, Space, CanonPath,
                      load_imported_metta_file(CanonPath, _, Space)) ).
@@ -5664,8 +5494,6 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'git-import!',
                           'add-atom', 'remove-atom', 'add-atoms', 'add-reduct', 'add-reducts', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
                           decons, 'decons-atom', noeval, 'new-space',
-                          'py-call', 'py-atom', 'py-dot',
-                          'py-list', 'py-tuple', 'py-dict', 'py-iter',
                           'get-type', 'get-type-space', 'get-metatype', '=alpha', sread, cons, reverse,
                           'get-doc', 'get-doc-space', 'help!', documented, 'documented-space',
                           'defined-name', undocumented, 'undocumented-space',
@@ -5682,6 +5510,12 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'add-translator-rule!', 'remove-translator-rule!', argv,
                           register_metta_library_path,
                           dif, 'residual-goals']).
+%A HOST's builtins register the same way, from the host bridge's own
+%metta_host_builtin/1 declarations rather than from a list here that would
+%name the host: the bridge loads earlier in this file's own load order, so
+%its facts exist by the time this directive runs, and an engine with no
+%host loaded registers nothing.
+:- forall(metta_host_builtin(Name), register_builtin_fun(Name)).
 
 %A backend's own builtins, registered here because this is where the engine's
 %are and the order matters. The NAMES are the backend's: it declares them in
