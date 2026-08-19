@@ -968,25 +968,37 @@ body_form_dual('let*', [Bindings, Body], Module, Local, Goal) :-
 %The key is a generator like a let's value, so the whole chain is quantified
 %over the key's answers.
 body_form_dual(case, [KeyExpr, Pairs], Module, Local, Goal) :-
-    is_list(Pairs),
-    case_default(Pairs, Cases, Default),
-    translate_expr(KeyExpr, KeyGoals, KeyValue),
-    goals_to_conj(KeyGoals, Generator),
-    case_dual_chain(Cases, KeyValue, Module, Local, Chain),
-    term_variables(KeyExpr, GeneratorVariables),
-    (   GeneratorVariables == []
-    ->  Quantified = foreach(Generator, Chain)
-    ;   Quantified = metta_generator_forall(GeneratorVariables, Local,
-                                            Generator, Chain, KeyExpr)
-    ),
-    (   Default == none
-    ->  Goal = Quantified
-    ;   %An Empty branch answers when the KEY has no answer, and foreach/2 over
-        %an empty generator succeeds vacuously, so the two cases have to be
-        %told apart before quantifying. This costs one extra evaluation of the
-        %key, which is the price of asking whether it answers at all.
-        body_nottrue(Default, Module, Local, DualDefault),
-        Goal = ( \+ Generator -> DualDefault ; Quantified )
+    (   is_list(Pairs)
+    ->  case_default(Pairs, Cases, Default),
+        translate_expr(KeyExpr, KeyGoals, KeyValue),
+        goals_to_conj(KeyGoals, Generator),
+        case_dual_chain(Cases, KeyValue, Module, Local, Chain),
+        term_variables(KeyExpr, GeneratorVariables),
+        (   GeneratorVariables == []
+        ->  Quantified = foreach(Generator, Chain)
+        ;   Quantified = metta_generator_forall(GeneratorVariables, Local,
+                                                Generator, Chain, KeyExpr)
+        ),
+        (   Default == none
+        ->  Goal = Quantified
+        ;   %An Empty branch answers when the KEY has no answer, and
+            %foreach/2 over an empty generator succeeds vacuously, so the
+            %two cases have to be told apart before quantifying. This costs
+            %one extra evaluation of the key, which is the price of asking
+            %whether it answers at all.
+            body_nottrue(Default, Module, Local, DualDefault),
+            Goal = ( \+ Generator -> DualDefault ; Quantified )
+        )
+    ;   %Cases that only arrive at run time refuse the way let*'s bindings
+        %do, naming the actual reason; falling through said only that case
+        %is a special form [tested:
+        %a_case_whose_cases_have_not_arrived_has_no_dual].
+        throw(error(type_error(dualisable_body, [case, KeyExpr, Pairs]),
+                    context(body_form_dual/5,
+                            'a dual is built once, out of the equation as it \c
+                             was written, so case branches that only arrive \c
+                             when the program runs have none to negate; \c
+                             writing the cases out gives the form a dual')))
     ).
 
 %A collapse yields a LIST, always, so it is never the atom True and its dual

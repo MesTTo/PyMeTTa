@@ -181,3 +181,23 @@ def test_an_op_authors_exception_stays_wrapped(metta):
             metta.run("!(moodyop 1)")
     finally:
         metta.unregister_op("moodyop")
+
+
+def test_case_dual_refusal_names_the_unarrived_cases(metta):
+    """The refusal says WHY: the cases have not arrived at compile time.
+
+    A dual is built once, out of the equation as written, so case branches
+    handed in at run time have none to negate. let*'s dual already refuses
+    with that precise reason; case fell through to the generic special-form
+    refusal, which names a true fact about case and the wrong reason for
+    this equation.
+    """
+    with metta.new_space() as space:
+        space.run("(= (cdrf-key) 1)")
+        space.run("(= (cdrf-handed $cs) (case (cdrf-key) $cs))")
+        with pytest.raises(EngineError) as caught:
+            space.run("!(not-provable (cdrf-handed (quote ((1 (> 1 0))))))")
+        message = str(caught.value)
+        assert "arrive" in message
+        assert "writing the cases out" in message
+        assert "special form" not in message
