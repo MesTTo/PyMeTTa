@@ -17,7 +17,7 @@
 %     test_loading_the_same_file_twice_leaves_one_copy]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
-%   - petta_py_exception_info/3 returns the tagged reader detail without
+%   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
 %     PeTTa's evaluation paths produced each answer, leaving the ordinary
@@ -398,15 +398,15 @@ prolog:error_message(petta_answer_annotation_undeclared(Ctx, K)) -->
 % Some exceptions are control signals rather than errors; converting one into a
 % value would swallow the very signal its thrower waits for.
 petta_py_raise(Kind, Detail) :-
-    throw(error(petta_py_exception(Kind, Detail), context(petta, Kind))).
+    throw(error(metta_control_signal(Kind, Detail), context(petta, Kind))).
 
-petta_py_exception_info(
-    error(petta_py_exception(Kind, Detail), context(petta, _)), Kind, Detail) :-
+metta_control_signal_info(
+    error(metta_control_signal(Kind, Detail), context(petta, _)), Kind, Detail) :-
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 
-petta_py_exception_kind(Error, Kind) :-
-    petta_py_exception_info(Error, Kind, _).
+metta_control_signal_kind(Error, Kind) :-
+    metta_control_signal_info(Error, Kind, _).
 
 %The engine names the written MeTTa operation in the context of a builtin's
 %error, so the Python side reads that name from the term rather than from the
@@ -458,10 +458,10 @@ petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
 %The Python side's contributions to the engine's control-signal seam. There
 %was a petta_py_control_exception/1 here holding a SECOND copy of the list,
 %and nothing ever called it: it had drifted from the engine's, missing
-%petta_py_interrupted and both petta_py limit errors, so anyone who found it
+%metta_host_interrupted and both petta_py limit errors, so anyone who found it
 %and used it would have swallowed exactly the signals this side raises.
 :- multifile control_exception/1.
-control_exception(error(petta_py_exception(_, _), context(petta, _))).
+control_exception(error(metta_control_signal(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
@@ -480,7 +480,7 @@ control_exception(error(petta_py_exception(_, _), context(petta, _))).
 % failure into the reserved envelope, and the prepare passes raise their own
 % errors, which the Python side classifies by shape.
 
-%Reader failures use the reserved petta_py_exception/2 envelope, so the
+%Reader failures use the reserved metta_control_signal/2 envelope, so the
 %Python side classifies the thrown term rather than hunting arbitrary text.
 petta_py_tag_reader(Goal) :-
     catch(Goal, Caught,

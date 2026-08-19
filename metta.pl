@@ -3591,7 +3591,7 @@ metta_inferences(Limit, Goal, Value) :-
     must_be(positive_integer, Limit),
     call_with_inference_limit(findall(Value, Goal, Values), Limit, Result),
     (   Result == inference_limit_exceeded
-    ->  throw(error(petta_py_exception(inference_limit, Limit),
+    ->  throw(error(metta_control_signal(inference_limit, Limit),
                     context(petta, inference_limit)))
     ;   true
     ),
@@ -3740,14 +3740,14 @@ run_under_pragmas(Goal) :-
     (   metta_pragma('max-time', Seconds), number(Seconds), Seconds > 0
     ->  Timed = catch(call_with_time_limit(Seconds, Goal),
                       time_limit_exceeded,
-                      throw(error(petta_py_exception(time_limit, Seconds),
+                      throw(error(metta_control_signal(time_limit, Seconds),
                                   context(petta, time_limit))))
     ;   Timed = Goal
     ),
     (   metta_pragma('max-inferences', Limit), integer(Limit), Limit > 0
     ->  call_with_inference_limit(Timed, Limit, Result),
         (   Result == inference_limit_exceeded
-        ->  throw(error(petta_py_exception(inference_limit, Limit),
+        ->  throw(error(metta_control_signal(inference_limit, Limit),
                         context(petta, inference_limit)))
         ;   true
         )
@@ -5199,17 +5199,15 @@ with_metta_module(Module, Goal) :-
 %[tested: a_librarys_own_control_signal_is_not_recovered_from].
 control_exception(time_limit_exceeded).
 control_exception(inference_limit_exceeded).
-control_exception(petta_py_interrupted).
+control_exception(metta_host_interrupted).
 control_exception('$aborted').
-control_exception(error(petta_py_time_limit(_), _)).
-control_exception(error(petta_py_inference_limit(_), _)).
 %The reserved seam envelopes for the same two signals: the shim declares
-%every petta_py_exception kind control on the Python side, and these two
+%every metta_control_signal kind control on the Python side, and these two
 %are thrown by the ENGINE's own bound forms (inferences, with-pragma!),
 %so the CLI must agree or a program could catch its own budget there and
 %disarm the counter.
-control_exception(error(petta_py_exception(time_limit, _), _)).
-control_exception(error(petta_py_exception(inference_limit, _), _)).
+control_exception(error(metta_control_signal(time_limit, _), _)).
+control_exception(error(metta_control_signal(inference_limit, _), _)).
 control_exception(error(resource_error(_), _)).
 
 %A result past binary64 SATURATES to the IEEE value instead of raising,

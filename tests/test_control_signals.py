@@ -60,7 +60,7 @@ def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
         "petta_syntax_error",
         "petta_py_time_limit",
         "petta_py_inference_limit",
-        "petta_py_interrupted",
+        "metta_host_interrupted",
     ],
 )
 def test_exception_names_nested_in_other_terms_stay_engine_errors(m, sentinel):

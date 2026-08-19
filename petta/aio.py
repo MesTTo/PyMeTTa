@@ -348,7 +348,7 @@ class _EngineThread:
             # and this bypasses the runtime lock on purpose: the running
             # goal holds that lock, and the signal is how it lets go.
             bridge().query_once(
-                "thread_signal(T, throw(error(petta_py_exception(interrupted, none), "
+                "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "
                 "context(petta, interrupted))))",
                 {"T": swi_thread},
             )

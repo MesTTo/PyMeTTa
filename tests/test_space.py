@@ -75,7 +75,7 @@ def test_run_syntax_error_is_loud(metta):
         metta.run("! (broken")
     assert "line 1" in str(failure.value)
     assert "Unknown error term" not in str(failure.value)
-    assert "petta_py_exception" not in str(failure.value)
+    assert "metta_control_signal" not in str(failure.value)
 
 
 def test_an_undefined_head_inside_arithmetic_is_left_as_written(metta):
@@ -645,7 +645,7 @@ def test_a_reserved_limit_does_not_leak_janus_framing(metta):
         metta.run("!(spin 0)", timeout=0.05)
     assert "0.05 second time limit" in str(failure.value)
     assert "Unknown error term" not in str(failure.value)
-    assert "petta_py_exception" not in str(failure.value)
+    assert "metta_control_signal" not in str(failure.value)
 
 
 def test_build_never_hands_back_its_private_sentinel(m):

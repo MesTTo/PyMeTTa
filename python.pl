@@ -101,7 +101,7 @@ petta_py_guard(Call, Goal) :-
 petta_py_failure(_, Error) :- control_exception(Error), !, throw(Error).
 petta_py_failure(_, error(python_error(Class, _), _)) :-
     petta_py_signal_class(Class), !,
-    throw(petta_py_interrupted).
+    throw(metta_host_interrupted).
 petta_py_failure(Call, error(python_error(Class, Value), _)) :- !,
     petta_py_exception_message(Value, Message),
     throw(error(python_error(Class, Message),

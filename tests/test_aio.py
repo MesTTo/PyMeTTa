@@ -137,7 +137,7 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):
     release_unexpected = threading.Event()
     injected = iter(
         (
-            "error(petta_py_exception(interrupted, none), context(petta, interrupted))",
+            "error(metta_control_signal(interrupted, none), context(petta, interrupted))",
             "error(unexpected_drain, context(test, drain))",
         )
     )

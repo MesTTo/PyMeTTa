@@ -168,7 +168,7 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
 
     The thrown term is an envelope the Python side put there, so rendering
     it leaks janus framing: the caller who passed timeout=0.05 was reading
-    `Unknown error term: petta_py_exception(time_limit,0.05)`.
+    `Unknown error term: metta_control_signal(time_limit,0.05)`.
     """
     if kind == "syntax":
         return detail if isinstance(detail, str) else fallback
@@ -597,7 +597,7 @@ class Runtime:
                 raise original from exc
             try:
                 row = self._janus.query_once(
-                    "petta_py_exception_info(Error, Kind, Detail)", {"Error": term}
+                    "metta_control_signal_info(Error, Kind, Detail)", {"Error": term}
                 )
             except self._janus.PrologError as classifier_error:
                 raise EngineError(
