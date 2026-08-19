@@ -54,13 +54,19 @@ class CodecDriver(Protocol):
     decoding builds this host's own variables, which is what decides
     whether the reserved `_` payload comes back as itself.
 
+    Not every codec is a whole binding. A storage provider validates and
+    carries wire terms and neither reads MeTTa source nor prints an atom,
+    so `reads_text` may be false and `printer` may be None; the kit runs
+    the legs the driver has and `codec_plan` names the ones it does not.
+
     Every operation refuses by raising.
     """
 
     name: str
     tags: frozenset[str]
     frames: frozenset[str]
-    printer: str
+    printer: str | None
+    reads_text: bool
     exact_integers: bool
     non_finite: bool
     resolves_anonymous: bool
@@ -195,14 +201,20 @@ def _case_wire(case: dict, driver: CodecDriver) -> Any:
 
 
 def codec_plan(driver: CodecDriver, *, corpus: dict | None = None) -> dict:
-    """Which cases this driver's declaration puts in and out of scope.
+    """Which cases this driver's declaration puts in and out of scope, and
+    which of the four legs it runs at all.
 
     Reported rather than silently applied: a profile is how an encoding says
     what it carries, and a case dropping out of a run without saying so is
     how a kit passes while testing less.
     """
     corpus = corpus or codec_corpus()
-    plan: dict[str, list] = {"run": [], "out_of_profile": []}
+    legs = ["roundtrip", "transport"]
+    if driver.reads_text:
+        legs.insert(0, "read")
+    if driver.printer is not None:
+        legs.append("render")
+    plan: dict[str, list] = {"run": [], "out_of_profile": [], "legs": sorted(legs)}
     for case in corpus["cases"]:
         outside = set(case.get("tags", ())) - set(driver.tags)
         required = case.get("requires")
@@ -244,7 +256,7 @@ def _check_term(case: dict, driver: CodecDriver) -> list[str]:
     wire = _case_wire(case, driver)
     here = f"{driver.name}/{case['id']}"
 
-    if "text" in case:
+    if "text" in case and driver.reads_text:
         try:
             read = driver.read(case["text"])
             if not alpha_equal(read, wire):
@@ -266,7 +278,7 @@ def _check_term(case: dict, driver: CodecDriver) -> list[str]:
     except Exception as exc:  # noqa: BLE001
         complaints.append(f"{here}: roundtrip refused: {exc}")
 
-    if "written" in case:
+    if "written" in case and driver.printer is not None:
         written = case["written"]
         expected = written if isinstance(written, str) else written.get(driver.printer)
         if expected is None:
@@ -288,7 +300,7 @@ def _check_term(case: dict, driver: CodecDriver) -> list[str]:
     except Exception as exc:  # noqa: BLE001
         complaints.append(f"{here}: transport refused: {exc}")
 
-    if case.get("reads_back") is False and "written" in case:
+    if case.get("reads_back") is False and "written" in case and driver.reads_text:
         written = case["written"]
         text = written if isinstance(written, str) else written[driver.printer]
         if _refused(driver.read, text) is None and alpha_equal(driver.read(text), wire):

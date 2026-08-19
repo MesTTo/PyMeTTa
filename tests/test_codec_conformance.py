@@ -44,6 +44,7 @@ class JanusCodec:
     tags = FULL
     frames = frozenset({"a"})
     printer = "engine"
+    reads_text = True
     exact_integers = True
     non_finite = True
     resolves_anonymous = True
@@ -112,6 +113,7 @@ class JsonWireCodec:
     tags = CORE
     frames = frozenset({"u"})
     printer = "python"
+    reads_text = True
     exact_integers = True
     non_finite = False
     resolves_anonymous = False
