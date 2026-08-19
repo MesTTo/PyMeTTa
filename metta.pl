@@ -216,7 +216,6 @@ register_metta_library_path(Alias, Directory0, true) :-
    directory_file_path(Parent, 'lib', LibPath),
    asserta(standard_library_path(LibPath)).
 :- autoload(library(uuid)).
-:- use_module(library(crypto)).
 :- use_module(library(random)).
 :- use_module(library(error)).
 :- use_module(library(listing)).

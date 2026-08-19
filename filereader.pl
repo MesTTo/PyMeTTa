@@ -158,11 +158,31 @@ prolog:message(petta_source_replaced(CanonPath, Spaces, Atoms)) -->
 :- dynamic metta_source_load/4. %metta_source_load(CanonPath, Space, LoadId, Digest)
 :- dynamic source_load_digest/3. %source_load_digest(LoadId, Filename, Digest)
 
-%The first crypto_data_hash/3 of a process pays a one-off initialisation, and
-%without this it lands on whichever program loads first and reads as that
-%program's cost [measured 2026-08-19: 3,132 inferences on the first call, 217
-%on every later one]. Paid here instead, where it belongs.
-:- crypto_data_hash("", _, [algorithm(sha256)]).
+%SHA-256 of a text, from whichever library this build carries. library(crypto)
+%is OpenSSL's and a build without OpenSSL does not have it: the WebAssembly
+%build is the one in front of us, where it is the only reason a load could not
+%take its digest [measured 2026-08-20, swipl-wasm 8.0.6]. library(sha) is
+%SWI's own C implementation and ships with every build, that one included.
+%
+%This is a choice of PROVIDER and not of digest, which is what makes it safe:
+%the two agree byte for byte on the same text, so a digest one process wrote
+%is a digest the other reads, and metta_source_changed/1 cannot answer
+%differently because of which library answered
+%[tested: tests/prolog/filereader.plt, both_digest_providers_agree].
+:- if(exists_source(library(crypto))).
+:- use_module(library(crypto), [crypto_data_hash/3]).
+metta_text_digest(Text, Digest) :- crypto_data_hash(Text, Digest, [algorithm(sha256)]).
+:- else.
+:- use_module(library(sha), [sha_hash/3, hash_atom/2]).
+metta_text_digest(Text, Digest) :- sha_hash(Text, Bytes, [algorithm(sha256)]),
+                                   hash_atom(Bytes, Digest).
+:- endif.
+
+%The first digest of a process pays a one-off initialisation, and without this
+%it lands on whichever program loads first and reads as that program's cost
+%[measured 2026-08-19: 3,132 inferences on the first call, 217 on every later
+%one]. Paid here instead, where it belongs.
+:- metta_text_digest("", _).
 
 push_working_dir(Filename) :- file_directory_name(Filename, Dir0),
                               ( absolute_file_name(Dir0, Dir, [file_type(directory), file_errors(fail)])
@@ -240,7 +260,7 @@ load_metta_file_impl(Filename, Results, Space, CompileMode) :-
 read_metta_source(Filename, S) :-
     read_source_text(Filename, S),
     (   active_source_load(LoadId)
-    ->  crypto_data_hash(S, Digest, [algorithm(sha256)]),
+    ->  metta_text_digest(S, Digest),
         assertz(source_load_digest(LoadId, Filename, Digest))
     ;   true
     ).
@@ -342,7 +362,7 @@ publish_source_load(CanonPath, Space, LoadId) :-
 %[measured 2026-08-19, five runs each, no spread].
 metta_source_digest(CanonPath, Digest) :-
     read_source_text(CanonPath, Text),
-    crypto_data_hash(Text, Digest, [algorithm(sha256)]).
+    metta_text_digest(Text, Digest).
 
 metta_source_changed(CanonPath) :-
     metta_source_load(CanonPath, _, _, Loaded), !,
