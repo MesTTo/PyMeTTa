@@ -32,6 +32,10 @@
 %     [tested 2026-08-14: metta_metatypes].
 %   - Test assertions distinguish no answer from one empty-expression answer
 %     [tested 2026-08-14: translator_test_answers].
+%   - petta_assertion_failure/4 classifies the three assertion formals, so a
+%     harness tells a false claim from a broken engine by TYPE rather than by
+%     reading the message [tested 2026-08-19:
+%     python/tests/test_assertion_failures.py::test_a_failing_assertion_is_a_different_exception_from_an_engine_fault].
 %   - Runtime builtins reject prebound outputs that they would not produce
 %     [tested 2026-08-14: metta_builtin_outputs].
 %   - Function registration performed by a source load participates in that
@@ -2330,6 +2334,27 @@ prolog:error_message(petta_assertion_failed(Goal)) -->
     [ 'MeTTa assertion failed: ~p'-[Goal] ].
 prolog:error_message(petta_test_no_answer) -->
     [ 'MeTTa test expression produced no answer'-[] ].
+
+%The three formals above are the program saying something FALSE, which is a
+%different event from the engine breaking, and a harness has to be able to
+%tell them apart without reading the sentence. This is the classifier that
+%lets it: Form is the MeTTa operation that failed, Actual what it got and
+%Expected what it wanted, both unbound where the form carries no such value.
+%
+%It lives beside the throwers rather than in the Python shim because the
+%formals are the ENGINE's, so the two cannot drift: adding a fourth
+%assertion form and forgetting this predicate leaves that form unclassified
+%here, where it is read, rather than in a file the engine never loads
+%[tested: python/tests/test_assertion_failures.py].
+%
+%Actual and Expected are handed out as WRITTEN MeTTa terms; a caller that
+%has to cross them to another language converts them itself, because the
+%conversion belongs to that boundary and not to the engine.
+petta_assertion_failure(error(petta_test_failed(Actual, Expected), _),
+                        test, Actual, Expected).
+petta_assertion_failure(error(petta_test_no_answer, _), test, _, _).
+petta_assertion_failure(error(petta_assertion_failed(Goal), _), assert, Goal, _).
+
 prolog:error_message(petta_not_a_prolog_module(File)) -->
     [ '~w is not a Prolog module, so its exports cannot be imported under \c
        other names. Add :- module(name, [pred/arity, ...]) at its top, or \c
