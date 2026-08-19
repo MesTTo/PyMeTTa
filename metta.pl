@@ -5180,7 +5180,50 @@ importer_helper(Space, File0) :-
 resolve_module_form(Form, Path) :-
     nonvar(Form), Form = [library, Name], !,
     library(Name, Path).
+%A BUILT-IN MODULE is one the engine ships, named directly rather than by
+%path: `!(import! &self skel)` is the arbiter's own spelling and upstream
+%loads six of them at startup [source: LeaTTa
+%MettaHyperonFull/Minimal/Interpreter.lean, builtinModules]. Resolved BEFORE
+%the filesystem, because the name is the module's identity rather than a path
+%a program may happen to have a file for, which is also what makes the same
+%import work from inside another module with its own working directory
+%[tested: builtin_modules; source: tests/semantics/grounded/
+%28-builtin-module-skel.metta and modules/35-builtin-from-module].
+resolve_module_form(Form, Path) :-
+    atom(Form), metta_builtin_module(Form, Relative),
+    metta_top_context, !,
+    library(Relative, Path).
 resolve_module_form(Form, Form).
+
+%The modules this engine ships, one row each. `skel` is upstream's own
+%skeleton and the only one of its six that uses every tier at once: three
+%declarations, one MeTTa equation and one grounded operation. Upstream's
+%`load_builtin_mods` also registers `json`, `fileio`, `catalog` and `das`, and
+%those are libraries this engine does not implement; registering a name so
+%that an import succeeds while every operation behind it silently fails is the
+%graceful degradation this repository refuses, so they stay unresolvable and
+%say so [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, the note
+%above builtinModules, which makes the same decision].
+metta_builtin_module(skel, 'builtin_mods/skel.metta').
+
+%A built-in module is a child of the TOP, so its bare name means one only when
+%the import is written at the top. Inside a module the same name is relative to
+%that module, `skel` written in `usesskel` means `top:usesskel:skel`, which no
+%built-in is, and the import fails. Comparing the written name before anything
+%else gets this wrong in a way that is worse than a plain refusal: the import
+%reports success and a call to the module's operation is still unreduced,
+%because admission is tested against the running context and the import went
+%somewhere else [source: LeaTTa tests/semantics/modules/35-builtin-from-module,
+%whose PURPOSE is exactly that trap; both engines refuse there and differ only
+%in the wording] [tested: builtin_modules:a_module_cannot_reach_a_builtin_by
+%_its_bare_name].
+%
+%working_dir/1 is the load stack, one entry per file being loaded, so the
+%outermost file is depth one and anything it imports is deeper.
+metta_top_context :-
+    findall(Held, working_dir(Held), Directories),
+    length(Directories, Depth),
+    Depth =< 1.
 importer_helper_impl(Space, File) :-
     ( python_import_file(File)
       -> resolve_python_import_path(File, CanonPath),
