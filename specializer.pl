@@ -473,12 +473,15 @@ forget_symbol(Module, Name) :-
     forall(metta_on_function_removed(Name), true),
     unregister_fun_in(Module, Name),
     %The name-wide registers go only when NO module still defines it, because
-    %the same generated name can belong to two spaces at once.
+    %the same generated name can belong to two spaces at once. Name-wide means
+    %EVERY module here, retained equations included: this branch is reached
+    %when nothing defines the name anywhere, so a module keeping its equations
+    %would leave the specializer able to plan from equations no clause backs.
     (   function_still_defined(Name)
     ->  true
     ;   retractall(arity(Name, _)),
         retractall(fun(Name)),
-        clear_fun_meta(Module, Name)
+        clear_fun_meta(_, Name)
     ),
     retractall(ho_specialization(Module, Name, _)),
     retractall(ho_specialization(Module, _, Name)).

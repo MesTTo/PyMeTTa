@@ -397,6 +397,12 @@ recompile_function_impl(G) :-
               clause_property(Ref, module(Module)) ),
             Modules0),
     sort(Modules0, Modules),
+    %EVERY module's retained equations, which is not the same set as the
+    %modules that still have clauses: a module whose clauses have all gone
+    %keeps its equations otherwise, and the specializer then plans from
+    %equations nothing backs. Each module below re-records its own as it
+    %retranslates.
+    clear_fun_meta(_, G),
     forall(member(Module, Modules), recompile_function_in_module(Module, G)),
     %Per module the recompile touched, because the invalidation is scoped to
     %one space now and this rebuilds a function's clauses wherever they are.
@@ -409,11 +415,6 @@ recompile_function_in_module(Module, G) :-
               G0 == G,
               clause_property(Ref, module(Module)) ),
             Clauses),
-    %This module's retained equations only. Cleared name-wide, recompiling a
-    %function in one space discarded the equations another space's
-    %specializer reads, and nothing recorded them again until that space
-    %compiled the function afresh.
-    clear_fun_meta(Module, G),
     forall(member(compiled(Ref, Term), Clauses),
            ( erase(Ref),
              retract(translated_from(Ref, Term)) )),
