@@ -744,6 +744,57 @@ def _save_case(benchmark, baseline, format):
     )
 
 
+def _file_load_state():
+    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    source = _empty_space()
+    source.add(*(S["benchmark-load-node"](i, i + 1) for i in range(20_000)))
+    source.run("(= (benchmark-load-next $x) (+ $x 1))")
+    path = f"{directory.name}/loader.metta"
+    source.save(path, format="metta")
+    target = _empty_space()
+    return directory, source, target, path
+
+
+def _drop_file_load_state(state):
+    directory, source, target, _path = state
+    source.drop()
+    target.drop()
+    directory.cleanup()
+
+
+def _file_load(state):
+    """Price the loader itself, both doors, no save in the loop.
+
+    `target.load` replaces the file's previous contribution every round, so
+    each measured round pays withdrawal plus re-add plus the content digest,
+    the loader's whole path. The `import!` that follows hits the other
+    branch, an unchanged file's skip, one read and one hash; its answer
+    shape is not asserted because that surface is its own tests' business.
+    """
+    _directory, _source, target, path = state
+    groups = target.load(path)
+    if groups or target.count() != 20_001:
+        raise AssertionError("load did not carry 20,001 atoms")
+    target.run(f'!(import! &self "{path}")')
+    return 20_001
+
+
+def test_file_load(benchmark, inference_baseline):
+    benchmark_case(
+        benchmark,
+        inference_baseline,
+        name="file-load",
+        unit="atoms",
+        operations=20_001,
+        operation=_file_load,
+        setup=_file_load_state,
+        teardown=_drop_file_load_state,
+        engine=lambda state: state[1],
+        rounds=3,
+        warmup_rounds=1,
+    )
+
+
 def test_save_load_metta(benchmark, inference_baseline):
     _save_case(benchmark, inference_baseline, "metta")
 

@@ -38,6 +38,7 @@ CASES = {
     "alpha-unique": "test_alpha_unique",
     "direct-join": "test_direct_join",
     "eval-arith": "test_eval_arithmetic",
+    "file-load": "test_file_load",
     "json-wire": "test_json_wire",
     "let-heavy": "test_let_heavy",
     "loop-1m": "test_loop_million",

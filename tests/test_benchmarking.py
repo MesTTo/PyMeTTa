@@ -534,3 +534,27 @@ def test_subscription_dispatch_case_measures_writes_only():
     finally:
         close_subscription_case(state)
     assert all(not subscription._active for subscription in standing)
+
+
+def test_the_benchmark_suite_prices_a_file_load():
+    """P0.18: loader regressions used to land in no counter case, because
+    `source-load` runs a string through the engine and the save-load pair
+    prices a round trip whose baselines had drifted high. The `file-load`
+    bench replace-loads a 20,001-atom file every round (withdrawal plus
+    re-add plus content digest, the loader's whole path) and follows with
+    an unchanged `import!`, the skip branch. This test pins the wiring:
+    the registry row, the runner function, and a live integer baseline.
+    """
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    registry = (root / "python" / "bench.py").read_text()
+    assert '"file-load": "test_file_load"' in registry
+    suite = (root / "python" / "benchmarks" / "test_benchmarks.py").read_text()
+    assert "def test_file_load(" in suite
+    data = json.loads(
+        (root / "python" / "benchmarks" / "baseline.json").read_text()
+    )
+    entry = data["benchmarks"]["file-load"]
+    assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
