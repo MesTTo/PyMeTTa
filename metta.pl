@@ -4698,6 +4698,36 @@ resolve_metta_import_path(File, CanonPath) :-
       -> true
        ; throw_missing_import(File) ).
 
+%`include` PASTES a module's source into the space that included it and
+%answers what its LAST directive answered, where import! gives the file its
+%own space and answers unit. A module with no directive answers nothing, and
+%facts join the including space in order, each directive evaluating against
+%the state built so far
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, the include
+%dispatch, whose Type line is `(-> Atom %Undefined%)`;
+%tests/semantics/modules/04-include-no-directive.metta and
+%05-include-directive.metta, both STATUS conforms].
+%
+%`self` and `top` are BASES rather than modules, so including one is refused
+%in upstream's own words, and so is a name that resolves to nothing
+%[measured 2026-08-19 against the arbiter: `!(include nosuchfile)` answers
+%`(Error (include nosuchfile) no module named nosuchfile is available)`].
+include(Module, Answer) :-
+    (   metta_include_refusal(Module, Reason)
+    ->  metta_error_atom(include, [Module], Reason, Answer)
+    ;   current_metta_space(Space),
+        resolve_metta_import_path(Module, Path),
+        load_metta_source_groups(Path, Space, Groups),
+        last(Groups, Last),
+        member(Answer, Last)
+    ).
+
+metta_include_refusal(Module, "include: the running context is not a module") :-
+    memberchk(Module, [self, top]), !.
+metta_include_refusal(Module, Reason) :-
+    \+ catch(resolve_metta_import_path(Module, _), _, fail),
+    format(string(Reason), "no module named ~w is available", [Module]).
+
 %A module NAME may be a COLON PATH. `pkg:child` names pkg/child.metta beside
 %the file that imports it, `top:` names the OUTERMOST module's directory and
 %`self:` the importing module's own, which is also what a bare name means
@@ -5279,7 +5309,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
-                          'format-args', 'sort-strings',
+                          'format-args', 'sort-strings', include,
                           sleep, 'pragma!', metta,
                           import_prolog_function, check_prolog_function_names, import_prolog_functions,
                           'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,

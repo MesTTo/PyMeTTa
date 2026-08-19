@@ -190,6 +190,37 @@ load_entry_metta_file(Filename, Results, Space) :-
 load_metta_file_impl(Filename, Results, Space) :-
     load_metta_file_impl(Filename, Results, Space, compile).
 
+%One answer GROUP per runnable form, in source order, which the flattening
+%above deliberately loses: a program wants every answer and nothing else, and
+%two callers want to know which form produced which. `include` needs the LAST
+%group, because the results of a module's last directive are the results of
+%including it, and tests/conformance/leatta_run.pl needs every group, because
+%the arbiter records one bracketed line per form and the grouping IS the
+%observation. It ran its own copy of this until include needed one too.
+%The cut is process_metta_string/4's, for its reason: a source has ONE
+%reading, and process_form/4's last clause turns a backtrack into "could not
+%translate this form", so a caller that fails after a successful load is told
+%the source was malformed.
+load_metta_source_groups(Filename, Space, Groups) :-
+    setup_call_cleanup(push_working_dir(Filename),
+                       read_metta_source_groups(Filename, Space, Groups),
+                       pop_working_dir).
+
+read_metta_source_groups(Filename, Space, Groups) :-
+    read_metta_source(Filename, Source),
+    prepare_metta_source(Source, Forms),
+    maplist(process_form(Space, compile), Forms, PerForm),
+    !,
+    runnable_groups(Forms, PerForm, Groups).
+
+runnable_groups([], [], []).
+runnable_groups([Form|Forms], [Group|Rest], Groups) :-
+    (   Form = parsed(runnable, _, _)
+    ->  Groups = [Group|More]
+    ;   Groups = More
+    ),
+    runnable_groups(Forms, Rest, More).
+
 load_metta_file_impl(Filename, Results, Space, CompileMode) :-
     setup_call_cleanup(push_working_dir(Filename),
                        ( read_metta_source(Filename, S),
