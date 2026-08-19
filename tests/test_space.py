@@ -12,6 +12,9 @@ Guarantees:
     test_a_system_predicate_survives_an_equation_for_its_name]
   - a write into one space never removes atoms from another [tested
     test_adding_in_one_space_never_removes_atoms_from_another]
+  - copy() answers a space that holds what its source holds and answers what
+    its source answers, generated specializations included [tested
+    test_a_copy_reproduces_the_space_it_copied]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -896,3 +899,29 @@ def test_a_system_predicate_survives_an_equation_for_its_name(metta):
     # leaving a clause behind in the space's module.
     assert metta.run("!(b_setval anything)") == [[parse("(b_setval anything)")]]
     assert metta.run("!(+ 1 2)") == [[3]]
+
+
+def test_a_copy_reproduces_the_space_it_copied(metta):
+    """copy() enumerates a space and re-adds every atom into a fresh one, so a
+    specialization the clone DERIVES for itself used to land on top of the
+    copied one: a four-atom space cloned to six and answered its query three
+    times instead of once.
+
+    The specializer owns the names it generates, so an equation arriving for a
+    name this module already derived carries nothing new.
+    """
+    with metta.new_space() as source:
+        source.run("(= (cp-inc $x) (+ $x 1))")
+        source.run("(= (cp-map $f $x) ($f $x))")
+        source.run("(= (cp-use $z) (cp-map cp-inc $z))")
+        assert source.run("!(cp-use 1)") == [[2]]
+        # The specialization is stored content, which is why the clone gets it.
+        assert any("cp-map_Spec_" in str(atom) for atom in source.atoms())
+
+        clone = source.copy()
+        try:
+            assert clone.count() == source.count()
+            assert clone.digest() == source.digest()
+            assert clone.run("!(cp-use 1)") == source.run("!(cp-use 1)")
+        finally:
+            clone.drop()

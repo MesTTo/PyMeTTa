@@ -3,6 +3,10 @@
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
+%   - An equation for a name this space's module already DERIVED as a
+%     specialization is not stored again, so enumerating a space and re-adding
+%     its atoms answers a space that holds and answers what the first one did
+%     [tested: test_a_copy_reproduces_the_space_it_copied].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -528,6 +532,19 @@ store_atom(Space, Term) :- add_sexp(Space, Term, Ref),
 %the space by some other door, MORK's own loader or an mm2-exec write: it is
 %stored and inert, because nothing told the engine. That is the honest edge and
 %it is narrower than a second evaluator that is wrong on every program above.
+%A specialization is DERIVED: the specializer wrote it from this module's own
+%equations and owns the name. So an equation arriving from outside for a name
+%this module has already derived carries nothing, and storing it a second time
+%is what made a space stop reproducing itself: MeTTa.copy() enumerates a space
+%and re-adds every atom into a fresh one, the clone re-derives the
+%specialization while it compiles the equation that triggers it, and the copied
+%atom then lands on top, so a four-atom space cloned to five and answered its
+%query twice [measured 2026-08-19; the aio surface test compares a clone's
+%count against its source's and this is what it was seeing].
+add_equation(Space, _, FAtom, _) :-
+    space_module(Space, Module),
+    ho_specialization(Module, _, FAtom),
+    !.
 add_equation(Space, Term, FAtom, W) :-
     metta_foreign_space(Space), !,
     refuse_ruleless_equation(Space, Term),
