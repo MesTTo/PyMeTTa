@@ -775,7 +775,7 @@ petta_py_function_shape(Name0, [Tier, Detail, Arities, Determinism]) :-
         ( fun_in(Module, Name) -> atom_string(Module, Detail) ; Detail = "" )
     ;   Tier = "absent", Detail = ""
     ),
-    ( fun_in(Home, Name) -> true ; Home = user ),
+    ( fun_in(Home, Name) -> true ; petta_py_module('&self', Home) ),
     findall([Arity, Speedup, Realised],
             ( arity(Name, Arity),
               petta_py_index_quality(Home, Name, Arity, Speedup, Realised) ),
@@ -1811,10 +1811,12 @@ petta_py_register_op_set(Name0, Arities, Kind, Invertible) :-
 %the MeTTa one they wrote. src/spaces.pl:assert_function_clause/3 turns exactly
 %this error into MeTTa's terms for the EQUATION route; this is the operation
 %route's twin, and it differs in the advice because the two routes differ in
-%where their clauses live: an equation may go to a named space's own module,
-%while a registered operation's clauses are in user by design, so the way out
-%is a different MeTTa name
-%[tested test_registering_over_a_prolog_predicate_is_refused_not_silent].
+%what is left to refuse. An equation goes into its own space's module and is
+%refused only for Prolog's protected core and for the names the engine itself
+%compiles into function bodies; an operation goes into the BASE tier's module,
+%&self's, so it is refused for the same protected core and the way out is a
+%different MeTTa name
+%[tested test_prologs_protected_core_is_still_refused].
 petta_py_probe_op_name(Name, Arity) :-
     petta_py_op_spec(Name, Arity, _), !.
 %Nothing at all is defined at this name and arity, so nothing can refuse the
@@ -1827,10 +1829,12 @@ petta_py_probe_op_name(Name, Arity) :-
 %registrations, -10.8 each, min of 3 samples reproduced on 3 runs].
 petta_py_probe_op_name(Name, Arity) :-
     PredArity is Arity + 1,
-    \+ current_predicate(Name/PredArity),
+    petta_py_module('&self', Base),
+    \+ current_predicate(Base:Name/PredArity),
     !.
 petta_py_probe_op_name(Name, Arity) :-
     PredArity is Arity + 1,
+    petta_py_module('&self', Base),
     functor(Probe, Name, PredArity),
     %Asked BEFORE the assert, because for a BUILTIN the assert succeeds and
     %that is the dangerous outcome, not the safe one: SWI let a local
@@ -1845,10 +1849,12 @@ petta_py_probe_op_name(Name, Arity) :-
     %has ever been loaded, so refusing on any of those would refuse
     %module_ops over library(math), whose sqrt lands on quintus:sqrt/2, a
     %compatibility shim nothing here calls
-    %[tested test_module_ops_bulk_registers_a_stdlib_module]. Where a library
-    %predicate really is in use the assert below still refuses it, which is
-    %the case that test covers for dcg_basics:digit/3 and lists:last/2
-    %[tested test_registering_over_a_prolog_predicate_is_refused_not_silent].
+    %[tested test_module_ops_bulk_registers_a_stdlib_module]. A library
+    %predicate that really is in use, dcg_basics:digit/3 and lists:last/2
+    %among them, is a free MeTTa name now: the operation's clauses go into
+    %&self's own module, where defining one shadows it there and leaves the
+    %library's alone
+    %[tested test_a_name_prolog_owns_registers_and_leaves_prolog_alone].
     %
     %The name for what that assert refuses is a WEAK IMPORT, and the manual's
     %own advice for avoiding one is to import selectively: "using use_module/2
@@ -1859,20 +1865,30 @@ petta_py_probe_op_name(Name, Arity) :-
     %shrink that, and it would not free the names that actually bite:
     %parser.pl really does call digit//1, so digit/3 stays taken however the
     %import is spelled.
-    (   predicate_property(user:Probe, built_in)
-    ->  petta_py_refuse_op_name(Name, Arity, PredArity, Probe)
-    ;   true
-    ),
-    %The other half, and the one that was here first: the same assert the
-    %registration will do, on a clause that can never run.
-    catch(setup_call_cleanup(assertz((Probe :- fail), Ref), true, erase(Ref)),
+    %ONE test, and it is the assert the registration will do, on a clause that
+    %can never run. There used to be a second one in front of it,
+    %`predicate_property(user:Probe, built_in)`, and it existed because the
+    %clauses went into `user`: asserting over a builtin THERE succeeds and
+    %destroys it, so the only safe answer was to refuse the name. The clauses
+    %go into &self's own module now, where the same assert makes a local shadow
+    %and leaves the engine's predicate answering, so refusing would be refusing
+    %a name that is free. That is most of the collision surface: of the 428
+    %names the engine imports, the test refused 86, 217, 163 and 64 at MeTTa
+    %arity 0 to 3 when it asked `user` with both halves, and refuses 7, 4, 2 and
+    %1 asking &self's module with this one [measured 2026-08-19, one process per
+    %measurement and a fresh module per name so an earlier probe cannot free a
+    %later one]. The four left at MeTTa arity 1 are call, clause, copy_term and
+    %sort: SWI's protected core, which no module can redefine and which is the
+    %protected core a rewrite system needs, obtained rather than implemented.
+    catch(setup_call_cleanup(assertz((Base:Probe :- fail), Ref), true, erase(Ref)),
           error(permission_error(modify, static_procedure, _), _),
           petta_py_refuse_op_name(Name, Arity, PredArity, Probe)).
 
 petta_py_refuse_op_name(Name, Arity, PredArity, Probe) :-
-    (   predicate_property(user:Probe, imported_from(Owner))
+    petta_py_module('&self', Base),
+    (   predicate_property(Base:Probe, imported_from(Owner))
     ->  true
-    ;   Owner = user
+    ;   Owner = Base
     ),
     throw(error(petta_op_name_taken(Name, Arity, PredArity, Owner),
                 context(register_op/2, 'the name is not free in user'))).
@@ -1896,17 +1912,28 @@ petta_py_register_op(Name0, Arity, Kind) :-
     Head =.. [Name | HeadArgs],
     petta_py_op_body(Kind, Name, Args, Result, Forward),
     petta_py_directed_body(Name, Kind, Args, Result, Forward, Body),
-    assertz((Head :- Body)),
+    %Into &self's module, which every other space inherits, so the operation is
+    %callable from all of them and its name is free: asserting into the module
+    %the ENGINE resolves in is what made 217 ordinary names unusable at MeTTa
+    %arity 1.
+    petta_py_module('&self', Base),
+    assertz(Base:(Head :- Body)),
     assertz(petta_py_op_spec(Name, Arity, Kind)),
-    %The clauses really are in user, and saying so is what keeps the operation
+    %The claim is the BASE TIER's, and saying so is what keeps the operation
     %callable after some named space defines an equation of the same name.
     %register_fun/1 alone left it resolvable only while no space had claimed
     %the name anywhere in the process, which is the same defect
-    %import_prolog_function/2 carried.
-    register_fun_in(user, Name),
+    %import_prolog_function/2 carried. The base tier is &self's module, which
+    %every other space inherits; a claim recorded against any other module
+    %would set fun_scoped/1 and make the operation invisible everywhere.
+    petta_py_module('&self', Base),
+    register_fun_in(Base, Name),
     PredArity is Arity + 1,
     ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
-    forall(metta_on_function_changed(Name), true).
+    %The engine's own door rather than the hook alone, so the specializations
+    %this registration makes stale are invalidated in the module the
+    %operation's clauses went into.
+    function_changed(Base, Name).
 
 %The engine asks who a dispatch goal really is, so a purity refusal names the
 %operation rather than this file's dispatcher. The name is the goal's first
@@ -2034,9 +2061,10 @@ prolog:error_message(petta_py_inverse_arity(Name, Wanted, Got)) -->
 petta_py_unregister_op(Name0, Arity) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     PredArity is Arity + 1,
+    petta_py_module('&self', Base),
     ( petta_py_op_spec(Name, Arity, _)
       -> functor(Head, Name, PredArity),
-         retractall(Head),
+         retractall(Base:Head),
          retractall(petta_py_op_spec(Name, Arity, _)),
          retractall(arity(Name, PredArity))
     ; true ),
@@ -2046,15 +2074,31 @@ petta_py_unregister_op(Name0, Arity) :-
     %answering it, so unregistering an operation named print or format threw
     %from here instead of unregistering. A builtin is never a clause of ours
     %[tested test_unregistering_a_name_a_system_predicate_shares_does_not_throw].
-    ( \+ ( current_predicate(Name/A), functor(H2, Name, A),
-          \+ predicate_property(H2, built_in),
-          clause(H2, _, _) )
+    ( \+ petta_py_name_still_defined(Name)
       -> retractall(fun(Name)),
          retractall(arity(Name, _)),
          unregister_fun_everywhere(Name),
          release_function_name(Name),
          metta_on_function_removed(Name)
     ; true ).
+
+%Does anything still define this name at any arity? Two tiers are asked by
+%name because ONE of them cannot be reached by generating: current_predicate/1
+%with the arity unbound enumerates a module's own predicates and the ones
+%explicitly imported into it, and NOT the ones it reaches through its base
+%chain. A registered operation's clauses are in the base tier's module and a
+%Prolog function's are in the host's, so asking either alone released a name
+%the other still defined: registering an operation over a Prolog registration
+%was refused, correctly, and dropped the Prolog one's arity/2 and fun/1 on the
+%way out, so the call it had been answering came back unreduced
+%[tested test_a_prolog_registration_is_not_silently_replaced].
+petta_py_name_still_defined(Name) :-
+    ( petta_py_module('&self', Module) ; petta_engine_module(Module) ),
+    current_predicate(Module:Name/A),
+    functor(Head, Name, A),
+    \+ predicate_property(Module:Head, built_in),
+    clause(Module:Head, _, _),
+    !.
 
 %The names a source declared for itself, so register_prolog can answer what it
 %registered without being told. The membership record is the engine's, not the
@@ -2727,8 +2771,17 @@ py_object_type_names(X, Names) :-
 %This file used to carry its own copy, which meant the engine could not repair
 %its own compiled code unless Python was in the process.
 metta_on_function_changed(Name) :-
-    recompile_definitions_mentioning(Name),
-    invalidate_specializations(Name).
+    recompile_definitions_mentioning(Name).
+
+%And NOT invalidate_specializations/2 beside it. It was here, with no module
+%to give it, so it read the ambient one: adding an atom into a space while a
+%DIFFERENT space's module was in force invalidated the wrong space, and that
+%is how MeTTa.copy() stripped its own source. The engine's function_changed/2
+%does the invalidation at every write door with the module the write is going
+%to, which is the only place that knows it; this hook is the recompile half
+%and nothing else
+%[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone,
+%test_adding_in_one_space_never_removes_atoms_from_another].
 
 %A fully removed function refreshes the other way: a mention that compiled as
 %a call goes back to data, since the name no longer names a function.

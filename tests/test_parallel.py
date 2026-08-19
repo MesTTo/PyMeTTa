@@ -132,9 +132,12 @@ def test_a_dual_is_built_once_under_concurrency(metta):
     serial = metta.run("!(collapse (not-provable (conc-p 0)))")[-1]
     assert len(serial[0]) == 1, f"the dual answers {len(serial[0])} times, not once"
 
+    # The dual compiles into the module of the space that defined the function
+    # it negates, which for &self is not `user` any more.
     clauses = next(
         iter(metta.runtime.iter(
-            "aggregate_all(count, clause(user:'not-conc-p'(_, _), _), N)"
+            "space_module('&self', M), "
+            "aggregate_all(count, clause(M:'not-conc-p'(_, _), _), N)"
         ))
     )["N"]
     assert clauses == 1, f"{clauses} clauses of the dual were built, not one"

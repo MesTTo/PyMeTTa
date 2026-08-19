@@ -39,6 +39,11 @@
 %   - Higher-arity dynamic calls bypass the operator-table lookup, because
 %     reduce/3's guard tests the arity before it consults current_op/3
 %     [tested 2026-08-18: translator_operator_dispatch].
+%   - A function's retained equations belong to the module that compiled them,
+%     and reading them follows that module's own chain, so a definition in one
+%     space cannot add a clause to another space's specialization
+%     [tested: specializer_invalidation:
+%     a_definition_in_another_space_does_not_double_an_answer].
 %   - Recording an equation does not copy the equations already held for its
 %     function, so filling a store is linear in the equation count
 %     [tested 2026-08-18: recording_equations_costs_no_more_than_linear_time]
@@ -73,28 +78,54 @@
 % Function source retained for higher-order specialization. Each equation is
 % one independently indexed fact, so compiling a new equation does not copy
 % every older equation for the same function.
-:- dynamic fun_meta_clause/3.
+%
+% Keyed by MODULE as well as by name, because a space's equations are its own.
+% Keyed by name alone, two spaces defining one function shared one pile of
+% equations and the specializer generated a clause per equation in the pile:
+% two spaces each holding (= (s-map $f $x) ($f $x)), the second compiling
+% (= (s-use $z) (s-map s-inc $z)), and that space answered (s-use 1) TWICE
+% [measured 2026-08-19, and the same at c7126f1, so this predates the module
+% migration rather than following from it]. Under copy() it compounded: the
+% clone regenerated what it had already been handed, so a space of four atoms
+% cloned to six and answered three times.
+:- dynamic fun_meta_clause/4.
 
 record_fun_meta(F, Args, Body) :-
-    asserta(fun_meta_clause(F, Args, Body), Ref),
+    current_metta_module(Module),
+    asserta(fun_meta_clause(Module, F, Args, Body), Ref),
     record_source_assertion(Ref).
 
-fun_meta_clauses(F, Clauses) :-
-    findall(fun_meta(Args, Body), fun_meta_clause(F, Args, Body), Clauses),
+% The NEAREST module along the chain that has equations for F, and only that
+% module's, which is how Prolog resolves the clauses those equations became: a
+% named space sees &self's equations because its module is below &self's, and
+% stops there rather than gathering a sibling's too.
+fun_meta_clauses(Module, F, Clauses) :-
+    fun_meta_module(Module, F, Owner),
+    findall(fun_meta(Args, Body),
+            fun_meta_clause(Owner, F, Args, Body), Clauses),
     Clauses \== [].
+
+fun_meta_module(Module, F, Module) :- fun_meta_clause(Module, F, _, _), !.
+fun_meta_module(Module, F, Owner) :-
+    super_chain(Module, Candidate),
+    fun_meta_clause(Candidate, F, _, _),
+    !,
+    Owner = Candidate.
 
 % Remove one variant-equivalent retained equation. Retraction must not bind the
 % caller's variables, and duplicate equations are removed one at a time.
-drop_fun_meta(F, Args, Body) :-
-    ( once(( clause(fun_meta_clause(F, StoredArgs, StoredBody), true, Ref),
+drop_fun_meta(Module, F, Args, Body) :-
+    ( once(( clause(fun_meta_clause(Module, F, StoredArgs, StoredBody), true, Ref),
              (StoredArgs-StoredBody) =@= (Args-Body),
              erase(Ref) ))
     -> true
     ; true ).
 
-clear_fun_meta(F) :-
-    retractall(fun_meta_clause(F, _, _)),
-    retractall(fun_head_goals(F)).
+% Both retractalls, so an unbound Module means every module. That is what a
+% teardown wants and what the engine must never pass.
+clear_fun_meta(Module, F) :-
+    retractall(fun_meta_clause(Module, F, _, _)),
+    retractall(fun_head_goals(Module, F)).
 
 % A head argument that is itself a function call is Curry's functional
 % pattern: (= (halfof (dbl $n)) $n) compiles to halfof(A,B) :- dbl(B,A) and
@@ -104,11 +135,14 @@ clear_fun_meta(F) :-
 % than negate a head it cannot see. Recording only the non-empty case keeps
 % this to one == test per compiled equation, which costs no inference at all
 % [measured 2026-08-15: ==/2 is compiled inline, a predicate call is not].
-:- dynamic fun_head_goals/1.
+% Module-keyed for the same reason as fun_meta_clause/4: a functional-pattern
+% head in one space must not refuse a dual in another.
+:- dynamic fun_head_goals/2.
 
-note_head_goals(F) :- ( fun_head_goals(F)
+note_head_goals(F) :- current_metta_module(Module),
+                      ( fun_head_goals(Module, F)
                         -> true
-                         ; assertz(fun_head_goals(F), Ref),
+                         ; assertz(fun_head_goals(Module, F), Ref),
                            record_source_assertion(Ref) ).
 
 %Pattern matching, structural and functional/relational constraints on arguments:
@@ -187,6 +221,140 @@ constrain_args([F|Args], Var, Goals) :- atom(F),
                                         flatten(GoalsExpr, Goals).
 constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
                                   flatten(NestedGoalsList, Goals), !.
+
+%The predicates the ENGINE emits into a compiled clause body, and the reason
+%they have to be named somewhere.
+%
+%A compiled body resolves its goals in the module the clause went into, which
+%is the space's. That is exactly right for a MeTTa call, because redefining a
+%function in a space is what a space is for. It is exactly wrong for a goal
+%the TRANSLATOR wrote: `(= (include $a $b) whatever)` would take over the
+%include/3 that filter-atom compiles to, in that space's own bodies, silently
+%and with a wrong answer rather than an error. Ten indicators were capturable
+%that way over the shipped corpus [measured 2026-08-19].
+%
+%They are protected by IMPORTING them into every space's module rather than by
+%a guard the write path has to remember: an explicit import is a binding SWI
+%refuses to overwrite, so the assert raises permission_error and
+%assert_function_clause/3 turns that into the MeTTa-level refusal it already
+%turns Prolog's protected core into. No check on the hot path, no cost at run
+%time, and the space still reaches the engine's own predicate through the
+%import [tested: spaces_execution_modules:an_engine_emitted_name_cannot_be_taken].
+%
+%Engine-emitted ONLY. A Prolog goal a PROGRAM writes through
+%translatePredicate is the program's own and resolves in its space
+%deliberately, which is why open_string/2 and load_files/2 are absent even
+%though they reach compiled bodies [measured 2026-08-19:
+%lib/lib_tabling.metta writes both].
+%
+%The list is checked rather than trusted. tests/prolog/static_checks.pl
+%recompiles every equation in the corpus, reads the goals out of the bodies
+%and fails if one of them is capturable and not named here, so a translation
+%rule added later cannot quietly widen the hole.
+metta_engine_emitted(control_exception/1).
+metta_engine_emitted(foldall/4).
+metta_engine_emitted(has_type/2).
+metta_engine_emitted(include/3).
+metta_engine_emitted(metta_ensure_duals/1).
+%src/duals.pl emits this one, into the dual clause it builds.
+metta_engine_emitted(metta_negation/5).
+metta_engine_emitted(petta_match_atoms/2).
+metta_engine_emitted(petta_prune_empty/2).
+metta_engine_emitted(petta_transaction/1).
+metta_engine_emitted(throw_function_overapplication/2).
+
+%Resolving at compile time means the answer can go stale: a space that gains
+%a definition of the name becomes the nearer parent, and one that loses its
+%last equation stops being a parent at all. Both are function CHANGES, and the
+%engine already announces those, so the recompile hangs off the announcement
+%rather than off a second mechanism. It is the shape repair_stale_definitions/1
+%(src/filereader.pl) uses for the neighbouring problem, a definition compiled
+%against a declaration that has since moved.
+%
+%Guarded by a flag rather than run always: the hook fires for every compiled
+%equation, and a program that never writes `super` should pay one indexed
+%probe for that rather than a walk over every recorded translation
+%[tested: translator_super:a_later_definition_retargets_an_earlier_super].
+%recompile_function_impl/1 rebuilds a name one MODULE at a time, which is what
+%makes this safe to call on the name that just changed: the definition the
+%super needs is in a different module and is not erased under it.
+:- dynamic super_call_compiled/1.
+
+note_super_call(Fun) :-
+    ( super_call_compiled(Fun) -> true ; assertz(super_call_compiled(Fun)) ).
+
+:- multifile metta_on_function_changed/1.
+metta_on_function_changed(Fun) :-
+    super_call_compiled(Fun),
+    findall(User,
+            ( translated_from(_, [=, [User|_], Body]),
+              atom(User),
+              uses_super(Fun, Body) ),
+            Users0),
+    sort(Users0, Users),
+    forall(member(User, Users), recompile_function_impl(User)).
+
+%The SOURCE shape, `(super (Fun ...))`, read off the recorded term rather than
+%off the compiled body: the compiled body holds the module this resolved to
+%last time, which is exactly the thing that may be wrong.
+uses_super(Fun, Term) :-
+    sub_term(Sub, Term),
+    is_list(Sub),
+    Sub = [super, Call],
+    is_list(Call),
+    Call = [Fun|_],
+    !.
+
+%A `super` form takes a CALL, and it has to name its function: `(super $f)`
+%cannot be resolved without running, and saying so is better than compiling a
+%call to whatever $f turns out to be.
+super_call_parts(Call, Fun, Args) :-
+    (   is_list(Call), Call = [Head|Rest], atom(Head)
+    ->  Fun = Head, Args = Rest
+    ;   throw(error(type_error(metta_super_call, Call),
+                    context(super/1,
+                            'super takes a call whose head is a function name')))
+    ).
+
+%The first module ABOVE this one that owns a definition of the name. Above,
+%not including: a shadow calling `super` means "not me", so the walk starts at
+%the parent, and a space with no shadow of its own gets the same answer it
+%would have got by calling the name plainly.
+%
+%module_owns_function/2 for a MeTTa function, which excludes an inherited
+%clause, and a plain definedness test for a predicate the engine compiled,
+%because the engine's own are not equations and own no clause record.
+super_target_module(Module, Fun, Arity, Parent) :-
+    (   super_chain(Module, Candidate),
+        super_defines(Candidate, Fun, Arity)
+    ->  Parent = Candidate
+    ;   metta_module_space(Module, Space),
+        throw(error(existence_error(metta_super_definition, Fun/Arity),
+                    context(super/1, Space)))
+    ).
+
+super_chain(Module, Parent) :- import_module(Module, Parent).
+super_chain(Module, Ancestor) :-
+    import_module(Module, Parent),
+    Parent \== Module,
+    super_chain(Parent, Ancestor).
+
+%A CLAUSE, not merely a name. retractall/1 on a predicate that has none
+%leaves it defined and empty, which is what a space that removed its last
+%equation for a name leaves behind, and reading that as a definition sent
+%`super` to a module with nothing in it
+%[tested: translator_super:a_later_definition_retargets_an_earlier_super].
+%A foreign or built-in predicate has no clause count and does answer, so the
+%count is required only where it exists.
+super_defines(Module, Fun, Arity) :-
+    compiled_function_name(Fun, Predicate),
+    functor(Head, Predicate, Arity),
+    predicate_property(Module:Head, defined),
+    \+ predicate_property(Module:Head, imported_from(_)),
+    (   predicate_property(Module:Head, number_of_clauses(Clauses))
+    ->  Clauses > 0
+    ;   true
+    ).
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- translate_clause(Input, (Head :- BodyConj), true).
@@ -423,7 +591,12 @@ reduce([], Out, Status) :- !, Out = [], Status = 'not-reducible'.
 %to nothing.
 reduce([F|Args], Out, Status) :- !,
     (   nonvar(F), atom(F),
-        ( fun(F), \+ fun_scoped(F) -> Module = user
+        %Read once and reused twice below. A function no named space claims is
+        %the base tier's, and the base tier is &self's module: an unqualified
+        %call from here would resolve in the ENGINE's module instead, which is
+        %the parent and cannot see a child's clauses.
+        metta_self_module(Self),
+        ( fun(F), \+ fun_scoped(F) -> Module = Self
         ; current_metta_module(Module), fun_here_in(Module, F) )
     ->  % --- Case 1: callable predicate ---
         length(Args, N),
@@ -438,12 +611,11 @@ reduce([F|Args], Out, Status) :- !,
         %records those arities, and reading the registry is free where asking
         %predicate_property/2 per operator cost 2.39% on the typed-call
         %counter [measured 2026-08-17].
-        (   ( Module == user -> arity(F, Arity)
+        (   ( Module == Self -> arity(F, Arity)
                               ; current_predicate(Module:F/Arity) ),
             \+ (Arity =< 2, current_op(_, _, F))
         ->  resolve_dispatch(F, Args, Out, Goal),
-            ( Module == user -> CallGoal = Goal ; CallGoal = Module:Goal ),
-            call(CallGoal),
+            call(Module:Goal),
             Status = reduced
         ;   incomplete_application_kind(F, Arity, partial)
         ->  Out = partial(F,Args),
@@ -480,7 +652,6 @@ reduce([F|Args], Out, Status) :- !,
     ).
 reduce(Culprit, _, _) :-
     throw_metta_type_error(reduce, list, Culprit).
-
 
 
 %Calling reduce from aggregate function foldall needs this argument wrapping
@@ -530,7 +701,17 @@ translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
                                                 ; translate_args_dl(T, AfterHead, AfterArgs, T1) ),
                                              append(T1,[Gs],Args),
                                              HookCall =.. [HV|Args],
-                                             call(HookCall),
+                                             %A translator rule is an ordinary
+                                             %MeTTa equation, so it lives in
+                                             %the module of the space that
+                                             %wrote it. Called unqualified it
+                                             %resolved in the ENGINE's module
+                                             %and raised Unknown procedure for
+                                             %every rule
+                                             %[tested:
+                                             %examples/libraries/patrick_test.metta].
+                                             current_metta_module(RuleModule),
+                                             call(RuleModule:HookCall),
                                              translate_expr_dl(Gs, AfterArgs, Goals, Out),
                                              refuse_seam_expanded_to_data(HV, Out)
         ; atom(HV), translate_special_dl(HV, T, AfterHead, Goals, Out) -> true
@@ -670,7 +851,8 @@ atom_position_or_undefined(T, Masked) :-
 %predicate owns the complete input contract.
 runtime_guarded_builtin_call(Fun) :-
     runtime_type_guarded(Fun),
-    \+ fun_in(user, Fun),
+    metta_self_module(Self),
+    \+ fun_in(Self, Fun),
     current_metta_module(Module),
     \+ fun_in(Module, Fun).
 
@@ -682,8 +864,13 @@ runtime_guarded_builtin_call(Fun) :-
 %(not-provable (case 1 ((1 True)))) answer True beside its correct False
 %[measured 2026-08-15]. Asked of translate_special_dl/5 rather than kept as a
 %list, so a form added below is covered the day it is added.
+%translate_special_dl/5 is the ENGINE's own clause table, so the module is
+%asked rather than written: after Phase 11 `user` no longer means "where the
+%engine's clauses are" everywhere else in the tree, and a clause/2 read that
+%kept saying it would silently answer for no forms at all.
 metta_special_form(Name) :-
-    clause(user:translate_special_dl(Name, _, _, _, _), _),
+    petta_engine_module(Engine),
+    clause(Engine:translate_special_dl(Name, _, _, _, _), _),
     !.
 
 %Every head the translator gives meaning to, across BOTH of its compilation
@@ -707,7 +894,8 @@ metta_special_form(Name) :-
 %[tested: translator_special_dispatch:an_ordinary_name_is_not_a_translated_head].
 metta_translated_head(Name) :- metta_special_form(Name), !.
 metta_translated_head(Name) :-
-    clause(user:rewrite_streamops(Pattern, _), _),
+    petta_engine_module(Engine),
+    clause(Engine:rewrite_streamops(Pattern, _), _),
     nonvar(Pattern),
     Pattern = [Name|_],
     !.
@@ -719,7 +907,7 @@ metta_translated_head(Name) :-
 %must give way to a user or named-space equation of the same name, which is the
 %guard runtime_guarded_builtin_call/1 uses for the same reason.
 metta_builtin_overridden(Fun) :-
-    (   fun_in(user, Fun)
+    (   metta_self_module(Self), fun_in(Self, Fun)
     ->  true
     ;   current_metta_module(Module), fun_in(Module, Fun)
     ).
@@ -1218,6 +1406,41 @@ translate_special_dl(eval, [Arg], AfterHead, Goals, Out) :-
 translate_special_dl(evalc, [Arg, Space], AfterHead, Goals, Out) :-
     translate_expr_dl(Space, AfterHead, BeforeEval, SpaceValue),
     BeforeEval = [evalc(Arg, SpaceValue, Out)|Goals].
+%(super (f a b)): the definition of f the NEXT module up this space's chain
+%holds, so a shadow can check a call and then let the original run.
+%
+%The relative form, and the language already had the absolute one. `evalc`
+%names the space to evaluate in, which works and does not COMPOSE: two guards
+%on one name in one space, each delegating with `evalc` to &self, both run,
+%and an atom one of them refused is stored anyway by the other, because
+%neither names the next definition along its own chain, they both name the
+%bottom [source: ai-phase11-module-survey.md section 3.2, measured]. That is
+%Logtalk's reason for shipping (^^)/1 beside (::)/2: "Calls an imported or
+%inherited predicate definition ... This control construct preserves the
+%implicit execution context" [source:
+%https://logtalk.org/handbook/refman/control/call_super_1.html].
+%
+%Resolved at COMPILE time, which is what makes it cost nothing at the call
+%(a module-qualified call, a chain hop and an explicit super all measured
+%2.00 inferences per loop iteration, identical to a local unqualified call
+%[measured 2026-08-19]) and what makes a missing target a loud error where the
+%equation is written rather than a silent empty answer where it runs.
+%
+%The arguments are translated the way any call's are, so `(super (f (g 1)))`
+%evaluates g first. Only the HEAD is treated specially, and it has to name a
+%function: `(super $f)` cannot be resolved without running, and saying so is
+%better than compiling a call to whatever $f turns out to be.
+translate_special_dl(super, [Call], AfterHead, Goals, Out) :-
+    super_call_parts(Call, Fun, Args),
+    translate_args_dl(Args, AfterHead, AfterArgs, ArgValues),
+    length(ArgValues, InputArity),
+    Arity is InputArity + 1,
+    current_metta_module(Module),
+    super_target_module(Module, Fun, Arity, Parent),
+    note_super_call(Fun),
+    resolve_dispatch(Fun, ArgValues, Out, Goal),
+    AfterArgs = [Parent:Goal|Goals].
+
 translate_special_dl(quote, [Expr], Goals, Goals, Expr).
 %not-provable keeps its head literal and evaluates its arguments, exactly as
 %an ordinary call does. Which function is being negated has to be known
@@ -1681,7 +1904,6 @@ commit_checks(Checks, [once(Conj)]) :- goals_list_to_conj(Checks, Conj).
 
 shares_a_variable(As, Bs) :- member(A, As), member(B, Bs), A == B, !.
 
-
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 %The argument checks are collected and committed as ONE group, after the
 %argument evaluations. Checking each argument under its own commit cannot
@@ -1817,7 +2039,6 @@ eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
     ( is_list(E) -> eval_data_term_dl(E, Goals0, AfterEntry, V)
                  ; V = E, AfterEntry = Goals0 ),
     eval_data_list_dl(Es, AfterEntry, Goals, Vs).
-
 
 %Convert let* to recursive let:
 letstar_to_rec_let([], Body, Body) :- !.

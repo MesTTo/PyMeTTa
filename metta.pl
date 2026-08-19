@@ -202,6 +202,64 @@ register_metta_library_path(Alias, Directory0, true) :-
 %failure too because the primary error it was papering over never occurs.
 :- use_module(library(gensym)).
 :- use_module(library(process)).
+
+%Which module the ENGINE's own predicates live in, asked of SWI at load time
+%rather than written down. Two different jobs were both spelled `user` and
+%only one of them is about the engine:
+%
+%  - `user` is the HOST module. SWI resolves file_search_path/2 and
+%    thread_message_hook/3 there, consult/1 puts a consulted file there, and
+%    janus resolves goal text there [source: SWI-Prolog 10.1 Reference
+%    Manual, section 6.11 and its footnote "Unfortunately some hooks are
+%    traditionally defined in the user module"]. Those sites go on naming
+%    `user`, because that is the name of the thing they mean.
+%  - THIS is where the engine's own clauses are, which is wherever this file
+%    was consulted. Every wrap_predicate/4 target and every clause/2 read of
+%    the engine's own compilation tables follows it.
+%
+%The two answers coincide today. They stop coinciding the moment a host
+%consults the engine into a module of its own, and asking rather than writing
+%is what makes that a supported thing rather than a silent breakage
+%[tested: metta_engine_module].
+:- dynamic petta_engine_module/1.
+:- prolog_load_context(module, EngineModule),
+   (   petta_engine_module(EngineModule) -> true
+   ;   assertz(petta_engine_module(EngineModule))
+   ).
+
+%The module the base tier compiles into, written ONCE and read everywhere:
+%current_metta_module/1's default, reduce/3's dispatch, fun_here_in/2's shared
+%tier and the type family's &self clause all ask for it.
+%
+%Declared here, before the files that read it are compiled, so the expansion
+%below applies to them. spaces.pl owns the mapping this is the '&self' case of
+%and asserts the same answer into its cache; the plunit test named below is
+%what keeps the two from drifting
+%[tested: spaces_execution_modules:the_written_self_module_is_the_mapped_one].
+metta_self_module('$petta_exec:&self').
+
+%And the prefix the mapping is built from, written once for the same reason
+%and read the same way. space_module/2 builds a module name with it,
+%metta_module_space/2 strips it, and with_metta_module/2 tests for it.
+metta_exec_module_prefix('$petta_exec:').
+
+%And read for FREE. A one-clause fact still costs an inference per call, and
+%these are the hottest paths in the engine: reduce/3 reads it on every
+%dispatch and current_metta_module/1 on every compile and every runnable form.
+%goal_expansion/2 replaces the call with the unification it performs, which
+%SWI folds into the clause, so the name stays written in one place and the
+%read costs nothing [measured 2026-08-19: annotated-relation 483,019 -> 479,523
+%inferences, back to its pre-Phase-11 baseline; py-method-call
+%1,696,849,495 -> 1,657,043,976 instructions:u].
+%
+%A unification rather than `true` with the argument bound at expansion time,
+%because most callers use this as a TEST on a module they already hold
+%(`metta_self_module(Module), !` selects the &self clause of the type family)
+%and binding their variable at compile time would make every module answer
+%yes.
+goal_expansion(metta_self_module(Module), Module = '$petta_exec:&self').
+goal_expansion(metta_exec_module_prefix(Prefix), Prefix = '$petta_exec:').
+
 :- ensure_loaded([ext_points, parser, translator, specializer, filereader,
                   '../lib/lib_gitimport', spaces, tracer, duals, python]).
 
@@ -754,7 +812,7 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %PyPeTTa creates is a named one, so `(: a A)` written there answered
 %'%Undefined%' no matter what.
 current_metta_space(Space) :- current_metta_module(Module),
-                              ( Module == user -> Space = '&self' ; Space = Module ).
+                              metta_module_space(Module, Space).
 
 %A ':' declaration in scope here: this space's, and &self's, since &self is the
 %shared space. That is the rule fun_here/1 already applies to functions.
@@ -776,10 +834,16 @@ type_declaration(X, T) :- current_metta_module(Module),
 %Precedence still belongs to the user because eviction removes the
 %prelude's rows the moment &self defines or declares the name, so the
 %two stores answer together only when the user has said nothing.
-type_declaration_in(user, X, T) :- !, (   prelude_type_declaration(X, T)
-                                      ;   match('&self', [':', X, T], T, _) ).
-type_declaration_in(Module, X, T) :- (   prelude_type_declaration(X, T)
-                                     ;   match(Module, [':', X, T], T, _)
+%A module and the space it serves used to be the same atom for every space but
+%&self, so a module could be handed to match/4 where a SPACE was asked for.
+%They are different atoms now, and metta_module_space/2 is the one step
+%between them.
+type_declaration_in(Module, X, T) :- metta_self_module(Module), !,
+                                     (   prelude_type_declaration(X, T)
+                                     ;   match('&self', [':', X, T], T, _) ).
+type_declaration_in(Module, X, T) :- metta_module_space(Module, Space),
+                                     (   prelude_type_declaration(X, T)
+                                     ;   match(Space, [':', X, T], T, _)
                                      ;   match('&self', [':', X, T], T, _) ).
 
 %A declaration that is not an arrow types the SYMBOL and cannot type a call to
@@ -836,14 +900,19 @@ refuse_untypable_declaration(Name, Types) :-
 get_function_type([F|Args], T) :- nonvar(F),
                                   '$petta_atoms:&self':'&self'(':', F, [->|Ts]),
                                   append(As,[T],Ts),
-                                  maplist(has_type_in(user), Args, As).
-get_function_type_in(Module, [F|Args], T) :- Module \== user,
+                                  metta_self_module(Self),
+                                  maplist(has_type_in(Self), Args, As).
+get_function_type_in(Module, [F|Args], T) :- \+ metta_self_module(Module),
                                              nonvar(F),
                                              type_declaration_in(Module, F, [->|Ts]),
                                              append(As,[T],Ts),
                                              maplist(has_type_in(Module), Args, As).
 
-:- dynamic get_type_rule/2.
+%A `get-type` equation compiles into the module of the space that wrote it, so
+%&self's rule predicate lives in &self's module and this declaration goes
+%there: without it get_type_rule_in/3's last clause raises existence_error on
+%the first (get-type ...) of a program that never defined a rule.
+:- metta_self_module(Self), dynamic(Self:get_type_rule/2).
 %get-type is the user-facing set boundary. Candidate derivations may overlap,
 %for example an expression can be typed both element-wise and by an explicit
 %declaration. Collecting candidates and retaining each first occurrence removes
@@ -973,7 +1042,7 @@ widening_applies_to(Module, X) :-
     X \== false,
     \+ application_return_type(Module, X).
 
-application_return_type(user, X) :- !, get_function_type(X, _).
+application_return_type(Module, X) :- metta_self_module(Module), !, get_function_type(X, _).
 application_return_type(Module, X) :- get_function_type_in(Module, X, _).
 
 %One indexed query rather than one per type: with no edge declared anywhere,
@@ -985,11 +1054,13 @@ application_return_type(Module, X) :- get_function_type_in(Module, X, _).
 %served by a foreign provider keeps the full chain, because its edges do
 %not live in a storage module.
 any_super_type_edge(Module) :-
-    (   Module == user
+    (   metta_self_module(Module)
     ->  native_edge_probe('&self')
-    ;   metta_foreign_space(Module)
+    ;   metta_module_space(Module, Space),
+        metta_foreign_space(Space)
     ->  \+ \+ super_type_in(Module, _, _)
-    ;   native_edge_probe(Module)
+    ;   metta_module_space(Module, Space2),
+        native_edge_probe(Space2)
     ->  true
     ;   %A native name with no storage module yet holds no clauses, so
         %only &self can carry an edge for it; probing the full match
@@ -1011,8 +1082,10 @@ native_edge_probe(Space) :-
         \+ \+ clause(StorageModule:Head, _)
     ).
 
-super_type_in(user, T, S) :- !, match('&self', [':<', T, S], S, _).
-super_type_in(Module, T, S) :- (   match(Module, [':<', T, S], S, _)
+super_type_in(Module, T, S) :- metta_self_module(Module), !,
+                               match('&self', [':<', T, S], S, _).
+super_type_in(Module, T, S) :- metta_module_space(Module, Space),
+                               (   match(Space, [':<', T, S], S, _)
                                ;   match('&self', [':<', T, S], S, _) ).
 
 %add_super_types, round by round: each round asks for the supertypes of exactly
@@ -1075,15 +1148,20 @@ variant_unique_([Type|Types], Seen, Out) :-
         variant_unique_(Types, [Type|Seen], Rest)
     ).
 
-type_candidate_in(user, X, T) :- get_type_candidate(X, T).
-type_candidate_in(Module, X, T) :- Module \== user,
+type_candidate_in(Module, X, T) :- metta_self_module(Module),
+                                   get_type_candidate(X, T).
+type_candidate_in(Module, X, T) :- \+ metta_self_module(Module),
                                    get_type_candidate_in(Module, X, T).
 type_candidate_in(Module, X, T) :- get_type_rule_in(Module, X, T).
 
-get_type_rule_in(Module, X, T) :- Module \== user,
+%A `get-type` equation compiles to get_type_rule/2 in the module of the space
+%that wrote it, &self's included: the second clause is that space's own rule
+%and reads &self's module by name rather than calling it unqualified, which
+%before Phase 11 was the same thing and is not any more.
+get_type_rule_in(Module, X, T) :- \+ metta_self_module(Module),
                                   fun_in(Module, 'get-type'),
                                   Module:get_type_rule(X, T).
-get_type_rule_in(_, X, T) :- get_type_rule(X, T).
+get_type_rule_in(_, X, T) :- metta_self_module(Self), Self:get_type_rule(X, T).
 
 python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 
@@ -1112,7 +1190,8 @@ get_type_candidate(X, T) :- atomic(X), \+ atom(X),
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
-                            maplist(has_type_in(user), X, T).
+                            metta_self_module(Self),
+                            maplist(has_type_in(Self), X, T).
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 get_type_candidate(X, T) :- builtin_type_declaration(X, T).
@@ -1826,9 +1905,13 @@ petta_install_admission :-
     (   petta_admission_installed
     ->  true
     ;   assertz(petta_admission_installed),
-        (   wrap_predicate(user:metta_add_atom(Space, Term, _R),
+        petta_engine_module(Engine),
+        %The wrapper body is unqualified for the reason ext_points.pl's two
+        %give: wrap_predicate/4 declares it `0` and SWI qualifies it with this
+        %file's module, which is the engine's.
+        (   wrap_predicate(Engine:metta_add_atom(Space, Term, _R),
                            petta_admission_guard, Wrapped,
-                           ( user:petta_admission_check(Space, Term),
+                           ( petta_admission_check(Space, Term),
                              call(Wrapped) ))
         ->  true
         ;   throw(error(petta_atom_hook_install_failed(admission), none))
@@ -2363,7 +2446,11 @@ test_answer_value(Results, Results).
 'test-no-answer'(Results, Out) :-
     test(Results, [], Out).
 
-assert(Goal, true) :- ( call(Goal) -> true
+%Resolved in the calling space's module for the same reason callPredicate/2 is:
+%the goal may name a function the space itself defines, and those clauses are
+%in that module and nowhere else.
+assert(Goal, true) :- current_metta_module(Module),
+                      ( call(Module:Goal) -> true
                                     ; swrite(Goal, RG),
                                       format("Assertion failed: ~w~n", [RG]),
                                       throw(error(petta_assertion_failed(Goal),
@@ -2653,14 +2740,17 @@ bounding_pragma_set :-
     ).
 
 enable_metta_pragma_bounds :-
-    current_predicate_wrapper(user:call_goals_in(_, _), metta_pragma_bounds,
+    petta_engine_module(Engine),
+    current_predicate_wrapper(Engine:call_goals_in(_, _), metta_pragma_bounds,
                               _, _), !.
 enable_metta_pragma_bounds :-
-    wrap_predicate(user:call_goals_in(_Module, _Goals), metta_pragma_bounds,
-                   Wrapped, user:run_under_pragmas(Wrapped)).
+    petta_engine_module(Engine),
+    wrap_predicate(Engine:call_goals_in(_Module, _Goals), metta_pragma_bounds,
+                   Wrapped, Engine:run_under_pragmas(Wrapped)).
 
 disable_metta_pragma_bounds :-
-    ( unwrap_predicate(user:call_goals_in/2, metta_pragma_bounds)
+    petta_engine_module(Engine),
+    ( unwrap_predicate(Engine:call_goals_in/2, metta_pragma_bounds)
       -> true ; true ).
 
 %What a bounded runnable form is wrapped in. Reading the pragmas here, rather
@@ -2921,17 +3011,19 @@ rewrite_parsed_form(Space, FormStr, Term, Rewritten) :-
 %answered normally, and every named space PyPeTTa creates hit it. lib_he's
 %`unify` and the ToResult asserts route their branches through eval, so they
 %failed there too [tested: test_per_space.py::test_eval_uses_the_spaces_own_equations].
-%The unset case is `user`, which is what a bare call/1 already resolves to, so
-%it keeps the original path and costs nothing on the default space; only a
-%named space pays for the qualification.
+%There is no unset case any more: current_metta_module/1 answers &self's own
+%module when nothing is in force, and a bare call/1 would resolve in the
+%ENGINE's module, which is the parent and cannot see a space's clauses. The
+%two-branch version and the call_goals/1 it needed are gone with it.
+%Spelling the branch out here instead was measured and bought nothing
+%[measured 2026-08-19: handle-round-trip 1,950,077 either way].
 %eval takes its argument as written: &self resolved at the reader if the
 %expression came from source, and a runtime-built term keeps its literal
 %atoms, the same boundary stored data has. A substitution walk here re-ran
 %the reader's work on every eval and found nothing.
 eval(C0, Out) :- translate_runnable_expr(C0, Goals, Out),
-                 ( nb_current('$petta_module', Module)
-                   -> call_goals_in_(Module, Goals)
-                   ;  call_goals(Goals) ).
+                 current_metta_module(Module),
+                 call_goals_in_(Module, Goals).
 
 %evalc is eval in a space you name, the counterpart to context-space, which
 %reports the space eval is already running in. Naming the space is the only
@@ -2956,12 +3048,8 @@ evalc(C0, Space, Out) :- ( 'is-space'(Space, true)
                         space_module(Space, Module),
                         with_metta_module(Module, eval(C0, Out)).
 
-call_goals([]).
-call_goals([G|Gs]) :- call(G), 
-                      call_goals(Gs).
-
-%As call_goals/1, but in a named module, so a form run against a space reaches
-%that space's own equations. call/1 resolves in the module its clause was
+%Goals run in a named module, so a form run against a space reaches that
+%space's own equations. call/1 resolves in the module its clause was
 %compiled in, which is why the module has to be named rather than inherited.
 %The space's module is in force while the goals run, not only while they were
 %compiled. Anything consulting the current space at call time needs it: get-type
@@ -3029,7 +3117,14 @@ import_prolog_function_at(N, Arity) :-
     refuse_absent_prolog_function(N),
     prolog_function_source(N, Source),
     claim_function_name(N, prolog, Source),
-    register_fun_in(user, N),
+    %The clauses are the HOST's, in whatever module consult_global/1 put them
+    %(`user`), and every space reaches them through the base chain. What is
+    %registered here is the base TIER's claim on the name, which is &self's
+    %module: fun_here_in/2 reads that claim as "callable from every space
+    %unless a space of its own claims the name", and it is the same claim
+    %register_op/2 makes on the Python side.
+    metta_self_module(Self),
+    register_fun_in(Self, N),
     (   Arity == scan
     ->  register_prolog_arities(N)
     ;   register_arity(N, Arity)
@@ -3791,7 +3886,19 @@ metta_predicate_goal([Space|Pattern],
 metta_predicate_goal([F|Args], Term) :- Term =.. [F|Args].
 
 'Predicate'(Parts, Term) :- metta_predicate_goal(Parts, Term).
-callPredicate(G, true) :- call(G).
+%Resolved in the CALLING space's module, which reaches both directions of this
+%seam: a host Prolog predicate through the module's base chain, and a MeTTa
+%function this space compiled, which lives in that module and nowhere else.
+%Called unqualified it resolved in the engine's own module, so
+%`(callPredicate (Predicate (myAddMeTTa 241 $x)))` over a function the program
+%had just defined raised Unknown procedure
+%[tested: examples/integration/prologimport.metta].
+%
+%assertaPredicate/2 and its siblings deliberately do NOT follow: a clause a
+%MeTTa program asserts is host Prolog, it belongs in the host tier where
+%consult_global/1 puts a consulted file, and import_prolog_function/2 looks
+%for it there.
+callPredicate(G, true) :- current_metta_module(Module), call(Module:G).
 assertzPredicate(G, true) :- assertz(G).
 assertaPredicate(G, true) :- asserta(G).
 retractPredicate(G, true) :- retract(G), !.
@@ -4041,7 +4148,8 @@ register_prolog_arities(N) :-
 %predicate whose name is also an OPERATOR is the collision.
 imported_predicate(N, Arity) :-
     functor(Head, N, Arity),
-    predicate_property(user:Head, imported_from(_)).
+    petta_engine_module(Engine),
+    predicate_property(Engine:Head, imported_from(_)).
 
 %Record each callable arity once, even when a function has many equations.
 register_arity(N, Arity) :- ( arity(N, Arity) -> true
@@ -4049,9 +4157,14 @@ register_arity(N, Arity) :- ( arity(N, Arity) -> true
                               record_source_assertion(Ref) ).
 
 %The module whose equations are in scope while a term is compiled or run. The
-%default is user, so nothing changes for a program that only ever uses &self.
+%default is &self's, which is where a program that names no space writes.
+%
+%The default is a fact read rather than a constant unified, one inference
+%instead of none, because the alternative is writing '$petta_exec:&self' out
+%here and having two places that decide the name
+%[tested: metta_module_context:the_default_context_is_selfs_own_module].
 current_metta_module(Module) :-
-    ( nb_current('$petta_module', M) -> Module = M ; Module = user ).
+    ( nb_current('$petta_module', M) -> Module = M ; metta_self_module(Module) ).
 
 %Skipping the switch when Module is already in force was tried and taken back
 %out. It saved 4 inferences on every Python evaluation and cost 2 on every
@@ -4059,7 +4172,21 @@ current_metta_module(Module) :-
 %happens once and the typed call happens in a loop. Measured 2026-08-16, the
 %@m.define annotated tier of python/benchmarks/extension_cost.py went 20.00 to
 %22.00 with the test in place, against m.fn 68.00 to 64.00.
+%The argument is a MODULE, and refusing anything else is what keeps this
+%honest now that a space and its module are different atoms. They used to be
+%the same atom for every space but &self, so `with_metta_module('&pool', G)`
+%worked by coincidence; today it would switch the context to a module nothing
+%compiles into, every lookup would miss, and the goal would answer as if the
+%space were empty. One indexed cache probe turns that into a refusal at the
+%call [tested: metta_module_context:a_space_name_is_refused_where_a_module_is_asked].
 with_metta_module(Module, Goal) :-
+    (   metta_exec_module_prefix(Prefix), sub_atom(Module, 0, _, _, Prefix)
+    ->  true
+    ;   throw(error(type_error(metta_execution_module, Module),
+                    context(with_metta_module/2,
+                            'space_module/2 maps a space to the module its \c
+                             clauses are in; pass that, not the space')))
+    ),
     current_metta_module(Previous),
     setup_call_cleanup(b_setval('$petta_module', Module),
                        Goal,
@@ -4248,7 +4375,8 @@ fun_here(F) :- fun(F),
 %named space turned + into inert data in every other space and in engines
 %built afterwards [tested: metta_builtin_scoping].
 fun_here_in(Module, F) :- (   fun_in(Module, F) -> true
-                          ;   Module \== user, fun_in(user, F) -> true
+                          ;   metta_self_module(Self), Module \== Self,
+                              fun_in(Self, F) -> true
                           ;   builtin_fun(F) ).
 
 %Register a function and record which module its clauses live in. fun/1 stays
@@ -4271,13 +4399,14 @@ register_fun_in(Module, N) :- register_fun(N),
                               ( fun_in(Module, N) -> true
                               ; assertz(fun_in(Module, N), FunInRef),
                                 record_source_assertion(FunInRef) ),
-                              ( Module == user -> true
+                              ( metta_self_module(Module) -> true
                               ; fun_scoped(N) -> true
                               ; assertz(fun_scoped(N), ScopedRef),
                                 record_source_assertion(ScopedRef) ).
 
 unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
-                                ( fun_in(Other, N), Other \== user
+                                metta_self_module(Self),
+                                ( fun_in(Other, N), Other \== Self
                                   -> true ; retractall(fun_scoped(N)) ).
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
@@ -4420,7 +4549,9 @@ evict_prelude_definition(FAtom) :-
     ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
         retract_prelude_declarations(FAtom),
         retractall(prelude_doc_atom(FAtom, _)),
-        function_changed(FAtom)
+        %The prelude is the base tier's, so its eviction is &self's change.
+        metta_self_module(Self),
+        function_changed(Self, FAtom)
     ;   true
     ).
 
@@ -4436,7 +4567,7 @@ retract_prelude_declarations(Name) :-
 %type chains sees ONE authority, the user's.
 evict_prelude_declaration(Space, [':', Name, _]) :-
     atom(Name),
-    space_module(Space, user),
+    Space == '&self',
     !,
     retract_prelude_declarations(Name).
 evict_prelude_declaration(_, _).
@@ -4518,8 +4649,12 @@ load_prelude_form(function, _, Term) :-
     length(W, N),
     Arity is N + 1,
     register_arity(FAtom, Arity),
-    once(with_metta_module(user, translate_clause(Term, Clause))),
-    assert_function_clause(user, Clause, Ref),
+    %The prelude is the base tier's own vocabulary, so it compiles into &self's
+    %module: every other space inherits it from there, and a program that
+    %redefines one of its names evicts it exactly as before.
+    metta_self_module(Self),
+    once(with_metta_module(Self, translate_clause(Term, Clause))),
+    assert_function_clause(Self, Clause, Ref),
     assertz(prelude_clause_ref(FAtom, Ref)),
     (   prelude_owned(FAtom) -> true
     ;   assertz(prelude_owned(FAtom))
@@ -4535,4 +4670,5 @@ load_prelude_form(Kind, Src, _) :-
 %goals do not reliably order against each other (the note above) and the
 %prelude's bodies mention constructors like Error whose Atom masking reads
 %the surface loaded first.
-:- initialization((load_builtin_type_surface, load_engine_prelude)).
+:- initialization((protect_metta_exec_modules,
+                   load_builtin_type_surface, load_engine_prelude)).

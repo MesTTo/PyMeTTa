@@ -3,6 +3,10 @@
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
+%   - An equation for a name this space's module already DERIVED as a
+%     specialization is not stored again, so enumerating a space and re-adding
+%     its atoms answers a space that holds and answers what the first one did
+%     [tested: test_a_copy_reproduces_the_space_it_copied].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -223,20 +227,154 @@ native_retract_all(Head, Removed) :-
     ( \+ \+ clause(Head, true) -> Removed = true ; Removed = false ),
     retractall(Head).
 
-%Which module a space's compiled clauses live in. &self keeps using the default
-%module, so every existing program compiles and runs exactly as before; any other
-%named space gets its own, which is what makes two spaces able to define the same
-%function without answering from each other's equations. A goal unresolved in a
-%module falls back to user, so builtins and library functions still reach.
-space_module('&self', user) :- !.
-space_module(Space, Space).
+%Which module a space's compiled clauses live in. EVERY space gets one, &self
+%included, and the mapping is the storage one with a different prefix: total,
+%injective, and with no clause for a special case.
+%
+%&self used to compile into the module the ENGINE itself resolves in, and an
+%equation asserted there does not shadow a predicate of that name, it REPLACES
+%it for the rest of the process. Two shipped examples did exactly that
+%[measured 2026-08-19: examples/functions/invertpeanoplus.metta took
+%user:plus/3 from imported_from(system) to a local definition, after which
+%plus(1,2,X) failed instead of answering 3; examples/libraries/
+%minimal_metta.metta did the same to user:rule/3]. Every gate stayed green
+%through both, because nothing that ran afterwards in those processes called
+%either predicate. tests/prolog/engine_integrity.pl is the check that would
+%not have let it stand, and it is a GATE at zero findings.
+%
+%A goal unresolved in a space's module still reaches the engine, the builtins
+%and the libraries through the base chain below, so nothing has to be
+%published for a compiled clause to run
+%[tested: spaces_execution_modules].
+%DETERMINISTIC, and the if-then-else is what makes it so. Asserting the known
+%spaces as facts of space_module/2 itself in front of the rule reads one
+%inference cheaper, and costs far more than it saves: the rule's head unifies
+%with every space too, so a known one succeeds holding a CHOICE POINT, and
+%backtracking into it re-enters the rule and takes the mutex. Measured
+%2026-08-19 on that shape: eval-arith 172,009 -> 237,980 inferences, op-raw
+%178,011 -> 253,976, op-encoded 214,011 -> 289,969.
+space_module(Space, Module) :-
+    (   metta_exec_module_known(Space, Module)
+    ->  true
+    ;   metta_exec_module_prefix(Prefix),
+        atom_concat(Prefix, Space, Module),
+        with_mutex('$petta_metta_exec',
+                   ensure_metta_exec_module_locked(Space, Module))
+    ).
 
-%Whether any module still holds a clause for a function. `user` is always
-%checked, because a function read from a file is compiled by process_form/3
-%rather than by add-atom/3 and so has no fun_in/2 record of its own.
-function_still_defined(F) :- ( fun_in(Module, F) ; Module = user ),
-                             current_predicate(Module:F/Arity),
-                             functor(Head, F, Arity),
+:- dynamic metta_exec_module_known/2.
+
+%The chain, and why each link is where it is.
+%
+%  system  ->  the ENGINE's module  ->  '$petta_exec:&self'  ->  every other
+%                                                                space
+%
+%&self's module inherits the engine's, so every builtin, every library
+%predicate and every function imported from Prolog still resolves from a
+%compiled MeTTa clause. Every other space inherits &self's, which is the
+%sharing rule the engine already states for functions and types ("&self is the
+%shared space", fun_here_in/2) and which named spaces used to get by accident:
+%&self WAS `user`, and SWI gives an implicitly created module the base `user`.
+%
+%The base is SET rather than left to the name. SWI gives an implicitly created
+%module whose name starts with `$` the base `system` and every other name the
+%base `user`, and a module created by a :- module(...) FILE gets `user`
+%whatever its name; neither rule is stated in the manual, and the first one
+%alone makes '$petta_exec:&self' unable to see the engine at all
+%[measured 2026-08-19: '$petta_exec:&self':'add-atom'/3 raised
+%existence_error on boot until the base was set explicitly]
+%[tested: spaces_execution_modules:the_chain_is_engine_then_self_then_space].
+metta_exec_module_base(Space, Base) :-
+    (   Space == '&self'
+    ->  petta_engine_module(Base)
+    ;   space_module('&self', Base)
+    ).
+
+%set_module/1 is idempotent and works on a module that already holds clauses
+%[measured 2026-08-19: import_module went [user] -> ['$petta_exec:&self'] in
+%place and the module's own predicates still answered], so recovering a cache
+%fact a rolled-back transaction erased costs one redundant set and no repair,
+%the same shape ensure_native_storage_module_locked/2 uses above.
+%asserta, so the facts stay in front of the rule above and a known space never
+%reaches it. Re-entered when a rolled-back transaction erased the fact and left
+%the module based: set_module/1 is idempotent, so the repair is one redundant
+%set rather than a special case, which is the shape
+%ensure_native_storage_module_locked/2 uses.
+ensure_metta_exec_module_locked(Space, Module) :-
+    metta_exec_module_known(Space, Module), !.
+ensure_metta_exec_module_locked(Space, Module) :-
+    metta_exec_module_base(Space, Base),
+    set_module(Module:base(Base)),
+    assertz(metta_exec_module_known(Space, Module)),
+    protect_engine_emitted(Module).
+
+%Bind the engine's own emitted goals into this module so a MeTTa equation
+%cannot take one over. See metta_engine_emitted/1 (src/translator.pl) for what
+%that means and why an import rather than a guard.
+%
+%The export half is what keeps it quiet: import/1 warns when the source module
+%does not export the name, and the engine's module has no export list at all.
+%current_predicate/1 guards the order: this runs for &self's module at LOAD,
+%before src/duals.pl is consulted, so the one predicate that file emits is not
+%there yet and the initialization below sweeps it in afterwards.
+protect_engine_emitted(Module) :-
+    petta_engine_module(Engine),
+    forall(( metta_engine_emitted(PI), current_predicate(Engine:PI) ),
+           ( Engine:export(PI), Module:import(Engine:PI) )).
+
+%Every module that already exists, which at boot is &self's. Called from
+%src/metta.pl's own initialization rather than from one here, and BEFORE the
+%prelude compiles: an initialization/1 goal runs after the file it appears in
+%finishes, so one here would run before src/metta.pl had defined half the
+%names above, and initialization goals do not reliably order against each
+%other either [source: src/metta.pl's own note on that].
+protect_metta_exec_modules :-
+    forall(metta_exec_module_known(_, Module), protect_engine_emitted(Module)).
+
+%The inverse of space_module/2. It used to be written out by hand in four
+%places, three of them outside this file, each as
+%`Module == user -> Space = '&self' ; Space = Module`
+%[source: ai-phase11-module-survey.md section 1.3]. One prefix strip replaces
+%all four, and the mapping being injective is what makes the inverse a
+%function rather than a search. It FAILS on a module that is not a space's,
+%because every caller has one in hand and a silent pass-through would answer a
+%module name where a space name was asked for
+%[tested: spaces_execution_modules:the_module_to_space_map_is_the_inverse].
+metta_module_space(Module, Space) :-
+    metta_exec_module_prefix(Prefix),
+    atom_concat(Prefix, Space, Module).
+
+%&self's execution module exists from load, the way its storage module does,
+%so nothing has to create it on a first write and metta_self_module/1
+%(src/metta.pl) names a module that is already based.
+:- space_module('&self', _).
+
+%Whether anything still holds a clause for a function, which decides whether
+%removing an equation forgets the NAME as well. Two sources, and `user` used to
+%stand for both of them at once: a space's own module, and the ENGINE's, since
+%a builtin goes on meaning the builtin after a space's equation for it is
+%removed.
+%
+%compiled_function_name/2 rather than the written name, which is the same fix
+%module_owns_function/2 below already carries: `get-type` compiles to
+%get_type_rule/2, so asking for a predicate called `get-type` found the
+%ENGINE's get-type/2 and answered "still defined" for every space and every
+%state of the rules. Removing one of two scoped get-type rules then wiped
+%fun_in/2 for the name and the surviving rule stopped answering
+%[tested: spaces_type_extensions:removing_one_rule_keeps_the_other_visible].
+%number_of_clauses/1 before clause/3, which is the guard tracer.pl already
+%carries and for the same reason: clause/3 REFUSES a predicate it cannot show,
+%raising permission_error(access, private_procedure, _) rather than failing,
+%and the engine's module holds plenty of those. Removing an equation for any
+%system-builtin name reached one and raised out of remove-atom
+%[measured 2026-08-19: with_output_to/2]. The property is true for exactly the
+%predicates clause/3 accepts [source: src/tracer.pl, metta_trace_target/1
+%measured 2026-08-16].
+function_still_defined(F) :- compiled_function_name(F, Predicate),
+                             ( fun_in(Module, F) ; petta_engine_module(Module) ),
+                             current_predicate(Module:Predicate/Arity),
+                             functor(Head, Predicate, Arity),
+                             predicate_property(Module:Head, number_of_clauses(_)),
                              clause(Module:Head, _, _),
                              !.
 
@@ -246,6 +384,8 @@ function_still_defined(F) :- ( fun_in(Module, F) ; Module = user ),
 module_owns_function(Module, F) :- compiled_function_name(F, Predicate),
                                    current_predicate(Module:Predicate/Arity),
                                    functor(Head, Predicate, Arity),
+                                   predicate_property(Module:Head,
+                                                      number_of_clauses(_)),
                                    clause(Module:Head, _, Ref),
                                    clause_property(Ref, module(Module)),
                                    !.
@@ -325,7 +465,8 @@ metta_add_atom(Space, Term, true) :- Term = [':', FAtom, _], atom(FAtom),
                                      ),
                                      store_atom(Space, Term),
                                      recompile_definitions_mentioning(FAtom),
-                                     function_changed(FAtom).
+                                     space_module(Space, DeclModule),
+                                     function_changed(DeclModule, FAtom).
 metta_add_atom(Space, Term, true) :- metta_foreign_space(Space), !,
                                      foreign_write(Space, add,
                                                    metta_foreign_add(Space, Term)).
@@ -391,6 +532,19 @@ store_atom(Space, Term) :- add_sexp(Space, Term, Ref),
 %the space by some other door, MORK's own loader or an mm2-exec write: it is
 %stored and inert, because nothing told the engine. That is the honest edge and
 %it is narrower than a second evaluator that is wrong on every program above.
+%A specialization is DERIVED: the specializer wrote it from this module's own
+%equations and owns the name. So an equation arriving from outside for a name
+%this module has already derived carries nothing, and storing it a second time
+%is what made a space stop reproducing itself: MeTTa.copy() enumerates a space
+%and re-adds every atom into a fresh one, the clone re-derives the
+%specialization while it compiles the equation that triggers it, and the copied
+%atom then lands on top, so a four-atom space cloned to five and answered its
+%query twice [measured 2026-08-19; the aio surface test compares a clone's
+%count against its source's and this is what it was seeing].
+add_equation(Space, _, FAtom, _) :-
+    space_module(Space, Module),
+    ho_specialization(Module, _, FAtom),
+    !.
 add_equation(Space, Term, FAtom, W) :-
     metta_foreign_space(Space), !,
     refuse_ruleless_equation(Space, Term),
@@ -411,8 +565,13 @@ store_equation(Storage, Space, Term) :- add_sexp_in(Storage, Space, Term, Ref),
 
 %Everything a change to FAtom leaves stale, in one place because three callers
 %need exactly it: a new equation, a new declaration, and a removed equation.
-function_changed(FAtom) :- forall(metta_on_function_changed(FAtom), true),
-                           invalidate_specializations(FAtom).
+%
+%The MODULE is threaded rather than read, because a change hook fires outside
+%the compile door's own module switch and the invalidation behind it is scoped
+%to one space now: reading the ambient module here would have made a write in
+%one space invalidate whichever space happened to be in force.
+function_changed(Module, FAtom) :- forall(metta_on_function_changed(FAtom), true),
+                                   invalidate_specializations(Module, FAtom).
 
 %The caller has classified the atom as an equation, so the shape test that used
 %to be here is gone with it.
@@ -572,7 +731,7 @@ add_atoms_in_one_crossing(Space, Terms) :-
 %[tested specializer:string_run_equation_invalidates_specializations].
 compile_metta_equation(Module, Term, Clause, Ref) :-
     Term = [=, [F|_], _],
-    (   Module == user -> evict_prelude_definition(F) ; true ),
+    (   metta_self_module(Module) -> evict_prelude_definition(F) ; true ),
     register_fun_in(Module, F),
     %Stale specializations go FIRST, before this body compiles. They are
     %clones of the PREVIOUS definition, and that is the whole content of
@@ -585,7 +744,7 @@ compile_metta_equation(Module, Term, Clause, Ref) :-
     %(let $h (+ 1) (f $h)), silently answered NOTHING. Found by the
     %verify-specializations differential over examples/
     %[tested specializer:a_recursive_specialization_survives_its_compile].
-    invalidate_specializations(F),
+    invalidate_specializations(Module, F),
     once(with_metta_module(Module, translate_clause(Term, Clause))),
     assert_function_clause(Module, Clause, Ref),
     record_source_assertion(Ref),
@@ -603,13 +762,17 @@ add_function_atom(Storage, Space, Module, Term, FAtom, W) :-
     compile_metta_equation(Module, Term, Clause, _Ref),
     maybe_print_compiled_clause("added function", Term, Clause).
 
-%A builtin is a static predicate compiled into the engine, so an equation for
-%its name in &self would have to assert into it. SWI refuses that with a
-%permission error naming assertz/2, the Prolog arity, and the absolute path of
-%the engine source file, none of which is language the program that wrote the
-%equation can act on. Say it in MeTTa's terms, and say where the definition
-%can go: a named space compiles its clauses into a module of its own, which
-%shadows the builtin there and leaves every other space's alone
+%What is left to refuse, now that every space compiles into a module of its
+%own: SWI's PROTECTED CORE. Defining a builtin's name in a space is an
+%ordinary local shadow and is accepted; SWI still refuses `assertz` outright
+%for a small set of system predicates, with a permission error naming
+%assertz/2, the Prolog arity and the absolute path of a source file, none of
+%which is language the program that wrote the equation can act on. Say it in
+%MeTTa's terms instead, and say that this set is the same in every space
+%rather than pointing at a named one, which is no longer the difference
+%[measured 2026-08-19: of the 428 names imported into `user`, 7 at MeTTa arity
+%0, 4 at arity 1, 2 at arity 2 and 1 at arity 3 are refused in a space's
+%module, against 86, 217, 163 and 64 in the engine's]
 %[tested: spaces_builtin_override].
 :- multifile prolog:error_message//1.
 
@@ -618,13 +781,23 @@ assert_function_clause(Module, Clause, Ref) :-
           error(permission_error(modify, static_procedure, _), _),
           throw_builtin_redefinition(Module, Clause)).
 
+%Two refusals, because SWI raises the same permission error for two different
+%reasons and only one of them is about Prolog. A name the ENGINE emits into
+%compiled bodies is bound into every space's module on purpose
+%(protect_engine_emitted/1 above), and telling its author that it is one of
+%Prolog's core predicates would send them looking in the wrong place.
 throw_builtin_redefinition(Module, Clause) :-
     ( Clause = (Head :- _) -> true ; Head = Clause ),
     functor(Head, Name, Arity),
     InputArity is Arity - 1,
-    ( Module == user -> Space = '&self' ; Space = Module ),
-    throw(error(petta_builtin_redefinition(Name, InputArity, Space),
-                context('=', 'a builtin cannot be redefined in this space'))).
+    metta_module_space(Module, Space),
+    (   metta_engine_emitted(Name/Arity)
+    ->  throw(error(petta_engine_goal_redefinition(Name, InputArity, Space),
+                    context('=', 'the engine compiles this name into function \c
+                                  bodies')))
+    ;   throw(error(petta_builtin_redefinition(Name, InputArity, Space),
+                    context('=', 'a builtin cannot be redefined in this space')))
+    ).
 
 %The refusal that reads worst when it is unrendered, because the term names a
 %capability nobody has heard of and the whole point of the refusal is to teach
@@ -649,10 +822,18 @@ prolog:error_message(petta_foreign_plan_is_not_a_partition(Space, Patterns,
        conjunct: the engine plans only what you leave, so a dropped pattern \c
        stops constraining the query and the join answers rows that were never \c
        asked for.'-[Space, Claimed, Rest, Patterns] ].
+prolog:error_message(petta_engine_goal_redefinition(Name, Arity, Space)) -->
+    [ '~w with ~w arguments is a name the engine itself compiles into function \c
+       bodies, so no space can redefine it, ~w included.'-[Name, Arity, Space], nl,
+      '  an equation for it would capture the engine\'s own goal in this \c
+       space\'s compiled clauses rather than shadowing a function: rename it, \c
+       or write the behaviour you want as a wrapper around it' ].
 prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
-    [ '~w with ~w arguments is a builtin and cannot be redefined in ~w. A \c
-       named space compiles its own clauses, so defining it there shadows \c
-       the builtin for that space alone.'-[Name, Arity, Space] ].
+    [ '~w with ~w arguments is one of Prolog\'s protected core predicates, \c
+       which no space can redefine, ~w included.'-[Name, Arity, Space], nl,
+      '  every other builtin name is free: an equation for one compiles into \c
+       this space\'s own module and shadows it there, leaving the engine\'s \c
+       and every other space\'s alone' ].
 
 %Unit here too, and the language is explicit that absence is not reported:
 %"if the given atom is not in the space, remove-atom currently neither raises a
@@ -805,13 +986,14 @@ metta_remove_atom(Space, Term, Removed) :- Term = [=, [F|Args], Body], !,
 metta_remove_atom(Space, Term, Removed) :- Term = [':', F, _], atom(F), fun(F), !,
                                            unstore_atom(Space, Term, Removed),
                                            recompile_definitions_mentioning(F),
-                                           function_changed(F).
+                                           space_module(Space, DeclModule),
+                                           function_changed(DeclModule, F).
 metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
 
 remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),
-    drop_fun_meta(F, Args, Body),
     space_module(Space, Module),
+    drop_fun_meta(Module, F, Args, Body),
     %Only this space's compiled clauses die: the same equation imported into two
     %spaces compiles into two modules, and the term-keyed lookup alone would
     %erase the twin space's clause and, through the term-wide retractall, its
@@ -819,7 +1001,7 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     findall(Ref, ( translated_from(Ref, Term),
                    clause_property(Ref, module(Module)) ), Refs),
     forall(member(Ref, Refs), ( erase(Ref), retractall(translated_from(Ref, _)) )),
-    function_changed(F),
+    function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),

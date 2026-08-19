@@ -6,11 +6,22 @@ Guarantees:
     `!` may name a function the same source defines lower down [tested
     test_a_source_registers_every_signature_before_any_form_runs,
     test_run_status_registers_signatures_before_any_form_runs]
+  - an equation for a name SWI imports into the engine shadows it inside the
+    space that wrote it and leaves the engine's own predicate answering, so
+    the engine survives what used to brick it [tested
+    test_a_system_predicate_survives_an_equation_for_its_name]
+  - a write into one space never removes atoms from another [tested
+    test_adding_in_one_space_never_removes_atoms_from_another]
+  - copy() answers a space that holds what its source holds and answers what
+    its source answers, generated specializations included [tested
+    test_a_copy_reproduces_the_space_it_copied]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+import re
 
 import pytest
 
@@ -807,3 +818,110 @@ def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_pa
         "!(p111-sq 9)\n"
     )
     assert metta.load(source)[-2:] == [[True], [81]]
+
+
+def _atom_multiset(space):
+    """A space's atoms as a comparable multiset. Each read hands back fresh
+    variables, so the printed names differ between two reads of one atom and
+    comparing the raw strings compares nothing."""
+    return sorted(re.sub(r"\$_\d+", "$V", str(atom)) for atom in space)
+
+
+def test_adding_in_one_space_never_removes_atoms_from_another(metta):
+    """A specialization belongs to the space whose code triggered it, and
+    invalidate_specializations/2's predecessor read ho_specialization/3's
+    module argument
+    with a WILDCARD, so an equation added in ANY space invalidated that name's
+    specializations in EVERY space and took their stored equations with them.
+
+    copy() is where it showed: it enumerates the source and re-adds every atom
+    into a fresh space, so re-adding the base equation THERE stripped the
+    specialization's atom from HERE and the source of a copy lost atoms to the
+    copy. It was the suite's one known flake, `assert 51 == 47`, 1 firing in 12
+    parallel runs, with no concurrency involved.
+    """
+    metta.run("(= (p6-inc $x) (+ $x 1))")
+    metta.run("(= (p6-map $f $x) ($f $x))")
+    metta.run("(= (p6-use $z) (p6-map p6-inc $z))")
+    assert metta.run("!(p6-use 1)") == [[2]]
+
+    before = _atom_multiset(metta)
+    # The specialization the call above planned is a stored equation of the
+    # source space, so this is not an abstract multiset: it is what copy() went
+    # on to delete.
+    assert any("p6-map_Spec_" in atom for atom in before), before
+
+    clone = metta.copy()
+    try:
+        assert _atom_multiset(metta) == before
+    finally:
+        clone.drop()
+
+    # The direct form, with no copy in it: two spaces defining one name, and
+    # neither losing atoms to the other.
+    with metta.new_space() as other:
+        other.run("(= (p6-map $f $x) ($f $x))")
+        assert _atom_multiset(metta) == before
+        other_before = _atom_multiset(other)
+        metta.run("(= (p6-map $f $x) ($f $x))")
+        assert _atom_multiset(other) == other_before
+
+
+def test_a_system_predicate_survives_an_equation_for_its_name(metta):
+    """`!(add-atom &self (= (b_setval $a) clash))` used to brick the engine.
+
+    `&self` compiled into the module the engine itself resolves in, so the
+    equation did not shadow `b_setval/2`, it REPLACED it: the predicate went
+    from imported_from(system) to a local definition and every engine path
+    through it stopped. The translator emits `b_setval` into the clause bodies
+    it builds, so the very next form failed to translate, and
+    `with_metta_module/2` failed, which takes every named space with it.
+
+    Refusing the equation is the wrong fix, measured: the guard forbids 78
+    names in `&self`, `plus` among them, and `plus` is an ordinary MeTTa
+    function name a shipped example is right to use. Giving `&self` a module of
+    its own makes the same equation a local shadow, so the engine keeps the
+    predicate and MeTTa keeps the name.
+    """
+    metta.run("!(add-atom &self (= (b_setval $a) clash))")
+    try:
+        # MeTTa's name now answers what the equation says.
+        assert metta.run("!(b_setval anything)") == [[S.clash]]
+        # A form the engine has to translate still translates.
+        assert metta.run("!(+ 1 2)") == [[3]]
+        # And a named space still runs, which is with_metta_module/2 working.
+        with metta.new_space() as other:
+            assert other.run("!(+ 1 2)") == [[3]]
+    finally:
+        metta.run("!(remove-atom &self (= (b_setval $a) clash))")
+    # The shadow goes with the equation, so the name is MeTTa's only while an
+    # equation says so, and removing it leaves the term unreduced rather than
+    # leaving a clause behind in the space's module.
+    assert metta.run("!(b_setval anything)") == [[parse("(b_setval anything)")]]
+    assert metta.run("!(+ 1 2)") == [[3]]
+
+
+def test_a_copy_reproduces_the_space_it_copied(metta):
+    """copy() enumerates a space and re-adds every atom into a fresh one, so a
+    specialization the clone DERIVES for itself used to land on top of the
+    copied one: a four-atom space cloned to six and answered its query three
+    times instead of once.
+
+    The specializer owns the names it generates, so an equation arriving for a
+    name this module already derived carries nothing new.
+    """
+    with metta.new_space() as source:
+        source.run("(= (cp-inc $x) (+ $x 1))")
+        source.run("(= (cp-map $f $x) ($f $x))")
+        source.run("(= (cp-use $z) (cp-map cp-inc $z))")
+        assert source.run("!(cp-use 1)") == [[2]]
+        # The specialization is stored content, which is why the clone gets it.
+        assert any("cp-map_Spec_" in str(atom) for atom in source.atoms())
+
+        clone = source.copy()
+        try:
+            assert clone.count() == source.count()
+            assert clone.digest() == source.digest()
+            assert clone.run("!(cp-use 1)") == source.run("!(cp-use 1)")
+        finally:
+            clone.drop()

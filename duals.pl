@@ -48,12 +48,12 @@
 %   here, because the dual of a head argument is dif/2 rather than a failed
 %   proof [tested: duals_art_of_prolog].
 % Assumes:
-%   - translator.pl:fun_meta_clause/3 retains one fact per compiled equation
+%   - translator.pl:fun_meta_clause/4 retains one fact per compiled equation
 %     holding its head arguments and its unevaluated MeTTa body
 %     [source: src/translator.pl, record_fun_meta/3].
 %   - a head argument that is itself a function call, which is Curry's
 %     functional pattern and which constrain_args/3 compiles into a goal, is
-%     recorded by fun_head_goals/1 so this file can refuse it rather than
+%     recorded by fun_head_goals/2 so this file can refuse it rather than
 %     dualise a head it cannot see [tested: a_functional_pattern_head_has_no_dual].
 %   - MeTTa True and False are the Prolog atoms true and false
 %     [source: src/parser.pl:133].
@@ -172,6 +172,19 @@ metta_not_functor(X, Name, Arity) :-
 %
 %copy_term/4 copies only the quantified variables, leaving the head variables
 %shared, which is exactly s(CASP)'s my_copy_term/4.
+%Every one of these carries a goal that was COMPILED IN A SPACE'S MODULE and
+%is being called from this file, which is the engine's. Without the
+%declaration the call resolves here instead, and a dual over a function the
+%program defined raised Unknown procedure for it
+%[tested: examples/reasoning/constructive_negation.metta]. It was invisible
+%while &self compiled into this same module and would have bitten any named
+%space that used a dual; the declaration is the manual's own remedy
+%[source: SWI-Prolog 10.1 Reference Manual, chapter 6, defining a
+%meta-predicate].
+:- meta_predicate metta_forall_c(+, 0),
+                  forall_cover(?, 0),
+                  domain_coverage(?, ?, 0),
+                  forall_excluded(+, ?, 0).
 metta_forall_c([], Goal) :- !, call(Goal).
 metta_forall_c([Var|Vars], Goal) :-
     forall_cover(Var, metta_forall_c(Vars, Goal)).
@@ -368,6 +381,10 @@ metta_ensure_duals(Needed) :-
 %Local holds the variables quantify_negations/3 found to occur nowhere but
 %inside this negation. It stays unbound when nothing analysed the site, which
 %is the same as having none.
+%True and Dual are compiled in the space's module and called from here, so
+%they carry it in. Local is a variable list and Out a result, neither of them
+%a goal.
+:- meta_predicate metta_negation(?, ?, 0, 0, ?).
 metta_negation(Local, _, True, Dual, Out) :-
     %The world flag rides the whole negation, both the provability probe
     %and the dual: either side consulting an open-world foreign context
@@ -461,6 +478,7 @@ metta_dual_goal(Fun, Args) :-
 %`not-provable` create one: every other edge a dual follows is the dual OF a
 %positive goal, which is the same node seen from the other side and not a
 %negation of the program.
+:- meta_predicate metta_crossed_negation(0), push_dual_frame(?, ?, 0).
 metta_crossed_negation(Goal) :-
     dual_stack(Stack),
     push_dual_frame(Stack, negation, Goal).
@@ -547,7 +565,7 @@ ensure_dual_locked(Fun, InputArity, Module) :-
 
 build_dual(Fun, InputArity, Module) :-
     dual_name(Fun, DualName),
-    refuse_unsupported_head(Fun),
+    refuse_unsupported_head(Module, Fun),
     refuse_taken_name(Fun, DualName, Module),
     install_dual_hooks,
     assertz(dual_building(Fun, InputArity, Module), BuildRef),
@@ -559,7 +577,7 @@ build_dual(Fun, InputArity, Module) :-
     record_source_assertion(ReadyRef).
 
 build_dual_clause(Fun, DualName, InputArity, Module) :-
-    equations_of_arity(Fun, InputArity, Equations),
+    equations_of_arity(Module, Fun, InputArity, Equations),
     length(DualArgs, InputArity),
     (   Equations == []
     ->  refuse_undefined_builtin(Fun, InputArity, Module),
@@ -578,8 +596,8 @@ build_dual_clause(Fun, DualName, InputArity, Module) :-
     format(atom(Label), "metta dual (~w)", [Fun]),
     maybe_print_compiled_clause(Label, ['not-provable', [Fun|DualArgs]], Clause).
 
-equations_of_arity(Fun, InputArity, Equations) :-
-    (   fun_meta_clauses(Fun, All)
+equations_of_arity(Module, Fun, InputArity, Equations) :-
+    (   fun_meta_clauses(Module, Fun, All)
     ->  include(equation_arity(InputArity), All, Equations)
     ;   Equations = []
     ).
@@ -607,8 +625,8 @@ refuse_undefined_builtin(Fun, InputArity, Module) :-
 %halfof(A,B) :- dbl(B,A) and runs dbl backwards. That goal is not part of the
 %recorded body, so a dual built from the recorded head would silently ignore
 %it and claim more than it can prove.
-refuse_unsupported_head(Fun) :-
-    (   fun_head_goals(Fun)
+refuse_unsupported_head(Module, Fun) :-
+    (   fun_head_goals(Module, Fun)
     ->  throw(error(type_error(dualisable_function, Fun),
                     context(build_dual/3,
                             'this function matches a functional pattern in its \c
@@ -1059,6 +1077,10 @@ body_true(Expr, Goal) :-
 %nested let then answered a second time from its own complement branch:
 %(not-provable (both bob)) had four answers where it has one [traced
 %2026-08-15 with trace/2 on the generator quantifier, +exit].
+%The generator and the dual body are both compiled in the space's module and
+%reached from here through foreach/2 and findall/3, so both carry it in.
+:- meta_predicate metta_generator_forall(?, ?, 0, 0, ?),
+                  metta_narrowed_forall(?, 0, 0, ?).
 metta_generator_forall(GeneratorVariables, Local, Generator, DualBody, Value) :-
     generator_outer_variables(GeneratorVariables, Local, OuterVariables),
     (   OuterVariables == []
