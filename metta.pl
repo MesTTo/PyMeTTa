@@ -3054,9 +3054,15 @@ metta_elapsed(Goal, Value, [Value, Seconds]) :-
 %so this is the fallback-to-HE rule applied.
 :- dynamic metta_pragma/2.
 
-%An unrecognised key is a typo far more often than it is forward
-%compatibility, so it is an error that names the keys that exist rather than a
-%setting that silently never applies.
+%The keys this engine KNOWS. pragma! itself no longer checks against them:
+%the arbiter accepts any key and answers unit, and its corpus states the
+%reason, "an Error would introduce key validation that the pinned operation
+%does not perform" [source: LeaTTa
+%tests/semantics/eval-core/pragma-unknown-key.metta, STATUS conforms]. The
+%register is still the answer to "what does this engine enforce", and
+%with-pragma!, which is PeTTa's own scoped form, still refuses an unknown key
+%there: a scope that sets nothing does nothing, silently, for as long as it
+%lasts [tested: scoped_pragmas:with_pragma_refuses_an_unknown_key].
 %HE's own keys are type-check, interpreter and max-stack-depth
 %[source 2026-08-15: MeTTa HE stdlib reference, pragma!]. The two bounds are
 %PeTTa's, and are the ones this engine can actually enforce.
@@ -3072,13 +3078,23 @@ metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
 
 'pragma!'(Key, _, _) :- var(Key), !, refuse_unbound_input('pragma!', 1).
-'pragma!'(Key, Value, true) :-
-    (   metta_pragma_key(Key, _)
-    ->  true
-    ;   findall(K-D, metta_pragma_key(K, D), Known),
-        throw(error(domain_error(metta_pragma_key, Key),
-                    context('pragma!'/2, Known)))
-    ),
+%max-stack-depth is the ONE key the arbiter validates, and a count is the
+%whole of what it validates. The refusal is an ANSWER, not a raise, so the
+%program that wrote it keeps running [measured 2026-08-19 against the
+%arbiter: -1, 1.5 and abc each answer this error, while
+%(pragma! type-check -1) and (pragma! completely-invented-key -1) answer ();
+%source: LeaTTa tests/semantics/eval-core/max-stack-depth-negative.metta].
+%`none` is the engine's own "unset" sentinel, which petta_restore_pragma/1
+%passes back on every scope exit, so it is not a value to validate.
+'pragma!'('max-stack-depth', Value, Error) :-
+    Value \== none,
+    \+ ( integer(Value), Value >= 0 ),
+    !,
+    Error = ['Error', ['pragma!', 'max-stack-depth', Value],
+             'UnsignedIntegerIsExpected'].
+%The UNIT value, for the reason add-atom answers it: the standard library
+%types this `(-> Symbol %Undefined% (->))` and `(->)` IS the unit type.
+'pragma!'(Key, Value, []) :-
     retractall(metta_pragma(Key, _)),
     (   Value == none
     ->  true
@@ -3105,7 +3121,13 @@ metta_with_pragmas(Settings, Goal, Value) :-
           maplist(petta_restore_pragma, Undo) )),
     member(Value, Values).
 
-petta_pragma_pair([Key, ValueIn], Key-ValueIn) :- !.
+petta_pragma_pair([Key, ValueIn], Key-ValueIn) :- !,
+    (   metta_pragma_key(Key, _)
+    ->  true
+    ;   findall(K-D, metta_pragma_key(K, D), Known),
+        throw(error(domain_error(metta_pragma_key, Key),
+                    context('with-pragma!'/2, Known)))
+    ).
 petta_pragma_pair(Other, _) :-
     throw(error(domain_error(metta_pragma_setting, Other),
                 context('with-pragma!'/2,
