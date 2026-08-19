@@ -4692,11 +4692,46 @@ throw_missing_import(File) :-
 resolve_metta_import_path(File, CanonPath) :-
     import_file_string(File, SFile),
     \+ python_import_file(SFile),
-    current_working_dir(Base),
-    ensure_metta_ext(SFile, RequestedPath),
+    metta_module_path(SFile, Base, Relative),
+    ensure_metta_ext(Relative, RequestedPath),
     ( resolve_existing_import_path(Base, RequestedPath, CanonPath)
       -> true
        ; throw_missing_import(File) ).
+
+%A module NAME may be a COLON PATH. `pkg:child` names pkg/child.metta beside
+%the file that imports it, `top:` names the OUTERMOST module's directory and
+%`self:` the importing module's own, which is also what a bare name means
+%[source: LeaTTa tests/semantics/modules/22-path-colon.metta,
+%23-path-top.metta and 24-path-self.metta, all STATUS conforms; the third
+%imports `self:child` from inside a module the first level already reached].
+%
+%A name carrying a separator ALREADY is a path and is left alone, which is the
+%whole guard: nothing that resolved before resolves somewhere else now
+%[tested: module_colon_paths].
+metta_module_path(SFile, Base, Relative) :-
+    \+ sub_string(SFile, _, _, _, "/"),
+    sub_string(SFile, _, _, _, ":"),
+    split_string(SFile, ":", "", Segments0),
+    module_path_base(Segments0, Which, Segments),
+    Segments \== [],
+    !,
+    metta_import_base(Which, Base),
+    atomic_list_concat(Segments, '/', Relative).
+metta_module_path(SFile, Base, SFile) :- current_working_dir(Base).
+
+module_path_base(["top"|Segments], top, Segments) :- !.
+module_path_base(["self"|Segments], self, Segments) :- !.
+module_path_base(Segments, self, Segments).
+
+%working_dir/1 is a stack kept by asserta/1, so its FIRST solution is the file
+%being loaded and its last is the module the load started from.
+metta_import_base(self, Directory) :- current_working_dir(Directory).
+metta_import_base(top, Directory) :-
+    findall(Held, working_dir(Held), Directories),
+    (   last(Directories, Directory)
+    ->  true
+    ;   current_working_dir(Directory)
+    ).
 
 resolve_python_import_path(File, CanonPath) :-
     import_file_string(File, SFile),
