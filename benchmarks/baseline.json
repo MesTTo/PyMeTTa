@@ -255,9 +255,10 @@
       "unit": "queries"
     },
     "term-operators": {
+      "comment": "LOWERED on 2026-08-19, 1176259054 to 1099833305, -6.63% attributed by interleaved A/B of one change: Expr writes its two slots through their own descriptors instead of object.__setattr__, which resolves the attribute NAME against the type on every call. Measured in isolation, object.__setattr__ costs 951 instructions against the descriptor's 568 over 200,000 writes, minimum of three runs. This lane builds five expressions per term and crosses none of them, so it is the workload where construction is the whole cost and the two writes per Expr are 12% of it.",
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 1176259054,
+      "instructions": 1099833305,
       "operations": 20000,
       "unit": "terms",
       "wall_seconds_per_operation": 2.7933047502301635e-06
@@ -277,9 +278,10 @@
       "unit": "calls"
     },
     "wire-codec": {
+      "comment": "LOWERED on 2026-08-19, 3522689581 to 3457054691. Same change as term-operators: Expr writes its slots through their descriptors. Attributed by interleaved A/B, 3536110132 to 3457065051, -2.24%. from_wire builds one Expr per decoded node, so this lane pays the two writes 51 times per trip.",
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 3522689581,
+      "instructions": 3457054691,
       "operations": 504000,
       "unit": "atom round-trips",
       "wall_seconds_per_operation": 3.075987162504582e-07

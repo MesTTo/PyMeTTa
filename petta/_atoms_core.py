@@ -8,6 +8,10 @@ Guarantees:
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
   - Expr virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
+  - Expr writes its slots through their descriptors rather than
+    object.__setattr__, which costs term-operators 6.55% fewer instructions
+    and wire-codec 2.24% fewer [measured 2026-08-19: minimum of three
+    instructions:u runs, interleaved against the same tree without it]
   - wire and object identity caches are bounded or weak and synchronized
     [tested test_wire_intern_tables_are_bounded,
     test_atom_identity_caches_are_thread_safe]
@@ -868,8 +872,8 @@ class Expr(Atom):
     _hash: int | None
 
     def __init__(self, children: Sequence[Atom]) -> None:
-        object.__setattr__(self, "children", tuple(children))
-        object.__setattr__(self, "_hash", None)
+        _set_children(self, tuple(children))
+        _set_hash(self, None)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Expr):
@@ -907,7 +911,7 @@ class Expr(Atom):
         for node in reversed(order):
             if node._hash is None:
                 value = hash(("expr", tuple(hash(child) for child in node.children)))
-                object.__setattr__(node, "_hash", value)
+                _set_hash(node, value)
         return cast(int, self._hash)
 
     def __reduce__(self):
@@ -1015,6 +1019,16 @@ class Expr(Atom):
 
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expr)
+
+# Atoms refuse assignment, so every slot write goes through a back door.
+# object.__setattr__ resolves the attribute NAME against the type on every
+# call and costs 951 instructions; the slot's own descriptor is resolved
+# already and costs 568 [measured 2026-08-19: minimum of three
+# instructions:u runs over 200,000 writes each]. Expr writes two slots per
+# construction and from_wire builds one Expr per decoded node, so the name
+# lookup was being paid twice for every node of every answer.
+_set_children = Expr.__dict__["children"].__set__
+_set_hash = Expr.__dict__["_hash"].__set__
 
 
 # --------------------------------------------------------------------- encoding
