@@ -7,6 +7,10 @@ Guarantees:
   - a body that ends with no answer rolls the whole transaction back, and one
     that raises rolls it back and re-raises [tested
     test_a_transaction_rolls_back_every_answers_writes_together]
+  - `atomically` carries the same guarantees, over a body that may be a term
+    the program computed [tested
+    test_atomically_answers_in_full_and_commits_or_rolls_back_whole,
+    test_atomically_takes_a_body_that_is_data_where_transaction_cannot]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -116,3 +120,72 @@ def test_a_nested_transaction_preserves_answers_too(three):
         "2",
         "3",
     ]
+
+
+def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
+    """Reproduced 2026-08-19: `atomically` did not exist, so
+    `!(atomically (+ 1 1))` answered `(atomically 2)`, the unknown head
+    applied to its evaluated argument, rather than running anything
+    atomically."""
+    assert [str(a) for a in three.run("!(atomically (+ 1 1))")[0]] == ["2"]
+    assert _answers(three, "!(collapse (atomically (petta-three)))") == ["1", "2", "3"]
+
+    # Commits whole.
+    assert _answers(
+        three,
+        "!(collapse (atomically (superpose ((add-atom (context-space) (a-kept 1)) "
+        "(add-atom (context-space) (a-kept 2))))))",
+    ) == ["()", "()"]
+    assert _answers(three, "!(collapse (match (context-space) (a-kept $x) $x))") == [
+        "1",
+        "2",
+    ]
+
+    # Rolls back whole.
+    three.run(
+        "(= (petta-a-fail) (progn (superpose ("
+        "(add-atom (context-space) (a-gone 1)) (add-atom (context-space) (a-gone 2)))) "
+        "(empty)))"
+    )
+    assert _answers(three, "!(collapse (atomically (petta-a-fail)))") == []
+    assert _answers(three, "!(collapse (match (context-space) (a-gone $x) $x))") == []
+
+    # A raise rolls back and is not swallowed.
+    def blow():
+        raise RuntimeError("the host operation failed")
+
+    three.register_op(blow, name="petta-a-blow")
+    three.run(
+        "(= (petta-a-raise) (progn (superpose ("
+        "(add-atom (context-space) (a-lost 1)) (add-atom (context-space) (a-lost 2)))) "
+        "(petta-a-blow)))"
+    )
+    with pytest.raises(EngineError):
+        three.run("!(collapse (atomically (petta-a-raise)))")
+    assert _answers(three, "!(collapse (match (context-space) (a-lost $x) $x))") == []
+
+    # Nesting keeps both, the same way transaction's does.
+    assert _answers(
+        three, "!(collapse (atomically (atomically (superpose (7 8)))))"
+    ) == ["7", "8"]
+
+
+def test_atomically_takes_a_body_that_is_data_where_transaction_cannot(three):
+    """The two forms are not one operation wearing two names, and this is the
+    difference. `transaction` is a special form: its body is compiled into the
+    call site, so a variable there is a value rather than a goal and the term
+    comes back unrun. `atomically` takes its body as an unreduced Atom and
+    evaluates it, so the body may be a term the program computed.
+
+    Measured 2026-08-19 over a three-answer body: 557.04 inferences plain,
+    773.05 through `transaction`, 956.07 through `atomically`. The 183 that
+    separate them are what evaluating a runtime term costs against compiling
+    the body in place, which is why both forms exist rather than one.
+    """
+    three.run("(= (petta-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))")
+    assert _answers(
+        three, "!(collapse (let $body (petta-body) (atomically $body)))"
+    ) == ["2", "4"]
+    assert _answers(
+        three, "!(collapse (let $body (petta-body) (transaction $body)))"
+    ) == ["(superpose ((+ 1 1) (+ 2 2)))"]

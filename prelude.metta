@@ -106,6 +106,32 @@
 (= (for-each-in-atom $L $f)
    (map-atom $L $f))
 
+;;; Atomicity ;;;
+
+;atomically runs its argument inside one transaction, the name the
+;concurrency vocabulary uses for an atomic block: Haskell's STM spells it
+;`atomically`, Clojure's spells it `dosync`, and `transaction` is the same
+;operation under the database name. Before this it did not exist, so
+;!(atomically (+ 1 1)) answered (atomically 2), an unknown head applied to
+;its evaluated argument, rather than running anything atomically.
+;
+;It is sugar over (transaction ...), deliberately, so the two forms cannot
+;drift: every guarantee here is petta_transaction/1's, answer preservation
+;and whole-set commit-or-rollback included, and there is one implementation
+;of them.
+;
+;They are still not the same operation, and this is the difference.
+;transaction is a SPECIAL FORM whose body is compiled into the call site, so
+;the body has to be written there: (let $b <a term> (transaction $b))
+;answers the TERM, unrun, because there is nothing to compile at the call
+;site but a variable. atomically takes its body as an unreduced Atom and
+;evaluates it, so the body may be a term the program computed. The 183
+;inferences that separate them, 773.05 against 956.07 over a three-answer
+;body [measured 2026-08-19], are what evaluating a runtime term costs
+;against compiling the body in place.
+(: atomically (-> Atom %Undefined%))
+(= (atomically $expr) (transaction (eval $expr)))
+
 ;;; Quoting ;;;
 
 ;Two clauses, and the second is not a deviation from the arbiter but
