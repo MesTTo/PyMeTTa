@@ -229,15 +229,6 @@ metta_engine_emitted(petta_prune_empty/2).
 metta_engine_emitted(petta_transaction/1).
 metta_engine_emitted(throw_function_overapplication/2).
 
-%A name is MeTTa's when the engine's own dispatch registry knows it: arity/2
-%is what reduce/3 and build_call_or_partial_dl/6 consult to decide a head is a
-%call, fun/1 what the translator consults to decide it is not data, and
-%builtin_fun/1 what keeps a builtin visible in every space. A name none of the
-%three holds was written by the translator and by nothing else.
-metta_dispatch_name(Name, Arity) :- arity(Name, Arity), !.
-metta_dispatch_name(Name, _) :- fun(Name), !.
-metta_dispatch_name(Name, _) :- builtin_fun(Name).
-
 %Resolving at compile time means the answer can go stale: a space that gains
 %a definition of the name becomes the nearer parent, and one that loses its
 %last equation stops being a parent at all. Both are function CHANGES, and the
@@ -627,7 +618,6 @@ reduce([F|Args], Out, Status) :- !,
     ).
 reduce(Culprit, _, _) :-
     throw_metta_type_error(reduce, list, Culprit).
-
 
 
 %Calling reduce from aggregate function foldall needs this argument wrapping
@@ -1880,7 +1870,6 @@ commit_checks(Checks, [once(Conj)]) :- goals_list_to_conj(Checks, Conj).
 
 shares_a_variable(As, Bs) :- member(A, As), member(B, Bs), A == B, !.
 
-
 %Selectively apply translate_args for non-Expression args while Expression args stay as data input:
 %The argument checks are collected and committed as ONE group, after the
 %argument evaluations. Checking each argument under its own commit cannot
@@ -2016,7 +2005,6 @@ eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
     ( is_list(E) -> eval_data_term_dl(E, Goals0, AfterEntry, V)
                  ; V = E, AfterEntry = Goals0 ),
     eval_data_list_dl(Es, AfterEntry, Goals, Vs).
-
 
 %Convert let* to recursive let:
 letstar_to_rec_let([], Body, Body) :- !.

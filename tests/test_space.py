@@ -820,7 +820,8 @@ def _atom_multiset(space):
 
 def test_adding_in_one_space_never_removes_atoms_from_another(metta):
     """A specialization belongs to the space whose code triggered it, and
-    invalidate_specializations/1 read ho_specialization/3's module argument
+    invalidate_specializations/2's predecessor read ho_specialization/3's
+    module argument
     with a WILDCARD, so an equation added in ANY space invalidated that name's
     specializations in EVERY space and took their stored equations with them.
 

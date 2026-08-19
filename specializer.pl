@@ -506,13 +506,9 @@ forget_symbol(Module, Name) :-
 %the suite's one known flake, 1 firing in 12 parallel runs]
 %[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone].
 %
-%The wrapper reads the current module for the callers that have none in hand:
-%a change hook fires outside the compile door's own module switch, and the
-%ambient module there is the space the write came through.
-invalidate_specializations(F) :-
-    current_metta_module(Module),
-    invalidate_specializations(Module, F).
-
+%No arity-1 wrapper reading the ambient module. There was one, and it was the
+%door MeTTa.copy() went through: every caller has the module in hand, so every
+%caller passes it.
 invalidate_specializations(Module, F) :-
     %The blanket memo clear is deliberate cross-function conservatism: a
     %change to g can flip whether specializing f succeeds (the failed
