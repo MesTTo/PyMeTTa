@@ -513,12 +513,19 @@ ext_point_kind(metta_backend_selftest/0, event).
 %into src/parser.pl for all four, wrapping one under a private name.
 %
 %swrite/2 and sread/2 are one rule about spelling rather than two conveniences.
-%swrite/2 will print a symbol that sread/2 does not read back as itself,
-%because MeTTa has no quoted-symbol syntax, so a name with whitespace, a
-%parenthesis or a quote in it loses its identity on the round trip. A backend
-%cannot decide that for itself, the grammar owns it, and asking is what the
-%other two are for: check before writing, and refuse rather than store an atom
-%that will come back different.
+%swrite/2 will print a value that sread/2 does not read back as itself, and
+%there are two ways for that to happen. MeTTa has no quoted-symbol syntax, so
+%a name with whitespace, a parenthesis or a quote in it loses its identity on
+%the round trip; and the writer prints a number with SWI's whole numeric
+%syntax while the reader accepts the MeTTa grammar's, so a non-finite float or
+%a rational goes out as 1.0Inf, 1.5NaN or 1r3 and comes back a SYMBOL of that
+%spelling. A backend cannot decide either for itself, the grammar owns them,
+%and asking is what the other two are for: check before writing, and refuse
+%rather than store an atom that will come back different.
+%metta_symbol_writable/1 answers the first question about one name;
+%metta_unwritable_symbol/2 answers both about a whole term, and its name is
+%narrower than what it reports because names were the only class known to fail
+%when this surface was declared.
 ext_point_kind(swrite/2, service).
 ext_point_kind(sread/2, service).
 ext_point_kind(metta_symbol_writable/1, service).

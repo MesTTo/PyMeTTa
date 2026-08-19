@@ -15,6 +15,12 @@
 %     to sread/2 round trip stays inverse [tested 2026-08-19:
 %     parser_unicode_layout,
 %     test_every_unicode_whitespace_separates_atoms].
+%   - metta_unwritable_symbol/2 answers for every value the round trip loses,
+%     not only for names: a non-finite float or a rational writes as 1.0Inf,
+%     1.5NaN or 1r3 and reads back as a symbol of that spelling, so the seam
+%     refuses it [tested 2026-08-19: parser_number_text]. Generated terms
+%     agree, which is where the class was found [tested 2026-08-19:
+%     property_roundtrip in tests/prolog/property_lane.pl].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -122,10 +128,45 @@ sread(S, T) :- atom_codes(S, Cs),
                sread_codes(Cs, S, T).
 
 sread_codes(Cs, Source, T) :-
-    ( phrase(sexpr(T, [], _), Cs)
+    ( catch(phrase(sexpr(T, [], _), Cs),
+            error(syntax_error(float_overflow), _),
+            metta_saturating_parse(sexpr(T, [], _), Cs))
       -> true
        ; format(atom(Msg), 'Parse error in form: ~w', [Source]),
          throw(error(syntax_error(Msg), none)) ).
+
+%Re-run a parse with float overflow SATURATING instead of raising.
+%
+%dcg/basics' number//1 converts what it scanned with number_codes/2, which
+%raises syntax_error(float_overflow) on a literal past binary64 rather than
+%answering. So `(holds 1e400)` did not parse and did not report a parse error
+%either: the raise went straight out through sread/2 and killed the run with
+%`number_codes/2: Syntax error: float_overflow` naming src/main.pl
+%[measured 2026-08-19; found by the generated-spelling law in
+%tests/prolog/property_lane.pl].
+%
+%Upstream SATURATES. Its float token is a regex handed to Rust's f64 FromStr,
+%which returns infinity for a value too large instead of an error
+%[source: hyperon-experimental, lib/src/metta/runner/stdlib/arithmetics.rs,
+%register_context_independent_tokens, whose three number tokens call
+%Number::from_int_str and Number::from_float_str, and hyperon-atom/src/gnd/
+%number.rs, where from_float_str is num.parse::<f64>(); measured 2026-08-19 by
+%running that parse: "1e400" gives Ok(inf), "-1e400" gives Ok(-inf)].
+%Underflow already agreed, 1e-400 giving 0.0 on both sides.
+%
+%SWI has the same saturation behind the float_overflow flag, so the reader
+%borrows it rather than keeping a second number grammar to decide where the
+%literal ends. The flag is set only for the RETRY, so an ordinary parse pays
+%nothing, and it is thread-local, so a thread already running keeps raising on
+%its own arithmetic [measured 2026-08-19: a worker created before the setter
+%still reads `error`]. The engine's ARITHMETIC keeps raising on overflow,
+%which is a different question with a different answer:
+%`(pow-math 10.0 400)` still reports evaluation_error(float_overflow).
+metta_saturating_parse(Grammar, Codes) :-
+    current_prolog_flag(float_overflow, Was),
+    setup_call_cleanup(set_prolog_flag(float_overflow, infinity),
+                       phrase(Grammar, Codes),
+                       set_prolog_flag(float_overflow, Was)).
 
 %%%% Is this a whole form, or is the user still typing? %%%%
 %
@@ -371,7 +412,9 @@ metta_symbol_writable(Symbol) :-
     phrase(writable_token(Codes), Codes),
     (   metta_symbol_ordinary(First, Symbol)
     ->  true
-    ;   phrase(sexpr_token(Read, [], _), Codes),
+    ;   catch(phrase(sexpr_token(Read, [], _), Codes),
+              error(syntax_error(float_overflow), _),
+              metta_saturating_parse(sexpr_token(Read, [], _), Codes)),
         Read == Symbol ).
 
 %One token, and no quote either: the form scanner opens a string on a quote
@@ -394,16 +437,67 @@ metta_symbol_reserved_start(0'-).
 metta_symbol_reserved_start(0'+).
 metta_symbol_reserved_start(Code) :- code_type(Code, digit).
 
-%The first symbol in a term that has no round-trip text spelling.
-%sub_term/2 walks it; a MeTTa expression is a list, so its head symbol is
-%an element and is reached, and a non-list compound is written functor
-%first by swrite/2, so that name is checked too
+%Whether a number's spelling reads back as that same number. The writer prints
+%one with number_codes/2, which is SWI's whole numeric syntax, and the reader
+%accepts sexpr_token//3's, which is narrower: a non-finite float writes as
+%1.0Inf, -1.0Inf or 1.5NaN and a rational as 1r3, and each of the four comes
+%back a SYMBOL of that spelling. MeTTa has no literal for any of them, and
+%inventing one would read a name upstream reads as a symbol, so the answer is
+%the one a symbol holding whitespace already gets: the value has no text form
+%and the seam refuses it rather than storing something that comes back
+%different.
+%
+%The two ordinary cases answer without the grammar, the way an ordinary NAME
+%does above, because every space digest and every save asks this of every
+%number it carries. An integer prints as an optional minus and digits, which
+%the number grammar reads back for every integer. A float prints in a decimal
+%or exponent form the grammar reads back unless SWI spells it outside the
+%grammar entirely, which happens for exactly the two float classes that have
+%no digits in them, so float_class/2 answers in one call
+%[source: SWI-Prolog 10.1 Reference Manual 4.27.2.3, float_class/2, whose
+%classes are infinite, nan, zero, subnormal and normal]. A rational, the one
+%remaining kind, is read back before it is believed.
+%
+%Both shortcuts are held to the grammar rather than trusted: the whole float
+%range and every integer shape are checked against sexpr_token//3 itself
+%[tested: parser_number_text], and generated numbers check the same agreement
+%[tested: property_number_shortcut in tests/prolog/property_lane.pl], and one
+%sweep put 200,000 random floats across the whole exponent range, 20,000
+%rationals and 50,000 big integers through both [measured 2026-08-19: no
+%disagreement]. The shortcuts are what make the check affordable: a
+%20,000-atom space digest where every atom holds one integer and one float
+%costs +1.89% with them and +36.8% without [measured 2026-08-19: 3,180,384
+%inferences unchecked, 3,240,388 checked, 4,350,800 asking the grammar for
+%every number, min of 3 each].
+metta_number_writable(Number) :-
+    (   integer(Number)
+    ->  true
+    ;   float(Number)
+    ->  float_class(Number, Class),
+        Class \== infinite,
+        Class \== nan
+    ;   number_codes(Number, Codes),
+        phrase(sexpr_token(Read, [], _), Codes),
+        Read == Number
+    ).
+
+%The first value in a term that has no round-trip text spelling. sub_term/2
+%walks it; a MeTTa expression is a list, so its head symbol is an element and
+%is reached, and a non-list compound is written functor first by swrite/2, so
+%that name is checked too
 %[source: SWI-Prolog 10.1 Reference Manual A.31, library(occurs)].
+%
+%The name says symbol because names were the only class known to fail when the
+%text seam was declared. A number is the second, and it is the same failure
+%with the same consequence at the same four call sites, so it is answered here
+%rather than left for each of them to discover
+%[source: src/ext_points.pl, the swrite/sread service contract].
 metta_unwritable_symbol(Term, Bad) :-
     sub_term(Sub, Term),
     metta_unwritable_here(Sub, Bad), !.
 
 metta_unwritable_here(Sub, Sub) :- atom(Sub), !, \+ metta_symbol_writable(Sub).
+metta_unwritable_here(Sub, Sub) :- number(Sub), !, \+ metta_number_writable(Sub).
 metta_unwritable_here(Sub, Name) :- compound(Sub), \+ is_list(Sub),
                                     functor(Sub, Name, _),
                                     \+ metta_symbol_writable(Name).

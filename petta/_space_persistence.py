@@ -95,52 +95,51 @@ def serializable(atom: Atom) -> bool:
     return True
 
 
-def _symbol_names(atoms: list[Atom]) -> list[str]:
-    """Every distinct symbol name in these atoms, first appearance first."""
-    names: list[str] = []
-    seen: set[str] = set()
-    stack = list(reversed(atoms))
-    while stack:
-        current = stack.pop()
-        if isinstance(current, Sym):
-            if current.name not in seen:
-                seen.add(current.name)
-                names.append(current.name)
-        elif isinstance(current, Expr):
-            stack.extend(reversed(current.children))
-    return names
+def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
+    """Refuse a value whose printed form does not read back as that value.
 
-
-def raise_unsafe_text_symbol(symbol: Atom, operation: str) -> None:
-    name = symbol.name if isinstance(symbol, Sym) else str(symbol)
+    Two classes reach here, and the engine's own
+    ``metta_unwritable_symbol/2`` answers for both. A SYMBOL whose spelling
+    reads back as a variable, a comment, a number, a boolean, a string or
+    more than one atom, MeTTa having no quoted-symbol syntax. And a NUMBER
+    whose printed form the reader has no literal for: SWI writes a non-finite
+    float as ``1.0Inf``, ``-1.0Inf`` or ``1.5NaN`` and a rational as ``1r3``,
+    and each of the four comes back a symbol of that spelling.
+    """
+    if not isinstance(value, Sym):
+        raise ValueError(
+            f"{operation} cannot write {value} as MeTTa text: its printed "
+            f"form reads back as a symbol of that spelling rather than as "
+            f"the value"
+        )
     reason = (
-        "the empty symbol writes as nothing at all, so its term reads back "
-        "one element shorter"
-        if not name
+        "the empty symbol writes as nothing at all, so its term reads back one element shorter"
+        if not value.name
         else (
             "the text form reads back as something else: a number, a "
             "variable, a boolean, a string, or more than one atom"
         )
     )
-    raise ValueError(f"{operation} cannot write symbol {name!r} as MeTTa text: {reason}")
+    raise ValueError(f"{operation} cannot write symbol {value.name!r} as MeTTa text: {reason}")
 
 
-def _validate_atoms(rt: Runtime, atoms: list[Atom]) -> None:
+def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
     for atom in atoms:
         if not serializable(atom):
             raise ValueError(
                 f"{atom} carries a live Python object; a file cannot hold it. "
                 f"Remove it, or persist its data explicitly."
             )
-    # Which spellings survive a round trip is the grammar's question, so the
+    # Which values survive a round trip is the grammar's question, so the
     # engine answers it. A blacklist kept here missed a leading $, which reads
     # back as a variable, a semicolon, which starts a comment, and any name
-    # spelled like a number or a boolean.
-    names = _symbol_names(atoms)
-    if names:
-        row = rt.once("petta_py_unwritable_name(Names, Bad)", Names=names)
-        if row:
-            raise_unsafe_text_symbol(Sym(str(row["Bad"])), "save")
+    # spelled like a number or a boolean; and asking about NAMES alone missed
+    # a fourth class that is not a name, a number whose printed form is not
+    # read back as that number. The engine enumerates, so no atom crosses the
+    # wire for the question.
+    row = rt.once("petta_py_unwritable_atom(Space, Bad)", Space=space)
+    if row:
+        raise_unsafe_text_atom(atom_from_wire(row["Bad"]), "save")
 
 
 def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
@@ -155,7 +154,7 @@ def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
             f"Remove it, or persist its data explicitly."
         )
     if kind == "symbol":
-        raise_unsafe_text_symbol(atom_from_wire(value), "save")
+        raise_unsafe_text_atom(atom_from_wire(value), "save")
     if kind != "saved":
         raise EngineError(f"petta_py_fast_save returned an unknown result: {result!r}")
     return int(value)
@@ -178,7 +177,7 @@ def save_space(
     """Validate and atomically persist one enumerated space."""
     if format not in ("metta", "fast"):
         raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
-    _validate_atoms(rt, atoms)
+    _validate_atoms(rt, space, atoms)
     target = Path(path)
     temporary = _temporary_sibling(target)
     try:

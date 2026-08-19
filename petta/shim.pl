@@ -2851,14 +2851,22 @@ petta_py_fast_has_object(Term) :-
     member(Arg, Args),
     petta_py_fast_has_object(Arg), !.
 
-%The first name in this list with no round-trip text spelling, so a host
+%The first atom in a space with no round-trip text spelling, so a host
 %validating a save asks the grammar instead of keeping a second copy of its
 %rules, which is how the host's copy came to miss three classes.
-petta_py_unwritable_name(Names, Bad) :-
-    member(Name, Names),
-    ( atom(Name) -> Symbol = Name ; atom_string(Symbol, Name) ),
-    \+ metta_symbol_writable(Symbol), !,
-    atom_string(Symbol, Bad).
+%
+%This asked about the atoms' NAMES until 2026-08-19 and so missed a fourth
+%class, which is not a name at all: a number whose printed form is not read
+%back as that number. A space holding `(py-atom "float('inf')")`'s answer saved
+%to a .metta file and loaded back came back holding the SYMBOL of that
+%spelling, silently [measured 2026-08-19]. metta_unwritable_symbol/2 is the
+%grammar's own answer about a whole atom, one of the four text services in
+%src/ext_points.pl, and it is the same question petta_py_fast_save/3 and
+%petta_py_digest/2 below already ask.
+petta_py_unwritable_atom(Space, Bad) :-
+    'get-atoms'(Space, Atom),
+    metta_unwritable_symbol(Atom, Unwritable), !,
+    petta_py_encode(Unwritable, Bad).
 
 %A fast save is a text file, so it refuses before it writes rather than after:
 %an object has no spelling at all, and a symbol whose name splits a token or

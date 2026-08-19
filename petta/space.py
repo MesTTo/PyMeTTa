@@ -125,7 +125,7 @@ from ._space_objects import (
 )
 from ._space_persistence import (
     load_space,
-    raise_unsafe_text_symbol,
+    raise_unsafe_text_atom,
     save_space,
 )
 from ._space_query import query_rows
@@ -870,7 +870,7 @@ class MeTTa:
                 f"its data explicitly."
             )
         if kind == "symbol":
-            raise_unsafe_text_symbol(atom_from_wire(value), "digest")
+            raise_unsafe_text_atom(atom_from_wire(value), "digest")
         if kind != "digest":
             raise EngineError(f"petta_py_digest returned an unknown result: {result!r}")
         return str(value)

@@ -1,5 +1,16 @@
 % Purpose: store MeTTa atoms, compile equations into per-space modules, and
 %   route matching to native and foreign space providers.
+% Assumes:
+%   - the removal funnel takes a space NAME rather than a handle, so
+%     metta_remove_atom/3, unstore_atom/3 and remove_equation/6 each take an
+%     atom first; remove_equation/6 is reached only for a stored equation, so
+%     its function symbol is an atom; and all three answer whether anything
+%     went in a `true` or `false` last argument [measured 2026-08-19 by
+%     wrapping the three and reading every call the 19 shipped MeTTa files
+%     that remove an atom make]. Each of those is a PlDoc mode line above its
+%     clause, so the development build checks it at run time rather than
+%     leaving it prose [tested: tests/prolog/dev_typed.pl, and every plunit
+%     suite runs again under that build].
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
@@ -1095,6 +1106,8 @@ metta_space_expression(Operation, Terms, _) :-
 %run first). Enumerating and removing each atom through its own proper
 %path keeps equations, their compiled clauses, and foreign providers
 %all handled by the code that owns them.
+
+%% metta_remove_atom(+Space:atom, ?Atom, -Removed:boolean) is semidet.
 metta_remove_atom(Space, Term, Removed) :- var(Term), !,
     findall(A, 'get-atoms'(Space, A), Atoms),
     (   Atoms == []
@@ -1117,6 +1130,7 @@ metta_remove_atom(Space, Term, Removed) :- Term = [':', F, _], atom(F), fun(F), 
                                            function_changed(DeclModule, F).
 metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
 
+%% remove_equation(+Space:atom, +Equation, +Function:atom, +Arguments, ?Body, -Removed:boolean) is semidet.
 remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),
     space_module(Space, Module),
@@ -1150,6 +1164,8 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
 
 %Where an atom comes out of, the counterpart of store_atom/2. Both answer
 %whether the store actually held it.
+
+%% unstore_atom(+Space:atom, ?Atom, -Removed:boolean) is semidet.
 unstore_atom(Space, Term, Removed) :- metta_foreign_space(Space), !,
                                       foreign_write(Space, remove,
                                                     metta_foreign_remove(Space, Term,

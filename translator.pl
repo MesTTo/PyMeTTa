@@ -10,6 +10,17 @@
 %     has not arrived from one that is no list at all
 %     [source 2026-08-19: SWI-Prolog 10.1.13
 %     /usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2].
+%   - translate_clause/3's third argument is the boolean that says whether to
+%     constrain the head arguments [measured 2026-08-19 by wrapping it and
+%     reading every call 45 shipped examples make: `true` or `false` every
+%     time]. It is a PlDoc mode line above the clause, so the development
+%     build checks it at run time [tested: tests/prolog/dev_typed.pl].
+%     Its other two arguments, and every argument of translate_expr/3,
+%     translate_expr_to_conj/3 and translate_runnable_expr/3, are terms UNDER
+%     CONSTRUCTION, so their mode lines record modes and no types: a check on
+%     a non-ground value is a when/2 coroutine, and a term carrying one is no
+%     longer a variant of the same term without one, which changes what =@=/2
+%     answers about a term the engine stores.
 % Guarantees:
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
@@ -466,7 +477,11 @@ super_defines(Module, Fun, Arity) :-
     ).
 
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
+
+%% translate_clause(+Equation, -Clause) is semidet.
 translate_clause(Input, (Head :- BodyConj)) :- translate_clause(Input, (Head :- BodyConj), true).
+
+%% translate_clause(+Equation, -Clause, +ConstrainArgs:boolean) is semidet.
 translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
                                                Input = [=, [F|Args0], BodyExpr],
                                                ( ConstrainArgs -> maplist(constrain_args, Args0, Args1, GoalsA),
@@ -568,6 +583,8 @@ note_symbol_head(_).
 %costs a call. It is a thread_local with no clauses in the ordinary case, which
 %is the cheapest cross-cutting signal Prolog has: one inference, against two
 %for flag/3 [measured 2026-08-15].
+
+%% translate_runnable_expr(+Expression, -Goals, -Value) is det.
 translate_runnable_expr(C, Goals, Out) :- setup_call_cleanup(assertz(translating_runnable, Ref),
                                                              once(translate_expr(C, Goals, Out)),
                                                              erase(Ref)),
@@ -767,6 +784,8 @@ reduce(Culprit, _, _) :-
 agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc, _).
 
 %Combined expr translation to goals list
+
+%% translate_expr_to_conj(+Expression, -Conjunction, -Value) is det.
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
                                             goals_list_to_conj(Goals, Conj).
 
@@ -801,6 +820,8 @@ apply_translator_rule_dl(HV, Args, AfterHead, Goals, Out) :-
 
 %Turn a MeTTa S-expression into a goal list. The internal difference list
 %keeps a nested call from copying every goal produced below it.
+
+%% translate_expr(+Expression, -Goals, -Value) is det.
 translate_expr(Input, Goals, Out) :-
     translate_expr_dl(Input, Goals, [], Out).
 
