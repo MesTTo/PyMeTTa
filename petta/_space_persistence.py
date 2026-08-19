@@ -32,8 +32,9 @@ from typing import Literal
 
 from ._api_types import SaveFormat
 from ._engine import Runtime
+from ._space_objects import _limits
 from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
-from .errors import EngineError
+from .errors import EngineError, ResourceLimitError
 
 _FAST_PREFIX = b"PETTA-CACHE\t"
 _FAST_ERRORS = (
@@ -231,11 +232,22 @@ def _validate_fast_header(path: str, actual: list[bytes], expected: list[bytes])
         raise _cache_rejection(path, "the integrity hash is malformed")
 
 
-def _load_fast(rt: Runtime, space: str, path: str) -> list[list[Atom]]:
+def _load_fast(rt: Runtime, space: str, path: str, bounds: tuple[float, int]) -> list[list[Atom]]:
     expected = str(rt.apply_must("petta_py_fast_header")).encode("ascii").split(b"\t")
     _validate_fast_header(path, _fast_header(path), expected)
+    seconds, steps = bounds
     try:
-        rt.do_must("petta_py_fast_load", path, space)
+        rt.must(
+            "petta_py_guarded(T, I, petta_py_fast_load(File, Space))",
+            T=seconds,
+            I=steps,
+            File=path,
+            Space=space,
+        )
+    except ResourceLimitError:
+        # The caller's own bound stopped it. Reading that as a corrupt cache
+        # would blame the file for the budget.
+        raise
     except EngineError as exc:
         if not any(tag in str(exc) for tag in _FAST_ERRORS):
             raise EngineError(f"fast load failed while adding atoms from {path!r}: {exc}") from exc
@@ -246,15 +258,37 @@ def _load_fast(rt: Runtime, space: str, path: str) -> list[list[Atom]]:
     return []
 
 
-def load_space(rt: Runtime, space: str, path: str | os.PathLike[str]) -> list[list[Atom]]:
-    """Load a text program or validated fast cache into a named space."""
+def load_space(
+    rt: Runtime,
+    space: str,
+    path: str | os.PathLike[str],
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
+) -> list[list[Atom]]:
+    """Load a text program or validated fast cache into a named space.
+
+    Both bounds go through petta_py_guarded/3, the same guard pair
+    petta_py_limited applies, with the goal written here rather than named
+    as data. petta_py_load is not on the shim's wrappable list, and it does
+    not need to be: the whitelist exists so a predicate NAME arriving from
+    Python cannot become a call, and this name is in this file's own source.
+    """
     file = str(path)
+    bounds = _limits(timeout, inferences) or (-1.0, -1)
     try:
         with _open_maybe_gz(file, "rb") as handle:
             is_fast = handle.read(len(_FAST_PREFIX)) == _FAST_PREFIX
     except OSError:
         is_fast = False
     if is_fast:
-        return _load_fast(rt, space, file)
-    row = rt.must("petta_py_load(File, Space, Groups)", File=file, Space=space)
+        return _load_fast(rt, space, file, bounds)
+    seconds, steps = bounds
+    row = rt.must(
+        "petta_py_guarded(T, I, petta_py_load(File, Space, Groups))",
+        T=seconds,
+        I=steps,
+        File=file,
+        Space=space,
+    )
     return [[atom_from_wire(wire) for wire in group] for group in row.get("Groups", [])]

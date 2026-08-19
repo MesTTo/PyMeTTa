@@ -150,7 +150,7 @@ from .foreign import (
 )
 from .lint import lint as _lint
 from .results import Rows, raise_error_answers, rows_into
-from .subscribe import _subscriptions_for
+from .subscribe import SUBSCRIPTION_QUEUE_MAX, _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
 
@@ -653,14 +653,29 @@ class MeTTa:
         and are refused."""
         return save_space(self._rt, self._space, self.atoms(), path, format)
 
-    def load(self, path: str | os.PathLike[str]) -> list[list[Atom]]:
+    def load(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list[list[Atom]]:
         """Add a text program or trusted fast cache to this space.
 
         Existing atoms remain, so loading the same file twice adds two copies.
         Use clear() first or load into new_space() when replacement is wanted.
         A .gz path is detected and read through the decompressed bytes.
+
+        `timeout` (seconds) and `inferences` (engine steps) bound the load
+        with the engine's own guards, raising TimeLimitError or
+        InferenceLimitError, and whatever the file completed before the stop
+        stands. This is the entry point most likely to be handed code the
+        caller did not write, since a file can carry `!` directives and an
+        import graph, so it takes the same pair its siblings take.
         """
-        return load_space(self._rt, self._space, path)
+        return load_space(
+            self._rt, self._space, path, timeout=timeout, inferences=inferences
+        )
 
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
@@ -1999,6 +2014,7 @@ class MeTTa:
         callback: Callable | None = None,
         *,
         on: str = "add",
+        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
     ):
         """A standing query on this space: every added (or removed, or
         both) atom unifying with the pattern becomes an Event.
@@ -2012,11 +2028,22 @@ class MeTTa:
         caused it (the callback may write back; the engine re-enters
         cleanly; an infinite add-triggers-add loop is the author's own).
         Without one, events queue on the subscription and drain() empties
-        them: the mailbox reading. Removal events for plain atoms may fire
-        for atoms that were never stored, since the engine's removal is
-        retractall; re-check the space rather than trust the event.
+        them: the mailbox reading. That queue is bounded by `queue_max`,
+        and a write arriving at a full queue raises SubscriberError rather
+        than discarding the oldest event: nobody draining is a bug in the
+        consumer, and a silently shortened history is how it stays hidden.
+        Removal events for plain atoms may fire for atoms that were never
+        stored, since the engine's removal is retractall; re-check the
+        space rather than trust the event.
         """
-        return _subscribe(self._rt, self._space, _to_atom(pattern), callback, on)
+        return _subscribe(
+            self._rt,
+            self._space,
+            _to_atom(pattern),
+            callback,
+            on,
+            queue_max=queue_max,
+        )
 
     def prolog(self) -> None:
         """Drop into the engine's own interactive Prolog toplevel, the

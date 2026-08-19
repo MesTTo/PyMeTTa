@@ -42,7 +42,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Self
+from typing import Any, Final, Self
 
 from .atoms import Atom, Expr, Sym, Var, _to_atom, atom_from_wire, map_atoms, unify
 from .errors import EngineError, PettaError, SubscriberError
@@ -63,6 +63,14 @@ class Event:
     bindings: Mapping[str, Atom]
 
 
+#: How many undrained events one subscription holds before it refuses more.
+#: A queue nobody drains grew for the life of the process; this is what
+#: replaces that. queue.Queue is the precedent for the POLICY: put_nowait on
+#: a full queue raises rather than dropping, where collections.deque(maxlen=)
+#: discards the oldest without telling anyone.
+SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
+
+
 @dataclass(eq=False)
 class Subscription:
     """One standing query; cancel() ends it. With no callback, events
@@ -72,6 +80,7 @@ class Subscription:
     pattern: Atom
     callback: Callable[[Event], None] | None
     on: str  # "add" | "remove" | "both"
+    queue_max: int = SUBSCRIPTION_QUEUE_MAX
     _queue: list[Event] = field(default_factory=list)
     _active: bool = True
     _fact: Expr | None = None  # the reflection atom in &petta, if any
@@ -219,6 +228,17 @@ class _SubscriptionRegistry:
 
     def queue(self, subscription: Subscription, event: Event) -> None:
         with self._lock:
+            if len(subscription._queue) >= subscription.queue_max:
+                raise PettaError(
+                    f"the queue holds its limit of {subscription.queue_max} "
+                    f"undrained events and this one has nowhere to go. Call "
+                    f"drain() or consume events(), give the subscription a "
+                    f"callback so delivery never queues, or raise "
+                    f"queue_max=. Dropping the oldest silently is the one "
+                    f"thing it will not do.",
+                    atom=event.atom,
+                    space=subscription.space,
+                )
             subscription._queue.append(event)
             self._arrived.notify_all()
 
@@ -353,11 +373,15 @@ def subscribe(
     pattern: Atom,
     callback: Callable[[Event], None] | None = None,
     on: str = "add",
+    *,
+    queue_max: int = SUBSCRIPTION_QUEUE_MAX,
 ) -> Subscription:
     if on not in ("add", "remove", "both"):
         raise ValueError(f"on must be add, remove or both, not {on!r}")
+    if queue_max < 1:
+        raise ValueError(f"queue_max must be at least 1, not {queue_max!r}")
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
-    subscription = Subscription(space, pattern, callback, on)
+    subscription = Subscription(space, pattern, callback, on, queue_max)
     # The standing query reflects into the library's own space, removed on
     # cancel, so MeTTa programs see what Python is watching. The fact goes
     # in before the subscription activates: a watcher of &petta sees other
@@ -403,13 +427,13 @@ def _dispatch(action: str, space: str, wire: list) -> bool:
         # KeyboardInterrupt is not a watcher saying no.
         except Exception as failure:
             raise SubscriberError(
-                f"{space} applied the {action} of {atom}, and then the "
-                f"watcher of {subscription.pattern} raised "
-                f"{type(failure).__name__}: {failure}. This is not a failed "
-                f"write. Retrying it stores a second copy, because a space "
-                f"is a multiset. An enclosing atomic run or a "
-                f"(transaction ...) scope is the one thing that undoes it, "
-                f"and it does so as this error leaves the scope.",
+                f"{space} applied the {action} of {atom} and then a watcher "
+                f"failed. This is not a failed write: retrying it stores a "
+                f"second copy, because a space is a multiset, and an "
+                f"enclosing atomic run or a (transaction ...) scope is the "
+                f"one thing that undoes it, as this error leaves the scope. "
+                f"Delivering to the subscription on {subscription.pattern} "
+                f"raised {type(failure).__name__}: {failure}",
                 subscription=subscription,
                 action=action,
                 atom=atom,
