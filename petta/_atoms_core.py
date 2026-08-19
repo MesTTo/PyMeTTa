@@ -23,6 +23,13 @@ Guarantees:
     either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
+  - encode answers common types from a table keyed on the exact class and
+    falls through to its singledispatch otherwise, 4603 instructions per
+    call against 2306 [measured 2026-08-19: 800,000 calls over eight leaf
+    types, minimum of three instructions:u runs, empty loop subtracted]
+  - _ENCODE_FAST never disagrees with encode.registry: every entry is
+    resolved by asking encode.dispatch, and every registration rebuilds it
+    [tested test_the_type_fast_path_precedes_encode_and_survives_a_register]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -1042,14 +1049,8 @@ _set_hash = Expr.__dict__["_hash"].__set__
 
 
 @singledispatch
-def encode(value: Any) -> Atom:
-    """Turn a Python value into an atom.
-
-    Open by design: a class you own implements __metta__; a class you do not
-    own is taught through encode.register, which is functools.singledispatch.
-    Anything unregistered without __metta__ is carried whole as a grounded
-    object, the same rule the engine itself applies to a host value.
-    """
+def _encode_value(value: Any) -> Atom:
+    """The open dispatch behind encode. See encode for the contract."""
     hook = getattr(value, "__metta__", None)
     if hook is not None:
         result = hook()
@@ -1061,30 +1062,113 @@ def encode(value: Any) -> Atom:
     return Gnd(value)
 
 
-@encode.register
+@_encode_value.register
 def _(value: Atom) -> Atom:
     return value
 
 
-@encode.register
+@_encode_value.register
 def _(value: str) -> Atom:
     # A Python str is a grounded string, never a symbol. Symbols come from S.
     return Gnd(value)
 
 
-@encode.register(bool)
-@encode.register(int)
-@encode.register(float)
+@_encode_value.register(bool)
+@_encode_value.register(int)
+@_encode_value.register(float)
 def _(value: Any) -> Atom:
     return Gnd(value)
 
 
-@encode.register(tuple)
-@encode.register(list)
+@_encode_value.register(tuple)
+@_encode_value.register(list)
 def _(value: Any) -> Atom:
     # A Python sequence reads as an expression, which is what (1 2 3) is.
     # To carry a list whole as one opaque value, wrap it: petta.val([1, 2, 3]).
     return Expr([encode(v) for v in value])
+
+
+# A table keyed on the value's EXACT class, consulted before the dispatch
+# above. singledispatch resolves a class through its own wrapper, a dispatch
+# call and a WeakKeyDictionary lookup, and that resolution is most of what
+# encode costs: measured 2026-08-19 over 800,000 calls across eight leaf
+# types, minimum of three instructions:u runs with the same loop calling
+# nothing subtracted, 4,603 instructions per encode against 2,309 with this
+# table in front, 1.99x. A dict keyed on __class__ falling through to the
+# generic on a miss is what copyreg and pickle do for the same reason.
+#
+# Every entry is resolved by ASKING _encode_value.dispatch, so the table
+# cannot answer differently from the registry it came from, and encode.register
+# rebuilds it: a table still answering the old way after someone registers a
+# codec would be a correctness bug bought for 2,294 instructions
+# [tested test_the_type_fast_path_precedes_encode_and_survives_a_register].
+#
+# The concrete atom classes are named because the registry holds their BASE,
+# Atom, and an exact-class table cannot find them through it. A class that is
+# in neither list misses and falls through, which is what subclasses and
+# abstract registrations need anyway.
+_ENCODE_DIRECT: tuple[type, ...] = (Sym, Var, Expr, Gnd, Handle)
+_ENCODE_FAST: dict[type, Callable[[Any], Atom]] = {}
+
+
+def _encode_fast_rebuild() -> None:
+    """Resolve every directly reachable class through the registry itself."""
+    resolved = {
+        cls: _encode_value.dispatch(cls)
+        for cls in (*_ENCODE_DIRECT, *_encode_value.registry)
+        if isinstance(cls, type)
+    }
+    _ENCODE_FAST.clear()
+    _ENCODE_FAST.update(resolved)
+
+
+def encode(value: Any) -> Atom:
+    """Turn a Python value into an atom.
+
+    Open by design: a class you own implements __metta__; a class you do not
+    own is taught through encode.register, which is functools.singledispatch.
+    Anything unregistered without __metta__ is carried whole as a grounded
+    object, the same rule the engine itself applies to a host value.
+    """
+    handler = _ENCODE_FAST.get(value.__class__)
+    if handler is not None:
+        return handler(value)
+    return _encode_value(value)
+
+
+def _encode_register(cls: Any, func: Any = None) -> Any:
+    """encode.register, rebuilding the fast table at every registration.
+
+    singledispatch.register has three shapes and all three land here.
+    `register(cls, implementation)` and the bare `@register` on an annotated
+    function both register at once and answer the implementation; only
+    `@register(cls)` defers, and it is told apart by answering something that
+    is not the argument it was given, which is the decorator functools built.
+    Deferring the rebuild with it keeps the table correct for that shape too.
+    """
+    outcome = _encode_value.register(cls, func)
+    if func is None and outcome is not cls:
+
+        def _deferred(implementation: Any) -> Any:
+            registered = outcome(implementation)
+            _encode_fast_rebuild()
+            return registered
+
+        return _deferred
+    _encode_fast_rebuild()
+    return outcome
+
+
+# Attached through __dict__ because the names live on the function OBJECT:
+# a plain `encode.register = ...` is what a type checker reads as adding an
+# attribute to a Callable, and both checkers here refuse it.
+encode.__dict__.update(
+    register=_encode_register,
+    registry=_encode_value.registry,
+    dispatch=_encode_value.dispatch,
+)
+
+_encode_fast_rebuild()
 
 
 def decode(atom: Any) -> Any:

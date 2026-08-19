@@ -260,6 +260,72 @@ def test_encode_python_values():
     assert encode(S.a) is S.a
 
 
+def test_the_type_fast_path_precedes_encode_and_survives_a_register():
+    """encode answers common types from a table keyed on the exact class,
+    and every registration rebuilds that table.
+
+    Measured 2026-08-19 over 800,000 calls, minimum of three instructions:u
+    runs with the same loop calling nothing subtracted: 4,603 instructions
+    per encode through the bare singledispatch against 2,309 with the table
+    in front, 1.99x.
+
+    The table is built by asking encode.dispatch, so it cannot answer
+    differently from the registry it came from; the one private assertion
+    here says exactly that, and everything else drives encode itself. What
+    it guards is a table that keeps answering the old way after someone
+    registers a codec, which would be a correctness bug traded for 2,294
+    instructions.
+    """
+
+    class Celsius:
+        def __init__(self, degrees):
+            self.degrees = degrees
+
+    # Unregistered: carried whole, the generic rule.
+    reading = Celsius(20)
+    assert encode(reading) == Gnd(reading)
+
+    # A type ALREADY in the fast table. Re-registering it must take effect,
+    # which is the half a stale table gets wrong.
+    # Each replacement answers a bare symbol, so nothing here re-enters
+    # encode while its own type is registered differently.
+    original_int = encode.registry[int]
+    original_str = encode.registry[str]
+    try:
+        encode.register(int, lambda value: Sym(f"counted-{value}"))
+        assert encode(7) == Sym("counted-7")
+
+        @encode.register(Celsius)
+        def _(value):
+            return Sym(f"celsius-{value.degrees}")
+
+        assert encode(Celsius(20)) == Sym("celsius-20")
+
+        @encode.register
+        def _(value: str) -> Sym:
+            return Sym(f"text-{len(value)}")
+
+        assert encode("abcd") == Sym("text-4")
+
+        assert _core._ENCODE_FAST[int] is encode.dispatch(int)
+        assert _core._ENCODE_FAST[Celsius] is encode.dispatch(Celsius)
+        assert _core._ENCODE_FAST[str] is encode.dispatch(str)
+    finally:
+        encode.register(int, original_int)
+        encode.register(str, original_str)
+
+    assert encode(7) == Gnd(7)
+    assert encode("abcd") == Gnd("abcd")
+    assert encode(2.5) == Gnd(2.5)
+    assert encode(True) == Gnd(True)
+    assert encode([1, 2]) == expr(1, 2)
+    assert encode((S.a,)) == expr(S.a)
+    assert encode(S.a) is S.a
+    assert encode(V.x) is V.x
+    shared = expr(S.f, 1)
+    assert encode(shared) is shared
+
+
 def test_encode_metta_hook():
     class Point:
         def __init__(self, x, y):

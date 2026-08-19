@@ -229,9 +229,9 @@
       "wall_seconds_per_operation": 4.320945761476954e-06
     },
     "structures-dispatch": {
-      "comment": "Recorded 2026-08-18: the pure-Python structures priced at their dispatch job, no engine in the process: 200 patterns (half ground, half variable-carrying) into PatternMap and MatchIndex, 2000 ground probes routed through both. PatternMap's ground hits are dict lookups plus the head/arity buckets; MatchIndex walks the discrimination tree and verifies candidates with unify.",
+      "comment": "LOWERED on 2026-08-19, 737378474 to 629457218, -14.64% attributed by interleaved A/B of one change: encode answers common types from a table keyed on the exact class, ahead of its singledispatch. Every probe and pattern here is built from Sym, Var, Gnd and Expr, and each of those went through the singledispatch wrapper, a dispatch call and a WeakKeyDictionary lookup to reach a one-line implementation. Prior: Recorded 2026-08-18: the pure-Python structures priced at their dispatch job, no engine in the process: 200 patterns (half ground, half variable-carrying) into PatternMap and MatchIndex, 2000 ground probes routed through both. PatternMap's ground hits are dict lookups plus the head/arity buckets; MatchIndex walks the discrimination tree and verifies candidates with unify.",
       "instruction_noise_percent": 1.0,
-      "instructions": 741807763,
+      "instructions": 629457218,
       "operations": 2000,
       "unit": "probes"
     },
@@ -242,9 +242,9 @@
       "wall_seconds_per_operation": 2.682138467207551e-06
     },
     "subscription-dispatch": {
-      "comment": "Recorded 2026-08-19 with the item that introduced it. 1000 standing queries on ONE space, 200 writes, exactly one subscription matching each write, so the strategy is the whole cost: the scan pays a unify per non-match and the discrimination tree does not. A/B on this workload, controlled instructions:u, min of 3: the linear scan 4012009981, the tree 48243634, 83.2x fewer. Both delivered 200 of 200, so the ratio is the same work done two ways.",
+      "comment": "LOWERED on 2026-08-19, 47898205 to 45890647, -4.19% from encode's type fast path, and 48243225 to 47898205 before that from the intern cache's O(1) eviction and single tier. Both attributed by interleaved A/B of the change alone. Prior: Recorded 2026-08-19 with the item that introduced it. 1000 standing queries on ONE space, 200 writes, exactly one subscription matching each write, so the strategy is the whole cost: the scan pays a unify per non-match and the discrimination tree does not. A/B on this workload, controlled instructions:u, min of 3: the linear scan 4012009981, the tree 48243634, 83.2x fewer. Both delivered 200 of 200, so the ratio is the same work done two ways.",
       "instruction_noise_percent": 1.0,
-      "instructions": 48243225,
+      "instructions": 45890647,
       "operations": 200,
       "unit": "writes"
     },
@@ -255,10 +255,10 @@
       "unit": "queries"
     },
     "term-operators": {
-      "comment": "LOWERED on 2026-08-19, 1176259054 to 1099833305, -6.63% attributed by interleaved A/B of one change: Expr writes its two slots through their own descriptors instead of object.__setattr__, which resolves the attribute NAME against the type on every call. Measured in isolation, object.__setattr__ costs 951 instructions against the descriptor's 568 over 200,000 writes, minimum of three runs. This lane builds five expressions per term and crosses none of them, so it is the workload where construction is the whole cost and the two writes per Expr are 12% of it.",
+      "comment": "LOWERED on 2026-08-19, 1100153092 to 915593600, -16.78% attributed by interleaved A/B of one change: encode answers common types from a table keyed on the exact class, ahead of its singledispatch. Every operand of every comparison term here reaches encode, measured 4603 instructions per call through the bare singledispatch against 2306 with the table, 1.99x over 800,000 calls. Prior: LOWERED on 2026-08-19, 1176259054 to 1099833305, -6.63% attributed by interleaved A/B of one change: Expr writes its two slots through their own descriptors instead of object.__setattr__, which resolves the attribute NAME against the type on every call. Measured in isolation, object.__setattr__ costs 951 instructions against the descriptor's 568 over 200,000 writes, minimum of three runs. This lane builds five expressions per term and crosses none of them, so it is the workload where construction is the whole cost and the two writes per Expr are 12% of it.",
       "inferences": null,
       "instruction_noise_percent": 1.0,
-      "instructions": 1099833305,
+      "instructions": 915593600,
       "operations": 20000,
       "unit": "terms",
       "wall_seconds_per_operation": 2.7933047502301635e-06
