@@ -371,6 +371,7 @@ metta_engine_emitted(petta_match_atoms/2).
 metta_engine_emitted(petta_prune_empty/2).
 metta_engine_emitted(petta_transaction/1).
 metta_engine_emitted(function_overapplication/3).
+metta_engine_emitted(metta_bad_argument_error/3).
 
 %Resolving at compile time means the answer can go stale: a space that gains
 %a definition of the name becomes the nearer parent, and one that loses its
@@ -862,8 +863,8 @@ translate_expr_dl([H|T], Goals0, Goals, Out) :-
           %(py-atom numpy.absolute))` then `(abs -5)`.
           ; ( atomic(HV), \+ atom(HV) , \+ metta_grounded_applicable(HV)
             ; atom(HV), \+ fun_here(HV) ) -> note_symbol_head(HV),
-                                                                       translate_data_args_dl(HV, T, AfterHead, Goals, AVs),
-                                                                       Out = [HV|AVs]
+                                             translate_data_args_dl(HV, T, AfterHead, AfterData, AVs),
+                                             data_head_answer_dl(HV, T, AVs, Out, AfterData, Goals)
           %Plain data list: evaluate inner fun-sublists
           ; is_list(HV) -> translate_args_dl(T, AfterHead, AfterArgs, AVs),
                            eval_data_term_dl(HV, AfterArgs, Goals, HV1),
@@ -904,6 +905,47 @@ call_site_type_chains(Fun, UniqueTypeChains) :-
                 MaskedChains),
         list_to_set(MaskedChains, UniqueTypeChains)
     ).
+
+%A DECLARED head with no equations is still checked against its declaration,
+%because the declaration is what the arbiter reads: `(: aF (-> A R))` with
+%`(: b B)` makes `(aF b)` `(Error (aF b) (BadArgType 1 A B))` there and left
+%it as data here, which is why four type-cast files read the subject's own
+%error where this engine reported none
+%[source: LeaTTa tests/semantics/types-basic/50-type-cast-ill-typed-atom.metta
+%through 53, and 44 through 49 for the multiplicity].
+%
+%The goal is emitted ONLY for a head that HAS an arrow, so an ordinary
+%constructor compiles to exactly what it did and pays nothing. The arguments
+%it reports are the ones AS WRITTEN, which is the form the arbiter names and
+%the one whose types decide.
+%
+%ONE INDEXED CLAUSE LOOKUP decides it, the same door get_function_type/2 opens
+%on the typed-call path, and not type_declaration/2, which goes through match/4
+%and the prelude. A data head is the commonest thing in a MeTTa program and the
+%alpha-unique benchmark compiles ten thousand of them: written with
+%call_site_type_chains/2 this cost +44% there, 3.48 to 5.03 billion
+%instructions [measured 2026-08-19], which is the same trap the note above
+%data_head_masks/3 records at +20% for 2026-08-16.
+%
+%It reads &self, which is where a program's declarations go and is the limit
+%get_function_type/2 already lives with; a declaration written only into a
+%named space does not gate that space's data heads.
+data_head_answer_dl(HV, Written, AVs, Out, Goals0, Goals) :-
+    (   arrow_declared_data_head(HV)
+    ->  Goals0 = [( metta_bad_argument_error(HV, Written, Out)
+                  *-> true
+                  ;   Out = [HV|AVs]
+                  )|Goals]
+    ;   Goals0 = Goals,
+        Out = [HV|AVs]
+    ).
+
+arrow_declared_data_head(HV) :-
+    atom(HV),
+    '$petta_atoms:&self':'&self'(':', HV, Chain),
+    nonvar(Chain),
+    Chain = [->|_],
+    !.
 
 %A CONSTRUCTOR can mask too, and this is where the language's rule is wider
 %than "function": it is about what a head DECLARES, not about whether it has
@@ -1903,8 +1945,27 @@ typed_functioncall_dl(Fun, UniqueTypeChains, T, IsPartial, Bound, Out, AfterHead
                                   Out, Branches),
         Branches \== [],
         disj_list(Branches, Disj),
-        AfterHead = [Disj|Goals]
+        ( IsPartial -> append(Bound, T, Written) ; Written = T ),
+        AfterHead = [( Disj
+                     *-> true
+                     ;   metta_bad_argument_error(Fun, Written, Out)
+                     )|Goals]
     ).
+
+%A declared call that no branch answered says WHY when the declaration is the
+%reason: every rejection it makes, `(Error <call> (BadArgType <position>
+%<expected> <actual>))`, against the arguments AS WRITTEN, which is the form
+%the arbiter names and the one whose types decide
+%[source: LeaTTa tests/semantics/types-basic/44-badargtype-per-actual.metta
+%through 49-badargtype-widened-actuals.metta].
+%
+%It answers NOTHING when the declaration makes no rejection, so a call whose
+%types check and whose equations do not match keeps this engine's own reading
+%rather than gaining the arbiter's NotReducible: `(= (f 1) one)` then `!(f 2)`
+%answers `[(f 2)]` there and nothing here, and that divergence is not this
+%change's to make [measured 2026-08-19 against the arbiter]. The soft cut is
+%what keeps the successful path unchanged: it commits to the branches whenever
+%any of them answered.
 
 %When some declaration has exactly this call's arity, only those apply. A
 %wider declaration would otherwise also build a branch for a shorter call and

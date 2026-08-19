@@ -128,7 +128,12 @@ def test_union_annotations_superpose_declarations(m):
     assert m.run("!(describe 7)") == [["<7>"]]
     assert m.run('!(describe "a")') == [["<a>"]]
     # Outside the union the checker answers nothing, its own rejection.
-    assert m.run("!(describe (1 2))") == [[]]
+    # One rejection per declared arrow, arrow-major, which is the arbiter's own
+    # multiplicity [measured 2026-08-19: the same two errors in the same order].
+    assert [str(a) for a in m.run("!(describe (1 2))")[0]] == [
+        "(Error (describe (1 2)) (BadArgType 1 Number (Number Number)))",
+        "(Error (describe (1 2)) (BadArgType 1 String (Number Number)))",
+    ]
 
 
 def test_optional_return_declares_the_value_type(m):

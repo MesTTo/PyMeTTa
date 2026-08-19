@@ -399,10 +399,37 @@ metta_error_atom(Operation, Arguments, Reason,
 %declaration order and actual types in the order get-type reports them, which
 %is the multiplicity and the order the arbiter pins.
 metta_bad_argument_error(Operation, Arguments, Error) :-
+    \+ metta_call_accepted(Operation, Arguments),
     metta_operation_parameters(Operation, Arguments, ParameterTypes),
     metta_bad_argument(ParameterTypes, Arguments, 1, Position, Expected, Actual),
     metta_error_atom(Operation, Arguments,
                      ['BadArgType', Position, Expected, Actual], Error).
+
+%Nothing is reported when SOME declared arrow takes every argument under ONE
+%consistent assignment, even where another arrow, or another of an argument's
+%own types, does not. Measured 2026-08-19 against the arbiter: with
+%`(: a A)`, `(: a C)`, `(: b D)` and `(: g (-> C D Number))`, `!(g a b)`
+%answers `[(g a b)]` and reports nothing, while the same program with
+%`(: b B)` answers both `(BadArgType 1 C A)` and `(BadArgType 2 D B)`; and
+%with two arrows where the second fits, `!(g a)` answers `[7]`.
+%
+%The search backtracks over each argument's types because that is what makes
+%the assignment CONSISTENT: a chain naming one type variable twice is only
+%accepted by a pair of types that agree.
+metta_call_accepted(Operation, Arguments) :-
+    metta_operation_parameters(Operation, Arguments, ParameterTypes),
+    metta_arguments_match(ParameterTypes, Arguments),
+    !.
+
+metta_arguments_match([], []).
+metta_arguments_match([Expected|Rest], [Argument|Arguments]) :-
+    (   metta_metatype_settles(Argument, Expected)
+    ->  true
+    ;   metta_argument_types(Argument, Types),
+        member(Type, Types),
+        metta_types_match(Type, Expected)
+    ),
+    metta_arguments_match(Rest, Arguments).
 
 %A FRESH copy per arrow: a chain naming a type variable has to be free to bind
 %it again for the next call, and for the next arrow.
@@ -2957,8 +2984,13 @@ metta_pure_operation(Name) :- pure_inspection(Name).
 metta_pure_operation(Name) :- pure_engine_helper(Name).
 
 %The engine's own helpers that a compiled body calls. They inspect and raise;
-%none of them writes anything a cache could hide.
+%none of them writes anything a cache could hide. The two refusal helpers read
+%the DECLARATION register and nothing else, and a declaration reaching a space
+%already recompiles what mentions the name, so a cached answer cannot outlive
+%the declarations it was computed from.
 pure_engine_helper(metta_arith_operands).
+pure_engine_helper(metta_bad_argument_error).
+pure_engine_helper(function_overapplication).
 pure_engine_helper(throw_metta_type_error).
 pure_engine_helper(rethrow_metta_operation_error).
 pure_engine_helper(non_list).

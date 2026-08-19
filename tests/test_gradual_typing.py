@@ -63,8 +63,15 @@ def test_an_unknown_type_is_consistent_with_every_declared_type(typed):
 
     # A KNOWN and different type is still refused, which is the half that
     # makes the rule worth anything.
-    assert _answers(typed, '(concrete "s")') == []
-    assert _answers(typed, "(concrete declared-other)") == []
+    # A KNOWN and wrong type is not the gradual case: it is reported, and the
+    # arbiter reports it the same way [measured 2026-08-19: `!(concrete "s")`
+    # answers `(Error (concrete "s") (BadArgType 1 Number String))` there].
+    assert _answers(typed, '(concrete "s")') == [
+        '(Error (concrete "s") (BadArgType 1 Number String))'
+    ]
+    assert _answers(typed, "(concrete declared-other)") == [
+        "(Error (concrete declared-other) (BadArgType 1 Number OtherType))"
+    ]
 
     # The other direction: an %Undefined% parameter admits everything.
     for argument in ("1", '"s"', "undeclared-symbol", "declared-other", "(1 2)"):
@@ -87,7 +94,9 @@ def test_the_gradual_rule_reaches_metatype_parameters(typed):
     assert _answers(typed, "(takes-expr undeclared-symbol)") == [
         "(gote undeclared-symbol)"
     ]
-    assert _answers(typed, "(takes-expr 7)") == []
+    assert _answers(typed, "(takes-expr 7)") == [
+        "(Error (takes-expr 7) (BadArgType 1 Expression Number))"
+    ]
 
     typed.run("(: takes-grounded (-> Grounded Atom))")
     typed.run("(= (takes-grounded $g) (gotg $g))")
@@ -95,7 +104,9 @@ def test_the_gradual_rule_reaches_metatype_parameters(typed):
     assert _answers(typed, "(takes-grounded undeclared-symbol)") == [
         "(gotg undeclared-symbol)"
     ]
-    assert _answers(typed, "(takes-grounded declared-other)") == []
+    assert _answers(typed, "(takes-grounded declared-other)") == [
+        "(Error (takes-grounded declared-other) (BadArgType 1 Grounded OtherType))"
+    ]
 
 
 def test_a_declared_parameter_type_still_types_its_own_application(typed):
