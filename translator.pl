@@ -72,10 +72,12 @@
 %   - maybe_print_compiled_clause/3's trace output works under autoload=false
 %     too [measured 2026-08-18: NO_AUTOLOAD=1 sh test.sh, the full
 %     examples/ corpus].
-%   - A cases argument whose list spine ends in a variable compiles to a
-%     runtime path instead of running select/3 over it forever, and a value
-%     arriving there that is not a list of (pattern value) pairs is refused
-%     naming the form and printing the argument as MeTTa
+%   - A cases argument that has not arrived, either because its list spine
+%     ends in a variable or because a pair in it is still one, compiles to a
+%     runtime path instead of running select/3 over it forever or unifying
+%     translate_case/5's own pattern into the source, and a value arriving
+%     there that is not a list of (pattern value) pairs is refused naming the
+%     form and printing the argument as MeTTa
 %     [tested 2026-08-19: translator_case_open_cases].
 %   - Cases handed over as a value answer what the same cases written out
 %     answer, over sixteen shapes including the Empty default, a
@@ -1171,7 +1173,7 @@ translate_special_dl(unify, [A, B, Then, Else], AfterHead, Goals, Out) :-
 %definition again and the cases a caller writes decide the branches
 %[tested: translator_case_open_cases, translator_case_computed_cases].
 translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
-    ( open_case_list(PairsExpr)
+    ( unarrived_pairs(PairsExpr)
       -> translate_expr_to_conj(KeyExpr, KeyConj, KeyValue),
          %The same soft cut the compiled form uses below, for the same
          %reasons: the key runs once, and its absence of answers is what
@@ -2157,10 +2159,14 @@ arrived_pairs(Pairs) :- is_list(Pairs), maplist(nonvar, Pairs).
 %partial list from a bad one [source 2026-08-19: SWI-Prolog 10.1.13
 %/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
 %is_list_or_partial_list/1].
+%'$skip_list'/3 has already settled the spine by the time the elements are
+%looked at, so this walks it once more rather than through arrived_pairs/1,
+%whose is_list/1 would walk it a third time to learn what Tail == [] just
+%said.
 unarrived_pairs(Pairs) :-
     '$skip_list'(_, Pairs, Tail),
     ( var(Tail) -> true
-                 ; Tail == [], \+ arrived_pairs(Pairs) ).
+                 ; Tail == [], \+ maplist(nonvar, Pairs) ).
 
 %The bindings when they were not syntax. `(= (mylet $bs $b) (let* $bs $b))`
 %reaches translation with no bindings to rewrite and receives them as a VALUE
@@ -2310,18 +2316,6 @@ mbr_advance_args(I, N, T, P0, P) :-
     I1 is I + 1,
     mbr_advance_args(I1, N, T, P1, P).
 
-%A cases argument whose list spine ends in a variable. is_list/1 is false for
-%one of those AND for a term that is no list at all, and the two want opposite
-%treatment: an open list is cases that have not arrived yet, while `foo` is
-%not cases and keeps falling through to data as it always has. '$skip_list'/3
-%walks the spine once and reports the tail without instantiating it, which is
-%how library(error) tells a partial list from a bad one and raises an
-%instantiation error for the first where it raises a type error for the
-%second [source 2026-08-19: SWI-Prolog 10.1.13
-%/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
-%is_list_or_partial_list/1].
-open_case_list(Cases) :- '$skip_list'(_, Cases, Tail), var(Tail).
-
 %The Empty pair is the default branch, taken when the key answered nothing,
 %so it is removed from the branches the key is matched against. Found stays
 %unbound through the select: unifying ['Empty', _] in during the search would
@@ -2360,9 +2354,9 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 %out already pays neither cost.
 %
 %Writing them out is otherwise untouched: byte-identical compiled output over
-%twelve case shapes, with 4 inferences paid once at COMPILE time for
-%open_case_list/1 [measured 2026-08-19: 67 to 71 translating a three-case
-%form].
+%twelve case shapes, with the classification paid once at COMPILE time
+%[measured 2026-08-19: 71 to 78 inferences translating a three-case form,
+%min of 5].
 %
 %This and case_default_runtime/2 reach compiled bodies, so both are named in
 %metta_engine_emitted/1 above. Without that, `(= (case_runtime $k $cs) ...)`
