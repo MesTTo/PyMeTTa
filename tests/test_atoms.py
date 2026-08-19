@@ -35,14 +35,12 @@ from petta import (
     val,
     variables,
 )
+from petta import _atoms_core as _core
 from petta.atoms import (
     _NAMESPACE_CACHE_MAX,
-    _WIRE_CACHE_FAST_MAX,
     _WIRE_CACHE_MAX,
     _WIRE_SYMS,
-    _WIRE_SYMS_FAST,
     _WIRE_VARS,
-    _WIRE_VARS_FAST,
     Box,
     atom_from_wire,
     boxed,
@@ -316,26 +314,83 @@ def test_wire_round_trip():
         assert from_wire(a.to_wire()) == a
 
 
-def test_wire_intern_tables_are_bounded():
-    for cache in (_WIRE_SYMS, _WIRE_SYMS_FAST, _WIRE_VARS, _WIRE_VARS_FAST):
-        cache.clear()
+def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
+    """Interning a fresh name costs the same at a bound of 512 and of 65,536.
+
+    Eviction used to be `del cache[next(iter(cache))]`. A dict's iterator
+    walks the entry array from the front, every eviction leaves a tombstone
+    there, and the scan grows with the churn: measured 796 ns per miss at a
+    bound of 512 against 2,496 ns at 65,536, 3.13x [measured 2026-08-19].
+    That coupling is why the cache could not be made larger.
+
+    Timed rather than asserted structurally, because which container
+    delivers the property is an implementation detail and the cost is the
+    claim. Minimum of three rounds per arm, and the threshold sits at 1.6x
+    between the measured 3.13x defect and the 1.14x fix.
+
+    Also checks the one invariant the O(1) form introduces: the key order
+    that bounds the cache holds exactly the cache's keys. Two structures
+    can drift, so their agreement is asserted rather than assumed.
+    """
+    import time
+
+    churn = 30_000
+
+    def nanoseconds_per_miss(bound, tag):
+        monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", bound)
+        best = None
+        for round_index in range(3):
+            _core._wire_intern_clear()
+            prefix = f"{tag}-{round_index}"
+            for index in range(bound):
+                from_wire(["s", f"{prefix}-fill-{index}"])
+            start = time.perf_counter()
+            for index in range(churn):
+                from_wire(["s", f"{prefix}-churn-{index}"])
+            elapsed = time.perf_counter() - start
+            if best is None or elapsed < best:
+                best = elapsed
+        return best / churn * 1e9
+
+    try:
+        small = nanoseconds_per_miss(512, "small")
+        large = nanoseconds_per_miss(65_536, "large")
+        assert large < small * 1.6, (
+            f"interning a fresh name costs {large:.0f} ns at a bound of 65,536 "
+            f"against {small:.0f} ns at 512, {large / small:.2f}x: eviction is "
+            f"growing with the cache"
+        )
+        assert len(_WIRE_SYMS) == len(_core._WIRE_SYM_ORDER) == 65_536
+        assert set(_WIRE_SYMS) == set(_core._WIRE_SYM_ORDER)
+    finally:
+        _core._wire_intern_clear()
+
+    assert not _WIRE_SYMS and not _core._WIRE_SYM_ORDER
+
+
+def test_wire_intern_tables_are_bounded(monkeypatch):
+    # Driven at a patched bound rather than the shipped 65,536: the property
+    # is that the table respects whatever bound it is given, and filling the
+    # real one twice over would mint 131,000 atoms to say so.
+    assert _WIRE_CACHE_MAX == 65_536
+    monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", 64)
+    _core._wire_intern_clear()
 
     first_sym = from_wire(["s", "evicted"])
     first_var = from_wire(["v", "evicted"])
-    for index in range(_WIRE_CACHE_MAX + _WIRE_CACHE_FAST_MAX + 10):
+    for index in range(64 + 10):
         from_wire(["s", f"symbol-{index}"])
         from_wire(["v", f"variable-{index}"])
 
-    assert len(_WIRE_SYMS) <= _WIRE_CACHE_MAX
-    assert len(_WIRE_VARS) <= _WIRE_CACHE_MAX
-    assert len(_WIRE_SYMS_FAST) <= _WIRE_CACHE_FAST_MAX
-    assert len(_WIRE_VARS_FAST) <= _WIRE_CACHE_FAST_MAX
-    assert from_wire(["s", "symbol-0"]) is from_wire(["s", "symbol-0"])
-    assert from_wire(["v", "variable-0"]) is from_wire(["v", "variable-0"])
+    assert len(_WIRE_SYMS) <= 64
+    assert len(_WIRE_VARS) <= 64
+    assert from_wire(["s", "symbol-73"]) is from_wire(["s", "symbol-73"])
+    assert from_wire(["v", "variable-73"]) is from_wire(["v", "variable-73"])
     assert from_wire(["s", "evicted"]) == first_sym
     assert from_wire(["s", "evicted"]) is not first_sym
     assert from_wire(["v", "evicted"]) == first_var
     assert from_wire(["v", "evicted"]) is not first_var
+    _core._wire_intern_clear()
 
 
 def test_casting_protocol():

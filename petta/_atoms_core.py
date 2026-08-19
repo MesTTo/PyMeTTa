@@ -15,6 +15,12 @@ Guarantees:
   - wire and object identity caches are bounded or weak and synchronized
     [tested test_wire_intern_tables_are_bounded,
     test_atom_identity_caches_are_thread_safe]
+  - the wire intern cache evicts in constant time in its bound, so its bound
+    is a memory decision rather than a speed one [tested
+    test_the_intern_cache_evicts_in_constant_time]
+  - _WIRE_SYM_ORDER and _WIRE_VAR_ORDER hold exactly the keys of the cache
+    each one bounds, and _wire_intern_clear is the only door that empties
+    either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
 Guarded by:
@@ -35,6 +41,7 @@ import re
 import threading
 import weakref
 from abc import ABCMeta
+from collections import deque
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
 from typing import Any, Self, TypeVar, cast
@@ -1092,17 +1099,84 @@ def decode(atom: Any) -> Any:
 
 
 # Decoded symbols and variables intern per name: their equality and hash are by
-# name already, and a query answering thousands of rows repeats a small
-# vocabulary. The two tiers follow CPython's re cache: check a small FIFO first
-# without reordering, then maintain a larger LRU. Eviction changes only object
-# allocation because equality is by value, while bounding names supplied by a
-# remote peer prevents permanent process growth.
-_WIRE_CACHE_MAX = 512
-_WIRE_CACHE_FAST_MAX = 256
+# name already, and a query answering thousands of rows repeats a vocabulary.
+# Eviction changes only object allocation because equality is by value, while
+# bounding names supplied by a remote peer prevents permanent process growth.
+#
+# ONE tier, read without the lock and mutated under it. It used to be two, a
+# 256-entry FIFO in front of a 512-entry LRU, so that a hot name answered
+# without taking _STATE_LOCK. That split earned its keep only while the main
+# tier was small: once the main tier holds the whole vocabulary, a small tier
+# in front of it converts what would have been a lock-free hit into a miss
+# plus a locked hit. Measured over ten passes of a 20,000-row query whose
+# answers carry 20,001 distinct symbols, minimum of three instructions:u runs
+# [2026-08-19]:
+#
+#   two tiers, 512 LRU behind 256 FIFO, plain-dict eviction   17955972589
+#   two tiers, 65,536 LRU behind 256 FIFO                     16786153059
+#   two tiers, 65,536 LRU behind 65,536 FIFO                  15884696022
+#   one tier,  65,536 FIFO                                    15849235310
+#
+# The last line is the fastest AND holds half the entries of the line above
+# it, which stores every name twice. Dropping the split costs the LRU
+# reordering, because reordering on a hit would have to take the lock:
+# measured at the old 256, FIFO and LRU are within half a point of each other
+# on all three workload shapes [ai-code-organisation-and-fixes.md BA3], and at
+# 65,536 an ordinary vocabulary never reaches an eviction at all.
+#
+# Eviction has to be O(1) in the bound, and `del cache[next(iter(cache))]` is
+# not: a dict's iterator walks the entry array from the front and every
+# eviction leaves a tombstone there for the next scan to skip. Measured over
+# an evict-and-insert step, minimum of five, 256 to 262,144 entries: that
+# spelling goes 170 ns to 2,257 ns, while a deque of keys beside the dict
+# holds 118 ns to 182 ns and OrderedDict.popitem(last=False) 136 ns to 225 ns
+# [measured 2026-08-19]. The cost is what pinned the bound small.
+#
+# The deque rather than an OrderedDict, which is one container and therefore
+# the tidier answer: OrderedDict pays for its ordering on every LOOKUP, and
+# the lookup is the hot path. dict.get against OrderedDict.get, minimum of
+# seven over 500,000 calls, is 23.5 ns against 24.8 ns on a three-entry map
+# and 20.1 against 22.1 on a 20,000-entry one; end to end that is wire-codec
+# +0.289% for the OrderedDict and +0.000% for the deque [measured 2026-08-19].
+#
+# What makes the deque safe here is the lock that P7.2 requires be kept.
+# popleft and del are not one atomic step, but both run inside _STATE_LOCK
+# with no other writer able to interleave and no statement between them that
+# can raise, and a reader only ever touches `cache`. The pair that CAN drift
+# is a caller emptying one and not the other, so emptying has exactly one
+# door, _wire_intern_clear, and the two lengths are asserted to agree
+# [tested test_the_intern_cache_evicts_in_constant_time].
+#
+# FIFO rather than LRU: reordering on a hit would have to take the lock, and
+# the hit is what has to stay lock-free. Measured at the old 256-entry bound,
+# FIFO and LRU are within half a point of each other on all three workload
+# shapes [ai-code-organisation-and-fixes.md BA3], and at 65,536 an ordinary
+# vocabulary never reaches an eviction at all.
+#
+# 65,536 rather than 512: the bound is what a peer can make this process hold,
+# so it is a memory decision. Measured 2026-08-19 with tracemalloc over
+# 12-character names, a full symbol cache costs 11.8 MB and symbols plus
+# variables together 23.7 MB, against 240 KB at 512. CPython's own intern
+# table is unbounded and immortal by comparison [cpython issue 113993], so a
+# bounded 65,536 is the careful end of this trade, not the loose end.
+#
+# Measured together over ten passes of a 20,000-row query whose answers carry
+# 20,001 distinct symbols, minimum of three instructions:u runs [2026-08-19]:
+#
+#   two tiers, 512 LRU behind a 256 FIFO, plain-dict eviction   17955972589
+#   two tiers, 65,536 LRU behind a 256 FIFO                     16786153059
+#   two tiers, 65,536 LRU behind a 65,536 FIFO                  15884696022
+#   one cache, 65,536 FIFO                                      15805912567
+#
+# The last line is the fastest and holds half the entries of the line above
+# it, which stores every name twice. The second tier existed so a hot name
+# answered without the lock; once the cache itself holds the vocabulary, a
+# small tier in front of it turns lock-free hits into misses plus locked hits.
+_WIRE_CACHE_MAX = 65_536
 _WIRE_SYMS: dict[str, Sym] = {}
-_WIRE_SYMS_FAST: dict[str, Sym] = {}
 _WIRE_VARS: dict[str, Var] = {}
-_WIRE_VARS_FAST: dict[str, Var] = {}
+_WIRE_SYM_ORDER: deque[str] = deque()
+_WIRE_VAR_ORDER: deque[str] = deque()
 _WireAtom = TypeVar("_WireAtom", Sym, Var)
 
 
@@ -1110,30 +1184,37 @@ def _wire_intern(
     name: str,
     factory: Callable[[str], _WireAtom],
     cache: dict[str, _WireAtom],
-    fast: dict[str, _WireAtom],
+    order: deque[str],
 ) -> _WireAtom:
-    interned = fast.get(name)
+    interned = cache.get(name)
     if interned is not None:
         return interned
     with _STATE_LOCK:
-        interned = fast.get(name)
+        interned = cache.get(name)
         if interned is not None:
             return interned
-        interned = cache.pop(name, None)
-        if interned is None:
-            interned = factory(name)
-            if len(cache) >= _WIRE_CACHE_MAX:
-                del cache[next(iter(cache))]
+        interned = factory(name)
+        if len(cache) >= _WIRE_CACHE_MAX:
+            del cache[order.popleft()]
         cache[name] = interned
-        if len(fast) >= _WIRE_CACHE_FAST_MAX:
-            del fast[next(iter(fast))]
-        fast[name] = interned
+        order.append(name)
         return interned
 
 
+def _wire_intern_clear() -> None:
+    """Empty the intern caches, each with the order that bounds it."""
+    with _STATE_LOCK:
+        for cache, order in (
+            (_WIRE_SYMS, _WIRE_SYM_ORDER),
+            (_WIRE_VARS, _WIRE_VAR_ORDER),
+        ):
+            cache.clear()
+            order.clear()
+
+
 def _wire_sym(name: str) -> Sym:
-    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYMS_FAST)
+    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYM_ORDER)
 
 
 def _wire_var(name: str) -> Var:
-    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VARS_FAST)
+    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VAR_ORDER)
