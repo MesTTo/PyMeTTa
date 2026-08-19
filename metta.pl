@@ -26,9 +26,18 @@
 %     arithmetic pays nothing for this and float arithmetic pays one
 %     inference per call, because only the integer pair takes the guarded
 %     fast path [measured 2026-08-15: 300,000 and 400,000 inferences per
-%     100,000 calls, against 300,000 unguarded]. Whole-corpus cost is
+%     100,000 calls, against 300,000 unguarded]; division's integer pair
+%     pays the catch too, because a non-divisible pair converts its result
+%     to float and can overflow doing it. Whole-corpus cost is
 %     +2.1% instructions on examples/performance/scale.metta
 %     [measured 2026-08-15].
+%   - A result past binary64 saturates to the IEEE value on the engine's
+%     operations, agreeing with the reader's saturating literals, and an
+%     infinity a literal produced carries through further arithmetic; raw
+%     is/2 keeps the float_overflow flag's error mode [tested 2026-08-20:
+%     engine_operations_saturate_where_raw_is_still_raises,
+%     a_read_infinity_survives_further_arithmetic,
+%     test_arithmetic_overflow_agrees_with_the_literal_side].
 %   - is-alpha-member/3 tests unifiability without retaining bindings in its
 %     arguments [tested 2026-08-15: metta_alpha_membership].
 %   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
@@ -401,28 +410,33 @@ metta_arith_operands(Op, A, B) :-
 %rather than errors, the relational reading: no integer solves it.
 '+'(A,B,R)  :- ( integer(A), integer(B) -> R is A + B
                 ; number(A), number(B)
-                  -> catch(R is A + B, E, rethrow_metta_operation_error('+', E))
+                  -> catch(R is A + B, E, metta_saturating_recover('+', A + B, R, E))
                 ; petta_int_solve('+', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('+', A, B),
-                  catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
+                  catch(R is A + B, E, metta_saturating_recover('+', A + B, R, E)) ).
 '-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
                 ; number(A), number(B)
-                  -> catch(R is A - B, E, rethrow_metta_operation_error('-', E))
+                  -> catch(R is A - B, E, metta_saturating_recover('-', A - B, R, E))
                 ; petta_int_solve('-', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('-', A, B),
-                  catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
+                  catch(R is A - B, E, metta_saturating_recover('-', A - B, R, E)) ).
 '*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
                 ; number(A), number(B)
-                  -> catch(R is A * B, E, rethrow_metta_operation_error('*', E))
+                  -> catch(R is A * B, E, metta_saturating_recover('*', A * B, R, E))
                 ; petta_int_solve('*', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('*', A, B),
-                  catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
-'/'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A / B
-                ; number(A), number(B)
-                  -> catch(R is A / B, E, rethrow_metta_operation_error('/', E))
+                  catch(R is A * B, E, metta_saturating_recover('*', A * B, R, E)) ).
+%Division has no catchless integer arm: an all-integer pair is exact until a
+%non-divisible one converts to float, and THAT can overflow (10^400 / 3
+%raised a raw float_overflow with no operation context from the old catchless
+%arm), so it needs the same recovery as the float arms. Integer division by
+%zero already fell through to the guarded arm and keeps doing so, one arm
+%earlier.
+'/'(A,B,R)  :- ( number(A), number(B)
+                  -> catch(R is A / B, E, metta_saturating_recover('/', A / B, R, E))
                 ; petta_int_solve('/', A, B, R, Verdict) -> Verdict == solved
                 ; metta_arith_operands('/', A, B),
-                  catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
+                  catch(R is A / B, E, metta_saturating_recover('/', A / B, R, E)) ).
 
 %One unbound slot among integers: the verdict says whether the mode
 %applied at all (fail: not this shape, fall through to the float/error
@@ -599,17 +613,22 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
                             rethrow_metta_operation_error('#>=', E)).
 
 'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
-                               rethrow_metta_operation_error('pow-math', E)).
+                               metta_saturating_recover('pow-math', A ** B, Out, E)).
 'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
                              rethrow_metta_operation_error('sqrt-math', E)).
 'abs-math'(A, Out) :-
     ( integer(A) -> Out is abs(A)
     ; catch(Out is abs(A), E,
             rethrow_metta_operation_error('abs-math', E)) ).
+%log of zero is float_overflow-classed by SWI (the result is an infinity),
+%so it saturates with the family; a compound expression like this one can
+%then raise a DIFFERENT error inside the retry (base 1 divides the
+%saturated -inf by log(1) = 0.0), which is why the recovery wraps its
+%retry through the funnel.
 'log-math'(Base, X, Out) :- catch(Out is log(X) / log(Base), E,
-                                  rethrow_metta_operation_error('log-math', E)).
+                                  metta_saturating_recover('log-math', log(X) / log(Base), Out, E)).
 'exp-math'(A, Out) :- catch(Out is exp(A), E,
-                            rethrow_metta_operation_error('exp-math', E)).
+                            metta_saturating_recover('exp-math', exp(A), Out, E)).
 'trunc-math'(A, Out) :- catch(Out is truncate(A), E,
                               rethrow_metta_operation_error('trunc-math', E)).
 'ceil-math'(A, Out) :- catch(Out is ceil(A), E,
@@ -4674,10 +4693,39 @@ control_exception(error(petta_py_exception(time_limit, _), _)).
 control_exception(error(petta_py_exception(inference_limit, _), _)).
 control_exception(error(resource_error(_), _)).
 
+%A result past binary64 SATURATES to the IEEE value instead of raising,
+%which is upstream's arithmetic (plain Rust f64: "1e400".parse and 1e308*10
+%both answer inf there) and the reader's own behaviour for literals, so the
+%two halves of the numeric boundary agree: 1e400 reads as inf and
+%(+ 1e400 1) answers inf. SWI's error mode rejects any non-finite RESULT,
+%operands included, so without this an infinity the reader legally produced
+%could not even carry through (+ inf 1). The flag is borrowed for the one
+%retry and given back, parser.pl's metta_saturating_parse discipline on the
+%evaluation side; the happy path pays nothing because this only runs from a
+%catch recovery. Every other error keeps the funnel below; a NaN-producing
+%operation (inf - inf) raises evaluation_error(undefined) under the
+%float_undefined flag, which this clause deliberately does not touch, and
+%never reaches the retry because its first pass does not raise
+%float_overflow. A COMPOUND expression can raise a different error inside
+%the retry itself (log-math with base 1 divides a saturated -inf by zero),
+%so the retry's residual goes through the funnel rather than escaping raw.
+metta_saturating_recover(Operation, Expression, Result,
+                         error(evaluation_error(float_overflow), _)) :- !,
+    current_prolog_flag(float_overflow, Was),
+    catch(setup_call_cleanup(set_prolog_flag(float_overflow, infinity),
+                             Result is Expression,
+                             set_prolog_flag(float_overflow, Was)),
+          Residual,
+          rethrow_metta_operation_error(Operation, Residual)).
+metta_saturating_recover(Operation, _, _, Error) :-
+    rethrow_metta_operation_error(Operation, Error).
+
 %Keep the ISO Formal term because callers and the MeTTa catch form inspect it.
 %Only the host context is replaced, so lists:min_list/3, is/2, and nb_setval/2
 %cannot leak into a language-level diagnostic. Integer fast paths avoid the
-%catch cost on valid arithmetic without letting float overflow escape. Over
+%catch cost on valid arithmetic without letting float overflow escape, except
+%division, whose all-integer case converts a non-divisible pair to float and
+%can overflow doing it, so it pays the catch like the float arms. Over
 %100,000 calls the guarded form used
 %300,002 inferences against 300,003 directly, while an unconditional catch used
 %400,002 [measured: guarded -1 and caught +99,999 inferences, 2026-08-15].

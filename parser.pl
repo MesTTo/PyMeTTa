@@ -16,10 +16,11 @@
 %     parser_unicode_layout,
 %     test_every_unicode_whitespace_separates_atoms].
 %   - metta_unwritable_symbol/2 answers for every value the round trip loses,
-%     not only for names: a non-finite float or a rational writes as 1.0Inf,
-%     1.5NaN or 1r3 and reads back as a symbol of that spelling, so the seam
-%     refuses it [tested 2026-08-19: parser_number_text]. Generated terms
-%     agree, which is where the class was found [tested 2026-08-19:
+%     not only for names: a non-finite float writes as inf, -inf or NaN (the
+%     arbiter's spellings, via metta_float_codes/2) and a rational as 1r3,
+%     and each reads back as a symbol of that spelling, so the seam refuses
+%     it [tested 2026-08-19: parser_number_text]. Generated terms agree,
+%     which is where the class was found [tested 2026-08-19:
 %     property_roundtrip in tests/prolog/property_lane.pl].
 % Open Obligations:
 %   To Do: None
@@ -82,6 +83,8 @@ petta_inline_text(T, S) :-
     string_codes(S, Codes).
 
 swrite_numbered('$petta_variable'(Index)) --> !, "$_", { number_codes(Index, Cs) }, Cs.
+swrite_numbered(Num)   --> { integer(Num) }, !, { number_codes(Num, Cs) }, Cs.
+swrite_numbered(Num)   --> { float(Num) }, !, { metta_float_codes(Num, Cs) }, Cs.
 swrite_numbered(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_numbered(Str)   --> { string(Str) }, !, "\"", { string_codes(Str, Cs), escape_quotes(Cs, Es) }, Es, "\"".
 swrite_numbered(Atom)  --> { atom(Atom) }, !, atom(Atom).
@@ -106,6 +109,23 @@ swrite_numbered(Term)  --> { compound(Term), compound_name_arguments(Term, F, Ar
 swrite_numbered(Term)  --> { term_string(Term, Text), string_codes(Text, Cs) }, Cs.
 seq_numbered([X])    --> !, swrite_numbered(X).
 seq_numbered([X|Xs]) --> swrite_numbered(X), " ", seq_numbered(Xs).
+
+%The two float classes with no digits in their SWI spelling print the
+%arbiter's way instead: inf, -inf by sign, and an unsigned NaN, the forms
+%hyperon's Rust f64 Display prints and the arbiter's pretty-printer pins.
+%Every finite float keeps number_codes/2, whose spelling sexpr_token//3
+%reads back [tested: parser_number_text]. The printed non-finite spelling
+%reads back as a SYMBOL of that name, upstream's exactly as ours, which is
+%why metta_number_writable/1 below keeps refusing the class at the text
+%seam: the answer PRINTS faithfully, it still does not round-trip.
+metta_float_codes(Float, Codes) :-
+    float_class(Float, Class),
+    (   Class == infinite
+    ->  ( Float > 0.0 -> atom_codes(inf, Codes) ; atom_codes('-inf', Codes) )
+    ;   Class == nan
+    ->  atom_codes('NaN', Codes)
+    ;   number_codes(Float, Codes)
+    ).
 %The five escapes hyperon's Str Display emits and this reader already
 %decodes (string_chars): quote, backslash, newline, tab, carriage
 %return. Writing them keeps a printed string literal on one line, so
@@ -443,14 +463,15 @@ metta_symbol_reserved_start(0'+).
 metta_symbol_reserved_start(Code) :- code_type(Code, digit).
 
 %Whether a number's spelling reads back as that same number. The writer prints
-%one with number_codes/2, which is SWI's whole numeric syntax, and the reader
-%accepts sexpr_token//3's, which is narrower: a non-finite float writes as
-%1.0Inf, -1.0Inf or 1.5NaN and a rational as 1r3, and each of the four comes
-%back a SYMBOL of that spelling. MeTTa has no literal for any of them, and
-%inventing one would read a name upstream reads as a symbol, so the answer is
-%the one a symbol holding whitespace already gets: the value has no text form
-%and the seam refuses it rather than storing something that comes back
-%different.
+%a finite number with number_codes/2, which is SWI's numeric syntax, and the
+%reader accepts sexpr_token//3's, which is narrower: a non-finite float
+%writes as inf, -inf or NaN (metta_float_codes/2, the arbiter's spellings)
+%and a rational as 1r3, and each of the four comes back a SYMBOL of that
+%spelling, upstream's included, its float token being a regex a bare name
+%never matches. MeTTa has no literal for any of them, and inventing one
+%would read a name upstream reads as a symbol, so the answer is the one a
+%symbol holding whitespace already gets: the value has no text form and the
+%seam refuses it rather than storing something that comes back different.
 %
 %The two ordinary cases answer without the grammar, the way an ordinary NAME
 %does above, because every space digest and every save asks this of every

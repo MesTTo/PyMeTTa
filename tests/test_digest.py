@@ -94,14 +94,15 @@ def test_digest_refuses_symbols_without_round_trip_text(metta, name):
 def test_refuses_a_number_with_no_round_trip_text(metta, tmp_path, number, operation):
     """A value can lack a text form without being a name.
 
-    SWI writes a non-finite float as ``1.0Inf``, ``-1.0Inf`` or ``1.5NaN`` and
-    a rational as ``1r3``, and the MeTTa reader has a literal for none of the
-    four, so each comes back a SYMBOL of that spelling. MeTTa arithmetic here
-    cannot make one, every one of ``float_overflow``, ``float_zero_div`` and
-    ``float_undefined`` being ``error``, but ``(py-atom "float('inf')")``
-    answers one and so does this constructor. Before the seam answered for
-    numbers, a text save of this space wrote ``(holds inf)`` and loading it
-    back gave ``Sym('inf')``, with nothing reported [measured 2026-08-19].
+    A non-finite float prints as ``inf``, ``-inf`` or ``NaN`` and a rational
+    as ``1r3``, and the MeTTa reader has a literal for none of the four, so
+    each comes back a SYMBOL of that spelling. MeTTa arithmetic ANSWERS one
+    now, ``(+ 1e400 1)`` saturating the way the reader's own literals do,
+    and ``(py-atom "float('inf')")`` answers one as this constructor does,
+    which is exactly why the seam must keep refusing to store them. Before
+    it answered for numbers, a text save of this space wrote ``(holds
+    inf)`` and loading it back gave ``Sym('inf')``, with nothing reported
+    [measured 2026-08-19].
     """
     with metta.new_space() as m:
         m.add(S.holds(val(number)))
