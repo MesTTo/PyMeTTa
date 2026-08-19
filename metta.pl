@@ -1879,29 +1879,18 @@ get_type_rule_in(Module, X, T) :- \+ metta_reading_declared_types,
 get_type_rule_in(_, X, T) :- \+ metta_reading_declared_types,
                              metta_self_module(Self), Self:get_type_rule(X, T).
 
-python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
-
-python_object_blob_name(py).
-python_object_blob_name('PyObject').
-
 get_type_candidate(X, 'Number')   :- number(X), !.
 get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
 get_type_candidate(false, 'Bool') :- !.
-%Only Python blobs can be Janus references. The blob guard avoids calling into
-%Janus, and initializing Python, while typing ordinary MeTTa values;
-%py_is_object/1 still validates a live reference and reports a freed one.
-%
-%The blob SWI registers is named `py`, and this asked for 'PyObject', so the
-%guard never held and every clause behind it was unreachable: in an engine
-%without the Python library loaded, `(get-type <a python object>)` answered
-%%Undefined% rather than the object's classes. The library has its own bridge
-%and hid it [measured 2026-08-16: `(Puppy Dog Animal)` through the library,
-%%Undefined% through run.sh]. Both names are accepted so the guard cannot
-%break again when one of them changes.
+%A live host object types through the bridge. The atomic/non-atom pre-test
+%is the engine's own cheap class check; whether the value IS a live host
+%object is the bridge's question, through the ownership seam, so an engine
+%with no host loaded answers no at one failed lookup and never initializes
+%anything [tested: metta_object_types].
 get_type_candidate(X, T) :- atomic(X), \+ atom(X),
-                            python_object_blob(X), py_is_object(X),
+                            metta_host_object(X),
                             metta_grounded_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
@@ -1927,7 +1916,7 @@ get_type_candidate_in(_, X, 'String')   :- string(X), !.
 get_type_candidate_in(_, true, 'Bool')  :- !.
 get_type_candidate_in(_, false, 'Bool') :- !.
 get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
-                                  python_object_blob(X), py_is_object(X),
+                                  metta_host_object(X),
                                   metta_grounded_type(X, T).
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
@@ -2020,7 +2009,7 @@ metatype_of(X, 'Grounded') :- number(X), !.
 metatype_of(X, 'Grounded') :- string(X), !.
 metatype_of(true,  'Grounded') :- !.
 metatype_of(false, 'Grounded') :- !.
-metatype_of(X, 'Grounded') :- python_object_blob(X), py_is_object(X), !.
+metatype_of(X, 'Grounded') :- metta_host_object(X), !.
 metatype_of(X, 'Grounded') :- atom(X), metta_grounded_token(X),
                               metta_operation_admitted(X), !.
 %A SPACE HANDLE is a value and not a name that happens to spell one, which is

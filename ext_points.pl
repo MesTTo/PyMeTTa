@@ -601,6 +601,13 @@ ext_point_kind(metta_host_builtin/1, declaration).
 :- multifile metta_host_import/1.
 ext_point_kind(metta_host_import/1, ownership).
 
+%Whether a value is a live host object at all, the question in front of
+%every grounded-type lookup: the engine's own cheap class tests run first,
+%and this seam is the bridge's part, so an engine with no host loaded
+%answers no at one failed lookup and never initializes anything.
+:- multifile metta_host_object/1.
+ext_point_kind(metta_host_object/1, ownership).
+
 %A registered rewriter runs over every loaded form; a host installs one only
 %while it is needed (the Python bridge registers its import-as alias rewrite
 %when the first alias lands), so a program that never uses the feature pays

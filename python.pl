@@ -734,3 +734,19 @@ load_python_module(CanonPath, ModuleKey, ModuleName, ParentDir,
 restore_python_path(PreviousPath) :-
     py_call(sys:path:clear(), _),
     py_call(sys:path:extend(PreviousPath), _).
+
+%Whether a value is a live object of THIS host: the blob guard avoids
+%calling into janus, and initializing Python, for ordinary MeTTa values,
+%and py_is_object/1 still validates a live reference and reports a freed
+%one. The blob SWI registers is named `py`, and an earlier guard asked for
+%'PyObject' only, so it never held and (get-type <a python object>)
+%answered %Undefined% in an engine without the library; both names are
+%accepted so the guard cannot break again when one of them changes
+%[measured 2026-08-16].
+:- multifile metta_host_object/1.
+metta_host_object(X) :- python_object_blob(X), py_is_object(X).
+
+python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
+
+python_object_blob_name(py).
+python_object_blob_name('PyObject').
