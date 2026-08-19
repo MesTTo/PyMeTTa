@@ -33,6 +33,11 @@
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
+%   - Every guarded_input_position/3 refuses an unbound argument and names the
+%     MeTTa operation, so no builtin binds the caller's variable, invents an
+%     answer, runs away or reports a host predicate [tested 2026-08-19:
+%     builtin_input_guards:every_builtin_refuses_an_unbound_input_by_name,
+%     python/tests/test_builtin_inputs.py::test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
 %   - ==/3 and !=/3 refuse two operands of known and different types and
 %     answer for every other pair, at no cost on two numbers [tested
 %     2026-08-19:
@@ -339,6 +344,7 @@ id(X, X).
 noeval(X, X).
 repr(Term, R) :- swrite(Term, Text), R = Text.
 repra(Term, R) :- term_to_atom(Term, R).
+parse(Str, _) :- var(Str), !, refuse_unbound_input(parse, 1).
 parse(Str, R) :- sread(Str, R).
 
 %%% Arithmetic & Comparison: %%%
@@ -655,27 +661,32 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
 %%% Boolean Logic: %%%
 bool(true).
 bool(false).
-boolean_argument(_, Value) :- var(Value), !, bool(Value).
-boolean_argument(_, true) :- !.
-boolean_argument(_, false) :- !.
-boolean_argument(Operation, Culprit) :-
+%An unbound argument ENUMERATES the booleans, so and(A, B, C) with all three
+%open answers the whole truth table. That is deliberate and pinned by
+%metta_operation_errors:boolean_operations_remain_relational, which is why
+%these positions are relational_input_position/2 rather than guarded ones.
+boolean_argument(_, _, Value) :- var(Value), !, bool(Value).
+boolean_argument(_, _, true) :- !.
+boolean_argument(_, _, false) :- !.
+boolean_argument(Operation, _, Culprit) :-
     throw_metta_type_error(Operation, boolean, Culprit).
 
-and(A,B,C) :- boolean_argument(and, A), boolean_argument(and, B),
+and(A,B,C) :- boolean_argument(and, 1, A), boolean_argument(and, 2, B),
               ( A == true -> C = B ; A == false -> C = false ).
-or(A,B,C) :- boolean_argument(or, A), boolean_argument(or, B),
+or(A,B,C) :- boolean_argument(or, 1, A), boolean_argument(or, 2, B),
              ( A == true -> C = true ; A == false -> C = B ).
-not(A,B) :- boolean_argument(not, A),
+not(A,B) :- boolean_argument(not, 1, A),
             ( A == true -> B = false ; A == false -> B = true ).
-xor(A,B,C) :- boolean_argument(xor, A), boolean_argument(xor, B),
+xor(A,B,C) :- boolean_argument(xor, 1, A), boolean_argument(xor, 2, B),
               ( A == B -> C = false ; C = true ).
-implies(A,B,C) :- boolean_argument(implies, A),
-                  boolean_argument(implies, B),
+implies(A,B,C) :- boolean_argument(implies, 1, A),
+                  boolean_argument(implies, 2, B),
                   ( A == true -> ( B == true  -> C = true
                                  ; B == false -> C = false )
                               ; A == false -> C = true ).
 
 %%% Nondeterminism: %%%
+superpose(L, _) :- var(L), !, refuse_unbound_input(superpose, 1).
 superpose(L,X) :- member(X,L).
 empty(_) :- fail.
 
@@ -687,6 +698,7 @@ empty(_) :- fail.
 %list left a choicepoint, in loops that recurse on exactly this
 %[tested: decons_atom_is_total]. non_list/1 is false for both list shapes, so a
 %list pays two inferences and reaches the same clauses in the same order.
+'decons-atom'(Term, _) :- var(Term), !, refuse_unbound_input('decons-atom', 1).
 'decons-atom'(Term, Out) :- non_list(Term), !,
                             grounded_list_view(Term, [H|T]), !, Out = [H|[T]].
 %The second cut prunes the SEAM's remaining providers, which the first one
@@ -722,13 +734,18 @@ empty(_) :- fail.
 'decons-atom'([], ['Error', ['decons-atom', []],
                    "expected: (decons-atom (: <expr> Expression)), \c
                     found: (decons-atom ())"]).
+'first-from-pair'(Pair, _) :- var(Pair), !, refuse_unbound_input('first-from-pair', 1).
 'first-from-pair'([A, _], A).
+first(Pair, _) :- var(Pair), !, refuse_unbound_input(first, 1).
 first([A, _], A).
+'second-from-pair'(Pair, _) :- var(Pair), !, refuse_unbound_input('second-from-pair', 1).
 'second-from-pair'([_, A], A).
+'unique-atom'(A, _) :- var(A), !, refuse_unbound_input('unique-atom', 1).
 'unique-atom'(A, B) :- non_list(A), !, B = [].
 'unique-atom'(A, B) :- list_to_set(A, B).
 
 %%% Alpha-equivalence unique atom %%%
+'alpha-unique-atom'(A, _) :- var(A), !, refuse_unbound_input('alpha-unique-atom', 1).
 'alpha-unique-atom'(A, B) :- non_list(A), !, B = [].
 'alpha-unique-atom'(A, B) :- alpha_list_to_set(A, B).
 
@@ -769,6 +786,124 @@ alpha_bucket_insert(Key, Term, SeenIn, SeenOut, IsNew) :-
 non_list(X) :- atomic(X), X \== [].
 non_list(X) :- compound(X), X \= [_|_].
 
+%%%%%%%%%% An unbound argument where a value is required %%%%%%%%%%
+%
+%A structural operation READS a term; it does not solve for one. An unbound
+%variable in a position the engine's own type surface declares Expression,
+%Number, String, Symbol or Bool is a program error, and letting one through
+%produced four different silent wrongs at once, measured 2026-08-19 by a
+%probe generated over every such position:
+%
+%  - 28 positions BOUND THE CALLER'S VARIABLE. (car-atom $u) unified $u with
+%    [H|_] through the head and answered the fresh H, so the caller's own
+%    variable came back a list it never wrote.
+%  - 13 answered a fresh variable and 12 answered a value derived from
+%    nothing, (union-atom (a b) $u) answering the partial list (a b|_).
+%  - 2 EXHAUSTED THE STACK. (subtraction-atom $u (a b)) reaches a list walk
+%    with both ends open and enumerates every list there is.
+%  - 7 raised, but named a HOST predicate the MeTTa program never wrote:
+%    (sort-atom $u) said `msort/2`, (sread $u) said `atom_codes/2`.
+%
+%The POSITIONS are read off builtin_type_declaration/2 rather than listed, so
+%declaring a type for a new builtin strengthens its guard in the same stroke
+%and the table and the guards cannot drift apart. The probe in
+%python/tests/test_builtin_inputs.py enumerates the same table.
+%
+%Each guard is a LEADING clause on a var first argument, and it costs nothing
+%where it would be felt: 'car-atom'([1,2], _) is 2.0000 inferences per call
+%with the guard and 2.0000 without, over 200,000 calls, and a MeTTa walk over
+%a ten-element list through cdr-atom is 1052.23 inferences either way
+%[measured 2026-08-19, both directly and through the engine's own counter].
+%A bound argument does not reach the clause.
+strict_input_type('Expression').
+strict_input_type('Number').
+strict_input_type('String').
+strict_input_type('Symbol').
+strict_input_type('Bool').
+
+%The constraint family is RELATIONAL by design: (#+ $a 2 $r) is a constraint
+%to post rather than a call to run, and an unbound argument there is the whole
+%point. Both directions are pinned by metta.plt's relational_arithmetic unit.
+relational_builtin('#+').   relational_builtin('#-').
+relational_builtin('#*').   relational_builtin('#div').
+relational_builtin('#mod'). relational_builtin('#min').
+relational_builtin('#max'). relational_builtin('#<').
+relational_builtin('#>').   relational_builtin('#//').
+
+%One POSITION can be relational where the rest of the predicate is not, and
+%the type surface cannot say so because it names a type and not a mode.
+%(index-atom (a b) $i) enumerates 0-a and 1-b, which is deliberate and is
+%pinned by metta.plt's metta_index_atom unit.
+relational_input_position('index-atom', 2).
+%and, or, not, xor and implies ENUMERATE the booleans for an open argument,
+%so and(A, B, C) with all three open answers the whole truth table
+%[tested: metta_operation_errors:boolean_operations_remain_relational].
+relational_input_position(and, 1).      relational_input_position(and, 2).
+relational_input_position(or, 1).       relational_input_position(or, 2).
+relational_input_position(not, 1).
+relational_input_position(xor, 1).      relational_input_position(xor, 2).
+relational_input_position(implies, 1).  relational_input_position(implies, 2).
+%cons builds a PATTERN, and an open tail is what makes it one: the engine's
+%own prelude writes (cons Error $_) to test whether a value is an error
+%[source: src/prelude.metta, if-error]. cons-atom is the same operation under
+%its MeTTa name.
+relational_input_position(cons, 2).
+relational_input_position('cons-atom', 2).
+
+%A position PeTTa promises to refuse. A name lent to MeTTa from SWI (msort,
+%append, sort, maplist, length) keeps Prolog's own relational behaviour and
+%its own errors, because under that name it IS the Prolog predicate; that is
+%a boundary rather than an omission, and imported_from/1 is where the engine
+%already records it.
+guarded_input_position(Name, Arity, Position) :-
+    builtin_type_declaration(Name, ['->'|Chain]),
+    \+ relational_builtin(Name),
+    append(Inputs, [_], Chain),
+    nth1(Position, Inputs, Type),
+    nonvar(Type),
+    strict_input_type(Type),
+    length(Chain, Arity),
+    functor(Head, Name, Arity),
+    predicate_property(Head, defined),
+    \+ predicate_property(Head, imported_from(_)),
+    \+ relational_input_position(Name, Position),
+    \+ unguarded_input_position(Name, Position).
+
+%The three positions this rule does NOT yet cover, named rather than hidden.
+%Each predicate lives in a file the change that added this guard does not
+%own, and each is measured 2026-08-19: get-atoms/2 and match/4 are in
+%src/spaces.pl and raise an instantiation_error with no context at all, so a
+%program is told a value is missing and not which one; sread/2 is in
+%src/parser.pl and raises naming system:atom_codes/2, a predicate the MeTTa
+%program never wrote. parse/2 is the same operation under PeTTa's own name
+%and IS guarded, so the gap is the direct sread call only.
+unguarded_input_position('get-atoms', 1).
+unguarded_input_position(match, 1).
+%git-import!/2 is in lib/lib_gitimport.pl and sleep/2 in a library too; both
+%raise an instantiation_error with no context, so the program is told a value
+%is missing and not which operation wanted it [measured 2026-08-19].
+unguarded_input_position('git-import!', 1).
+unguarded_input_position(sleep, 1).
+unguarded_input_position(sread, 1).
+%A fourth of the same shape: add-reduct/3 refuses, and by name, but names the
+%operation it DELEGATES to. `!(add-reduct $u a)` answers
+%(Error (add-atom $u a) "add-atom expects a space as the first argument"), so
+%a program that wrote add-reduct is told about add-atom. src/spaces.pl again.
+unguarded_input_position('add-reduct', 1).
+
+%Names the MeTTa operation and the argument, in the program's own vocabulary.
+%The formal stays ISO so a MeTTa (catch ...) and the Python boundary can both
+%read it, exactly as throw_metta_type_error/3 keeps its own.
+refuse_unbound_input(Operation, Position) :-
+    throw(error(petta_unbound_input(Operation, Position),
+                context(Operation, 'invalid MeTTa operation argument'))).
+
+:- multifile prolog:error_message//1.
+%The operation's own name is the CONTEXT's to print, exactly as it is for
+%`+: number expected, found "s"`, so it is not repeated here.
+prolog:error_message(petta_unbound_input(_, Position)) -->
+    [ 'a value expected in argument ~w, found an unbound variable'-[Position] ].
+
 %%% Taking an expression apart, and the grounded values that also read as one.
 %
 %Each of these grew ONE clause, placed after the cut that a real list takes, so
@@ -778,20 +913,26 @@ non_list(X) :- compound(X), X \= [_|_].
 %scan for a possible matching clause" on the primary index argument, and the
 %variable-headed clause that was already here is what decides that, not the new
 %one [source 2026-08-16, SWI-Prolog 10.1 Reference Manual 2.17].
+'sort-atom'(List, _) :- var(List), !, refuse_unbound_input('sort-atom', 1).
 'sort-atom'(List, Sorted) :- non_list(List), !,
                              ( grounded_list_view(List, View) -> msort(View, Sorted) ; Sorted = [] ).
 'sort-atom'(List, Sorted) :- msort(List, Sorted).
+'size-atom'(List, _) :- var(List), !, refuse_unbound_input('size-atom', 1).
 'size-atom'(List, Size) :- non_list(List), !,
                            ( grounded_list_view(List, View) -> length(View, Size) ; Size = [] ).
 'size-atom'(List, Size) :- length(List, Size).
+'car-atom'(Term, _) :- var(Term), !, refuse_unbound_input('car-atom', 1).
 'car-atom'([H|_], H) :- !.
 'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
 'car-atom'(Term, []) :- \+ Term = [_|_].
+'cdr-atom'(Term, _) :- var(Term), !, refuse_unbound_input('cdr-atom', 1).
 'cdr-atom'([_|T], T) :- !.
 'cdr-atom'(Term, Out) :- grounded_list_view(Term, [_|T]), !, Out = T.
 'cdr-atom'(Term, []) :- \+ Term = [_|_].
+decons(Term, _) :- var(Term), !, refuse_unbound_input(decons, 1).
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
+'index-atom'(List, _, _) :- var(List), !, refuse_unbound_input('index-atom', 1).
 'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
                                 Elem = [].
 'index-atom'(List, Index, Elem) :- var(Index), !,
@@ -836,7 +977,9 @@ grounded_list_view(Term, View) :-
 %A provider is asked first and can disagree: a Python tuple is -/N and reads as
 %its elements NORMALIZED, so a None inside one reads as `()` rather than as
 %janus's spelling of it.
+member(_, L, _) :- var(L), !, refuse_unbound_input(member, 2).
 member(X, L, true) :- member(X, L).
+'is-member'(_, List, _) :- var(List), !, refuse_unbound_input('is-member', 2).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
 
@@ -846,9 +989,12 @@ member(X, L, true) :- member(X, L).
 member_alpha(X, [H|_]) :- (var(X) -> var(H) ; true), X = H, !.
 member_alpha(X, [_|T]) :- member_alpha(X, T).
 
+'is-alpha-member'(_, List, _) :- var(List), !,
+                                 refuse_unbound_input('is-alpha-member', 2).
 'is-alpha-member'(X, List, true) :- \+ \+ member_alpha(X, List), !.
 'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
+'exclude-item'(_, L, _) :- var(L), !, refuse_unbound_input('exclude-item', 2).
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
 %Remove the first element identical to X, keeping the rest in order. select/3
@@ -865,6 +1011,9 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %operation from 2,200,002 to 1,400,002 inferences [measured: 800,000 fewer
 %inferences per operation, 2026-08-15]. The list clauses still handle a
 %non-list right operand before recursing, preserving the empty-tuple result.
+'subtraction-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('subtraction-atom', 1)
+                               ; var(B) -> refuse_unbound_input('subtraction-atom', 2)
+                               ; fail ).
 'subtraction-atom'([], _, []) :- !.
 'subtraction-atom'([H|T], B, Out) :- !,
     ( non_list(B) -> Out = []
@@ -882,8 +1031,14 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %calls (union-atom $xs ($x)) with $xs unbound to SPLIT a list, so append/3
 %must still be reached in its relational modes
 %[tested: metta_set_operations, examples/libraries/roman_test.metta].
+'union-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('union-atom', 1)
+                         ; var(B) -> refuse_unbound_input('union-atom', 2)
+                         ; fail ).
 'union-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'union-atom'(A, B, Out) :- append(A, B, Out).
+'intersection-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('intersection-atom', 1)
+                                ; var(B) -> refuse_unbound_input('intersection-atom', 2)
+                                ; fail ).
 'intersection-atom'([], _, []) :- !.
 'intersection-atom'([H|T], B, Out) :- !,
     ( non_list(B) -> Out = []
@@ -2637,6 +2792,7 @@ prolog:error_message(permission_error(register, metta_function, Name)) -->
 %sread_command/2 answers the Prolog compound complete(Term), which is the
 %right shape for a Prolog caller and the wrong one for a MeTTa program: it
 %would arrive as an opaque term rather than as an expression to match on.
+'sread-command'(Text, _) :- var(Text), !, refuse_unbound_input('sread-command', 1).
 'sread-command'(Text, Result) :-
     sread_command(Text, Answer),
     ( Answer = complete(Term) -> Result = [complete, Term] ; Result = Answer ).
@@ -2692,6 +2848,8 @@ assert(Goal, true) :- current_metta_module(Module),
 %replaces matched the literal &self and answered nothing for any named
 %space; the engine's type machinery is module-parameterized already, so
 %selection is one with_metta_module/2 around the ordinary get-type.
+'get-type-space'(Space, _, _) :- var(Space), !,
+                                 refuse_unbound_input('get-type-space', 1).
 'get-type-space'(Space, X, T) :- space_module(Space, Module),
                                  with_metta_module(Module, 'get-type'(X, T)).
 
@@ -2772,6 +2930,7 @@ undocumented(Name) :- current_metta_space(Space),
 
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
+'format-time'(Format, _) :- var(Format), !, refuse_unbound_input('format-time', 1).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
 
 %%% Filesystem tests: %%%
@@ -2899,6 +3058,7 @@ metta_pragma_key('max-stack-depth', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
 
+'pragma!'(Key, _, _) :- var(Key), !, refuse_unbound_input('pragma!', 1).
 'pragma!'(Key, Value, true) :-
     (   metta_pragma_key(Key, _)
     ->  true
@@ -3069,6 +3229,7 @@ bind_python_call_spec(Spec, Spec).
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what
 %every program written against upstream sees, so it stays as upstream has it.
+'py-call'(SpecList, _) :- var(SpecList), !, refuse_unbound_input('py-call', 1).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
                                         must_be(atom, A),
@@ -3105,6 +3266,7 @@ bind_python_call_spec(Spec, Spec).
 'new-space'(Space) :- gensym('&petta-space-', Space).
 
 %%% States: %%%
+'bind!'(Var, _, _) :- var(Var), !, refuse_unbound_input('bind!', 1).
 'bind!'(Var, ['new-state', Value], []) :- !,
     ( atom(Var) -> nb_setval(Var, Value)
     ; catch(nb_setval(Var, Value), E,
@@ -3286,20 +3448,24 @@ call_goals_in_(Module, [G|Gs]) :- call(Module:G),
                                   call_goals_in_(Module, Gs).
 
 %%% Higher-Order Functions: %%%
+'foldl-atom'(L, _, _, _) :- var(L), !, refuse_unbound_input('foldl-atom', 1).
 'foldl-atom'([], Acc, _Func, Acc).
 'foldl-atom'([H|T], Acc0, Func, Out) :- reduce([Func,Acc0,H], Acc1, _),
                                         'foldl-atom'(T, Acc1, Func, Out).
 
+'map-atom'(L, _, _) :- var(L), !, refuse_unbound_input('map-atom', 1).
 'map-atom'([], _Func, []).
 'map-atom'([H|T], Func, [R|RT]) :- reduce([Func,H], R, _),
                                    'map-atom'(T, Func, RT).
 
+'filter-atom'(L, _, _) :- var(L), !, refuse_unbound_input('filter-atom', 1).
 'filter-atom'([], _Func, []).
 'filter-atom'([H|T], Func, Out) :- ( reduce([Func,H], true, _) -> Out = [H|RT]
                                                              ; Out = RT ),
                                    'filter-atom'(T, Func, RT).
 
 %%% Prolog interop: %%%
+argv(K, _) :- var(K), !, refuse_unbound_input(argv, 1).
 argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number(A, N) -> Arg = N ; Arg = A ).
 %A name with no predicate behind it is refused where the name is written.
 %A registered name with no arity recorded compiles every call to it into a
@@ -3320,6 +3486,8 @@ argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number
 %rather than adding a rule, and a named space that defines the name still
 %shadows it, which is the behaviour that should happen
 %[tested: a_registered_predicate_survives_a_named_space_claiming_its_name].
+import_prolog_function(N, _) :- var(N), !,
+                                refuse_unbound_input(import_prolog_function, 1).
 import_prolog_function(N, true) :-
     import_prolog_function_at(N, scan).
 
@@ -4109,6 +4277,7 @@ metta_predicate_goal([Space|Pattern],
     atom(Space), atom_concat('&', _, Space), !.
 metta_predicate_goal([F|Args], Term) :- Term =.. [F|Args].
 
+'Predicate'(Parts, _) :- var(Parts), !, refuse_unbound_input('Predicate', 1).
 'Predicate'(Parts, Term) :- metta_predicate_goal(Parts, Term).
 %Resolved in the CALLING space's module, which reaches both directions of this
 %seam: a host Prolog predicate through the module's base chain, and a MeTTa
@@ -4319,9 +4488,13 @@ importer_helper_impl(Space, File) :-
                      load_imported_metta_file(CanonPath, _, Space)) ).
 
 :- dynamic translator_rule/1.
+'add-translator-rule!'(HV, _) :- var(HV), !,
+                                 refuse_unbound_input('add-translator-rule!', 1).
 'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
                                       -> true ; assertz(translator_rule(HV)) ).
 
+'remove-translator-rule!'(HV, _) :- var(HV), !,
+                                    refuse_unbound_input('remove-translator-rule!', 1).
 'remove-translator-rule!'(HV, true) :-
     must_be(nonvar, HV),
     retractall(translator_rule(HV)).
