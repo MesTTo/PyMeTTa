@@ -105,6 +105,12 @@
 %     group, and a call costs a flat 3 inferences at 2 and at 16 bindings
 %     against 62 and 370 for the same bindings handed over
 %     [measured 2026-08-19].
+%   - An equation head is a PATTERN at every depth, matched structurally,
+%     whatever a label inside it happens to have equations for, so a head and
+%     a match that reads the same shape back agree
+%     [tested 2026-08-19: translator_head_is_a_pattern]. The only head
+%     argument that is not pure structure is the in-place annotation
+%     `(: $x T)`, which is a constraint on what the position may match.
 % Fails when:
 %   - a case whose cases are not written out sits on a hot path. It costs one
 %     translation per call, and a case body holding a lambda generates one
@@ -116,6 +122,16 @@
 %     while a body with no lambda left none]. Writing the cases out compiles
 %     them once and pays neither cost. A let* whose bindings are not written
 %     out carries the same cost for the same reason.
+%   - a program relied on an equation head EVALUATING a position, which this
+%     engine used to do wherever the label had equations. `(= (h (myfunc (10)
+%     $B) $C) ($B $C))` no longer constrains its argument by running myfunc
+%     backwards; the constraint is written in the body, where `let` unifies
+%     the argument with what the call produces and answers the same answers
+%     [tested: examples/functions/functionhead.metta,
+%     examples/functions/functionhead2.metta,
+%     examples/functions/functionhead3.metta,
+%     examples/libraries/patrick_test.metta,
+%     examples/reasoning/tilepuzzle.metta].
 %   - the DUAL of a let* whose bindings have not arrived is asked for.
 %     src/duals.pl builds duals at compile time from the recorded MeTTa body,
 %     so bindings that arrive at run time have no dual, and (not-provable ...)
@@ -182,16 +198,16 @@ clear_fun_meta(Module, F) :-
     retractall(fun_meta_clause(Module, F, _, _)),
     retractall(fun_head_goals(Module, F)).
 
-% A head argument that is itself a function call is Curry's functional
-% pattern: (= (halfof (dbl $n)) $n) compiles to halfof(A,B) :- dbl(B,A) and
-% runs dbl backwards. constrain_args/3 turns it into a goal, so the retained
-% equation no longer holds the whole head, and anything reading equations back
-% has to know. src/duals.pl refuses to build a dual for such a function rather
+% A head argument that compiles to a GOAL rather than to structure, which is
+% now only the in-place type annotation `(: $x T)`: (= (f (: $x Number)) $x)
+% compiles to f(A, A) :- has_type(A, 'Number'). The retained equation no
+% longer holds the whole head, so anything reading equations back has to
+% know, and src/duals.pl refuses to build a dual for such a function rather
 % than negate a head it cannot see. Recording only the non-empty case keeps
 % this to one == test per compiled equation, which costs no inference at all
 % [measured 2026-08-15: ==/2 is compiled inline, a predicate call is not].
-% Module-keyed for the same reason as fun_meta_clause/4: a functional-pattern
-% head in one space must not refuse a dual in another.
+% Module-keyed for the same reason as fun_meta_clause/4: an annotated head in
+% one space must not refuse a dual in another.
 :- dynamic fun_head_goals/2.
 
 note_head_goals(F) :- current_metta_module(Module),
@@ -200,7 +216,38 @@ note_head_goals(F) :- current_metta_module(Module),
                          ; assertz(fun_head_goals(Module, F), Ref),
                            record_source_assertion(Ref) ).
 
-%Pattern matching, structural and functional/relational constraints on arguments:
+%An equation head is a PATTERN, matched, and this walk builds it. The only
+%thing that is not pure structure is the in-place type annotation below, which
+%is a constraint on what a position may match rather than a computation.
+%
+%Nothing here asks whether a label happens to have equations. It used to: a
+%head argument whose label was a defined function became a CALL, Curry's
+%functional pattern, so (= (f (g $x)) $x) compiled to f(A, B) :- g(B, A) and
+%ran g backwards. The mechanised semantics has one matching relation and it
+%does not consult that. AST.matchPat's own words are "a pattern variable
+%matches any subterm (and must match consistently if it recurs); CONSTRUCTORS
+%MATCH STRUCTURALLY; everything else matches only itself", four cases and no
+%case reading whether a label is defined [source 2026-08-19:
+%LeaTTa/MeTTaIL/Semantics/Reduce.lean:30-46, AST.matchPat], and equations are
+%applied by matching the whole left-hand side, `(matchAtoms p.fst a)`
+%[source 2026-08-19: LeaTTa/MettaHyperonFull/Operational/Properties.lean:48-50,
+%firedReducts].
+%
+%Two of the arbiter's own corpus files decide it, and this engine failed both.
+%`(= (outer-hold (inner-sum $x $y)) outer-held)` with `(: outer-hold (-> Atom
+%Symbol))` answers `outer-held` there and RAISED here, because the head became
+%`inner-sum` run backwards over syntax; and `(= (nested-atom (produce-pa3))
+%nested-argument-held)` beside `(= (nested-atom pa3) ...)` answers only
+%`nested-argument-evaluated` there and answered BOTH here [measured 2026-08-19:
+%LeaTTa/tests/semantics/types-meta/19_atom_parameter_outer_call.metta and
+%15_atom_parameter_nested_parametric.metta, through
+%tests/conformance/leatta_run.pl].
+%
+%The relational reading is not lost, it is written where it runs: a `let` in
+%the body says the same thing and answers the same answers
+%[tested: examples/functions/functionhead.metta,
+%examples/functions/functionhead2.metta,
+%examples/functions/functionhead3.metta].
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 %An IN-PLACE TYPE ANNOTATION in a head parameter position: `(: $x T)` matches
 %anything whose type includes T and binds $x to it, and `(: $x $t)` binds $t to
@@ -270,10 +317,6 @@ constrain_args([F, A, B], Out, Goals) :- nonvar(F),
                                          constrain_args(B, B1, G2),
                                          Out = [A1|B1],
                                          append(G1, G2, Goals), !.
-constrain_args([F|Args], Var, Goals) :- atom(F),
-                                        fun_here(F), !,
-                                        translate_expr([F|Args], GoalsExpr, Var),
-                                        flatten(GoalsExpr, Goals).
 constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
                                   flatten(NestedGoalsList, Goals), !.
 

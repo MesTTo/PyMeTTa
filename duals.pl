@@ -51,10 +51,10 @@
 %   - translator.pl:fun_meta_clause/4 retains one fact per compiled equation
 %     holding its head arguments and its unevaluated MeTTa body
 %     [source: src/translator.pl, record_fun_meta/3].
-%   - a head argument that is itself a function call, which is Curry's
-%     functional pattern and which constrain_args/3 compiles into a goal, is
+%   - a head argument that constrain_args/3 compiles into a GOAL rather than
+%     into structure, which is the in-place type annotation `(: $x T)`, is
 %     recorded by fun_head_goals/2 so this file can refuse it rather than
-%     dualise a head it cannot see [tested: a_functional_pattern_head_has_no_dual].
+%     dualise a head it cannot see [tested: an_annotated_head_has_no_dual].
 %   - MeTTa True and False are the Prolog atoms true and false
 %     [source: src/parser.pl:133].
 % Guarantees:
@@ -627,17 +627,17 @@ refuse_undefined_builtin(Fun, InputArity, Module) :-
                              have a dual')))
     ).
 
-%constrain_args/3 turns a head argument that is a function call into a goal,
-%which is Curry's functional pattern: (= (halfof (dbl $n)) $n) compiles to
-%halfof(A,B) :- dbl(B,A) and runs dbl backwards. That goal is not part of the
-%recorded body, so a dual built from the recorded head would silently ignore
-%it and claim more than it can prove.
+%constrain_args/3 turns an in-place type annotation in a head argument into a
+%goal: (= (f (: $x Number)) $x) compiles to f(A, A) :- has_type(A, 'Number').
+%That goal is not part of the recorded body, so a dual built from the recorded
+%head would silently ignore the constraint and claim more than it can prove.
 refuse_unsupported_head(Module, Fun) :-
     (   fun_head_goals(Module, Fun)
     ->  throw(error(type_error(dualisable_function, Fun),
                     context(build_dual/3,
-                            'this function matches a functional pattern in its \c
-                             head, which has no dual')))
+                            'this function constrains an argument in its head \c
+                             with an in-place annotation, and that constraint \c
+                             has no dual')))
     ;   true
     ).
 
