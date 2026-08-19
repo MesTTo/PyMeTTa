@@ -1828,7 +1828,35 @@ native_expression(Module, Space, Rel, PatArgs) :-
 clear_foreign_atoms(Space) :-
     foreign_write(Space, clear, metta_foreign_clear(Space)).
 
+%A space has two halves and this used to empty one of them. The storage sweep
+%below drops every stored atom, and the atoms that also COMPILED left their
+%clauses standing in the space's execution module, so a space holding nothing
+%still answered its own functions: define (= (past-life) inherited), clear,
+%and `!(past-life)` in that space still answered `inherited` over an empty
+%space [measured 2026-08-19, ai-tmp/spaces-p1/probe_p116h.pl]. Space names
+%are POOLED, so that is a previous life answering through a recycled name.
+%
+%It was masked rather than absent: python/petta/shim.pl's clear removes
+%equations through the removal funnel before calling this, so the Python door
+%was whole and the ENGINE's own door was not. Every other caller got the half
+%clear, and P1.14's reload will come through this one.
+%
+%So the compiled half leaves first, through metta_remove_atom/3, which is the
+%code that owns each shape: an equation un-compiles its clause and forgets the
+%function name when nothing else defines it, a declaration recompiles the call
+%sites it was shaping. Only those two shapes, because only those two have a
+%compiled half, which is exactly the two clauses metta_remove_atom/3 answers
+%specially; a plain atom is storage and nothing else, so the sweep is both
+%correct and one retractall per arity rather than one removal per atom.
+%
+%The funnel is idempotent, so the shim's own pass in front of this one leaves
+%nothing here to find and no removal is announced twice
+%[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
+%test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
 clear_native_atoms(Space) :-
+    findall(Atom, ( get_native_atom(Space, Atom), compiled_half(Atom) ), Compiled),
+    forall(member(Atom, Compiled),
+           ( metta_remove_atom(Space, Atom, _) -> true ; true )),
     ( native_storage_module_ready(Space, Module)
       -> forall(( current_predicate(Module:Space/Arity),
                   functor(Head, Space, Arity) ),
@@ -1836,6 +1864,13 @@ clear_native_atoms(Space) :-
          retractall(Module:'$petta_native_scalar'(_))
     ; true ),
     retractall(import_life(Space, _, _)).
+
+%Whether removing this atom has a consequence beyond storage. Kept beside
+%metta_remove_atom/3's own clauses in spirit: these are the shapes it answers
+%specially, and a shape added there without being added here would go back to
+%leaving its compiled half behind a clear.
+compiled_half([=, [F|_], _]) :- atom(F).
+compiled_half([':', F, _]) :- atom(F), fun(F).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
 %native_storage_module_ready/2 is a dynamic lookup, so an unbound space
