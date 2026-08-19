@@ -227,6 +227,39 @@ register_metta_library_path(Alias, Directory0, true) :-
    ;   assertz(petta_engine_module(EngineModule))
    ).
 
+%The module the base tier compiles into, written ONCE and read everywhere:
+%current_metta_module/1's default, reduce/3's dispatch, fun_here_in/2's shared
+%tier and the type family's &self clause all ask for it.
+%
+%Declared here, before the files that read it are compiled, so the expansion
+%below applies to them. spaces.pl owns the mapping this is the '&self' case of
+%and asserts the same answer into its cache; the plunit test named below is
+%what keeps the two from drifting
+%[tested: spaces_execution_modules:the_written_self_module_is_the_mapped_one].
+metta_self_module('$petta_exec:&self').
+
+%And the prefix the mapping is built from, written once for the same reason
+%and read the same way. space_module/2 builds a module name with it,
+%metta_module_space/2 strips it, and with_metta_module/2 tests for it.
+metta_exec_module_prefix('$petta_exec:').
+
+%And read for FREE. A one-clause fact still costs an inference per call, and
+%these are the hottest paths in the engine: reduce/3 reads it on every
+%dispatch and current_metta_module/1 on every compile and every runnable form.
+%goal_expansion/2 replaces the call with the unification it performs, which
+%SWI folds into the clause, so the name stays written in one place and the
+%read costs nothing [measured 2026-08-19: annotated-relation 483,019 -> 479,523
+%inferences, back to its pre-Phase-11 baseline; py-method-call
+%1,696,849,495 -> 1,657,043,976 instructions:u].
+%
+%A unification rather than `true` with the argument bound at expansion time,
+%because most callers use this as a TEST on a module they already hold
+%(`metta_self_module(Module), !` selects the &self clause of the type family)
+%and binding their variable at compile time would make every module answer
+%yes.
+goal_expansion(metta_self_module(Module), Module = '$petta_exec:&self').
+goal_expansion(metta_exec_module_prefix(Prefix), Prefix = '$petta_exec:').
+
 :- ensure_loaded([ext_points, parser, translator, specializer, filereader,
                   '../lib/lib_gitimport', spaces, tracer, duals, python]).
 
@@ -2982,6 +3015,8 @@ rewrite_parsed_form(Space, FormStr, Term, Rewritten) :-
 %module when nothing is in force, and a bare call/1 would resolve in the
 %ENGINE's module, which is the parent and cannot see a space's clauses. The
 %two-branch version and the call_goals/1 it needed are gone with it.
+%Spelling the branch out here instead was measured and bought nothing
+%[measured 2026-08-19: handle-round-trip 1,950,077 either way].
 %eval takes its argument as written: &self resolved at the reader if the
 %expression came from source, and a runtime-built term keeps its literal
 %atoms, the same boundary stored data has. A substitution walk here re-ran
@@ -4145,7 +4180,7 @@ current_metta_module(Module) :-
 %space were empty. One indexed cache probe turns that into a refusal at the
 %call [tested: metta_module_context:a_space_name_is_refused_where_a_module_is_asked].
 with_metta_module(Module, Goal) :-
-    (   metta_exec_module_cache(_, Module)
+    (   metta_exec_module_prefix(Prefix), sub_atom(Module, 0, _, _, Prefix)
     ->  true
     ;   throw(error(type_error(metta_execution_module, Module),
                     context(with_metta_module/2,

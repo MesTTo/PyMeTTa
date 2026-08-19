@@ -242,13 +242,23 @@ native_retract_all(Head, Removed) :-
 %and the libraries through the base chain below, so nothing has to be
 %published for a compiled clause to run
 %[tested: spaces_execution_modules].
-space_module(Space, Module) :- metta_exec_module_cache(Space, Module), !.
+%DETERMINISTIC, and the if-then-else is what makes it so. Asserting the known
+%spaces as facts of space_module/2 itself in front of the rule reads one
+%inference cheaper, and costs far more than it saves: the rule's head unifies
+%with every space too, so a known one succeeds holding a CHOICE POINT, and
+%backtracking into it re-enters the rule and takes the mutex. Measured
+%2026-08-19 on that shape: eval-arith 172,009 -> 237,980 inferences, op-raw
+%178,011 -> 253,976, op-encoded 214,011 -> 289,969.
 space_module(Space, Module) :-
-    atom_concat('$petta_exec:', Space, Module),
-    with_mutex('$petta_metta_exec',
-               ensure_metta_exec_module_locked(Space, Module)).
+    (   metta_exec_module_known(Space, Module)
+    ->  true
+    ;   metta_exec_module_prefix(Prefix),
+        atom_concat(Prefix, Space, Module),
+        with_mutex('$petta_metta_exec',
+                   ensure_metta_exec_module_locked(Space, Module))
+    ).
 
-:- dynamic metta_exec_module_cache/2.
+:- dynamic metta_exec_module_known/2.
 
 %The chain, and why each link is where it is.
 %
@@ -281,12 +291,17 @@ metta_exec_module_base(Space, Base) :-
 %place and the module's own predicates still answered], so recovering a cache
 %fact a rolled-back transaction erased costs one redundant set and no repair,
 %the same shape ensure_native_storage_module_locked/2 uses above.
+%asserta, so the facts stay in front of the rule above and a known space never
+%reaches it. Re-entered when a rolled-back transaction erased the fact and left
+%the module based: set_module/1 is idempotent, so the repair is one redundant
+%set rather than a special case, which is the shape
+%ensure_native_storage_module_locked/2 uses.
 ensure_metta_exec_module_locked(Space, Module) :-
-    metta_exec_module_cache(Space, Module), !.
+    metta_exec_module_known(Space, Module), !.
 ensure_metta_exec_module_locked(Space, Module) :-
     metta_exec_module_base(Space, Base),
     set_module(Module:base(Base)),
-    assertz(metta_exec_module_cache(Space, Module)).
+    assertz(metta_exec_module_known(Space, Module)).
 
 %The inverse of space_module/2. It used to be written out by hand in four
 %places, three of them outside this file, each as
@@ -297,17 +312,14 @@ ensure_metta_exec_module_locked(Space, Module) :-
 %because every caller has one in hand and a silent pass-through would answer a
 %module name where a space name was asked for
 %[tested: spaces_execution_modules:the_module_to_space_map_is_the_inverse].
-metta_module_space(Module, Space) :- atom_concat('$petta_exec:', Space, Module).
+metta_module_space(Module, Space) :-
+    metta_exec_module_prefix(Prefix),
+    atom_concat(Prefix, Space, Module).
 
-%The base tier's module, memoised the way native_storage_module_cache/2
-%memoises the storage one. Read on every current_metta_module/1 miss and on
-%every fun_here_in/2 miss, so it is one indexed fact rather than the
-%atom_concat/3 and the cache probe space_module/2 would cost.
-:- dynamic metta_self_module/1.
-:- space_module('&self', SelfModule),
-   (   metta_self_module(SelfModule) -> true
-   ;   assertz(metta_self_module(SelfModule))
-   ).
+%&self's execution module exists from load, the way its storage module does,
+%so nothing has to create it on a first write and metta_self_module/1
+%(src/metta.pl) names a module that is already based.
+:- space_module('&self', _).
 
 %Whether anything still holds a clause for a function, which decides whether
 %removing an equation forgets the NAME as well. Two sources, and `user` used to
@@ -322,10 +334,19 @@ metta_module_space(Module, Space) :- atom_concat('$petta_exec:', Space, Module).
 %state of the rules. Removing one of two scoped get-type rules then wiped
 %fun_in/2 for the name and the surviving rule stopped answering
 %[tested: spaces_type_extensions:removing_one_rule_keeps_the_other_visible].
+%number_of_clauses/1 before clause/3, which is the guard tracer.pl already
+%carries and for the same reason: clause/3 REFUSES a predicate it cannot show,
+%raising permission_error(access, private_procedure, _) rather than failing,
+%and the engine's module holds plenty of those. Removing an equation for any
+%system-builtin name reached one and raised out of remove-atom
+%[measured 2026-08-19: with_output_to/2]. The property is true for exactly the
+%predicates clause/3 accepts [source: src/tracer.pl, metta_trace_target/1
+%measured 2026-08-16].
 function_still_defined(F) :- compiled_function_name(F, Predicate),
                              ( fun_in(Module, F) ; petta_engine_module(Module) ),
                              current_predicate(Module:Predicate/Arity),
                              functor(Head, Predicate, Arity),
+                             predicate_property(Module:Head, number_of_clauses(_)),
                              clause(Module:Head, _, _),
                              !.
 
@@ -335,6 +356,8 @@ function_still_defined(F) :- compiled_function_name(F, Predicate),
 module_owns_function(Module, F) :- compiled_function_name(F, Predicate),
                                    current_predicate(Module:Predicate/Arity),
                                    functor(Head, Predicate, Arity),
+                                   predicate_property(Module:Head,
+                                                      number_of_clauses(_)),
                                    clause(Module:Head, _, Ref),
                                    clause_property(Ref, module(Module)),
                                    !.

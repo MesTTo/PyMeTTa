@@ -254,6 +254,14 @@ petta_verifying_specializations :-
 %per specialization that the generic call agrees. The comparison is over
 %COMPLETE answer lists with variant equality, so a renaming is not a
 %difference and a missing, extra or reordered answer is.
+%The specialization goal is compiled into the module of the space that
+%triggered it and is CALLED from here, which is the engine's module, so both
+%of these carry it in. Without the declaration the verifying mode raised
+%existence_error for every specialization in the corpus, which is what
+%check.sh's spec-differential lane runs over
+%[tested: specializer_invalidation:the_verifier_runs_a_clone_in_its_own_module].
+:- meta_predicate petta_verified_specialization(?, 0),
+                  petta_check_specialization(?, 0).
 petta_verified_specialization(SpecName, Spec) :-
     (   ho_specialization_agrees(SpecName)
     ->  call(Spec)
@@ -288,17 +296,30 @@ petta_verified_specialization(SpecName, Spec) :-
 %unbounded [source: Pnueli, Siegel and Singerman, Translation Validation,
 %TACAS 1998].
 petta_check_specialization(SpecName, Spec) :-
-    Spec =.. [_|Args],
+    %The module the specialization was compiled into, recovered from the
+    %qualification the meta_predicate declaration above put on the way in.
+    %Both sides of the comparison run there: the clone lives in that module,
+    %and so does the generic function it was cloned from.
+    strip_module(Spec, Module, Bare),
+    Bare =.. [_|Args],
     copy_term(Args, SpecArgs),
     copy_term(Args, PlainArgs),
     SpecCopy =.. [SpecName|SpecArgs],
     petta_specialization_generic(SpecName, PlainArgs, Generic),
     petta_specialization_budget(Budget),
+    %Both sides run with that module IN FORCE as well as qualified. The
+    %generic side reaches reduce/3 for a higher-order argument, and reduce/3
+    %resolves the name against current_metta_module/1: without the switch it
+    %asked &self about a function only this space defines, got no answer, and
+    %handed the call back unreduced, so the check reported a disagreement that
+    %was its own [tested:
+    %specializer_invalidation:the_verifier_runs_a_clone_in_its_own_module].
     catch(
         (   call_with_inference_limit(
-                (   findall(SpecArgs, call(SpecCopy), Specialized),
-                    findall(PlainArgs, call(Generic), Plain)
-                ), Budget, Result),
+                with_metta_module(Module,
+                (   findall(SpecArgs, call(Module:SpecCopy), Specialized),
+                    findall(PlainArgs, call(Module:Generic), Plain)
+                )), Budget, Result),
             (   Result == inference_limit_exceeded
             ->  Outcome = unbounded
             ;   Outcome = both(Specialized, Plain)
