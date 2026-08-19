@@ -193,7 +193,7 @@ def _value(written: str):
     """One written group as a VALUE, so a difference in spelling is not
     reported as a difference in answer: the engine writes `true` where the
     library writes `True` and both parse to Gnd(True) [measured
-    2026-08-18]. An unparseable group compares as its own text, which keeps
+    2026-08-18]. An unparsable group compares as its own text, which keeps
     a malformed answer visible instead of collapsing it to equal."""
     from petta.atoms import parse
 

@@ -14,7 +14,7 @@
 %     constrain the head arguments [measured 2026-08-19 by wrapping it and
 %     reading every call 45 shipped examples make: `true` or `false` every
 %     time]. It is a PlDoc mode line above the clause, so the development
-%     build checks it at run time [tested: tests/prolog/dev_typed.pl].
+%     build checks it at run time [tested: the_dev_build_inserts_checks_and_types_a_planted_violation].
 %     Its other two arguments, and every argument of translate_expr/3,
 %     translate_expr_to_conj/3 and translate_runnable_expr/3, are terms UNDER
 %     CONSTRUCTION, so their mode lines record modes and no types: a check on

@@ -9,8 +9,9 @@
 %     wrapping the three and reading every call the 19 shipped MeTTa files
 %     that remove an atom make]. Each of those is a PlDoc mode line above its
 %     clause, so the development build checks it at run time rather than
-%     leaving it prose [tested: tests/prolog/dev_typed.pl, and every plunit
-%     suite runs again under that build].
+%     leaving it prose [tested:
+%     the_dev_build_inserts_checks_and_types_a_planted_violation, and the
+%     dev-typed gate lane runs every plunit suite under that build].
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
