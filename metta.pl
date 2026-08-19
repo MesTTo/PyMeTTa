@@ -421,18 +421,46 @@ metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
 %and carried the check forward while another did not
 %[source: types-basic/48-badargtype-argument-order.metta]. The cut commits to
 %the first carrying type, because the check continues under ONE assignment.
+%
+%A parameter naming a METATYPE is settled by the argument's metatype alone and
+%reports nothing, which is the other half of the compiled call site's
+%`(has_type(A,T) *-> true ; get-metatype(A,T))`: `(format-args "{}" (1 2))`
+%passes an Expression parameter whose argument's DECLARED type is the tuple
+%`(Number Number)` [measured 2026-08-19 against the arbiter, which answers
+%"1"]. The declared types still decide when the metatype does not, which is
+%why `(: xs Expression)` also passes and `(: n Number)` does not.
 metta_bad_argument([Expected|Rest], [Argument|Arguments], N,
                    Position, Reported, Actual) :-
     metta_argument_types(Argument, Types),
-    (   Position = N, Reported = Expected,
-        member(Actual, Types),
-        \+ metta_types_match(Actual, Expected)
-    ;   member(Carried, Types),
-        metta_types_match(Carried, Expected),
-        !,
-        Next is N + 1,
+    (   metta_metatype_settles(Argument, Expected)
+    ->  Next is N + 1,
         metta_bad_argument(Rest, Arguments, Next, Position, Reported, Actual)
+    ;   (   Position = N, Reported = Expected,
+            member(Actual, Types),
+            \+ metta_types_match(Actual, Expected)
+        ;   member(Carried, Types),
+            metta_types_match(Carried, Expected),
+            !,
+            Later is N + 1,
+            metta_bad_argument(Rest, Arguments, Later, Position, Reported, Actual)
+        )
     ).
+
+%A metatype parameter, and the four names that are one. Atom and %Undefined%
+%are not here because metta_types_match/2 already takes them as wildcards, and
+%an UNBOUND expected type is not one either: a chain's own type variable must
+%be fixed by a declared type, or `(== 1 "S")` would report the metatype its
+%first operand carries instead of Number.
+metta_metatype_settles(Argument, Expected) :-
+    nonvar(Expected),
+    metta_metatype_name(Expected),
+    'get-metatype'(Argument, Metatype),
+    Metatype == Expected.
+
+metta_metatype_name('Symbol').
+metta_metatype_name('Expression').
+metta_metatype_name('Grounded').
+metta_metatype_name('Variable').
 
 %The types an ARGUMENT CHECK may read, which is not everything get-type
 %answers. A `get-type` EQUATION is a MeTTa program, and a program that types
@@ -497,6 +525,18 @@ metta_operation_refusal(Operation, _, Message) :-
 %[source: the same file, whose STATUS names atom.rs:194,228; measured
 %2026-08-19 against the arbiter: `(min-atom 5)` and `(min-atom ())` answer the
 %first two].
+%format-args words its refusal by WHICH argument is wrong: a first argument
+%that is not a format string earns the long text, and a first that is one with
+%a second that is not an expression earns the conversion's own
+%[source: LeaTTa MettaHyperonFull/Minimal/Stdlib.lean, formatArgsOp's three
+%cases].
+metta_operation_refusal('format-args', [Format|_], Message) :-
+    (   string(Format)
+    ->  Message = "Atom is not an ExpressionAtom"
+    ;   Message = "format-args expects format string as a first argument and expression as a second argument"
+    ).
+metta_operation_refusal('sort-strings', _,
+    "sort-strings expects expression with strings as a first argument").
 metta_operation_refusal(Operation, [Argument], Message) :-
     metta_numeric_expression_operation(Operation),
     (   non_list(Argument)
@@ -511,6 +551,7 @@ metta_operation_refusal(Operation, [Argument], Message) :-
 
 metta_numeric_expression_operation('min-atom').
 metta_numeric_expression_operation('max-atom').
+
 
 metta_input_number_operation('sin-math').    metta_input_number_operation('cos-math').
 metta_input_number_operation('tan-math').    metta_input_number_operation('asin-math').
@@ -866,6 +907,77 @@ metta_numeric_list(List) :- is_list(List), List \== [], maplist(number, List).
 'random-float'('&rng', Min, Max, Result) :-
     catch(( random(R), Result is Min + R * (Max - Min) ), E,
           rethrow_metta_operation_error('random-float', E)).
+
+%%% Runtime format strings and string ordering: %%%
+%
+%Both are always-loaded corelib operations rather than library ones, because
+%the arbiter's corpus calls them with no import
+%[source: LeaTTa MettaHyperonFull/Minimal/Stdlib.lean, the corelib blocks].
+%They used to live in lib/lib_string.pl, where a program reached them only
+%through (import! &self (library lib_string)) and where the formatter was a
+%plain {}-substitution rather than upstream's.
+%
+%format-args interpolates through the dyn_fmt crate's Arguments, not Rust's
+%own format!, and that formatter is looser than it looks. Two states, a
+%literal PIECE and an ARG opened by `{`. In the piece state a `{` opens an
+%argument and a `}` is DROPPED with the character after it taken literally,
+%which is what makes `}}` print one brace. In the argument state a `}`
+%consumes the next argument, or produces NOTHING once the arguments run out,
+%while any other character ends the argument and is taken literally, which is
+%what makes `{x}` print `x` and `{{` print one brace. A brace with nothing
+%after it ends the string [source: the same file, formatPiece and formatArg,
+%over https://docs.rs/dyn-fmt; measured 2026-08-19 against the arbiter:
+%`"{{}}{}"` with one argument is `{}1`, `"{x}{}"` with two is `x{`, and
+%`"{} and {}"` with one is `only and `, where this engine's library left the
+%unfilled `{}` standing] [tested: runtime_format_strings].
+'format-args'(Format, Arguments, Out) :-
+    (   string(Format), is_list(Arguments)
+    ->  maplist(metta_console_text, Arguments, Texts),
+        string_codes(Format, Codes),
+        format_piece(Texts, Codes, OutCodes),
+        string_codes(Out, OutCodes)
+    ;   metta_operation_answer('format-args', [Format, Arguments], Out)
+    ).
+
+format_piece(_, [], []).
+format_piece(Arguments, [0'{|Rest], Out) :- !,
+    ( Rest == [] -> Out = [] ; format_arg(Arguments, Rest, Out) ).
+format_piece(Arguments, [0'}|Rest], Out) :- !,
+    (   Rest = [Next|More]
+    ->  Out = [Next|Tail],
+        format_piece(Arguments, More, Tail)
+    ;   Out = []
+    ).
+format_piece(Arguments, [Code|Rest], [Code|Tail]) :-
+    format_piece(Arguments, Rest, Tail).
+
+format_arg(_, [], []).
+format_arg(Arguments, [0'}|Rest], Out) :- !,
+    (   Arguments = [Text|More]
+    ->  string_codes(Text, Codes),
+        append(Codes, Tail, Out),
+        format_piece(More, Rest, Tail)
+    ;   format_piece([], Rest, Out)
+    ).
+format_arg(Arguments, [Code|Rest], [Code|Tail]) :-
+    format_piece(Arguments, Rest, Tail).
+
+%The CONSOLE rendering, which is what upstream interpolates: atom_to_string is
+%the same rendering println! uses and it prints a string's characters with no
+%quotes, which is what lets help! print documentation unquoted
+%[source: the same file, formatArgsString].
+metta_console_text(Value, Text) :- string(Value), !, Text = Value.
+metta_console_text(Value, Text) :- swrite(Value, Text).
+
+%Upstream sorts an expression of STRINGS and refuses anything else by name;
+%sort-atom is the general form that orders any atom. The order is the printed
+%form's, and for strings that is the strings' own
+%[source: the same file, sortStringsOp and sortAtoms].
+'sort-strings'(List, Out) :-
+    (   is_list(List), maplist(string, List)
+    ->  msort(List, Out)
+    ;   metta_operation_answer('sort-strings', [List], Out)
+    ).
 
 %%% Boolean Logic: %%%
 bool(true).
@@ -5128,6 +5240,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
+                          'format-args', 'sort-strings',
                           sleep, 'pragma!', metta,
                           import_prolog_function, check_prolog_function_names, import_prolog_functions,
                           'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,
