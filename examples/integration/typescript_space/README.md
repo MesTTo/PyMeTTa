@@ -33,9 +33,13 @@ end. Four POST operations, JSON bodies both ways, plus `GET /health`:
 | `POST /remove` | `{"space": "&self", "atom": <wire>}` | `{"removed": bool}` |
 | `POST /add_many` | `{"space": "&self", "atoms": [<wire>...]}` | `{"added": n}` |
 
-A wire atom is a tagged array: `["s", name]` symbol, `["v", name]`
-variable, `["n", number]`, `["g", value]` grounded (strings cross this
-way), `["e", [children...]]` expression. Errors are
+A wire atom is a tagged array, `["s", name]` symbol, `["v", name]`
+variable, `["n", number]`, `["g", text]` grounded, `["e", [children...]]`
+expression, and `CODEC.md` in the repository root is the grammar for it.
+This server is run against that page's golden corpus by
+`python/tests/test_codec_typescript.py`, which also pins the three places
+it diverges: it does not check the `g` payload, and JavaScript's single
+number type turns an integral float back into an integer. Errors are
 `{"error": "..."}` with a 4xx status. Refusals mirror `serve()` exactly:
 401 before the body is read when a Bearer token is configured and
 missing or wrong (constant-time compare), 411 without content-length,

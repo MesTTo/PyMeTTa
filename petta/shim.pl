@@ -32,6 +32,10 @@
 %     sharing an anonymous one, and a malformed wire term fails rather than
 %     decoding to something [tested 2026-08-16: shim_wire_decoding,
 %     shim_wire_variable_sharing in tests/prolog/shim.plt]
+%   - A payload outside the class its tag names fails as a malformed shape
+%     does, so a tag is a claim about its payload rather than a label
+%     [tested 2026-08-20:
+%     shim_wire_decoding:a_payload_outside_its_tags_class_fails]
 %   - petta_py_run/3, petta_py_run_using/4 and petta_py_run_status/3 register a
 %     source's whole signature set before processing any of its forms, through
 %     the engine's own prepare_parsed_forms/1, so a ! may NAME a function the
@@ -170,13 +174,28 @@ petta_py_var_name([_|Pairs], T, N) :- petta_py_var_name(Pairs, T, N).
 petta_py_tag(T, T) :- atom(T), !.
 petta_py_tag(T, A) :- string(T), atom_string(A, T).
 
-%Booleans cross from Python as janus @(true)/@(false), as atoms, or as text:
+%A HOST ANSWER read as a boolean: a Python predicate answers whatever it
+%answers and everything that is not one of the true spellings is false, the
+%truthiness reading. This is for a RETURN VALUE, not for a wire payload; the
+%b tag has its own strict reader below, because a payload the grammar does
+%not admit is a malformed term and turning it into `false` would answer a
+%question nobody asked.
 petta_py_bool(B, true)  :- B == true, !.
 petta_py_bool(B, false) :- B == false, !.
 petta_py_bool(B, true)  :- B == '@'(true), !.
 petta_py_bool(B, false) :- B == '@'(false), !.
 petta_py_bool(B, true)  :- B == "true", !.
 petta_py_bool(_, false).
+
+%The b tag's payload, and nothing else. Facts rather than a chain of ==/2
+%with cuts, so first-argument indexing decides in one step and an
+%inadmissible payload has no clause to fall into.
+petta_py_wire_bool(true,       true).
+petta_py_wire_bool(false,      false).
+petta_py_wire_bool('@'(true),  true).
+petta_py_wire_bool('@'(false), false).
+petta_py_wire_bool("true",     true).
+petta_py_wire_bool("false",    false).
 
 %Decode a tagged wire term; every v tag becomes its own fresh variable.
 %
@@ -205,11 +224,43 @@ petta_py_decode_(h, [Id|_], Blob) :-
                     context(petta_py_decode_/3,
                             'the handle was released or never issued')))
     ).
-petta_py_decode_(s, [S], A)     :- atom_string(A, S).
-petta_py_decode_(g, [S], Str)   :- ( string(S) -> Str = S ; atom_string(S, Str) ).
-petta_py_decode_(n, [N], N).
-petta_py_decode_(b, [B], A)     :- petta_py_bool(B, A).
-petta_py_decode_(v, [_], _).
+%Each payload is checked against the class its tag names, and a payload of
+%another class has no decoding: the term is malformed and the decode fails,
+%which is what every malformed shape above already did. Without the checks
+%the tag was a label rather than a claim, and six payloads decoded to
+%something instead: ["s",1] to the symbol '1', ["g",1] to "1", ["n","1/3"]
+%to a string wearing the number tag, ["v",1] to a fresh variable, and
+%["b",<anything>] to FALSE, which is the one that answers rather than fails
+%[measured 2026-08-20, both spellings, against python/petta/_atom_wire.py,
+%which refuses all six]. A wire term is written by an encoder, so nothing
+%conforming loses a shape here; what changes is that a boundary bug now
+%reports as one [tested: shim_wire_decoding:a_payload_outside_its_tags_class_fails].
+%Every check is a TYPE TEST WRITTEN OUT, never a call to a shared one, and
+%that is a measurement rather than a preference: number/1, atom/1 and
+%string/1 compile to VM instructions costing no inference, while a call to
+%a predicate wrapping them costs one on a path that runs per leaf of every
+%answer. Per-leaf inferences, before against after, as the atom payload /
+%as the string payload, both being spellings janus delivers
+%[measured 2026-08-20, 10,000 decodes each, three runs identical]:
+%
+%  s        4.00/5.00  ->  3.00/5.00     g   4.00/4.00  ->  4.00/4.00
+%  v        3.00/4.00  ->  3.00/4.00     n   4.00       ->  4.00
+%  v shared 8.00/10.00 ->  8.00/10.00    b   4.00/8.00  ->  4.00/5.00
+%
+%Faster or equal on every tag and every spelling: the boolean payload
+%replaced a chain of ==/2 with indexed facts, and the symbol payload stopped
+%calling atom_string/2 on an atom that already is the symbol.
+%
+%A shared petta_py_wire_text/1 helper was written first and cost +1.00 on s
+%and on v, which the alpha-unique benchmark saw as +1.54% and the counter
+%gate refused. The A/B behind it had measured zero and was wrong: its
+%synthetic term held 1000 s, 500 v and 500 b leaves, whose +1000 +500 -1500
+%cancels exactly. A per-tag change needs a per-tag measurement.
+petta_py_decode_(s, [S], A)     :- ( atom(S) -> A = S ; string(S), atom_string(A, S) ).
+petta_py_decode_(g, [S], Str)   :- ( string(S) -> Str = S ; atom(S), atom_string(S, Str) ).
+petta_py_decode_(n, [N], N)     :- number(N).
+petta_py_decode_(b, [B], A)     :- petta_py_wire_bool(B, A).
+petta_py_decode_(v, [Name], _)  :- ( atom(Name) -> true ; string(Name) ).
 petta_py_decode_(e, [Es], Term) :- maplist(petta_py_decode, Es, Term).
 
 %Decode sharing variables by name, so the $x in a head and in a body unify.
@@ -226,7 +277,11 @@ petta_py_decode_shared_([T0|Rest], Term, B0, B) :-
 %them carries no bindings, so it is the plain decode with B unchanged.
 petta_py_decode_shared_tagged(v, [Name0], Var, B0, B) :- !,
     petta_py_shared_table(B0, Table),
-    ( string(Name0) -> atom_string(Name, Name0) ; Name = Name0 ),
+    %The atom branch carries the payload check with it: a name arriving as
+    %anything but text has no identity to share by, and testing it here
+    %rather than ahead of the table keeps the check on a branch that was
+    %already being taken.
+    ( string(Name0) -> atom_string(Name, Name0) ; atom(Name0), Name = Name0 ),
     %The anonymous variable is fresh at every occurrence and never binds,
     %exactly as the reader treats $_ in source; recording it would make two
     %underscores constrain each other.

@@ -6,6 +6,11 @@ filters encode engine truths worth not rediscovering: which characters the
 tokeniser reads back whole, that true/false ARE the boolean atoms so their
 symbol spellings canonicalize, and that `_` is the anonymous variable,
 fresh at every occurrence.
+
+The conformance surfaces live here too, one rung per audience:
+check_space_provider and check_codec run in process against an author's own
+object, SpaceComplianceSuite and GatewayComplianceSuite are pytest classes
+that run the engine's own expectations against a provider or a URL.
 Guarantees:
   - check_space_provider holds match soundness and exact pushdown claims
     to the whole pattern family of every stored atom, ground, opened and
@@ -22,6 +27,7 @@ from __future__ import annotations
 
 from types import GeneratorType
 
+from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
 from ._optional import require_module
 from .atoms import Expr, Gnd, Sym, Var, alpha_eq, encode
 from .atoms import parse as atoms_parse
@@ -43,15 +49,19 @@ from .foreign import (
 
 __all__ = [
     "BenchmarkBaseline",
+    "CodecDriver",
     "GatewayComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "SpaceComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "atoms",
     "benchmark_case",
     "benchmark_counter_slope",
+    "check_codec",
     "check_minted_handles",
     "check_replay",
     "check_space_provider",
     "check_twin",
+    "codec_corpus",
+    "codec_plan",
     "count_atoms",
     "expressions",
     "ground_atoms",
