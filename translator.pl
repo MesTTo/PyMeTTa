@@ -188,6 +188,56 @@ constrain_args([F|Args], Var, Goals) :- atom(F),
 constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
                                   flatten(NestedGoalsList, Goals), !.
 
+%The predicates the ENGINE emits into a compiled clause body, and the reason
+%they have to be named somewhere.
+%
+%A compiled body resolves its goals in the module the clause went into, which
+%is the space's. That is exactly right for a MeTTa call, because redefining a
+%function in a space is what a space is for. It is exactly wrong for a goal
+%the TRANSLATOR wrote: `(= (include $a $b) whatever)` would take over the
+%include/3 that filter-atom compiles to, in that space's own bodies, silently
+%and with a wrong answer rather than an error. Ten indicators were capturable
+%that way over the shipped corpus [measured 2026-08-19].
+%
+%They are protected by IMPORTING them into every space's module rather than by
+%a guard the write path has to remember: an explicit import is a binding SWI
+%refuses to overwrite, so the assert raises permission_error and
+%assert_function_clause/3 turns that into the MeTTa-level refusal it already
+%turns Prolog's protected core into. No check on the hot path, no cost at run
+%time, and the space still reaches the engine's own predicate through the
+%import [tested: spaces_execution_modules:an_engine_emitted_name_cannot_be_taken].
+%
+%Engine-emitted ONLY. A Prolog goal a PROGRAM writes through
+%translatePredicate is the program's own and resolves in its space
+%deliberately, which is why open_string/2 and load_files/2 are absent even
+%though they reach compiled bodies [measured 2026-08-19:
+%lib/lib_tabling.metta writes both].
+%
+%The list is checked rather than trusted. tests/prolog/static_checks.pl
+%recompiles every equation in the corpus, reads the goals out of the bodies
+%and fails if one of them is capturable and not named here, so a translation
+%rule added later cannot quietly widen the hole.
+metta_engine_emitted(control_exception/1).
+metta_engine_emitted(foldall/4).
+metta_engine_emitted(has_type/2).
+metta_engine_emitted(include/3).
+metta_engine_emitted(metta_ensure_duals/1).
+%src/duals.pl emits this one, into the dual clause it builds.
+metta_engine_emitted(metta_negation/5).
+metta_engine_emitted(petta_match_atoms/2).
+metta_engine_emitted(petta_prune_empty/2).
+metta_engine_emitted(petta_transaction/1).
+metta_engine_emitted(throw_function_overapplication/2).
+
+%A name is MeTTa's when the engine's own dispatch registry knows it: arity/2
+%is what reduce/3 and build_call_or_partial_dl/6 consult to decide a head is a
+%call, fun/1 what the translator consults to decide it is not data, and
+%builtin_fun/1 what keeps a builtin visible in every space. A name none of the
+%three holds was written by the translator and by nothing else.
+metta_dispatch_name(Name, Arity) :- arity(Name, Arity), !.
+metta_dispatch_name(Name, _) :- fun(Name), !.
+metta_dispatch_name(Name, _) :- builtin_fun(Name).
+
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- translate_clause(Input, (Head :- BodyConj), true).
 translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-

@@ -301,7 +301,31 @@ ensure_metta_exec_module_locked(Space, Module) :-
 ensure_metta_exec_module_locked(Space, Module) :-
     metta_exec_module_base(Space, Base),
     set_module(Module:base(Base)),
-    assertz(metta_exec_module_known(Space, Module)).
+    assertz(metta_exec_module_known(Space, Module)),
+    protect_engine_emitted(Module).
+
+%Bind the engine's own emitted goals into this module so a MeTTa equation
+%cannot take one over. See metta_engine_emitted/1 (src/translator.pl) for what
+%that means and why an import rather than a guard.
+%
+%The export half is what keeps it quiet: import/1 warns when the source module
+%does not export the name, and the engine's module has no export list at all.
+%current_predicate/1 guards the order: this runs for &self's module at LOAD,
+%before src/duals.pl is consulted, so the one predicate that file emits is not
+%there yet and the initialization below sweeps it in afterwards.
+protect_engine_emitted(Module) :-
+    petta_engine_module(Engine),
+    forall(( metta_engine_emitted(PI), current_predicate(Engine:PI) ),
+           ( Engine:export(PI), Module:import(Engine:PI) )).
+
+%Every module that already exists, which at boot is &self's. Called from
+%src/metta.pl's own initialization rather than from one here, and BEFORE the
+%prelude compiles: an initialization/1 goal runs after the file it appears in
+%finishes, so one here would run before src/metta.pl had defined half the
+%names above, and initialization goals do not reliably order against each
+%other either [source: src/metta.pl's own note on that].
+protect_metta_exec_modules :-
+    forall(metta_exec_module_known(_, Module), protect_engine_emitted(Module)).
 
 %The inverse of space_module/2. It used to be written out by hand in four
 %places, three of them outside this file, each as
@@ -734,13 +758,23 @@ assert_function_clause(Module, Clause, Ref) :-
           error(permission_error(modify, static_procedure, _), _),
           throw_builtin_redefinition(Module, Clause)).
 
+%Two refusals, because SWI raises the same permission error for two different
+%reasons and only one of them is about Prolog. A name the ENGINE emits into
+%compiled bodies is bound into every space's module on purpose
+%(protect_engine_emitted/1 above), and telling its author that it is one of
+%Prolog's core predicates would send them looking in the wrong place.
 throw_builtin_redefinition(Module, Clause) :-
     ( Clause = (Head :- _) -> true ; Head = Clause ),
     functor(Head, Name, Arity),
     InputArity is Arity - 1,
     metta_module_space(Module, Space),
-    throw(error(petta_builtin_redefinition(Name, InputArity, Space),
-                context('=', 'a builtin cannot be redefined in this space'))).
+    (   metta_engine_emitted(Name/Arity)
+    ->  throw(error(petta_engine_goal_redefinition(Name, InputArity, Space),
+                    context('=', 'the engine compiles this name into function \c
+                                  bodies')))
+    ;   throw(error(petta_builtin_redefinition(Name, InputArity, Space),
+                    context('=', 'a builtin cannot be redefined in this space')))
+    ).
 
 %The refusal that reads worst when it is unrendered, because the term names a
 %capability nobody has heard of and the whole point of the refusal is to teach
@@ -765,6 +799,12 @@ prolog:error_message(petta_foreign_plan_is_not_a_partition(Space, Patterns,
        conjunct: the engine plans only what you leave, so a dropped pattern \c
        stops constraining the query and the join answers rows that were never \c
        asked for.'-[Space, Claimed, Rest, Patterns] ].
+prolog:error_message(petta_engine_goal_redefinition(Name, Arity, Space)) -->
+    [ '~w with ~w arguments is a name the engine itself compiles into function \c
+       bodies, so no space can redefine it, ~w included.'-[Name, Arity, Space], nl,
+      '  an equation for it would capture the engine\'s own goal in this \c
+       space\'s compiled clauses rather than shadowing a function: rename it, \c
+       or write the behaviour you want as a wrapper around it' ].
 prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
     [ '~w with ~w arguments is one of Prolog\'s protected core predicates, \c
        which no space can redefine, ~w included.'-[Name, Arity, Space], nl,

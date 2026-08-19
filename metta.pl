@@ -4668,4 +4668,5 @@ load_prelude_form(Kind, Src, _) :-
 %goals do not reliably order against each other (the note above) and the
 %prelude's bodies mention constructors like Error whose Atom masking reads
 %the surface loaded first.
-:- initialization((load_builtin_type_surface, load_engine_prelude)).
+:- initialization((protect_metta_exec_modules,
+                   load_builtin_type_surface, load_engine_prelude)).
