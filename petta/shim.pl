@@ -1561,7 +1561,7 @@ petta_py_eval_term(Space, Term, Encoded) :-
 %
 %PeTTa had no name for these, so the taxonomy was taken from the mechanised
 %Hyperon specification, which is the only part borrowed
-%[source: /home/user/Dev/LeaTTa/MettaHyperonFull/Core/Result.lean, EvalStatus].
+%[source: LeaTTa checkout, MettaHyperonFull/Core/Result.lean, EvalStatus].
 %The distinction that matters is the one that surface behaviour hides: empty
 %is a pruned branch and not-reducible is an unevaluated term, and reading
 %both as "nothing happened" is what made an earlier strict mode fire on

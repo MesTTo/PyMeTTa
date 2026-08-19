@@ -649,7 +649,7 @@ class Gnd(Atom):
     # against: on a rule answering False, the conformant
     # `any(a for a in answers)` was True and the explicit
     # `any(a == True for a in answers)` was False, so a user tidying away
-    # the `# noqa: E712` introduced a silent wrong answer
+    # the E712 suppression introduced a silent wrong answer
     # [measured 2026-08-17]. Expr.__bool__ already guards this class of
     # mistake for comparison terms; Gnd had no guard for the same one.
     # Restricted to bool on purpose: a Number 0 is not falsehood in MeTTa,

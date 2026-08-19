@@ -691,7 +691,7 @@ throw_function_overapplication(Fun, ActualInputArity) :-
 %third was unreportable, because the term it yields is indistinguishable from
 %data. reduce/3 carries which of the two happened and reduce/2 keeps its exact
 %behaviour, so every compiled call site is unchanged
-%[source: /home/user/Dev/LeaTTa/MettaHyperonFull/Core/Result.lean, EvalStatus]
+%[source: the LeaTTa checkout's MettaHyperonFull/Core/Result.lean, EvalStatus]
 %[tested: translator_reduction_status].
 reduce(X, Out) :- reduce(X, Out, _).
 
