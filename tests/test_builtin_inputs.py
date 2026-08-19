@@ -161,3 +161,18 @@ def test_a_relational_position_still_enumerates():
     assert answers("!(collapse (and $a true))") == ["(True False)"]
     assert answers("!(collapse (cons-atom a $tail))") != []
     assert answers("!(collapse (let (union-atom $xs (3)) (1 2 3) $xs))") == ["((1 2))"]
+
+
+def test_a_surface_match_on_an_unbound_space_answers_the_error(metta):
+    """The compiled door, not the predicate: match/4 always refused an
+    unbound space by name, but the emission fused the body template and the
+    result into one variable, so the Error atom failed to unify with the
+    already-bound body and the clause died silently, zero answers where a
+    direct call answered the refusal [measured 2026-08-19 on the wave-7
+    merged tree]. The template and the result are distinct variables now."""
+    with metta.new_space() as space:
+        groups = space.run("!(match $u (f 1) matched)")
+    assert len(groups) == 1 and len(groups[0]) == 1
+    answer = str(groups[0][0])
+    assert answer.startswith("(Error (match ")
+    assert "match expects a space as the first argument" in answer

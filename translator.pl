@@ -1409,8 +1409,17 @@ translate_special_dl(match, [SpaceExpr, Pattern0, Body], AfterHead, Goals,
                      Out) :-
     translate_expr_dl(SpaceExpr, AfterHead, BeforeMatch, Space),
     lift_pattern_modifiers(Pattern0, Pattern, Guards),
-    append([match(Space, Pattern, Out, Out)|Guards], AfterMatch, BeforeMatch),
-    translate_expr_dl(Body, AfterMatch, Goals, Out).
+    %The template and the result are DISTINCT variables. Fused, the
+    %answer-shaped refusal of match/4's last clause could never surface: the
+    %body had already bound the one variable, the Error atom failed to unify
+    %with it, and the clause died silently, so !(match $u (f 1) matched)
+    %answered zero rows while a direct call answered the Error
+    %[tested: test_a_surface_match_on_an_unbound_space_answers_the_error].
+    %On success match/4 unifies Result with OutPattern, so the compiled
+    %goals and their cost are unchanged.
+    append([match(Space, Pattern, Template, Out)|Guards], AfterMatch,
+           BeforeMatch),
+    translate_expr_dl(Body, AfterMatch, Goals, Template).
 
 translate_special_dl(translatePredicate, [[Predicate|Args]], AfterHead, Goals,
                      _Out) :-
