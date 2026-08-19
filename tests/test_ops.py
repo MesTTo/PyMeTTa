@@ -596,39 +596,55 @@ def test_injection_composes_with_defaults_and_position(metta):
         metta.unregister_op("inj-mid")
 
 
-def test_registering_over_a_prolog_predicate_is_refused_not_silent(metta):
-    """A MeTTa name compiles to a Prolog predicate of one higher arity, and
-    for several ordinary words that predicate already belongs to SWI.
+def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
+    """A MeTTa name compiles to a Prolog predicate of one higher arity, and for
+    several ordinary words that predicate already belongs to SWI.
 
-    The dangerous half was that the assert SUCCEEDED. Registering an
-    operation called `format` put a user:format/2 in front of SWI's own, so
-    every println! the engine ran afterwards reached the operation, printed
-    nothing and raised nothing. succ, plus, print, between and nb_getval were
-    all shadowable the same way. The refusal has to happen before the assert,
-    which is why predicate_property and not the assert's own error decides it.
+    That used to be a refusal, and it had to be: a registered operation's
+    clauses went into the module the ENGINE resolves in, so an operation called
+    `format` put a format/2 in front of SWI's own and every println! the engine
+    ran afterwards reached the operation, printed nothing and raised nothing.
+    An operation's clauses go into &self's own module now, where the same
+    assert makes a local shadow, so the name is free and the engine's predicate
+    goes on answering. Of the 428 names the engine imports, 217 were refused at
+    MeTTa arity 1 and 4 are.
     """
-    for name, arity in [
-        ("format", 1),   # Prolog format/2, a system builtin
-        ("print", 1),    # print/2, likewise
-        ("succ", 1),     # succ/2
-        ("between", 2),  # between/3
-        ("digit", 2),    # digit/3, a weak import from library(dcg/basics)
-        ("last", 1),     # last/2, from library(lists)
-        ("select", 2),   # select/3, likewise
+    for name, arity, call, expected in [
+        ("format", 1, "!(format 1)", 1),    # Prolog format/2, a system builtin
+        ("print", 1, "!(print 1)", 1),      # print/2, likewise
+        ("succ", 1, "!(succ 1)", 1),        # succ/2
+        ("between", 2, "!(between 1 2)", 1),  # between/3
+        ("digit", 2, "!(digit 1 2)", 1),    # digit/3, from library(dcg/basics)
+        ("last", 1, "!(last 1)", 1),        # last/2, from library(lists)
+        ("select", 2, "!(select 1 2)", 1),  # select/3, likewise
     ]:
+        metta.register_op(lambda *a: 1, name=name, typed=False, arities=[arity])
+        try:
+            assert metta.run(call) == [[expected]], name
+        finally:
+            metta.unregister_op(name)
+
+    # The engine is untouched: it still prints its own output, which is the
+    # half that used to break silently. Containment rather than equality
+    # because the fixture is shared and an earlier test may have left the
+    # compiled-goal dump on.
+    _, printed = metta.run("!(println! (still here))", capture=True)
+    assert "(still here)\n" in printed
+
+
+def test_prologs_protected_core_is_still_refused(metta):
+    """What is left of the refusal, and it is Prolog's rather than the
+    engine's: SWI will not let any module define these, so the assert raises
+    wherever the operation's clauses go. call, clause, copy_term and sort are
+    the four at MeTTa arity 1 [measured 2026-08-19].
+    """
+    for name, arity in [("sort", 1), ("copy_term", 1), ("call", 1)]:
         with pytest.raises(EngineError) as refused:
             metta.register_op(lambda *a: 1, name=name, typed=False, arities=[arity])
         message = str(refused.value)
         assert f"{name}/{arity + 1}" in message, message
         assert "already owns" in message
         assert "name=" in message
-
-    # The engine is untouched by the refusals: it still prints its own output,
-    # which is the half that broke silently. Containment rather than equality
-    # because the fixture is shared and an earlier test may have left the
-    # compiled-goal dump on.
-    _, printed = metta.run("!(println! (still here))", capture=True)
-    assert "(still here)\n" in printed
 
 
 def test_a_free_name_that_merely_looks_prolog_still_registers(metta):

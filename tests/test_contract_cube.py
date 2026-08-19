@@ -17,13 +17,16 @@ CHECKER = """
 cube_check(Name0, Arity, Kind0, Verdict) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     ( atom(Kind0) -> Kind = Kind0 ; atom_string(Kind, Kind0) ),
+    %A registered operation's clauses go into the base tier's module, which is
+    %&self's, not into `user`.
     PredArity is Arity + 1,
     functor(Head, Name, PredArity),
     Head =.. [Name|HeadArgs],
     append(Args, [Result], HeadArgs),
     petta_py_op_body(Kind, Name, Args, Result, Forward),
     petta_py_directed_body(Name, Kind, Args, Result, Forward, Expected),
-    (   clause(user:Head, Actual)
+    space_module('&self', Base),
+    (   clause(Base:Head, Actual)
     ->  (   (Head :- Actual) =@= (Head :- Expected)
         ->  Verdict = match
         ;   term_to_atom(mismatch(Actual, Expected), Verdict)
