@@ -76,6 +76,16 @@ petta_inline_text(T, S) :-
     string_codes(S, Codes).
 
 swrite_numbered('$petta_variable'(Index)) --> !, "$_", { number_codes(Index, Cs) }, Cs.
+%The language spells its booleans `True` and `False`. atom_symbol//1 maps both
+%onto Prolog's own true/false so a compiled guard calls them directly, and this
+%is the other half of that map: without it the round trip renamed the
+%language's own constants and `!(== 1 2)` answered `false` where the arbiter
+%answers `False` [source: LeaTTa tests/semantics/grounded/07-partial-core.metta,
+%04-boolean.metta]. It also closes a seam: python/petta already writes `True`,
+%which python/tools/example_parity.py had to compare around
+%[tested: parser_roundtrip:booleans_print_in_the_languages_own_spelling].
+swrite_numbered(true)  --> !, "True".
+swrite_numbered(false) --> !, "False".
 swrite_numbered(Num)   --> { number(Num) }, !, { number_codes(Num, Cs) }, Cs.
 swrite_numbered(Str)   --> { string(Str) }, !, "\"", { string_codes(Str, Cs), escape_quotes(Cs, Es) }, Es, "\"".
 swrite_numbered(Atom)  --> { atom(Atom) }, !, atom(Atom).
