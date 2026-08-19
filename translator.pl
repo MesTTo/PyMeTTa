@@ -370,7 +370,7 @@ metta_engine_emitted(metta_negation/5).
 metta_engine_emitted(petta_match_atoms/2).
 metta_engine_emitted(petta_prune_empty/2).
 metta_engine_emitted(petta_transaction/1).
-metta_engine_emitted(throw_function_overapplication/2).
+metta_engine_emitted(function_overapplication/3).
 
 %Resolving at compile time means the answer can go stale: a space that gains
 %a definition of the name becomes the nearer parent, and one that loses its
@@ -655,10 +655,29 @@ incomplete_application_kind(Fun, Arity, partial) :- ( arity(Fun, KnownArity), Kn
                                                      ; \+ arity(Fun, _) ), !.
 incomplete_application_kind(_, _, overapplied).
 
-throw_function_overapplication(Fun, ActualInputArity) :-
-    findall(InputArity, (arity(Fun, Arity), InputArity is Arity - 1), InputArities),
-    sort(InputArities, KnownInputArities),
-    throw(error(domain_error(function_input_arities(Fun, KnownInputArities), ActualInputArity), none)).
+%An overapplied call ANSWERS rather than raising, because a wrong arity is an
+%ordinary MeTTa error and the form after it still runs. WHICH answer is the
+%declaration's: a head the engine or the program TYPED is refused by name, and
+%an untyped one is left as written, which is what an expression whose head
+%means nothing here already does
+%[measured 2026-08-19 against the arbiter: `(+ 1 2 3)` and
+%`(car-atom (1 2) extra)` answer `(Error <call> IncorrectNumberOfArguments)`
+%while `(empty 1 2)`, `(match-types Number Number yes no extra)` and a user
+%function's `(f 1 2)` are left as written; source: LeaTTa
+%tests/semantics/eval-core/empty-argument-arity.metta].
+function_overapplication(Fun, Arguments, Answer) :-
+    (   metta_typed_head(Fun)
+    ->  Answer = ['Error', [Fun|Arguments], 'IncorrectNumberOfArguments']
+    ;   Answer = [Fun|Arguments]
+    ).
+
+metta_typed_head(Fun) :-
+    atom(Fun),
+    (   current_metta_module(Module),
+        catch_recover(type_declaration_in(Module, Fun, [->|_]), fail)
+    ->  true
+    ;   builtin_type_declaration(Fun, [->|_])
+    ).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list.
 %
@@ -729,7 +748,8 @@ reduce([F|Args], Out, Status) :- !,
         ;   incomplete_application_kind(F, Arity, partial)
         ->  Out = partial(F,Args),
             Status = reduced
-        ;   throw_function_overapplication(F, N) )
+        ;   function_overapplication(F, Args, Out),
+            Status = reduced )
     ;   % --- Case 2: partial closure ---
         compound(F), F = partial(Base, Bound)
     ->  append(Bound, Args, NewArgs),
@@ -1846,7 +1866,7 @@ build_call_or_partial_dl(Fun, AVs, Out, Goals0, Goals, Extra) :-
     ; incomplete_application_kind(Fun, Arity, partial)
       -> Out = partial(Fun, AVs),
          Goals0 = Goals
-    ; Goals0 = [throw_function_overapplication(Fun, N)|Goals] ).
+    ; Goals0 = [function_overapplication(Fun, AVs, Out)|Goals] ).
 
 %Type function call generation, returns function call plus typechecks for input and output:
 %Translate a call against every type declaration that fits it.
@@ -1876,7 +1896,8 @@ typed_functioncall_dl(Fun, UniqueTypeChains, T, IsPartial, Bound, Out, AfterHead
     Arity is InputArity + 1,
     (   incomplete_application_kind(Fun, Arity, ApplicationKind),
         ApplicationKind == overapplied
-    ->  AfterHead = [throw_function_overapplication(Fun, InputArity)|Goals]
+    ->  ( IsPartial -> append(Bound, T, Written) ; Written = T ),
+        AfterHead = [function_overapplication(Fun, Written, Out)|Goals]
     ;   fitting_type_chains(UniqueTypeChains, InputArity, FittingChains),
         applicable_typed_branches(FittingChains, Fun, T, IsPartial, Bound,
                                   Out, Branches),
