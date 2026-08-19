@@ -2,12 +2,12 @@
 second consumer rather than one.
 
 The golden corpus at tests/codec/corpus.json is the grammar's authority, and
-the binding is driven
-through the kit's own CodecDriver. Beside it, bindings/node/kit/corpus.json
-records cases and never answers, because the shipped Python host supplies
-those here in the same moment: that half compares two LIVE hosts, where the
-kit compares one host against a written-down grammar, and a codec can satisfy
-the grammar while disagreeing with the engine beside it.
+the binding is driven through the kit's own CodecDriver. Beside it,
+bindings/node/kit/corpus.json records cases and never answers, because the
+shipped Python host supplies those here in the same moment: that half compares
+two LIVE hosts, where the kit compares one host against a written-down
+grammar, and a codec can satisfy the grammar while disagreeing with the engine
+beside it.
 
 Assumes:
   - node and bindings/node/node_modules/swipl-wasm are present, the same
@@ -322,9 +322,13 @@ def test_a_second_language_binding_passes_the_same_conformance_kit(node_driver) 
 
 def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver) -> None:
     """A binding is not a store: it reads source and prints atoms too, so all
-    four legs run rather than the two a wire-carrying provider has. What stays
-    out is declared rather than dropped, and pinned so a case leaving scope
-    without anyone saying so fails here."""
+    four legs run rather than the two a wire-carrying provider has.
+
+    What stays out is declared rather than dropped, and what is pinned here is
+    the REASON rather than the case list: a case added to the corpus is not
+    this binding changing, but a case falling out because a capability was
+    given up would be.
+    """
     pytest.importorskip(
         "petta._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
@@ -333,16 +337,13 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
 
     plan = codec_plan(node_driver)
     assert plan["legs"] == ["read", "render", "roundtrip", "transport"]
-    left_out = dict(plan["out_of_profile"])
-    assert left_out == {
-        "host-reference": "tags ['o']",
-        "answer-bindings": "frame a",
-        "answer-empty-theta": "frame a",
-        "answer-with-value": "frame a",
-        "answer-with-residue": "frame a",
-        "undefined-truth": "frame u",
-        "undefined-truth-with-residual": "frame u",
-    }
+    assert plan["run"], "the plan put every case out of scope"
+    for case, why in plan["out_of_profile"]:
+        # A capability reason would mean this binding claimed less than it
+        # carries, which is the way a kit passes on a small profile.
+        assert why.startswith(("tags [", "frame ")), f"{case} is out of profile: {why}"
+        if why.startswith("tags ["):
+            assert why == "tags ['o']", f"{case} needs a tag beyond o: {why}"
 
 
 def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_report: dict) -> None:
