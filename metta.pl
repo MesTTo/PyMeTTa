@@ -49,8 +49,10 @@
 %   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
 %     hash collision cannot remove an inequivalent term [tested 2026-08-15:
 %     metta_alpha_unique].
-%   - get-metatype/2 classifies every Prolog term used as a MeTTa value
-%     [tested 2026-08-14: metta_metatypes].
+%   - get-metatype/2 classifies every Prolog term used as a MeTTa value, and
+%     classifies a NAME by the arbiter's grounded-token table gated on this
+%     engine holding the operation, so a token nothing here answers to reports
+%     Symbol as an unknown name does [tested 2026-08-20: metta_metatypes].
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
@@ -376,6 +378,265 @@ repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, _) :- var(Str), !, refuse_unbound_input(parse, 1).
 parse(Str, R) :- sread(Str, R).
 
+%%% What a grounded operation answers when it cannot compute: %%%
+%
+%MeTTa's error channel is an ANSWER and not an exception. `(Error <call>
+%<reason>)` is a value a program can test with if-error, compare with
+%assertEqual and pass on, and the FORM AFTER IT STILL RUNS; a raise here ended
+%the whole file instead, which is why eleven of the arbiter's grounded
+%transcripts stopped at their first probe. So an operation handed an argument
+%it cannot use answers, and which answer is decided by the argument's own type:
+%
+%  - a type the parameter RULES OUT is `(BadArgType <position> <expected>
+%    <actual>)`, one answer per rejected actual type, positions left to right
+%  - an argument whose type does not DECIDE, %Undefined% or a symbol declared
+%    the right type but carrying no value, is the operation's own refusal: its
+%    message where upstream gives it one, and otherwise the call left as
+%    written, which is upstream's NoReduce
+%
+%[source: LeaTTa tests/semantics/grounded/07-partial-core.metta and
+%08-partial-math.metta, both STATUS conforms and both byte-for-byte
+%transcripts; tests/semantics/types-basic/44 through 49 for the multiplicity]
+%[tested: operation_answers].
+%
+%NOTHING HERE IS ON A HOT PATH. Every caller reaches it only after its own
+%ground fast path has already declined, so the type lookups below are paid by
+%the call that was about to fail and by no other.
+metta_operation_answer(Operation, Arguments, Answer) :-
+    findall(Error, metta_bad_argument_error(Operation, Arguments, Error), Errors),
+    (   Errors == []
+    ->  (   metta_operation_refusal(Operation, Arguments, Message)
+        ->  metta_error_atom(Operation, Arguments, Message, Answer)
+        ;   Answer = [Operation|Arguments]
+        )
+    ;   member(Answer, Errors)
+    ).
+
+metta_error_atom(Operation, Arguments, Reason,
+                 ['Error', [Operation|Arguments], Reason]).
+
+%One error per declared ARROW and per rejected ACTUAL type, arrows in
+%declaration order and actual types in the order get-type reports them, which
+%is the multiplicity and the order the arbiter pins.
+metta_bad_argument_error(Operation, Arguments, Error) :-
+    \+ metta_call_accepted(Operation, Arguments),
+    metta_operation_parameters(Operation, Arguments, ParameterTypes),
+    metta_bad_argument(ParameterTypes, Arguments, 1, Position, Expected, Actual),
+    metta_error_atom(Operation, Arguments,
+                     ['BadArgType', Position, Expected, Actual], Error).
+
+%Nothing is reported when SOME declared arrow takes every argument under ONE
+%consistent assignment, even where another arrow, or another of an argument's
+%own types, does not. Measured 2026-08-19 against the arbiter: with
+%`(: a A)`, `(: a C)`, `(: b D)` and `(: g (-> C D Number))`, `!(g a b)`
+%answers `[(g a b)]` and reports nothing, while the same program with
+%`(: b B)` answers both `(BadArgType 1 C A)` and `(BadArgType 2 D B)`; and
+%with two arrows where the second fits, `!(g a)` answers `[7]`.
+%
+%The search backtracks over each argument's types because that is what makes
+%the assignment CONSISTENT: a chain naming one type variable twice is only
+%accepted by a pair of types that agree.
+metta_call_accepted(Operation, Arguments) :-
+    metta_operation_parameters(Operation, Arguments, ParameterTypes),
+    metta_arguments_match(ParameterTypes, Arguments),
+    !.
+
+metta_arguments_match([], []).
+metta_arguments_match([Expected|Rest], [Argument|Arguments]) :-
+    (   metta_metatype_settles(Argument, Expected)
+    ->  true
+    ;   metta_argument_types(Argument, Types),
+        member(Type, Types),
+        metta_types_match(Type, Expected)
+    ),
+    metta_arguments_match(Rest, Arguments).
+
+%A FRESH copy per arrow: a chain naming a type variable has to be free to bind
+%it again for the next call, and for the next arrow.
+metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
+    current_metta_module(Module),
+    (   type_declaration_in(Module, Operation, Chain0)
+    ;   \+ type_declaration_in(Module, Operation, _),
+        builtin_type_declaration(Operation, Chain0)
+    ),
+    copy_term(Chain0, [->|Types]),
+    append(ParameterTypes, [_], Types),
+    same_length(ParameterTypes, Arguments).
+
+%Every rejected actual type at a position, and then the positions after it,
+%which is what the arbiter reports when one actual type of an argument matched
+%and carried the check forward while another did not
+%[source: types-basic/48-badargtype-argument-order.metta]. The cut commits to
+%the first carrying type, because the check continues under ONE assignment.
+%
+%A parameter naming a METATYPE is settled by the argument's metatype alone and
+%reports nothing, which is the other half of the compiled call site's
+%`(has_type(A,T) *-> true ; get-metatype(A,T))`: `(format-args "{}" (1 2))`
+%passes an Expression parameter whose argument's DECLARED type is the tuple
+%`(Number Number)` [measured 2026-08-19 against the arbiter, which answers
+%"1"]. The declared types still decide when the metatype does not, which is
+%why `(: xs Expression)` also passes and `(: n Number)` does not.
+metta_bad_argument([Expected|Rest], [Argument|Arguments], N,
+                   Position, Reported, Actual) :-
+    metta_argument_types(Argument, Types),
+    (   metta_metatype_settles(Argument, Expected)
+    ->  Next is N + 1,
+        metta_bad_argument(Rest, Arguments, Next, Position, Reported, Actual)
+    ;   (   Position = N, Reported = Expected,
+            member(Actual, Types),
+            \+ metta_types_match(Actual, Expected)
+        ;   member(Carried, Types),
+            metta_types_match(Carried, Expected),
+            !,
+            Later is N + 1,
+            metta_bad_argument(Rest, Arguments, Later, Position, Reported, Actual)
+        )
+    ).
+
+%A metatype parameter, and the four names that are one. Atom and %Undefined%
+%are not here because metta_types_match/2 already takes them as wildcards, and
+%an UNBOUND expected type is not one either: a chain's own type variable must
+%be fixed by a declared type, or `(== 1 "S")` would report the metatype its
+%first operand carries instead of Number.
+metta_metatype_settles(Argument, Expected) :-
+    nonvar(Expected),
+    metta_metatype_name(Expected),
+    'get-metatype'(Argument, Metatype),
+    Metatype == Expected.
+
+metta_metatype_name('Symbol').
+metta_metatype_name('Expression').
+metta_metatype_name('Grounded').
+metta_metatype_name('Variable').
+
+%The types an ARGUMENT CHECK may read, which is not everything get-type
+%answers. A `get-type` EQUATION is a MeTTa program, and a program that types
+%its argument by COMPUTING on it re-enters the operation whose refusal asked:
+%examples/types/types_dependent.metta writes
+%`(= (get-type $x) (catch (if (=alpha (% $x 2) 0) EvenNumber)))`, so asking
+%get-type why `%` refused ran `%` again, and again
+%[reproduced 2026-08-19: 16,777,031 frames and the 8Gb stack limit].
+%
+%Upstream reads the space's `(: x T)` atoms and the grounded object's own type
+%here and nothing else, so the equations are off for the whole lookup rather
+%than only at its top: the walk reaches them again through a list member's
+%type. The flag is thread-local because the refusal is, and re-entrant because
+%a nested lookup must not turn them back on when it finishes.
+:- thread_local metta_reading_declared_types/0.
+
+metta_argument_types(Argument, Types) :-
+    current_metta_module(Module),
+    (   metta_reading_declared_types
+    ->  type_answers(Module, Argument, Types)
+    ;   setup_call_cleanup(assertz(metta_reading_declared_types, Ref),
+                           type_answers(Module, Argument, Types),
+                           erase(Ref))
+    ).
+
+%The prelude's match-types, in Prolog: %Undefined% and Atom are wildcards on
+%either side and everything else unifies, bindings and all, which is what makes
+%a chain writing one type variable twice report the type its first argument
+%fixed rather than the variable.
+metta_types_match(Left, Right) :-
+    (   Left == '%Undefined%' -> true
+    ;   Right == '%Undefined%' -> true
+    ;   Left == 'Atom' -> true
+    ;   Right == 'Atom' -> true
+    ;   Left = Right
+    ).
+
+%The operations that refuse BY NAME rather than leaving the call. Each text is
+%upstream's own, quoted from the arbiter's transcript rather than invented, and
+%upstream's noun is not uniform: sqrt-math and abs-math say `number` where every
+%later unary operation says `input number`, and log-math names both arguments
+%[source: LeaTTa tests/semantics/grounded/08-partial-math.metta, whose STATUS
+%records that each text is pinned by an upstream unit test in math.rs].
+%
+%The ARGUMENTS are in the head because three of these operations word the
+%refusal differently for different arguments, and the caller has them anyway.
+metta_operation_refusal('/', _,
+    "Divide expects two numbers: dividend and divisor").
+metta_operation_refusal('sqrt-math', _, "sqrt-math expects one argument: number").
+metta_operation_refusal('abs-math', _, "abs-math expects one argument: number").
+metta_operation_refusal('pow-math', _,
+    "pow-math expects two arguments: number (base) and number (power)").
+metta_operation_refusal('log-math', _,
+    "log-math expects two arguments: base (number) and input value (number)").
+metta_operation_refusal(Operation, _, Message) :-
+    metta_input_number_operation(Operation),
+    format(string(Message), "~w expects one argument: input number",
+           [Operation]).
+%min-atom and max-atom carry three texts for three arguments: not an
+%expression at all, an empty one, and one holding something that is not a
+%number, which upstream quotes back as it formats it
+%[source: the same file, whose STATUS names atom.rs:194,228; measured
+%2026-08-19 against the arbiter: `(min-atom 5)` and `(min-atom ())` answer the
+%first two].
+%format-args words its refusal by WHICH argument is wrong: a first argument
+%that is not a format string earns the long text, and a first that is one with
+%a second that is not an expression earns the conversion's own
+%[source: LeaTTa MettaHyperonFull/Minimal/Stdlib.lean, formatArgsOp's three
+%cases].
+metta_operation_refusal('format-args', [Format|_], Message) :-
+    (   string(Format)
+    ->  Message = "Atom is not an ExpressionAtom"
+    ;   Message = "format-args expects format string as a first argument and expression as a second argument"
+    ).
+metta_operation_refusal('sort-strings', _,
+    "sort-strings expects expression with strings as a first argument").
+metta_operation_refusal(Operation, [Argument], Message) :-
+    metta_numeric_expression_operation(Operation),
+    (   non_list(Argument)
+    ->  Message = "Atom is not an ExpressionAtom"
+    ;   Argument == []
+    ->  Message = "Empty expression"
+    ;   \+ maplist(number, Argument),
+        swrite(Argument, Written),
+        format(string(Message), "Only numbers are allowed in expression: ~w",
+               [Written])
+    ).
+
+metta_numeric_expression_operation('min-atom').
+metta_numeric_expression_operation('max-atom').
+
+
+metta_input_number_operation('sin-math').    metta_input_number_operation('cos-math').
+metta_input_number_operation('tan-math').    metta_input_number_operation('asin-math').
+metta_input_number_operation('acos-math').   metta_input_number_operation('atan-math').
+metta_input_number_operation('trunc-math').  metta_input_number_operation('ceil-math').
+metta_input_number_operation('floor-math').  metta_input_number_operation('round-math').
+metta_input_number_operation('isnan-math').  metta_input_number_operation('isinf-math').
+metta_input_number_operation('exp-math').    metta_input_number_operation(exp).
+
+%The math family's recovery, which decides between the two failures the host
+%reports the same way. An argument that is not a number at all is the MeTTa
+%operation's own refusal and an ANSWER; a number the function is undefined at,
+%sqrt of a negative or exp of 10000, is a host error and stays one. It sits in
+%the catch's recovery rather than in front of the call, so the fast path pays
+%nothing: this runs only where is/2 has already raised
+%[tested: operation_answers, metta_operation_errors].
+metta_math_recovery(Operation, Arguments, Error, Answer) :-
+    (   maplist(metta_numeric_operand, Arguments)
+    ->  rethrow_metta_operation_error(Operation, Error)
+    ;   metta_operation_answer(Operation, Arguments, Answer)
+    ).
+
+%The float-capable operations chain the two recoveries: an IEEE-class fault
+%with a float operand saturates to the value the arbiter's raw f64 answers
+%(metta_saturating_recover), and everything else takes the split above, a
+%wrong-typed operand answering and a numeric host error staying one.
+metta_math_saturating_recovery(Operation, Expression, Arguments, Error, Out) :-
+    (   metta_ieee_saturable(Expression, Error)
+    ->  metta_saturating_recover(Operation, Expression, Out, Error)
+    ;   metta_math_recovery(Operation, Arguments, Error, Out)
+    ).
+
+%An unbound operand counts as numeric here, so the instantiation error is
+%rethrown rather than turned into a type report: a missing value is not a
+%wrong one, which is the split metta_arith_operands/2 already draws.
+metta_numeric_operand(Value) :- var(Value), !.
+metta_numeric_operand(Value) :- number(Value).
+
 %%% Arithmetic & Comparison: %%%
 %An arithmetic operand is a number. Everything else is refused here, before
 %is/2 applies Prolog's own coercion rules to it.
@@ -400,9 +661,13 @@ parse(Str, R) :- sread(Str, R).
 %Both operands in one call: the inline type tests are free, the call is not,
 %so checking them separately cost two inferences per operation instead of one
 %[measured 2026-08-15: alpha-unique +200,010 against +100,005].
-metta_arith_operands(Op, A, B) :-
-    ( var(A) -> true ; number(A) -> true ; throw_metta_type_error(Op, number, A) ),
-    ( var(B) -> true ; number(B) -> true ; throw_metta_type_error(Op, number, B) ).
+%
+%This TESTS and no longer throws. What to answer for an operand that is not a
+%number belongs to metta_operation_answer/3 above, which has the argument's
+%type and can tell a wrong type from a value the operation simply cannot use.
+metta_arith_operands(A, B) :-
+    ( var(A) -> true ; number(A) ),
+    ( var(B) -> true ; number(B) ).
 
 %The four operators run BACKWARDS over integers: exactly one unbound
 %argument among integers solves for it, so (let 4 (- $x 1) $x) answers 5
@@ -421,20 +686,23 @@ metta_arith_operands(Op, A, B) :-
                 ; number(A), number(B)
                   -> catch(R is A + B, E, metta_saturating_recover('+', A + B, R, E))
                 ; petta_int_solve('+', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('+', A, B),
-                  catch(R is A + B, E, metta_saturating_recover('+', A + B, R, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A + B, E, metta_saturating_recover('+', A + B, R, E))
+                ; metta_operation_answer('+', [A, B], R) ).
 '-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
                 ; number(A), number(B)
                   -> catch(R is A - B, E, metta_saturating_recover('-', A - B, R, E))
                 ; petta_int_solve('-', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('-', A, B),
-                  catch(R is A - B, E, metta_saturating_recover('-', A - B, R, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A - B, E, metta_saturating_recover('-', A - B, R, E))
+                ; metta_operation_answer('-', [A, B], R) ).
 '*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
                 ; number(A), number(B)
                   -> catch(R is A * B, E, metta_saturating_recover('*', A * B, R, E))
                 ; petta_int_solve('*', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('*', A, B),
-                  catch(R is A * B, E, metta_saturating_recover('*', A * B, R, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A * B, E, metta_saturating_recover('*', A * B, R, E))
+                ; metta_operation_answer('*', [A, B], R) ).
 %Division has no catchless integer arm: an all-integer pair is exact until a
 %non-divisible one converts to float, and THAT can overflow (10^400 / 3
 %raised a raw float_overflow with no operation context from the old catchless
@@ -444,8 +712,9 @@ metta_arith_operands(Op, A, B) :-
 '/'(A,B,R)  :- ( number(A), number(B)
                   -> catch(R is A / B, E, metta_saturating_recover('/', A / B, R, E))
                 ; petta_int_solve('/', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('/', A, B),
-                  catch(R is A / B, E, metta_saturating_recover('/', A / B, R, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A / B, E, metta_saturating_recover('/', A / B, R, E))
+                ; metta_operation_answer('/', [A, B], R) ).
 
 %One unbound slot among integers: the verdict says whether the mode
 %applied at all (fail: not this shape, fall through to the float/error
@@ -473,16 +742,19 @@ petta_int_solve('/', A, B, R, Verdict) :-
     ->  ( 0 =:= A mod R -> B is A // R, Verdict = solved ; Verdict = none )
     ).
 '%'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A mod B
-                ; metta_arith_operands('%', A, B),
-                  catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A mod B, E, rethrow_metta_operation_error('%', E))
+                ; metta_operation_answer('%', [A, B], R) ).
 '<'(A,B,R)  :- ( number(A), number(B) -> (A<B -> R=true ; R=false)
-                ; metta_arith_operands('<', A, B),
-                  catch((A<B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('<', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A<B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('<', E))
+                ; metta_operation_answer('<', [A, B], R) ).
 '>'(A,B,R)  :- ( number(A), number(B) -> (A>B -> R=true ; R=false)
-                ; metta_arith_operands('>', A, B),
-                  catch((A>B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('>', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A>B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('>', E))
+                ; metta_operation_answer('>', [A, B], R) ).
 %(-> $a $a Bool): ONE type variable, so the two operands must have a
 %consistent type, and a comparison across two known and different kinds is
 %refused rather than answered. `!(== 1 "S")` answered False, which is the
@@ -500,11 +772,11 @@ petta_int_solve('/', A, B, R, Verdict) :-
 %Two numbers inline, the shape '<'/3 above already uses, because that is what
 %a loop compares and the guard must not be felt there.
 '=='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=true ; R=false)
-                ; comparable_operands('==', A, B),
-                  (A==B -> R=true ; R=false) ).
+                ; comparable_operands(A, B) -> (A==B -> R=true ; R=false)
+                ; metta_operation_answer('==', [A, B], R) ).
 '!='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=false ; R=true)
-                ; comparable_operands('!=', A, B),
-                  (A==B -> R=false ; R=true) ).
+                ; comparable_operands(A, B) -> (A==B -> R=false ; R=true)
+                ; metta_operation_answer('!=', [A, B], R) ).
 %The guard the declaration above states, enforced at the predicate's own door
 %rather than through typed dispatch, which is what runtime_type_guarded/1
 %means and what keeps the cost near zero: the common case is two literals and
@@ -525,7 +797,10 @@ petta_int_solve('/', A, B, R, Verdict) :-
 %unguarded, 30514.55 with the lookup on every call, and 4990.45 with this
 %tier in front, so the guard costs 0.50 inferences per comparison instead
 %of 26.03].
-comparable_operands(Operation, A, B) :-
+%This TESTS and no longer throws, for the reason metta_arith_operands/2 does:
+%the refusal belongs to metta_operation_answer/3, which reports the position,
+%the expected type and the actual one rather than a bare pair.
+comparable_operands(A, B) :-
     (   same_intrinsic_kind(A, B)
     ->  true
     ;   is_list(A)
@@ -533,10 +808,7 @@ comparable_operands(Operation, A, B) :-
     ;   is_list(B)
     ->  true
     ;   current_metta_module(Module),
-        \+ ( has_type_in(Module, A, Type), has_type_in(Module, B, Type) )
-    ->  once(has_type_in(Module, A, Expected)),
-        throw_metta_type_error(Operation, Expected, B)
-    ;   true
+        once(( has_type_in(Module, A, Type), has_type_in(Module, B, Type) ))
     ).
 
 %Fails when the kinds DIFFER and when they do not decide, so an undecided
@@ -553,23 +825,29 @@ metta_boolean(false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
 '=@='(A,B,R) :- (A =@= B -> R=true ; R=false).
 '<='(A,B,R) :- ( number(A), number(B) -> (A =< B -> R=true ; R=false)
-                ; metta_arith_operands('<=', A, B),
-                  catch((A =< B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('<=', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A =< B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('<=', E))
+                ; metta_operation_answer('<=', [A, B], R) ).
 '>='(A,B,R) :- ( number(A), number(B) -> (A >= B -> R=true ; R=false)
-                ; metta_arith_operands('>=', A, B),
-                  catch((A >= B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('>=', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A >= B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('>=', E))
+                ; metta_operation_answer('>=', [A, B], R) ).
 min(A,B,R)  :- ( integer(A), integer(B) -> R is min(A,B)
-                ; metta_arith_operands(min, A, B),
-                  catch(R is min(A,B), E,
-                        rethrow_metta_operation_error(min, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is min(A,B), E,
+                           rethrow_metta_operation_error(min, E))
+                ; metta_operation_answer(min, [A, B], R) ).
 max(A,B,R)  :- ( integer(A), integer(B) -> R is max(A,B)
-                ; metta_arith_operands(max, A, B),
-                  catch(R is max(A,B), E,
-                        rethrow_metta_operation_error(max, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is max(A,B), E,
+                           rethrow_metta_operation_error(max, E))
+                ; metta_operation_answer(max, [A, B], R) ).
+%exp/2 is PeTTa's own name for the same function exp-math names, so it refuses
+%the same way rather than being the one numeric operation that raises.
 exp(Arg,R) :- catch(R is exp(Arg), E,
-                    rethrow_metta_operation_error(exp, E)).
+                    metta_math_recovery(exp, [Arg], E, R)).
 :- use_module(library(clpfd)).
 '#+'(A, B, R) :- catch(R #= A + B, E,
                        rethrow_metta_operation_error('#+', E)).
@@ -622,62 +900,62 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
                             rethrow_metta_operation_error('#>=', E)).
 
 'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
-                               metta_saturating_recover('pow-math', A ** B, Out, E)).
+                               metta_math_saturating_recovery('pow-math', A ** B, [A, B], E, Out)).
 'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
-                             metta_saturating_recover('sqrt-math', sqrt(A), Out, E)).
+                             metta_math_saturating_recovery('sqrt-math', sqrt(A), [A], E, Out)).
 'abs-math'(A, Out) :-
     ( integer(A) -> Out is abs(A)
     ; catch(Out is abs(A), E,
-            rethrow_metta_operation_error('abs-math', E)) ).
+            metta_math_saturating_recovery('abs-math', abs(A), [A], E, Out)) ).
 %log of zero is float_overflow-classed by SWI (the result is an infinity),
 %so it saturates with the family; this compound expression is also why the
 %recovery retries under ALL the IEEE flags at once, because base 1 divides
 %the saturated -inf by log(1) = 0.0 and the answer is -inf, not a second
 %error.
 'log-math'(Base, X, Out) :- catch(Out is log(X) / log(Base), E,
-                                  metta_saturating_recover('log-math', log(X) / log(Base), Out, E)).
+                                  metta_math_saturating_recovery('log-math', log(X) / log(Base), [Base, X], E, Out)).
 'exp-math'(A, Out) :- catch(Out is exp(A), E,
-                            metta_saturating_recover('exp-math', exp(A), Out, E)).
+                            metta_math_saturating_recovery('exp-math', exp(A), [A], E, Out)).
 'trunc-math'(A, Out) :- catch(Out is truncate(A), E,
-                              rethrow_metta_operation_error('trunc-math', E)).
+                              metta_math_recovery('trunc-math', [A], E, Out)).
 'ceil-math'(A, Out) :- catch(Out is ceil(A), E,
-                             rethrow_metta_operation_error('ceil-math', E)).
+                             metta_math_recovery('ceil-math', [A], E, Out)).
 'floor-math'(A, Out) :- catch(Out is floor(A), E,
-                              rethrow_metta_operation_error('floor-math', E)).
+                              metta_math_recovery('floor-math', [A], E, Out)).
 'round-math'(A, Out) :- catch(Out is round(A), E,
-                              rethrow_metta_operation_error('round-math', E)).
+                              metta_math_recovery('round-math', [A], E, Out)).
 'sin-math'(A, Out) :- catch(Out is sin(A), E,
-                            metta_saturating_recover('sin-math', sin(A), Out, E)).
+                            metta_math_saturating_recovery('sin-math', sin(A), [A], E, Out)).
 'cos-math'(A, Out) :- catch(Out is cos(A), E,
-                            metta_saturating_recover('cos-math', cos(A), Out, E)).
+                            metta_math_saturating_recovery('cos-math', cos(A), [A], E, Out)).
 'tan-math'(A, Out) :- catch(Out is tan(A), E,
-                            metta_saturating_recover('tan-math', tan(A), Out, E)).
+                            metta_math_saturating_recovery('tan-math', tan(A), [A], E, Out)).
 'asin-math'(A, Out) :- catch(Out is asin(A), E,
-                             metta_saturating_recover('asin-math', asin(A), Out, E)).
+                             metta_math_saturating_recovery('asin-math', asin(A), [A], E, Out)).
 'acos-math'(A, Out) :- catch(Out is acos(A), E,
-                             metta_saturating_recover('acos-math', acos(A), Out, E)).
+                             metta_math_saturating_recovery('acos-math', acos(A), [A], E, Out)).
 'atan-math'(A, Out) :- catch(Out is atan(A), E,
-                             rethrow_metta_operation_error('atan-math', E)).
+                             metta_math_recovery('atan-math', [A], E, Out)).
 'isnan-math'(A, Out) :-
     catch(( A =:= A -> Out = false ; Out = true ), E,
-          rethrow_metta_operation_error('isnan-math', E)).
+          metta_math_recovery('isnan-math', [A], E, Out)).
 'isinf-math'(A, Out) :-
     catch(( ( A =:= 1.0Inf ; A =:= -1.0Inf )
             -> Out = true ; Out = false ), E,
-          rethrow_metta_operation_error('isinf-math', E)).
+          metta_math_recovery('isinf-math', [A], E, Out)).
 %must_be/2 walks the list a second time with a type check per element, so a
 %numeric list costs 3x what min_list alone does [measured 2026-08-15: 20 calls
 %over 50,000 elements, 3,000,220 against 1,000,060 inferences]. That buys
 %'min-atom': Type error: `number' expected, found `a' in place of a leaked
 %lists:min_list/3, which is the trade this file makes everywhere.
-'min-atom'(List, Out) :- non_list(List), !, Out = [].
-'min-atom'(List, Out) :- catch(( must_be(list(number), List),
-                                min_list(List, Out) ), E,
-                              rethrow_metta_operation_error('min-atom', E)).
-'max-atom'(List, Out) :- non_list(List), !, Out = [].
-'max-atom'(List, Out) :- catch(( must_be(list(number), List),
-                                max_list(List, Out) ), E,
-                              rethrow_metta_operation_error('max-atom', E)).
+%A list of numbers computes; anything else is answered by the shared door,
+%whose refusal table words min-atom and max-atom the three ways upstream does.
+'min-atom'(List, Out) :- ( metta_numeric_list(List) -> min_list(List, Out)
+                         ; metta_operation_answer('min-atom', [List], Out) ).
+'max-atom'(List, Out) :- ( metta_numeric_list(List) -> max_list(List, Out)
+                         ; metta_operation_answer('max-atom', [List], Out) ).
+
+metta_numeric_list(List) :- is_list(List), List \== [], maplist(number, List).
 
 %%% Random Generators: %%%
 'random-int'(Min, Max, Result) :-
@@ -697,6 +975,77 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
     catch(( random(R), Result is Min + R * (Max - Min) ), E,
           rethrow_metta_operation_error('random-float', E)).
 
+%%% Runtime format strings and string ordering: %%%
+%
+%Both are always-loaded corelib operations rather than library ones, because
+%the arbiter's corpus calls them with no import
+%[source: LeaTTa MettaHyperonFull/Minimal/Stdlib.lean, the corelib blocks].
+%They used to live in lib/lib_string.pl, where a program reached them only
+%through (import! &self (library lib_string)) and where the formatter was a
+%plain {}-substitution rather than upstream's.
+%
+%format-args interpolates through the dyn_fmt crate's Arguments, not Rust's
+%own format!, and that formatter is looser than it looks. Two states, a
+%literal PIECE and an ARG opened by `{`. In the piece state a `{` opens an
+%argument and a `}` is DROPPED with the character after it taken literally,
+%which is what makes `}}` print one brace. In the argument state a `}`
+%consumes the next argument, or produces NOTHING once the arguments run out,
+%while any other character ends the argument and is taken literally, which is
+%what makes `{x}` print `x` and `{{` print one brace. A brace with nothing
+%after it ends the string [source: the same file, formatPiece and formatArg,
+%over https://docs.rs/dyn-fmt; measured 2026-08-19 against the arbiter:
+%`"{{}}{}"` with one argument is `{}1`, `"{x}{}"` with two is `x{`, and
+%`"{} and {}"` with one is `only and `, where this engine's library left the
+%unfilled `{}` standing] [tested: runtime_format_strings].
+'format-args'(Format, Arguments, Out) :-
+    (   string(Format), is_list(Arguments)
+    ->  maplist(metta_console_text, Arguments, Texts),
+        string_codes(Format, Codes),
+        format_piece(Texts, Codes, OutCodes),
+        string_codes(Out, OutCodes)
+    ;   metta_operation_answer('format-args', [Format, Arguments], Out)
+    ).
+
+format_piece(_, [], []).
+format_piece(Arguments, [0'{|Rest], Out) :- !,
+    ( Rest == [] -> Out = [] ; format_arg(Arguments, Rest, Out) ).
+format_piece(Arguments, [0'}|Rest], Out) :- !,
+    (   Rest = [Next|More]
+    ->  Out = [Next|Tail],
+        format_piece(Arguments, More, Tail)
+    ;   Out = []
+    ).
+format_piece(Arguments, [Code|Rest], [Code|Tail]) :-
+    format_piece(Arguments, Rest, Tail).
+
+format_arg(_, [], []).
+format_arg(Arguments, [0'}|Rest], Out) :- !,
+    (   Arguments = [Text|More]
+    ->  string_codes(Text, Codes),
+        append(Codes, Tail, Out),
+        format_piece(More, Rest, Tail)
+    ;   format_piece([], Rest, Out)
+    ).
+format_arg(Arguments, [Code|Rest], [Code|Tail]) :-
+    format_piece(Arguments, Rest, Tail).
+
+%The CONSOLE rendering, which is what upstream interpolates: atom_to_string is
+%the same rendering println! uses and it prints a string's characters with no
+%quotes, which is what lets help! print documentation unquoted
+%[source: the same file, formatArgsString].
+metta_console_text(Value, Text) :- string(Value), !, Text = Value.
+metta_console_text(Value, Text) :- swrite(Value, Text).
+
+%Upstream sorts an expression of STRINGS and refuses anything else by name;
+%sort-atom is the general form that orders any atom. The order is the printed
+%form's, and for strings that is the strings' own
+%[source: the same file, sortStringsOp and sortAtoms].
+'sort-strings'(List, Out) :-
+    (   is_list(List), maplist(string, List)
+    ->  msort(List, Out)
+    ;   metta_operation_answer('sort-strings', [List], Out)
+    ).
+
 %%% Boolean Logic: %%%
 bool(true).
 bool(false).
@@ -704,25 +1053,35 @@ bool(false).
 %open answers the whole truth table. That is deliberate and pinned by
 %metta_operation_errors:boolean_operations_remain_relational, which is why
 %these positions are relational_input_position/2 rather than guarded ones.
-boolean_argument(_, _, Value) :- var(Value), !, bool(Value).
-boolean_argument(_, _, true) :- !.
-boolean_argument(_, _, false) :- !.
-boolean_argument(Operation, _, Culprit) :-
-    throw_metta_type_error(Operation, boolean, Culprit).
+%ONE call per operand, with the enumeration inline: an unbound argument still
+%enumerates the booleans, so and/3 with three open arguments answers the whole
+%truth table, and a bound one is settled by two comparisons and no further
+%call. Written as a test predicate plus a separate enumerator instead, and/3
+%cost 6 inferences per call against the throwing shape's 2, and query-where
+%23% [measured 2026-08-19: 688,351 inferences against 848,239].
+boolean_operand(Value) :- ( var(Value) -> bool(Value) ; Value == true -> true
+                          ; Value == false ).
 
-and(A,B,C) :- boolean_argument(and, 1, A), boolean_argument(and, 2, B),
-              ( A == true -> C = B ; A == false -> C = false ).
-or(A,B,C) :- boolean_argument(or, 1, A), boolean_argument(or, 2, B),
-             ( A == true -> C = true ; A == false -> C = B ).
-not(A,B) :- boolean_argument(not, 1, A),
-            ( A == true -> B = false ; A == false -> B = true ).
-xor(A,B,C) :- boolean_argument(xor, 1, A), boolean_argument(xor, 2, B),
-              ( A == B -> C = false ; C = true ).
-implies(A,B,C) :- boolean_argument(implies, 1, A),
-                  boolean_argument(implies, 2, B),
-                  ( A == true -> ( B == true  -> C = true
-                                 ; B == false -> C = false )
-                              ; A == false -> C = true ).
+%The soft cut is what lets an operand that is not a boolean be ANSWERED rather
+%than raise while the enumeration above still runs: it takes every solution the
+%operands have and reaches the refusal only when they have none. `(and True u)`
+%is left as written and `(and True n)` is `(BadArgType 2 Bool Number)`
+%[source: LeaTTa tests/semantics/grounded/07-partial-core.metta].
+and(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                *-> ( A == true -> C = B ; C = false )
+                ;   metta_operation_answer(and, [A, B], C) ).
+or(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+               *-> ( A == true -> C = true ; C = B )
+               ;   metta_operation_answer(or, [A, B], C) ).
+not(A,B) :- ( boolean_operand(A)
+              *-> ( A == true -> B = false ; B = true )
+              ;   metta_operation_answer(not, [A], B) ).
+xor(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                *-> ( A == B -> C = false ; C = true )
+                ;   metta_operation_answer(xor, [A, B], C) ).
+implies(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                    *-> ( A == true -> C = B ; C = true )
+                    ;   metta_operation_answer(implies, [A, B], C) ).
 
 %%% Nondeterminism: %%%
 superpose(L, _) :- var(L), !, refuse_unbound_input(superpose, 1).
@@ -859,6 +1218,12 @@ strict_input_type('Number').
 strict_input_type('String').
 strict_input_type('Symbol').
 strict_input_type('Bool').
+%A space parameter is strict for the same reason the four above are: which
+%space an operation touches cannot be left open. The engine's own surface said
+%`Symbol` for these positions while a space handle answered Symbol, so they
+%were already covered under that spelling and moved with it
+%[tested: builtin_input_guards].
+strict_input_type('SpaceType').
 
 %The constraint family is RELATIONAL by design: (#+ $a 2 $r) is a constraint
 %to post rather than a call to run, and an unbound argument there is the whole
@@ -1126,13 +1491,18 @@ type_declaration(X, T) :- current_metta_module(Module),
 %&self, so a module could be handed to match/4 where a SPACE was asked for.
 %They are different atoms now, and metta_module_space/2 is the one step
 %between them.
+%match_stored/4 rather than match/4: this runs on every typed call, and the
+%door's refusal decision is not one a declaration lookup can ever need, since
+%the space it reads is the engine's own context rather than anything a program
+%wrote [measured 2026-08-20: py-method-call paid three inferences per
+%evaluation through the door].
 type_declaration_in(Module, X, T) :- metta_self_module(Module), !,
                                      (   prelude_type_declaration(X, T)
-                                     ;   match('&self', [':', X, T], T, _) ).
+                                     ;   match_stored('&self', [':', X, T], T, _) ).
 type_declaration_in(Module, X, T) :- metta_module_space(Module, Space),
                                      (   prelude_type_declaration(X, T)
-                                     ;   match(Space, [':', X, T], T, _)
-                                     ;   match('&self', [':', X, T], T, _) ).
+                                     ;   match_stored(Space, [':', X, T], T, _)
+                                     ;   match_stored('&self', [':', X, T], T, _) ).
 
 %A declaration that is not an arrow types the SYMBOL and cannot type a call to
 %it, and nothing said so. `(: inc Number)` beside `(= (inc $x) (+ $x 1))`
@@ -1421,11 +1791,13 @@ native_edge_probe(Space) :-
         \+ \+ clause(StorageModule:Head, _)
     ).
 
+%match_stored/4 for type_declaration_in/3's reason: a supertype lookup reads
+%the engine's own context and never a space a program named.
 super_type_in(Module, T, S) :- metta_self_module(Module), !,
-                               match('&self', [':<', T, S], S, _).
+                               match_stored('&self', [':<', T, S], S, _).
 super_type_in(Module, T, S) :- metta_module_space(Module, Space),
-                               (   match(Space, [':<', T, S], S, _)
-                               ;   match('&self', [':<', T, S], S, _) ).
+                               (   match_stored(Space, [':<', T, S], S, _)
+                               ;   match_stored('&self', [':<', T, S], S, _) ).
 
 %add_super_types, round by round: each round asks for the supertypes of exactly
 %what the PREVIOUS round appended, and appends every one that was not present
@@ -1497,10 +1869,15 @@ type_candidate_in(Module, X, T) :- get_type_rule_in(Module, X, T).
 %that wrote it, &self's included: the second clause is that space's own rule
 %and reads &self's module by name rather than calling it unqualified, which
 %before Phase 11 was the same thing and is not any more.
-get_type_rule_in(Module, X, T) :- \+ metta_self_module(Module),
+%A refusal's own type lookup does not run them, because they are programs and
+%one that computes on its argument re-enters the operation that asked; see
+%metta_argument_types/2, which sets the flag.
+get_type_rule_in(Module, X, T) :- \+ metta_reading_declared_types,
+                                  \+ metta_self_module(Module),
                                   fun_in(Module, 'get-type'),
                                   Module:get_type_rule(X, T).
-get_type_rule_in(_, X, T) :- metta_self_module(Self), Self:get_type_rule(X, T).
+get_type_rule_in(_, X, T) :- \+ metta_reading_declared_types,
+                             metta_self_module(Self), Self:get_type_rule(X, T).
 
 python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 
@@ -1535,6 +1912,14 @@ get_type_candidate(X, T) :- \+ get_function_type(X, _),
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 get_type_candidate(X, T) :- builtin_type_declaration(X, T).
+%A space handle's own type, which no declaration carries because no program
+%wrote the handle. `(get-type &self)` and the type of a space a program made
+%are both `SpaceType` on hyperon 0.2.10, including for a `(new-space)` nothing
+%has been written to [source: LeaTTa tests/semantics/spaces/space_identity.metta
+%and context_space.metta, both STATUS conforms]. Last, like the engine's own
+%declarations above it, so a program that declares something about a handle is
+%still answered first [tested: space_handle_type].
+get_type_candidate(X, 'SpaceType') :- petta_space_operand(X).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
 get_type_candidate_in(_, X, _) :- var(X), !.
@@ -1552,6 +1937,7 @@ get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
 
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 get_type_candidate_in(_, X, T) :- builtin_type_declaration(X, T).
+get_type_candidate_in(_, X, 'SpaceType') :- petta_space_operand(X).
 
 %An expression no arrow types is read ELEMENT-WISE, and the tuple it reads is
 %%Undefined% as soon as one member's type is. Nothing is known about a tuple
@@ -1641,10 +2027,147 @@ metatype_of(X, 'Grounded') :- string(X), !.
 metatype_of(true,  'Grounded') :- !.
 metatype_of(false, 'Grounded') :- !.
 metatype_of(X, 'Grounded') :- python_object_blob(X), py_is_object(X), !.
-metatype_of(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
+metatype_of(X, 'Grounded') :- atom(X), metta_grounded_token(X),
+                              metta_operation_admitted(X), !.
+%A SPACE HANDLE is a value and not a name that happens to spell one, which is
+%why this asks the registry rather than the table: `&self` is in upstream's
+%table because upstream registers a token for it, and a space a program makes
+%at runtime is in no table at all yet answers the same. Measured on hyperon
+%0.2.10: `!(get-metatype &self)` and `!(get-metatype &space-a)` after
+%`!(bind! &space-a (new-space))` both print `[Grounded]`
+%[source: LeaTTa tests/semantics/spaces/space_identity.metta, STATUS conforms]
+%[tested: space_handle_type].
+metatype_of(X, 'Grounded') :- atom(X), petta_space_operand(X), !.
 metatype_of(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 metatype_of(X, 'Symbol') :- atom(X), !.            % e.g., a
 metatype_of(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
+
+%The names whose ATOM is grounded, which is what CLASSIFIES a name as Grounded
+%rather than Symbol. A MeTTa program cannot derive it and neither can this
+%engine's own registry, because the classification is about the language and
+%not about the route an engine took to implement a name: `car-atom` is a Prolog
+%predicate HERE and a standard-library equation there, `superpose` is a
+%compiled special form here and a grounded token there. Asking fun/1 answered
+%Grounded for nine names the arbiter answers Symbol for (car-atom, cdr-atom,
+%eval, cons-atom, decons-atom, empty, let, get-doc, type-cast) and Symbol for
+%two it answers Grounded for (nop and &self).
+%
+%So the list is UPSTREAM's, adopted whole rather than re-derived, and generated
+%from the arbiter's own table rather than typed out
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, groundedTokens, 98
+%names read 2026-08-19; tests/semantics/types-meta/
+%02_grounded_token_metatypes.metta and 03_instruction_and_equation_metatypes
+%.metta, both STATUS conforms and both byte-for-byte transcripts]. A name it
+%does not carry is a Symbol, which is what the arbiter answers for one too:
+%`!(get-metatype no-such-operation)` is `[Symbol]` there
+%[tested: metta_metatypes:an_instruction_or_equation_name_is_a_symbol].
+metta_grounded_token('%'). metta_grounded_token('&self').
+metta_grounded_token('*'). metta_grounded_token('+').
+metta_grounded_token('-'). metta_grounded_token('/').
+metta_grounded_token('<'). metta_grounded_token('<=').
+metta_grounded_token('=='). metta_grounded_token('=alpha').
+metta_grounded_token('>'). metta_grounded_token('>=').
+metta_grounded_token('_assert-results-are-alpha-equal').
+metta_grounded_token('_minimal-foldl-atom').
+metta_grounded_token('_assert-results-are-alpha-equal-msg').
+metta_grounded_token('_assert-results-are-equal').
+metta_grounded_token('_assert-results-are-equal-msg').
+metta_grounded_token('_new-state').
+metta_grounded_token('abs-math').
+metta_grounded_token('acos-math').
+metta_grounded_token('add-atom'). metta_grounded_token('and').
+metta_grounded_token('asin-math').
+metta_grounded_token('atan-math'). metta_grounded_token('bind!').
+metta_grounded_token('call-native').
+metta_grounded_token('capture').
+metta_grounded_token('ceil-math').
+metta_grounded_token('change-state!').
+metta_grounded_token('collapse-extract').
+metta_grounded_token('cos-math').
+metta_grounded_token('div-euclid').
+metta_grounded_token('div-floor').
+metta_grounded_token('div-trunc').
+metta_grounded_token('floor-math').
+metta_grounded_token('fork-space').
+metta_grounded_token('format-args').
+metta_grounded_token('fuzzy-match').
+metta_grounded_token('fuzzy-match-space').
+metta_grounded_token('fuzzy-match-context').
+metta_grounded_token('get-atoms').
+metta_grounded_token('get-metatype').
+metta_grounded_token('get-state').
+metta_grounded_token('get-type').
+metta_grounded_token('get-type-space').
+metta_grounded_token('git-import!').
+metta_grounded_token('git-module!').
+metta_grounded_token('hyperpose').
+metta_grounded_token('if-equal'). metta_grounded_token('import!').
+metta_grounded_token('import-into!').
+metta_grounded_token('import-item!').
+metta_grounded_token('include').
+metta_grounded_token('index-atom').
+metta_grounded_token('intersection-atom').
+metta_grounded_token('isinf-math').
+metta_grounded_token('isnan-math').
+metta_grounded_token('loaded-mods!').
+metta_grounded_token('log-math'). metta_grounded_token('match').
+metta_grounded_token('match%'). metta_grounded_token('max-atom').
+metta_grounded_token('min-atom').
+metta_grounded_token('mod-euclid').
+metta_grounded_token('mod-floor').
+metta_grounded_token('mod-space!').
+metta_grounded_token('module-space-no-deps').
+metta_grounded_token('module-tree!').
+metta_grounded_token('near-match').
+metta_grounded_token('new-mork-space').
+metta_grounded_token('new-space'). metta_grounded_token('nop').
+metta_grounded_token('not'). metta_grounded_token('or').
+metta_grounded_token('pow-math'). metta_grounded_token('pragma!').
+metta_grounded_token('print-alternatives!').
+metta_grounded_token('print-mods!').
+metta_grounded_token('println!').
+metta_grounded_token('register-module!').
+metta_grounded_token('rem-trunc').
+metta_grounded_token('remove-atom').
+metta_grounded_token('round-math').
+metta_grounded_token('sealed'). metta_grounded_token('sin-math').
+metta_grounded_token('size-atom').
+metta_grounded_token('skel-swap-pair-native').
+metta_grounded_token('sort-atom').
+metta_grounded_token('sort-strings').
+metta_grounded_token('sqrt-math').
+metta_grounded_token('subtraction-atom').
+metta_grounded_token('superpose').
+metta_grounded_token('tan-math'). metta_grounded_token('trace!').
+metta_grounded_token('trunc-math').
+metta_grounded_token('union-atom').
+metta_grounded_token('unique-atom'). metta_grounded_token('xor').
+
+%The other half of the metatype answer: the table says which names are grounded
+%and this says which of them THIS engine holds an operation for. The arbiter
+%asks both, `groundedTokenNames.contains s && w.opAdmitted s`, and it measured
+%why: hyperon answers Symbol for `flip` and Grounded for it after
+%`!(import! &self random)`, because "WHICH names a tokenizer has bound is a
+%fact about the context, not about the language"
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, metaTypeOf and the
+%note above groundedTokens, read 2026-08-19]. Without it a name this engine has
+%no operation for reported Grounded, which is a claim it cannot make and which
+%contradicts the `no-such-operation` answer the same corpus pins: 33 of the 98
+%are LeaTTa or hyperon operations PeTTa does not ship [measured 2026-08-20].
+%
+%Both of the engine's registers are asked, because a head has meaning here two
+%ways and fun/1 alone is not the question: 29 of the translator's special-form
+%heads answer false to it, `superpose` and `nop` among them
+%[source: metta_translated_head/1 in src/translator.pl, which is the same
+%question the linter asks]. `&self` is in neither register and is always here,
+%being the space every program starts in, which is why the arbiter grounds it
+%for the same reason it grounds `+`
+%[tested: metta_metatypes:a_token_this_engine_does_not_hold_is_a_symbol].
+metta_operation_admitted(Name) :- fun(Name), !.
+metta_operation_admitted(Name) :- metta_translated_head(Name), !.
+%`&self` reaches this through the space registry rather than through either
+%register, which is also how every space a program makes at runtime reaches it.
+metta_operation_admitted(Name) :- petta_space_operand(Name).
 
 %A parameter declared with a METATYPE accepts any atom of that kind, which is
 %what makes a variadic constructor declarable: a container has no fixed arity
@@ -2660,8 +3183,13 @@ metta_pure_operation(Name) :- pure_inspection(Name).
 metta_pure_operation(Name) :- pure_engine_helper(Name).
 
 %The engine's own helpers that a compiled body calls. They inspect and raise;
-%none of them writes anything a cache could hide.
+%none of them writes anything a cache could hide. The two refusal helpers read
+%the DECLARATION register and nothing else, and a declaration reaching a space
+%already recompiles what mentions the name, so a cached answer cannot outlive
+%the declarations it was computed from.
 pure_engine_helper(metta_arith_operands).
+pure_engine_helper(metta_bad_argument_error).
+pure_engine_helper(function_overapplication).
 pure_engine_helper(throw_metta_type_error).
 pure_engine_helper(rethrow_metta_operation_error).
 pure_engine_helper(non_list).
@@ -2889,9 +3417,24 @@ assert(Goal, true) :- current_metta_module(Module),
 %replaces matched the literal &self and answered nothing for any named
 %space; the engine's type machinery is module-parameterized already, so
 %selection is one with_metta_module/2 around the ordinary get-type.
+%A name that is not a space is refused here as it is at every other space
+%door, and in the same shape, an ANSWER rather than a throw: the arbiter's
+%`(Error (get-type-space not-a-space scoped-atom) get-type-space expects a
+%space as the first argument)` is what the four get-doc files read back through
+%this operation [source: LeaTTa tests/semantics/spaces/get_type_space.metta,
+%STATUS conforms] [tested: space_argument_refusals]. Without it, space_module/2
+%made a module for the name and the lookup answered &self's own declarations
+%through it.
 'get-type-space'(Space, _, _) :- var(Space), !,
                                  refuse_unbound_input('get-type-space', 1).
-'get-type-space'(Space, X, T) :- space_module(Space, Module),
+%Both clauses guard themselves rather than leaning on a cut, for the reason
+%match/4's last clause records: a proof walk enumerates clauses and calls each
+%body, where an earlier cut prunes nothing.
+'get-type-space'(Space, X, T) :- \+ petta_space_name(Space), !,
+                                 space_argument_error('get-type-space',
+                                                      [Space, X], T).
+'get-type-space'(Space, X, T) :- petta_space_name(Space),
+                                 space_module(Space, Module),
                                  with_metta_module(Module, 'get-type'(X, T)).
 
 %%% Documentation, HE's vocabulary, first class %%%
@@ -2931,10 +3474,13 @@ doc_shape(Name, ['@doc', Name, _]).
 doc_shape(Name, ['@doc', Name, _, _]).
 doc_shape(Name, ['@doc', Name, _, _, _]).
 
+%match_stored/4, not the door: the door answers an error atom for a name that
+%is not a space, and the slot it would land in here is discarded, so the doc
+%shape would come back unbound as though a document had been found.
 'get-doc-space'(Space, Name, Doc) :-
     doc_shape(Name, Doc),
     (   prelude_doc_atom(Name, Doc)
-    ;   match(Space, Doc, Doc, _)
+    ;   match_stored(Space, Doc, Doc, _)
     ).
 
 'help!'(Name, []) :-
@@ -2949,7 +3495,7 @@ documented(Name) :- current_metta_space(Space),
                     'documented-space'(Space, Name).
 
 'documented-space'(Space, Name) :- doc_shape(Name, Doc),
-                                   match(Space, Doc, Name, _).
+                                   match_stored(Space, Doc, Name, _).
 
 %The library's exact semantics: every head of an equation THE SPACE
 %HOLDS, once each. Enumerating the space's own atoms is what excludes
@@ -3082,9 +3628,15 @@ metta_elapsed(Goal, Value, [Value, Seconds]) :-
 %so this is the fallback-to-HE rule applied.
 :- dynamic metta_pragma/2.
 
-%An unrecognised key is a typo far more often than it is forward
-%compatibility, so it is an error that names the keys that exist rather than a
-%setting that silently never applies.
+%The keys this engine KNOWS. pragma! itself no longer checks against them:
+%the arbiter accepts any key and answers unit, and its corpus states the
+%reason, "an Error would introduce key validation that the pinned operation
+%does not perform" [source: LeaTTa
+%tests/semantics/eval-core/pragma-unknown-key.metta, STATUS conforms]. The
+%register is still the answer to "what does this engine enforce", and
+%with-pragma!, which is PeTTa's own scoped form, still refuses an unknown key
+%there: a scope that sets nothing does nothing, silently, for as long as it
+%lasts [tested: scoped_pragmas:with_pragma_refuses_an_unknown_key].
 %HE's own keys are type-check, interpreter and max-stack-depth
 %[source 2026-08-15: MeTTa HE stdlib reference, pragma!]. The two bounds are
 %PeTTa's, and are the ones this engine can actually enforce.
@@ -3100,13 +3652,23 @@ metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
 
 'pragma!'(Key, _, _) :- var(Key), !, refuse_unbound_input('pragma!', 1).
-'pragma!'(Key, Value, true) :-
-    (   metta_pragma_key(Key, _)
-    ->  true
-    ;   findall(K-D, metta_pragma_key(K, D), Known),
-        throw(error(domain_error(metta_pragma_key, Key),
-                    context('pragma!'/2, Known)))
-    ),
+%max-stack-depth is the ONE key the arbiter validates, and a count is the
+%whole of what it validates. The refusal is an ANSWER, not a raise, so the
+%program that wrote it keeps running [measured 2026-08-19 against the
+%arbiter: -1, 1.5 and abc each answer this error, while
+%(pragma! type-check -1) and (pragma! completely-invented-key -1) answer ();
+%source: LeaTTa tests/semantics/eval-core/max-stack-depth-negative.metta].
+%`none` is the engine's own "unset" sentinel, which petta_restore_pragma/1
+%passes back on every scope exit, so it is not a value to validate.
+'pragma!'('max-stack-depth', Value, Error) :-
+    Value \== none,
+    \+ ( integer(Value), Value >= 0 ),
+    !,
+    Error = ['Error', ['pragma!', 'max-stack-depth', Value],
+             'UnsignedIntegerIsExpected'].
+%The UNIT value, for the reason add-atom answers it: the standard library
+%types this `(-> Symbol %Undefined% (->))` and `(->)` IS the unit type.
+'pragma!'(Key, Value, []) :-
     retractall(metta_pragma(Key, _)),
     (   Value == none
     ->  true
@@ -3133,7 +3695,13 @@ metta_with_pragmas(Settings, Goal, Value) :-
           maplist(petta_restore_pragma, Undo) )),
     member(Value, Values).
 
-petta_pragma_pair([Key, ValueIn], Key-ValueIn) :- !.
+petta_pragma_pair([Key, ValueIn], Key-ValueIn) :- !,
+    (   metta_pragma_key(Key, _)
+    ->  true
+    ;   findall(K-D, metta_pragma_key(K, D), Known),
+        throw(error(domain_error(metta_pragma_key, Key),
+                    context('with-pragma!'/2, Known)))
+    ).
 petta_pragma_pair(Other, _) :-
     throw(error(domain_error(metta_pragma_setting, Other),
                 context('with-pragma!'/2,
@@ -3209,7 +3777,16 @@ run_under_pragmas(Goal) :-
 %full evaluation rather than minimal MeTTa's single rewriting step, which its
 %own comment records, so this is the HE spelling over it. The Type argument is
 %accepted and ignored, as it is for %Undefined% in HE.
-'metta'(Atom, _Type, Space, Out) :- evalc(Atom, Space, Out).
+%The space test is evalc's, repeated rather than delegated, because a refusal
+%has to name the operation the PROGRAM wrote: delegating told a program that
+%wrote `metta` about `evalc`
+%[tested: builtin_input_guards:every_builtin_refuses_an_unbound_input_by_name].
+'metta'(Atom, _Type, Space, Out) :- ( 'is-space'(Space, true)
+                                      -> true
+                                      ;  throw_metta_type_error(metta,
+                                                                'SpaceType',
+                                                                Space) ),
+                                     evalc(Atom, Space, Out).
 
 %%% Python bindings: %%%
 % janus converts Python booleans to @(true)/@(false); normalize them to the
@@ -3311,7 +3888,15 @@ bind_python_call_spec(Spec, Spec).
 %the form means what it says and bind! has something to bind.
 :- dynamic petta_space_counter/1.
 
-'new-space'(Space) :- gensym('&petta-space-', Space).
+%The space is REGISTERED here rather than at its first write, because a space
+%that has been created exists: `(chain (new-space) $s (get-type $s))` is
+%`SpaceType` on hyperon 0.2.10 with nothing written to it
+%[source: LeaTTa tests/semantics/spaces/space_identity.metta, STATUS conforms]
+%[tested: space_handle_type:a_fresh_space_is_one_before_anything_is_written_to_it].
+%Naming a space still registers nothing, which is the property that keeps every
+%symbol in a space position from becoming one.
+'new-space'(Space) :- gensym('&petta-space-', Space),
+                      ensure_native_storage_module(Space, _).
 
 %%% States: %%%
 'bind!'(Var, _, _) :- var(Var), !, refuse_unbound_input('bind!', 1).
@@ -4373,11 +4958,76 @@ throw_missing_import(File) :-
 resolve_metta_import_path(File, CanonPath) :-
     import_file_string(File, SFile),
     \+ python_import_file(SFile),
-    current_working_dir(Base),
-    ensure_metta_ext(SFile, RequestedPath),
+    metta_module_path(SFile, Base, Relative),
+    ensure_metta_ext(Relative, RequestedPath),
     ( resolve_existing_import_path(Base, RequestedPath, CanonPath)
       -> true
        ; throw_missing_import(File) ).
+
+%`include` PASTES a module's source into the space that included it and
+%answers what its LAST directive answered, where import! gives the file its
+%own space and answers unit. A module with no directive answers nothing, and
+%facts join the including space in order, each directive evaluating against
+%the state built so far
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, the include
+%dispatch, whose Type line is `(-> Atom %Undefined%)`;
+%tests/semantics/modules/04-include-no-directive.metta and
+%05-include-directive.metta, both STATUS conforms].
+%
+%`self` and `top` are BASES rather than modules, so including one is refused
+%in upstream's own words, and so is a name that resolves to nothing
+%[measured 2026-08-19 against the arbiter: `!(include nosuchfile)` answers
+%`(Error (include nosuchfile) no module named nosuchfile is available)`].
+include(Module, Answer) :-
+    (   metta_include_refusal(Module, Reason)
+    ->  metta_error_atom(include, [Module], Reason, Answer)
+    ;   current_metta_space(Space),
+        resolve_metta_import_path(Module, Path),
+        load_metta_source_groups(Path, Space, Groups),
+        last(Groups, Last),
+        member(Answer, Last)
+    ).
+
+metta_include_refusal(Module, "include: the running context is not a module") :-
+    memberchk(Module, [self, top]), !.
+metta_include_refusal(Module, Reason) :-
+    \+ catch(resolve_metta_import_path(Module, _), _, fail),
+    format(string(Reason), "no module named ~w is available", [Module]).
+
+%A module NAME may be a COLON PATH. `pkg:child` names pkg/child.metta beside
+%the file that imports it, `top:` names the OUTERMOST module's directory and
+%`self:` the importing module's own, which is also what a bare name means
+%[source: LeaTTa tests/semantics/modules/22-path-colon.metta,
+%23-path-top.metta and 24-path-self.metta, all STATUS conforms; the third
+%imports `self:child` from inside a module the first level already reached].
+%
+%A name carrying a separator ALREADY is a path and is left alone, which is the
+%whole guard: nothing that resolved before resolves somewhere else now
+%[tested: module_colon_paths].
+metta_module_path(SFile, Base, Relative) :-
+    \+ sub_string(SFile, _, _, _, "/"),
+    sub_string(SFile, _, _, _, ":"),
+    split_string(SFile, ":", "", Segments0),
+    module_path_base(Segments0, Which, Segments),
+    Segments \== [],
+    !,
+    metta_import_base(Which, Base),
+    atomic_list_concat(Segments, '/', Relative).
+metta_module_path(SFile, Base, SFile) :- current_working_dir(Base).
+
+module_path_base(["top"|Segments], top, Segments) :- !.
+module_path_base(["self"|Segments], self, Segments) :- !.
+module_path_base(Segments, self, Segments).
+
+%working_dir/1 is a stack kept by asserta/1, so its FIRST solution is the file
+%being loaded and its last is the module the load started from.
+metta_import_base(self, Directory) :- current_working_dir(Directory).
+metta_import_base(top, Directory) :-
+    findall(Held, working_dir(Held), Directories),
+    (   last(Directories, Directory)
+    ->  true
+    ;   current_working_dir(Directory)
+    ).
 
 resolve_python_import_path(File, CanonPath) :-
     import_file_string(File, SFile),
@@ -4547,7 +5197,11 @@ restore_python_path(PreviousPath) :-
     py_call(sys:path:clear(), _),
     py_call(sys:path:extend(PreviousPath), _).
 
-'import!'(Space, File, true) :- importer_helper(Space, File).
+%The UNIT value, for the reason add-atom and pragma! answer it: importing is
+%an effect and `()` is what the arbiter records for every one of its module
+%transcripts [source: LeaTTa tests/semantics/modules/18-direct-import-control
+%and 20-cycle-control, both `[()]`].
+'import!'(Space, File, []) :- importer_helper(Space, File).
 %`(: import! (-> Atom Atom Bool))` says both arguments arrive UNREDUCED, which
 %is right: a module name is a name and evaluating it would look for a function
 %called `lib_constraints`. So the forms a module name can take are resolved
@@ -4564,7 +5218,50 @@ importer_helper(Space, File0) :-
 resolve_module_form(Form, Path) :-
     nonvar(Form), Form = [library, Name], !,
     library(Name, Path).
+%A BUILT-IN MODULE is one the engine ships, named directly rather than by
+%path: `!(import! &self skel)` is the arbiter's own spelling and upstream
+%loads six of them at startup [source: LeaTTa
+%MettaHyperonFull/Minimal/Interpreter.lean, builtinModules]. Resolved BEFORE
+%the filesystem, because the name is the module's identity rather than a path
+%a program may happen to have a file for, which is also what makes the same
+%import work from inside another module with its own working directory
+%[tested: builtin_modules] [source: LeaTTa tests/semantics/grounded/
+%28-builtin-module-skel.metta and modules/35-builtin-from-module].
+resolve_module_form(Form, Path) :-
+    atom(Form), metta_builtin_module(Form, Relative),
+    metta_top_context, !,
+    library(Relative, Path).
 resolve_module_form(Form, Form).
+
+%The modules this engine ships, one row each. `skel` is upstream's own
+%skeleton and the only one of its six that uses every tier at once: three
+%declarations, one MeTTa equation and one grounded operation. Upstream's
+%`load_builtin_mods` also registers `json`, `fileio`, `catalog` and `das`, and
+%those are libraries this engine does not implement; registering a name so
+%that an import succeeds while every operation behind it silently fails is the
+%graceful degradation this repository refuses, so they stay unresolvable and
+%say so [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, the note
+%above builtinModules, which makes the same decision].
+metta_builtin_module(skel, 'builtin_mods/skel.metta').
+
+%A built-in module is a child of the TOP, so its bare name means one only when
+%the import is written at the top. Inside a module the same name is relative to
+%that module, `skel` written in `usesskel` means `top:usesskel:skel`, which no
+%built-in is, and the import fails. Comparing the written name before anything
+%else gets this wrong in a way that is worse than a plain refusal: the import
+%reports success and a call to the module's operation is still unreduced,
+%because admission is tested against the running context and the import went
+%somewhere else [source: LeaTTa tests/semantics/modules/35-builtin-from-module,
+%whose PURPOSE is exactly that trap; both engines refuse there and differ only
+%in the wording]
+%[tested: a_module_cannot_reach_a_builtin_by_its_bare_name].
+%
+%working_dir/1 is the load stack, one entry per file being loaded, so the
+%outermost file is depth one and anything it imports is deeper.
+metta_top_context :-
+    findall(Held, working_dir(Held), Directories),
+    length(Directories, Depth),
+    Depth =< 1.
 importer_helper_impl(Space, File) :-
     ( python_import_file(File)
       -> resolve_python_import_path(File, CanonPath),
@@ -4718,13 +5415,8 @@ control_exception(error(resource_error(_), _)).
 %observe. Every fault outside metta_ieee_retry/1, integer division by zero
 %first among them, keeps the funnel below; the retry's own catch is the net
 %for faults the flags do not govern, none known for the shipped operations.
-metta_saturating_recover(Operation, Expression, Result,
-                         error(evaluation_error(Evaluation), _)) :-
-    metta_ieee_retry(Evaluation),
-    (   Evaluation == float_overflow
-    ->  true
-    ;   sub_term(Operand, Expression), float(Operand)
-    ),
+metta_saturating_recover(Operation, Expression, Result, Error) :-
+    metta_ieee_saturable(Expression, Error),
     !,
     current_prolog_flag(float_overflow, WasOverflow),
     current_prolog_flag(float_zero_div, WasZeroDiv),
@@ -4758,6 +5450,15 @@ metta_saturating_recover(Operation, _, _, Error) :-
 metta_ieee_retry(float_overflow).
 metta_ieee_retry(zero_divisor).
 metta_ieee_retry(undefined).
+
+%Whether a fault is in the retryable family at all, factored out so the
+%chained recovery above can ask without committing to the retry.
+metta_ieee_saturable(Expression, error(evaluation_error(Evaluation), _)) :-
+    metta_ieee_retry(Evaluation),
+    (   Evaluation == float_overflow
+    ->  true
+    ;   sub_term(Operand, Expression), float(Operand)
+    ).
 
 %Keep the ISO Formal term because callers and the MeTTa catch form inspect it.
 %Only the host context is replaced, so lists:min_list/3, is/2, and nb_setval/2
@@ -4980,6 +5681,7 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'floor-math', 'round-math', 'sin-math', 'cos-math', 'tan-math', 'asin-math','random-int','random-float',
                           'acos-math', 'atan-math', 'isnan-math', 'isinf-math', 'min-atom', 'max-atom',
                           'foldl-atom', 'map-atom', 'filter-atom','current-time','format-time', 'context-space', library, exists_file,
+                          'format-args', 'sort-strings', include,
                           sleep, 'pragma!', metta,
                           import_prolog_function, check_prolog_function_names, import_prolog_functions,
                           'Predicate', callPredicate, assertaPredicate, assertzPredicate, retractPredicate,

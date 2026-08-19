@@ -78,27 +78,44 @@ def test_run_syntax_error_is_loud(metta):
     assert "petta_py_exception" not in str(failure.value)
 
 
-def test_run_unknown_function_error_is_loud(metta):
-    # An undefined head inside arithmetic is a hard engine error, exactly as
-    # the CLI dies on it; nothing is swallowed.
-    with pytest.raises(EngineError):
-        metta.run("!(+ 1 (no-such-function-anywhere 2))")
+def test_an_undefined_head_inside_arithmetic_is_left_as_written(metta):
+    # An undefined head reduces to itself, so the arithmetic around it has an
+    # argument whose type decides nothing and the whole call stays as written.
+    # It used to be a hard engine error that took the rest of the file with it
+    # [source: LeaTTa tests/semantics/grounded/07-partial-core.metta].
+    assert metta.run("!(+ 1 (no-such-function-anywhere 2))") == [
+        [parse("(+ 1 (no-such-function-anywhere 2))")]
+    ]
+
+
+@pytest.mark.parametrize(
+    ("source", "answer"),
+    [
+        ("!(+ 1 a)", "(+ 1 a)"),
+        ("!(< 1 a)", "(< 1 a)"),
+        ("!(min-atom (a b))",
+         '(Error (min-atom (a b)) "Only numbers are allowed in expression: (a b)")'),
+        ("!(and True 5)", "(Error (and True 5) (BadArgType 2 Bool Number))"),
+    ],
+)
+def test_an_operation_that_cannot_compute_answers_rather_than_raising(metta, source, answer):
+    # MeTTa's error channel is an ANSWER, so the parts arrive as data and the
+    # form after the refusal still runs.
+    assert [str(a) for group in metta.run(source) for a in group] == [answer]
 
 
 @pytest.mark.parametrize(
     ("source", "operation", "expected", "culprit"),
     [
-        ("!(+ 1 a)", "+", "number", "a"),
-        ("!(< 1 a)", "<", "number", "a"),
-        ("!(min-atom (a b))", "min-atom", "number", "a"),
-        ("!(and true 5)", "and", "boolean", 5),
         ("!(reduce a)", "reduce", "list", "a"),
         ("!(change-state! (State 5) 6)", "change-state!", "atom", ["State", 5]),
     ],
 )
 def test_operation_error_carries_its_parts(metta, source, operation, expected, culprit):
     # The engine names the written operation in the error term, so the parts
-    # arrive as data rather than as text a caller would have to parse.
+    # arrive as data rather than as text a caller would have to parse. These
+    # two are structural refusals rather than a grounded operation declining a
+    # value, so they are still raises.
     with pytest.raises(MettaOperationError) as failure:
         metta.run(source)
     assert failure.value.operation == operation
@@ -113,7 +130,7 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):
     # A variable inside a culprit must render, or (a $x) and an absent part
     # both arrive as None and read alike.
     with pytest.raises(MettaOperationError) as failure:
-        m.run("!(and True (a $x))")
+        m.run("!(change-state! (a $x) 6)")
     assert failure.value.culprit == ["a", "$_0"]
     with pytest.raises(MettaOperationError) as absent:
         m.run("!(/ 1 0)")

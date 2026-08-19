@@ -43,6 +43,13 @@
 %     whitespace between atoms, parser.pl's metta_token_boundary/2 layout
 %     rows being the one class both read [tested 2026-08-19:
 %     test_every_unicode_whitespace_separates_top_level_forms].
+%   - A top-level form is ONE ATOM of any kind, so `! untouched-symbol`,
+%     `! 42`, `! "text"` and `! &first` run and a bare symbol on its own
+%     line is stored, which is what the arbiter does with each. `!` marks
+%     the atom after it only before `(`, layout or end of input, and is an
+%     ordinary symbol character everywhere else, so `bind!`, `!=`, `!42`
+%     and `!$x` are names [tested 2026-08-19: filereader_form_splitter,
+%     filereader_bare_top_level_atoms].
 %   - A file that loads again REPLACES what it put in that space rather than
 %     adding to it, reaches any other space its change has made stale, and
 %     says what it withdrew [tested 2026-08-19:
@@ -182,6 +189,37 @@ load_entry_metta_file(Filename, Results, Space) :-
 
 load_metta_file_impl(Filename, Results, Space) :-
     load_metta_file_impl(Filename, Results, Space, compile).
+
+%One answer GROUP per runnable form, in source order, which the flattening
+%above deliberately loses: a program wants every answer and nothing else, and
+%two callers want to know which form produced which. `include` needs the LAST
+%group, because the results of a module's last directive are the results of
+%including it, and tests/conformance/leatta_run.pl needs every group, because
+%the arbiter records one bracketed line per form and the grouping IS the
+%observation. It ran its own copy of this until include needed one too.
+%The cut is process_metta_string/4's, for its reason: a source has ONE
+%reading, and process_form/4's last clause turns a backtrack into "could not
+%translate this form", so a caller that fails after a successful load is told
+%the source was malformed.
+load_metta_source_groups(Filename, Space, Groups) :-
+    setup_call_cleanup(push_working_dir(Filename),
+                       read_metta_source_groups(Filename, Space, Groups),
+                       pop_working_dir).
+
+read_metta_source_groups(Filename, Space, Groups) :-
+    read_metta_source(Filename, Source),
+    prepare_metta_source(Source, Forms),
+    maplist(process_form(Space, compile), Forms, PerForm),
+    !,
+    runnable_groups(Forms, PerForm, Groups).
+
+runnable_groups([], [], []).
+runnable_groups([Form|Forms], [Group|Rest], Groups) :-
+    (   Form = parsed(runnable, _, _)
+    ->  Groups = [Group|More]
+    ;   Groups = More
+    ),
+    runnable_groups(Forms, Rest, More).
 
 load_metta_file_impl(Filename, Results, Space, CompileMode) :-
     setup_call_cleanup(push_working_dir(Filename),
@@ -948,12 +986,6 @@ grab_until_balanced(D, Acc, Cs, LC0, LC2, State) --> [C],
                                     ; grab_until_balanced(D1,Acc1,Cs,LC1,LC2,State1) ).
 
 %Read a balanced (...) block if available, turn into string, then continue with rest, ignoring comments:
-read_form_open(_) --> "(", !.
-read_form_open(LC) -->
-    string_without("\n", Rest),
-    { format(atom(Msg), "expected '(' or '!(', line ~w:~n~s", [LC, Rest]),
-      throw(error(syntax_error(Msg), none)) }.
-
 read_balanced_form(LC, Cs, LC2) -->
     grab_until_balanced(1, [0'(], Cs, LC, LC2, outside), !.
 read_balanced_form(LC, _, _) -->
@@ -961,13 +993,57 @@ read_balanced_form(LC, _, _) -->
     { format(atom(Msg), "missing ')', starting at line ~w:~n~s", [LC, Rest]),
       throw(error(syntax_error(Msg), none)) }.
 
+%One top-level ATOM, which is what a MeTTa source is a sequence of. A
+%parenthesised expression is the commonest kind and was for a long time the
+%only kind this splitter read, so `! untouched-symbol`, `! 42` and `! &first`
+%raised `expected '(' or '!('` and took the whole file down with them
+%[source: LeaTTa tests/semantics/eval-core/self-evaluating-atoms.metta,
+%grounded/25-state-rendering.metta, modules/09-bind/main.metta, all three
+%STATUS conforms].
+read_top_atom(LC0, Cs, LC1) --> "(", !, read_balanced_form(LC0, Cs, LC1).
+read_top_atom(LC0, Cs, LC1) --> read_bare_atom(outside, LC0, [], Cs, LC1).
+
+%A symbol, a number, a string or a variable, ending at the first token
+%boundary reached OUTSIDE a string literal, so `! "a b"` is one atom and not
+%two. string_state/3 is the same three-state machine grab_until_balanced//6
+%runs, which is why a quote, an escape or a semicolon inside the literal
+%behaves here exactly as it does inside a form.
+read_bare_atom(State, LC0, Acc, Cs, LC2) --> [C],
+    { \+ ( State == outside, metta_token_boundary(C, _) ) }, !,
+    { string_state(State, C, State1),
+      ( C =:= 0'\n -> LC1 is LC0 + 1 ; LC1 = LC0 ) },
+    read_bare_atom(State1, LC1, [C|Acc], Cs, LC2).
+read_bare_atom(_, LC, Acc, Cs, LC) --> { Acc \== [], reverse(Acc, Cs) }.
+
 top_forms(Forms, LC0) --> source_layout(LC0, LC1),
                           top_forms_after_layout(Forms, LC1).
 
 top_forms_after_layout([], _) --> eos.
-top_forms_after_layout([Term|Fs], LC1) -->
-    ( "!" -> {Tag = runnable} ; {Tag = form} ),
-    read_form_open(LC1),
-    read_balanced_form(LC1, Cs, LC2),
+top_forms_after_layout(Forms, LC0) -->
+    exec_marker, !,
+    source_layout(LC0, LC1),
+    top_atom_form(runnable, Forms, LC1).
+top_forms_after_layout(Forms, LC0) -->
+    top_atom_form(form, Forms, LC0).
+
+%A marker with nothing after it contributes no form rather than raising: the
+%arbiter's tokenizer emits the marker and its parser then has no atom to mark
+%[measured 2026-08-19: LeaTTa --observed-file on a file ending in a bare `!`
+%exits 0 and prints nothing].
+top_atom_form(_, [], _) --> eos, !.
+top_atom_form(Tag, [Term|Fs], LC0) -->
+    read_top_atom(LC0, Cs, LC1),
     { string_codes(FormStr, Cs), Term =.. [Tag, FormStr] },
-    top_forms(Fs, LC2).
+    top_forms(Fs, LC1).
+
+%`!` marks the atom that follows only when it stands before `(`, layout or
+%end of input. Everywhere else it is an ordinary symbol character, which is
+%what makes `bind!`, `change-state!`, `println!` and `!=` ordinary names, and
+%what makes `!42` and `!$x` symbols rather than runnables [source: LeaTTa
+%MettaHyperonFull/Runtime/Parser.lean:85-88; measured 2026-08-19: each of
+%those two prints nothing there].
+exec_marker --> "!", exec_marker_boundary.
+
+exec_marker_boundary, [C] --> [C], !,
+    { C =:= 0'( ; metta_token_boundary(C, layout) }.
+exec_marker_boundary --> [].

@@ -2,8 +2,9 @@
 handed two of different types instead of answering a Bool that reads as a
 verdict.
 Guarantees:
-  - a comparison across two KNOWN and different types is refused by name,
-    while one whose either side has no declared type answers False [tested
+  - a comparison across two KNOWN and different types ANSWERS its refusal,
+    `(Error <call> (BadArgType <position> <expected> <actual>))`, while one
+    whose either side has no declared type answers False [tested
     test_cross_kind_equality_answers_what_the_arbiter_answers]
   - `=alpha` stays the comparison that accepts anything, so the refusal has
     an escape hatch that is already in the language [tested
@@ -16,7 +17,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa, MettaOperationError
+from petta import MeTTa
 
 
 @pytest.fixture()
@@ -42,20 +43,21 @@ def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
     must have a consistent type. Measured 2026-08-19 on hyperon 0.2.10 and on
     the LeaTTa mechanised interpreter, byte-identical across both.
     """
-    # Both sides KNOWN and different: refused, and the message names the MeTTa
-    # operation and the offending operand rather than a host predicate.
-    for query, expected in (
-        ('(== 1 "S")', "Number"),
-        ("(== True 1)", "Bool"),
-        ("(== xnum ystr)", "Number"),
-        ('(== xnum "s")', "Number"),
-        ("(== xnum zbool)", "Number"),
-        ('(== "s" 1)', "String"),
+    # Both sides KNOWN and different: refused, and the refusal is an ANSWER
+    # naming the position, the type the first operand fixed and the type the
+    # second carries. The form after it still runs, which a raise took away.
+    for query, expected, actual in (
+        ('(== 1 "S")', "Number", "String"),
+        ("(== True 1)", "Bool", "Number"),
+        ("(== xnum ystr)", "Number", "String"),
+        ('(== xnum "s")', "Number", "String"),
+        ("(== xnum zbool)", "Number", "Bool"),
+        ('(== "s" 1)', "String", "Number"),
     ):
-        with pytest.raises(MettaOperationError) as refused:
-            declared.run("!" + query)
-        assert "==" in str(refused.value), query
-        assert expected in str(refused.value), query
+        answers = _answer(declared, query)
+        assert len(answers) == 1, query
+        assert answers[0].startswith("(Error (=="), query
+        assert f"(BadArgType 2 {expected} {actual})" in answers[0], query
 
     # One side with no declared type: nothing is contradicted, so the
     # comparison happens and answers False.
@@ -74,8 +76,9 @@ def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
     assert _answer(declared, "(== true false)") == ["False"]
 
     # != is the same operator negated and carries the same rule.
-    with pytest.raises(MettaOperationError):
-        declared.run('!(!= 1 "S")')
+    assert _answer(declared, '(!= 1 "S")') == [
+        '(Error (!= 1 "S") (BadArgType 2 Number String))'
+    ]
     assert _answer(declared, "(!= 1 2)") == ["True"]
 
 

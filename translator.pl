@@ -381,7 +381,8 @@ metta_engine_emitted(metta_negation/5).
 metta_engine_emitted(petta_match_atoms/2).
 metta_engine_emitted(petta_prune_empty/2).
 metta_engine_emitted(petta_transaction/1).
-metta_engine_emitted(throw_function_overapplication/2).
+metta_engine_emitted(function_overapplication/3).
+metta_engine_emitted(metta_bad_argument_error/3).
 
 %Resolving at compile time means the answer can go stale: a space that gains
 %a definition of the name becomes the nearer parent, and one that loses its
@@ -672,10 +673,29 @@ incomplete_application_kind(Fun, Arity, partial) :- ( arity(Fun, KnownArity), Kn
                                                      ; \+ arity(Fun, _) ), !.
 incomplete_application_kind(_, _, overapplied).
 
-throw_function_overapplication(Fun, ActualInputArity) :-
-    findall(InputArity, (arity(Fun, Arity), InputArity is Arity - 1), InputArities),
-    sort(InputArities, KnownInputArities),
-    throw(error(domain_error(function_input_arities(Fun, KnownInputArities), ActualInputArity), none)).
+%An overapplied call ANSWERS rather than raising, because a wrong arity is an
+%ordinary MeTTa error and the form after it still runs. WHICH answer is the
+%declaration's: a head the engine or the program TYPED is refused by name, and
+%an untyped one is left as written, which is what an expression whose head
+%means nothing here already does
+%[measured 2026-08-19 against the arbiter: `(+ 1 2 3)` and
+%`(car-atom (1 2) extra)` answer `(Error <call> IncorrectNumberOfArguments)`
+%while `(empty 1 2)`, `(match-types Number Number yes no extra)` and a user
+%function's `(f 1 2)` are left as written; source: LeaTTa
+%tests/semantics/eval-core/empty-argument-arity.metta].
+function_overapplication(Fun, Arguments, Answer) :-
+    (   metta_typed_head(Fun)
+    ->  Answer = ['Error', [Fun|Arguments], 'IncorrectNumberOfArguments']
+    ;   Answer = [Fun|Arguments]
+    ).
+
+metta_typed_head(Fun) :-
+    atom(Fun),
+    (   current_metta_module(Module),
+        catch_recover(type_declaration_in(Module, Fun, [->|_]), fail)
+    ->  true
+    ;   builtin_type_declaration(Fun, [->|_])
+    ).
 
 % Runtime dispatcher: call F if it's a registered fun/1, else keep as list.
 %
@@ -746,7 +766,8 @@ reduce([F|Args], Out, Status) :- !,
         ;   incomplete_application_kind(F, Arity, partial)
         ->  Out = partial(F,Args),
             Status = reduced
-        ;   throw_function_overapplication(F, N) )
+        ;   function_overapplication(F, Args, Out),
+            Status = reduced )
     ;   % --- Case 2: partial closure ---
         compound(F), F = partial(Base, Bound)
     ->  append(Bound, Args, NewArgs),
@@ -863,8 +884,8 @@ translate_expr_dl([H|T], Goals0, Goals, Out) :-
           %(py-atom numpy.absolute))` then `(abs -5)`.
           ; ( atomic(HV), \+ atom(HV) , \+ metta_grounded_applicable(HV)
             ; atom(HV), \+ fun_here(HV) ) -> note_symbol_head(HV),
-                                                                       translate_data_args_dl(HV, T, AfterHead, Goals, AVs),
-                                                                       Out = [HV|AVs]
+                                             translate_data_args_dl(HV, T, AfterHead, AfterData, AVs),
+                                             data_head_answer_dl(HV, T, AVs, Out, AfterData, Goals)
           %Plain data list: evaluate inner fun-sublists
           ; is_list(HV) -> translate_args_dl(T, AfterHead, AfterArgs, AVs),
                            eval_data_term_dl(HV, AfterArgs, Goals, HV1),
@@ -905,6 +926,47 @@ call_site_type_chains(Fun, UniqueTypeChains) :-
                 MaskedChains),
         list_to_set(MaskedChains, UniqueTypeChains)
     ).
+
+%A DECLARED head with no equations is still checked against its declaration,
+%because the declaration is what the arbiter reads: `(: aF (-> A R))` with
+%`(: b B)` makes `(aF b)` `(Error (aF b) (BadArgType 1 A B))` there and left
+%it as data here, which is why four type-cast files read the subject's own
+%error where this engine reported none
+%[source: LeaTTa tests/semantics/types-basic/50-type-cast-ill-typed-atom.metta
+%through 53, and 44 through 49 for the multiplicity].
+%
+%The goal is emitted ONLY for a head that HAS an arrow, so an ordinary
+%constructor compiles to exactly what it did and pays nothing. The arguments
+%it reports are the ones AS WRITTEN, which is the form the arbiter names and
+%the one whose types decide.
+%
+%ONE INDEXED CLAUSE LOOKUP decides it, the same door get_function_type/2 opens
+%on the typed-call path, and not type_declaration/2, which goes through match/4
+%and the prelude. A data head is the commonest thing in a MeTTa program and the
+%alpha-unique benchmark compiles ten thousand of them: written with
+%call_site_type_chains/2 this cost +44% there, 3.48 to 5.03 billion
+%instructions [measured 2026-08-19], which is the same trap the note above
+%data_head_masks/3 records at +20% for 2026-08-16.
+%
+%It reads &self, which is where a program's declarations go and is the limit
+%get_function_type/2 already lives with; a declaration written only into a
+%named space does not gate that space's data heads.
+data_head_answer_dl(HV, Written, AVs, Out, Goals0, Goals) :-
+    (   arrow_declared_data_head(HV)
+    ->  Goals0 = [( metta_bad_argument_error(HV, Written, Out)
+                  *-> true
+                  ;   Out = [HV|AVs]
+                  )|Goals]
+    ;   Goals0 = Goals,
+        Out = [HV|AVs]
+    ).
+
+arrow_declared_data_head(HV) :-
+    atom(HV),
+    '$petta_atoms:&self':'&self'(':', HV, Chain),
+    nonvar(Chain),
+    Chain = [->|_],
+    !.
 
 %A CONSTRUCTOR can mask too, and this is where the language's rule is wider
 %than "function": it is about what a head DECLARES, not about whether it has
@@ -1177,6 +1239,26 @@ translate_special_dl(progn, Exprs, AfterHead, Goals, Out) :-
 translate_special_dl(prog1, [First|Rest], AfterHead, Goals, Out) :-
     translate_expr_dl(First, AfterHead, AfterFirst, Out),
     translate_args_dl(Rest, AfterFirst, Goals, _).
+
+%progn's other half: every argument is evaluated and the answer is unit, at
+%whatever arity the caller wrote. `(nop)`, `(nop 1)` and `(nop 1 2 3)` all
+%answer `()`.
+%
+%Upstream's standard library says out loud that it could not write this one,
+%"; TODO: there is no way to define operation which consumes any number of
+%arguments and returns unit" immediately above nop's own doc block, and answers
+%it in Rust instead: `grounded_op!(NopOp, "nop")` whose execute ignores its
+%whole argument list [source: hyperon-experimental@3f76dc4 stdlib.metta:608-609
+%and core.rs:58,61-63,70-74]. Here a variadic special form is the way to ignore
+%an argument list, which is the same reason progn above is one.
+%
+%Ignoring the VALUES is not ignoring the calls: translate_args_dl/4 still
+%compiles each argument, so an effect inside a nop still happens, which is what
+%a grounded operation's evaluated arguments do upstream. The empty case needs
+%no clause of its own because translate_args_dl([], Goals, Goals, []) already
+%leaves the goal list alone [tested: nop_answers_unit_at_every_arity].
+translate_special_dl(nop, Exprs, AfterHead, Goals, []) :-
+    translate_args_dl(Exprs, AfterHead, Goals, _).
 
 translate_special_dl(if, [Cond, Then], AfterHead, Goals, Out) :-
     translate_expr_to_conj(Cond, CondConj, CondValue),
@@ -1867,7 +1949,7 @@ build_call_or_partial_dl(Fun, AVs, Out, Goals0, Goals, Extra) :-
     ; incomplete_application_kind(Fun, Arity, partial)
       -> Out = partial(Fun, AVs),
          Goals0 = Goals
-    ; Goals0 = [throw_function_overapplication(Fun, N)|Goals] ).
+    ; Goals0 = [function_overapplication(Fun, AVs, Out)|Goals] ).
 
 %Type function call generation, returns function call plus typechecks for input and output:
 %Translate a call against every type declaration that fits it.
@@ -1897,14 +1979,34 @@ typed_functioncall_dl(Fun, UniqueTypeChains, T, IsPartial, Bound, Out, AfterHead
     Arity is InputArity + 1,
     (   incomplete_application_kind(Fun, Arity, ApplicationKind),
         ApplicationKind == overapplied
-    ->  AfterHead = [throw_function_overapplication(Fun, InputArity)|Goals]
+    ->  ( IsPartial -> append(Bound, T, Written) ; Written = T ),
+        AfterHead = [function_overapplication(Fun, Written, Out)|Goals]
     ;   fitting_type_chains(UniqueTypeChains, InputArity, FittingChains),
         applicable_typed_branches(FittingChains, Fun, T, IsPartial, Bound,
                                   Out, Branches),
         Branches \== [],
         disj_list(Branches, Disj),
-        AfterHead = [Disj|Goals]
+        ( IsPartial -> append(Bound, T, Written) ; Written = T ),
+        AfterHead = [( Disj
+                     *-> true
+                     ;   metta_bad_argument_error(Fun, Written, Out)
+                     )|Goals]
     ).
+
+%A declared call that no branch answered says WHY when the declaration is the
+%reason: every rejection it makes, `(Error <call> (BadArgType <position>
+%<expected> <actual>))`, against the arguments AS WRITTEN, which is the form
+%the arbiter names and the one whose types decide
+%[source: LeaTTa tests/semantics/types-basic/44-badargtype-per-actual.metta
+%through 49-badargtype-widened-actuals.metta].
+%
+%It answers NOTHING when the declaration makes no rejection, so a call whose
+%types check and whose equations do not match keeps this engine's own reading
+%rather than gaining the arbiter's NotReducible: `(= (f 1) one)` then `!(f 2)`
+%answers `[(f 2)]` there and nothing here, and that divergence is not this
+%change's to make [measured 2026-08-19 against the arbiter]. The soft cut is
+%what keeps the successful path unchanged: it commits to the branches whenever
+%any of them answered.
 
 %When some declaration has exactly this call's arity, only those apply. A
 %wider declaration would otherwise also build a branch for a shorter call and

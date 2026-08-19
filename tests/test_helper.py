@@ -19,9 +19,14 @@ def _silent_state(runtime):
     )
 
 
+#`during` is what run_metta_helper/4 WRITES, and it writes every result with
+#swrite/2, the MeTTa writer, which spells the booleans the language's own way.
+#The fixture returns the silent flag rather than a MeTTa answer, so this reads
+#`True` for the Prolog atom `true` [tested:
+#parser_roundtrip:booleans_print_in_the_languages_own_spelling].
 @pytest.mark.parametrize(
     ("verbose", "during"),
-    [("false", "true"), ("true", "false")],
+    [("false", "True"), ("true", "False")],
 )
 def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, during):
     runtime = metta.runtime

@@ -11,6 +11,9 @@ Guarantees:
     test_get_atoms_on_an_unbound_space_names_the_operation]
   - a conjunctive pattern is refused on the same terms as a single one
     [tested test_a_conjunctive_match_on_an_unbound_space_refuses_the_same_way]
+  - the refusal never joins the answers of a match against a real space, in a
+    proof walk any more than in evaluation [tested
+    test_a_proof_over_a_match_does_not_carry_the_refusal]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa
+from petta import MeTTa, S
 
 
 @pytest.fixture()
@@ -72,11 +75,41 @@ def test_a_non_symbol_first_argument_is_refused_by_the_read_path(m):
 # The refusal is an answer rather than a throw, which is what makes it
 # collectable: a raise would have emptied the collapse instead
 # [source: LeaTTa tests/semantics/spaces/add_atom.metta, quoted at
-# src/spaces.pl's metta_space_argument/1].
+# src/spaces.pl's petta_space_name/1].
 def test_the_read_refusal_is_data_a_collapse_can_hold(m):
     (collapsed,) = m.run("!(collapse (get-atoms $u))")
     assert len(collapsed[0]) == 1
     assert "get-atoms expects a space as its argument" in error_text(collapsed[0][0])
+
+
+# A symbol that is not a SPACE NAME is refused the same way, which is the rule
+# is-space states and evalc has always enforced: a space name begins with &.
+# Before this, `(add-atom not-a-space (bad add))` made a space called
+# `not-a-space` and `(get-atoms not-a-space)` read it back, while
+# `(is-space not-a-space)` answered False in the same program
+# [source: LeaTTa tests/semantics/spaces/add_atom.metta, get_atoms.metta and
+# match.metta, all STATUS conforms].
+def test_a_symbol_that_is_not_a_space_name_is_refused(m):
+    add, atoms, matched = m.run(
+        "!(add-atom not-a-space (bad add))\n"
+        "!(get-atoms not-a-space)\n"
+        "!(match not-a-space (foo $x) $x)"
+    )
+    assert "add-atom expects a space as the first argument" in error_text(add[0])
+    assert "get-atoms expects a space as its argument" in error_text(atoms[0])
+    assert "match expects a space as the first argument" in error_text(matched[0])
+
+
+# The prefix is the whole of the rule, so a name nothing has bound yet is a
+# space the moment it is written to. That is what a space being created on
+# demand means here, and it is why the rule cannot be the registry.
+def test_a_fresh_ampersand_name_is_created_by_writing_to_it(m):
+    written, found = m.run(
+        "!(add-atom &fresh-on-write (canary 1))\n"
+        "!(match &fresh-on-write (canary $x) $x)"
+    )
+    assert str(written[0]) == "()"
+    assert str(found[0]) == "1"
 
 
 def test_a_fresh_engine_refuses_an_unbound_read_the_same_way():
@@ -84,3 +117,16 @@ def test_a_fresh_engine_refuses_an_unbound_read_the_same_way():
     fresh = MeTTa().new_space()
     (answer,) = fresh.run("!(get-atoms $u)")
     assert "get-atoms expects a space as its argument" in error_text(answer[0])
+
+
+# A proof walk enumerates a predicate's clauses and calls each body through
+# call/1, where a cut in an earlier body prunes nothing, so a refusal clause
+# that leans on one answers BESIDE the rows a real space gave. That grew a
+# second answer for every match and `(anc $x $y)` recursed on it until the
+# process hung, which is why each clause guards itself
+# [reproduced 2026-08-20 through python/tests/test_derivation.py].
+def test_a_proof_over_a_match_does_not_carry_the_refusal(m):
+    m.run("(par-p Tom Bob)\n(= (anc-p $x $y) (match &self (par-p $x $y) $y))")
+    proofs = m.derivation(S["anc-p"](S.Tom, S.Bob))
+    assert len(proofs) == 1
+    assert [str(fact.atom) for fact in proofs[0].facts] == ["(par-p Tom Bob)"]
