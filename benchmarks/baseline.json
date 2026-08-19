@@ -241,6 +241,13 @@
       "unit": "atoms",
       "wall_seconds_per_operation": 2.682138467207551e-06
     },
+    "subscription-dispatch": {
+      "comment": "Recorded 2026-08-19 with the item that introduced it. 1000 standing queries on ONE space, 200 writes, exactly one subscription matching each write, so the strategy is the whole cost: the scan pays a unify per non-match and the discrimination tree does not. A/B on this workload, controlled instructions:u, min of 3: the linear scan 4012009981, the tree 48243634, 83.2x fewer. Both delivered 200 of 200, so the ratio is the same work done two ways.",
+      "instruction_noise_percent": 1.0,
+      "instructions": 48243225,
+      "operations": 200,
+      "unit": "writes"
+    },
     "table-bridge-match": {
       "comment": "Raised on 2026-08-18: the Python library's run() and load() now run the engine's own pre-pass over a parsed source before processing any of its forms (prepare_parsed_forms/1 in src/filereader.pl), so a ! may name a function the same source defines lower down; without it seven shipped examples passed in the engine and failed in the library. A one-form source costs 31 inferences there, measured identical for !(+ 1 2), the collapse-top form and the foreign match. This lane runs 2000 of them: 3036107 to 3098119, 31.006 per query. Prior: Recorded 2026-08-17: the same query through petta.tables' derived bridge over stdlib SQLite, about 1518 inferences per run; the ~304 over foreign-match is the derivation living (constraint reading, row to atom parse), with SQLite's own C work invisible to the counter by design.",
       "inferences": 3098119,

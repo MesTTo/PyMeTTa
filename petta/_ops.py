@@ -172,17 +172,19 @@ def _preimages(name: str, result: Any):
         return
     if answers is None:
         return
-    if not inspect.isgeneratorfunction(op.inverse):
-        # One preimage, not a stream, so there is nothing to close.
-        answers = [answers]
+    # A plain callable answers ONE preimage, so it is wrapped rather than
+    # iterated and there is nothing to close; a generator inverse is a
+    # stream this owns.
+    stream = answers if inspect.isgeneratorfunction(op.inverse) else [answers]
     try:
-        for answer in answers:
+        for answer in stream:
             if answer is None:
                 continue
             yield answer if isinstance(answer, (tuple, list)) else [answer]
     finally:
-        if inspect.isgeneratorfunction(op.inverse):
-            answers.close()
+        close = getattr(stream, "close", None)
+        if close is not None:
+            close()
 
 
 def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):

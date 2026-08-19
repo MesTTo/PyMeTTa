@@ -30,6 +30,10 @@ from benchmarks.engine_workloads import (
 from benchmarks.pure import _CASES as PERF_CASES
 from benchmarks.pure import _acknowledge
 from benchmarks.pure import main as perf_workload_main
+from benchmarks.subscription import (
+    close_subscription_case,
+    subscription_dispatch_case,
+)
 from benchmarks.workloads import json_payload, json_wire, term_operators, wire_atom, wire_codec
 from petta import S
 from petta.benchmarking import _run_perf
@@ -507,3 +511,26 @@ def test_benchmark_machine_info_is_stable():
     }
     pytest_benchmark_update_machine_info(None, machine_info)
     assert machine_info == {"cpu": {"brand_raw": "processor"}}
+
+
+def test_subscription_dispatch_case_measures_writes_only():
+    """Building the subscriptions is setup, not the measurement.
+
+    A thousand standing queries cost more to CREATE than two hundred writes
+    cost to dispatch, so a window that held the construction would report
+    the construction. This pins that the operation the case hands back does
+    the writes and nothing else, and that the writes really are dispatched:
+    one of the thousand matches each, so a run delivering nothing would be
+    measuring an empty loop.
+    """
+    state = subscription_dispatch_case(subscriptions=20, writes=5)
+    space, standing, delivered, run = state
+    try:
+        assert len(standing) == 20
+        assert delivered[0] == 0, "construction delivered before the window"
+        assert run() == 5
+        assert delivered[0] == 5, "the measured writes dispatched nothing"
+        assert space.count() == 5
+    finally:
+        close_subscription_case(state)
+    assert all(not subscription._active for subscription in standing)
