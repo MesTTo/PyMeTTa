@@ -4866,7 +4866,11 @@ restore_python_path(PreviousPath) :-
     py_call(sys:path:clear(), _),
     py_call(sys:path:extend(PreviousPath), _).
 
-'import!'(Space, File, true) :- importer_helper(Space, File).
+%The UNIT value, for the reason add-atom and pragma! answer it: importing is
+%an effect and `()` is what the arbiter records for every one of its module
+%transcripts [source: LeaTTa tests/semantics/modules/18-direct-import-control
+%and 20-cycle-control, both `[()]`].
+'import!'(Space, File, []) :- importer_helper(Space, File).
 %`(: import! (-> Atom Atom Bool))` says both arguments arrive UNREDUCED, which
 %is right: a module name is a name and evaluating it would look for a function
 %called `lib_constraints`. So the forms a module name can take are resolved

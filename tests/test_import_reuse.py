@@ -8,7 +8,7 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError, S
+from petta import EngineError, S, expr
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'
@@ -33,7 +33,7 @@ def test_reused_pooled_space_reimports_complete_library(metta):
         for _ in range(2):
             with metta.new_space() as scratch:
                 names.append(scratch.space_name)
-                assert scratch.run(DATETIME_IMPORT) == [[True]]
+                assert scratch.run(DATETIME_IMPORT) == [[expr()]]
                 assert _format_date_clause_count(scratch) == 1
                 assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
@@ -45,11 +45,11 @@ def test_reused_pooled_space_reimports_complete_library(metta):
 
 def test_same_life_double_import_is_a_no_op(metta):
     with metta.new_space() as scratch:
-        assert scratch.run(DATETIME_IMPORT) == [[True]]
+        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
         clauses_before = _format_date_clause_count(scratch)
         atoms_before = scratch.count()
 
-        assert scratch.run(DATETIME_IMPORT) == [[True]]
+        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
         assert _format_date_clause_count(scratch) == clauses_before == 1
         assert scratch.count() == atoms_before
         assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
@@ -82,7 +82,8 @@ def test_imported_source_error_names_the_file(metta, tmp_path):
         assert clauses == 0
 
         broken.write_text("(= (recovered-import) recovered)\n")
-        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[True]]
+        # import! answers the unit value, the way add-atom and pragma! do.
+        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[expr()]]
         assert scratch.run("!(recovered-import)") == [[S.recovered]]
 
 

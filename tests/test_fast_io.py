@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import EngineError, S, V, backend_info, val
+from petta import EngineError, S, V, backend_info, expr, val
 from petta import _space_persistence as persistence_module
 
 
@@ -271,7 +271,8 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):
                 S.two,
             ]
             assert target.run("!(gz-next 41)") == [[42]]
-        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[True]]
+        # import! answers the unit value, the way add-atom and pragma! do.
+        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[expr()]]
         assert [row.x for row in imported.query(S["gz-fact"](V.x))] == [
             S.one,
             S.two,
