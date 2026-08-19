@@ -3,6 +3,12 @@
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
+%   - stored_atom_of_ref/3 is add_sexp_in/4's inverse over both stored shapes,
+%     and answers for a stored atom's clause reference alone: not for a
+%     compiled clause's, not for a registration's, not for an erased one
+%     [tested 2026-08-19:
+%     spaces_storage_modules:a_stored_atoms_reference_decodes_to_its_atom,
+%     spaces_storage_modules:an_erased_reference_decodes_to_nothing].
 %   - An equation for a name this space's module already DERIVED as a
 %     specialization is not stored again, so enumerating a space and re-adding
 %     its atoms answers a space that holds and answers what the first one did
@@ -176,6 +182,38 @@ add_sexp_in(Module, Space, [Rel|Args], Ref) :- !,
 %call reaches.
 add_sexp_in(Module, _, Atom, Ref) :-
     assertz(Module:'$petta_native_scalar'(Atom), Ref).
+
+%The inverse of add_sexp_in/4, written here beside it for the same reason
+%metta_module_space/2 is written beside space_module/2: the mapping is
+%injective, so the inverse is a function rather than a search, and keeping the
+%pair together is what stops one of them drifting.
+%
+%The caller is a RELOAD. A source load records a clause reference for
+%everything it asserts, atoms and compiled clauses and registrations alike,
+%and taking a file's atoms back out has to go through metta_remove_atom/3,
+%which takes an atom rather than a reference. So this is how the reload tells
+%an atom's reference from the rest: it FAILS on any reference that is not a
+%stored atom's, and on an erased one, and it answers the SPACE as well as the
+%atom because a file's !(add-atom &elsewhere ...) is recorded by the load that
+%ran it and belongs back in &elsewhere rather than in the space being reloaded
+%[tested: spaces_storage_modules:a_stored_atoms_reference_decodes_to_its_atom].
+%
+%The module comes from clause_property/2 and not from the head clause/3 hands
+%back, because that head is qualified only when the clause's module differs
+%from the CALLER's: read from the engine it arrives bare, so stripping it named
+%the engine's own module and every atom looked like something else
+%[measured 2026-08-19: the withdrawal reported 0 atoms while removing them].
+stored_atom_of_ref(Ref, Space, Atom) :-
+    catch(clause_property(Ref, predicate(Module:Name/_)), _, fail),
+    native_storage_module(Space, Module),
+    catch(clause(Stored, true, Ref), _, fail),
+    strip_module(Stored, _, Head),
+    (   Name == '$petta_native_scalar'
+    ->  Head = '$petta_native_scalar'(Atom)
+    ;   Name == Space,
+        Head =.. [_, Rel|Args],
+        Atom = [Rel|Args]
+    ).
 
 %The clause a native space stores an atom AS. This is the definition of that
 %shape, and lib_import.pl's static-import! writes exactly this to a file so a
@@ -1938,7 +1976,8 @@ clear_native_atoms(Space) :-
         retractall(Module:'$petta_native_scalar'(_))
     ;   true
     ),
-    retractall(import_life(Space, _, _)).
+    retractall(import_life(Space, _, _)),
+    forget_space_source_loads(Space).
 
 %The atoms whose removal has a consequence beyond storage, which are exactly
 %the two shapes metta_remove_atom/3 answers specially; a shape added there

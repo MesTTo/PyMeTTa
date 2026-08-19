@@ -665,16 +665,31 @@ class MeTTa:
     ) -> list[list[Atom]]:
         """Add a text program or trusted fast cache to this space.
 
-        Existing atoms remain, so loading the same file twice adds two copies.
-        Use clear() first or load into new_space() when replacement is wanted.
+        This is a consult, so it always loads and what it loads REPLACES
+        what the same file put in this space before. Edit the file, load it
+        again, and the space holds the new definitions and not both; the
+        engine says on stderr which file it replaced and how many atoms
+        went. Atoms from other sources, and ones you added yourself, stay.
+        A load that raises leaves the previous definitions standing, so a
+        broken edit costs nothing but the error.
+
+        `!(import! &self path)` is the other door and loads a file that is
+        new or edited, skipping one that is neither. The two agree on what
+        a reload means and differ only in whether an unchanged file runs
+        again, which is SWI's consult/1 against its if(changed).
+
         A .gz path is detected and read through the decompressed bytes.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the load
         with the engine's own guards, raising TimeLimitError or
-        InferenceLimitError, and whatever the file completed before the stop
-        stands. This is the entry point most likely to be handed code the
-        caller did not write, since a file can carry `!` directives and an
-        import graph, so it takes the same pair its siblings take.
+        InferenceLimitError. A load is all or nothing: a stop takes back
+        everything the file had put in a space, the same way a load that
+        fails on a bad form does, because a file the space holds half of is
+        not a file it can replace later. run() is the entry point that
+        keeps finished work when a bound stops it. This is the one most
+        likely to be handed code the caller did not write, since a file can
+        carry `!` directives and an import graph, so it takes the same pair
+        its siblings take.
         """
         return load_space(
             self._rt, self._space, path, timeout=timeout, inferences=inferences

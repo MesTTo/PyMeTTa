@@ -10,6 +10,11 @@
 %     [tested test_declare_handles_rejects_a_conflict_eagerly]
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - petta_py_load/3 loads under the engine's own source-load lifecycle, so
+%     the library's door and import! replace each other's loads of a file and
+%     not only their own [tested 2026-08-19:
+%     test_both_doors_replace_a_files_definitions,
+%     test_loading_the_same_file_twice_leaves_one_copy]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_exception_info/3 returns the tagged reader detail without
@@ -570,14 +575,30 @@ petta_py_status_answer(Status, Result, [Status, Encoded]) :-
 %grouping. The directory holds only for THIS load: whatever working_dir the
 %process had comes back afterwards, exceptions included, so one load never
 %changes where every later run resolves its relative imports from.
+%
+%It is a CONSULT, SWI's if(true): it always loads, and what it loads replaces
+%what this file put in this space before rather than being added on top of it
+%[source: SWI-Prolog 10.1 Reference Manual, section 4.3, "Reconsulting is
+%implied automatically by the fact that a file is consulted which is already
+%loaded"]. Before this the door had no file identity at all, so loading an
+%edited file left both definitions live and `(answer)` answered 1 and 2
+%[measured 2026-08-19]. The path is canonical for that reason: it is the key
+%the engine's own loader records a file under, so the two doors replace each
+%other's loads and not only their own
+%[tested: test_both_doors_replace_a_files_definitions].
 petta_py_load(File, Space, Groups) :-
     ( atom(File) -> FA = File ; atom_string(FA, File) ),
-    file_directory_name(FA, Dir),
+    absolute_file_name(FA, CanonPath, [access(read)]),
+    file_directory_name(CanonPath, Dir),
     catch_recover(findall(W, working_dir(W), Saved), Saved = []),
     setup_call_cleanup(
         ( retractall(working_dir(_)), assertz(working_dir(Dir)) ),
-        ( read_metta_source(FA, S),  %the engine's gz-aware program reader
-          petta_py_run(S, Space, Groups) ),
+        import_when(true, Space, CanonPath,
+            replacing_previous_load(CanonPath, Space,
+                load_imported_metta_file_impl(CanonPath, _),
+                with_source_load(CanonPath, Space,
+                    ( read_metta_source(CanonPath, S), %the gz-aware reader
+                      petta_py_run(S, Space, Groups) )))),
         ( retractall(working_dir(_)),
           forall(member(W, Saved), assertz(working_dir(W))) )).
 
@@ -2912,12 +2933,28 @@ petta_py_fast_expect_hash(In, File, Hash) :-
       -> true
     ; throw(error(petta_fast_integrity_header(File), none)) ).
 
+%A cache is a file this door loaded, so it is replaced on a second load the
+%same way a text program is. It needs neither a reader nor a digest of its own
+%for that: the format already carries the sha256 of its payload, which is the
+%same question metta_source_digest/2 asks of a source's text
+%[tested test_loading_a_fast_cache_twice_leaves_one_copy].
+petta_py_fast_load(File, Space) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    absolute_file_name(FA, CanonPath, [access(read)]),
+    import_when(true, Space, CanonPath,
+                replacing_previous_load(CanonPath, Space,
+                                        petta_py_fast_load_into(CanonPath),
+                                        petta_py_fast_load_into(CanonPath, Space))).
+
+petta_py_fast_load_into(CanonPath, Space) :-
+    with_source_load(CanonPath, Space,
+                     petta_py_fast_add_atoms(CanonPath, Space)).
+
 %Two passes: the first proves the payload hash through the crypto filter
 %stream, the second lets fast_read consume the now-proven bytes straight
 %off the file. fastrw is unsafe on untrusted bytes, so no payload byte
 %reaches it before the digest agrees.
-petta_py_fast_load(File, Space) :-
-    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+petta_py_fast_add_atoms(FA, Space) :-
     petta_py_fast_header(Prefix),
     string_codes(Prefix, PrefixCodes),
     setup_call_cleanup(
@@ -2929,6 +2966,12 @@ petta_py_fast_load(File, Space) :-
     atom_string(ActualHash, ActualHashText),
     ( ActualHashText == ExpectedHash -> true
     ; throw(error(petta_fast_integrity_mismatch(FA), none)) ),
+    %Unconditional, because the only caller wraps this in a load context. A
+    %fast load that reached here without one would be recorded under nothing
+    %and so could never be replaced, and failing outright is the right way to
+    %find that out.
+    active_source_load(LoadId),
+    assertz(source_load_digest(LoadId, FA, ActualHash)),
     setup_call_cleanup(
         petta_py_fast_open(FA, read, In),
         ( petta_py_fast_expect_header(PrefixCodes, In),

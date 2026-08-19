@@ -444,15 +444,21 @@ def test_load_runs_a_file(metta, tmp_path):
 
 
 def test_load_adds_to_existing_space(m, tmp_path):
-    path = tmp_path / "additive.metta"
-    path.write_text("(loaded-copy value)\n")
+    """A load adds the file's atoms to whatever the space already holds; it
+    replaces only what that same file put there. Loading the same file twice
+    is test_reload.py's job."""
+    first = tmp_path / "first.metta"
+    second = tmp_path / "second.metta"
+    first.write_text("(loaded-copy value)\n")
+    second.write_text("(other-copy value)\n")
 
     m.add(S.existing(S.value))
-    m.load(path)
-    m.load(path)
+    m.load(first)
+    m.load(second)
 
     assert m.count() == 3
-    assert len(m.query(S["loaded-copy"](V.value))) == 2
+    assert len(m.query(S["loaded-copy"](V.value))) == 1
+    assert len(m.query(S["other-copy"](V.value))) == 1
 
 
 def test_why(m):

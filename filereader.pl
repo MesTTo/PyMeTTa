@@ -43,6 +43,38 @@
 %     whitespace between atoms, parser.pl's metta_token_boundary/2 layout
 %     rows being the one class both read [tested 2026-08-19:
 %     test_every_unicode_whitespace_separates_top_level_forms].
+%   - A file that loads again REPLACES what it put in that space rather than
+%     adding to it, reaches any other space its change has made stale, and
+%     says what it withdrew [tested 2026-08-19:
+%     test_a_reloaded_source_replaces_its_definitions_and_says_what_it_replaced,
+%     test_a_reload_replaces_the_file_in_every_space_that_holds_it,
+%     filereader_source_reload:a_reload_leaves_one_clause_for_a_redefined_function].
+%   - The replacement reaches everything derived from the definitions it
+%     withdrew, because the atoms leave through metta_remove_atom/3
+%     [tested 2026-08-19: test_reloading_invalidates_a_memoized_answer,
+%     test_reloading_invalidates_a_tabled_answer,
+%     test_reloading_invalidates_a_specialization,
+%     test_a_live_view_follows_a_reload].
+%   - A reload that raises leaves the previous definitions standing
+%     [tested 2026-08-19:
+%     test_a_reload_that_fails_leaves_the_previous_definitions_standing].
+%   - Replacement is per FILE and reaches nothing another file contributed, so
+%     a function two files define still answers twice: that is a name
+%     collision and not a reload [tested 2026-08-19:
+%     test_a_reload_replaces_that_files_definitions_and_no_others].
+%   - "Changed" is answered from the CONTENT, so an edit that keeps a file's
+%     length is still an edit where a modification time might not have moved
+%     [tested 2026-08-19:
+%     filereader_source_reload:an_edit_that_keeps_the_length_is_still_a_change].
+%   - Recording what a load contributed costs ONE inference per stored atom,
+%     which is one assertz and is what a withdrawal needs to find the atom
+%     again, plus about 230 for the load itself. Measured against the same
+%     tree without the recording, interleaved, min of three a side, no spread:
+%     a 128-equation source 95,396 against 95,165 (+0.24%), and a
+%     20,001-atom file 7,381,790 against 7,361,403 through the library's door
+%     and 7,322,289 against 7,302,027 through import!'s populate pass, both
+%     +0.28%. Asking whether an already-loaded file has changed costs 336, a
+%     read and a hash [measured 2026-08-19].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -76,6 +108,15 @@
 
 prolog:error_message(petta_translation_failed(Form)) -->
     [ 'Could not translate MeTTa form: ~p'-[Form] ].
+
+%What a reload replaced, said rather than done quietly. It goes out at
+%informational, which is where SWI puts what the loader did and is the level a
+%caller silences deliberately with -q or verbose(silent) rather than by
+%accident.
+:- multifile prolog:message//1.
+prolog:message(petta_source_replaced(CanonPath, Spaces, Atoms)) -->
+    { atomic_list_concat(Spaces, ' ', Named) },
+    [ 'replaced ~w: ~w atom(s) withdrawn from ~w'-[CanonPath, Atoms, Named] ].
 :- current_prolog_flag(argv, Args), ( (memberchk(silent, Args) ; memberchk('--silent', Args) ; memberchk('-s', Args))
                                       -> assertz(silent(true)) ; assertz(silent(false)) ).
 :- dynamic working_dir/1.
@@ -83,6 +124,38 @@ prolog:error_message(petta_translation_failed(Form)) -->
 :- thread_local active_source_load/1.
 :- dynamic source_load_assertion/2.
 :- dynamic source_load_repair/2.
+%What a file put where, so that loading it again can REPLACE that rather than
+%add to it. SWI states the rule this implements: "clauses are owned by the file
+%in which they are defined. This information is used to replace the old
+%definition after the file has been modified and is reloaded"
+%[source: SWI-Prolog 10.1 Reference Manual, include/1]. Here the owned things
+%are whatever the load asserted, which source_load_assertion/2 already lists,
+%so the file only needs the key onto that list and the digest of the text it
+%was built from.
+%
+%The list is KEPT as the per-assertion facts the load built it up as, rather
+%than collected into one clause holding a list of references. The collected
+%form is the smaller of the two, one clause where this pays a clause header
+%per atom of every file loaded, and it was tried and rejected on cost: it has
+%to walk the accumulator at the end of every load, and that walk cost 80,410
+%inferences of the save-load benchmark's 8,502,424 [measured 2026-08-19,
+%interleaved A/B, min of three a side]. Keeping the facts costs the load
+%NOTHING and takes a walk off it, because the success path used to retract
+%them one at a time.
+%
+%A clause reference is a BLOB of type clause, so holding one keeps its clause
+%from being reclaimed and a stale one decodes to nothing rather than to
+%whatever later took its place [measured 2026-08-19: erased, then 200,000
+%clauses asserted and two clause collections later, the reference still
+%decoded to nothing and erase/1 on it failed].
+:- dynamic metta_source_load/4. %metta_source_load(CanonPath, Space, LoadId, Digest)
+:- dynamic source_load_digest/3. %source_load_digest(LoadId, Filename, Digest)
+
+%The first crypto_data_hash/3 of a process pays a one-off initialisation, and
+%without this it lands on whichever program loads first and reads as that
+%program's cost [measured 2026-08-19: 3,132 inferences on the first call, 217
+%on every later one]. Paid here instead, where it belongs.
+:- crypto_data_hash("", _, [algorithm(sha256)]).
 
 push_working_dir(Filename) :- file_directory_name(Filename, Dir0),
                               ( absolute_file_name(Dir0, Dir, [file_type(directory), file_errors(fail)])
@@ -103,7 +176,7 @@ load_metta_file(Filename, Results, Space) :-
 
 load_entry_metta_file(Filename, Results, Space) :-
     absolute_file_name(Filename, CanonPath, [access(read)]),
-    import_once(Space, CanonPath,
+    import_when(changed, Space, CanonPath,
                 load_imported_metta_file(CanonPath, Results, Space)),
     ( var(Results) -> Results = [] ; true ).
 
@@ -118,7 +191,23 @@ load_metta_file_impl(Filename, Results, Space, CompileMode) :-
 
 % A .gz program reads through the engine's own zlib stream. Any other path
 % reads plain text, so imports and the CLI share the same source reader.
+%
+%A load's own read is where its digest is taken, because that is where the text
+%already is. Computing it again when the load finished read the file a second
+%time, and only the digest belongs to the load: metta_source_digest/2 below asks
+%the same question of a file that is NOT loading, and going through here would
+%have filed its answer under whatever load happened to be running, which for a
+%nested import is the importing file's [measured 2026-08-19: the second read
+%cost 113 inferences of every load].
 read_metta_source(Filename, S) :-
+    read_source_text(Filename, S),
+    (   active_source_load(LoadId)
+    ->  crypto_data_hash(S, Digest, [algorithm(sha256)]),
+        assertz(source_load_digest(LoadId, Filename, Digest))
+    ;   true
+    ).
+
+read_source_text(Filename, S) :-
     ( file_name_extension(_, gz, Filename)
       -> catch(setup_call_cleanup(gzopen(Filename, read, In),
                                   read_string(In, _, S),
@@ -131,30 +220,225 @@ read_metta_source(Filename, S) :-
 % Function clauses are global Prolog predicates, while source atoms belong to a
 % particular MeTTa space.  Coordinate compilation by canonical source path so
 % the clauses are emitted once, then populate every requested space separately.
+%The re-population closure is load_imported_metta_file_impl/3 with its first
+%two arguments filled: the file, and a fresh Results slot per space, since a
+%space that is only being brought back up to date has no answers to report.
 load_imported_metta_file(Filename, Results, Space) :-
-    catch(load_imported_metta_file_impl(Filename, Results, Space),
+    catch(replacing_previous_load(Filename, Space,
+                                  load_imported_metta_file_impl(Filename, _),
+                                  load_imported_metta_file_impl(Filename, Results,
+                                                                Space)),
           Error,
           rethrow_metta_file_error(Filename, Error)).
 
+%The populate pass gets a load context of its own, the same as the compile
+%pass. A file's equations compile once, into the module compile mode targets,
+%but its ATOMS are stored once per space, so the second space's copy is a
+%contribution the file made and has to be recorded as one; without this a
+%reload replaced the first space's copy and left the second's standing.
 load_imported_metta_file_impl(Filename, Results, Space) :-
     ( compiled_metta_source(Filename)
-      -> load_metta_file_impl(Filename, Results, Space, populate)
+      -> with_source_load(Filename, Space,
+                          load_metta_file_impl(Filename, Results, Space, populate))
        ; run_with_loading_marker(
              compiled_metta_source(Filename),
              run_new_source_load(Filename, Results, Space)) ).
 
 run_new_source_load(Filename, Results, Space) :-
+    with_source_load(Filename, Space,
+                     load_metta_file_impl(Filename, Results, Space, compile)).
+
+%One source load: the context every assertion is filed under while it runs, the
+%repair pass at the end, and the two ways it can finish. A failure rolls the
+%whole partial load back, which is what this always did. A SUCCESS now keeps
+%the list instead of dropping it, because that list is precisely what a later
+%load of the same file has to take back out, and metta_source_load/4 is the key
+%onto it.
+%
+%It is a wrapper rather than a fixed body because the Python library's load()
+%runs the same file through a reader of its own, to keep one answer group per
+%directive (petta_py_load/3 in python/petta/shim.pl), and a load that is not
+%recorded here cannot be replaced later. Both doors, one lifecycle
+%[tested: test_both_doors_replace_a_files_definitions].
+%
+%Publishing is part of the GOAL and not of the cleanup, because it only happens
+%on success and because it can raise: a cleanup handler is the wrong place for
+%either.
+:- meta_predicate with_source_load(+, +, 0).
+with_source_load(CanonPath, Space, Goal) :-
     gensym(source_load_, LoadId),
     setup_call_catcher_cleanup(
         asserta(active_source_load(LoadId), ContextRef),
-        once(( load_metta_file_impl(Filename, Results, Space, compile),
-               run_source_repairs(LoadId) )),
+        once(( call(Goal),
+               run_source_repairs(LoadId),
+               publish_source_load(CanonPath, Space, LoadId) )),
         Catcher,
         ( erase(ContextRef),
           retractall(source_load_repair(LoadId, _)),
-          ( Catcher == exit
-            -> retractall(source_load_assertion(LoadId, _))
-             ; rollback_source_load(LoadId) ) )).
+          retractall(source_load_digest(LoadId, _, _)),
+          ( Catcher == exit -> true ; rollback_source_load(LoadId) ) )).
+
+publish_source_load(CanonPath, Space, LoadId) :-
+    (   source_load_digest(LoadId, CanonPath, Digest)
+    ->  assertz(metta_source_load(CanonPath, Space, LoadId, Digest))
+    ;   throw(error(existence_error(metta_source_digest, CanonPath),
+                    context(publish_source_load/3,
+                            'a source load finished without reading its own \c
+                             source, so nothing records what a reload replaces')))
+    ).
+
+%Whether the file on disk still holds the text a load was built from, which is
+%SWI's if(changed) condition, "the file ... has been modified since it was
+%loaded the last time" [source: SWI-Prolog 10.1 Reference Manual, load_files/2].
+%
+%SWI answers it from the modification time. This hashes the CONTENT instead,
+%because a timestamp cannot answer it soundly here: Linux stamps a file from
+%the coarse clock, so two writes inside one tick carry the same time, and an
+%edit that keeps the length then reads as unmodified. That is exactly the edit
+%this item exists for, `(= (answer) 1)` to `(= (answer) 2)`, and a reload that
+%misses it is the silent staleness the second door already had.
+%
+%The text is read either way when the file does load, so what being sure costs
+%is one read of a file that turns out not to need loading: 333 inferences over
+%a 128-form 3,236-byte source, where loading it costs 95,165
+%[measured 2026-08-19, five runs each, no spread].
+metta_source_digest(CanonPath, Digest) :-
+    read_source_text(CanonPath, Text),
+    crypto_data_hash(Text, Digest, [algorithm(sha256)]).
+
+metta_source_changed(CanonPath) :-
+    metta_source_load(CanonPath, _, _, Loaded), !,
+    metta_source_digest(CanonPath, Digest),
+    Digest \== Loaded.
+
+%Reloading is what makes the trace-edit-verify cycle possible, and the manual
+%describes that cycle as the reason it exists: trace a goal, find unexpected
+%behaviour, "Fix the sources and reload them using make/0", retry
+%[source: SWI-Prolog 10.1 Reference Manual, section 4.3.2]. Two things were
+%missing here and they failed in opposite directions. The Python door had no
+%file identity at all, so a second load ADDED the file's definitions on top of
+%the first and `(answer)` answered 1 and 2; import! had identity but no change
+%detection, so a second import was skipped and the edit was ignored. Neither
+%said anything [measured 2026-08-19, both doors].
+%
+%So this is the other half of the lifecycle P11.6 gave a space: clearing a
+%space empties its execution module, and loading a file again replaces what
+%that file put there. It is not retract-and-assert. The atoms leave through
+%metta_remove_atom/3, the funnel that owns every consequence of an atom
+%leaving: an equation un-compiles and forgets its name, a declaration
+%recompiles the call sites it was shaping, invalidate_specializations/2 drops
+%the specializer's clones, metta_on_function_removed/1 drops lib_memo's
+%generations and lib_tabling's tables and duals.pl's duals, and
+%metta_on_atom_removed/2 tells every LiveView and Python subscription. What no
+%atom owns leaves through rollback_source_load/1, the same erase a failed load
+%uses, and there is one such thing: a file imported into a NAMED space compiles
+%into &self's module while its atoms are stored in that space, so its clauses
+%are global where its atoms are not
+%[tested: test_a_reloaded_source_replaces_its_definitions_and_says_what_it_replaced,
+%test_reloading_invalidates_a_memoized_answer].
+%
+%Replacement reaches the asking space, and any OTHER space the change has made
+%stale. The compiled half is shared for the reason just given, so a file whose
+%text has changed cannot be replaced in one space alone: another space still
+%holding the old atoms would list definitions the rebuilt module no longer
+%answers. A space holding the SAME text is not stale and is left alone, which
+%is what keeps loading one file into many spaces linear. The asking space loads
+%first, so its pass is the one that compiles; the stale ones are populated
+%again after, through LoadInto, called as call(LoadInto, Space).
+%
+%LoadInto is a parameter because how a file goes into a space is a property of
+%the FILE, and the engine is not the only thing that reads one: the Python
+%library's trusted fast cache is a serialised space with a format of its own,
+%and re-populating one through the MeTTa reader would try to parse its binary
+%header. Each door hands in the loader its own format needs.
+%
+%The withdrawal and the load that follows it are ONE transaction, so a reload
+%that raises leaves the previous definitions standing rather than taking them
+%with it. This is the difference between a reload being safe to attempt and a
+%typo in the source costing the session its program, and the manual makes the
+%same point about make/0: "Reloading a previously loaded file is safe, both in
+%the debug scenario above and when the code is being executed by another
+%thread", where the debug scenario is the fix-and-reload cycle this item is for
+%[source: SWI-Prolog 10.1 Reference Manual, section 4.3.2]. transaction/1
+%restores an erased clause the same way it discards an asserted one
+%[measured 2026-08-19: an erase inside a transaction that then throws left the
+%clause answering]. Only the reload path pays it; a first load has nothing to
+%protect and does not enter one
+%[tested: test_a_reload_that_fails_leaves_the_previous_definitions_standing].
+:- meta_predicate replacing_previous_load(+, +, 1, 0).
+replacing_previous_load(CanonPath, Space, LoadInto, Goal) :-
+    (   metta_source_load(CanonPath, _, _, _)
+    ->  replaced_source_spaces(CanonPath, Space, Replaced),
+        (   Replaced == []
+        ->  call(Goal)
+        ;   transaction(replace_source_load(CanonPath, Space, Replaced,
+                                            LoadInto, Goal))
+        )
+    ;   call(Goal)
+    ).
+
+%Which spaces this load replaces. Its own, whenever it holds a copy, because
+%that is what a consult means. And any OTHER space whose copy this load is
+%about to invalidate, which is one holding text this file no longer has: the
+%compile that follows rebuilds the shared half from the NEW source, so a space
+%still holding the old atoms would list definitions the module no longer
+%answers.
+%
+%A space holding a copy of the SAME text is left alone, and that is what keeps
+%the common shape cheap: loading one unchanged file into ten spaces is ten
+%loads and not fifty-five, and it says nothing, because nothing was replaced
+%[tested test_loading_one_file_into_many_spaces_replaces_none_of_them].
+%
+%import! asked the same question a moment ago, to decide whether to load at
+%all, and this reads the file again rather than being handed that answer.
+%Threading it down would save 336 inferences on a path that is about to spend
+%tens of thousands loading, and it would be answering from a digest of what
+%the file held BEFORE the decision rather than of what is about to be read.
+replaced_source_spaces(CanonPath, Space, Replaced) :-
+    metta_source_digest(CanonPath, Now),
+    findall(S,
+            ( metta_source_load(CanonPath, S, _, Loaded),
+              ( S == Space -> true ; Loaded \== Now ) ),
+            Replaced).
+
+:- meta_predicate replace_source_load(+, +, +, 1, 0).
+replace_source_load(CanonPath, Space, Replaced, LoadInto, Goal) :-
+    findall(N, ( member(S, Replaced), withdraw_source_load(CanonPath, S, N) ),
+            Counts),
+    sum_list(Counts, Withdrawn),
+    retractall(compiled_metta_source(CanonPath)),
+    print_message(informational,
+                  petta_source_replaced(CanonPath, Replaced, Withdrawn)),
+    call(Goal),
+    forall(( member(S, Replaced), S \== Space ), call(LoadInto, S)).
+
+%One space's copy of one file, taken back out. The atoms go first so that the
+%funnel sees the state the program was actually running with; the references
+%then go the way a rolled-back load's do, and erase/1 on a reference the funnel
+%already erased is why rollback_source_load/1 guards it.
+withdraw_source_load(CanonPath, Space, Count) :-
+    retract(metta_source_load(CanonPath, Space, LoadId, _)),
+    findall(Ref, source_load_assertion(LoadId, Ref), Asserted),
+    reverse(Asserted, Refs),
+    findall(AtomSpace-Atom,
+            ( member(Ref, Refs), stored_atom_of_ref(Ref, AtomSpace, Atom) ),
+            Atoms),
+    forall(member(AtomSpace-Atom, Atoms),
+           ( metta_remove_atom(AtomSpace, Atom, _) -> true ; true )),
+    rollback_source_load(LoadId),
+    length(Atoms, Count).
+
+%A cleared space keeps no record of what a file put in it, because nothing of
+%it is left to replace and the name is POOLED: a later life reusing the name
+%would otherwise be told it already holds a file's atoms and have them
+%withdrawn from under it. This is the storage half of the same lifecycle
+%clear_native_atoms/1 owns for the execution module
+%[tested: test_a_cleared_space_forgets_what_a_file_put_in_it,
+%test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
+forget_space_source_loads(Space) :-
+    forall(retract(metta_source_load(_, Space, LoadId, _)),
+           ( retractall(source_load_assertion(LoadId, _)),
+             retractall(source_load_digest(LoadId, _, _)) )).
 
 run_with_loading_marker(Marker, Goal) :-
     setup_call_catcher_cleanup(
@@ -189,10 +473,20 @@ repair_stale_definitions_batch(Functions) :-
     sort(Stale0, Stale),
     forall(member(G, Stale), recompile_function_impl(G)).
 
+%Newest first, so an assertion is undone before whatever it was built on.
+%
+%A reference that is already gone is not an error here, and it arrives two
+%ways: erase/1 THROWS on one kind and FAILS on another. The catch alone was
+%enough while the only caller was a failed load, whose references are all still
+%live. A withdrawal reaches this after metta_remove_atom/3 has already taken
+%the equations out, so several references are erased before the sweep starts,
+%and a failing erase/1 made forall/2 fail and took the whole withdrawal down
+%with it [measured 2026-08-19: it reported one atom and then failed].
 rollback_source_load(LoadId) :-
-    findall(Ref, retract(source_load_assertion(LoadId, Ref)), Refs),
-    reverse(Refs, ReverseRefs),
-    forall(member(Ref, ReverseRefs), catch(erase(Ref), _, true)).
+    findall(Ref, retract(source_load_assertion(LoadId, Ref)), Asserted),
+    reverse(Asserted, Refs),
+    forall(member(Ref, Refs),
+           ( catch(erase(Ref), _, true) -> true ; true )).
 
 rethrow_metta_file_error(_, Error) :- control_exception(Error), !,
                                       throw(Error).

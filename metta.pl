@@ -1,6 +1,12 @@
 % Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
 %   imports, function registration, and named-space execution context.
 % Guarantees:
+%   - import! loads a MeTTa source that is new or that has been edited, and
+%     skips one that is neither, which is SWI's if(changed); a Python source
+%     keeps if(not_loaded) [tested 2026-08-19:
+%     test_an_unchanged_repeat_import_does_not_run_the_source_again,
+%     test_an_edited_import_is_not_skipped,
+%     filereader_source_reload:an_unchanged_file_is_not_loaded_again].
 %   - petta_handles_route/5 routes a query by the most specific matching
 %     (handles ...) entry in &petta, where specificity is pattern
 %     subsumption first and adornment-set inclusion between renaming-equal
@@ -4388,15 +4394,53 @@ clear_import_life(Space, CanonPath) :-
 
 % Assert both markers before loading to break cycles. Retain them on success
 % and retract them on failure. The recursive mutex serializes the loader graph.
-import_once(Space, CanonPath, Goal) :-
-    ( imported_metta_source(Space, CanonPath),
-      import_life_current(Space, CanonPath)
-      -> true
-       ; retractall(imported_metta_source(Space, CanonPath)),
-         clear_import_life(Space, CanonPath),
-         run_with_loading_marker(
-             imported_metta_source(Space, CanonPath),
-             run_with_import_life_marker(Space, CanonPath, Goal)) ).
+%
+%Whether an already-loaded file loads AGAIN is a condition, and the condition
+%is named at the call site rather than fixed here, which is how SWI writes the
+%same choice: load_files/2 takes if(Condition), and `not_loaded loads the file
+%if it was not loaded before` while `changed loads the file if it was not
+%loaded before or has been modified since it was loaded the last time`
+%[source: SWI-Prolog 10.1 Reference Manual, load_files/2]. consult/1 is
+%if(true), ensure_loaded/1 is if(not_loaded), and make/0 is what if(changed)
+%is for.
+%
+%import! takes `changed`, so an edited file is picked up where before the
+%import was skipped and the edit silently ignored. An UNCHANGED repeat is
+%still skipped, which is what keeps the arbiter's measured behaviour: two
+%imports of the same module with different destination tokens execute its
+%source once [source: LeaTTa tests/semantics/modules/30-resolution-loaded,
+%M30 conforms; its own evidence records that neither stdlib.md nor the module
+%tutorial states a reload policy, so the edited case is ours to decide].
+%
+%A Python source takes `not_loaded`. Re-executing a module body over a live
+%sys.modules entry is a different operation with different hazards, and
+%importlib.reload/1 is what would implement it; nothing here pretends to.
+%
+%The Python library's load() takes `true`, and takes it through here rather
+%than around it: that is what puts the two doors on one record, so an import!
+%of a file load() already read is skipped as loaded rather than run a second
+%time [tested: test_a_file_the_library_loaded_is_already_imported].
+import_when(Condition, Space, CanonPath, Goal) :-
+    (   import_load_needed(Condition, Space, CanonPath)
+    ->  retractall(imported_metta_source(Space, CanonPath)),
+        clear_import_life(Space, CanonPath),
+        run_with_loading_marker(
+            imported_metta_source(Space, CanonPath),
+            run_with_import_life_marker(Space, CanonPath, Goal))
+    ;   true
+    ).
+
+%SWI's three if(Condition) values, asked as a question about THIS load rather
+%than about the previous one.
+import_load_needed(true, _, _).
+import_load_needed(not_loaded, Space, CanonPath) :-
+    \+ ( imported_metta_source(Space, CanonPath),
+         import_life_current(Space, CanonPath) ).
+import_load_needed(changed, Space, CanonPath) :-
+    (   import_load_needed(not_loaded, Space, CanonPath)
+    ->  true
+    ;   metta_source_changed(CanonPath)
+    ).
 
 python_module_names(CanonPath, ModuleKey, ModuleName) :-
     crypto_data_hash(CanonPath, Hash, [algorithm(sha256)]),
@@ -4491,9 +4535,10 @@ resolve_module_form(Form, Form).
 importer_helper_impl(Space, File) :-
     ( python_import_file(File)
       -> resolve_python_import_path(File, CanonPath),
-         import_once('$python', CanonPath, load_python_source(CanonPath))
+         import_when(not_loaded, '$python', CanonPath,
+                     load_python_source(CanonPath))
        ; resolve_metta_import_path(File, CanonPath),
-         import_once(Space, CanonPath,
+         import_when(changed, Space, CanonPath,
                      load_imported_metta_file(CanonPath, _, Space)) ).
 
 :- dynamic translator_rule/1.
