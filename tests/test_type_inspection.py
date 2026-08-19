@@ -7,6 +7,9 @@ Guarantees:
   - get-type answers a function application from its DECLARATION, which is
     what the arbiter answers [tested
     test_get_type_of_an_application_answers_the_declared_return_type]
+  - an expression no arrow types reads element-wise, and the tuple it reads is
+    %Undefined% as soon as one member's type is [tested
+    test_one_untyped_component_makes_the_whole_expressions_type_undefined]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -61,3 +64,46 @@ def test_get_type_of_an_application_answers_the_declared_return_type():
     # which is the same route that answers ErrorType for (Error Foo Boo).
     assert [str(a) for g in m.run("!(get-type (+ 1 2))") for a in g] == ["Number"]
     assert [str(a) for g in m.run("!(get-type (Error Foo Boo))") for a in g] == ["ErrorType"]
+
+
+def test_one_untyped_component_makes_the_whole_expressions_type_undefined():
+    """An expression no arrow types is read element-wise, and the tuple it
+    reads is %Undefined% as soon as one member's type is: nothing is known
+    about a tuple one of whose components is unknown, so reporting the shape
+    while a hole sits inside it claims more than was derived.
+
+    Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+    interpreter, byte-identical across both. Before this,
+    `!(get-type (aa))` answered `(%Undefined%)`, a one-element tuple.
+    """
+    m = MeTTa()
+    m.run("(: typed-sym Number)")
+
+    def answer(query):
+        return [str(a) for g in m.run("!" + query) for a in g]
+
+    # Every member typed: the tuple stands, and nests.
+    assert answer("(get-type (typed-sym))") == ["(Number)"]
+    assert answer("(get-type (typed-sym typed-sym))") == ["(Number Number)"]
+    assert answer("(get-type (1))") == ["(Number)"]
+    assert answer("(get-type (typed-sym (typed-sym typed-sym)))") == [
+        "(Number (Number Number))"
+    ]
+
+    # One member undeclared, in any position, and nothing is known.
+    for hole in (
+        "(get-type (aa))",
+        "(get-type (aa bb))",
+        "(get-type (typed-sym aa))",
+        "(get-type (aa typed-sym))",
+    ):
+        assert answer(hole) == ["%Undefined%"], hole
+
+    # The collapse is recursive because the walk is bottom-up: the inner
+    # tuple is %Undefined% first, which makes the outer one %Undefined% too.
+    assert answer("(get-type (typed-sym (typed-sym aa)))") == ["%Undefined%"]
+
+    # A call whose head has equations but no declaration is the same shape,
+    # and it is the one a program hits most.
+    m.run("(= (nullary) 42)")
+    assert answer("(get-type (nullary))") == ["%Undefined%"]

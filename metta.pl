@@ -33,6 +33,9 @@
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
+%   - An expression no arrow types reads element-wise, and the tuple it reads
+%     is %Undefined% as soon as one member's type is [tested 2026-08-19:
+%     metta_type_answers:a_tuple_with_an_untyped_member_is_undefined].
 %   - get-type/2 and get-type-space/3 answer from declarations without running
 %     the inspected expression, so inspection has no effects of its own
 %     [tested 2026-08-19:
@@ -1222,7 +1225,8 @@ get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             metta_self_module(Self),
-                            maplist(has_type_in(Self), X, T).
+                            maplist(has_type_in(Self), X, Members),
+                            tuple_type(Members, T).
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 get_type_candidate(X, T) :- builtin_type_declaration(X, T).
@@ -1238,9 +1242,33 @@ get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
                                        is_list(X),
-                                       maplist(has_type_in(Module), X, T).
+                                       maplist(has_type_in(Module), X, Members),
+                                       tuple_type(Members, T).
+
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 get_type_candidate_in(_, X, T) :- builtin_type_declaration(X, T).
+
+%An expression no arrow types is read ELEMENT-WISE, and the tuple it reads is
+%%Undefined% as soon as one member's type is. Nothing is known about a tuple
+%one of whose components is unknown, so reporting the shape while a hole sits
+%inside it claims more than was derived: `(get-type (some-undeclared-call))`
+%answered `(%Undefined%)`, a one-element tuple, where the answer is that
+%nothing is known at all.
+%
+%Recursion falls out of the bottom-up walk rather than being written: an inner
+%tuple carrying a hole is itself %Undefined%, so the outer one collapses too.
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: `(typed-sym (typed-sym typed-sym))`
+%is `(Number (Number Number))` and `(typed-sym (typed-sym aa))` is
+%%Undefined%, one undeclared symbol away.
+%
+%== rather than memberchk/2, because a member's type may still be an unbound
+%variable and memberchk would BIND it to %Undefined% and answer yes.
+tuple_type(Members, Type) :-
+    (   member(Member, Members), Member == '%Undefined%'
+    ->  Type = '%Undefined%'
+    ;   Type = Members
+    ).
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
