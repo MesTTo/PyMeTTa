@@ -1,15 +1,21 @@
-"""Purpose: hold EXTENDING.md to the extension points the engine actually has.
+"""Purpose: hold the repository's own pages to what they promise, from
+EXTENDING.md's seam list through the generated reference pages to the
+governance documents.
 
-The page is what a library author reads instead of the source, so a seam it
-does not mention is a seam nobody finds. Four were missing when this was first
-checked: metta_foreign_clear/1, which had lived in the Python shim rather than
-beside the other five space hooks; py_object_extra_type/2 and
+The extension page is what a library author reads instead of the source, so a
+seam it does not mention is a seam nobody finds. Four were missing when this
+was first checked: metta_foreign_clear/1, which had lived in the Python shim
+rather than beside the other five space hooks; py_object_extra_type/2 and
 py_object_type_names/2, which are how a host value gets a type; and
 prolog:error_message//1, which is how a library gives its own error term a
 rendering. Nothing would have said so.
 Guarantees:
   - every multifile seam declared in src/ext_points.pl is named in
     EXTENDING.md [tested test_every_declared_seam_is_documented]
+  - the governance documents carry the policy rather than only existing: the
+    private security address and its window, the gate command, the alpha
+    status, and issue forms GitHub can parse
+    [tested 2026-08-19: test_the_repository_ships_its_governance_documents]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -194,3 +200,124 @@ def test_every_lint_kind_is_named_on_the_page_its_findings_link_to():
     assert anchor == "lint-a-space" and "## Lint a space" in text
     missing = sorted(kind for kind in _lint_kinds() if f"`{kind}`" not in text)
     assert not missing, f"{missing} can be reported and are not documented at {link}"
+
+
+# The governance documents, checked for what they say rather than for being
+# there. A SECURITY.md that exists and names no address routes a reporter
+# nowhere, and an issue form GitHub cannot parse is a template chooser entry
+# that never appears. Every string below is a clause of the decision the pages
+# were written to carry, so a rewrite that drops one fails here rather than
+# quietly leaving the policy with no home.
+_TEMPLATES = _REPO / ".github" / "ISSUE_TEMPLATE"
+
+# What each page has to still be saying. The security address is the whole
+# routing decision; the 90-day window and the absent bounty are what a
+# reporter is owed and not owed; the gate command is the one thing a
+# contributor has to run.
+_SECURITY_CLAUSES = (
+    "a.mesto@student.unsw.edu.au",
+    "git log",
+    "Do not open a public issue",
+    "90 days",
+    "no bug bounty",
+    "0.y.z",
+)
+_CONTRIBUTING_CLAUSES = (
+    "0.y.z",
+    "labelled alpha",
+    "GATE_ONLY=1 sh check.sh",
+    "no contributor license agreement",
+    "obligation header",
+    "evidence tag",
+    "a tag on a gate-green tree",
+    "python -m pytest python/tests/ -q --rootdir=python -c python/pyproject.toml",
+    "cd tests/prolog",
+)
+_FORM_TYPES = {"markdown", "textarea", "input", "dropdown", "checkboxes"}
+
+
+def test_the_repository_ships_its_governance_documents():
+    """Pin Phase 9 item P9.5: the decision about releases, security reports and
+    contributions lives in the repository rather than in a plan.
+
+    The templates are parsed rather than pattern-matched because GitHub parses
+    them: a form whose YAML is malformed, or whose non-markdown element has no
+    id, is rejected wholesale and simply does not appear in the chooser, which
+    looks from the outside exactly like a repository that ships no template.
+    """
+    for name, clauses in (
+        ("SECURITY.md", _SECURITY_CLAUSES),
+        ("CONTRIBUTING.md", _CONTRIBUTING_CLAUSES),
+    ):
+        page = _REPO / name
+        assert page.is_file(), f"{name} is not in the tree"
+        text = page.read_text(encoding="utf-8")
+        for clause in clauses:
+            assert clause in text, f"{name} no longer states {clause!r}"
+
+    # Both are reachable from the page a reader actually lands on. GitHub also
+    # surfaces them itself, in the Security tab and beside a new pull request,
+    # but that only helps somebody already on github.com.
+    readme = (_REPO / "README.md").read_text(encoding="utf-8")
+    for target in ("(SECURITY.md)", "(CONTRIBUTING.md)"):
+        assert target in readme, f"the README no longer links {target}"
+
+    # SECURITY.md travels with the source archive for the same reason
+    # CHANGELOG.md and CITATION.cff do: it is what a consumer of the
+    # DISTRIBUTION needs, and someone repackaging from an sdist would
+    # otherwise ship a project with no reporting address in it. CONTRIBUTING.md
+    # is about working on the repository and stays with the repository.
+    manifest = (_REPO / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+    assert "include SECURITY.md" in manifest
+
+    # PyYAML reaches the gate through bandit and xenon, which both require it,
+    # so `uv sync --extra checks` always has one [source 2026-08-19: bandit
+    # 1.9.4 and xenon 0.9.3 each declare pyyaml in uv.lock]. The minimum
+    # dependency environment the version matrix runs does not, and skips here.
+    yaml = pytest.importorskip("yaml")
+    forms = {
+        path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
+        for path in sorted(_TEMPLATES.glob("*.yml"))
+        if path.name != "config.yml"
+    }
+    assert set(forms) == {"bug.yml", "divergence.yml"}, sorted(forms)
+
+    fields = {}
+    for template, form in forms.items():
+        assert {"name", "description", "body"} <= set(form), f"{template} is missing a top key"
+        identified = [one for one in form["body"] if one["type"] != "markdown"]
+        for element in form["body"]:
+            assert element["type"] in _FORM_TYPES, f"{template}: {element['type']}"
+            assert element.get("attributes"), f"{template}: an element carries no attributes"
+        ids = [one["id"] for one in identified if "id" in one]
+        assert len(ids) == len(identified) == len(set(ids)), (
+            f"{template}: every element but a markdown one needs its own unique id"
+        )
+        fields[template] = {one["id"]: one for one in identified}
+
+    # A bug report is only actionable with the program and both answers, so the
+    # form has to require all three rather than merely offer them.
+    bug = fields["bug.yml"]
+    for asked in ("program", "expected", "got"):
+        assert bug[asked]["validations"]["required"] is True, (
+            f"bug.yml stopped requiring {asked}"
+        )
+    # Rendered rather than passed through Markdown, or a program's `*` and `_`
+    # arrive eaten. bug.yml says why the value is `text`.
+    for template in forms:
+        assert fields[template]["program"]["attributes"]["render"] == "text", template
+
+    # A divergence that names no reference cannot be settled, which is the one
+    # thing this form exists to collect.
+    divergence = fields["divergence.yml"]
+    assert divergence["reference"]["type"] == "dropdown"
+    assert len(divergence["reference"]["attributes"]["options"]) >= 2
+    for asked in ("reference", "citation", "program"):
+        assert divergence[asked]["validations"]["required"] is True, (
+            f"divergence.yml stopped requiring {asked}"
+        )
+
+    # The chooser is where a security report gets caught before it is public.
+    config = yaml.safe_load((_TEMPLATES / "config.yml").read_text(encoding="utf-8"))
+    links = {one["name"]: one["url"] for one in config["contact_links"]}
+    assert any(url.endswith("/SECURITY.md") for url in links.values()), links
