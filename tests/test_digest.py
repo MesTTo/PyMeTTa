@@ -89,6 +89,40 @@ def test_digest_refuses_symbols_without_round_trip_text(metta, name):
             m.digest()
 
 
+@pytest.mark.parametrize("number", [float("inf"), float("-inf"), float("nan")])
+@pytest.mark.parametrize("operation", ["digest", "save-metta", "save-fast"])
+def test_refuses_a_number_with_no_round_trip_text(metta, tmp_path, number, operation):
+    """A value can lack a text form without being a name.
+
+    SWI writes a non-finite float as ``1.0Inf``, ``-1.0Inf`` or ``1.5NaN`` and
+    a rational as ``1r3``, and the MeTTa reader has a literal for none of the
+    four, so each comes back a SYMBOL of that spelling. MeTTa arithmetic here
+    cannot make one, every one of ``float_overflow``, ``float_zero_div`` and
+    ``float_undefined`` being ``error``, but ``(py-atom "float('inf')")``
+    answers one and so does this constructor. Before the seam answered for
+    numbers, a text save of this space wrote ``(holds inf)`` and loading it
+    back gave ``Sym('inf')``, with nothing reported [measured 2026-08-19].
+    """
+    with metta.new_space() as m:
+        m.add(S.holds(val(number)))
+        with pytest.raises(ValueError, match=r"reads back as a symbol of that spelling"):
+            if operation == "digest":
+                m.digest()
+            else:
+                m.save(tmp_path / "n.metta", format=operation.split("-")[1])
+
+
+@pytest.mark.parametrize("number", [0, -3, 2.5, -0.0, 1e10, 1.5e-10, 2**80])
+def test_save_keeps_every_number_it_accepts(metta, tmp_path, number):
+    path = tmp_path / "one.metta"
+    with metta.new_space() as writer:
+        writer.add(S.container(val(number)))
+        writer.save(path)
+    with metta.new_space() as reader:
+        reader.load(path)
+        assert reader.atoms() == [S.container(val(number))]
+
+
 @pytest.mark.parametrize("name", ["plain", "a-b", "<=", "#+", "0x1f", ".5", "3x", "-abc"])
 def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):
     # The refusal has to guard the writer that actually runs: a saved file is
