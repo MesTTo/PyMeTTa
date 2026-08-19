@@ -48,12 +48,12 @@
 %   here, because the dual of a head argument is dif/2 rather than a failed
 %   proof [tested: duals_art_of_prolog].
 % Assumes:
-%   - translator.pl:fun_meta_clause/3 retains one fact per compiled equation
+%   - translator.pl:fun_meta_clause/4 retains one fact per compiled equation
 %     holding its head arguments and its unevaluated MeTTa body
 %     [source: src/translator.pl, record_fun_meta/3].
 %   - a head argument that is itself a function call, which is Curry's
 %     functional pattern and which constrain_args/3 compiles into a goal, is
-%     recorded by fun_head_goals/1 so this file can refuse it rather than
+%     recorded by fun_head_goals/2 so this file can refuse it rather than
 %     dualise a head it cannot see [tested: a_functional_pattern_head_has_no_dual].
 %   - MeTTa True and False are the Prolog atoms true and false
 %     [source: src/parser.pl:133].
@@ -565,7 +565,7 @@ ensure_dual_locked(Fun, InputArity, Module) :-
 
 build_dual(Fun, InputArity, Module) :-
     dual_name(Fun, DualName),
-    refuse_unsupported_head(Fun),
+    refuse_unsupported_head(Module, Fun),
     refuse_taken_name(Fun, DualName, Module),
     install_dual_hooks,
     assertz(dual_building(Fun, InputArity, Module), BuildRef),
@@ -577,7 +577,7 @@ build_dual(Fun, InputArity, Module) :-
     record_source_assertion(ReadyRef).
 
 build_dual_clause(Fun, DualName, InputArity, Module) :-
-    equations_of_arity(Fun, InputArity, Equations),
+    equations_of_arity(Module, Fun, InputArity, Equations),
     length(DualArgs, InputArity),
     (   Equations == []
     ->  refuse_undefined_builtin(Fun, InputArity, Module),
@@ -596,8 +596,8 @@ build_dual_clause(Fun, DualName, InputArity, Module) :-
     format(atom(Label), "metta dual (~w)", [Fun]),
     maybe_print_compiled_clause(Label, ['not-provable', [Fun|DualArgs]], Clause).
 
-equations_of_arity(Fun, InputArity, Equations) :-
-    (   fun_meta_clauses(Fun, All)
+equations_of_arity(Module, Fun, InputArity, Equations) :-
+    (   fun_meta_clauses(Module, Fun, All)
     ->  include(equation_arity(InputArity), All, Equations)
     ;   Equations = []
     ).
@@ -625,8 +625,8 @@ refuse_undefined_builtin(Fun, InputArity, Module) :-
 %halfof(A,B) :- dbl(B,A) and runs dbl backwards. That goal is not part of the
 %recorded body, so a dual built from the recorded head would silently ignore
 %it and claim more than it can prove.
-refuse_unsupported_head(Fun) :-
-    (   fun_head_goals(Fun)
+refuse_unsupported_head(Module, Fun) :-
+    (   fun_head_goals(Module, Fun)
     ->  throw(error(type_error(dualisable_function, Fun),
                     context(build_dual/3,
                             'this function matches a functional pattern in its \c

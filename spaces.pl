@@ -975,8 +975,8 @@ metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
 
 remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),
-    drop_fun_meta(F, Args, Body),
     space_module(Space, Module),
+    drop_fun_meta(Module, F, Args, Body),
     %Only this space's compiled clauses die: the same equation imported into two
     %spaces compiles into two modules, and the term-keyed lookup alone would
     %erase the twin space's clause and, through the term-wide retractall, its

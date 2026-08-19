@@ -39,6 +39,11 @@
 %   - Higher-arity dynamic calls bypass the operator-table lookup, because
 %     reduce/3's guard tests the arity before it consults current_op/3
 %     [tested 2026-08-18: translator_operator_dispatch].
+%   - A function's retained equations belong to the module that compiled them,
+%     and reading them follows that module's own chain, so a definition in one
+%     space cannot add a clause to another space's specialization
+%     [tested: specializer_invalidation:
+%     a_definition_in_another_space_does_not_double_an_answer].
 %   - Recording an equation does not copy the equations already held for its
 %     function, so filling a store is linear in the equation count
 %     [tested 2026-08-18: recording_equations_costs_no_more_than_linear_time]
@@ -73,28 +78,54 @@
 % Function source retained for higher-order specialization. Each equation is
 % one independently indexed fact, so compiling a new equation does not copy
 % every older equation for the same function.
-:- dynamic fun_meta_clause/3.
+%
+% Keyed by MODULE as well as by name, because a space's equations are its own.
+% Keyed by name alone, two spaces defining one function shared one pile of
+% equations and the specializer generated a clause per equation in the pile:
+% two spaces each holding (= (s-map $f $x) ($f $x)), the second compiling
+% (= (s-use $z) (s-map s-inc $z)), and that space answered (s-use 1) TWICE
+% [measured 2026-08-19, and the same at c7126f1, so this predates the module
+% migration rather than following from it]. Under copy() it compounded: the
+% clone regenerated what it had already been handed, so a space of four atoms
+% cloned to six and answered three times.
+:- dynamic fun_meta_clause/4.
 
 record_fun_meta(F, Args, Body) :-
-    asserta(fun_meta_clause(F, Args, Body), Ref),
+    current_metta_module(Module),
+    asserta(fun_meta_clause(Module, F, Args, Body), Ref),
     record_source_assertion(Ref).
 
-fun_meta_clauses(F, Clauses) :-
-    findall(fun_meta(Args, Body), fun_meta_clause(F, Args, Body), Clauses),
+% The NEAREST module along the chain that has equations for F, and only that
+% module's, which is how Prolog resolves the clauses those equations became: a
+% named space sees &self's equations because its module is below &self's, and
+% stops there rather than gathering a sibling's too.
+fun_meta_clauses(Module, F, Clauses) :-
+    fun_meta_module(Module, F, Owner),
+    findall(fun_meta(Args, Body),
+            fun_meta_clause(Owner, F, Args, Body), Clauses),
     Clauses \== [].
+
+fun_meta_module(Module, F, Module) :- fun_meta_clause(Module, F, _, _), !.
+fun_meta_module(Module, F, Owner) :-
+    super_chain(Module, Candidate),
+    fun_meta_clause(Candidate, F, _, _),
+    !,
+    Owner = Candidate.
 
 % Remove one variant-equivalent retained equation. Retraction must not bind the
 % caller's variables, and duplicate equations are removed one at a time.
-drop_fun_meta(F, Args, Body) :-
-    ( once(( clause(fun_meta_clause(F, StoredArgs, StoredBody), true, Ref),
+drop_fun_meta(Module, F, Args, Body) :-
+    ( once(( clause(fun_meta_clause(Module, F, StoredArgs, StoredBody), true, Ref),
              (StoredArgs-StoredBody) =@= (Args-Body),
              erase(Ref) ))
     -> true
     ; true ).
 
-clear_fun_meta(F) :-
-    retractall(fun_meta_clause(F, _, _)),
-    retractall(fun_head_goals(F)).
+% Both retractalls, so an unbound Module means every module. That is what a
+% teardown wants and what the engine must never pass.
+clear_fun_meta(Module, F) :-
+    retractall(fun_meta_clause(Module, F, _, _)),
+    retractall(fun_head_goals(Module, F)).
 
 % A head argument that is itself a function call is Curry's functional
 % pattern: (= (halfof (dbl $n)) $n) compiles to halfof(A,B) :- dbl(B,A) and
@@ -104,11 +135,14 @@ clear_fun_meta(F) :-
 % than negate a head it cannot see. Recording only the non-empty case keeps
 % this to one == test per compiled equation, which costs no inference at all
 % [measured 2026-08-15: ==/2 is compiled inline, a predicate call is not].
-:- dynamic fun_head_goals/1.
+% Module-keyed for the same reason as fun_meta_clause/4: a functional-pattern
+% head in one space must not refuse a dual in another.
+:- dynamic fun_head_goals/2.
 
-note_head_goals(F) :- ( fun_head_goals(F)
+note_head_goals(F) :- current_metta_module(Module),
+                      ( fun_head_goals(Module, F)
                         -> true
-                         ; assertz(fun_head_goals(F), Ref),
+                         ; assertz(fun_head_goals(Module, F), Ref),
                            record_source_assertion(Ref) ).
 
 %Pattern matching, structural and functional/relational constraints on arguments:

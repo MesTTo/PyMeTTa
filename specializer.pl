@@ -98,7 +98,8 @@ normalize_specialization_key(Term, Normalized) :-
 % retained clause independently. The key is ordered by call argument and path,
 % so equation order cannot select a different partial reduction.
 specialization_plan(HV, AVs, CleanBindSet, MetaList, HasDirectBenefit) :-
-    fun_meta_clauses(HV, SourceMetaList),
+    current_metta_module(Module),
+    fun_meta_clauses(Module, HV, SourceMetaList),
     maplist(bind_specialization_clause(AVs), SourceMetaList,
             MetaList, BindingLists),
     append(BindingLists, Bindings),
@@ -477,7 +478,7 @@ forget_symbol(Module, Name) :-
     ->  true
     ;   retractall(arity(Name, _)),
         retractall(fun(Name)),
-        clear_fun_meta(Name)
+        clear_fun_meta(Module, Name)
     ),
     retractall(ho_specialization(Module, Name, _)),
     retractall(ho_specialization(Module, _, Name)).
