@@ -868,10 +868,35 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %[source: LeaTTa tests/semantics/spaces/add_atom.metta].
 metta_space_argument(Space) :- atom(Space).
 
+%The refusal every space operation answers, read and write alike. It reads the
+%operation's own name and its own arguments, so the subject is the call that
+%failed rather than a generic complaint, which is what lets a program tell one
+%refusal from another without parsing the message.
+%
+%get-atoms is worded differently because upstream words it differently: it
+%takes ONE argument, so pinned `space.rs:143` says "its argument" where the
+%two-operand operations' `:172` and `:199` say "the first argument"
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at
+%5450-5452 against addAtomStep at 5386-5388].
+%The subject is a COPY of the refused call, and that is load-bearing rather
+%than tidy. match/4 takes the output template and the answer in the SAME term:
+%the translator emits `match('&self', [foo, A], A, A)` for
+%`!(match &self (foo $x) $x)`, so unifying the answer with an error whose
+%subject repeats the template builds `A = (Error (match _ (foo A) A) "...")`,
+%a rational tree. SWI has no occurs check here, so nothing failed; the term
+%printed until the 7.5Gb stack ran out, 50,707,153 frames deep in maplist/3
+%[measured 2026-08-19]. Copying makes the subject a snapshot, which is what a
+%record of a call that will not run is, and it makes every future caller of
+%this safe whether or not its output slot aliases an input.
 space_argument_error(Operation, Arguments, Error) :-
+    (   Operation == 'get-atoms'
+    ->  Position = "its argument"
+    ;   Position = "the first argument"
+    ),
     format(string(Message),
-           "~w expects a space as the first argument", [Operation]),
-    Error = ['Error', [Operation|Arguments], Message].
+           "~w expects a space as ~w", [Operation, Position]),
+    copy_term(Arguments, Subject),
+    Error = ['Error', [Operation|Subject], Message].
 
 %%%% The three the standard library defines beside add-atom %%%%
 %
@@ -1033,17 +1058,35 @@ match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_
                                              nonvar(Space),
                                              native_storage_module_cache(Space, Module), !,
                                              match_native(Module, Space, Pattern, OutPattern, Result).
-match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',', !,
+%metta_space_argument/1 here so a conjunction over a space that is not one
+%falls through to the refusal below instead of committing to the router, which
+%would have carried the refusal into match_routed/4's conj slot and lost it:
+%the error atom does not unify with `conj`, so the whole directive answered
+%nothing at all [tested: test_a_conjunctive_match_on_an_unbound_space_refuses_
+%the_same_way].
+match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
+                                             metta_space_argument(Space), !,
                                              match_routed(Space, Pattern, OutPattern, Result).
 %An unbound space would make this dynamic call enumerate every space that has
 %ever been written to, so a program in &self could read &kb without naming it.
-%Before storage modules the same path reached Term =.. [Space, Rel|Args] and
-%raised, which is the behaviour to keep: matching is against a space you name
-%[tested: spaces_storage_modules:matching_requires_a_named_space].
+%Matching is against a space you NAME, and the refusal is the write path's
+%own: `(add-atom $unbound (foo 1))` already answered
+%`(Error (add-atom $_ (foo 1)) "add-atom expects a space as the first
+%argument")` while this raised SWI's bare `Arguments are not sufficiently
+%instantiated`, which names neither the operation nor the call and reached
+%Python as an EngineError with no operation field at all. Same question, same
+%kind of answer [tested: spaces_storage_modules:matching_requires_a_named_
+%space, test_get_atoms_on_an_unbound_space_names_the_operation].
+%
+%The check costs nothing here that the guard it replaces did not: this clause
+%is only reached once every clause above has failed, and each of those already
+%requires a bound space.
 match(Space, Pattern, OutPattern, Result) :-
-    ( var(Space) -> instantiation_error(Space) ; true ),
-    native_storage_module_cache(Space, Module),
-    match_native(Module, Space, Pattern, OutPattern, Result).
+    (   metta_space_argument(Space)
+    ->  native_storage_module_cache(Space, Module),
+        match_native(Module, Space, Pattern, OutPattern, Result)
+    ;   space_argument_error('match', [Space, Pattern, OutPattern], Result)
+    ).
 
 match_routed(_, LComma, OutPattern, Result) :- LComma == [','], !,
                                                Result = OutPattern.
@@ -1696,8 +1739,18 @@ native_expression(Module, Space, Rel, PatArgs) :-
                                petta_source_guard(Space),
                                metta_foreign_atoms(Space, Pattern).
 
-%Get all atoms in space, irregard of arity:
-'get-atoms'(Space, Pattern) :- get_native_atom(Space, Pattern).
+%Get all atoms in space, irregard of arity. A first argument that is not a
+%space is refused HERE and not in get_native_atom/2 below, for the same reason
+%metta_add_atom/3 leaves the check to 'add-atom'/3: this is the door a MeTTa
+%program comes through and the one that owes it a MeTTa answer, while the
+%storage read below is an engine internal whose callers hold a space name
+%already and would read an error atom as a stored atom
+%[tested: test_get_atoms_on_an_unbound_space_names_the_operation].
+'get-atoms'(Space, Pattern) :-
+    (   metta_space_argument(Space)
+    ->  get_native_atom(Space, Pattern)
+    ;   space_argument_error('get-atoms', [Space], Pattern)
+    ).
 
 %Drop every atom a space holds. Expressions and scalars live in different
 %predicates, so a caller that wipes only the space predicate would leave the
@@ -1719,10 +1772,15 @@ clear_native_atoms(Space) :-
     retractall(import_life(Space, _, _)).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
-%The read sibling of match/4's guard, and it needs it for the same reason:
 %native_storage_module_ready/2 is a dynamic lookup, so an unbound space
 %enumerated every space ever written to and !(collapse (get-atoms $any))
-%answered with another space's atoms without ever naming it
+%answered with another space's atoms without ever naming it.
+%
+%This raise is the ENGINE's invariant and not the language's answer: a MeTTa
+%program cannot reach it, because 'get-atoms'/2 above refuses a first argument
+%that is not a space before it gets here. What is left is an engine caller
+%that lost its space name, and that is a bug in the engine rather than in a
+%program, so it throws instead of answering an atom the caller would store
 %[tested: spaces_storage_modules:reading_atoms_requires_a_named_space].
 get_native_atom(Space, Pattern) :-
     ( var(Space) -> instantiation_error(Space) ; true ),
