@@ -42,12 +42,9 @@ from ._atoms_core import (
 
 _Namespace = _namespace._Namespace
 _NAMESPACE_CACHE_MAX = _namespace.NAMESPACE_CACHE_MAX
-_WIRE_CACHE_FAST_MAX = _core._WIRE_CACHE_FAST_MAX
 _WIRE_CACHE_MAX = _core._WIRE_CACHE_MAX
 _WIRE_SYMS = _core._WIRE_SYMS
-_WIRE_SYMS_FAST = _core._WIRE_SYMS_FAST
 _WIRE_VARS = _core._WIRE_VARS
-_WIRE_VARS_FAST = _core._WIRE_VARS_FAST
 boxed = _core.boxed
 
 __all__ = [

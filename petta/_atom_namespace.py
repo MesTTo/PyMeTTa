@@ -69,6 +69,18 @@ class _Namespace:
         interleaved with fresh names: FIFO 82.4% against 88.4% at 200 hot
         and 70.4% against 82.4% at 400, and over 2048 touches of one hot
         name FIFO re-minted it five times where two tiers minted it once.
+
+        This keeps `del cache[next(iter(cache))]`, which _atoms_core no
+        longer does, and the difference is the bound. That eviction is
+        O(bound) because a dict's iterator skips the tombstones previous
+        evictions left, so it costs 170 ns at 256 entries and 2,257 ns at
+        262,144. At 512 it is the small end of that curve, and the names
+        here come from hand-written source rather than a peer, so the cache
+        rarely evicts at all. Paying an OrderedDict for it instead costs
+        every LOOKUP: dict.get 23.5 ns against OrderedDict.get 24.8 ns, and
+        term-operators, which is three namespace lookups per term over
+        20,000 terms, measured +0.132% [measured 2026-08-19, minimum of
+        three instructions:u runs]. Deliberate, not an oversight.
         """
         if name.startswith("__"):
             raise AttributeError(name)

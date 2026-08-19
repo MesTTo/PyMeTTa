@@ -8,11 +8,33 @@ Guarantees:
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
   - Expr virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
+  - Expr writes its slots through their descriptors rather than
+    object.__setattr__, which costs term-operators 6.55% fewer instructions
+    and wire-codec 2.24% fewer [measured 2026-08-19: minimum of three
+    instructions:u runs, interleaved against the same tree without it]
   - wire and object identity caches are bounded or weak and synchronized
     [tested test_wire_intern_tables_are_bounded,
     test_atom_identity_caches_are_thread_safe]
+  - the wire intern cache evicts in constant time in its bound, so its bound
+    is a memory decision rather than a speed one [tested
+    test_the_intern_cache_evicts_in_constant_time]
+  - _WIRE_SYM_ORDER and _WIRE_VAR_ORDER hold exactly the keys of the cache
+    each one bounds, and _wire_intern_clear is the only door that empties
+    either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
+  - Expr builds its wire form on the first crossing and never on
+    construction, 10.1x per call flat and 98.1x nested against rebuilding
+    it [measured 2026-08-19: 20,000 crossings, minimum of three
+    instructions:u runs with the interpreter floor subtracted; tested
+    test_expr_defers_its_wire_form_until_asked]
+  - encode answers common types from a table keyed on the exact class and
+    falls through to its singledispatch otherwise, 4603 instructions per
+    call against 2306 [measured 2026-08-19: 800,000 calls over eight leaf
+    types, minimum of three instructions:u runs, empty loop subtracted]
+  - _ENCODE_FAST never disagrees with encode.registry: every entry is
+    resolved by asking encode.dispatch, and every registration rebuilds it
+    [tested test_the_type_fast_path_precedes_encode_and_survives_a_register]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -31,6 +53,7 @@ import re
 import threading
 import weakref
 from abc import ABCMeta
+from collections import deque
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
 from typing import Any, Self, TypeVar, cast
@@ -861,6 +884,7 @@ class Expr(Atom):
 
     __slots__ = {
         "_hash": "the cached structural hash, computed on first use",
+        "_wire": "the cached wire form, built on the first crossing",
         "children": "the ordered child atoms, as a tuple",
     }
     __match_args__ = ("children",)
@@ -868,8 +892,8 @@ class Expr(Atom):
     _hash: int | None
 
     def __init__(self, children: Sequence[Atom]) -> None:
-        object.__setattr__(self, "children", tuple(children))
-        object.__setattr__(self, "_hash", None)
+        _set_children(self, tuple(children))
+        _set_hash(self, None)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Expr):
@@ -907,7 +931,7 @@ class Expr(Atom):
         for node in reversed(order):
             if node._hash is None:
                 value = hash(("expr", tuple(hash(child) for child in node.children)))
-                object.__setattr__(node, "_hash", value)
+                _set_hash(node, value)
         return cast(int, self._hash)
 
     def __reduce__(self):
@@ -982,11 +1006,19 @@ class Expr(Atom):
         return iter(self.children)
 
     def to_wire(self) -> list:
-        # Iterative for the same reason __str__ is: depth is data. Leaf
-        # symbols and variables answer their cached wire cells; the
-        # expression skeleton itself is one-shot in the hot paths (a fact
-        # is added once), so it builds fresh, measured cheaper than
-        # memoizing it.
+        # Memoized lazily, exactly as Sym and Var are: the slot is written
+        # by the first crossing and never on construction, so a term that
+        # is built and thrown away pays nothing. Iterative for the same
+        # reason __str__ is: depth is data.
+        #
+        # Only the node that was ASKED caches. A child expression keeps its
+        # own slot unwritten, because the parent's cached list already holds
+        # that subtree and writing a slot per node would charge every
+        # one-shot term for a cache nothing reads [tested
+        # test_expr_defers_its_wire_form_until_asked].
+        wire = getattr(self, "_wire", None)
+        if wire is not None:
+            return wire
         out: list = ["e", []]
         stack: list[tuple[Expr, list]] = [(self, out[1])]
         while stack:
@@ -998,6 +1030,7 @@ class Expr(Atom):
                     stack.append((child, slot[1]))
                 else:
                     sink.append(child.to_wire())
+        _set_wire(self, out)
         return out
 
     @property
@@ -1016,19 +1049,24 @@ class Expr(Atom):
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expr)
 
+# Atoms refuse assignment, so every slot write goes through a back door.
+# object.__setattr__ resolves the attribute NAME against the type on every
+# call and costs 951 instructions; the slot's own descriptor is resolved
+# already and costs 568 [measured 2026-08-19: minimum of three
+# instructions:u runs over 200,000 writes each]. Expr writes two slots per
+# construction and from_wire builds one Expr per decoded node, so the name
+# lookup was being paid twice for every node of every answer.
+_set_children = Expr.__dict__["children"].__set__
+_set_hash = Expr.__dict__["_hash"].__set__
+_set_wire = Expr.__dict__["_wire"].__set__
+
 
 # --------------------------------------------------------------------- encoding
 
 
 @singledispatch
-def encode(value: Any) -> Atom:
-    """Turn a Python value into an atom.
-
-    Open by design: a class you own implements __metta__; a class you do not
-    own is taught through encode.register, which is functools.singledispatch.
-    Anything unregistered without __metta__ is carried whole as a grounded
-    object, the same rule the engine itself applies to a host value.
-    """
+def _encode_value(value: Any) -> Atom:
+    """The open dispatch behind encode. See encode for the contract."""
     hook = getattr(value, "__metta__", None)
     if hook is not None:
         result = hook()
@@ -1040,30 +1078,113 @@ def encode(value: Any) -> Atom:
     return Gnd(value)
 
 
-@encode.register
+@_encode_value.register
 def _(value: Atom) -> Atom:
     return value
 
 
-@encode.register
+@_encode_value.register
 def _(value: str) -> Atom:
     # A Python str is a grounded string, never a symbol. Symbols come from S.
     return Gnd(value)
 
 
-@encode.register(bool)
-@encode.register(int)
-@encode.register(float)
+@_encode_value.register(bool)
+@_encode_value.register(int)
+@_encode_value.register(float)
 def _(value: Any) -> Atom:
     return Gnd(value)
 
 
-@encode.register(tuple)
-@encode.register(list)
+@_encode_value.register(tuple)
+@_encode_value.register(list)
 def _(value: Any) -> Atom:
     # A Python sequence reads as an expression, which is what (1 2 3) is.
     # To carry a list whole as one opaque value, wrap it: petta.val([1, 2, 3]).
     return Expr([encode(v) for v in value])
+
+
+# A table keyed on the value's EXACT class, consulted before the dispatch
+# above. singledispatch resolves a class through its own wrapper, a dispatch
+# call and a WeakKeyDictionary lookup, and that resolution is most of what
+# encode costs: measured 2026-08-19 over 800,000 calls across eight leaf
+# types, minimum of three instructions:u runs with the same loop calling
+# nothing subtracted, 4,603 instructions per encode against 2,309 with this
+# table in front, 1.99x. A dict keyed on __class__ falling through to the
+# generic on a miss is what copyreg and pickle do for the same reason.
+#
+# Every entry is resolved by ASKING _encode_value.dispatch, so the table
+# cannot answer differently from the registry it came from, and encode.register
+# rebuilds it: a table still answering the old way after someone registers a
+# codec would be a correctness bug bought for 2,294 instructions
+# [tested test_the_type_fast_path_precedes_encode_and_survives_a_register].
+#
+# The concrete atom classes are named because the registry holds their BASE,
+# Atom, and an exact-class table cannot find them through it. A class that is
+# in neither list misses and falls through, which is what subclasses and
+# abstract registrations need anyway.
+_ENCODE_DIRECT: tuple[type, ...] = (Sym, Var, Expr, Gnd, Handle)
+_ENCODE_FAST: dict[type, Callable[[Any], Atom]] = {}
+
+
+def _encode_fast_rebuild() -> None:
+    """Resolve every directly reachable class through the registry itself."""
+    resolved = {
+        cls: _encode_value.dispatch(cls)
+        for cls in (*_ENCODE_DIRECT, *_encode_value.registry)
+        if isinstance(cls, type)
+    }
+    _ENCODE_FAST.clear()
+    _ENCODE_FAST.update(resolved)
+
+
+def encode(value: Any) -> Atom:
+    """Turn a Python value into an atom.
+
+    Open by design: a class you own implements __metta__; a class you do not
+    own is taught through encode.register, which is functools.singledispatch.
+    Anything unregistered without __metta__ is carried whole as a grounded
+    object, the same rule the engine itself applies to a host value.
+    """
+    handler = _ENCODE_FAST.get(value.__class__)
+    if handler is not None:
+        return handler(value)
+    return _encode_value(value)
+
+
+def _encode_register(cls: Any, func: Any = None) -> Any:
+    """encode.register, rebuilding the fast table at every registration.
+
+    singledispatch.register has three shapes and all three land here.
+    `register(cls, implementation)` and the bare `@register` on an annotated
+    function both register at once and answer the implementation; only
+    `@register(cls)` defers, and it is told apart by answering something that
+    is not the argument it was given, which is the decorator functools built.
+    Deferring the rebuild with it keeps the table correct for that shape too.
+    """
+    outcome = _encode_value.register(cls, func)
+    if func is None and outcome is not cls:
+
+        def _deferred(implementation: Any) -> Any:
+            registered = outcome(implementation)
+            _encode_fast_rebuild()
+            return registered
+
+        return _deferred
+    _encode_fast_rebuild()
+    return outcome
+
+
+# Attached through __dict__ because the names live on the function OBJECT:
+# a plain `encode.register = ...` is what a type checker reads as adding an
+# attribute to a Callable, and both checkers here refuse it.
+encode.__dict__.update(
+    register=_encode_register,
+    registry=_encode_value.registry,
+    dispatch=_encode_value.dispatch,
+)
+
+_encode_fast_rebuild()
 
 
 def decode(atom: Any) -> Any:
@@ -1078,17 +1199,84 @@ def decode(atom: Any) -> Any:
 
 
 # Decoded symbols and variables intern per name: their equality and hash are by
-# name already, and a query answering thousands of rows repeats a small
-# vocabulary. The two tiers follow CPython's re cache: check a small FIFO first
-# without reordering, then maintain a larger LRU. Eviction changes only object
-# allocation because equality is by value, while bounding names supplied by a
-# remote peer prevents permanent process growth.
-_WIRE_CACHE_MAX = 512
-_WIRE_CACHE_FAST_MAX = 256
+# name already, and a query answering thousands of rows repeats a vocabulary.
+# Eviction changes only object allocation because equality is by value, while
+# bounding names supplied by a remote peer prevents permanent process growth.
+#
+# ONE tier, read without the lock and mutated under it. It used to be two, a
+# 256-entry FIFO in front of a 512-entry LRU, so that a hot name answered
+# without taking _STATE_LOCK. That split earned its keep only while the main
+# tier was small: once the main tier holds the whole vocabulary, a small tier
+# in front of it converts what would have been a lock-free hit into a miss
+# plus a locked hit. Measured over ten passes of a 20,000-row query whose
+# answers carry 20,001 distinct symbols, minimum of three instructions:u runs
+# [2026-08-19]:
+#
+#   two tiers, 512 LRU behind 256 FIFO, plain-dict eviction   17955972589
+#   two tiers, 65,536 LRU behind 256 FIFO                     16786153059
+#   two tiers, 65,536 LRU behind 65,536 FIFO                  15884696022
+#   one tier,  65,536 FIFO                                    15849235310
+#
+# The last line is the fastest AND holds half the entries of the line above
+# it, which stores every name twice. Dropping the split costs the LRU
+# reordering, because reordering on a hit would have to take the lock:
+# measured at the old 256, FIFO and LRU are within half a point of each other
+# on all three workload shapes [ai-code-organisation-and-fixes.md BA3], and at
+# 65,536 an ordinary vocabulary never reaches an eviction at all.
+#
+# Eviction has to be O(1) in the bound, and `del cache[next(iter(cache))]` is
+# not: a dict's iterator walks the entry array from the front and every
+# eviction leaves a tombstone there for the next scan to skip. Measured over
+# an evict-and-insert step, minimum of five, 256 to 262,144 entries: that
+# spelling goes 170 ns to 2,257 ns, while a deque of keys beside the dict
+# holds 118 ns to 182 ns and OrderedDict.popitem(last=False) 136 ns to 225 ns
+# [measured 2026-08-19]. The cost is what pinned the bound small.
+#
+# The deque rather than an OrderedDict, which is one container and therefore
+# the tidier answer: OrderedDict pays for its ordering on every LOOKUP, and
+# the lookup is the hot path. dict.get against OrderedDict.get, minimum of
+# seven over 500,000 calls, is 23.5 ns against 24.8 ns on a three-entry map
+# and 20.1 against 22.1 on a 20,000-entry one; end to end that is wire-codec
+# +0.289% for the OrderedDict and +0.000% for the deque [measured 2026-08-19].
+#
+# What makes the deque safe here is the lock that P7.2 requires be kept.
+# popleft and del are not one atomic step, but both run inside _STATE_LOCK
+# with no other writer able to interleave and no statement between them that
+# can raise, and a reader only ever touches `cache`. The pair that CAN drift
+# is a caller emptying one and not the other, so emptying has exactly one
+# door, _wire_intern_clear, and the two lengths are asserted to agree
+# [tested test_the_intern_cache_evicts_in_constant_time].
+#
+# FIFO rather than LRU: reordering on a hit would have to take the lock, and
+# the hit is what has to stay lock-free. Measured at the old 256-entry bound,
+# FIFO and LRU are within half a point of each other on all three workload
+# shapes [ai-code-organisation-and-fixes.md BA3], and at 65,536 an ordinary
+# vocabulary never reaches an eviction at all.
+#
+# 65,536 rather than 512: the bound is what a peer can make this process hold,
+# so it is a memory decision. Measured 2026-08-19 with tracemalloc over
+# 12-character names, a full symbol cache costs 11.8 MB and symbols plus
+# variables together 23.7 MB, against 240 KB at 512. CPython's own intern
+# table is unbounded and immortal by comparison [cpython issue 113993], so a
+# bounded 65,536 is the careful end of this trade, not the loose end.
+#
+# Measured together over ten passes of a 20,000-row query whose answers carry
+# 20,001 distinct symbols, minimum of three instructions:u runs [2026-08-19]:
+#
+#   two tiers, 512 LRU behind a 256 FIFO, plain-dict eviction   17955972589
+#   two tiers, 65,536 LRU behind a 256 FIFO                     16786153059
+#   two tiers, 65,536 LRU behind a 65,536 FIFO                  15884696022
+#   one cache, 65,536 FIFO                                      15805912567
+#
+# The last line is the fastest and holds half the entries of the line above
+# it, which stores every name twice. The second tier existed so a hot name
+# answered without the lock; once the cache itself holds the vocabulary, a
+# small tier in front of it turns lock-free hits into misses plus locked hits.
+_WIRE_CACHE_MAX = 65_536
 _WIRE_SYMS: dict[str, Sym] = {}
-_WIRE_SYMS_FAST: dict[str, Sym] = {}
 _WIRE_VARS: dict[str, Var] = {}
-_WIRE_VARS_FAST: dict[str, Var] = {}
+_WIRE_SYM_ORDER: deque[str] = deque()
+_WIRE_VAR_ORDER: deque[str] = deque()
 _WireAtom = TypeVar("_WireAtom", Sym, Var)
 
 
@@ -1096,30 +1284,37 @@ def _wire_intern(
     name: str,
     factory: Callable[[str], _WireAtom],
     cache: dict[str, _WireAtom],
-    fast: dict[str, _WireAtom],
+    order: deque[str],
 ) -> _WireAtom:
-    interned = fast.get(name)
+    interned = cache.get(name)
     if interned is not None:
         return interned
     with _STATE_LOCK:
-        interned = fast.get(name)
+        interned = cache.get(name)
         if interned is not None:
             return interned
-        interned = cache.pop(name, None)
-        if interned is None:
-            interned = factory(name)
-            if len(cache) >= _WIRE_CACHE_MAX:
-                del cache[next(iter(cache))]
+        interned = factory(name)
+        if len(cache) >= _WIRE_CACHE_MAX:
+            del cache[order.popleft()]
         cache[name] = interned
-        if len(fast) >= _WIRE_CACHE_FAST_MAX:
-            del fast[next(iter(fast))]
-        fast[name] = interned
+        order.append(name)
         return interned
 
 
+def _wire_intern_clear() -> None:
+    """Empty the intern caches, each with the order that bounds it."""
+    with _STATE_LOCK:
+        for cache, order in (
+            (_WIRE_SYMS, _WIRE_SYM_ORDER),
+            (_WIRE_VARS, _WIRE_VAR_ORDER),
+        ):
+            cache.clear()
+            order.clear()
+
+
 def _wire_sym(name: str) -> Sym:
-    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYMS_FAST)
+    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYM_ORDER)
 
 
 def _wire_var(name: str) -> Var:
-    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VARS_FAST)
+    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VAR_ORDER)
