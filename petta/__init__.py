@@ -225,7 +225,7 @@ def add(*atoms):
 
 
 def remove(atom):
-    """Remove every copy of an atom. Sugar for MeTTa().remove(...);
+    """Remove one copy of an atom. Sugar for MeTTa().remove(...);
     construct your own engine for isolation."""
     return default_engine().remove(atom)
 

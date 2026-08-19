@@ -61,10 +61,12 @@ class CettaSpace(SpaceProvider):
         return iter([self._atoms[i] for i in indices])
 
     def remove(self, pattern) -> bool:
-        doomed = set(self._matching_indices(pattern))
+        """One occurrence, the oldest: a space is a multiset and removal
+        subtracts from it, so two identical atoms need two removals."""
+        doomed = self._matching_indices(pattern)
         if not doomed:
             return False
-        self._atoms = [a for i, a in enumerate(self._atoms) if i not in doomed]
+        del self._atoms[min(doomed)]
         return True
 
     def clear(self) -> None:

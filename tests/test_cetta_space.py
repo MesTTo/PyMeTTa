@@ -65,10 +65,14 @@ def test_metta_reaches_atoms_matched_by_cetta(cetta_space):
         m.drop()
 
 
-def test_removal_is_by_unification(cetta_space):
+def test_removal_is_by_unification_and_takes_one_occurrence(cetta_space):
     cetta_space.add(S.edge(S.a, S.b))
     cetta_space.add(S.edge(S.a, S.c))
     cetta_space.add(S.other(S.a))
+    # Two atoms unify with the pattern and removal is multiset subtraction,
+    # so the first removal takes the older one and leaves the other standing.
+    assert cetta_space.remove(S.edge(S.a, V.x)) is True
+    assert [str(atom) for atom in cetta_space.atoms()] == ["(edge a c)", "(other a)"]
     assert cetta_space.remove(S.edge(S.a, V.x)) is True
     assert [str(atom) for atom in cetta_space.atoms()] == ["(other a)"]
     assert cetta_space.remove(S.edge(S.a, V.x)) is False

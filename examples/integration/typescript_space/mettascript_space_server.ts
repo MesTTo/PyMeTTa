@@ -11,9 +11,9 @@
  *     server answers, so a quirk in its matcher can cost time, never
  *     soundness. The conformance kit judges the composition anyway.
  * Guarantees:
- *   - removal takes every stored occurrence unifiable with the sent atom,
- *     the multiset reading remove-atom has everywhere, by enumerating and
- *     removing structurally-equal atoms one at a time
+ *   - removal takes ONE stored occurrence unifiable with the sent atom,
+ *     the multiset subtraction remove-atom is everywhere, by finding the
+ *     first unifiable atom and removing that one
  *   - a wire value the mapping cannot carry faithfully is refused with a
  *     400 rather than stored approximately
  * Open Obligations:
@@ -177,9 +177,10 @@ export class MettascriptStore implements WireSpaceStore {
   remove(name: string, pattern: WireAtom): boolean {
     const space = this.space(name);
     const wanted = wireToCore(this.core, pattern);
-    const doomed = space.atoms().filter((atom) => this.admits(wanted, pattern, atom));
-    for (const atom of doomed) space.remove(atom);
-    return doomed.length > 0;
+    const doomed = space.atoms().find((atom) => this.admits(wanted, pattern, atom));
+    if (doomed === undefined) return false;
+    space.remove(doomed);
+    return true;
   }
 
   count(): number {

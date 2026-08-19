@@ -130,14 +130,17 @@ def test_compaction_replays_the_same_remaining_facts(tmp_path):
         # the actions on disk for the journal inspection below.
         space.flush()
         before = journal.read_text()
-        assert "retractall(" in before
+        # One `retract(` per removal, because removal is multiset
+        # subtraction and the journal records what was done rather than
+        # what was asked for.
+        assert before.count("retract(") == 3
 
         space.compact()
 
         after = journal.read_text()
         assert list(space.atoms()) == expected
         assert len(after) <= len(before)
-        assert "retractall(" not in after
+        assert "retract(" not in after
     finally:
         space.close()
 

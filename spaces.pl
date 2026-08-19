@@ -188,44 +188,75 @@ add_sexp_in(Module, _, Atom, Ref) :-
 native_atom_clause(Space, [Rel|Args], Term) :- !, Term =.. [Space, Rel | Args].
 native_atom_clause(_, Atom, '$petta_native_scalar'(Atom)).
 
-%Remove every atom that unifies with the requested value. Expressions and
+%Remove ONE atom that unifies with the requested value. Expressions and
 %scalars live in different predicates, so neither erases the other.
 remove_sexp(Space, Atom) :- remove_sexp(Space, Atom, _).
 
-%The same removal, answering whether anything WAS there. retractall/1 succeeds
-%whether or not it matched, so the answer had to come from somewhere: this
-%asks first, which is one clause lookup per removal.
+%The same removal, answering whether anything WAS there.
 %
-%Worth it because the engine already disagreed with ITSELF. Removing an
-%EQUATION answers false when nothing matched, forty lines up, and a foreign
-%provider fills metta_foreign_remove/3's Removed argument honestly, so a
-%MeTTa program branching on (remove-atom $space $atom) was correct against two
-%of the three and wrong against the third, with nothing in its text saying
-%which it would get. The seam was more expressive than the engine's own
-%implementation, and the information was one builtin away.
+%ONE occurrence, because removal is multiset SUBTRACTION. This used to take
+%every occurrence, and its stated reason was an invalid inference: "a MeTTa
+%space is a multiset unless something forbids it, SO removal takes EVERY
+%occurrence". The premise argues for the opposite conclusion, and the tree it
+%described was a multiset on ADD and a set on REMOVE, so three adds of (dup 1)
+%gave count 3 and one removal gave count 0. The arbiter reads the premise the
+%other way: "remove-atom must behave as multiset subtraction on the
+%reader-visible view of &self", and its own model "removes the first exact
+%occurrence and returns unit"
+%[source: LeaTTa MettaHyperonFullTests/Properties.lean:107,
+%MettaHyperonFull/Minimal/Stdlib.lean:2223, and wiki/Mechanization-Ledger.md
+%row "Represented removal consumes the first exact occurrence", which pins
+%(one two one) minus (one) as (two one) executably].
 %
-%retractall rather than retract, still: a MeTTa space is a multiset unless
-%something forbids it, so removal takes EVERY occurrence and swapping to
-%retract/1 would change the semantics rather than the report.
+%This engine had already decided it everywhere else. The seam declares
+%metta_foreign_remove/3 as "remove one" (EXTENDING.md), and drop_fun_meta/4
+%takes "one variant-equivalent retained equation" at a time
+%(src/translator.pl:115). The native store was the one holdout.
 %
-%Costs exactly one inference per removal, 10.00 to 11.00 over 20,000 removals,
-%identical across three runs each way [measured 2026-08-16, ai-tmp/rmcost.pl]
-%[tested: spaces_removal_answers_unit_for_success_and_an_error_for_absence].
+%retract/1 under double negation, which makes the answer and the removal one
+%lookup instead of two. retractall/1 succeeds whether or not it matched, so
+%the answer had to come from a separate clause/2 probe in front of it, and
+%that pair was also a check-then-act race: retract/1 reports what it did, and
+%SWI adjusts each thread's entry generation so "if multiple threads use
+%once(retract(Term)), no two threads will retract the same clause". Exactly
+%ONE clause goes because the double negation takes retract/1's first solution
+%and never backtracks into it, and it has to: under the logical update view
+%"retract/1 succeeds for all clauses that match Term when the predicate was
+%called", so a retract left open on backtracking would drain the lot
+%[source: SWI-Prolog 10.1 Reference Manual, retract/1].
+%
+%Double negation rather than a copy because the bindings must NOT escape.
+%That is the engine's own rule for the compiled half, "retraction must not
+%bind the caller's variables" (src/translator.pl:115), and the language's:
+%remove-atom answers unit, so (remove-atom &self (pair $x)) is a request, not
+%a query, and $x is no more bound afterwards than before. It is also the
+%cheaper of the two isolations. Measured 2026-08-19 over 20,000 removals, min
+%of three: 1.0001 inferences per removal against the probe-and-retractall
+%shape's 2.0001, and against 2.0001 for the copy_term spelling
+%[measured 2026-08-19, ai-tmp/spaces-p1/rmcost.pl].
+%
+%Answering truthfully at all is worth it because the engine already disagreed
+%with ITSELF. Removing an EQUATION answers false when nothing matched, forty
+%lines up, and a foreign provider fills metta_foreign_remove/3's Removed
+%argument honestly, so a MeTTa program branching on (remove-atom $space $atom)
+%was correct against two of the three and wrong against the third, with
+%nothing in its text saying which it would get
+%[tested: spaces_removal_answers_unit_for_success_and_an_error_for_absence,
+%test_remove_atom_removes_one_occurrence_not_all].
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],
-        native_retract_all(Module:Term, Removed)
+        native_retract_one(Module:Term, Removed)
     ;   Removed = false
     ).
 remove_sexp(Space, Atom, Removed) :-
     (   native_storage_module_ready(Space, Module)
-    ->  native_retract_all(Module:'$petta_native_scalar'(Atom), Removed)
+    ->  native_retract_one(Module:'$petta_native_scalar'(Atom), Removed)
     ;   Removed = false
     ).
 
-native_retract_all(Head, Removed) :-
-    ( \+ \+ clause(Head, true) -> Removed = true ; Removed = false ),
-    retractall(Head).
+native_retract_one(Head, Removed) :-
+    ( \+ \+ retract(Head) -> Removed = true ; Removed = false ).
 
 %Which module a space's compiled clauses live in. EVERY space gets one, &self
 %included, and the mapping is the storage one with a different prefix: total,
@@ -1042,20 +1073,32 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),
     space_module(Space, Module),
     drop_fun_meta(Module, F, Args, Body),
+    %ONE compiled clause, the multiset law applied to the compiled half. The
+    %retained-equation half above already worked this way and said so, "remove
+    %one variant-equivalent retained equation... duplicate equations are
+    %removed one at a time", so the two halves used to disagree: the same
+    %equation written twice answered twice, and one removal left the function
+    %undefined because this erased both clauses under the one atom that went.
+    %
     %Only this space's compiled clauses die: the same equation imported into two
     %spaces compiles into two modules, and the term-keyed lookup alone would
     %erase the twin space's clause and, through the term-wide retractall, its
     %record with it.
-    findall(Ref, ( translated_from(Ref, Term),
-                   clause_property(Ref, module(Module)) ), Refs),
-    forall(member(Ref, Refs), ( erase(Ref), retractall(translated_from(Ref, _)) )),
+    %
+    %The probe is a COPY for drop_fun_meta/4's reason: a lookup that binds the
+    %caller's Term would narrow every later use of it in this clause.
+    copy_term(Term, Probe),
+    (   translated_from(Ref, Probe), clause_property(Ref, module(Module))
+    ->  erase(Ref), retractall(translated_from(Ref, _)), Erased = true
+    ;   Erased = false
+    ),
     function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),
          forall(metta_on_function_removed(F), true)
       ; true ),
-    ( Refs == [], Stored \== true -> Removed = false ; Removed = true ).
+    ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
 
 %Where an atom comes out of, the counterpart of store_atom/2. Both answer
 %whether the store actually held it.
@@ -1063,8 +1106,8 @@ unstore_atom(Space, Term, Removed) :- metta_foreign_space(Space), !,
                                       foreign_write(Space, remove,
                                                     metta_foreign_remove(Space, Term,
                                                                          Removed)).
-%Every atom that unifies, and whether any was there. A MeTTa space is a multiset
-%unless something forbids it, so removal takes every occurrence.
+%One atom that unifies, and whether one was there. A MeTTa space is a multiset,
+%and subtracting from a multiset takes one occurrence.
 unstore_atom(Space, Term, Removed) :- remove_sexp(Space, Term, Removed).
 
 %Choose the provider once for the whole match. A conjunction may enumerate
