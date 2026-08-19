@@ -405,6 +405,11 @@ token_codes([]) --> [].
 %a variable or a string, or a boolean's own spelling, can make it read
 %back as something else [measured 2026-08-15: the grammar alone cost
 %+18.9% inferences and +16.8% instructions on space-digest].
+%Writability is a pure function of the name and a save asks it once per
+%OCCURRENCE, 20,001 times for one symbol on the benchmark space, so the
+%grammar run is tabled; the table is small (one entry per distinct name)
+%and permanent, which a name registry already is.
+:- table metta_symbol_writable/1.
 metta_symbol_writable(Symbol) :-
     atom(Symbol),
     atom_codes(Symbol, Codes),
@@ -481,11 +486,14 @@ metta_number_writable(Number) :-
         Read == Number
     ).
 
-%The first value in a term that has no round-trip text spelling. sub_term/2
-%walks it; a MeTTa expression is a list, so its head symbol is an element and
-%is reached, and a non-list compound is written functor first by swrite/2, so
-%that name is checked too
-%[source: SWI-Prolog 10.1 Reference Manual A.31, library(occurs)].
+%The first value in a term that has no round-trip text spelling. A dedicated
+%walk visits what swrite/2 will print: every list element down the spine, the
+%terminating tail, and a non-list compound's functor name and arguments. It
+%replaced a sub_term/2 walk whose generic enumeration cost ~120 inferences per
+%three-element atom across a save's whole-space scan and a load's add guard;
+%the type-switched walk measures ~6x cheaper on the same 20,001-atom
+%round-trip, byte-identical verdicts [measured 2026-08-19: the save-load A/B
+%in the benchmarks lane, reverted-guard worktree against this one].
 %
 %The name says symbol because names were the only class known to fail when the
 %text seam was declared. A number is the second, and it is the same failure
@@ -493,8 +501,31 @@ metta_number_writable(Number) :-
 %rather than left for each of them to discover
 %[source: src/ext_points.pl, the swrite/sread service contract].
 metta_unwritable_symbol(Term, Bad) :-
-    sub_term(Sub, Term),
-    metta_unwritable_here(Sub, Bad), !.
+    metta_unwritable_walk(Term, Bad), !.
+
+metta_unwritable_walk(Term, Bad) :-
+    (   var(Term)
+    ->  fail
+    ;   atom(Term)
+    ->  \+ metta_symbol_writable(Term), Bad = Term
+    ;   number(Term)
+    ->  \+ metta_number_writable(Term), Bad = Term
+    ;   Term = [Head|Tail]
+    ->  (   metta_unwritable_walk(Head, Bad)
+        ->  true
+        ;   metta_unwritable_walk(Tail, Bad)
+        )
+    ;   compound(Term)
+    ->  functor(Term, Name, Arity),
+        (   \+ metta_symbol_writable(Name)
+        ->  Bad = Name
+        ;   between(1, Arity, I),
+            arg(I, Term, A),
+            metta_unwritable_walk(A, Bad)
+        ->  true
+        )
+    ;   fail
+    ).
 
 metta_unwritable_here(Sub, Sub) :- atom(Sub), !, \+ metta_symbol_writable(Sub).
 metta_unwritable_here(Sub, Sub) :- number(Sub), !, \+ metta_number_writable(Sub).
