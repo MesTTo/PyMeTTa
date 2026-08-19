@@ -16,6 +16,10 @@
  *     first unifiable atom and removing that one
  *   - a wire value the mapping cannot carry faithfully is refused with a
  *     400 rather than stored approximately
+ *   - the ask/next/stop lifecycle runs over one generator that admits a
+ *     stored atom only when a caller pulls for it, so a chunk costs the
+ *     unifications the chunk carries and match() is that same walk
+ *     drained
  * Open Obligations:
  *   To Do: None
  *   Hacks: None
@@ -166,12 +170,18 @@ export class MettascriptStore implements WireSpaceStore {
   // truly-unifying atoms past the cut, the under-approximation the
   // protocol forbids. Ignoring a bound is always sound; honoring one is
   // only sound for an exact matcher.
-  match(name: string, pattern: WireAtom): WireAtom[] {
+  // One walk behind both doors: the generator admits a stored atom only
+  // when a caller pulls for it, so /ask and /next unify against as many
+  // atoms as the client asked for answers rather than the whole space.
+  *stream(name: string, pattern: WireAtom): Generator<WireAtom> {
     const wanted = wireToCore(this.core, pattern);
-    return this.space(name)
-      .atoms()
-      .filter((atom) => this.admits(wanted, pattern, atom))
-      .map((atom) => coreToWire(atom as CoreAtom));
+    for (const atom of this.space(name).atoms()) {
+      if (this.admits(wanted, pattern, atom)) yield coreToWire(atom as CoreAtom);
+    }
+  }
+
+  match(name: string, pattern: WireAtom): WireAtom[] {
+    return [...this.stream(name, pattern)];
   }
 
   remove(name: string, pattern: WireAtom): boolean {

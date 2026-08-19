@@ -132,7 +132,7 @@ def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):
                 break
         assert url, "the subcommand never printed its serving line"
         health = json.loads(urllib.request.urlopen(url + "/health", timeout=5).read())
-        assert health["protocol"] == 2
+        assert health["protocol"] == 3
     finally:
         process.send_signal(signal.SIGINT)
         assert process.wait(timeout=30) == 0

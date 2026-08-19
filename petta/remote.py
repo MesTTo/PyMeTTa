@@ -9,6 +9,21 @@ metta-wam's metta_server, translated onto petta's own SpaceProvider
 protocol; the engine keeps unification for itself, so a remote answer is
 speed and reach, never trust.
 Guarantees:
+  - the ask/next/stop lifecycle answers a chunk at a time and never looks
+    ahead, so taking two answers of an enumeration costs two answers'
+    engine work whatever the enumeration's size [measured 2026-08-20 over
+    real HTTP: 1,250 inferences for two answers whether the space held 10
+    atoms or 10,000, against 1,839 and 1,490,407 for the eager door]
+    [tested test_two_answers_cross_the_wire_without_the_third_being_computed]
+  - a cursor nobody pulls from is released after cursor_idle seconds and
+    a gateway refuses to hold more than cursor_limit at once [tested
+    test_an_idle_cursor_is_released,
+    test_a_gateway_refuses_more_cursors_than_it_holds]
+  - close() releases every cursor a client left open [tested
+    test_closing_the_server_releases_open_cursors]
+  - the authorize hook judges /next and /stop against the space the
+    cursor's answers come from, not the request's absent space field
+    [tested test_authorize_sees_the_cursors_own_space]
   - serve compares Bearer credentials with hmac.compare_digest before
     consulting the authorization callback [tested
     test_bearer_token_uses_constant_time_comparison]
@@ -31,6 +46,9 @@ Guarantees:
 Owns:
   - Server owns the HTTP loop and its attached-engine worker until close()
     joins both [tested test_remote_close_waits_for_worker_detach]
+  - a Gateway owns every cursor ask/next/stop holds open, one engine each,
+    released by close(), by the stream ending, or by the idle deadline
+    [tested test_closing_the_server_releases_open_cursors]
 Fails when:
   - a program wants to watch a remote space. There is no event channel to
     build that on, so the capability is refused rather than half-kept; the
@@ -47,16 +65,21 @@ import hmac
 import logging
 import math
 import queue
+import secrets
 import threading
+import time
+import warnings
+from collections import deque
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Self
 
 from . import _json
 from ._engine import bridge
 from ._network import HTTPEndpoint, validated_timeout
+from ._space_objects import Cursor
 from .atoms import Atom, Expr, Var, atom_from_wire, substitute
 from .errors import PettaError
 from .foreign import SpaceProvider
@@ -64,7 +87,16 @@ from .space import MeTTa
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["RemoteSpace", "Request", "Server", "attach", "connect", "serve"]
+__all__ = [
+    "Gateway",
+    "RemoteCursor",
+    "RemoteSpace",
+    "Request",
+    "Server",
+    "attach",
+    "connect",
+    "serve",
+]
 
 #: A transport: one callable taking (operation, payload dict) and answering
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
@@ -95,11 +127,31 @@ class _HTTPTransport:
 _SERVER_TIMEOUT = 10.0
 _MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
+#: How many answers one reply of the ask/next lifecycle may carry when the
+#: request names no batch. One, so a client that never asks for more never
+#: pays for one, which is the whole point of the lazy door; pengines picks
+#: the same default for the same field, its `chunk`
+#: [source 2026-08-20: /usr/lib/swi-prolog/library/ext/pengines/pengines.pl,
+#: pengine_ask/3's chunk(1) option].
+_DEFAULT_BATCH = 1
 
-def _server_timeout(timeout: float) -> float:
+#: Seconds an untouched cursor survives before the server releases the
+#: engine behind it. A client that dies mid-stream would otherwise leak
+#: one engine per abandoned query; pengines bounds the same resource the
+#: same way, `idle_limit`, and picks the same 300 seconds
+#: [source 2026-08-20: pengines.pl, "Pengine auto-destroys when idle for
+#: this time"].
+_CURSOR_IDLE = 300.0
+
+#: How many cursors one gateway holds open at once. An open cursor owns an
+#: engine and its stacks, so the ceiling is refused rather than grown.
+_CURSOR_LIMIT = 256
+
+
+def _server_timeout(timeout: float, subject: str = "server timeout") -> float:
     value = float(timeout)
     if not math.isfinite(value) or value <= 0:
-        raise ValueError(f"server timeout must be finite and positive, got {timeout!r}")
+        raise ValueError(f"{subject} must be finite and positive, got {timeout!r}")
     return value
 
 
@@ -165,6 +217,148 @@ def _is_authorized(
     )
 
 
+class RemoteCursor:
+    """A remote answer stream: `/ask` opened it, `/next` pulls the next
+    chunk, `/stop` releases it.
+
+    MeTTa.stream()'s Cursor with a wire under it, and the same discipline:
+    iterate it, close() it, or leave its with-block. Exhaustion releases
+    the server's cursor and stays ordinary iterator exhaustion; an
+    explicit close is the separate state that refuses further pulls.
+
+        with space.stream(pattern) as answers:
+            for atom in answers:
+                if wanted(atom):
+                    break          # the server computes nothing further
+
+    `batch` is how many answers one crossing carries. One is the fully
+    lazy reading and the protocol's default; raising it trades an answer
+    that may go unwanted for a saved round trip, the same choice a
+    database driver's fetch size makes.
+    """
+
+    __slots__ = ("__weakref__", "_batch", "_buffer", "_closed", "_space", "_token", "_transport")
+
+    def __init__(
+        self,
+        transport: Transport,
+        space: str,
+        pattern: Atom,
+        *,
+        batch: int = _DEFAULT_BATCH,
+        limit: int | None = None,
+    ) -> None:
+        if isinstance(batch, bool) or not isinstance(batch, int) or batch < 1:
+            raise ValueError(f"batch must be a positive integer, got {batch!r}")
+        self._transport = transport
+        self._space = space
+        self._batch = batch
+        self._closed = False
+        self._token: str | None = None
+        self._buffer: deque[Atom] = deque()
+        payload: dict[str, Any] = {
+            "space": space,
+            "pattern": pattern.to_wire(),
+            "batch": batch,
+        }
+        if limit is not None:
+            payload["bound"] = limit
+        self._absorb(transport("ask", payload))
+
+    def _absorb(self, answer: dict) -> None:
+        """Take a reply's chunk and its continuation.
+
+        A chunk that carries nothing while still naming a cursor is
+        refused rather than looped on: the protocol says a short chunk
+        ends the stream, so an empty one with a live cursor is a server
+        that would spin a client forever.
+        """
+        atoms = answer.get("atoms")
+        if not isinstance(atoms, list):
+            raise PettaError(
+                f"the remote engine answered a chunk without an atom list: {answer!r}"
+            )
+        token = answer.get("cursor")
+        if token is not None and not isinstance(token, str):
+            raise PettaError(f"the remote engine answered a non-string cursor: {token!r}")
+        if token is not None and not atoms:
+            raise PettaError(
+                "the remote engine answered a live cursor with no atoms; a "
+                "chunk that carries nothing ends the stream and must answer "
+                "a null cursor"
+            )
+        self._token = token
+        self._buffer.extend(atom_from_wire(wire) for wire in atoms)
+
+    def __iter__(self) -> Iterator[Atom]:
+        return self
+
+    def __next__(self) -> Atom:
+        if self._closed:
+            raise PettaError("this cursor is closed")
+        while not self._buffer:
+            if self._token is None:
+                raise StopIteration
+            self._absorb(
+                self._transport("next", {"cursor": self._token, "batch": self._batch})
+            )
+        return self._buffer.popleft()
+
+    def close(self) -> None:
+        """Release the server's cursor; idempotent, and distinct from
+        exhaustion, which released it already."""
+        if self._closed:
+            return
+        self._closed = True
+        self._buffer.clear()
+        token, self._token = self._token, None
+        if token is not None:
+            self._transport("stop", {"cursor": token})
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        """Stop the server's cursor without letting the stop displace the
+        diagnosis: a transport that broke mid-stream breaks the /stop too,
+        and the failure a caller needs to read is the first one. Both are
+        raised together, the same shape serve()'s own startup path uses."""
+        if exc is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except BaseException as stop_failure:  # noqa: BLE001
+            raise BaseExceptionGroup(
+                "the remote cursor failed and could not be stopped",
+                [exc, stop_failure],
+            ) from None
+
+    def __del__(self) -> None:
+        if not getattr(self, "_closed", True) and getattr(self, "_token", None) is not None:
+            # No stop is sent from here: a destructor is the wrong place
+            # for a network round trip, and the server's own idle deadline
+            # is what releases a cursor whose client walked away.
+            warnings.warn(
+                "an open petta RemoteCursor was discarded; use a with-block "
+                "or close(), or the server holds it until its idle deadline",
+                ResourceWarning,
+                source=self,
+                stacklevel=2,
+            )
+
+    def __repr__(self) -> str:
+        # Buffered atoms count as open: the server has let go of the
+        # stream but the caller has not read the last chunk yet.
+        if self._closed:
+            state = "closed"
+        elif self._token is not None or self._buffer:
+            state = "open"
+        else:
+            state = "exhausted"
+        return f"<remote cursor {state} on {self._space}>"
+
+
 class RemoteSpace(SpaceProvider):
     """A space served by another engine, reached through a transport.
 
@@ -174,13 +368,32 @@ class RemoteSpace(SpaceProvider):
     against the local pattern, so a lying or stale remote can only cost
     time, not soundness.
 
+    `batch` chooses which door match() uses, and the choice is the one
+    query() and stream() make in-process. Left None, match() is the eager
+    /match: one crossing carrying the whole answer set, which is what a
+    space whose answers fit in an HTTP body wants. Set to a count, match()
+    rides the ask/next/stop lifecycle in chunks of that size, so a caller
+    that stops early stops the server's work with it and an answer set
+    larger than one body still crosses.
+
     It does NOT subscribe, and that is the one capability the base class
     would have given it for free. See can_run.
     """
 
-    def __init__(self, transport: Transport, space: str = "&self") -> None:
+    def __init__(
+        self,
+        transport: Transport,
+        space: str = "&self",
+        *,
+        batch: int | None = None,
+    ) -> None:
+        if batch is not None and (
+            isinstance(batch, bool) or not isinstance(batch, int) or batch < 1
+        ):
+            raise ValueError(f"batch must be a positive integer or None, got {batch!r}")
         self._transport = transport
         self._space = space
+        self._batch = batch
 
     def can_run(self, capability: str, /, **request: Any) -> bool:
         """Everything the wire carries, and not subscribe.
@@ -221,13 +434,50 @@ class RemoteSpace(SpaceProvider):
         server that honors it exactly saves the work, one that ignores it
         over-answers, and the local engine re-unifies and truncates either
         way. Whether it is honored is advertised in
-        `server_capabilities()`."""
+        `server_capabilities()`.
+
+        One crossing carries the whole answer set unless this space was
+        built with a `batch`, in which case the ask/next/stop lifecycle
+        carries it a chunk at a time and an engine that stops pulling
+        stops the server."""
+        if self._batch is not None:
+            with self.stream(pattern, batch=self._batch, limit=limit) as answers:
+                yield from answers
+            return
         payload: dict[str, Any] = {"space": self._space, "pattern": pattern.to_wire()}
         if limit is not None:
             payload["bound"] = limit
         answer = self._transport("match", payload)
         for wire in answer["atoms"]:
             yield atom_from_wire(wire)
+
+    def stream(
+        self,
+        pattern: Atom,
+        *,
+        batch: int = _DEFAULT_BATCH,
+        limit: int | None = None,
+    ) -> RemoteCursor:
+        """The lazy door: answers pulled a chunk at a time, so taking two
+        of a large enumeration costs the server two answers' work instead
+        of the whole join's.
+
+        match() is the eager door and stays it, the split query() and
+        stream() already make in-process. Reach for this to take answers
+        until you have seen enough, or when the answer set is larger than
+        one HTTP body.
+
+        `limit` is the wire's `bound` and carries the same advice it
+        carries on match(): a server that can honor it exactly stops at
+        the count, one that cannot ignores it and over-answers. It is not
+        truncated again here, because a server may answer candidates
+        rather than answers, and cutting an over-approximated stream at
+        the count is the under-approximation the protocol forbids. The
+        first ask crosses when the cursor is built, as the in-process
+        cursor opens its engine when it is built."""
+        return RemoteCursor(
+            self._transport, self._space, pattern, batch=batch, limit=limit
+        )
 
     def server_capabilities(self) -> dict[str, Any]:
         """The server's own advertisement from GET /health: `capabilities`
@@ -375,16 +625,390 @@ def connect(
     return _HTTPTransport(transport, health)
 
 
-def attach(m, name: str, url_or_transport: Any, remote_space: str = "&self") -> RemoteSpace:
+def attach(
+    m,
+    name: str,
+    url_or_transport: Any,
+    remote_space: str = "&self",
+    *,
+    batch: int | None = None,
+) -> RemoteSpace:
     """Register a remote engine's space here under a local name.
 
     petta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
     m.run('!(match &hq (users $id $n) $n)')
+
+    `batch` puts the attached space's matching on the lazy door, so a
+    MeTTa query that stops early stops the serving engine with it:
+
+        petta.remote.attach(m, "&hq", url, batch=1)
+        m.run('!(once (match &hq (users $id $n) $n))')  # one answer computed
     """
     transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
-    provider = RemoteSpace(transport, remote_space)
+    provider = RemoteSpace(transport, remote_space, batch=batch)
     m.register_space(provider, name)
     return provider
+
+
+def _batch_of(payload: dict) -> int:
+    """The chunk one reply may carry: how many answers this crossing buys."""
+    value = payload.get("batch", _DEFAULT_BATCH)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise PettaError(f"batch must be a positive integer, got {value!r}")
+    return value
+
+
+def _atom_of(payload: dict, name: str) -> Atom:
+    """A wire atom a request must carry, named when it is missing.
+
+    A bare payload[name] answered a KeyError whose whole message was the
+    field's name in quotes, which tells a client implementer nothing about
+    what its request left out.
+    """
+    wire = payload.get(name)
+    if wire is None:
+        raise PettaError(f"this operation needs the `{name}` field, holding a wire atom")
+    return atom_from_wire(wire)
+
+
+def _atoms_of(payload: dict, name: str) -> list[Atom]:
+    """The list form, for the bulk door."""
+    wires = payload.get(name)
+    if not isinstance(wires, list):
+        raise PettaError(
+            f"this operation needs the `{name}` field, holding a list of wire atoms"
+        )
+    return [atom_from_wire(wire) for wire in wires]
+
+
+def _bound_of(payload: dict) -> int | None:
+    """The caller's answer limit, honored EXACTLY or not at all.
+
+    A batch is a CHUNK and a bound is a CUT, which is why only one of them
+    needs a matcher's permission: chunking hands back part of an answer set
+    with the rest still reachable, so it is sound whatever a server's match
+    does, while truncating an over-approximated candidate list can drop true
+    answers past the cut. This server may honor it because its match is real
+    unification; health advertises that as `bound`.
+    """
+    value = payload.get("bound")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise PettaError(f"bound must be a non-negative integer, got {value!r}")
+    return value
+
+
+@dataclass
+class _OpenCursor:
+    """One answer stream a gateway holds open between requests."""
+
+    cursor: Cursor
+    pattern: Atom
+    space: str
+    remaining: int | None
+    deadline: float = 0.0
+
+
+class _Cursors:
+    """A gateway's open cursors, keyed by an unguessable token.
+
+    The token IS the capability, because it is the whole of what /next and
+    /stop name, so it is minted from `secrets` rather than counted up. Two
+    bounds keep a stateful resource on an open port finite, and pengines
+    bounds the same resource the same two ways: a cursor nobody pulls from
+    is released after `idle` seconds, and a client that would open more than
+    `limit` at once is refused rather than served.
+
+    Every mutation runs on the gateway's own thread. space_of() is the one
+    read from elsewhere, serve()'s HTTP threads asking which space a cursor
+    belongs to so the authorize hook judges /next and /stop against the
+    space the answers come from, so the table is lock-guarded.
+    """
+
+    def __init__(self, idle: float, limit: int) -> None:
+        self._idle = _server_timeout(idle, "cursor idle deadline")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError(f"cursor limit must be a positive integer, got {limit!r}")
+        self._limit = limit
+        self._lock = threading.Lock()
+        self._open: dict[str, _OpenCursor] = {}
+
+    def _sweep(self) -> None:
+        """Release every cursor whose deadline has passed, engines and all."""
+        now = time.monotonic()
+        with self._lock:
+            expired = [token for token, e in self._open.items() if e.deadline <= now]
+            gone = [self._open.pop(token) for token in expired]
+        for entry in gone:
+            logger.debug("releasing a remote cursor idle past %g seconds", self._idle)
+            entry.cursor.close()
+
+    def open(self, entry: _OpenCursor) -> str:
+        self._sweep()
+        token = secrets.token_urlsafe(24)
+        with self._lock:
+            if len(self._open) >= self._limit:
+                raise PettaError(
+                    f"this gateway already holds {self._limit} answer cursors "
+                    f"open; stop one before asking for another, or serve with "
+                    f"a larger cursor_limit"
+                )
+            entry.deadline = time.monotonic() + self._idle
+            self._open[token] = entry
+        return token
+
+    def take(self, token: object) -> _OpenCursor:
+        """The cursor a request names, its idle deadline pushed out.
+
+        A token the table does not hold is an ERROR rather than an empty
+        answer: answering nothing would say the enumeration ended, and
+        under-answering is the one thing this protocol forbids.
+        """
+        self._sweep()
+        if not isinstance(token, str):
+            raise PettaError(f"cursor must be a string, got {token!r}")
+        with self._lock:
+            entry = self._open.get(token)
+            if entry is not None:
+                entry.deadline = time.monotonic() + self._idle
+        if entry is None:
+            raise PettaError(
+                f"no such cursor: it was stopped, it ran out of answers, or it "
+                f"went untouched for {self._idle:g} seconds and the gateway "
+                f"released it. Ask again for a new one"
+            )
+        return entry
+
+    def release(self, token: object) -> bool:
+        self._sweep()
+        if not isinstance(token, str):
+            raise PettaError(f"cursor must be a string, got {token!r}")
+        with self._lock:
+            entry = self._open.pop(token, None)
+        if entry is None:
+            return False
+        entry.cursor.close()
+        return True
+
+    def space_of(self, token: object) -> str | None:
+        if not isinstance(token, str):
+            return None
+        with self._lock:
+            entry = self._open.get(token)
+        return None if entry is None else entry.space
+
+    def close_all(self) -> None:
+        with self._lock:
+            entries = list(self._open.values())
+            self._open.clear()
+        for entry in entries:
+            entry.cursor.close()
+
+
+class Gateway:
+    """This engine's spaces as the protocol's server side, transport-free.
+
+    Call it with (operation, payload) and it answers the reply dict, which
+    is the shape `Transport` has on the client side, so both halves of the
+    wire carry one signature. serve() wraps a Gateway in the bundled HTTP
+    server; mount one on the framework a deployment already runs, or call
+    it directly, which is how a test watches the engine's own counters
+    while the protocol runs, an HTTP server answering on a thread of its
+    own.
+
+    A Gateway OWNS the cursors ask/next/stop hold open, so close() it when
+    the process is done with it. Server.close() does that for the one
+    serve() made.
+
+    It serializes NOTHING of its own: serve() runs every call on one
+    attached-engine worker, and a Gateway called directly runs on the
+    calling thread, so a caller that shares one across threads owns that
+    arrangement.
+    """
+
+    def __init__(
+        self,
+        m,
+        spaces: list[str] | None = None,
+        *,
+        cursor_idle: float = _CURSOR_IDLE,
+        cursor_limit: int = _CURSOR_LIMIT,
+    ) -> None:
+        self._metta = m
+        self._allowed = None if spaces is None else set(spaces)
+        self._cursors = _Cursors(cursor_idle, cursor_limit)
+
+    def __call__(self, operation: str, payload: dict) -> dict:
+        if operation == "match":
+            return self._match(payload)
+        if operation == "ask":
+            return self._ask(payload)
+        if operation == "next":
+            return self._next(payload)
+        if operation == "stop":
+            return self._stop(payload)
+        if operation == "atoms":
+            return {"atoms": [a.to_wire() for a in self._space(payload).atoms()]}
+        if operation == "add":
+            self._space(payload).add(_atom_of(payload, "atom"))
+            return {"added": True}
+        if operation == "add_many":
+            atoms = _atoms_of(payload, "atoms")
+            self._space(payload).add(*atoms)
+            return {"added": len(atoms)}
+        if operation == "remove":
+            return self._remove(payload)
+        if operation == "health":
+            return self._health()
+        raise PettaError(f"unknown operation {operation!r}")
+
+    def health(self) -> dict:
+        """The transport-side spelling of GET /health, so a Gateway is a
+        drop-in Transport and RemoteSpace.server_capabilities() can ask
+        one the same question it asks a connected server."""
+        return self._health()
+
+    def cursor_space(self, token: object) -> str | None:
+        """Which space an open cursor's answers come from, so a transport
+        can hand its authorization hook the space /next and /stop are
+        really about; None once the cursor is gone."""
+        return self._cursors.space_of(token)
+
+    def close(self) -> None:
+        """Release every cursor still open, and the engine behind each."""
+        self._cursors.close_all()
+
+    # ------------------------------------------------------------ operations
+
+    def _space(self, payload: dict) -> MeTTa:
+        name = payload.get("space", "&self")
+        if self._allowed is not None and name not in self._allowed:
+            raise PettaError(f"space {name!r} is not served")
+        return self._metta if name == self._metta.space_name else self._metta.space(name)
+
+    def _match(self, payload: dict) -> dict:
+        """The eager door: one reply carrying the whole answer set.
+
+        query()'s reading on the wire, and it costs what query() costs, the
+        join computed to the end before anything crosses. /ask is the other
+        door.
+        """
+        space = self._space(payload)
+        pattern = _atom_of(payload, "pattern")
+        bound = _bound_of(payload)
+        if bound is not None:
+            if bound == 0:
+                # Zero answers wanted: the engine's query refuses a zero
+                # limit, and no work is the exact honoring.
+                return {"atoms": []}
+            rows = space.query(pattern, limit=bound)
+            atoms = [
+                substitute(pattern, dict(zip(rows.columns, row, strict=True)))
+                for row in rows
+            ]
+            return {"atoms": [a.to_wire() for a in atoms]}
+        groups = space.run(
+            "!(collapse (match (context-space) pat pat))",
+            using={"pat": pattern},
+        )
+        if len(groups) != 1 or len(groups[0]) != 1:
+            raise PettaError(f"remote match returned an invalid collapse result: {groups!r}")
+        group = groups[0][0]
+        if not isinstance(group, Expr):
+            raise PettaError(f"remote match returned a non-expression collapse: {group!r}")
+        return {"atoms": [a.to_wire() for a in group]}
+
+    def _pull(self, entry: _OpenCursor, batch: int) -> tuple[list[Atom], bool]:
+        """Take at most `batch` answers, and not one more.
+
+        A SHORT batch is the whole of the exhaustion signal, so nothing here
+        looks ahead: the answer after the last one a client asked for is
+        never computed, which is what makes taking two answers of a large
+        enumeration cost two answers' work
+        [tested test_two_answers_cross_the_wire_without_the_third_being_computed].
+        """
+        want = batch if entry.remaining is None else min(batch, entry.remaining)
+        atoms: list[Atom] = []
+        columns = entry.cursor.columns
+        for _ in range(want):
+            try:
+                row = next(entry.cursor)
+            except StopIteration:
+                break
+            atoms.append(substitute(entry.pattern, dict(zip(columns, row, strict=True))))
+        if entry.remaining is not None:
+            entry.remaining -= len(atoms)
+        return atoms, len(atoms) < want or entry.remaining == 0
+
+    def _reply(self, atoms: list[Atom], token: str | None) -> dict:
+        return {"atoms": [a.to_wire() for a in atoms], "cursor": token}
+
+    def _ask(self, payload: dict) -> dict:
+        """The lazy door: open a cursor and answer its first chunk.
+
+        stream()'s reading on the wire. The reply's `cursor` is the
+        continuation and doubles as the more-flag, because a finished
+        stream is one the gateway has already released and answers null
+        for, so no boolean has to be computed from a lookahead answer.
+        """
+        space = self._space(payload)
+        pattern = _atom_of(payload, "pattern")
+        batch = _batch_of(payload)
+        bound = _bound_of(payload)
+        if bound == 0:
+            return self._reply([], None)
+        entry = _OpenCursor(space.stream(pattern), pattern, space.space_name, bound)
+        try:
+            atoms, done = self._pull(entry, batch)
+            token = None if done else self._cursors.open(entry)
+        except BaseException:
+            entry.cursor.close()
+            raise
+        if done:
+            entry.cursor.close()
+        return self._reply(atoms, token)
+
+    def _next(self, payload: dict) -> dict:
+        token = payload.get("cursor")
+        entry = self._cursors.take(token)
+        batch = _batch_of(payload)
+        try:
+            atoms, done = self._pull(entry, batch)
+        except BaseException:
+            self._cursors.release(token)
+            raise
+        if done:
+            self._cursors.release(token)
+        return self._reply(atoms, None if done else token)
+
+    def _stop(self, payload: dict) -> dict:
+        """Release a cursor early. Answering whether there was one to
+        release is the honest reply to a call a client makes from a
+        finally-block, where the stream may already have ended."""
+        return {"stopped": self._cursors.release(payload.get("cursor"))}
+
+    def _remove(self, payload: dict) -> dict:
+        pattern = _atom_of(payload, "atom")
+        if not isinstance(pattern, (Expr, Var)):
+            # A stored atom is always an expression; a symbol or a
+            # grounded value can unify with none of them.
+            return {"removed": False}
+        # A bare variable is the remove-everything reading, and the
+        # engine owns it now, each atom leaving through its own path.
+        return {"removed": self._space(payload).remove(pattern)}
+
+    def _health(self) -> dict:
+        return {
+            "ok": True,
+            "atoms": self._metta.count(),
+            "protocol": 3,
+            # The reflection the in-process seam has: what this server
+            # admits, so a client can ask before writing.
+            "capabilities": ["match", "enumerate", "add", "remove", "stream"],
+            # /match and /ask honor the optional bound field exactly.
+            "bound": True,
+        }
 
 
 class _RemoteWorker:
@@ -552,11 +1176,13 @@ class Server:
         httpd: ThreadingHTTPServer,
         thread: threading.Thread,
         worker: _RemoteWorker,
+        gateway: Gateway,
         scheme: str = "http",
     ) -> None:
         self._httpd = httpd
         self._thread = thread
         self._worker = worker
+        self._gateway = gateway
         self._close_lock = threading.Lock()
         self._closed = False
         raw_host, self.port = httpd.server_address[:2]
@@ -564,7 +1190,13 @@ class Server:
         self.url = f"{scheme}://{self.host}:{self.port}"
 
     def close(self, timeout: float = _SERVER_TIMEOUT) -> None:
-        """Stop accepting, detach the engine worker, and join both threads."""
+        """Stop accepting, detach the engine worker, join both threads, and
+        release every answer cursor a client left open.
+
+        The cursors go LAST, once nothing can pull from them: each holds an
+        engine, and a client that walked away from a stream would otherwise
+        leave one behind until the idle deadline that no longer has a server
+        to fire on."""
         timeout = _server_timeout(timeout)
         with self._close_lock:
             if self._closed:
@@ -572,6 +1204,10 @@ class Server:
             if self._thread is threading.current_thread():
                 raise PettaError("the remote HTTP server cannot close itself")
             failures = [*self._stop_http(timeout), *self._stop_worker(timeout)]
+            try:
+                self._gateway.close()
+            except BaseException as exc:  # noqa: BLE001
+                failures.append(exc)
             self._closed = not self._thread.is_alive() and not self._worker.thread.is_alive()
             if failures:
                 _raise_failures("remote server close failed", failures)
@@ -609,6 +1245,8 @@ def serve(
     token: str | None = None,
     authorize: Callable[[Request], bool] | None = None,
     ssl_context: Any = None,
+    cursor_idle: float = _CURSOR_IDLE,
+    cursor_limit: int = _CURSOR_LIMIT,
 ) -> Server:
     """Expose this engine's spaces over HTTP; port 0 picks a free one.
 
@@ -623,90 +1261,23 @@ def serve(
     the engine's own match with the pattern as its template, so the
     instantiated atoms cross, and the caller's engine re-unifies them.
 
+    `cursor_idle` and `cursor_limit` bound the ask/next/stop lifecycle's
+    server-side state: how long a cursor nobody pulls from survives, and
+    how many live at once before a further ask is refused. The defaults
+    are pengines' own, 300 seconds and a ceiling.
+
     A context is a PROCESS: serving and attaching within one process
     cannot join through the local engine, because one runtime lock guards
     both sides of that call and the serving thread would wait on the very
     evaluation that is waiting on it. Two engines, two processes, is the
     deployment this exists for; in-process, spaces already share the
-    engine and need no wire."""
-    allowed = None if spaces is None else set(spaces)
-
-    def space_of(payload: dict) -> MeTTa:
-        name = payload.get("space", "&self")
-        if allowed is not None and name not in allowed:
-            raise PettaError(f"space {name!r} is not served")
-        return m if name == m.space_name else m.space(name)
-
-    def handle(operation: str, payload: dict) -> dict:
-        if operation == "match":
-            space = space_of(payload)
-            pattern = atom_from_wire(payload["pattern"])
-            bound = payload.get("bound")
-            if bound is not None:
-                # Honored EXACTLY, the trusted-Exact contract this server
-                # may claim because its match is real unification: the
-                # engine's own bounded query stops at the count, and the
-                # rows instantiate the pattern the way match's template
-                # would.
-                if isinstance(bound, bool) or not isinstance(bound, int) or bound < 0:
-                    raise PettaError(
-                        f"bound must be a non-negative integer, got {bound!r}"
-                    )
-                if bound == 0:
-                    # Zero answers wanted: the engine's query refuses a
-                    # zero limit, and no work is the exact honoring.
-                    return {"atoms": []}
-                rows = space.query(pattern, limit=bound)
-                names = rows.columns
-                atoms = [
-                    substitute(pattern, dict(zip(names, row, strict=True)))
-                    for row in rows
-                ]
-                return {"atoms": [a.to_wire() for a in atoms]}
-            groups = space.run(
-                "!(collapse (match (context-space) pat pat))",
-                using={"pat": pattern},
-            )
-            if len(groups) != 1 or len(groups[0]) != 1:
-                raise PettaError(f"remote match returned an invalid collapse result: {groups!r}")
-            group = groups[0][0]
-            if not isinstance(group, Expr):
-                raise PettaError(f"remote match returned a non-expression collapse: {group!r}")
-            atoms = list(group)
-            return {"atoms": [a.to_wire() for a in atoms]}
-        if operation == "atoms":
-            return {"atoms": [a.to_wire() for a in space_of(payload).atoms()]}
-        if operation == "add":
-            space_of(payload).add(atom_from_wire(payload["atom"]))
-            return {"added": True}
-        if operation == "add_many":
-            atoms = [atom_from_wire(wire) for wire in payload["atoms"]]
-            space_of(payload).add(*atoms)
-            return {"added": len(atoms)}
-        if operation == "remove":
-            pattern = atom_from_wire(payload["atom"])
-            if not isinstance(pattern, (Expr, Var)):
-                # A stored atom is always an expression; a symbol or a
-                # grounded value can unify with none of them.
-                return {"removed": False}
-            # A bare variable is the remove-everything reading, and the
-            # engine owns it now, each atom leaving through its own path.
-            return {"removed": space_of(payload).remove(pattern)}
-        if operation == "health":
-            return {
-                "ok": True,
-                "atoms": m.count(),
-                "protocol": 2,
-                # The reflection the in-process seam has: what this server
-                # admits, so a client can ask before writing.
-                "capabilities": ["match", "enumerate", "add", "remove"],
-                # /match honors the optional bound field exactly.
-                "bound": True,
-            }
-        raise PettaError(f"unknown operation {operation!r}")
+    engine and need no wire. Gateway is the same protocol with no
+    transport under it, for a test or a framework that wants the
+    operations without a socket."""
+    gateway = Gateway(m, spaces, cursor_idle=cursor_idle, cursor_limit=cursor_limit)
 
     # Every engine call runs on one persistent attached-engine worker.
-    worker = _RemoteWorker(handle)
+    worker = _RemoteWorker(gateway)
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self) -> None:
@@ -750,6 +1321,22 @@ def serve(
                 key = name.lower()
                 headers[key] = f"{headers[key]}, {value}" if key in headers else value
             return headers
+
+        def _space_named(self, operation: str, payload: dict) -> str:
+            """Which space this request is about, for the authorize hook.
+
+            /next and /stop carry a cursor rather than a space, and reading
+            the default out of the absent field would hand a read-only or
+            per-tenant policy the WRONG space to judge: the answers come
+            from wherever the /ask that opened the cursor pointed. So the
+            gateway is asked which space the cursor belongs to, and a
+            cursor it no longer holds falls back to the default, where the
+            operation refuses itself anyway."""
+            if operation in ("next", "stop"):
+                held = gateway.cursor_space(payload.get("cursor"))
+                if held is not None:
+                    return held
+            return str(payload.get("space", m.space_name))
 
         def do_GET(self) -> None:
             operation = self.path.strip("/")
@@ -808,7 +1395,7 @@ def serve(
                 return
             try:
                 payload = self._payload()
-                request = Request(operation, str(payload.get("space", m.space_name)), headers)
+                request = Request(operation, self._space_named(operation, payload), headers)
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
@@ -862,10 +1449,15 @@ def serve(
             httpd,
             thread,
             worker,
+            gateway,
             scheme="https" if ssl_context else "http",
         )
     except BaseException as start_error:
         cleanup_failures: list[BaseException] = []
+        try:
+            gateway.close()
+        except BaseException as exc:  # noqa: BLE001
+            cleanup_failures.append(exc)
         if thread.is_alive():
             try:
                 httpd.shutdown()
