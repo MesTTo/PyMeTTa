@@ -849,6 +849,17 @@ relational_input_position(implies, 1).  relational_input_position(implies, 2).
 %its MeTTa name.
 relational_input_position(cons, 2).
 relational_input_position('cons-atom', 2).
+%union-atom IS append/3, and a shipped library takes a list apart with it:
+%(= (mylast $x) (union-atom $xs ($x))) splits a list from the right by
+%leaving $xs open [source: lib/lib_roman.metta:80, exercised by
+%examples/libraries/roman_test.metta]. member and its two Bool-answering
+%twins are Prolog's member/2 under a MeTTa name for the same reason, and
+%examples/reasoning/logicprogset.metta solves (member a $M) for $M.
+relational_input_position('union-atom', 1).
+relational_input_position('union-atom', 2).
+relational_input_position(member, 2).
+relational_input_position('is-member', 2).
+relational_input_position('is-alpha-member', 2).
 
 %A position PeTTa promises to refuse. A name lent to MeTTa from SWI (msort,
 %append, sort, maplist, length) keeps Prolog's own relational behaviour and
@@ -977,9 +988,7 @@ grounded_list_view(Term, View) :-
 %A provider is asked first and can disagree: a Python tuple is -/N and reads as
 %its elements NORMALIZED, so a None inside one reads as `()` rather than as
 %janus's spelling of it.
-member(_, L, _) :- var(L), !, refuse_unbound_input(member, 2).
 member(X, L, true) :- member(X, L).
-'is-member'(_, List, _) :- var(List), !, refuse_unbound_input('is-member', 2).
 'is-member'(X, List, true) :- member(X, List).
 'is-member'(X, List, false) :- \+ member(X, List).
 
@@ -989,8 +998,6 @@ member(X, L, true) :- member(X, L).
 member_alpha(X, [H|_]) :- (var(X) -> var(H) ; true), X = H, !.
 member_alpha(X, [_|T]) :- member_alpha(X, T).
 
-'is-alpha-member'(_, List, _) :- var(List), !,
-                                 refuse_unbound_input('is-alpha-member', 2).
 'is-alpha-member'(X, List, true) :- \+ \+ member_alpha(X, List), !.
 'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
@@ -1031,9 +1038,6 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %calls (union-atom $xs ($x)) with $xs unbound to SPLIT a list, so append/3
 %must still be reached in its relational modes
 %[tested: metta_set_operations, examples/libraries/roman_test.metta].
-'union-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('union-atom', 1)
-                         ; var(B) -> refuse_unbound_input('union-atom', 2)
-                         ; fail ).
 'union-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'union-atom'(A, B, Out) :- append(A, B, Out).
 'intersection-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('intersection-atom', 1)

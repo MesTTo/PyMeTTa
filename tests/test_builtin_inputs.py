@@ -80,14 +80,14 @@ def test_every_builtin_refuses_an_unbound_input_by_name(metta, probes):
     assert len(probes) >= 80, len(probes)
 
     wrong = []
-    for name, position, source in probes:
+    for name, _position, source in probes:
         try:
             answers = metta.run(source)
         except PettaError as refused:
             if name not in str(refused):
                 wrong.append((source, f"refused without naming it: {refused}"))
             continue
-        except Exception as unexpected:  # noqa: BLE001 - reported, not hidden
+        except Exception as unexpected:  # reported below, not hidden
             wrong.append((source, f"raised {type(unexpected).__name__}"))
             continue
         rendered = [str(a) for group in answers for a in group]
@@ -106,7 +106,7 @@ def test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate(
     `!(sread $u)` said `atom_codes/2`, naming Prolog predicates the MeTTa
     program never wrote and cannot act on."""
     named_host = []
-    for name, _position, source in probes:
+    for _name, _position, source in probes:
         try:
             metta.run(source)
         except PettaError as refused:
