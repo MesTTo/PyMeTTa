@@ -23,7 +23,11 @@ arrays.install(m, default=numpy)
 check("matmul over numpy",
       m.run("!(t-tolist (matmul (tensor ((1.0 2.0))) (tensor ((3.0) (4.0)))))"),
       [[expr(expr(11.0))]])
-(types,) = m.run("!(collapse (get-type (tensor (1.0))))")
+# The tensor is built first and the type read off the VALUE. get-type does
+# not evaluate its argument, so asking about the unreduced call `(tensor
+# (1.0))` reports what the expression is declared to be, not what building it
+# would produce; both arbiters answer %Undefined% there.
+(types,) = m.run("!(collapse (let $t (tensor (1.0)) (get-type $t)))")
 check("protocol typing", S.DLTensor in list(types[0]))
 
 array = numpy.arange(4.0)

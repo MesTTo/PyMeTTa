@@ -84,7 +84,12 @@ def test_register_object_type_makes_protocols_types(metta):
     pi.register_object_type(lambda x: hasattr(x, "quack"), "Duck")
     space = metta.new_space()
     space.add(S.pet(val(Quacks())))
-    (answers,) = space.run("!(collapse (get-type (match (context-space) (pet $p) $p)))")
+    # The match runs first and get-type reads the object it found. get-type
+    # does not evaluate its argument, so asking it about an unreduced match
+    # would type the match expression rather than the pet.
+    (answers,) = space.run(
+        "!(collapse (let $p (match (context-space) (pet $q) $q) (get-type $p)))"
+    )
     names = {str(a) for a in answers[0]}
     assert "Duck" in names and "Quacks" in names
 

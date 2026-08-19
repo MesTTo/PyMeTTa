@@ -137,6 +137,42 @@
 ;[source: pinned stdlib.md:849-868 via the arbiter]. The library's stub
 ;matched the literal &self and answered nothing for any named space.
 
+;These two declarations are HERE rather than only in
+;lib/lib_builtin_types.metta because this is the register the CALL SITE
+;reads. Asking for a type is a question about an expression, and the
+;engine was answering it by running the expression first: an op that
+;appends to a Python list fired on (get-type (petta-effectful)) and the
+;answer was Number, the type of what it returned. Every linter walk and
+;every REPL inspection was invisibly effectful on a seam whose whole
+;purpose is arbitrary effects.
+;
+;An Atom parameter in the engine's own surface register is deliberately
+;NOT honoured at call sites, because several of those declarations
+;describe the argument a CALLER writes rather than the value the
+;predicate receives, and honouring them broke every maplist call
+;[source: call_site_type_chains/2 in src/translator.pl]. get-type has no
+;such gap: the declaration and the predicate agree that the argument
+;arrives unreduced, so the prelude register, which IS honoured at call
+;sites, is where it belongs.
+;
+;The answer then comes from the declaration, which is what the arbiter
+;answers: (get-type (literal-return 2)) is Atom for
+;(: literal-return (-> Number Atom)), whatever its body would reduce to
+;[source: LeaTTa tests/semantics/types-meta/20_atom_return_literal.metta,
+;MEASURED [Atom] from the mechanised interpreter and from hyperon
+;0.2.10 alike].
+;
+;Both arrows are upstream's, with the one vocabulary translation this
+;tree already applies: SpaceType is written Symbol here, the rule
+;lib/lib_builtin_types.metta states for the whole surface. get-type is
+;(-> Atom %Undefined%) and get-type-space is (-> SpaceType Atom Atom) at
+;pinned stdlib.md:849-868. Either return spelling behaves identically in
+;this engine, measured 2026-08-19 over an effectful call, a declared
+;return, a value and a builtin application, so upstream's is kept because
+;matching it costs nothing.
+(: get-type (-> Atom %Undefined%))
+(: get-type-space (-> Symbol Atom Atom))
+
 ;match-types is UNIFICATION with wildcards, not equality: %Undefined%
 ;and Atom on either side match anything, and otherwise the two types
 ;unify, bindings and all [source: LeaTTa Stdlib.lean, the corelib

@@ -30,6 +30,14 @@
 %     metta_alpha_unique].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
+%   - get-type/2 and get-type-space/3 answer from declarations without running
+%     the inspected expression, so inspection has no effects of its own
+%     [tested 2026-08-19:
+%     python/tests/test_type_inspection.py::test_get_type_does_not_run_its_arguments_effects].
+%   - builtin_type_declaration/2 rows are the union of lib_builtin_types.metta
+%     and the prelude's, with each row written once and evicted only by the
+%     register that wrote it [tested 2026-08-19:
+%     metta_builtin_type_surface:a_shared_declaration_is_evicted_only_from_the_register_that_wrote_it].
 %   - Test assertions distinguish no answer from one empty-expression answer
 %     [tested 2026-08-14: translator_test_answers].
 %   - petta_assertion_failure/4 classifies the three assertion formals, so a
@@ -901,14 +909,30 @@ refuse_untypable_declaration(Name, Types) :-
 %&self is always the engine's native space. Its fixed private storage module
 %keeps this recursive type probe on a compiled direct call, with no provider
 %dispatch or exception handler.
+%The soft cut is the precedence rule: a program that declares an arrow for a
+%name is answered from its own space and the engine's surface is never
+%consulted, and only a name the program says nothing about falls through to
+%the engine's. The engine's arrows have to be here at all because get-type
+%stopped evaluating its argument, so an application now reaches this probe as
+%written: without the fallthrough (get-type (+ 1 2)) typed ELEMENT-WISE and
+%answered ((-> Number Number Number) Number Number) where it used to answer
+%Number, and the arbiter answers ErrorType for (get-type (Error Foo Boo))
+%from exactly this route [source: LeaTTa
+%tests/semantics/types-meta/30_evaluation_control.metta].
 get_function_type([F|Args], T) :- nonvar(F),
-                                  '$petta_atoms:&self':'&self'(':', F, [->|Ts]),
+                                  (   '$petta_atoms:&self':'&self'(':', F, [->|Ts0])
+                                  *-> Ts = Ts0
+                                  ;   builtin_type_declaration(F, [->|Ts])
+                                  ),
                                   append(As,[T],Ts),
                                   metta_self_module(Self),
                                   maplist(has_type_in(Self), Args, As).
 get_function_type_in(Module, [F|Args], T) :- \+ metta_self_module(Module),
                                              nonvar(F),
-                                             type_declaration_in(Module, F, [->|Ts]),
+                                             (   type_declaration_in(Module, F, [->|Ts0])
+                                             *-> Ts = Ts0
+                                             ;   builtin_type_declaration(F, [->|Ts])
+                                             ),
                                              append(As,[T],Ts),
                                              maplist(has_type_in(Module), Args, As).
 
@@ -4554,6 +4578,14 @@ load_builtin_type_surface :- index_masking_data_heads.
 :- dynamic petta_engine_src_dir/1.
 :- dynamic prelude_owned/1.
 :- dynamic prelude_clause_ref/2.
+%Which builtin_type_declaration/2 rows the prelude PUT THERE, as opposed to
+%found there. The two registers overlap once a name needs its Atom mask
+%honoured at call sites AND belongs to the engine's reported type surface:
+%get-type is declared by lib_builtin_types.metta and again by src/prelude.metta,
+%for the two different readers. Without this ledger the prelude's eviction
+%would retract a row the FILE owns, since the two rows are identical and
+%retractall/1 cannot tell them apart.
+:- dynamic prelude_wrote_builtin_type/2.
 
 %A user definition WINS over the prelude, entirely. When &self compiles
 %an equation for a name the prelude owns, the prelude's clauses and
@@ -4581,10 +4613,15 @@ evict_prelude_definition(FAtom) :-
     ).
 
 %The ledger rows say exactly which builtin_type_declaration entries are
-%the prelude's, so eviction purges both stores and nothing else.
+%the prelude's, so eviction purges both stores and nothing else. A row the
+%prelude found already written by lib_builtin_types.metta stays, because it
+%was never the prelude's to remove.
 retract_prelude_declarations(Name) :-
     forall(retract(prelude_type_declaration(Name, Type)),
-           retractall(builtin_type_declaration(Name, Type))).
+           (   retract(prelude_wrote_builtin_type(Name, Type))
+           ->  retractall(builtin_type_declaration(Name, Type))
+           ;   true
+           )).
 
 %The declaration half of the same rule, for the loader's door: a ':'
 %atom a file writes into the base tier replaces the prelude's
@@ -4657,7 +4694,16 @@ load_prelude_form(expression, _, [':', Name, Type]) :-
     atom(Name), !,
     (   prelude_type_declaration(Name, Type) -> true
     ;   assertz(prelude_type_declaration(Name, Type)),
-        assertz(builtin_type_declaration(Name, Type))
+        %lib_builtin_types.metta loads FIRST and may already carry the same
+        %declaration, which is the case for a builtin the prelude declares
+        %only so the CALL SITE honours its Atom mask: get-type is in both
+        %files for two different readers. A second identical fact would give
+        %the engine's type surface a duplicate row, so the prelude writes one
+        %only when it is the one putting it there, and records that it did.
+        (   builtin_type_declaration(Name, Type) -> true
+        ;   assertz(builtin_type_declaration(Name, Type)),
+            assertz(prelude_wrote_builtin_type(Name, Type))
+        )
     ).
 %A (@doc ...) form in the prelude lands in the engine's doc register,
 %where get-doc's first tier reads it; the prelude documents its own
