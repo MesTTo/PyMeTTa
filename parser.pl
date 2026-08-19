@@ -7,12 +7,20 @@
 %   - swrite/2 names variables by first occurrence, independent of SWI's
 %     process-local variable identifiers [tested 2026-08-14:
 %     parser_stable_variables].
+%   - a token ends at exactly the Unicode White_Space property plus `(`, `)`
+%     and `;`, and at nothing else, which is upstream MeTTa's own rule.
+%     metta_token_boundary/2 is the one place that says so, and the layout
+%     skipper, the number terminator and metta_symbol_writable/1 all read
+%     it, so a symbol holding whitespace has no text form and the swrite/2
+%     to sread/2 round trip stays inverse [tested 2026-08-19:
+%     parser_unicode_layout,
+%     test_every_unicode_whitespace_separates_atoms].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
 
-:- use_module(library(dcg/basics)). %blanks/0, number/1, string_without/2
+:- use_module(library(dcg/basics)). %atom//1, number//1, eos//0
 :- use_module(library(occurs)). %sub_term/2
 
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
@@ -165,7 +173,7 @@ command_has_content(Codes) :- command_content(Codes, outside).
 
 command_content([C|Rest], State0) :-
     string_state(State0, C, State1),
-    (   State0 == outside, \+ code_type(C, space), C =\= 0';
+    (   State0 == outside, \+ metta_token_boundary(C, layout), C =\= 0';
     ->  true
     ;   State0 == string
     ->  true
@@ -208,11 +216,86 @@ string_state(comment, 0'\n, outside) :- !.
 string_state(comment, _, comment) :- !.
 string_state(State, _, State).
 
+%Every code that ends a token, and which kind of boundary it is. One table
+%answers both questions the reader asks of a character, because two answers
+%to one of them is the defect it replaces: the layout skipper took whitespace
+%from code_type/2 while the token scanner carried its own list of seven ASCII
+%characters, and wherever the two disagreed the token swallowed the
+%separator. 21 of the 25 whitespace characters left `(1<c>2)` a single symbol,
+%and silently, which is what makes it worth fixing rather than noting.
+%NO-BREAK SPACE is what HTML's `&nbsp;` renders to, so `(foo bar)` pasted out
+%of a browser became one symbol, matched nothing, and reported no problem
+%[tested: parser_unicode_layout].
+%
+%Both kinds together are upstream MeTTa's own boundary rule, not a wider
+%class chosen here: its reader ends a word at `c.is_whitespace() || c ==
+%'(' || c == ')' || c == ';'` and at nothing else [source:
+%hyperon-experimental v0.2.10-25-g0559a5e2, lib/src/metta/text.rs,
+%parse_word]. So the layout rows are the Unicode White_Space property,
+%char::is_whitespace being that property exactly [source: Rust std,
+%char::is_whitespace, "Returns true if this char has the White_Space
+%property", specified in https://www.unicode.org/Public/UCD/latest/ucd/
+%PropList.txt, PropList-17.0.0, "Total code points: 25"].
+%
+%Written out rather than read from code_type/2, for two reasons.
+%
+%SWI's class is neither the property nor fixed. code_type/2 reads the C
+%library's tables, so it MOVES with the locale: 21 codes under en_AU.UTF-8
+%and under C.UTF-8, and 6 under LC_ALL=C [measured 2026-08-19, enumerated
+%over the whole range]. Which characters separate atoms is a property of the
+%language, not of the environment a process happens to start in, and a
+%container or a cron job running under LC_ALL=C is ordinary. Even at its
+%widest the class is four short of White_Space: it omits NEL and the three
+%NO-BREAK spaces, reporting them as cntrl and punct.
+%
+%And the table has to be ground facts to be indexed. A clause body is a
+%call, and worse, one clause with a variable head argument costs the index
+%outright: SWI does not build a hash on an argument where more than 10% of
+%the clauses are unbound there, because such a clause has to be linked into
+%every bucket [source: SWI-Prolog 10.1 Reference Manual 2.17, "Just-in-time
+%clause indexing"]. So `metta_token_boundary(C, layout) :- code_type(C,
+%space)` beside four named codes would be a five-clause linear scan, not a
+%lookup. As 28 ground facts it is a 64-bucket hash [measured 2026-08-19:
+%jiti_list/1 reports index 1, speedup 28.0], and reading every shipped
+%example while asking metta_unwritable_symbol/2 about each form costs 22.06M
+%inferences and 13.01G instructions:u against 24.30M and 18.38G for the
+%string_without//2 scan this replaces [measured 2026-08-19, min of 3
+%interleaved runs]. parser_unicode_layout holds the table to the property
+%and to SWI's own class, so neither can drift unseen.
+metta_token_boundary(0x0009, layout).  %CHARACTER TABULATION
+metta_token_boundary(0x000A, layout).  %LINE FEED
+metta_token_boundary(0x000B, layout).  %LINE TABULATION
+metta_token_boundary(0x000C, layout).  %FORM FEED
+metta_token_boundary(0x000D, layout).  %CARRIAGE RETURN
+metta_token_boundary(0x0020, layout).  %SPACE
+metta_token_boundary(0x0085, layout).  %NEXT LINE
+metta_token_boundary(0x00A0, layout).  %NO-BREAK SPACE
+metta_token_boundary(0x1680, layout).  %OGHAM SPACE MARK
+metta_token_boundary(0x2000, layout).  %EN QUAD
+metta_token_boundary(0x2001, layout).  %EM QUAD
+metta_token_boundary(0x2002, layout).  %EN SPACE
+metta_token_boundary(0x2003, layout).  %EM SPACE
+metta_token_boundary(0x2004, layout).  %THREE-PER-EM SPACE
+metta_token_boundary(0x2005, layout).  %FOUR-PER-EM SPACE
+metta_token_boundary(0x2006, layout).  %SIX-PER-EM SPACE
+metta_token_boundary(0x2007, layout).  %FIGURE SPACE
+metta_token_boundary(0x2008, layout).  %PUNCTUATION SPACE
+metta_token_boundary(0x2009, layout).  %THIN SPACE
+metta_token_boundary(0x200A, layout).  %HAIR SPACE
+metta_token_boundary(0x2028, layout).  %LINE SEPARATOR
+metta_token_boundary(0x2029, layout).  %PARAGRAPH SEPARATOR
+metta_token_boundary(0x202F, layout).  %NARROW NO-BREAK SPACE
+metta_token_boundary(0x205F, layout).  %MEDIUM MATHEMATICAL SPACE
+metta_token_boundary(0x3000, layout).  %IDEOGRAPHIC SPACE
+metta_token_boundary(0x0028, punctuation).  %LEFT PARENTHESIS
+metta_token_boundary(0x0029, punctuation).  %RIGHT PARENTHESIS
+metta_token_boundary(0x003B, punctuation).  %SEMICOLON, which opens a comment
+
 %Semicolon comments are inter-token layout. Keeping them in the DCG avoids a
 %separate source-sized code list before parsing. These clauses combine blank
 %and comment scanning so the ordinary no-comment path has no wrapper grammar.
 metta_layout --> ";", !, metta_comment_body, metta_layout.
-metta_layout --> [C], { code_type(C, space) }, !, metta_layout.
+metta_layout --> [C], { metta_token_boundary(C, layout) }, !, metta_layout.
 metta_layout --> [].
 
 metta_comment_body --> "\n", !.
@@ -233,20 +316,10 @@ sexpr_token(N,E,E)  --> number(N), number_ends, !.
 sexpr_token(V,E0,E) --> var_symbol(V,E0,E), !.
 sexpr_token(A,E,E)  --> atom_symbol(A).
 
-%A number token has to end at whitespace, a parenthesis, or end of input.
-%Without this, 1_2_3 would read as the number 1 followed by junk. The
-%terminators are facts rather than a scan of a literal string, so the check is
-%one indexed lookup instead of rebuilding the same six codes per number.
+%A number token has to end where any token ends, or at end of input. Without
+%this, 1_2_3 would read as the number 1 followed by junk.
 number_ends([], []) :- !.
-number_ends([Code|Rest], [Code|Rest]) :- number_terminator(Code).
-
-number_terminator(0' ).
-number_terminator(0'().
-number_terminator(0')).
-number_terminator(0'\t).
-number_terminator(0'\n).
-number_terminator(0'\r).
-number_terminator(0';).
+number_ends([Code|Rest], [Code|Rest]) :- metta_token_boundary(Code, _).
 
 %Recursive processing of S-Expressions within S-Expressions. sexpr//3 has
 %already consumed the whitespace after its own token, so this does not repeat it:
@@ -265,8 +338,14 @@ atom_symbol(A) --> token(Cs), { string_codes("\"", [Q]), ( Cs = [Q|_] -> append(
                                                                                          -> A = false
                                                                                           ; A = R ))}.
 
-%A token is a non-empty string without whitespace or comment delimiters:
-token(Cs) --> string_without(" \t\r\n();", Cs), { Cs \= [] }.
+%A token is a non-empty run of characters that end no token. The shape is
+%string_without//2's own, a greedy scan committed per character, with the
+%membership test replaced by the boundary table, so where a token ends is
+%one definition rather than a literal repeated here.
+token(Cs) --> token_codes(Cs), { Cs \= [] }.
+
+token_codes([C|Cs]) --> [C], { \+ metta_token_boundary(C, _) }, !, token_codes(Cs).
+token_codes([]) --> [].
 
 %Whether a symbol's spelling reads back as that same symbol. Both readers
 %above answer, so this cannot drift from either: a name that reads as a
@@ -298,7 +377,9 @@ metta_symbol_writable(Symbol) :-
 %One token, and no quote either: the form scanner opens a string on a quote
 %and would swallow the rest of the form, which sread/2 alone never sees. One
 %scan answers both, since every symbol carried as text pays for it.
-writable_token(Cs) --> string_without(" \t\r\n();\"", Cs), { Cs \= [] }.
+writable_token([C|Cs]) --> [C], { C =\= 0'", \+ metta_token_boundary(C, _) }, !,
+                            writable_token(Cs).
+writable_token([]) --> [].
 
 metta_symbol_ordinary(First, Symbol) :-
     \+ metta_symbol_reserved_start(First),

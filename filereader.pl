@@ -39,6 +39,10 @@
 %     library(pcre)-backed regex, both work under autoload=false, not only
 %     under the engine's default [measured 2026-08-18: NO_AUTOLOAD=1 sh
 %     test.sh, the full examples/ corpus].
+%   - source_layout//2 skips exactly the characters sread/2 treats as
+%     whitespace between atoms, parser.pl's metta_token_boundary/2 layout
+%     rows being the one class both read [tested 2026-08-19:
+%     test_every_unicode_whitespace_separates_top_level_forms].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -613,11 +617,21 @@ print_function_form(FormStr, Ref) :-
 
 %Top-level comments are layout too. Count their terminating newline for source
 %diagnostics while consuming their text without constructing another code list.
+%
+%Whitespace between forms is the reader's own class, parser.pl's
+%metta_token_boundary/2, not SWI's code_type/2: reading the two differently is
+%what let `(= (a) 1)<IDEOGRAPHIC SPACE>(= (b) 2)` load while the same file
+%written with a NO-BREAK SPACE raised `expected '(' or '!('`, SWI calling one
+%of them a space and not the other [tested:
+%test_every_unicode_whitespace_separates_top_level_forms]. Only "\n" counts a
+%line, here and in the Python locator, which counts source.count("\n"), so
+%LINE SEPARATOR and NEL are ordinary layout on both sides
+%[source: python/petta/_source_forms.py:80].
 source_layout(LC0, LC2) --> ";", !, source_comment(LC0, LC2).
 source_layout(LC0, LC2) --> "\n", !,
                              { LC1 is LC0 + 1 },
                              source_layout(LC1, LC2).
-source_layout(LC0, LC2) --> [C], { code_type(C, space) }, !,
+source_layout(LC0, LC2) --> [C], { metta_token_boundary(C, layout) }, !,
                              source_layout(LC0, LC2).
 source_layout(LC, LC) --> [].
 
