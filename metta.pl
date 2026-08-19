@@ -33,6 +33,11 @@
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
+%   - %Undefined% is consistent with every type in both directions, so a call
+%     site refuses only a PROVEN conflict, while has_declared_type/2 demands a
+%     witness for a contract [tested 2026-08-19:
+%     python/tests/test_gradual_typing.py::test_an_unknown_type_is_consistent_with_every_declared_type,
+%     python/tests/test_answer_protocol.py::test_admission_types_the_pool].
 %   - An expression no arrow types reads element-wise, and the tuple it reads
 %     is %Undefined% as soon as one member's type is [tested 2026-08-19:
 %     metta_type_answers:a_tuple_with_an_untyped_member_is_undefined].
@@ -974,16 +979,32 @@ has_type(X, T) :- current_metta_module(Module),
 %the check an argument goes through, so `(: Rex Dog)` with `(:< Dog Animal)`
 %now satisfies a parameter of type Animal
 %[tested: an_argument_is_accepted_through_its_supertype].
+%%Undefined% is the GRADUAL type and it is compatible with everything, in
+%both directions. A parameter declared %Undefined% accepts any argument, and
+%an argument whose type is %Undefined% satisfies any parameter: nothing is
+%known about it, so no violation is provable and gradual typing lets it
+%through. This engine had both directions backwards. `%Undefined%` as the
+%expected type demanded that the value be UNTYPED, so
+%(: tensor (-> %Undefined% DLTensor)) refused 1.0 and typed its own
+%application element-wise; and a value with no declaration failed a concrete
+%parameter, so (== 1 a) had no answer through a shared type variable.
+%
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: with (: f2 (-> Number Number)) and
+%(: g2 (-> %Undefined% Number)), (f2 a), (f2 (undeclared-call)), (g2 "s") and
+%(g2 1) all answer, while (f2 "s") is a BadArgType. String is KNOWN and it is
+%not Number; `a` is not known to be anything.
+%
+%The second direction is checked last, on the branch that was going to fail
+%anyway, so a value whose declared type already matches never pays for it.
 has_type_in(Module, X, T) :-
     ( ground(T)
       -> ( T == '%Undefined%'
-           -> \+ once(type_candidate_in(Module, X, _))
-            ; (   once(type_candidate_in(Module, X, T))
-              ->  true
-              ;   satisfies_metatype(X, T)
+           -> true
+            ; (   type_witness_in(Module, X, T)
               ->  true
               ;   type_answers(Module, X, Types),
-                  once(( member(Widened, Types), Widened == T ))
+                  Types == ['%Undefined%']
               ) )
        ; any_super_type_edge(Module)
          -> type_answers(Module, X, Types),
@@ -1004,6 +1025,25 @@ has_type_in(Module, X, T) :-
           *-> T = C
           ;   T = '%Undefined%'
           ) ).
+
+%A WITNESS that X has type T, which is the other question a caller can ask
+%and is not the same one. has_type_in/3 asks whether X's type is CONSISTENT
+%with T and lets an unknown through, because a call site may not refuse what
+%it cannot prove wrong. A gate asks whether X is KNOWN to be a T, and an
+%unknown must not pass one: `(admits &pool Space)` is a contract, and an atom
+%nothing declares is not evidence of a Space
+%[tested: python/tests/test_answer_protocol.py::test_admission_types_the_pool].
+type_witness_in(Module, X, T) :-
+    (   once(type_candidate_in(Module, X, T))
+    ->  true
+    ;   satisfies_metatype(X, T)
+    ->  true
+    ;   type_answers(Module, X, Types),
+        once(( member(Widened, Types), Widened == T ))
+    ).
+
+has_declared_type(X, T) :- current_metta_module(Module),
+                           type_witness_in(Module, X, T).
 
 %The first clause is the whole common case and pays no bookkeeping at
 %all: a deterministic check derives one candidate and commits. Only a
@@ -1327,7 +1367,7 @@ py_object_class_type(X, T) :- py_call(builtins:type(X), Class),
 %symbol, and both callers ask with it bound: has_type/2 and the type guard the
 %translator compiles around every declared parameter, so a parameter declared
 %`Grounded` accepted anything at all
-%[tested: a_grounded_parameter_rejects_a_symbol].
+%[tested: a_grounded_parameter_admits_an_unknown_and_refuses_a_declared_other].
 'get-metatype'(X, Metatype) :- metatype_of(X, Computed), Metatype = Computed.
 
 metatype_of(X, 'Variable') :- var(X), !.
@@ -1981,7 +2021,11 @@ petta_install_admission :-
 
 petta_admission_check(Space, Term) :-
     forall(petta_contract_fact([admits, Space, Type]),
-           (   has_type(Term, Type)
+           %A witness, not consistency: an atom whose type nothing declares
+           %is not evidence that it is one of these, and a contract that let
+           %it in would admit everything a program never got round to
+           %declaring.
+           (   has_declared_type(Term, Type)
            ->  true
            ;   throw(error(petta_admission_refused(Space, Term, Type),
                            none))
