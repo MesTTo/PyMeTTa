@@ -10,8 +10,8 @@
 %     that remove an atom make]. Each of those is a PlDoc mode line above its
 %     clause, so the development build checks it at run time rather than
 %     leaving it prose [tested:
-%     the_dev_build_inserts_checks_and_types_a_planted_violation, and the
-%     dev-typed gate lane runs every plunit suite under that build].
+%     the_dev_build_inserts_checks_and_types_a_planted_violation]; the
+%     dev-typed gate lane also runs every plunit suite under that build.
 % Guarantees:
 %   - Every native space stores its atoms in a private data module that does
 %     not inherit user predicates [tested: spaces_storage_modules].
