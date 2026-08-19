@@ -3233,6 +3233,13 @@ bind_python_call_spec(Spec, Spec).
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what
 %every program written against upstream sees, so it stays as upstream has it.
+%The DECLARED arity, which is the one the type surface names and the one a
+%program writes. py-call is also registered at 3, and guarding that form too
+%was measured and dropped: it costs 6 inferences on the handle-round-trip
+%benchmark, 2 over that counter's own 4-inference allowance, to name an
+%operation in a spelling the type surface does not declare. So
+%(py-call $u opts) still raises a context-less instantiation_error
+%[measured 2026-08-19], the same residue src/parser.pl's sread carries.
 'py-call'(SpecList, _) :- var(SpecList), !, refuse_unbound_input('py-call', 1).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
