@@ -19,6 +19,9 @@ Guarantees:
   - a rehydrated PettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
+  - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
+    as EngineError, neither an instance of the other [tested
+    test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -49,6 +52,7 @@ from typing import Any, NoReturn, Protocol, cast
 from . import _callbacks, _contract, _prelude
 from ._config import config
 from .errors import (
+    AssertionFailure,
     EngineError,
     InferenceLimitError,
     Interrupted,
@@ -607,8 +611,45 @@ class Runtime:
                 )
                 if error_type is not None:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
+            self._raise_assertion_failure(exc, term, message)
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
+
+    def _raise_assertion_failure(self, exc: BaseException, term: object, message: str) -> None:
+        """Raise AssertionFailure when the program's own claim is what failed.
+
+        Ahead of the operation classifier because a failed assertion carries
+        a MeTTa operation too, and it is the more specific reading: `test`
+        and `assert` did not refuse a value, they reported a false claim.
+        """
+        try:
+            # The intermediates are _-prefixed because janus converts every
+            # NAMED variable of the query and an assertion form that carries
+            # no expected value leaves one free, which janus reports as
+            # "Arguments are not sufficiently instantiated" rather than as
+            # absence. petta_py_operation_part/2 maps that absence to None.
+            row = self._janus.query_once(
+                "petta_assertion_failure(Error, Form, _Actual, _Expected), "
+                "petta_py_operation_part(_Actual, Actual), "
+                "petta_py_operation_part(_Expected, Expected)",
+                {"Error": term},
+            )
+        except self._janus.PrologError as classifier_error:
+            raise EngineError(
+                f"{message}; the assertion classifier failed: "
+                f"{_clean_message(classifier_error)}"
+            ) from exc
+        if row is None or row.get("truth") is False:
+            return
+        form = row.get("Form")
+        if not isinstance(form, str):
+            return
+        raise AssertionFailure(
+            message,
+            operation=form,
+            actual=row.get("Actual"),
+            expected=row.get("Expected"),
+        ) from exc
 
     def _original_python_error(
         self, term: object, base: type[BaseException] = PettaError

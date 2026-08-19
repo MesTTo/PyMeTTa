@@ -158,6 +158,7 @@ from .define import Defined  # noqa: E402
 from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
+    AssertionFailure,
     CompileError,
     Decline,
     EngineError,
@@ -270,6 +271,7 @@ __all__ = [
     "REFLECTION_SPACE",
     "Adder",
     "Answer",
+    "AssertionFailure",
     "Atom",
     "Bindings",
     "Boot",

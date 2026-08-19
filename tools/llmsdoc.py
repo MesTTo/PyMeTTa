@@ -57,9 +57,17 @@ def sections(text: str) -> dict[str, str]:
 
 
 def paragraph(text: str, opening: str) -> str:
-    """The one paragraph starting with `opening`, for the vocabulary lists."""
+    """The one paragraph whose opening matches `opening`, as a regex.
+
+    A regex rather than a literal prefix because these paragraphs open with
+    a COUNT, and the count is already checked, separately and exactly, by
+    counts(). Written as a literal, the locator was a second copy of the
+    number: registering one more builtin made this raise "no longer has a
+    paragraph opening '209 builtins are registered'", which names a missing
+    paragraph rather than a stale count and points at the wrong file.
+    """
     for block in text.split("\n\n"):
-        if block.lstrip().startswith(opening):
+        if re.match(opening, block.lstrip()):
             return block
     raise AssertionError(f"llms.txt no longer has a paragraph opening {opening!r}")
 
@@ -163,7 +171,7 @@ def check() -> list[str]:
     # A deleted module may be NAMED, but only in the sentence saying it is gone.
     # Skipping the name everywhere is how "there is no petta.matching" would
     # have covered for a later paragraph using it as though it were live.
-    denial = paragraph(parts["The MeTTa language surface"], "31 libraries load with")
+    denial = paragraph(parts["The MeTTa language surface"], r"\d+ libraries load with")
     for module in sorted(gone):
         if (ROOT / "python" / "petta" / f"{module}.py").exists():
             bad.append(f"llms.txt says petta.{module} is gone, but the module is back")
@@ -179,17 +187,17 @@ def check() -> list[str]:
     for form in fenced(language)[0].split():
         if form not in special:
             bad.append(f"{form} is listed as a special form but is not a translate_special_dl head")
-    rewritten = paragraph(language, "Six more are rewritten")
+    rewritten = paragraph(language, r"\w+ more are rewritten")
     for name in BACKTICK.findall(rewritten):
         if name not in streams:
             bad.append(f"{name} is listed as a stream rewrite but is not a rewrite_streamops head")
-    registered = paragraph(language, "209 builtins are registered")
+    registered = paragraph(language, r"\d+ builtins are registered")
     for name in BACKTICK.findall(registered):
         if name.startswith("m.") or name.endswith(")") or "*" in name or name == "#":
             continue
         if name not in builtins:
             bad.append(f"{name} is listed as a builtin but the engine does not register it")
-    for name in BACKTICK.findall(paragraph(language, "31 libraries load with")):
+    for name in BACKTICK.findall(paragraph(language, r"\d+ libraries load with")):
         if name.startswith("lib_") and not (ROOT / "lib" / f"{name}.metta").exists():
             bad.append(f"library claim resolves to nothing: lib/{name}.metta")
 
@@ -228,7 +236,7 @@ def check() -> list[str]:
 
     # Read from the frozenset rather than a second copy of it here: a hand-kept
     # list is the same rot this whole lane exists to catch.
-    lazy = paragraph(parts["Apps, from source"], "Eleven submodules")
+    lazy = paragraph(parts["Apps, from source"], r"\w+ submodules")
     listed = {name for name in BACKTICK.findall(lazy) if name != "import petta"}
     real = set(petta._LAZY_MODULES) | set(petta._LAZY_ATTRIBUTES)
     if listed != real - {"Boot"}:

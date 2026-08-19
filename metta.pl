@@ -30,8 +30,42 @@
 %     metta_alpha_unique].
 %   - get-metatype/2 classifies every Prolog term used as a MeTTa value
 %     [tested 2026-08-14: metta_metatypes].
+%   - petta_transaction/1 answers everything its body answers, and every
+%     answer's writes commit or roll back together [tested 2026-08-19:
+%     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
+%   - Every guarded_input_position/3 refuses an unbound argument and names the
+%     MeTTa operation, so no builtin binds the caller's variable, invents an
+%     answer, runs away or reports a host predicate [tested 2026-08-19:
+%     builtin_input_guards:every_builtin_refuses_an_unbound_input_by_name,
+%     python/tests/test_builtin_inputs.py::test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
+%   - ==/3 and !=/3 refuse two operands of known and different types and
+%     answer for every other pair, at no cost on two numbers [tested
+%     2026-08-19:
+%     python/tests/test_equality.py::test_cross_kind_equality_answers_what_the_arbiter_answers]
+%     [measured 2026-08-19: 4487.45 inferences per thousand-iteration loop,
+%     unchanged].
+%   - %Undefined% is consistent with every type in both directions, so a call
+%     site refuses only a PROVEN conflict, while has_declared_type/2 demands a
+%     witness for a contract [tested 2026-08-19:
+%     python/tests/test_gradual_typing.py::test_an_unknown_type_is_consistent_with_every_declared_type,
+%     python/tests/test_answer_protocol.py::test_admission_types_the_pool].
+%   - An expression no arrow types reads element-wise, and the tuple it reads
+%     is %Undefined% as soon as one member's type is [tested 2026-08-19:
+%     metta_type_answers:a_tuple_with_an_untyped_member_is_undefined].
+%   - get-type/2 and get-type-space/3 answer from declarations without running
+%     the inspected expression, so inspection has no effects of its own
+%     [tested 2026-08-19:
+%     python/tests/test_type_inspection.py::test_get_type_does_not_run_its_arguments_effects].
+%   - builtin_type_declaration/2 rows are the union of lib_builtin_types.metta
+%     and the prelude's, with each row written once and evicted only by the
+%     register that wrote it [tested 2026-08-19:
+%     metta_builtin_type_surface:a_shared_declaration_is_evicted_only_from_the_register_that_wrote_it].
 %   - Test assertions distinguish no answer from one empty-expression answer
 %     [tested 2026-08-14: translator_test_answers].
+%   - petta_assertion_failure/4 classifies the three assertion formals, so a
+%     harness tells a false claim from a broken engine by TYPE rather than by
+%     reading the message [tested 2026-08-19:
+%     python/tests/test_assertion_failures.py::test_a_failing_assertion_is_a_different_exception_from_an_engine_fault].
 %   - Runtime builtins reject prebound outputs that they would not produce
 %     [tested 2026-08-14: metta_builtin_outputs].
 %   - Function registration performed by a source load participates in that
@@ -310,6 +344,7 @@ id(X, X).
 noeval(X, X).
 repr(Term, R) :- swrite(Term, Text), R = Text.
 repra(Term, R) :- term_to_atom(Term, R).
+parse(Str, _) :- var(Str), !, refuse_unbound_input(parse, 1).
 parse(Str, R) :- sread(Str, R).
 
 %%% Arithmetic & Comparison: %%%
@@ -414,8 +449,71 @@ petta_int_solve('/', A, B, R, Verdict) :-
                 ; metta_arith_operands('>', A, B),
                   catch((A>B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('>', E)) ).
-'=='(A,B,R) :- (A==B -> R=true ; R=false).
-'!='(A,B,R) :- (A==B -> R=false ; R=true).
+%(-> $a $a Bool): ONE type variable, so the two operands must have a
+%consistent type, and a comparison across two known and different kinds is
+%refused rather than answered. `!(== 1 "S")` answered False, which is the
+%answer for two Numbers that differ, so a conditional took the else branch and
+%nothing said the question was meaningless. `=alpha` is the comparison that
+%accepts anything, and it is declared (-> Atom Atom Bool) for that reason.
+%
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: (== 1 "S"), (== True 1),
+%(== xnum ystr) and (== xnum "s") are BadArgType, while (== 1 a),
+%(== a "a"), (== xnum 1), (== xnum undeclared) and (== 1 (foo)) are False and
+%(== 1 1), (== "S" "S") and (== () ()) are True. The unknown side is what
+%makes the False cases False: nothing is known about `a`, so nothing is
+%contradicted.
+%Two numbers inline, the shape '<'/3 above already uses, because that is what
+%a loop compares and the guard must not be felt there.
+'=='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=true ; R=false)
+                ; comparable_operands('==', A, B),
+                  (A==B -> R=true ; R=false) ).
+'!='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=false ; R=true)
+                ; comparable_operands('!=', A, B),
+                  (A==B -> R=false ; R=true) ).
+%The guard the declaration above states, enforced at the predicate's own door
+%rather than through typed dispatch, which is what runtime_type_guarded/1
+%means and what keeps the cost near zero: the common case is two literals and
+%a first-argument-indexed type lookup.
+%
+%EXPRESSIONS ARE EXCLUDED, because the two references disagree about them and
+%nothing here should pick a side that neither of them agrees on. Measured
+%2026-08-19: hyperon answers False for (== () 1), (== "s" ()) and
+%(== (1 2) (1 2 3)) while LeaTTa raises BadArgType for the first two and
+%answers False for the third. Both answer False for (== (1 2 3) ()) and
+%(== (1 2) (a b)), which is the shape a MeTTa program actually writes, so the
+%collapse-and-compare idiom is untouched either way.
+%TWO TIERS, because asking the type system costs 26 inferences and a program
+%compares literals in a loop. Two operands of the same intrinsic kind settle
+%it with one type test and no lookup, which is the case a loop writes; only a
+%pair the kinds do not settle pays for a declaration
+%[measured 2026-08-19: a thousand-iteration == loop is 4487.45 inferences
+%unguarded, 30514.55 with the lookup on every call, and 4990.45 with this
+%tier in front, so the guard costs 0.50 inferences per comparison instead
+%of 26.03].
+comparable_operands(Operation, A, B) :-
+    (   same_intrinsic_kind(A, B)
+    ->  true
+    ;   is_list(A)
+    ->  true
+    ;   is_list(B)
+    ->  true
+    ;   current_metta_module(Module),
+        \+ ( has_type_in(Module, A, Type), has_type_in(Module, B, Type) )
+    ->  once(has_type_in(Module, A, Expected)),
+        throw_metta_type_error(Operation, Expected, B)
+    ;   true
+    ).
+
+%Fails when the kinds DIFFER and when they do not decide, so an undecided
+%pair falls through to the declarations rather than being waved past.
+same_intrinsic_kind(A, B) :- number(A), !, number(B).
+same_intrinsic_kind(A, B) :- string(A), !, string(B).
+same_intrinsic_kind(A, B) :- metta_boolean(A), !, metta_boolean(B).
+
+metta_boolean(true).
+metta_boolean(false).
+
 '='(A,B,R) :-  (A=B -> R=true ; R=false).
 '=?'(A,B,R) :- (\+ \+ A=B -> R=true ; R=false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
@@ -563,27 +661,32 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
 %%% Boolean Logic: %%%
 bool(true).
 bool(false).
-boolean_argument(_, Value) :- var(Value), !, bool(Value).
-boolean_argument(_, true) :- !.
-boolean_argument(_, false) :- !.
-boolean_argument(Operation, Culprit) :-
+%An unbound argument ENUMERATES the booleans, so and(A, B, C) with all three
+%open answers the whole truth table. That is deliberate and pinned by
+%metta_operation_errors:boolean_operations_remain_relational, which is why
+%these positions are relational_input_position/2 rather than guarded ones.
+boolean_argument(_, _, Value) :- var(Value), !, bool(Value).
+boolean_argument(_, _, true) :- !.
+boolean_argument(_, _, false) :- !.
+boolean_argument(Operation, _, Culprit) :-
     throw_metta_type_error(Operation, boolean, Culprit).
 
-and(A,B,C) :- boolean_argument(and, A), boolean_argument(and, B),
+and(A,B,C) :- boolean_argument(and, 1, A), boolean_argument(and, 2, B),
               ( A == true -> C = B ; A == false -> C = false ).
-or(A,B,C) :- boolean_argument(or, A), boolean_argument(or, B),
+or(A,B,C) :- boolean_argument(or, 1, A), boolean_argument(or, 2, B),
              ( A == true -> C = true ; A == false -> C = B ).
-not(A,B) :- boolean_argument(not, A),
+not(A,B) :- boolean_argument(not, 1, A),
             ( A == true -> B = false ; A == false -> B = true ).
-xor(A,B,C) :- boolean_argument(xor, A), boolean_argument(xor, B),
+xor(A,B,C) :- boolean_argument(xor, 1, A), boolean_argument(xor, 2, B),
               ( A == B -> C = false ; C = true ).
-implies(A,B,C) :- boolean_argument(implies, A),
-                  boolean_argument(implies, B),
+implies(A,B,C) :- boolean_argument(implies, 1, A),
+                  boolean_argument(implies, 2, B),
                   ( A == true -> ( B == true  -> C = true
                                  ; B == false -> C = false )
                               ; A == false -> C = true ).
 
 %%% Nondeterminism: %%%
+superpose(L, _) :- var(L), !, refuse_unbound_input(superpose, 1).
 superpose(L,X) :- member(X,L).
 empty(_) :- fail.
 
@@ -595,6 +698,7 @@ empty(_) :- fail.
 %list left a choicepoint, in loops that recurse on exactly this
 %[tested: decons_atom_is_total]. non_list/1 is false for both list shapes, so a
 %list pays two inferences and reaches the same clauses in the same order.
+'decons-atom'(Term, _) :- var(Term), !, refuse_unbound_input('decons-atom', 1).
 'decons-atom'(Term, Out) :- non_list(Term), !,
                             grounded_list_view(Term, [H|T]), !, Out = [H|[T]].
 %The second cut prunes the SEAM's remaining providers, which the first one
@@ -630,13 +734,18 @@ empty(_) :- fail.
 'decons-atom'([], ['Error', ['decons-atom', []],
                    "expected: (decons-atom (: <expr> Expression)), \c
                     found: (decons-atom ())"]).
+'first-from-pair'(Pair, _) :- var(Pair), !, refuse_unbound_input('first-from-pair', 1).
 'first-from-pair'([A, _], A).
+first(Pair, _) :- var(Pair), !, refuse_unbound_input(first, 1).
 first([A, _], A).
+'second-from-pair'(Pair, _) :- var(Pair), !, refuse_unbound_input('second-from-pair', 1).
 'second-from-pair'([_, A], A).
+'unique-atom'(A, _) :- var(A), !, refuse_unbound_input('unique-atom', 1).
 'unique-atom'(A, B) :- non_list(A), !, B = [].
 'unique-atom'(A, B) :- list_to_set(A, B).
 
 %%% Alpha-equivalence unique atom %%%
+'alpha-unique-atom'(A, _) :- var(A), !, refuse_unbound_input('alpha-unique-atom', 1).
 'alpha-unique-atom'(A, B) :- non_list(A), !, B = [].
 'alpha-unique-atom'(A, B) :- alpha_list_to_set(A, B).
 
@@ -677,6 +786,135 @@ alpha_bucket_insert(Key, Term, SeenIn, SeenOut, IsNew) :-
 non_list(X) :- atomic(X), X \== [].
 non_list(X) :- compound(X), X \= [_|_].
 
+%%%%%%%%%% An unbound argument where a value is required %%%%%%%%%%
+%
+%A structural operation READS a term; it does not solve for one. An unbound
+%variable in a position the engine's own type surface declares Expression,
+%Number, String, Symbol or Bool is a program error, and letting one through
+%produced four different silent wrongs at once, measured 2026-08-19 by a
+%probe generated over every such position:
+%
+%  - 28 positions BOUND THE CALLER'S VARIABLE. (car-atom $u) unified $u with
+%    [H|_] through the head and answered the fresh H, so the caller's own
+%    variable came back a list it never wrote.
+%  - 13 answered a fresh variable and 12 answered a value derived from
+%    nothing, (union-atom (a b) $u) answering the partial list (a b|_).
+%  - 2 EXHAUSTED THE STACK. (subtraction-atom $u (a b)) reaches a list walk
+%    with both ends open and enumerates every list there is.
+%  - 7 raised, but named a HOST predicate the MeTTa program never wrote:
+%    (sort-atom $u) said `msort/2`, (sread $u) said `atom_codes/2`.
+%
+%The POSITIONS are read off builtin_type_declaration/2 rather than listed, so
+%declaring a type for a new builtin strengthens its guard in the same stroke
+%and the table and the guards cannot drift apart. The probe in
+%python/tests/test_builtin_inputs.py enumerates the same table.
+%
+%Each guard is a LEADING clause on a var first argument, and it costs nothing
+%where it would be felt: 'car-atom'([1,2], _) is 2.0000 inferences per call
+%with the guard and 2.0000 without, over 200,000 calls, and a MeTTa walk over
+%a ten-element list through cdr-atom is 1052.23 inferences either way
+%[measured 2026-08-19, both directly and through the engine's own counter].
+%A bound argument does not reach the clause.
+strict_input_type('Expression').
+strict_input_type('Number').
+strict_input_type('String').
+strict_input_type('Symbol').
+strict_input_type('Bool').
+
+%The constraint family is RELATIONAL by design: (#+ $a 2 $r) is a constraint
+%to post rather than a call to run, and an unbound argument there is the whole
+%point. Both directions are pinned by metta.plt's relational_arithmetic unit.
+relational_builtin('#+').   relational_builtin('#-').
+relational_builtin('#*').   relational_builtin('#div').
+relational_builtin('#mod'). relational_builtin('#min').
+relational_builtin('#max'). relational_builtin('#<').
+relational_builtin('#>').   relational_builtin('#//').
+
+%One POSITION can be relational where the rest of the predicate is not, and
+%the type surface cannot say so because it names a type and not a mode.
+%(index-atom (a b) $i) enumerates 0-a and 1-b, which is deliberate and is
+%pinned by metta.plt's metta_index_atom unit.
+relational_input_position('index-atom', 2).
+%and, or, not, xor and implies ENUMERATE the booleans for an open argument,
+%so and(A, B, C) with all three open answers the whole truth table
+%[tested: metta_operation_errors:boolean_operations_remain_relational].
+relational_input_position(and, 1).      relational_input_position(and, 2).
+relational_input_position(or, 1).       relational_input_position(or, 2).
+relational_input_position(not, 1).
+relational_input_position(xor, 1).      relational_input_position(xor, 2).
+relational_input_position(implies, 1).  relational_input_position(implies, 2).
+%cons builds a PATTERN, and an open tail is what makes it one: the engine's
+%own prelude writes (cons Error $_) to test whether a value is an error
+%[source: src/prelude.metta, if-error]. cons-atom is the same operation under
+%its MeTTa name.
+relational_input_position(cons, 2).
+relational_input_position('cons-atom', 2).
+%union-atom IS append/3, and a shipped library takes a list apart with it:
+%(= (mylast $x) (union-atom $xs ($x))) splits a list from the right by
+%leaving $xs open [source: lib/lib_roman.metta:80, exercised by
+%examples/libraries/roman_test.metta]. member and its two Bool-answering
+%twins are Prolog's member/2 under a MeTTa name for the same reason, and
+%examples/reasoning/logicprogset.metta solves (member a $M) for $M.
+relational_input_position('union-atom', 1).
+relational_input_position('union-atom', 2).
+relational_input_position(member, 2).
+relational_input_position('is-member', 2).
+relational_input_position('is-alpha-member', 2).
+
+%A position PeTTa promises to refuse. A name lent to MeTTa from SWI (msort,
+%append, sort, maplist, length) keeps Prolog's own relational behaviour and
+%its own errors, because under that name it IS the Prolog predicate; that is
+%a boundary rather than an omission, and imported_from/1 is where the engine
+%already records it.
+guarded_input_position(Name, Arity, Position) :-
+    builtin_type_declaration(Name, ['->'|Chain]),
+    \+ relational_builtin(Name),
+    append(Inputs, [_], Chain),
+    nth1(Position, Inputs, Type),
+    nonvar(Type),
+    strict_input_type(Type),
+    length(Chain, Arity),
+    functor(Head, Name, Arity),
+    predicate_property(Head, defined),
+    \+ predicate_property(Head, imported_from(_)),
+    \+ relational_input_position(Name, Position),
+    \+ unguarded_input_position(Name, Position).
+
+%The three positions this rule does NOT yet cover, named rather than hidden.
+%Each predicate lives in a file the change that added this guard does not
+%own, and each is measured 2026-08-19: get-atoms/2 and match/4 are in
+%src/spaces.pl and raise an instantiation_error with no context at all, so a
+%program is told a value is missing and not which one; sread/2 is in
+%src/parser.pl and raises naming system:atom_codes/2, a predicate the MeTTa
+%program never wrote. parse/2 is the same operation under PeTTa's own name
+%and IS guarded, so the gap is the direct sread call only.
+unguarded_input_position('get-atoms', 1).
+unguarded_input_position(match, 1).
+%git-import!/2 is in lib/lib_gitimport.pl and sleep/2 in a library too; both
+%raise an instantiation_error with no context, so the program is told a value
+%is missing and not which operation wanted it [measured 2026-08-19].
+unguarded_input_position('git-import!', 1).
+unguarded_input_position(sleep, 1).
+unguarded_input_position(sread, 1).
+%A fourth of the same shape: add-reduct/3 refuses, and by name, but names the
+%operation it DELEGATES to. `!(add-reduct $u a)` answers
+%(Error (add-atom $u a) "add-atom expects a space as the first argument"), so
+%a program that wrote add-reduct is told about add-atom. src/spaces.pl again.
+unguarded_input_position('add-reduct', 1).
+
+%Names the MeTTa operation and the argument, in the program's own vocabulary.
+%The formal stays ISO so a MeTTa (catch ...) and the Python boundary can both
+%read it, exactly as throw_metta_type_error/3 keeps its own.
+refuse_unbound_input(Operation, Position) :-
+    throw(error(petta_unbound_input(Operation, Position),
+                context(Operation, 'invalid MeTTa operation argument'))).
+
+:- multifile prolog:error_message//1.
+%The operation's own name is the CONTEXT's to print, exactly as it is for
+%`+: number expected, found "s"`, so it is not repeated here.
+prolog:error_message(petta_unbound_input(_, Position)) -->
+    [ 'a value expected in argument ~w, found an unbound variable'-[Position] ].
+
 %%% Taking an expression apart, and the grounded values that also read as one.
 %
 %Each of these grew ONE clause, placed after the cut that a real list takes, so
@@ -686,20 +924,26 @@ non_list(X) :- compound(X), X \= [_|_].
 %scan for a possible matching clause" on the primary index argument, and the
 %variable-headed clause that was already here is what decides that, not the new
 %one [source 2026-08-16, SWI-Prolog 10.1 Reference Manual 2.17].
+'sort-atom'(List, _) :- var(List), !, refuse_unbound_input('sort-atom', 1).
 'sort-atom'(List, Sorted) :- non_list(List), !,
                              ( grounded_list_view(List, View) -> msort(View, Sorted) ; Sorted = [] ).
 'sort-atom'(List, Sorted) :- msort(List, Sorted).
+'size-atom'(List, _) :- var(List), !, refuse_unbound_input('size-atom', 1).
 'size-atom'(List, Size) :- non_list(List), !,
                            ( grounded_list_view(List, View) -> length(View, Size) ; Size = [] ).
 'size-atom'(List, Size) :- length(List, Size).
+'car-atom'(Term, _) :- var(Term), !, refuse_unbound_input('car-atom', 1).
 'car-atom'([H|_], H) :- !.
 'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
 'car-atom'(Term, []) :- \+ Term = [_|_].
+'cdr-atom'(Term, _) :- var(Term), !, refuse_unbound_input('cdr-atom', 1).
 'cdr-atom'([_|T], T) :- !.
 'cdr-atom'(Term, Out) :- grounded_list_view(Term, [_|T]), !, Out = T.
 'cdr-atom'(Term, []) :- \+ Term = [_|_].
+decons(Term, _) :- var(Term), !, refuse_unbound_input(decons, 1).
 decons([H|T], [H|[T]]).
 cons(H, T, [H|T]).
+'index-atom'(List, _, _) :- var(List), !, refuse_unbound_input('index-atom', 1).
 'index-atom'(_, Index, Elem) :- nonvar(Index), \+ integer(Index), !,
                                 Elem = [].
 'index-atom'(List, Index, Elem) :- var(Index), !,
@@ -757,6 +1001,7 @@ member_alpha(X, [_|T]) :- member_alpha(X, T).
 'is-alpha-member'(X, List, true) :- \+ \+ member_alpha(X, List), !.
 'is-alpha-member'(X, List, false) :- \+ member_alpha(X, List).
 
+'exclude-item'(_, L, _) :- var(L), !, refuse_unbound_input('exclude-item', 2).
 'exclude-item'(A, L, R) :- exclude(==(A), L, R).
 
 %Remove the first element identical to X, keeping the rest in order. select/3
@@ -773,6 +1018,9 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %operation from 2,200,002 to 1,400,002 inferences [measured: 800,000 fewer
 %inferences per operation, 2026-08-15]. The list clauses still handle a
 %non-list right operand before recursing, preserving the empty-tuple result.
+'subtraction-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('subtraction-atom', 1)
+                               ; var(B) -> refuse_unbound_input('subtraction-atom', 2)
+                               ; fail ).
 'subtraction-atom'([], _, []) :- !.
 'subtraction-atom'([H|T], B, Out) :- !,
     ( non_list(B) -> Out = []
@@ -792,6 +1040,9 @@ select_eq(X, [Y|Ys], [Y|Rest]) :- select_eq(X, Ys, Rest).
 %[tested: metta_set_operations, examples/libraries/roman_test.metta].
 'union-atom'(A, B, Out) :- ( non_list(A) ; non_list(B) ), !, Out = [].
 'union-atom'(A, B, Out) :- append(A, B, Out).
+'intersection-atom'(A, B, _) :- ( var(A) -> refuse_unbound_input('intersection-atom', 1)
+                                ; var(B) -> refuse_unbound_input('intersection-atom', 2)
+                                ; fail ).
 'intersection-atom'([], _, []) :- !.
 'intersection-atom'([H|T], B, Out) :- !,
     ( non_list(B) -> Out = []
@@ -897,14 +1148,30 @@ refuse_untypable_declaration(Name, Types) :-
 %&self is always the engine's native space. Its fixed private storage module
 %keeps this recursive type probe on a compiled direct call, with no provider
 %dispatch or exception handler.
+%The soft cut is the precedence rule: a program that declares an arrow for a
+%name is answered from its own space and the engine's surface is never
+%consulted, and only a name the program says nothing about falls through to
+%the engine's. The engine's arrows have to be here at all because get-type
+%stopped evaluating its argument, so an application now reaches this probe as
+%written: without the fallthrough (get-type (+ 1 2)) typed ELEMENT-WISE and
+%answered ((-> Number Number Number) Number Number) where it used to answer
+%Number, and the arbiter answers ErrorType for (get-type (Error Foo Boo))
+%from exactly this route [source: LeaTTa
+%tests/semantics/types-meta/30_evaluation_control.metta].
 get_function_type([F|Args], T) :- nonvar(F),
-                                  '$petta_atoms:&self':'&self'(':', F, [->|Ts]),
+                                  (   '$petta_atoms:&self':'&self'(':', F, [->|Ts0])
+                                  *-> Ts = Ts0
+                                  ;   builtin_type_declaration(F, [->|Ts])
+                                  ),
                                   append(As,[T],Ts),
                                   metta_self_module(Self),
                                   maplist(has_type_in(Self), Args, As).
 get_function_type_in(Module, [F|Args], T) :- \+ metta_self_module(Module),
                                              nonvar(F),
-                                             type_declaration_in(Module, F, [->|Ts]),
+                                             (   type_declaration_in(Module, F, [->|Ts0])
+                                             *-> Ts = Ts0
+                                             ;   builtin_type_declaration(F, [->|Ts])
+                                             ),
                                              append(As,[T],Ts),
                                              maplist(has_type_in(Module), Args, As).
 
@@ -940,16 +1207,32 @@ has_type(X, T) :- current_metta_module(Module),
 %the check an argument goes through, so `(: Rex Dog)` with `(:< Dog Animal)`
 %now satisfies a parameter of type Animal
 %[tested: an_argument_is_accepted_through_its_supertype].
+%%Undefined% is the GRADUAL type and it is compatible with everything, in
+%both directions. A parameter declared %Undefined% accepts any argument, and
+%an argument whose type is %Undefined% satisfies any parameter: nothing is
+%known about it, so no violation is provable and gradual typing lets it
+%through. This engine had both directions backwards. `%Undefined%` as the
+%expected type demanded that the value be UNTYPED, so
+%(: tensor (-> %Undefined% DLTensor)) refused 1.0 and typed its own
+%application element-wise; and a value with no declaration failed a concrete
+%parameter, so (== 1 a) had no answer through a shared type variable.
+%
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: with (: f2 (-> Number Number)) and
+%(: g2 (-> %Undefined% Number)), (f2 a), (f2 (undeclared-call)), (g2 "s") and
+%(g2 1) all answer, while (f2 "s") is a BadArgType. String is KNOWN and it is
+%not Number; `a` is not known to be anything.
+%
+%The second direction is checked last, on the branch that was going to fail
+%anyway, so a value whose declared type already matches never pays for it.
 has_type_in(Module, X, T) :-
     ( ground(T)
       -> ( T == '%Undefined%'
-           -> \+ once(type_candidate_in(Module, X, _))
-            ; (   once(type_candidate_in(Module, X, T))
-              ->  true
-              ;   satisfies_metatype(X, T)
+           -> true
+            ; (   type_witness_in(Module, X, T)
               ->  true
               ;   type_answers(Module, X, Types),
-                  once(( member(Widened, Types), Widened == T ))
+                  Types == ['%Undefined%']
               ) )
        ; any_super_type_edge(Module)
          -> type_answers(Module, X, Types),
@@ -970,6 +1253,25 @@ has_type_in(Module, X, T) :-
           *-> T = C
           ;   T = '%Undefined%'
           ) ).
+
+%A WITNESS that X has type T, which is the other question a caller can ask
+%and is not the same one. has_type_in/3 asks whether X's type is CONSISTENT
+%with T and lets an unknown through, because a call site may not refuse what
+%it cannot prove wrong. A gate asks whether X is KNOWN to be a T, and an
+%unknown must not pass one: `(admits &pool Space)` is a contract, and an atom
+%nothing declares is not evidence of a Space
+%[tested: python/tests/test_answer_protocol.py::test_admission_types_the_pool].
+type_witness_in(Module, X, T) :-
+    (   once(type_candidate_in(Module, X, T))
+    ->  true
+    ;   satisfies_metatype(X, T)
+    ->  true
+    ;   type_answers(Module, X, Types),
+        once(( member(Widened, Types), Widened == T ))
+    ).
+
+has_declared_type(X, T) :- current_metta_module(Module),
+                           type_witness_in(Module, X, T).
 
 %The first clause is the whole common case and pays no bookkeeping at
 %all: a deterministic check derives one candidate and commits. Only a
@@ -1191,7 +1493,8 @@ get_type_candidate(X, T) :- get_function_type(X,T).
 get_type_candidate(X, T) :- \+ get_function_type(X, _),
                             is_list(X),
                             metta_self_module(Self),
-                            maplist(has_type_in(Self), X, T).
+                            maplist(has_type_in(Self), X, Members),
+                            tuple_type(Members, T).
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 get_type_candidate(X, T) :- builtin_type_declaration(X, T).
@@ -1207,9 +1510,33 @@ get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
 get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
                                        is_list(X),
-                                       maplist(has_type_in(Module), X, T).
+                                       maplist(has_type_in(Module), X, Members),
+                                       tuple_type(Members, T).
+
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 get_type_candidate_in(_, X, T) :- builtin_type_declaration(X, T).
+
+%An expression no arrow types is read ELEMENT-WISE, and the tuple it reads is
+%%Undefined% as soon as one member's type is. Nothing is known about a tuple
+%one of whose components is unknown, so reporting the shape while a hole sits
+%inside it claims more than was derived: `(get-type (some-undeclared-call))`
+%answered `(%Undefined%)`, a one-element tuple, where the answer is that
+%nothing is known at all.
+%
+%Recursion falls out of the bottom-up walk rather than being written: an inner
+%tuple carrying a hole is itself %Undefined%, so the outer one collapses too.
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: `(typed-sym (typed-sym typed-sym))`
+%is `(Number (Number Number))` and `(typed-sym (typed-sym aa))` is
+%%Undefined%, one undeclared symbol away.
+%
+%== rather than memberchk/2, because a member's type may still be an unbound
+%variable and memberchk would BIND it to %Undefined% and answer yes.
+tuple_type(Members, Type) :-
+    (   member(Member, Members), Member == '%Undefined%'
+    ->  Type = '%Undefined%'
+    ;   Type = Members
+    ).
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
@@ -1268,7 +1595,7 @@ py_object_class_type(X, T) :- py_call(builtins:type(X), Class),
 %symbol, and both callers ask with it bound: has_type/2 and the type guard the
 %translator compiles around every declared parameter, so a parameter declared
 %`Grounded` accepted anything at all
-%[tested: a_grounded_parameter_rejects_a_symbol].
+%[tested: a_grounded_parameter_admits_an_unknown_and_refuses_a_declared_other].
 'get-metatype'(X, Metatype) :- metatype_of(X, Computed), Metatype = Computed.
 
 metatype_of(X, 'Variable') :- var(X), !.
@@ -1922,7 +2249,11 @@ petta_install_admission :-
 
 petta_admission_check(Space, Term) :-
     forall(petta_contract_fact([admits, Space, Type]),
-           (   has_type(Term, Type)
+           %A witness, not consistency: an atom whose type nothing declares
+           %is not evidence that it is one of these, and a contract that let
+           %it in would admit everything a program never got round to
+           %declaring.
+           (   has_declared_type(Term, Type)
            ->  true
            ;   throw(error(petta_admission_refused(Space, Term, Type),
                            none))
@@ -1977,12 +2308,13 @@ petta_writes(Ctx, Atomicity) :-
 %commit throws leaves earlier commits standing, and the throw says so;
 %two-phase commit is deliberately out of scope.
 petta_transaction(Goal) :-
+    term_variables(Goal, Vars),
     (   current_transaction(_)
-    ->  transaction(Goal)
+    ->  transaction(petta_transaction_answers(Goal, Vars, Answers))
     ;   nb_setval('$petta_tx_enlisted', []),
         catch(( setup_call_cleanup(
                     b_setval('$petta_user_tx', true),
-                    transaction(Goal),
+                    transaction(petta_transaction_answers(Goal, Vars, Answers)),
                     b_setval('$petta_user_tx', false))
             ->  Outcome = committed ; Outcome = failed ),
               Error,
@@ -1999,7 +2331,37 @@ petta_transaction(Goal) :-
         ;   Outcome == failed -> fail
         ;   Outcome = threw(E), throw(E)
         )
-    ).
+    ),
+    member(Vars, Answers).
+
+%COLLECT, COMMIT, THEN REPLAY, which is what preserving a body's answers
+%costs. SWI's transaction/1 runs its goal as once/1 and cannot be made
+%nondeterministic in place, so `(collapse (transaction (superpose (1 2 3))))`
+%answered `(1)`: two of three answers gone and nothing said so
+%[reproduced 2026-08-19]. Dropping answers is an OPACITY violation in the
+%transactional-memory sense (Guerraoui and Kapalka, PPoPP 2008), since a
+%reader of the transaction's result sees a state no serial execution of the
+%body produces.
+%
+%Refusing a nondeterministic body was the other branch offered, and it is not
+%implementable at a lower cost: knowing a Prolog goal is nondeterministic
+%means running it to a second answer, at which point the answers are already
+%in hand and refusing them throws away work already done. So the branch that
+%CAN be built is the one that is also correct.
+%
+%The whole body runs inside the transaction, so every answer's writes commit
+%or roll back together, and the replay happens after the commit, so a consumer
+%that stops after the first answer cannot leave a transaction open. An
+%answerless body fails the guard, which rolls the transaction back and fails
+%petta_transaction/1 exactly as it did before.
+%
+%The cost is that the answers are materialized: a body with an unbounded
+%answer set exhausts the stack here where it used to yield once. That is the
+%honest price of atomicity over a whole answer set, and it raises a resource
+%error rather than silently answering a prefix.
+petta_transaction_answers(Goal, Vars, Answers) :-
+    findall(Vars, Goal, Answers),
+    Answers \== [].
 
 %Only the USER's (transaction ...) form guards foreign writes: the
 %engine's own internal transactions (a rule registration compiles inside
@@ -2330,6 +2692,27 @@ prolog:error_message(petta_assertion_failed(Goal)) -->
     [ 'MeTTa assertion failed: ~p'-[Goal] ].
 prolog:error_message(petta_test_no_answer) -->
     [ 'MeTTa test expression produced no answer'-[] ].
+
+%The three formals above are the program saying something FALSE, which is a
+%different event from the engine breaking, and a harness has to be able to
+%tell them apart without reading the sentence. This is the classifier that
+%lets it: Form is the MeTTa operation that failed, Actual what it got and
+%Expected what it wanted, both unbound where the form carries no such value.
+%
+%It lives beside the throwers rather than in the Python shim because the
+%formals are the ENGINE's, so the two cannot drift: adding a fourth
+%assertion form and forgetting this predicate leaves that form unclassified
+%here, where it is read, rather than in a file the engine never loads
+%[tested: python/tests/test_assertion_failures.py].
+%
+%Actual and Expected are handed out as WRITTEN MeTTa terms; a caller that
+%has to cross them to another language converts them itself, because the
+%conversion belongs to that boundary and not to the engine.
+petta_assertion_failure(error(petta_test_failed(Actual, Expected), _),
+                        test, Actual, Expected).
+petta_assertion_failure(error(petta_test_no_answer, _), test, _, _).
+petta_assertion_failure(error(petta_assertion_failed(Goal), _), assert, Goal, _).
+
 prolog:error_message(petta_not_a_prolog_module(File)) -->
     [ '~w is not a Prolog module, so its exports cannot be imported under \c
        other names. Add :- module(name, [pred/arity, ...]) at its top, or \c
@@ -2413,6 +2796,7 @@ prolog:error_message(permission_error(register, metta_function, Name)) -->
 %sread_command/2 answers the Prolog compound complete(Term), which is the
 %right shape for a Prolog caller and the wrong one for a MeTTa program: it
 %would arrive as an opaque term rather than as an expression to match on.
+'sread-command'(Text, _) :- var(Text), !, refuse_unbound_input('sread-command', 1).
 'sread-command'(Text, Result) :-
     sread_command(Text, Answer),
     ( Answer = complete(Term) -> Result = [complete, Term] ; Result = Answer ).
@@ -2468,6 +2852,8 @@ assert(Goal, true) :- current_metta_module(Module),
 %replaces matched the literal &self and answered nothing for any named
 %space; the engine's type machinery is module-parameterized already, so
 %selection is one with_metta_module/2 around the ordinary get-type.
+'get-type-space'(Space, _, _) :- var(Space), !,
+                                 refuse_unbound_input('get-type-space', 1).
 'get-type-space'(Space, X, T) :- space_module(Space, Module),
                                  with_metta_module(Module, 'get-type'(X, T)).
 
@@ -2548,6 +2934,7 @@ undocumented(Name) :- current_metta_space(Space),
 
 %%% Time Retrieval: %%%
 'current-time'(Time) :- get_time(Time).
+'format-time'(Format, _) :- var(Format), !, refuse_unbound_input('format-time', 1).
 'format-time'(Format, TimeString) :- get_time(Time), format_time(atom(TimeString), Format, Time).
 
 %%% Filesystem tests: %%%
@@ -2675,6 +3062,7 @@ metta_pragma_key('max-stack-depth', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key('type-check', 'HE spelling; accepted, NOT enforced').
 metta_pragma_key(interpreter, 'HE spelling; accepted, NOT enforced').
 
+'pragma!'(Key, _, _) :- var(Key), !, refuse_unbound_input('pragma!', 1).
 'pragma!'(Key, Value, true) :-
     (   metta_pragma_key(Key, _)
     ->  true
@@ -2845,6 +3233,14 @@ bind_python_call_spec(Spec, Spec).
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what
 %every program written against upstream sees, so it stays as upstream has it.
+%The DECLARED arity, which is the one the type surface names and the one a
+%program writes. py-call is also registered at 3, and guarding that form too
+%was measured and dropped: it costs 6 inferences on the handle-round-trip
+%benchmark, 2 over that counter's own 4-inference allowance, to name an
+%operation in a spelling the type surface does not declare. So
+%(py-call $u opts) still raises a context-less instantiation_error
+%[measured 2026-08-19], the same residue src/parser.pl's sread carries.
+'py-call'(SpecList, _) :- var(SpecList), !, refuse_unbound_input('py-call', 1).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),
                                         must_be(atom, A),
@@ -2881,6 +3277,7 @@ bind_python_call_spec(Spec, Spec).
 'new-space'(Space) :- gensym('&petta-space-', Space).
 
 %%% States: %%%
+'bind!'(Var, _, _) :- var(Var), !, refuse_unbound_input('bind!', 1).
 'bind!'(Var, ['new-state', Value], []) :- !,
     ( atom(Var) -> nb_setval(Var, Value)
     ; catch(nb_setval(Var, Value), E,
@@ -3062,20 +3459,24 @@ call_goals_in_(Module, [G|Gs]) :- call(Module:G),
                                   call_goals_in_(Module, Gs).
 
 %%% Higher-Order Functions: %%%
+'foldl-atom'(L, _, _, _) :- var(L), !, refuse_unbound_input('foldl-atom', 1).
 'foldl-atom'([], Acc, _Func, Acc).
 'foldl-atom'([H|T], Acc0, Func, Out) :- reduce([Func,Acc0,H], Acc1, _),
                                         'foldl-atom'(T, Acc1, Func, Out).
 
+'map-atom'(L, _, _) :- var(L), !, refuse_unbound_input('map-atom', 1).
 'map-atom'([], _Func, []).
 'map-atom'([H|T], Func, [R|RT]) :- reduce([Func,H], R, _),
                                    'map-atom'(T, Func, RT).
 
+'filter-atom'(L, _, _) :- var(L), !, refuse_unbound_input('filter-atom', 1).
 'filter-atom'([], _Func, []).
 'filter-atom'([H|T], Func, Out) :- ( reduce([Func,H], true, _) -> Out = [H|RT]
                                                              ; Out = RT ),
                                    'filter-atom'(T, Func, RT).
 
 %%% Prolog interop: %%%
+argv(K, _) :- var(K), !, refuse_unbound_input(argv, 1).
 argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number(A, N) -> Arg = N ; Arg = A ).
 %A name with no predicate behind it is refused where the name is written.
 %A registered name with no arity recorded compiles every call to it into a
@@ -3096,6 +3497,8 @@ argv(K, Arg) :- current_prolog_flag(argv, Argv), nth0(K, Argv, A), ( atom_number
 %rather than adding a rule, and a named space that defines the name still
 %shadows it, which is the behaviour that should happen
 %[tested: a_registered_predicate_survives_a_named_space_claiming_its_name].
+import_prolog_function(N, _) :- var(N), !,
+                                refuse_unbound_input(import_prolog_function, 1).
 import_prolog_function(N, true) :-
     import_prolog_function_at(N, scan).
 
@@ -3885,6 +4288,7 @@ metta_predicate_goal([Space|Pattern],
     atom(Space), atom_concat('&', _, Space), !.
 metta_predicate_goal([F|Args], Term) :- Term =.. [F|Args].
 
+'Predicate'(Parts, _) :- var(Parts), !, refuse_unbound_input('Predicate', 1).
 'Predicate'(Parts, Term) :- metta_predicate_goal(Parts, Term).
 %Resolved in the CALLING space's module, which reaches both directions of this
 %seam: a host Prolog predicate through the module's base chain, and a MeTTa
@@ -4095,9 +4499,13 @@ importer_helper_impl(Space, File) :-
                      load_imported_metta_file(CanonPath, _, Space)) ).
 
 :- dynamic translator_rule/1.
+'add-translator-rule!'(HV, _) :- var(HV), !,
+                                 refuse_unbound_input('add-translator-rule!', 1).
 'add-translator-rule!'(HV, true) :- ( translator_rule(HV)
                                       -> true ; assertz(translator_rule(HV)) ).
 
+'remove-translator-rule!'(HV, _) :- var(HV), !,
+                                    refuse_unbound_input('remove-translator-rule!', 1).
 'remove-translator-rule!'(HV, true) :-
     must_be(nonvar, HV),
     retractall(translator_rule(HV)).
@@ -4291,14 +4699,21 @@ runtime_type_guarded('*').
 runtime_type_guarded('/').
 runtime_type_guarded('%').
 runtime_type_guarded('<').
-%== and != accept ANY two terms and always answer a Bool, so their declared
-%type (-> $a $b Bool) states exactly what the predicate already enforces and
-%the typed dispatch has nothing left to check. Classifying them here is what
-%makes lib_builtin_types.metta affordable: with the file loaded, a workload
-%calling == and != went from 102402 inferences to 181602, +77%, and back to
-%102402 with these two lines [measured 2026-08-16]. A user or named-space
+%== and != carry their own guard, comparable_operands/3, which is exactly
+%what their declared type (-> $a $a Bool) states, so the typed dispatch has
+%nothing left to check. Classifying them here is what makes
+%lib_builtin_types.metta affordable: with the file loaded, a workload calling
+%== and != went from 102402 inferences to 181602, +77%, and back to 102402
+%with these two lines [measured 2026-08-16]. Their own guard is cheaper than
+%either, and free on two numbers: a thousand-iteration == loop is 4487.45
+%inferences with and without it [measured 2026-08-19]. A user or named-space
 %equation overriding either still gets the full typed dispatch, because
 %runtime_guarded_builtin_call/1 requires the unmodified builtin.
+%
+%The declaration was (-> $a $b Bool), two independent variables, which
+%constrained nothing and is why (== 1 "S") answered False. Upstream writes
+%(-> $t $t Bool) [source: pinned stdlib.md via the arbiter, and measured from
+%hyperon 0.2.10's own !(get-type ==) on 2026-08-19].
 runtime_type_guarded('==').
 runtime_type_guarded('!=').
 runtime_type_guarded('>').
@@ -4529,6 +4944,14 @@ load_builtin_type_surface :- index_masking_data_heads.
 :- dynamic petta_engine_src_dir/1.
 :- dynamic prelude_owned/1.
 :- dynamic prelude_clause_ref/2.
+%Which builtin_type_declaration/2 rows the prelude PUT THERE, as opposed to
+%found there. The two registers overlap once a name needs its Atom mask
+%honoured at call sites AND belongs to the engine's reported type surface:
+%get-type is declared by lib_builtin_types.metta and again by src/prelude.metta,
+%for the two different readers. Without this ledger the prelude's eviction
+%would retract a row the FILE owns, since the two rows are identical and
+%retractall/1 cannot tell them apart.
+:- dynamic prelude_wrote_builtin_type/2.
 
 %A user definition WINS over the prelude, entirely. When &self compiles
 %an equation for a name the prelude owns, the prelude's clauses and
@@ -4556,10 +4979,15 @@ evict_prelude_definition(FAtom) :-
     ).
 
 %The ledger rows say exactly which builtin_type_declaration entries are
-%the prelude's, so eviction purges both stores and nothing else.
+%the prelude's, so eviction purges both stores and nothing else. A row the
+%prelude found already written by lib_builtin_types.metta stays, because it
+%was never the prelude's to remove.
 retract_prelude_declarations(Name) :-
     forall(retract(prelude_type_declaration(Name, Type)),
-           retractall(builtin_type_declaration(Name, Type))).
+           (   retract(prelude_wrote_builtin_type(Name, Type))
+           ->  retractall(builtin_type_declaration(Name, Type))
+           ;   true
+           )).
 
 %The declaration half of the same rule, for the loader's door: a ':'
 %atom a file writes into the base tier replaces the prelude's
@@ -4632,7 +5060,16 @@ load_prelude_form(expression, _, [':', Name, Type]) :-
     atom(Name), !,
     (   prelude_type_declaration(Name, Type) -> true
     ;   assertz(prelude_type_declaration(Name, Type)),
-        assertz(builtin_type_declaration(Name, Type))
+        %lib_builtin_types.metta loads FIRST and may already carry the same
+        %declaration, which is the case for a builtin the prelude declares
+        %only so the CALL SITE honours its Atom mask: get-type is in both
+        %files for two different readers. A second identical fact would give
+        %the engine's type surface a duplicate row, so the prelude writes one
+        %only when it is the one putting it there, and records that it did.
+        (   builtin_type_declaration(Name, Type) -> true
+        ;   assertz(builtin_type_declaration(Name, Type)),
+            assertz(prelude_wrote_builtin_type(Name, Type))
+        )
     ).
 %A (@doc ...) form in the prelude lands in the engine's doc register,
 %where get-doc's first tier reads it; the prelude documents its own

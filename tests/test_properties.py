@@ -12,7 +12,18 @@ import sys
 
 import pytest
 
-from petta import Expr, Gnd, S, Sym, Var, alpha_eq, expr, parse, unify
+from petta import (
+    Expr,
+    Gnd,
+    MettaOperationError,
+    S,
+    Sym,
+    Var,
+    alpha_eq,
+    expr,
+    parse,
+    unify,
+)
 
 # The generators are the library's own public ones: petta.testing carries
 # the engine truths (readable names, boolean canonicalization, printer
@@ -133,14 +144,38 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     assert parse("true") == Gnd(True)
 
 
+def _kind(value):
+    """The MeTTa type a Python value crosses as. bool first, because it is a
+    subclass of int in Python and is Bool rather than Number in MeTTa."""
+    if isinstance(value, bool):
+        return "Bool"
+    if isinstance(value, (int, float)):
+        return "Number"
+    return "String"
+
+
 @settings(max_examples=80, deadline=None)
 @given(
     a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
 )
 def test_python_equality_is_engine_equality(metta, a, b):
-    """Gnd == Gnd answers exactly what the engine's == answers for the same
-    two values, NaN, negative zero and mixed numeric types included."""
+    """Gnd == Gnd answers exactly what the engine's == answers for two values
+    of the same MeTTa type, NaN, negative zero and mixed numeric types
+    included.
+
+    Across two DIFFERENT types the engine refuses rather than answering, since
+    `==` is declared `(-> $a $a Bool)` and the question has no verdict. Python
+    still answers False there, and has to: `__eq__` may not raise, or a Gnd
+    could not sit in a dict beside a value of another kind. So the law is
+    "same kind, same verdict; different kind, the engine says so", which is
+    the strongest form both sides can hold at once.
+    """
+    if _kind(a) != _kind(b):
+        with pytest.raises(MettaOperationError):
+            metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+        assert (Gnd(a) == Gnd(b)) is False
+        return
     engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
     assert len(engine) == 1
     assert engine[0].value is (Gnd(a) == Gnd(b))

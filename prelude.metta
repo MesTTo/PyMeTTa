@@ -106,6 +106,32 @@
 (= (for-each-in-atom $L $f)
    (map-atom $L $f))
 
+;;; Atomicity ;;;
+
+;atomically runs its argument inside one transaction, the name the
+;concurrency vocabulary uses for an atomic block: Haskell's STM spells it
+;`atomically`, Clojure's spells it `dosync`, and `transaction` is the same
+;operation under the database name. Before this it did not exist, so
+;!(atomically (+ 1 1)) answered (atomically 2), an unknown head applied to
+;its evaluated argument, rather than running anything atomically.
+;
+;It is sugar over (transaction ...), deliberately, so the two forms cannot
+;drift: every guarantee here is petta_transaction/1's, answer preservation
+;and whole-set commit-or-rollback included, and there is one implementation
+;of them.
+;
+;They are still not the same operation, and this is the difference.
+;transaction is a SPECIAL FORM whose body is compiled into the call site, so
+;the body has to be written there: (let $b <a term> (transaction $b))
+;answers the TERM, unrun, because there is nothing to compile at the call
+;site but a variable. atomically takes its body as an unreduced Atom and
+;evaluates it, so the body may be a term the program computed. The 183
+;inferences that separate them, 773.05 against 956.07 over a three-answer
+;body [measured 2026-08-19], are what evaluating a runtime term costs
+;against compiling the body in place.
+(: atomically (-> Atom %Undefined%))
+(= (atomically $expr) (transaction (eval $expr)))
+
 ;;; Quoting ;;;
 
 ;Two clauses, and the second is not a deviation from the arbiter but
@@ -136,6 +162,42 @@
 ;with the selected space as context, upstream's selected-space spelling
 ;[source: pinned stdlib.md:849-868 via the arbiter]. The library's stub
 ;matched the literal &self and answered nothing for any named space.
+
+;These two declarations are HERE rather than only in
+;lib/lib_builtin_types.metta because this is the register the CALL SITE
+;reads. Asking for a type is a question about an expression, and the
+;engine was answering it by running the expression first: an op that
+;appends to a Python list fired on (get-type (petta-effectful)) and the
+;answer was Number, the type of what it returned. Every linter walk and
+;every REPL inspection was invisibly effectful on a seam whose whole
+;purpose is arbitrary effects.
+;
+;An Atom parameter in the engine's own surface register is deliberately
+;NOT honoured at call sites, because several of those declarations
+;describe the argument a CALLER writes rather than the value the
+;predicate receives, and honouring them broke every maplist call
+;[source: call_site_type_chains/2 in src/translator.pl]. get-type has no
+;such gap: the declaration and the predicate agree that the argument
+;arrives unreduced, so the prelude register, which IS honoured at call
+;sites, is where it belongs.
+;
+;The answer then comes from the declaration, which is what the arbiter
+;answers: (get-type (literal-return 2)) is Atom for
+;(: literal-return (-> Number Atom)), whatever its body would reduce to
+;[source: LeaTTa tests/semantics/types-meta/20_atom_return_literal.metta,
+;MEASURED [Atom] from the mechanised interpreter and from hyperon
+;0.2.10 alike].
+;
+;Both arrows are upstream's, with the one vocabulary translation this
+;tree already applies: SpaceType is written Symbol here, the rule
+;lib/lib_builtin_types.metta states for the whole surface. get-type is
+;(-> Atom %Undefined%) and get-type-space is (-> SpaceType Atom Atom) at
+;pinned stdlib.md:849-868. Either return spelling behaves identically in
+;this engine, measured 2026-08-19 over an effectful call, a declared
+;return, a value and a builtin application, so upstream's is kept because
+;matching it costs nothing.
+(: get-type (-> Atom %Undefined%))
+(: get-type-space (-> Symbol Atom Atom))
 
 ;match-types is UNIFICATION with wildcards, not equality: %Undefined%
 ;and Atom on either side match anything, and otherwise the two types

@@ -64,8 +64,11 @@ def test_ndarray_identity_through_space(am):
 
 
 def test_dltensor_is_a_protocol_type_the_engine_checks(am):
-    # get-type answers the classes and the protocol,
-    (answers,) = am.run("!(collapse (get-type (tensor (1.0))))")
+    # get-type answers the classes and the protocol of the BUILT tensor, so
+    # the tensor is built first. get-type does not evaluate its argument, and
+    # the classes are a property of the value rather than of the call that
+    # would make it.
+    (answers,) = am.run("!(collapse (let $t (tensor (1.0)) (get-type $t)))")
     names = {str(a) for a in answers[0]}
     assert "ndarray" in names and "DLTensor" in names
     # and a declared (-> DLTensor DLTensor DLTensor) holds for NumPy values,

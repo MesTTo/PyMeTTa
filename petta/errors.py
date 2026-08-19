@@ -6,6 +6,9 @@ Guarantees:
     [tested test_base_fields_default_to_none]
   - MettaOperationError.operation is the base field, not a shadow
     [tested test_operation_error_operation_is_the_base_field]
+  - AssertionFailure is a PettaError and NOT an EngineError, so a harness
+    separates a false claim from a broken engine by type [tested
+    test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +19,7 @@ from __future__ import annotations
 
 __all__ = [
     "DECLINE",
+    "AssertionFailure",
     "CompileError",
     "Decline",
     "EngineError",
@@ -137,6 +141,34 @@ class MettaResultError(PettaError):
         super().__init__(message, atom=atom, space=space)
         self.culprit = culprit
         self.reason = reason
+
+
+class AssertionFailure(PettaError):
+    """A MeTTa `(test ...)` or `(assert ...)` said something false.
+
+    Deliberately NOT an EngineError: the engine worked, the program's claim
+    did not hold. A harness runs a suite and has to tell "this file's
+    assertion is red" from "the interpreter under it broke", and those two
+    call for opposite responses, so they are opposite types. Both are still
+    PettaError, so a caller wrapping a whole run keeps catching both.
+
+    `operation` is the form that failed, "test" or "assert"; `actual` is what
+    the expression produced and `expected` what the source asked for, each
+    None where the form carries no such value (a failed `assert` has a goal
+    and no pair, and a `test` with no answer at all has no actual).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        operation: str,
+        actual: object | None = None,
+        expected: object | None = None,
+    ):
+        super().__init__(message, operation=operation, atom=actual)
+        self.actual = actual
+        self.expected = expected
 
 
 class SubscriberError(PettaError):
