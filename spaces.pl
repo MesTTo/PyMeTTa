@@ -210,7 +210,7 @@ remove_sexp(Space, Atom) :- remove_sexp(Space, Atom, _).
 %
 %Costs exactly one inference per removal, 10.00 to 11.00 over 20,000 removals,
 %identical across three runs each way [measured 2026-08-16, ai-tmp/rmcost.pl]
-%[tested: spaces_removal_answers_unit_and_reports_internally].
+%[tested: spaces_removal_answers_unit_for_success_and_an_error_for_absence].
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],
@@ -835,13 +835,34 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
        this space\'s own module and shadows it there, leaving the engine\'s \c
        and every other space\'s alone' ].
 
-%Unit here too, and the language is explicit that absence is not reported:
+%Unit for a removal that happened, an error for one that found nothing.
+%
+%The language's own text is what asks for this rather than what forbids it:
 %"if the given atom is not in the space, remove-atom currently neither raises a
-%error nor returns the empty result". metta_remove_atom/3 still answers whether
-%anything went, because the engine's own callers use it.
+%error nor returns the empty result" is a COMPLAINT, and upstream carries the
+%same question as a TODO it has not answered, `stdlib/space.rs:219`, "Is it
+%necessary to distinguish whether the atom was removed or not?". The arbiter
+%answers it: LeaTTa's Hyperon-Hacks-Register row 15 rules "Implement. Keep the
+%distinction", records it SATISFIED in `Metta.Minimal.removeAtomStep`, and
+%pins the wording this reproduces. Hyperon as shipped answers unit for both,
+%so this is a deliberate divergence from the implementation towards the
+%specification, which is also what this engine's own hard-error rule says
+%[source: LeaTTa wiki/Hyperon-Hacks-Register.md row 15, and
+%MettaHyperonFull/Minimal/Interpreter.lean removeAtomStep at 5407-5426].
+%
+%metta_remove_atom/3 still answers whether anything went and still answers ONLY
+%that, because the engine's own callers read the boolean: the loader's
+%rollback, the storage modules, and the seam's removal hooks all ask "did the
+%store hold it" rather than "what does a program see".
 'remove-atom'(Space, Term, Result) :-
     (   metta_space_argument(Space)
-    ->  metta_remove_atom(Space, Term, _), Result = []
+    ->  metta_remove_atom(Space, Term, Removed),
+        (   Removed == true
+        ->  Result = []
+        ;   space_operation_error('remove-atom', [Space, Term],
+                                  "remove-atom: atom is not in the space",
+                                  Result)
+        )
     ;   space_argument_error('remove-atom', [Space, Term], Result)
     ).
 
@@ -868,26 +889,29 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %[source: LeaTTa tests/semantics/spaces/add_atom.metta].
 metta_space_argument(Space) :- atom(Space).
 
-%The refusal every space operation answers, read and write alike. It reads the
-%operation's own name and its own arguments, so the subject is the call that
-%failed rather than a generic complaint, which is what lets a program tell one
-%refusal from another without parsing the message.
+%The shape every space operation refuses in: the arbiter's `errAtom a0`, whose
+%subject is the CALL that failed rather than a generic complaint, which is
+%what lets a program tell one refusal from another without reading the message.
 %
-%get-atoms is worded differently because upstream words it differently: it
-%takes ONE argument, so pinned `space.rs:143` says "its argument" where the
-%two-operand operations' `:172` and `:199` say "the first argument"
-%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at
-%5450-5452 against addAtomStep at 5386-5388].
-%The subject is a COPY of the refused call, and that is load-bearing rather
-%than tidy. match/4 takes the output template and the answer in the SAME term:
-%the translator emits `match('&self', [foo, A], A, A)` for
+%The subject is a COPY of that call, and that is load-bearing rather than tidy.
+%match/4 takes the output template and the answer in the SAME term: the
+%translator emits `match('&self', [foo, A], A, A)` for
 %`!(match &self (foo $x) $x)`, so unifying the answer with an error whose
 %subject repeats the template builds `A = (Error (match _ (foo A) A) "...")`,
 %a rational tree. SWI has no occurs check here, so nothing failed; the term
 %printed until the 7.5Gb stack ran out, 50,707,153 frames deep in maplist/3
 %[measured 2026-08-19]. Copying makes the subject a snapshot, which is what a
-%record of a call that will not run is, and it makes every future caller of
-%this safe whether or not its output slot aliases an input.
+%record of a call that will not run is, and it makes every caller of this safe
+%whether or not its output slot aliases an input.
+space_operation_error(Operation, Arguments, Reason, Error) :-
+    copy_term(Arguments, Subject),
+    Error = ['Error', [Operation|Subject], Reason].
+
+%get-atoms is worded differently because upstream words it differently: it
+%takes ONE argument, so pinned `space.rs:143` says "its argument" where the
+%two-operand operations' `:172` and `:199` say "the first argument"
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at
+%5450-5452 against addAtomStep at 5386-5388].
 space_argument_error(Operation, Arguments, Error) :-
     (   Operation == 'get-atoms'
     ->  Position = "its argument"
@@ -895,8 +919,7 @@ space_argument_error(Operation, Arguments, Error) :-
     ),
     format(string(Message),
            "~w expects a space as ~w", [Operation, Position]),
-    copy_term(Arguments, Subject),
-    Error = ['Error', [Operation|Subject], Message].
+    space_operation_error(Operation, Arguments, Message, Error).
 
 %%%% The three the standard library defines beside add-atom %%%%
 %

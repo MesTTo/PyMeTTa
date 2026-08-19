@@ -41,9 +41,13 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):
             S.edge(S.b, S.c),
             S.edge(S.c, S.d),
         ]
-        # Unit, not True: remove-atom is typed (-> spaceType Atom (->)) and the
-        # specification says absence is not reported through it either.
+        # Unit, not True: remove-atom is typed (-> spaceType Atom (->)), so a
+        # removal that happened answers the unit value. Absence answers an
+        # error instead, and this atom is there, so unit is the answer here
+        # [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit].
         assert metta.run(f"!(remove-atom {name} (edge a b))") == [[expr()]]
+        # The provider's own bool is the other half of the same fact: the
+        # removal above took the edge, so the second one finds nothing.
         assert not provider.remove(S.edge(S.a, S.b))
     finally:
         metta.unregister_space(name)
