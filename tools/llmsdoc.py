@@ -15,7 +15,7 @@ Assumes:
     a path claim, and nothing else in the file is shaped that way
     [tested test_llms_txt_paths_all_resolve]
 Guarantees:
-  - every petta name, MeTTa method, path, count, special form, stream rewrite,
+  - every petta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, and the two modules it says
     are gone really are gone
   - all failures are reported at once, not just the first
@@ -80,27 +80,31 @@ def fenced(text: str) -> list[str]:
 def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     """Builtins from the running engine; the two translated sets from source.
 
-    The special forms are the heads of translate_special_dl/5 and the stream
-    rewrites the heads of rewrite_streamops/2, read the way src/translator.pl
-    says to read them: from the clauses themselves, so a form added there is
-    covered the day it is added.
+    The special forms are the heads of translate_special_dl/5, read the way
+    src/translator.pl says to read them: from the clauses themselves, so a
+    form added there is covered the day it is added. The derived forms are the
+    names src/prelude.metta registers with add-translator-rule!, read the same
+    way, which is where a form goes when it leaves the compiler.
     """
     sys.path.insert(0, str(ROOT / "python"))
     from petta import MeTTa
 
     builtins = set(MeTTa().builtins())
-    special, streams = set(), set()
+    special = set()
     for source in sorted((ROOT / "src").glob("*.pl")):
         body = source.read_text()
         special |= {
             head.strip("'")
             for head in re.findall(r"^translate_special_dl\(\s*('?[^,']+'?)", body, re.MULTILINE)
         }
-        streams |= {
-            head.strip("'")
-            for head in re.findall(r"^rewrite_streamops\(\[\s*('?[^,'\]]+'?)", body, re.MULTILINE)
-        }
-    return builtins, special, streams
+    derived = set(
+        re.findall(
+            r"^!\(add-translator-rule!\s+([^\s)]+)\)",
+            (ROOT / "src" / "prelude.metta").read_text(),
+            re.MULTILINE,
+        )
+    )
+    return builtins, special, derived
 
 
 def counts() -> list[tuple[str, int]]:
@@ -182,15 +186,15 @@ def check() -> list[str]:
         if not list(ROOT.glob(token)):
             bad.append(f"path claim resolves to nothing: {token}")
 
-    builtins, special, streams = engine_vocabulary()
+    builtins, special, derived = engine_vocabulary()
     language = parts["The MeTTa language surface"]
     for form in fenced(language)[0].split():
         if form not in special:
             bad.append(f"{form} is listed as a special form but is not a translate_special_dl head")
-    rewritten = paragraph(language, r"\w+ more are rewritten")
-    for name in BACKTICK.findall(rewritten):
-        if name not in streams:
-            bad.append(f"{name} is listed as a stream rewrite but is not a rewrite_streamops head")
+    written_in_metta = paragraph(language, r"\w+ more are written in MeTTa")
+    for name in BACKTICK.findall(written_in_metta):
+        if name not in derived:
+            bad.append(f"{name} is listed as a derived form but src/prelude.metta registers no rule for it")
     registered = paragraph(language, r"\d+ builtins are registered")
     for name in BACKTICK.findall(registered):
         if name.startswith("m.") or name.endswith(")") or "*" in name or name == "#":

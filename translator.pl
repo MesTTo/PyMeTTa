@@ -6,8 +6,8 @@
 %     lookups finish [source 2026-08-14:
 %     https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl].
 %   - '$skip_list'(-Length, +List, -Tail) reports the tail a list spine ends
-%     in without instantiating it, which is what separates a cases argument
-%     that has not arrived from one that is no list at all
+%     in without instantiating it, which is what separates a pair list that
+%     has not arrived from one that is no list at all
 %     [source 2026-08-19: SWI-Prolog 10.1.13
 %     /usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2].
 % Guarantees:
@@ -72,10 +72,12 @@
 %   - maybe_print_compiled_clause/3's trace output works under autoload=false
 %     too [measured 2026-08-18: NO_AUTOLOAD=1 sh test.sh, the full
 %     examples/ corpus].
-%   - A cases argument whose list spine ends in a variable compiles to a
-%     runtime path instead of running select/3 over it forever, and a value
-%     arriving there that is not a list of (pattern value) pairs is refused
-%     naming the form and printing the argument as MeTTa
+%   - A cases argument that has not arrived, either because its list spine
+%     ends in a variable or because a pair in it is still one, compiles to a
+%     runtime path instead of running select/3 over it forever or unifying
+%     translate_case/5's own pattern into the source, and a value arriving
+%     there that is not a list of (pattern value) pairs is refused naming the
+%     form and printing the argument as MeTTa
 %     [tested 2026-08-19: translator_case_open_cases].
 %   - Cases handed over as a value answer what the same cases written out
 %     answer, over sixteen shapes including the Empty default, a
@@ -88,6 +90,35 @@
 %     ordinary branch rather than a default, and 3 inferences a call at 3, 12
 %     and 24 cases against 78, 258 and 498 for the same cases handed over
 %     [measured 2026-08-19].
+%   - A let* whose bindings have not arrived, either because the whole list
+%     is still a variable or because a pair in it is, compiles to a runtime
+%     path instead of dropping the bindings into the rewrite's empty-list
+%     base clause, and a value arriving there that is not a list of
+%     (pattern value) pairs is refused naming the form and printing the
+%     argument as MeTTa
+%     [tested 2026-08-19: translator_letstar_unarrived_bindings].
+%   - Bindings handed over as a value bind the body exactly as the same
+%     bindings written out do, so `let*` under another name is an ordinary
+%     definition [tested 2026-08-19: translator_letstar_computed_bindings,
+%     examples/control/letstarcomputed.metta]. Writing them out is
+%     unaffected: the 203-example corpus answers identically, group for
+%     group, and a call costs a flat 3 inferences at 2 and at 16 bindings
+%     against 62 and 370 for the same bindings handed over
+%     [measured 2026-08-19].
+%   - A form the engine's prelude ships as a translator rule compiles to what
+%     its expansion compiles to, goal for goal, and a rule that does not
+%     apply leaves the call to ordinary dispatch rather than failing the
+%     equation around it [tested 2026-08-19: translator_derived_forms]. Eight
+%     forms moved out of translate_special_dl/5 and rewrite_streamops/2 that
+%     way, for -0.2313% of the corpus's deterministic inference count and no
+%     change to any answer [measured 2026-08-19; KERNEL.md carries the
+%     per-head ledger].
+%   - An equation head is a PATTERN at every depth, matched structurally,
+%     whatever a label inside it happens to have equations for, so a head and
+%     a match that reads the same shape back agree
+%     [tested 2026-08-19: translator_head_is_a_pattern]. The only head
+%     argument that is not pure structure is the in-place annotation
+%     `(: $x T)`, which is a constraint on what the position may match.
 % Fails when:
 %   - a case whose cases are not written out sits on a hot path. It costs one
 %     translation per call, and a case body holding a lambda generates one
@@ -97,7 +128,24 @@
 %     [measured 2026-08-19: 51 calls of a lambda-bearing computed case left
 %     51 generated lambdas and 50 evals of the same expression left 50 more,
 %     while a body with no lambda left none]. Writing the cases out compiles
-%     them once and pays neither cost.
+%     them once and pays neither cost. A let* whose bindings are not written
+%     out carries the same cost for the same reason.
+%   - a program relied on an equation head EVALUATING a position, which this
+%     engine used to do wherever the label had equations. `(= (h (myfunc (10)
+%     $B) $C) ($B $C))` no longer constrains its argument by running myfunc
+%     backwards; the constraint is written in the body, where `let` unifies
+%     the argument with what the call produces and answers the same answers
+%     [tested: examples/functions/functionhead.metta,
+%     examples/functions/functionhead2.metta,
+%     examples/functions/functionhead3.metta,
+%     examples/libraries/patrick_test.metta,
+%     examples/reasoning/tilepuzzle.metta].
+%   - the DUAL of a let* whose bindings have not arrived is asked for.
+%     src/duals.pl builds duals at compile time from the recorded MeTTa body,
+%     so bindings that arrive at run time have no dual, and (not-provable ...)
+%     over such a form declines rather than answering [tested 2026-08-19:
+%     duals_let]. The same limit applies to case and has since it gained its
+%     own runtime path.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -158,16 +206,16 @@ clear_fun_meta(Module, F) :-
     retractall(fun_meta_clause(Module, F, _, _)),
     retractall(fun_head_goals(Module, F)).
 
-% A head argument that is itself a function call is Curry's functional
-% pattern: (= (halfof (dbl $n)) $n) compiles to halfof(A,B) :- dbl(B,A) and
-% runs dbl backwards. constrain_args/3 turns it into a goal, so the retained
-% equation no longer holds the whole head, and anything reading equations back
-% has to know. src/duals.pl refuses to build a dual for such a function rather
+% A head argument that compiles to a GOAL rather than to structure, which is
+% now only the in-place type annotation `(: $x T)`: (= (f (: $x Number)) $x)
+% compiles to f(A, A) :- has_type(A, 'Number'). The retained equation no
+% longer holds the whole head, so anything reading equations back has to
+% know, and src/duals.pl refuses to build a dual for such a function rather
 % than negate a head it cannot see. Recording only the non-empty case keeps
 % this to one == test per compiled equation, which costs no inference at all
 % [measured 2026-08-15: ==/2 is compiled inline, a predicate call is not].
-% Module-keyed for the same reason as fun_meta_clause/4: a functional-pattern
-% head in one space must not refuse a dual in another.
+% Module-keyed for the same reason as fun_meta_clause/4: an annotated head in
+% one space must not refuse a dual in another.
 :- dynamic fun_head_goals/2.
 
 note_head_goals(F) :- current_metta_module(Module),
@@ -176,7 +224,38 @@ note_head_goals(F) :- current_metta_module(Module),
                          ; assertz(fun_head_goals(Module, F), Ref),
                            record_source_assertion(Ref) ).
 
-%Pattern matching, structural and functional/relational constraints on arguments:
+%An equation head is a PATTERN, matched, and this walk builds it. The only
+%thing that is not pure structure is the in-place type annotation below, which
+%is a constraint on what a position may match rather than a computation.
+%
+%Nothing here asks whether a label happens to have equations. It used to: a
+%head argument whose label was a defined function became a CALL, Curry's
+%functional pattern, so (= (f (g $x)) $x) compiled to f(A, B) :- g(B, A) and
+%ran g backwards. The mechanised semantics has one matching relation and it
+%does not consult that. AST.matchPat's own words are "a pattern variable
+%matches any subterm (and must match consistently if it recurs); CONSTRUCTORS
+%MATCH STRUCTURALLY; everything else matches only itself", four cases and no
+%case reading whether a label is defined [source 2026-08-19:
+%LeaTTa/MeTTaIL/Semantics/Reduce.lean:30-46, AST.matchPat], and equations are
+%applied by matching the whole left-hand side, `(matchAtoms p.fst a)`
+%[source 2026-08-19: LeaTTa/MettaHyperonFull/Operational/Properties.lean:48-50,
+%firedReducts].
+%
+%Two of the arbiter's own corpus files decide it, and this engine failed both.
+%`(= (outer-hold (inner-sum $x $y)) outer-held)` with `(: outer-hold (-> Atom
+%Symbol))` answers `outer-held` there and RAISED here, because the head became
+%`inner-sum` run backwards over syntax; and `(= (nested-atom (produce-pa3))
+%nested-argument-held)` beside `(= (nested-atom pa3) ...)` answers only
+%`nested-argument-evaluated` there and answered BOTH here [measured 2026-08-19:
+%LeaTTa/tests/semantics/types-meta/19_atom_parameter_outer_call.metta and
+%15_atom_parameter_nested_parametric.metta, through
+%tests/conformance/leatta_run.pl].
+%
+%The relational reading is not lost, it is written where it runs: a `let` in
+%the body says the same thing and answers the same answers
+%[tested: examples/functions/functionhead.metta,
+%examples/functions/functionhead2.metta,
+%examples/functions/functionhead3.metta].
 constrain_args(X, X, []) :- (var(X); atomic(X)), !.
 %An IN-PLACE TYPE ANNOTATION in a head parameter position: `(: $x T)` matches
 %anything whose type includes T and binds $x to it, and `(: $x $t)` binds $t to
@@ -246,10 +325,6 @@ constrain_args([F, A, B], Out, Goals) :- nonvar(F),
                                          constrain_args(B, B1, G2),
                                          Out = [A1|B1],
                                          append(G1, G2, Goals), !.
-constrain_args([F|Args], Var, Goals) :- atom(F),
-                                        fun_here(F), !,
-                                        translate_expr([F|Args], GoalsExpr, Var),
-                                        flatten(GoalsExpr, Goals).
 constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsList),
                                   flatten(NestedGoalsList, Goals), !.
 
@@ -288,6 +363,7 @@ metta_engine_emitted(control_exception/1).
 metta_engine_emitted(foldall/4).
 metta_engine_emitted(has_type/2).
 metta_engine_emitted(include/3).
+metta_engine_emitted(letstar_runtime/3).
 metta_engine_emitted(metta_ensure_duals/1).
 %src/duals.pl emits this one, into the dual clause it builds.
 metta_engine_emitted(metta_negation/5).
@@ -694,27 +770,34 @@ agg_reduce(AF, Acc, Val, NewAcc) :- reduce([AF, Acc, Val], NewAcc, _).
 translate_expr_to_conj(Input, Conj, Out) :- translate_expr(Input, Goals, Out),
                                             goals_list_to_conj(Goals, Conj).
 
-%Special stream operation rewrite rules before main translation
-rewrite_streamops(['trace!', Arg1, Arg2],
-                  [progn, ['println!', Arg1], Arg2]) :- !.
-rewrite_streamops([unique, Arg],
-                  [call, [superpose, ['unique-atom', [collapse, Arg]]]]) :- !.
-rewrite_streamops(['alpha-unique', Arg],
-                  [call, [superpose, ['alpha-unique-atom', [collapse, Arg]]]]) :- !.
-rewrite_streamops([union, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['union-atom', [collapse, [superpose|A]],
-                                                    [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops([intersection, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['intersection-atom', [collapse, [superpose|A]],
-                                                           [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops([subtraction, [superpose|A], [superpose|B]],
-                  [call, [superpose, ['subtraction-atom', [collapse, [superpose|A]],
-                                                          [collapse, [superpose|B]]]]]) :- !.
-rewrite_streamops(X, X).
-
-%Guarded stream ops rewrite rule application, successfully avoiding copy_term:
-safe_rewrite_streamops(In, Out) :- ( compound(In), In = [Op|_], atom(Op) -> rewrite_streamops(In, Out)
-                                                                          ; Out = In).
+%Expand one call through a translator rule. The rule is an ordinary MeTTa
+%equation, so it lives in the module of the space that wrote it: called
+%unqualified it resolved in the ENGINE's module and raised Unknown procedure
+%for every rule [tested: examples/libraries/patrick_test.metta].
+%
+%A rule that does not APPLY fails here rather than raising, and the dispatch
+%above then carries on down the chain exactly as it does for a special form
+%no clause of translate_special_dl/5 fits. That is what lets a rule carry a
+%guard in its head: `(= (union (superpose $a) (superpose $b)) ...)` rewrites
+%the shape it names and leaves `(union foo bar)` to data dispatch, which is
+%what rewrite_streamops/2's identity clause used to do for the same six
+%forms. Wired as the THEN of its own if-then-else, a rule that did not match
+%took the whole enclosing equation down with it: `(= (f) (union foo bar))`
+%failed to translate and the message named process_form/4
+%[tested: translator_derived_forms].
+apply_translator_rule_dl(HV, Args, AfterHead, Goals, Out) :-
+    (   catch_recover(type_declaration(HV, TypeChain), fail)
+    ->  TypeChain = [->|Xs],
+        append(ArgTypes, [_], Xs),
+        translate_args_by_type_dl(Args, ArgTypes, AfterHead, AfterArgs, Values)
+    ;   translate_args_dl(Args, AfterHead, AfterArgs, Values)
+    ),
+    append(Values, [Expansion], RuleArgs),
+    HookCall =.. [HV|RuleArgs],
+    current_metta_module(RuleModule),
+    call(RuleModule:HookCall),
+    translate_expr_dl(Expansion, AfterArgs, Goals, Out),
+    refuse_seam_expanded_to_data(HV, Out).
 
 %Turn a MeTTa S-expression into a goal list. The internal difference list
 %keeps a nested call from copying every goal produced below it.
@@ -723,30 +806,11 @@ translate_expr(Input, Goals, Out) :-
 
 translate_expr_dl(X, Goals, Goals, X) :-
     ((var(X) ; atomic(X)) ; X = partial(_,_)), !.
-translate_expr_dl([H0|T0], Goals0, Goals, Out) :-
-        safe_rewrite_streamops([H0|T0],[H|T]),
+translate_expr_dl([H|T], Goals0, Goals, Out) :-
         translate_expr_dl(H, Goals0, AfterHead, HV),
         %--- Translator rules ---:
-        ( nonvar(HV), translator_rule(HV) -> ( catch_recover(type_declaration(HV, TypeChain), fail)
-                                               -> TypeChain = [->|Xs],
-                                                  append(ArgTypes, [_], Xs),
-                                                  translate_args_by_type_dl(T, ArgTypes, AfterHead, AfterArgs, T1)
-                                                ; translate_args_dl(T, AfterHead, AfterArgs, T1) ),
-                                             append(T1,[Gs],Args),
-                                             HookCall =.. [HV|Args],
-                                             %A translator rule is an ordinary
-                                             %MeTTa equation, so it lives in
-                                             %the module of the space that
-                                             %wrote it. Called unqualified it
-                                             %resolved in the ENGINE's module
-                                             %and raised Unknown procedure for
-                                             %every rule
-                                             %[tested:
-                                             %examples/libraries/patrick_test.metta].
-                                             current_metta_module(RuleModule),
-                                             call(RuleModule:HookCall),
-                                             translate_expr_dl(Gs, AfterArgs, Goals, Out),
-                                             refuse_seam_expanded_to_data(HV, Out)
+        ( nonvar(HV), translator_rule(HV),
+          apply_translator_rule_dl(HV, T, AfterHead, Goals, Out) -> true
         ; atom(HV), translate_special_dl(HV, T, AfterHead, Goals, Out) -> true
         %The Prolog importer consumes its function-name list as data. Keeping
         %that argument literal makes its translation stable after those names
@@ -909,29 +973,18 @@ metta_special_form(Name) :-
 %Every head the translator gives meaning to, across BOTH of its compilation
 %routes. metta_special_form/1 above answers for one of them and is the
 %narrower question its callers want; this is the wider one, and the
-%difference is the six stream ops, which safe_rewrite_streamops/2 rewrites at
-%translate_expr_dl/4 one line before any special form or function dispatch is
-%tried. Asked of the clause heads for the same reason as above, so a rewrite
-%added at rewrite_streamops/2 is covered the day it is added.
+%difference is the TRANSLATOR RULES, which translate_expr_dl/4 consults one
+%line before any special form or function dispatch is tried. The register is
+%asked directly, so a rule the engine's prelude ships and a rule a program
+%adds are both covered the moment they are registered.
 %
 %Written for the linter, whose possibly-undefined-reference check asks "does
 %anything in the engine give this head meaning". Answering that with fun/1
 %alone reported 1623 findings over PeTTa/examples, 712 of them special forms
 %used correctly, `if` alone accounting for 378 [measured 2026-08-17]
 %[tested: test_calling_a_special_form_is_not_an_undefined_reference].
-%The nonvar guard is load-bearing. rewrite_streamops/2's last clause is the
-%identity fallthrough, whose head argument is a bare variable, so asking
-%clause/2 for rewrite_streamops([Name|_], _) unifies with it for ANY Name and
-%answers true for every symbol in the language. Binding the pattern first and
-%testing it afterwards reads only the six real rewrites
-%[tested: translator_special_dispatch:an_ordinary_name_is_not_a_translated_head].
 metta_translated_head(Name) :- metta_special_form(Name), !.
-metta_translated_head(Name) :-
-    petta_engine_module(Engine),
-    clause(Engine:rewrite_streamops(Pattern, _), _),
-    nonvar(Pattern),
-    Pattern = [Name|_],
-    !.
+metta_translated_head(Name) :- translator_rule(Name), !.
 
 %First-argument indexing keeps each special form independent of the number of
 %other forms. A clause fails on an unsupported arity so ordinary function or
@@ -1148,7 +1201,7 @@ translate_special_dl(unify, [A, B, Then, Else], AfterHead, Goals, Out) :-
 %definition again and the cases a caller writes decide the branches
 %[tested: translator_case_open_cases, translator_case_computed_cases].
 translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
-    ( open_case_list(PairsExpr)
+    ( unarrived_pairs(PairsExpr)
       -> translate_expr_to_conj(KeyExpr, KeyConj, KeyValue),
          %The same soft cut the compiled form uses below, for the same
          %reasons: the key runs once, and its absence of answers is what
@@ -1174,26 +1227,28 @@ translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
         translate_case(PairsExpr, KeyValue, Out, CaseGoal, KeyGoals),
         append(KeyGoals, [CaseGoal|Goals], AfterKey) ).
 
-translate_special_dl('and-then', [A, B], AfterHead, Goals, Out) :-
-    translate_expr_to_conj(A, ConjA, ValueA),
-    translate_expr_to_conj(B, ConjB, ValueB),
-    AfterHead = [(ConjA,
-                  (ValueA == true -> (ConjB, Out = ValueB)
-                                    ; Out = false))|Goals].
-translate_special_dl('or-else', [A, B], AfterHead, Goals, Out) :-
-    translate_expr_to_conj(A, ConjA, ValueA),
-    translate_expr_to_conj(B, ConjB, ValueB),
-    AfterHead = [(ConjA,
-                  (ValueA == true -> Out = true
-                                    ; (ConjB, Out = ValueB)))|Goals].
-
 translate_special_dl(let, Args, AfterHead, Goals, Out) :-
     translate_let_dl(Args, AfterHead, Goals, Out).
 translate_special_dl(chain, Args, AfterHead, Goals, Out) :-
     translate_let_dl(Args, AfterHead, Goals, Out).
+%let* reads its bindings as syntax and rewrites them into nested lets, so
+%bindings that have not arrived have none to read. That shape used to reach
+%letstar_to_rec_let/3's [] base clause, whose cut then committed to it: the
+%argument was UNIFIED with the empty list and every binding was dropped
+%without a word, so `(= (mylet $bs $b) (let* $bs $b))` compiled to
+%`mylet([], A, A)` and answered its body with nothing bound. A pair that is
+%still a variable is the same defect one level in, where the rewrite unified
+%its own [Pattern, Value] pattern INTO the source and `(= (letpair $b)
+%(let* ($b) 99))` compiled to `letpair([A, B], 99)`, changing the head the
+%program wrote. Both compile to the runtime path instead, which is the answer
+%case and hyperpose already give an argument that is not syntax
+%[tested: translator_letstar_unarrived_bindings,
+%translator_letstar_computed_bindings].
 translate_special_dl('let*', [Binds, Body], AfterHead, Goals, Out) :-
-    letstar_to_rec_let(Binds, Body, RecursiveLet),
-    translate_expr_dl(RecursiveLet, AfterHead, Goals, Out).
+    ( unarrived_pairs(Binds)
+      -> AfterHead = [letstar_runtime(Binds, Body, Out)|Goals]
+      ;  letstar_to_rec_let(Binds, Body, RecursiveLet),
+         translate_expr_dl(RecursiveLet, AfterHead, Goals, Out) ).
 %sealed renames the listed variables inside the expression so they are local to
 %it, which is HE's own wording: "Replaces all occurrences of any var from var
 %list inside atom by unique variable. Can be used to create locally scoped
@@ -2096,10 +2151,63 @@ eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
                  ; V = E, AfterEntry = Goals0 ),
     eval_data_list_dl(Es, AfterEntry, Goals, Vs).
 
-%Convert let* to recursive let:
+%Convert let* to recursive let. The singleton case is the recursive one over
+%an empty rest, and writing it out as a third clause made the predicate
+%answer the SAME expansion twice: harmless where the compiler took the first
+%solution, and two identical answers a call once letstar_runtime/3 below
+%started backtracking into it.
 letstar_to_rec_let([], Body, Body) :- !.
-letstar_to_rec_let([[Pat,Val]],Body,[let,Pat,Val,Body]).
 letstar_to_rec_let([[Pat,Val]|Rest],Body,[let,Pat,Val,Out]) :- letstar_to_rec_let(Rest,Body,Out).
+
+%Pairs a form reads as syntax have ARRIVED when the list is proper and every
+%element of it is a term rather than a variable. That is the shape a rewrite
+%may read: below it there is a variable standing where the spine or a pair
+%should be, and reading it would unify the rewrite's own pattern INTO the
+%source instead of reading what is there.
+arrived_pairs(Pairs) :- is_list(Pairs), maplist(nonvar, Pairs).
+
+%The pairs have NOT arrived when such a variable is there, which is different
+%from a term that is no list at all: the first can still arrive as a value,
+%the second keeps falling through as it always has. is_list/1 alone cannot
+%tell those two apart, and '$skip_list'/3 can, walking the spine once and
+%reporting the tail without instantiating it, the way library(error) tells a
+%partial list from a bad one [source 2026-08-19: SWI-Prolog 10.1.13
+%/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
+%is_list_or_partial_list/1].
+%'$skip_list'/3 has already settled the spine by the time the elements are
+%looked at, so this walks it once more rather than through arrived_pairs/1,
+%whose is_list/1 would walk it a third time to learn what Tail == [] just
+%said.
+unarrived_pairs(Pairs) :-
+    '$skip_list'(_, Pairs, Tail),
+    ( var(Tail) -> true
+                 ; Tail == [], \+ maplist(nonvar, Pairs) ).
+
+%The bindings when they were not syntax. `(= (mylet $bs $b) (let* $bs $b))`
+%reaches translation with no bindings to rewrite and receives them as a VALUE
+%instead, so they are rewritten when that value arrives, through the same
+%letstar_to_rec_let/3 the written-out form uses. One definition therefore
+%decides what let* means either way. The shape is case_runtime/3's, and so
+%are the costs: one translation per call, growing with the bindings, against
+%a flat cost for the same bindings written out
+%[measured 2026-08-19: 3 inferences a call at both 2 and 16 written-out
+%bindings; 62 and 370 for the same bindings handed over, min of 3 over a
+%1,000-call slope; tested translator_letstar_computed_bindings].
+%
+%This reaches compiled bodies, so it is named in metta_engine_emitted/1
+%above: without that, `(= (letstar_runtime $bs $b) ...)` would take the goal
+%over inside its own space, silently and with a wrong answer rather than an
+%error, because a space resolves a body's goals in its own module first
+%[source: tests/prolog/static_checks.pl, the scan that reads the goals out of
+%every equation the corpus compiles and fails on a capturable one that is not
+%named].
+letstar_runtime(Bindings, Body, Out) :-
+    checked_pair_list('let*', 'a list of (pattern value) bindings', Bindings),
+    letstar_to_rec_let(Bindings, Body, RecursiveLet),
+    translate_expr_to_conj(RecursiveLet, Conj, Value),
+    build_branch(Conj, Value, Out, Branch),
+    current_metta_module(Module),
+    call_goals_in_(Module, [Branch]).
 
 % Constructs the goal for a single branch of an if-then-else/case.
 build_branch(true, Val, Out, (Out = Val)) :- !.
@@ -2223,18 +2331,6 @@ mbr_advance_args(I, N, T, P0, P) :-
     I1 is I + 1,
     mbr_advance_args(I1, N, T, P1, P).
 
-%A cases argument whose list spine ends in a variable. is_list/1 is false for
-%one of those AND for a term that is no list at all, and the two want opposite
-%treatment: an open list is cases that have not arrived yet, while `foo` is
-%not cases and keeps falling through to data as it always has. '$skip_list'/3
-%walks the spine once and reports the tail without instantiating it, which is
-%how library(error) tells a partial list from a bad one and raises an
-%instantiation error for the first where it raises a type error for the
-%second [source 2026-08-19: SWI-Prolog 10.1.13
-%/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
-%is_list_or_partial_list/1].
-open_case_list(Cases) :- '$skip_list'(_, Cases, Tail), var(Tail).
-
 %The Empty pair is the default branch, taken when the key answered nothing,
 %so it is removed from the branches the key is matched against. Found stays
 %unbound through the select: unifying ['Empty', _] in during the search would
@@ -2273,9 +2369,9 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 %out already pays neither cost.
 %
 %Writing them out is otherwise untouched: byte-identical compiled output over
-%twelve case shapes, with 4 inferences paid once at COMPILE time for
-%open_case_list/1 [measured 2026-08-19: 67 to 71 translating a three-case
-%form].
+%twelve case shapes, with the classification paid once at COMPILE time
+%[measured 2026-08-19: 71 to 78 inferences translating a three-case form,
+%min of 5].
 %
 %This and case_default_runtime/2 reach compiled bodies, so both are named in
 %metta_engine_emitted/1 above. Without that, `(= (case_runtime $k $cs) ...)`
@@ -2285,7 +2381,7 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 %the scan that reads the goals out of every equation the corpus compiles and
 %fails on a capturable one that is not named].
 case_runtime(KeyValue, Cases, Out) :-
-    checked_case_list(Cases),
+    checked_pair_list(case, 'a list of (pattern value) cases', Cases),
     ( case_default_pair(Cases, _, NormalCases) -> true ; NormalCases = Cases ),
     translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
     append(KeyGoals, [CaseGoal], Runtime),
@@ -2296,21 +2392,22 @@ case_runtime(KeyValue, Cases, Out) :-
 %Empty answer nothing at all, which is what the compiled form says by having
 %no else branch to build in that case.
 case_default_runtime(Cases, Out) :-
-    checked_case_list(Cases),
+    checked_pair_list(case, 'a list of (pattern value) cases', Cases),
     case_default_pair(Cases, DefaultExpr, _),
     translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
     build_branch(DefaultConj, DefaultValue, Out, DefaultBranch),
     current_metta_module(Module),
     call_goals_in_(Module, [DefaultBranch]).
 
-%Cases arriving as a value are checked before they are compiled, because
-%nothing downstream can. An unbound one is what this form used to allocate
-%7.5 Gb on, and a pair that is not (pattern value) would unify with
-%translate_case/5's own head and compile a branch the program never wrote.
-%Said in MeTTa's vocabulary through throw_metta_type_error/3, so the message
-%names `case` and prints the value the way the program would have written it
-%instead of naming a predicate of the engine's
-%[tested: translator_case_open_cases].
+%Pairs arriving as a value are checked before they are compiled, because
+%nothing downstream can. An unbound cases list is what `case` used to
+%allocate 7.5 Gb on, and a pair that is not (pattern value) would unify with
+%translate_case/5's or letstar_to_rec_let/3's own head and compile a branch
+%or a binding the program never wrote. Said in MeTTa's vocabulary through
+%throw_metta_type_error/3, so the message names the FORM and prints the value
+%the way the program would have written it instead of naming a predicate of
+%the engine's [tested: translator_case_open_cases,
+%translator_letstar_unarrived_bindings].
 %
 %A type error rather than the instantiation error ISO asks for when the
 %culprit is unbound [source 2026-08-19: SWI-Prolog 10.1 manual A.16,
@@ -2322,11 +2419,11 @@ case_default_runtime(Cases, Out) :-
 %exactly what happened and the message can say which. The bare ISO error
 %says only that something somewhere was not instantiated, which is the
 %complaint against the engine's other unbound-argument raises.
-checked_case_list(Cases) :-
-    (   is_list(Cases),
-        forall(member(Pair, Cases), subsumes_term([_, _], Pair))
+checked_pair_list(Form, Expected, Pairs) :-
+    (   is_list(Pairs),
+        forall(member(Pair, Pairs), subsumes_term([_, _], Pair))
     ->  true
-    ;   throw_metta_type_error(case, 'a list of (pattern value) cases', Cases)
+    ;   throw_metta_type_error(Form, Expected, Pairs)
     ).
 
 %Translate arguments recursively:
