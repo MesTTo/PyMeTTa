@@ -33,6 +33,12 @@
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
+%   - ==/3 and !=/3 refuse two operands of known and different types and
+%     answer for every other pair, at no cost on two numbers [tested
+%     2026-08-19:
+%     python/tests/test_equality.py::test_cross_kind_equality_answers_what_the_arbiter_answers]
+%     [measured 2026-08-19: 4487.45 inferences per thousand-iteration loop,
+%     unchanged].
 %   - %Undefined% is consistent with every type in both directions, so a call
 %     site refuses only a PROVEN conflict, while has_declared_type/2 demands a
 %     witness for a contract [tested 2026-08-19:
@@ -437,8 +443,71 @@ petta_int_solve('/', A, B, R, Verdict) :-
                 ; metta_arith_operands('>', A, B),
                   catch((A>B -> R=true ; R=false), E,
                         rethrow_metta_operation_error('>', E)) ).
-'=='(A,B,R) :- (A==B -> R=true ; R=false).
-'!='(A,B,R) :- (A==B -> R=false ; R=true).
+%(-> $a $a Bool): ONE type variable, so the two operands must have a
+%consistent type, and a comparison across two known and different kinds is
+%refused rather than answered. `!(== 1 "S")` answered False, which is the
+%answer for two Numbers that differ, so a conditional took the else branch and
+%nothing said the question was meaningless. `=alpha` is the comparison that
+%accepts anything, and it is declared (-> Atom Atom Bool) for that reason.
+%
+%Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+%interpreter, byte-identical across both: (== 1 "S"), (== True 1),
+%(== xnum ystr) and (== xnum "s") are BadArgType, while (== 1 a),
+%(== a "a"), (== xnum 1), (== xnum undeclared) and (== 1 (foo)) are False and
+%(== 1 1), (== "S" "S") and (== () ()) are True. The unknown side is what
+%makes the False cases False: nothing is known about `a`, so nothing is
+%contradicted.
+%Two numbers inline, the shape '<'/3 above already uses, because that is what
+%a loop compares and the guard must not be felt there.
+'=='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=true ; R=false)
+                ; comparable_operands('==', A, B),
+                  (A==B -> R=true ; R=false) ).
+'!='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=false ; R=true)
+                ; comparable_operands('!=', A, B),
+                  (A==B -> R=false ; R=true) ).
+%The guard the declaration above states, enforced at the predicate's own door
+%rather than through typed dispatch, which is what runtime_type_guarded/1
+%means and what keeps the cost near zero: the common case is two literals and
+%a first-argument-indexed type lookup.
+%
+%EXPRESSIONS ARE EXCLUDED, because the two references disagree about them and
+%nothing here should pick a side that neither of them agrees on. Measured
+%2026-08-19: hyperon answers False for (== () 1), (== "s" ()) and
+%(== (1 2) (1 2 3)) while LeaTTa raises BadArgType for the first two and
+%answers False for the third. Both answer False for (== (1 2 3) ()) and
+%(== (1 2) (a b)), which is the shape a MeTTa program actually writes, so the
+%collapse-and-compare idiom is untouched either way.
+%TWO TIERS, because asking the type system costs 26 inferences and a program
+%compares literals in a loop. Two operands of the same intrinsic kind settle
+%it with one type test and no lookup, which is the case a loop writes; only a
+%pair the kinds do not settle pays for a declaration
+%[measured 2026-08-19: a thousand-iteration == loop is 4487.45 inferences
+%unguarded, 30514.55 with the lookup on every call, and 4990.45 with this
+%tier in front, so the guard costs 0.50 inferences per comparison instead
+%of 26.03].
+comparable_operands(Operation, A, B) :-
+    (   same_intrinsic_kind(A, B)
+    ->  true
+    ;   is_list(A)
+    ->  true
+    ;   is_list(B)
+    ->  true
+    ;   current_metta_module(Module),
+        \+ ( has_type_in(Module, A, Type), has_type_in(Module, B, Type) )
+    ->  once(has_type_in(Module, A, Expected)),
+        throw_metta_type_error(Operation, Expected, B)
+    ;   true
+    ).
+
+%Fails when the kinds DIFFER and when they do not decide, so an undecided
+%pair falls through to the declarations rather than being waved past.
+same_intrinsic_kind(A, B) :- number(A), !, number(B).
+same_intrinsic_kind(A, B) :- string(A), !, string(B).
+same_intrinsic_kind(A, B) :- metta_boolean(A), !, metta_boolean(B).
+
+metta_boolean(true).
+metta_boolean(false).
+
 '='(A,B,R) :-  (A=B -> R=true ; R=false).
 '=?'(A,B,R) :- (\+ \+ A=B -> R=true ; R=false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
@@ -4446,14 +4515,21 @@ runtime_type_guarded('*').
 runtime_type_guarded('/').
 runtime_type_guarded('%').
 runtime_type_guarded('<').
-%== and != accept ANY two terms and always answer a Bool, so their declared
-%type (-> $a $b Bool) states exactly what the predicate already enforces and
-%the typed dispatch has nothing left to check. Classifying them here is what
-%makes lib_builtin_types.metta affordable: with the file loaded, a workload
-%calling == and != went from 102402 inferences to 181602, +77%, and back to
-%102402 with these two lines [measured 2026-08-16]. A user or named-space
+%== and != carry their own guard, comparable_operands/3, which is exactly
+%what their declared type (-> $a $a Bool) states, so the typed dispatch has
+%nothing left to check. Classifying them here is what makes
+%lib_builtin_types.metta affordable: with the file loaded, a workload calling
+%== and != went from 102402 inferences to 181602, +77%, and back to 102402
+%with these two lines [measured 2026-08-16]. Their own guard is cheaper than
+%either, and free on two numbers: a thousand-iteration == loop is 4487.45
+%inferences with and without it [measured 2026-08-19]. A user or named-space
 %equation overriding either still gets the full typed dispatch, because
 %runtime_guarded_builtin_call/1 requires the unmodified builtin.
+%
+%The declaration was (-> $a $b Bool), two independent variables, which
+%constrained nothing and is why (== 1 "S") answered False. Upstream writes
+%(-> $t $t Bool) [source: pinned stdlib.md via the arbiter, and measured from
+%hyperon 0.2.10's own !(get-type ==) on 2026-08-19].
 runtime_type_guarded('==').
 runtime_type_guarded('!=').
 runtime_type_guarded('>').
