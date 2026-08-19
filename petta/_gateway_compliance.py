@@ -14,6 +14,11 @@ Guarantees:
     promises: multiset adds, match by pattern, removal by unification of
     one occurrence [tested test_the_operations_keep_space_semantics,
     test_add_many_lands_the_batch]
+  - the ask/next/stop lifecycle answers the eager door's answer set at
+    every batch, ends on a null cursor, and refuses a cursor it no longer
+    holds [tested test_the_lifecycle_streams_the_same_answers_the_eager_door_gives,
+    test_the_lifecycle_refuses_what_it_cannot_answer,
+    test_a_client_cursor_takes_two_answers_and_stops]
   - the refusal ladder answers JSON errors with the documented statuses,
     including the pre-body refusals only a raw socket can probe
     [tested test_refusals_carry_json_errors]
@@ -119,12 +124,16 @@ class GatewayComplianceSuite:
         assert status == 200
         health = json.loads(raw)
         assert health["ok"] is True
-        assert health["protocol"] == 2
+        assert health["protocol"] == 3
         assert isinstance(health["atoms"], int)
         # Revision 2's reflection: what the server admits, so a client
         # can ask before writing, and whether /match honors a bound.
+        # Revision 3 adds `stream`, the ask/next/stop lifecycle, which
+        # every gateway at this revision speaks.
         assert isinstance(health["capabilities"], list)
-        assert {"match", "enumerate", "add", "remove"} <= set(health["capabilities"])
+        assert {"match", "enumerate", "add", "remove", "stream"} <= set(
+            health["capabilities"]
+        )
         assert isinstance(health["bound"], bool)
 
     def test_a_bound_is_honored_or_ignored_soundly(self, gateway_url, scratch):
@@ -227,6 +236,91 @@ class GatewayComplianceSuite:
         assert status == 200
         stored = [atom.to_wire() for atom in scratch.atoms()]
         assert ["n", wide] in stored
+
+    def test_the_lifecycle_streams_the_same_answers_the_eager_door_gives(
+        self, gateway_url, scratch
+    ):
+        """ask/next/stop is required at revision 3, and chunking is a
+        CHUNK: whatever batch carries the answers, the set is the set.
+
+        A short chunk ends the stream, so the reply that ends it names a
+        null cursor and nothing looks ahead to decide that. Whether a
+        server actually defers the work behind the chunks is its own
+        affair; what this certifies is the shape that makes deferring
+        possible, which is what a client needs to rely on.
+        """
+        stored = [parse(f"(gc-stream {n})") for n in range(5)]
+        scratch.add_many(stored)
+        pattern = parse("(gc-stream $n)").to_wire()
+        _, whole = _post(gateway_url, "match", {"space": _SCRATCH, "pattern": pattern})
+        eager = sorted(json.dumps(atom) for atom in whole["atoms"])
+        for batch in (1, 2, 5, 50):
+            answered: list[Any] = []
+            status, body = _post(
+                gateway_url,
+                "ask",
+                {"space": _SCRATCH, "pattern": pattern, "batch": batch},
+            )
+            assert status == 200, body
+            while True:
+                assert len(body["atoms"]) <= batch, "a chunk may not exceed the batch"
+                answered.extend(body["atoms"])
+                token = body["cursor"]
+                if token is None:
+                    break
+                assert body["atoms"], "an empty chunk ends the stream and answers null"
+                status, body = _post(
+                    gateway_url, "next", {"cursor": token, "batch": batch}
+                )
+                assert status == 200, body
+            assert sorted(json.dumps(atom) for atom in answered) == eager
+
+        # The bound is the cut, honored exactly or ignored, the same rule
+        # /match's bound keeps.
+        _, bounded = _post(
+            gateway_url,
+            "ask",
+            {"space": _SCRATCH, "pattern": pattern, "batch": 5, "bound": 2},
+        )
+        assert len(bounded["atoms"]) in (2, 5)
+
+    def test_the_lifecycle_refuses_what_it_cannot_answer(self, gateway_url, scratch):
+        """A cursor the server no longer holds is an ERROR on /next,
+        because answering nothing would say the enumeration ended, and
+        under-answering is the one thing this protocol forbids. On /stop
+        it is the honest no, since a client calls stop from a
+        finally-block where the stream may have ended already."""
+        scratch.add_many([parse(f"(gc-refuse {n})") for n in range(3)])
+        pattern = parse("(gc-refuse $n)").to_wire()
+        _, opened = _post(
+            gateway_url, "ask", {"space": _SCRATCH, "pattern": pattern, "batch": 1}
+        )
+        token = opened["cursor"]
+        assert isinstance(token, str), "an unfinished stream names its continuation"
+        assert _post(gateway_url, "stop", {"cursor": token}) == (200, {"stopped": True})
+        status, body = _post(gateway_url, "next", {"cursor": token, "batch": 1})
+        assert status == 400 and "error" in body
+        assert _post(gateway_url, "stop", {"cursor": token})[1] == {"stopped": False}
+        for bad in (0, -1, 1.5, "two"):
+            status, body = _post(
+                gateway_url,
+                "ask",
+                {"space": _SCRATCH, "pattern": pattern, "batch": bad},
+            )
+            assert status == 400 and "error" in body, f"batch {bad!r} was accepted"
+
+    def test_a_client_cursor_takes_two_answers_and_stops(self, scratch):
+        """The lifecycle through the shipped client, which is how a PeTTa
+        program reaches it: two answers taken, the rest never asked for,
+        and the server's cursor released on the way out."""
+        scratch.add_many([parse(f"(gc-take {n})") for n in range(6)])
+        pattern = parse("(gc-take $n)")
+        with scratch.stream(pattern, batch=1) as answers:
+            taken = [next(answers), next(answers)]
+        assert len(taken) == 2
+        assert {str(atom) for atom in taken} <= {f"(gc-take {n})" for n in range(6)}
+        with scratch.stream(pattern, batch=2) as answers:
+            assert len(list(answers)) == 6
 
     def test_the_kit_certifies_the_attached_space(self, scratch):
         report = testing.check_space_provider(

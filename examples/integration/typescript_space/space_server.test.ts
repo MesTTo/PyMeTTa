@@ -122,8 +122,8 @@ test("the HTTP boundary mirrors the protocol's refusals", async () => {
     deepStrictEqual(await health.json(), {
       ok: true,
       atoms: 1,
-      protocol: 2,
-      capabilities: ["match", "enumerate", "add", "remove"],
+      protocol: 3,
+      capabilities: ["match", "enumerate", "add", "remove", "stream"],
       bound: true,
     });
   } finally {
@@ -150,8 +150,8 @@ test("a batch lands whole through add_many, and health names the protocol", asyn
     deepStrictEqual(await health.json(), {
       ok: true,
       atoms: 3,
-      protocol: 2,
-      capabilities: ["match", "enumerate", "add", "remove"],
+      protocol: 3,
+      capabilities: ["match", "enumerate", "add", "remove", "stream"],
       bound: true,
     });
   } finally {
@@ -235,6 +235,149 @@ test("a token gates every operation before the body is read", async () => {
       { authorization: "Bearer wrong" },
     );
     strictEqual(wrong.status, 401);
+  } finally {
+    await running.close();
+  }
+});
+
+// --------------------------------------------------------------------------
+// The ask/next/stop lifecycle.
+
+test("two answers cross without the third being computed", async () => {
+  // The store counts what it was asked to unify, so this says in one
+  // number how much of a thousand-answer enumeration the server computed
+  // for a client that wanted two.
+  class CountingStore extends SpaceStore {
+    pulled = 0;
+
+    override *stream(name: string, pattern: WireAtom): Generator<WireAtom> {
+      for (const atom of this.atoms(name)) {
+        this.pulled += 1;
+        if (unifiable(pattern, atom)) yield atom;
+      }
+    }
+  }
+
+  const store = new CountingStore();
+  store.addMany(
+    "&self",
+    Array.from({ length: 1000 }, (_, i) => edge(sym("row"), ["n", i])),
+  );
+  const running = await startServer({ port: 0, store });
+  try {
+    const { port } = running;
+    const pattern = edge(sym("row"), v("n"));
+    store.pulled = 0;
+    const first = await operate(port, "ask", { pattern, batch: 1 });
+    strictEqual(first.status, 200);
+    strictEqual(first.body.atoms.length, 1);
+    ok(typeof first.body.cursor === "string");
+    const second = await operate(port, "next", {
+      cursor: first.body.cursor,
+      batch: 1,
+    });
+    strictEqual(second.body.atoms.length, 1);
+    strictEqual(second.body.cursor, first.body.cursor);
+    deepStrictEqual(await operate(port, "stop", { cursor: first.body.cursor }), {
+      status: 200,
+      body: { stopped: true },
+    });
+    strictEqual(store.pulled, 2, "two answers wanted, two atoms unified");
+
+    store.pulled = 0;
+    const eager = await operate(port, "match", { pattern });
+    strictEqual(eager.body.atoms.length, 1000);
+    strictEqual(store.pulled, 1000, "the eager door drains, which is its job");
+  } finally {
+    await running.close();
+  }
+});
+
+test("chunking is a chunk: every batch answers the same set", async () => {
+  const running = await startServer({ port: 0 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 5 }, (_, i) => edge(sym("k"), ["n", i])),
+    });
+    const pattern = edge(sym("k"), v("n"));
+    const whole = (await operate(port, "match", { pattern })).body.atoms;
+    for (const batch of [1, 2, 5, 50]) {
+      const answered: unknown[] = [];
+      let reply = (await operate(port, "ask", { pattern, batch })).body;
+      for (;;) {
+        ok(reply.atoms.length <= batch, "a chunk may not exceed the batch");
+        answered.push(...reply.atoms);
+        if (reply.cursor === null) break;
+        ok(reply.atoms.length > 0, "an empty chunk ends the stream");
+        reply = (await operate(port, "next", { cursor: reply.cursor, batch })).body;
+      }
+      deepStrictEqual(answered, whole);
+    }
+    // A bound is the cut, honored exactly by this store.
+    const bounded = (await operate(port, "ask", { pattern, batch: 5, bound: 2 })).body;
+    strictEqual(bounded.atoms.length, 2);
+    strictEqual(bounded.cursor, null);
+    deepStrictEqual((await operate(port, "ask", { pattern, batch: 5, bound: 0 })).body, {
+      atoms: [],
+      cursor: null,
+    });
+  } finally {
+    await running.close();
+  }
+});
+
+test("a cursor the server no longer holds is refused, not answered empty", async () => {
+  const running = await startServer({ port: 0, cursorLimit: 2 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 4 }, (_, i) => edge(sym("g"), ["n", i])),
+    });
+    const pattern = edge(sym("g"), v("n"));
+    const opened = (await operate(port, "ask", { pattern, batch: 1 })).body;
+    deepStrictEqual(await operate(port, "stop", { cursor: opened.cursor }), {
+      status: 200,
+      body: { stopped: true },
+    });
+    const gone = await operate(port, "next", { cursor: opened.cursor, batch: 1 });
+    strictEqual(gone.status, 400);
+    ok(String(gone.body.error).includes("no such cursor"));
+    deepStrictEqual((await operate(port, "stop", { cursor: opened.cursor })).body, {
+      stopped: false,
+    });
+    strictEqual((await operate(port, "next", { cursor: 7 })).status, 400);
+    for (const batch of [0, -1, 1.5, "two"]) {
+      strictEqual((await operate(port, "ask", { pattern, batch })).status, 400);
+    }
+    // The ceiling is refused rather than grown.
+    const held = [
+      (await operate(port, "ask", { pattern, batch: 1 })).body.cursor,
+      (await operate(port, "ask", { pattern, batch: 1 })).body.cursor,
+    ];
+    const over = await operate(port, "ask", { pattern, batch: 1 });
+    strictEqual(over.status, 400);
+    ok(String(over.body.error).includes("already holds 2 answer cursors"));
+    await operate(port, "stop", { cursor: held[0] });
+    ok(typeof (await operate(port, "ask", { pattern, batch: 1 })).body.cursor === "string");
+  } finally {
+    await running.close();
+  }
+});
+
+test("a cursor nobody pulls from is released on its idle deadline", async () => {
+  const running = await startServer({ port: 0, cursorIdle: 0.05 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 4 }, (_, i) => edge(sym("i"), ["n", i])),
+    });
+    const pattern = edge(sym("i"), v("n"));
+    const opened = (await operate(port, "ask", { pattern, batch: 1 })).body;
+    await new Promise((done) => setTimeout(done, 200));
+    const gone = await operate(port, "next", { cursor: opened.cursor, batch: 1 });
+    strictEqual(gone.status, 400);
+    ok(String(gone.body.error).includes("untouched for 0.05 seconds"));
   } finally {
     await running.close();
   }

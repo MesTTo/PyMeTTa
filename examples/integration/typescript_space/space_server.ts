@@ -25,9 +25,16 @@
  *     between awaits, and Node runs one request handler at a time per
  *     event-loop turn, so concurrent clients interleave whole
  *     operations, never partial ones
+ *   - the ask/next/stop lifecycle hands back at most `batch` answers per
+ *     reply and never looks ahead, so a client that takes two answers of
+ *     a large space leaves the third uncomputed; the store's match walk
+ *     is one generator behind both doors [tested: space_server.test.ts,
+ *     lifecycle block]
  * Owns:
  *   - the HTTP server and its open sockets; SIGINT and SIGTERM close the
  *     listener, end open connections, and exit 0
+ *   - every answer cursor a client left open, released by close(), by the
+ *     stream ending, or by the idle deadline
  * Open Obligations:
  *   To Do: None
  *   Hacks: None
@@ -35,7 +42,7 @@
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 // ---------------------------------------------------------------------------
@@ -143,6 +150,11 @@ export interface WireSpaceStore {
   add(name: string, atom: WireAtom): void;
   addMany(name: string, atoms: readonly WireAtom[]): number;
   atoms(name: string): readonly WireAtom[];
+  // The lazy door, required at protocol revision 3: candidates pulled
+  // one at a time, so /ask and /next can hand back a chunk without the
+  // store computing the answer after it. match() is the eager door and
+  // reads as "drain this".
+  stream(name: string, pattern: WireAtom): Iterator<WireAtom>;
   match(name: string, pattern: WireAtom): WireAtom[];
   // Present exactly when this store may honor /match's bound field: the
   // trusted-Exact contract. A store whose match over-approximates must
@@ -188,14 +200,26 @@ export class SpaceStore implements WireSpaceStore {
     return this.space(name);
   }
 
+  // One filter behind both doors: the generator unifies a stored atom
+  // only when a caller pulls for it, so taking two answers of a
+  // thousand-atom space unifies against two atoms and the eager door
+  // against all thousand [tested: space_server.test.ts, "two answers
+  // cross without the third being computed"]. match() is that same walk
+  // drained.
+  *stream(name: string, pattern: WireAtom): Generator<WireAtom> {
+    for (const atom of this.space(name)) {
+      if (unifiable(pattern, atom)) yield atom;
+    }
+  }
+
   match(name: string, pattern: WireAtom): WireAtom[] {
-    return this.space(name).filter((atom) => unifiable(pattern, atom));
+    return [...this.stream(name, pattern)];
   }
 
   // Honoring is sound HERE because match filters by real unification,
   // so the first `bound` survivors are true answers, never candidates.
   boundedMatch(name: string, pattern: WireAtom, bound: number): WireAtom[] {
-    return this.match(name, pattern).slice(0, bound);
+    return [...take(this.stream(name, pattern), bound)];
   }
 
   // ONE unifying occurrence goes: a space is a multiset and removal is
@@ -217,6 +241,121 @@ export class SpaceStore implements WireSpaceStore {
 }
 
 // ---------------------------------------------------------------------------
+// The ask/next/stop lifecycle. A cursor is an iterator held open between
+// requests under an unguessable token, so a client takes two answers of a
+// large enumeration and stops without the store computing the one after
+// them. Two bounds keep a stateful resource on an open port finite, and
+// SWI's pengines bounds its own the same two ways: a cursor nobody pulls
+// from is released after an idle deadline, and a client that would open
+// more than the ceiling at once is refused rather than served.
+
+interface OpenCursor {
+  readonly iterator: Iterator<WireAtom>;
+  readonly space: string;
+  remaining: number | null;
+  deadline: number;
+}
+
+function* take<T>(source: Iterator<T>, count: number): Generator<T> {
+  for (let taken = 0; taken < count; taken++) {
+    const step = source.next();
+    if (step.done === true) return;
+    yield step.value;
+  }
+}
+
+// A SHORT chunk is the whole of the exhaustion signal, so nothing here
+// looks ahead: the answer after the last one a client asked for is never
+// computed, which is what makes taking two of a large enumeration cost
+// two answers' work.
+function pull(entry: OpenCursor, batch: number): { atoms: WireAtom[]; done: boolean } {
+  const want = entry.remaining === null ? batch : Math.min(batch, entry.remaining);
+  const atoms: WireAtom[] = [];
+  for (let taken = 0; taken < want; taken++) {
+    const step = entry.iterator.next();
+    if (step.done === true) break;
+    atoms.push(step.value);
+  }
+  if (entry.remaining !== null) entry.remaining -= atoms.length;
+  return { atoms, done: atoms.length < want || entry.remaining === 0 };
+}
+
+export class CursorTable {
+  private readonly open = new Map<string, OpenCursor>();
+
+  constructor(
+    private readonly idleMs: number,
+    private readonly limit: number,
+  ) {}
+
+  private sweep(): void {
+    const now = Date.now();
+    for (const [token, entry] of this.open) {
+      if (entry.deadline <= now) {
+        this.open.delete(token);
+        entry.iterator.return?.(undefined);
+      }
+    }
+  }
+
+  hold(entry: OpenCursor): string {
+    this.sweep();
+    if (this.open.size >= this.limit) {
+      entry.iterator.return?.(undefined);
+      throw new HttpProblem(
+        400,
+        `this gateway already holds ${this.limit} answer cursors open; ` +
+          `stop one before asking for another`,
+      );
+    }
+    const token = randomBytes(18).toString("base64url");
+    entry.deadline = Date.now() + this.idleMs;
+    this.open.set(token, entry);
+    return token;
+  }
+
+  // A token the table does not hold is an ERROR rather than an empty
+  // answer: answering nothing would say the enumeration ended, and
+  // under-approximating is the one thing this protocol forbids.
+  take(token: unknown): OpenCursor {
+    this.sweep();
+    const entry = this.open.get(this.tokenOf(token));
+    if (entry === undefined) {
+      throw new HttpProblem(
+        400,
+        `no such cursor: it was stopped, it ran out of answers, or it went ` +
+          `untouched for ${this.idleMs / 1000} seconds and the server ` +
+          `released it. Ask again for a new one`,
+      );
+    }
+    entry.deadline = Date.now() + this.idleMs;
+    return entry;
+  }
+
+  release(token: unknown): boolean {
+    this.sweep();
+    const named = this.tokenOf(token);
+    const entry = this.open.get(named);
+    if (entry === undefined) return false;
+    this.open.delete(named);
+    entry.iterator.return?.(undefined);
+    return true;
+  }
+
+  closeAll(): void {
+    for (const entry of this.open.values()) entry.iterator.return?.(undefined);
+    this.open.clear();
+  }
+
+  private tokenOf(token: unknown): string {
+    if (typeof token !== "string") {
+      throw new HttpProblem(400, `cursor must be a string, got ${JSON.stringify(token)}`);
+    }
+    return token;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The HTTP boundary. Refusals mirror petta.remote.serve(), status for status.
 
 export class HttpProblem extends Error {
@@ -226,6 +365,10 @@ export class HttpProblem extends Error {
 }
 
 const DEFAULT_MAX_BODY = 16 * 1024 * 1024;
+// pengines' own defaults for the same two bounds: idle_limit is 300
+// seconds, and the ceiling is refused rather than grown.
+const DEFAULT_CURSOR_IDLE_SECONDS = 300;
+const DEFAULT_CURSOR_LIMIT = 256;
 
 function requestLength(request: IncomingMessage, maxBody: number): number {
   if (request.headers["transfer-encoding"] !== undefined) {
@@ -314,6 +457,28 @@ function payloadSpace(payload: Payload): string {
   return value;
 }
 
+// A batch is a CHUNK and a bound is a CUT, which is why only one of them
+// needs a matcher's permission: chunking hands back part of an answer set
+// with the rest still reachable, so it is sound whatever a store's match
+// does, while truncating an over-approximated candidate list can drop true
+// answers past the cut.
+function payloadBatch(payload: Payload): number {
+  const value = payload["batch"] ?? 1;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new HttpProblem(400, `batch must be a positive integer, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
+function payloadBound(payload: Payload): number | null {
+  const value = payload["bound"];
+  if (value === undefined) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
 export interface ServerOptions {
   host?: string;
   port?: number;
@@ -321,6 +486,10 @@ export interface ServerOptions {
   spaces?: readonly string[] | null;
   maxBody?: number;
   store?: WireSpaceStore;
+  // Seconds an untouched answer cursor survives, and how many the server
+  // holds open at once before /ask is refused.
+  cursorIdle?: number;
+  cursorLimit?: number;
 }
 
 export interface RunningServer {
@@ -337,6 +506,10 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
   const maxBody = options.maxBody ?? DEFAULT_MAX_BODY;
   const served = options.spaces == null ? null : new Set(options.spaces);
   const store = options.store ?? new SpaceStore(served);
+  const cursors = new CursorTable(
+    (options.cursorIdle ?? DEFAULT_CURSOR_IDLE_SECONDS) * 1000,
+    options.cursorLimit ?? DEFAULT_CURSOR_LIMIT,
+  );
   const sockets = new Set<import("node:net").Socket>();
 
   const server = createServer((request, response) => {
@@ -358,12 +531,13 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
         // describing itself as data before anyone speaks it. Revision 2
         // adds the reflection: capabilities names what this server
         // admits, so a client can ask before writing, and bound says
-        // whether /match honors the bound field exactly.
+        // whether /match honors the bound field exactly. Revision 3 adds
+        // `stream`, the ask/next/stop lifecycle every gateway speaks.
         answer = {
           ok: true,
           atoms: store.count(),
-          protocol: 2,
-          capabilities: ["match", "enumerate", "add", "remove"],
+          protocol: 3,
+          capabilities: ["match", "enumerate", "add", "remove", "stream"],
           bound: typeof store.boundedMatch === "function",
         };
       } else if (request.method !== "POST") {
@@ -409,18 +583,43 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
       case "match": {
         const space = payloadSpace(payload);
         const pattern = payloadAtom(payload, "pattern");
-        const bound = payload["bound"];
-        if (bound !== undefined) {
-          if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
-            throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(bound)}`);
-          }
-          // Honored exactly when the store can; ignored (a sound
-          // over-answer) when it cannot, which health advertises.
-          if (typeof store.boundedMatch === "function") {
-            return { atoms: store.boundedMatch(space, pattern, bound) };
-          }
+        const bound = payloadBound(payload);
+        // Honored exactly when the store can; ignored (a sound
+        // over-answer) when it cannot, which health advertises.
+        if (bound !== null && typeof store.boundedMatch === "function") {
+          return { atoms: store.boundedMatch(space, pattern, bound) };
         }
         return { atoms: store.match(space, pattern) };
+      }
+      case "ask": {
+        const space = payloadSpace(payload);
+        const pattern = payloadAtom(payload, "pattern");
+        const batch = payloadBatch(payload);
+        const asked = payloadBound(payload);
+        const bound = typeof store.boundedMatch === "function" ? asked : null;
+        if (bound === 0) return { atoms: [], cursor: null };
+        const entry: OpenCursor = {
+          iterator: store.stream(space, pattern),
+          space,
+          remaining: bound,
+          deadline: 0,
+        };
+        const { atoms, done } = pull(entry, batch);
+        if (done) {
+          entry.iterator.return?.(undefined);
+          return { atoms, cursor: null };
+        }
+        return { atoms, cursor: cursors.hold(entry) };
+      }
+      case "next": {
+        const token = payload["cursor"];
+        const entry = cursors.take(token);
+        const { atoms, done } = pull(entry, payloadBatch(payload));
+        if (done) cursors.release(token);
+        return { atoms, cursor: done ? null : token };
+      }
+      case "stop": {
+        return { stopped: cursors.release(payload["cursor"]) };
       }
       case "atoms": {
         return { atoms: [...store.atoms(payloadSpace(payload))] };
@@ -461,6 +660,10 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
         close: () =>
           new Promise<void>((done, fail) => {
             for (const socket of sockets) socket.destroy();
+            // The cursors go with the listener: each is an iterator this
+            // server holds on a client's behalf, and a client that walked
+            // away leaves one behind.
+            cursors.closeAll();
             server.close((error) => (error ? fail(error) : done()));
           }),
       });
@@ -497,6 +700,12 @@ function parseArguments(argv: readonly string[]): ServerOptions {
         break;
       case "--max-body":
         options.maxBody = Number(value());
+        break;
+      case "--cursor-idle":
+        options.cursorIdle = Number(value());
+        break;
+      case "--cursor-limit":
+        options.cursorLimit = Number(value());
         break;
       default:
         throw new Error(`unknown flag ${flag}`);

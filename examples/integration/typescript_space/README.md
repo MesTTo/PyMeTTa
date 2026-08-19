@@ -23,23 +23,31 @@ m.run("!(match &ts (edge $x $y) ($x $y))")
 ## The protocol
 
 What `petta.remote.serve()` speaks, so any language can stand on either
-end. Four POST operations, JSON bodies both ways, plus `GET /health`:
+end. Eight POST operations, JSON bodies both ways, plus `GET /health`:
 
 | request | body | answer |
 |---|---|---|
 | `POST /match` | `{"space": "&self", "pattern": <wire>}` | `{"atoms": [<wire>...]}` |
+| `POST /ask` | `{"space": "&self", "pattern": <wire>, "batch": n?}` | `{"atoms": [...], "cursor": id\|null}` |
+| `POST /next` | `{"cursor": id, "batch": n?}` | `{"atoms": [...], "cursor": id\|null}` |
+| `POST /stop` | `{"cursor": id}` | `{"stopped": bool}` |
 | `POST /atoms` | `{"space": "&self"}` | `{"atoms": [...]}` |
 | `POST /add` | `{"space": "&self", "atom": <wire>}` | `{"added": true}` |
 | `POST /remove` | `{"space": "&self", "atom": <wire>}` | `{"removed": bool}` |
 | `POST /add_many` | `{"space": "&self", "atoms": [<wire>...]}` | `{"added": n}` |
 
-A wire atom is a tagged array, `["s", name]` symbol, `["v", name]`
-variable, `["n", number]`, `["g", text]` grounded, `["e", [children...]]`
-expression, and `CODEC.md` in the repository root is the grammar for it.
-This server is run against that page's golden corpus by
-`python/tests/test_codec_typescript.py`, which also pins the three places
-it diverges: it does not check the `g` payload, and JavaScript's single
-number type turns an integral float back into an integer. Errors are
+`/match` computes the whole answer set; ask/next/stop hands it back a
+chunk at a time so a client can take two answers of a large space and
+stop. Both stores here put one generator behind both doors, so the
+lazy one really is lazy: measured over a thousand-atom space, taking
+two answers unified against two atoms and the eager door against all
+thousand. `website/live/remote-protocol.md` is the full contract.
+
+A wire atom is a tagged array, and `CODEC.md` in the repository root is
+the grammar for it. This server is run against that page's golden
+corpus by `python/tests/test_codec_typescript.py`, which also pins the
+places it diverges: it does not check the `g` payload, and JavaScript's
+single number type turns an integral float back into an integer. Errors are
 `{"error": "..."}` with a 4xx status. Refusals mirror `serve()` exactly:
 401 before the body is read when a Bearer token is configured and
 missing or wrong (constant-time compare), 411 without content-length,
@@ -74,7 +82,9 @@ node mettascript_space_server.js --port 8700 \
 Flags: `--host` (default 127.0.0.1), `--port` (0 picks a free one, the
 readiness line on stdout names it), `--token` or `PETTA_SPACE_TOKEN`
 for Bearer auth, `--spaces a,b` to allowlist served names, `--max-body`
-bytes. SIGINT and SIGTERM close the listener and exit 0. Logs are one
+bytes, `--cursor-idle` seconds before an untouched answer cursor is
+released (300), `--cursor-limit` how many stay open at once (256).
+SIGINT and SIGTERM close the listener and exit 0. Logs are one
 line per request on stderr.
 
 Rebuild from the TypeScript after editing (type-check, then bundle):

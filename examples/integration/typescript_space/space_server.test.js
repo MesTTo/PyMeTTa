@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 // space_server.ts
 import { createServer } from "node:http";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 function isWireAtom(value) {
   if (!Array.isArray(value) || value.length !== 2) return false;
   const [tag, payload] = value;
@@ -101,13 +101,24 @@ var SpaceStore = class {
   atoms(name) {
     return this.space(name);
   }
+  // One filter behind both doors: the generator unifies a stored atom
+  // only when a caller pulls for it, so taking two answers of a
+  // thousand-atom space unifies against two atoms and the eager door
+  // against all thousand [tested: space_server.test.ts, "two answers
+  // cross without the third being computed"]. match() is that same walk
+  // drained.
+  *stream(name, pattern) {
+    for (const atom of this.space(name)) {
+      if (unifiable(pattern, atom)) yield atom;
+    }
+  }
   match(name, pattern) {
-    return this.space(name).filter((atom) => unifiable(pattern, atom));
+    return [...this.stream(name, pattern)];
   }
   // Honoring is sound HERE because match filters by real unification,
   // so the first `bound` survivors are true answers, never candidates.
   boundedMatch(name, pattern, bound) {
-    return this.match(name, pattern).slice(0, bound);
+    return [...take(this.stream(name, pattern), bound)];
   }
   // ONE unifying occurrence goes: a space is a multiset and removal is
   // multiset subtraction, so two stored copies need two removals. The
@@ -125,6 +136,90 @@ var SpaceStore = class {
     return total;
   }
 };
+function* take(source, count) {
+  for (let taken = 0; taken < count; taken++) {
+    const step = source.next();
+    if (step.done === true) return;
+    yield step.value;
+  }
+}
+function pull(entry, batch) {
+  const want = entry.remaining === null ? batch : Math.min(batch, entry.remaining);
+  const atoms = [];
+  for (let taken = 0; taken < want; taken++) {
+    const step = entry.iterator.next();
+    if (step.done === true) break;
+    atoms.push(step.value);
+  }
+  if (entry.remaining !== null) entry.remaining -= atoms.length;
+  return { atoms, done: atoms.length < want || entry.remaining === 0 };
+}
+var CursorTable = class {
+  constructor(idleMs, limit) {
+    this.idleMs = idleMs;
+    this.limit = limit;
+  }
+  idleMs;
+  limit;
+  open = /* @__PURE__ */ new Map();
+  sweep() {
+    const now = Date.now();
+    for (const [token, entry] of this.open) {
+      if (entry.deadline <= now) {
+        this.open.delete(token);
+        entry.iterator.return?.(void 0);
+      }
+    }
+  }
+  hold(entry) {
+    this.sweep();
+    if (this.open.size >= this.limit) {
+      entry.iterator.return?.(void 0);
+      throw new HttpProblem(
+        400,
+        `this gateway already holds ${this.limit} answer cursors open; stop one before asking for another`
+      );
+    }
+    const token = randomBytes(18).toString("base64url");
+    entry.deadline = Date.now() + this.idleMs;
+    this.open.set(token, entry);
+    return token;
+  }
+  // A token the table does not hold is an ERROR rather than an empty
+  // answer: answering nothing would say the enumeration ended, and
+  // under-approximating is the one thing this protocol forbids.
+  take(token) {
+    this.sweep();
+    const entry = this.open.get(this.tokenOf(token));
+    if (entry === void 0) {
+      throw new HttpProblem(
+        400,
+        `no such cursor: it was stopped, it ran out of answers, or it went untouched for ${this.idleMs / 1e3} seconds and the server released it. Ask again for a new one`
+      );
+    }
+    entry.deadline = Date.now() + this.idleMs;
+    return entry;
+  }
+  release(token) {
+    this.sweep();
+    const named = this.tokenOf(token);
+    const entry = this.open.get(named);
+    if (entry === void 0) return false;
+    this.open.delete(named);
+    entry.iterator.return?.(void 0);
+    return true;
+  }
+  closeAll() {
+    for (const entry of this.open.values()) entry.iterator.return?.(void 0);
+    this.open.clear();
+  }
+  tokenOf(token) {
+    if (typeof token !== "string") {
+      throw new HttpProblem(400, `cursor must be a string, got ${JSON.stringify(token)}`);
+    }
+    return token;
+  }
+};
 var HttpProblem = class extends Error {
   constructor(status, message) {
     super(message);
@@ -133,6 +228,8 @@ var HttpProblem = class extends Error {
   status;
 };
 var DEFAULT_MAX_BODY = 16 * 1024 * 1024;
+var DEFAULT_CURSOR_IDLE_SECONDS = 300;
+var DEFAULT_CURSOR_LIMIT = 256;
 function requestLength(request, maxBody) {
   if (request.headers["transfer-encoding"] !== void 0) {
     throw new HttpProblem(400, "transfer-encoding is not supported; send content-length");
@@ -203,12 +300,31 @@ function payloadSpace(payload) {
   }
   return value;
 }
+function payloadBatch(payload) {
+  const value = payload["batch"] ?? 1;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new HttpProblem(400, `batch must be a positive integer, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+function payloadBound(payload) {
+  const value = payload["bound"];
+  if (value === void 0) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
 function startServer(options = {}) {
   const host = options.host ?? "127.0.0.1";
   const token = options.token ?? null;
   const maxBody = options.maxBody ?? DEFAULT_MAX_BODY;
   const served = options.spaces == null ? null : new Set(options.spaces);
   const store = options.store ?? new SpaceStore(served);
+  const cursors = new CursorTable(
+    (options.cursorIdle ?? DEFAULT_CURSOR_IDLE_SECONDS) * 1e3,
+    options.cursorLimit ?? DEFAULT_CURSOR_LIMIT
+  );
   const sockets = /* @__PURE__ */ new Set();
   const server = createServer((request, response) => {
     void handle(request, response);
@@ -227,8 +343,8 @@ function startServer(options = {}) {
         answer = {
           ok: true,
           atoms: store.count(),
-          protocol: 2,
-          capabilities: ["match", "enumerate", "add", "remove"],
+          protocol: 3,
+          capabilities: ["match", "enumerate", "add", "remove", "stream"],
           bound: typeof store.boundedMatch === "function"
         };
       } else if (request.method !== "POST") {
@@ -273,16 +389,41 @@ function startServer(options = {}) {
       case "match": {
         const space = payloadSpace(payload);
         const pattern = payloadAtom(payload, "pattern");
-        const bound = payload["bound"];
-        if (bound !== void 0) {
-          if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
-            throw new HttpProblem(400, `bound must be a non-negative integer, got ${JSON.stringify(bound)}`);
-          }
-          if (typeof store.boundedMatch === "function") {
-            return { atoms: store.boundedMatch(space, pattern, bound) };
-          }
+        const bound = payloadBound(payload);
+        if (bound !== null && typeof store.boundedMatch === "function") {
+          return { atoms: store.boundedMatch(space, pattern, bound) };
         }
         return { atoms: store.match(space, pattern) };
+      }
+      case "ask": {
+        const space = payloadSpace(payload);
+        const pattern = payloadAtom(payload, "pattern");
+        const batch = payloadBatch(payload);
+        const asked = payloadBound(payload);
+        const bound = typeof store.boundedMatch === "function" ? asked : null;
+        if (bound === 0) return { atoms: [], cursor: null };
+        const entry = {
+          iterator: store.stream(space, pattern),
+          space,
+          remaining: bound,
+          deadline: 0
+        };
+        const { atoms, done } = pull(entry, batch);
+        if (done) {
+          entry.iterator.return?.(void 0);
+          return { atoms, cursor: null };
+        }
+        return { atoms, cursor: cursors.hold(entry) };
+      }
+      case "next": {
+        const token2 = payload["cursor"];
+        const entry = cursors.take(token2);
+        const { atoms, done } = pull(entry, payloadBatch(payload));
+        if (done) cursors.release(token2);
+        return { atoms, cursor: done ? null : token2 };
+      }
+      case "stop": {
+        return { stopped: cursors.release(payload["cursor"]) };
       }
       case "atoms": {
         return { atoms: [...store.atoms(payloadSpace(payload))] };
@@ -321,6 +462,7 @@ function startServer(options = {}) {
         port: address.port,
         close: () => new Promise((done, fail) => {
           for (const socket of sockets) socket.destroy();
+          cursors.closeAll();
           server.close((error) => error ? fail(error) : done());
         })
       });
@@ -410,8 +552,8 @@ test("the HTTP boundary mirrors the protocol's refusals", async () => {
     deepStrictEqual(await health.json(), {
       ok: true,
       atoms: 1,
-      protocol: 2,
-      capabilities: ["match", "enumerate", "add", "remove"],
+      protocol: 3,
+      capabilities: ["match", "enumerate", "add", "remove", "stream"],
       bound: true
     });
   } finally {
@@ -435,8 +577,8 @@ test("a batch lands whole through add_many, and health names the protocol", asyn
     deepStrictEqual(await health.json(), {
       ok: true,
       atoms: 3,
-      protocol: 2,
-      capabilities: ["match", "enumerate", "add", "remove"],
+      protocol: 3,
+      capabilities: ["match", "enumerate", "add", "remove", "stream"],
       bound: true
     });
   } finally {
@@ -515,6 +657,134 @@ test("a token gates every operation before the body is read", async () => {
       { authorization: "Bearer wrong" }
     );
     strictEqual(wrong.status, 401);
+  } finally {
+    await running.close();
+  }
+});
+test("two answers cross without the third being computed", async () => {
+  class CountingStore extends SpaceStore {
+    pulled = 0;
+    *stream(name, pattern) {
+      for (const atom of this.atoms(name)) {
+        this.pulled += 1;
+        if (unifiable(pattern, atom)) yield atom;
+      }
+    }
+  }
+  const store = new CountingStore();
+  store.addMany(
+    "&self",
+    Array.from({ length: 1e3 }, (_, i) => edge(sym("row"), ["n", i]))
+  );
+  const running = await startServer({ port: 0, store });
+  try {
+    const { port } = running;
+    const pattern = edge(sym("row"), v("n"));
+    store.pulled = 0;
+    const first = await operate(port, "ask", { pattern, batch: 1 });
+    strictEqual(first.status, 200);
+    strictEqual(first.body.atoms.length, 1);
+    ok(typeof first.body.cursor === "string");
+    const second = await operate(port, "next", {
+      cursor: first.body.cursor,
+      batch: 1
+    });
+    strictEqual(second.body.atoms.length, 1);
+    strictEqual(second.body.cursor, first.body.cursor);
+    deepStrictEqual(await operate(port, "stop", { cursor: first.body.cursor }), {
+      status: 200,
+      body: { stopped: true }
+    });
+    strictEqual(store.pulled, 2, "two answers wanted, two atoms unified");
+    store.pulled = 0;
+    const eager = await operate(port, "match", { pattern });
+    strictEqual(eager.body.atoms.length, 1e3);
+    strictEqual(store.pulled, 1e3, "the eager door drains, which is its job");
+  } finally {
+    await running.close();
+  }
+});
+test("chunking is a chunk: every batch answers the same set", async () => {
+  const running = await startServer({ port: 0 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 5 }, (_, i) => edge(sym("k"), ["n", i]))
+    });
+    const pattern = edge(sym("k"), v("n"));
+    const whole = (await operate(port, "match", { pattern })).body.atoms;
+    for (const batch of [1, 2, 5, 50]) {
+      const answered = [];
+      let reply = (await operate(port, "ask", { pattern, batch })).body;
+      for (; ; ) {
+        ok(reply.atoms.length <= batch, "a chunk may not exceed the batch");
+        answered.push(...reply.atoms);
+        if (reply.cursor === null) break;
+        ok(reply.atoms.length > 0, "an empty chunk ends the stream");
+        reply = (await operate(port, "next", { cursor: reply.cursor, batch })).body;
+      }
+      deepStrictEqual(answered, whole);
+    }
+    const bounded = (await operate(port, "ask", { pattern, batch: 5, bound: 2 })).body;
+    strictEqual(bounded.atoms.length, 2);
+    strictEqual(bounded.cursor, null);
+    deepStrictEqual((await operate(port, "ask", { pattern, batch: 5, bound: 0 })).body, {
+      atoms: [],
+      cursor: null
+    });
+  } finally {
+    await running.close();
+  }
+});
+test("a cursor the server no longer holds is refused, not answered empty", async () => {
+  const running = await startServer({ port: 0, cursorLimit: 2 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 4 }, (_, i) => edge(sym("g"), ["n", i]))
+    });
+    const pattern = edge(sym("g"), v("n"));
+    const opened = (await operate(port, "ask", { pattern, batch: 1 })).body;
+    deepStrictEqual(await operate(port, "stop", { cursor: opened.cursor }), {
+      status: 200,
+      body: { stopped: true }
+    });
+    const gone = await operate(port, "next", { cursor: opened.cursor, batch: 1 });
+    strictEqual(gone.status, 400);
+    ok(String(gone.body.error).includes("no such cursor"));
+    deepStrictEqual((await operate(port, "stop", { cursor: opened.cursor })).body, {
+      stopped: false
+    });
+    strictEqual((await operate(port, "next", { cursor: 7 })).status, 400);
+    for (const batch of [0, -1, 1.5, "two"]) {
+      strictEqual((await operate(port, "ask", { pattern, batch })).status, 400);
+    }
+    const held = [
+      (await operate(port, "ask", { pattern, batch: 1 })).body.cursor,
+      (await operate(port, "ask", { pattern, batch: 1 })).body.cursor
+    ];
+    const over = await operate(port, "ask", { pattern, batch: 1 });
+    strictEqual(over.status, 400);
+    ok(String(over.body.error).includes("already holds 2 answer cursors"));
+    await operate(port, "stop", { cursor: held[0] });
+    ok(typeof (await operate(port, "ask", { pattern, batch: 1 })).body.cursor === "string");
+  } finally {
+    await running.close();
+  }
+});
+test("a cursor nobody pulls from is released on its idle deadline", async () => {
+  const running = await startServer({ port: 0, cursorIdle: 0.05 });
+  try {
+    const { port } = running;
+    await operate(port, "add_many", {
+      atoms: Array.from({ length: 4 }, (_, i) => edge(sym("i"), ["n", i]))
+    });
+    const pattern = edge(sym("i"), v("n"));
+    const opened = (await operate(port, "ask", { pattern, batch: 1 })).body;
+    await new Promise((done) => setTimeout(done, 200));
+    const gone = await operate(port, "next", { cursor: opened.cursor, batch: 1 });
+    strictEqual(gone.status, 400);
+    ok(String(gone.body.error).includes("untouched for 0.05 seconds"));
   } finally {
     await running.close();
   }

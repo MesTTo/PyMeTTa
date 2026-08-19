@@ -8,6 +8,13 @@ Guarantees:
     test_remote_close_waits_for_worker_detach]
   - malformed HTTP request framing and JSON receive explicit client errors
     [tested test_remote_server_rejects_malformed_request_bodies]
+  - the ask/next/stop lifecycle computes what a client asks for and no
+    more, and its server-side state is bounded and owned [tested
+    test_two_answers_cross_the_wire_without_the_third_being_computed,
+    test_a_served_provider_is_pulled_per_answer_not_drained,
+    test_an_idle_cursor_is_released,
+    test_a_gateway_refuses_more_cursors_than_it_holds,
+    test_closing_the_server_releases_open_cursors]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +23,7 @@ Open Obligations:
 
 import logging
 import threading
+import time
 from http.client import HTTPConnection, HTTPException
 
 import pytest
@@ -25,6 +33,7 @@ import petta._network as network
 from petta import S, remote
 from petta import testing as remote_testing
 from petta.errors import PettaError
+from petta.foreign import SpaceProvider
 
 
 def test_library_logging_is_opt_in():
@@ -341,12 +350,14 @@ def test_health_advertises_the_projection(metta):
     try:
         transport = remote.connect(server.url)
         body = transport.health()
-        assert body["ok"] is True and body["protocol"] == 2
-        assert {"match", "enumerate", "add", "remove"} <= set(body["capabilities"])
+        assert body["ok"] is True and body["protocol"] == 3
+        assert {"match", "enumerate", "add", "remove", "stream"} <= set(
+            body["capabilities"]
+        )
         assert body["bound"] is True
         space = remote.RemoteSpace(transport)
         advertised = space.server_capabilities()
-        assert advertised["bound"] is True and advertised["protocol"] == 2
+        assert advertised["bound"] is True and advertised["protocol"] == 3
     finally:
         server.close()
 
@@ -402,6 +413,463 @@ def test_add_many_lands_through_our_own_server(metta):
         assert len(list(space.match(petta.parse("(re_bulk $n)")))) == 4
     finally:
         server.close()
+
+
+# -------------------------------------------- lazy answers on the wire (P4.25)
+
+
+def _live_engines(m) -> int:
+    """How many Prolog engines exist right now.
+
+    An open wire cursor holds exactly one, so the delta across a call is
+    the direct oracle for whether a gateway released what it owns, rather
+    than an inference about it.
+    """
+    return m.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+
+class _CountingProvider(SpaceProvider):
+    """A served space that says how many candidates it was asked for."""
+
+    def __init__(self, size: int) -> None:
+        self.stored = [petta.parse(f"(re_counted {n})") for n in range(size)]
+        self.yielded = 0
+
+    def match(self, pattern):
+        for atom in self.stored:
+            self.yielded += 1
+            yield atom
+
+    def atoms(self):
+        return iter(self.stored)
+
+
+def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
+    """The lifecycle's whole claim, on the engine's own counters.
+
+    Two answers are taken over real HTTP from a ten-atom enumeration and
+    from a ten-thousand-atom one, and the SERVING engine spends the same
+    inferences on both: what the client did not ask for is not computed,
+    so the cost cannot grow with the size of what was left. The eager
+    door is measured beside it and grows with the space, which is the gap
+    the lifecycle exists to close.
+
+    Measured 2026-08-20 on this box, identical across three runs: 1,250
+    inferences for two answers at either size, against 1,839 inferences
+    for all ten and 1,490,407 for all ten thousand.
+    `statistics(inferences)` is process-wide in SWI, so the server's own
+    worker thread is what these numbers count.
+    """
+    server = remote.serve(metta)
+    scratches = []
+    lazy, eager, crossings = {}, {}, {}
+    try:
+        for size in (10, 10_000):
+            scratch = metta.new_space()
+            scratches.append(scratch)
+            scratch.add(*[petta.parse(f"(re_lazy {n})") for n in range(size)])
+            calls: list[str] = []
+            inner = remote.connect(server.url)
+
+            def counting(operation, payload, _inner=inner, _calls=calls):
+                _calls.append(operation)
+                return _inner(operation, payload)
+
+            space = remote.RemoteSpace(counting, scratch.space_name)
+            pattern = petta.parse("(re_lazy $n)")
+            # Warm the path so first-call compilation and index realisation
+            # sit outside the window rather than inside the smaller one.
+            with space.stream(pattern, batch=1) as warm:
+                next(warm)
+            calls.clear()
+            with metta.stats() as counted, space.stream(pattern, batch=1) as answers:
+                taken = [next(answers), next(answers)]
+            assert [str(a) for a in taken] == ["(re_lazy 0)", "(re_lazy 1)"]
+            lazy[size], crossings[size] = counted.inferences, list(calls)
+            with metta.stats() as counted_all:
+                assert len(list(space.match(pattern))) == size
+            eager[size] = counted_all.inferences
+    finally:
+        server.close()
+        for scratch in scratches:
+            scratch.drop()
+
+    # One ask, one next, one stop: the client took two answers and told the
+    # server it was done, and nothing else crossed.
+    assert crossings[10] == crossings[10_000] == ["ask", "next", "stop"]
+    # The cost of two answers does not grow with the enumeration behind
+    # them, which is only possible if the rest was never computed.
+    assert lazy[10_000] <= lazy[10], (
+        f"two answers cost {lazy[10_000]} inferences over 10,000 atoms and "
+        f"{lazy[10]} over 10; the lifecycle computed something the client "
+        f"never asked for"
+    )
+    # Taking two of ten thousand is cheaper than taking all ten of ten.
+    assert lazy[10_000] < eager[10]
+    assert eager[10_000] > 100 * lazy[10_000]
+
+
+def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
+    """The same claim observed at the far end instead of inferred.
+
+    The served space counts the candidates it is asked for, so taking two
+    answers over the wire says in one number how much of a ten-thousand
+    answer enumeration the serving side computed. Measured 2026-08-20:
+    three, the extra one being janus's `py_iter` reading a candidate
+    ahead, which the in-process cursor pays identically; the eager door
+    over the same space pulls every one.
+    """
+    provider = _CountingProvider(10_000)
+    metta.register_space(provider, "&re-counted")
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), "&re-counted")
+        pattern = petta.parse("(re_counted $n)")
+        with space.stream(pattern, batch=1) as warm:
+            next(warm)
+        provider.yielded = 0
+        with space.stream(pattern, batch=1) as answers:
+            assert len([next(answers), next(answers)]) == 2
+        pulled = provider.yielded
+        provider.yielded = 0
+        assert len(list(space.match(pattern))) == 10_000
+        drained = provider.yielded
+    finally:
+        server.close()
+        metta.unregister_space("&re-counted")
+    assert pulled < 10, f"two answers pulled {pulled} candidates of 10,000"
+    assert drained >= 10_000
+
+
+def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
+    """Chunking is a CHUNK and not a cut: every answer still crosses,
+    whatever batch carries it."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_chunk {n})") for n in range(7)])
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        pattern = petta.parse("(re_chunk $n)")
+        whole = sorted(str(a) for a in space.match(pattern))
+        assert len(whole) == 7
+        for batch in (1, 2, 7, 100):
+            with space.stream(pattern, batch=batch) as answers:
+                assert sorted(str(a) for a in answers) == whole
+        # A bound is the cut, and it is honored exactly.
+        with space.stream(pattern, batch=3, limit=4) as answers:
+            assert len(list(answers)) == 4
+        with space.stream(pattern, batch=3, limit=0) as answers:
+            assert list(answers) == []
+        # The chunk may change between pulls, pengines' next(Count): the
+        # batch a request names is the batch that request gets.
+        transport = remote.connect(server.url)
+        opened = transport(
+            "ask",
+            {"space": scratch.space_name, "pattern": pattern.to_wire(), "batch": 1},
+        )
+        widened = transport("next", {"cursor": opened["cursor"], "batch": 4})
+        rest = transport("next", {"cursor": widened["cursor"], "batch": 100})
+        assert [len(opened["atoms"]), len(widened["atoms"]), len(rest["atoms"])] == [1, 4, 2]
+        assert rest["cursor"] is None
+    finally:
+        server.close()
+        scratch.drop()
+
+
+def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, monkeypatch):
+    """The eager door is bounded by the HTTP body cap at both ends, so an
+    answer set past it cannot cross that way at all, and chunks are how it
+    crosses. The cap is lowered here rather than the answer set raised,
+    which measures the same thing without moving 16 MiB."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_big {n})") for n in range(200)])
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        pattern = petta.parse("(re_big $n)")
+        monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 1024)
+        with pytest.raises(PettaError, match="response body exceeds"):
+            list(space.match(pattern))
+        with space.stream(pattern, batch=10) as answers:
+            assert len(list(answers)) == 200
+    finally:
+        server.close()
+        scratch.drop()
+
+
+def test_a_gateway_is_a_drop_in_transport(metta):
+    """The two halves of the wire carry one signature, so a Gateway goes
+    wherever a connected transport goes, health reflection included."""
+    scratch = metta.new_space()
+    scratch.add(petta.parse("(re_drop a)"))
+    gateway = remote.Gateway(metta)
+    try:
+        space = remote.RemoteSpace(gateway, scratch.space_name)
+        advertised = space.server_capabilities()
+        assert advertised["protocol"] == 3
+        assert "stream" in advertised["capabilities"]
+        assert [str(a) for a in space.match(petta.parse("(re_drop $x)"))] == ["(re_drop a)"]
+        # Both doors name the field a request left out, rather than
+        # answering a KeyError whose whole message is 'pattern'.
+        with pytest.raises(PettaError, match="needs the `pattern` field"):
+            gateway("ask", {"space": scratch.space_name})
+        with pytest.raises(PettaError, match="needs the `pattern` field"):
+            gateway("match", {"space": scratch.space_name})
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_a_finished_stream_needs_no_stop(metta):
+    """Exhaustion releases the server's cursor, so the reply that ends a
+    stream carries a null continuation and a later stop finds nothing."""
+    scratch = metta.new_space()
+    scratch.add(petta.parse("(re_short a)"))
+    gateway = remote.Gateway(metta)
+    try:
+        opened = gateway(
+            "ask",
+            {
+                "space": scratch.space_name,
+                "pattern": petta.parse("(re_short $x)").to_wire(),
+                "batch": 4,
+            },
+        )
+        assert len(opened["atoms"]) == 1 and opened["cursor"] is None
+        assert gateway("stop", {"cursor": "no-such-token"}) == {"stopped": False}
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(metta):
+    """Answering nothing would say the enumeration ended, and
+    under-answering is the one thing this protocol forbids."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_gone {n})") for n in range(4)])
+    gateway = remote.Gateway(metta)
+    try:
+        opened = gateway(
+            "ask",
+            {
+                "space": scratch.space_name,
+                "pattern": petta.parse("(re_gone $n)").to_wire(),
+                "batch": 1,
+            },
+        )
+        token = opened["cursor"]
+        assert gateway("stop", {"cursor": token}) == {"stopped": True}
+        with pytest.raises(PettaError, match="no such cursor"):
+            gateway("next", {"cursor": token})
+        with pytest.raises(PettaError, match="cursor must be a string"):
+            gateway("next", {"cursor": 7})
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+@pytest.mark.parametrize("batch", [0, -1, 1.5, True, "two"])
+def test_a_malformed_batch_is_refused(metta, batch):
+    scratch = metta.new_space()
+    gateway = remote.Gateway(metta)
+    try:
+        with pytest.raises(PettaError, match="batch must be a positive integer"):
+            gateway(
+                "ask",
+                {
+                    "space": scratch.space_name,
+                    "pattern": petta.parse("(re_bad $n)").to_wire(),
+                    "batch": batch,
+                },
+            )
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_an_idle_cursor_is_released(metta):
+    """A client that walks away mid-stream leaves an engine behind, so a
+    cursor nobody pulls from is released after its idle deadline; the
+    engine count is the oracle."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_idle {n})") for n in range(4)])
+    gateway = remote.Gateway(metta, cursor_idle=0.05)
+    try:
+        before = _live_engines(metta)
+        token = gateway(
+            "ask",
+            {
+                "space": scratch.space_name,
+                "pattern": petta.parse("(re_idle $n)").to_wire(),
+                "batch": 1,
+            },
+        )["cursor"]
+        assert _live_engines(metta) == before + 1
+        time.sleep(0.2)
+        with pytest.raises(PettaError, match=r"untouched for 0\.05 seconds"):
+            gateway("next", {"cursor": token})
+        assert _live_engines(metta) == before
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
+    """The ceiling is refused rather than grown: an open cursor owns an
+    engine, so an unbounded table of them is an unbounded resource on an
+    open port."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_many {n})") for n in range(4)])
+    gateway = remote.Gateway(metta, cursor_limit=2)
+    ask = {
+        "space": scratch.space_name,
+        "pattern": petta.parse("(re_many $n)").to_wire(),
+        "batch": 1,
+    }
+    try:
+        held = [gateway("ask", ask)["cursor"] for _ in range(2)]
+        assert all(held)
+        with pytest.raises(PettaError, match="already holds 2 answer cursors"):
+            gateway("ask", ask)
+        assert gateway("stop", {"cursor": held[0]}) == {"stopped": True}
+        assert gateway("ask", ask)["cursor"]
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_closing_the_server_releases_open_cursors(metta):
+    """A gateway OWNS its cursors, so closing one releases every engine
+    behind them rather than waiting on an idle deadline that no longer
+    has a server to fire on."""
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_owned {n})") for n in range(4)])
+    before = _live_engines(metta)
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        answers = space.stream(petta.parse("(re_owned $n)"), batch=1)
+        assert str(next(answers)) == "(re_owned 0)"
+        assert _live_engines(metta) == before + 1
+    finally:
+        server.close()
+        scratch.drop()
+    assert _live_engines(metta) == before
+
+
+def test_authorize_sees_the_cursors_own_space(metta):
+    """/next and /stop carry a cursor and no space, so a per-space policy
+    is handed the space the ANSWERS come from; reading the absent field's
+    default would have judged the wrong one."""
+    served = metta.new_space()
+    served.add(*[petta.parse(f"(re_auth {n})") for n in range(4)])
+    name = served.space_name
+    seen = []
+
+    def watch(request):
+        seen.append((request.operation, request.space))
+        return True
+
+    server = remote.serve(metta, spaces=[name], authorize=watch)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), name)
+        with space.stream(petta.parse("(re_auth $n)"), batch=1) as answers:
+            next(answers)
+    finally:
+        server.close()
+        served.drop()
+    assert seen == [("ask", name), ("stop", name)]
+
+
+def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta):
+    """The knob a MeTTa program feels: an attached space built with a
+    batch matches through the lifecycle, so `once` over it stops the
+    server's join instead of paying for the whole answer set.
+
+    The transport here is a Gateway rather than a URL, which is the one
+    way serving and attaching join inside one process: an HTTP server
+    answers on a thread of its own and would wait on the very evaluation
+    waiting on it, while a Gateway runs on the calling thread.
+    """
+    provider = _CountingProvider(2_000)
+    metta.register_space(provider, "&re-lazy-attached")
+    gateway = remote.Gateway(metta)
+    client = metta.new_space()
+    try:
+        remote.attach(client, "&hq", gateway, "&re-lazy-attached", batch=1)
+        provider.yielded = 0
+        (group,) = client.run("!(once (match &hq (re_counted $n) $n))")
+        assert [str(a) for a in group] == ["0"]
+        stopped_early = provider.yielded
+        provider.yielded = 0
+        (whole,) = client.run("!(collapse (match &hq (re_counted $n) $n))")
+        assert len(whole[0]) == 2_000
+        drained = provider.yielded
+    finally:
+        client.unregister_space("&hq")
+        client.drop()
+        gateway.close()
+        metta.unregister_space("&re-lazy-attached")
+    assert stopped_early < 10, (
+        f"once over a lazily attached space pulled {stopped_early} of 2,000 "
+        f"candidates; the wire did not stop when the engine did"
+    )
+    assert drained >= 2_000, "and a query that wants them all still gets them all"
+
+
+def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):
+    """A chunk carrying nothing ends the stream, so a live cursor beside
+    an empty chunk is a server that would spin a client forever."""
+
+    def looping(operation, payload):
+        return {"atoms": [], "cursor": "forever"}
+
+    with pytest.raises(PettaError, match="live cursor with no atoms"):
+        remote.RemoteCursor(looping, "&self", petta.parse("(re_loop $x)"))
+
+    def shapeless(operation, payload):
+        return {"cursor": None}
+
+    with pytest.raises(PettaError, match="chunk without an atom list"):
+        remote.RemoteCursor(shapeless, "&self", petta.parse("(re_loop $x)"))
+
+
+def test_a_closed_remote_cursor_refuses_further_pulls(metta):
+    scratch = metta.new_space()
+    scratch.add(*[petta.parse(f"(re_closed {n})") for n in range(4)])
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        answers = space.stream(petta.parse("(re_closed $n)"), batch=1)
+        next(answers)
+        assert "open" in repr(answers)
+        answers.close()
+        answers.close()  # idempotent
+        assert "closed" in repr(answers)
+        with pytest.raises(PettaError, match="this cursor is closed"):
+            next(answers)
+        # An exhausted cursor is the other state, and it stays an
+        # ordinary iterator: StopIteration, again and again.
+        with space.stream(petta.parse("(re_closed $n)"), batch=100) as drained:
+            assert len(list(drained)) == 4
+            assert list(drained) == []
+            assert "exhausted" in repr(drained)
+    finally:
+        server.close()
+        scratch.drop()
+
+
+@pytest.mark.parametrize("batch", [0, -1, 1.5, True])
+def test_a_remote_cursor_refuses_a_malformed_batch(metta, batch):
+    with pytest.raises(ValueError, match="batch must be a positive integer"):
+        remote.RemoteCursor(
+            lambda operation, payload: {"atoms": [], "cursor": None},
+            "&self",
+            petta.parse("(re_bad $x)"),
+            batch=batch,
+        )
+    with pytest.raises(ValueError, match="batch must be a positive integer or None"):
+        remote.RemoteSpace(lambda operation, payload: {}, batch=batch)
 
 
 class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):

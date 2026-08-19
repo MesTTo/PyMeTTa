@@ -48,7 +48,7 @@ def test_load_and_serve_assemble_and_record(metta, tmp_path):
         assert "(serve (&self) 0)" in topology
         (server,) = booted.servers
         health = json.loads(urllib.request.urlopen(server.url + "/health").read())
-        assert health["protocol"] == 2
+        assert health["protocol"] == 3
         assert repr(booted) == "Boot(2 forms performed, 1 servers)"
     finally:
         booted.close()

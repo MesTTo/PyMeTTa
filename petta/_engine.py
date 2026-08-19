@@ -560,13 +560,22 @@ class Runtime:
             )
 
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
-        """Enumerate a nondeterministic goal's answers.
+        """Enumerate a nondeterministic goal's answers, all of them.
 
         The cursor is drained under the lock before anything is yielded:
         janus queries belong to the engine, and interleaving user code that
         may call back into the engine with an open cursor is how a session
-        deadlocks. Answer sets that must stream should provide a shim-side
-        findall instead.
+        deadlocks. That is why this is for the SMALL, bounded enumerations
+        the library asks itself about, an operation's arities and a space's
+        diagnostics, and why it is not the lazy route.
+
+        The lazy route is an SWI engine, not a findall: petta_py_cursor_open
+        holds the goal's state between pulls, petta_py_cursor_next takes one
+        answer, and unrelated calls interleave freely, which a raw janus
+        cursor forbids because its frames nest LIFO and it dies crossing
+        threads. MeTTa.stream() is that door in-process and
+        RemoteSpace.stream() is the same lifecycle over the wire. A
+        shim-side findall would only move the drain, not remove it.
         """
         with self._thread_lock() or _LOCK:
             try:
