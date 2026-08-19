@@ -109,14 +109,15 @@ var SpaceStore = class {
   boundedMatch(name, pattern, bound) {
     return this.match(name, pattern).slice(0, bound);
   }
-  // Every unifying occurrence goes, the multiset reading remove-atom has
-  // everywhere, and the answer says whether any was there.
+  // ONE unifying occurrence goes: a space is a multiset and removal is
+  // multiset subtraction, so two stored copies need two removals. The
+  // answer says whether one was there.
   remove(name, pattern) {
     const atoms = this.space(name);
-    const kept = atoms.filter((atom) => !unifiable(pattern, atom));
-    const removed = kept.length !== atoms.length;
-    if (removed) this.spaces.set(name, kept);
-    return removed;
+    const doomed = atoms.findIndex((atom) => unifiable(pattern, atom));
+    if (doomed < 0) return false;
+    atoms.splice(doomed, 1);
+    return true;
   }
   count() {
     let total = 0;
@@ -348,12 +349,15 @@ test("unification is structural over expressions and exact over leaves", () => {
   ok(unifiable(["g", "text"], ["g", "text"]));
   ok(!unifiable(["g", "text"], ["g", "other"]));
 });
-test("the store is a multiset and removal takes every unifying occurrence", () => {
+test("the store is a multiset and removal subtracts one unifying occurrence", () => {
   const store = new SpaceStore();
   store.add("&self", edge(sym("a"), sym("b")));
   store.add("&self", edge(sym("a"), sym("b")));
   store.add("&self", edge(sym("a"), sym("c")));
   strictEqual(store.atoms("&self").length, 3);
+  strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
+  strictEqual(store.atoms("&self").length, 2);
+  strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
   strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
   strictEqual(store.atoms("&self").length, 0);
   strictEqual(store.remove("&self", edge(sym("a"), v("any"))), false);

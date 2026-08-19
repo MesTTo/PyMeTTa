@@ -35,14 +35,14 @@
       "unit": "evaluations"
     },
     "direct-join": {
-      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
+      "comment": "Raised from 280275 on 2026-08-19, +20137 (+7.18%), 2.01 inferences per answer row: a conjunctive match now finds every row BEFORE any output template runs. The language requires that, \"match first finds all the matches, and then instantiates the output pattern with them, which is evaluated outside match\", and this engine reversed ONE link of upstream's three-link loop example because each later conjunct was a fresh goal reading the space after the previous row's template had written to it. The rows are collected through findall/member, so the cost is one copy and one unification per row and tracks the join's row count and nothing else: the slope lane sees the same 2.01. A space whose declared semiring is bool skips the per-row annotation capture, which was another 3 per row before it was guarded [measured 2026-08-19: 320322 with the capture on every row against 300412 without]. Not reducible here: taking one answer is observably the same lazily or eagerly, since one template cannot disturb a later conjunct, but match/4 is not told a bound applies, so (once (match &s (, ...) ...)) now walks the join; pushing the bound through the snapshot needs the translator to carry it. Prior: Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
       "inference_slope": {
-        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
-        "delta_inferences": 1345302,
+        "comment": "Raised from 1345302 on 2026-08-19, the same 2.01 per row as the inferences lane, 96652 over 47976 rows [measured 2026-08-19: 1441954]. Prior: Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
+        "delta_inferences": 1441954,
         "large_operations": 49975,
         "small_operations": 1999
       },
-      "inferences": 280275,
+      "inferences": 300412,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.78302382169037e-06
@@ -108,14 +108,14 @@
       "wall_seconds_per_operation": 7.45732057839632e-06
     },
     "prepared-join": {
-      "comment": "Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
+      "comment": "Raised from 280275 on 2026-08-19, +20137 (+7.18%), 2.01 inferences per answer row: a conjunctive match now finds every row BEFORE any output template runs. The language requires that, \"match first finds all the matches, and then instantiates the output pattern with them, which is evaluated outside match\", and this engine reversed ONE link of upstream's three-link loop example because each later conjunct was a fresh goal reading the space after the previous row's template had written to it. The rows are collected through findall/member, so the cost is one copy and one unification per row and tracks the join's row count and nothing else: the slope lane sees the same 2.01. A space whose declared semiring is bool skips the per-row annotation capture, which was another 3 per row before it was guarded [measured 2026-08-19: 320322 with the capture on every row against 300412 without]. Not reducible here: taking one answer is observably the same lazily or eagerly, since one template cannot disturb a later conjunct, but match/4 is not told a bound applies, so (once (match &s (, ...) ...)) now walks the join; pushing the bound through the snapshot needs the translator to carry it. Prior: Raised from 270305 on 2026-08-18, +1 inference per answer row: the occurs-check correctness fix. petta_py_row now guards its bindings with acyclic_term/1 once per row, because a rational-tree join sailed past match_native's out-template guard (the bindings live outside the template) and died in the row encoder at a 53-million-frame walk; a register_prolog predicate can bind X=f(X) into a row, so the guard cannot be dropped even though native_expression now occurs-checks each candidate too. Attribution: the delta is exactly repeats*rows, 9970 over 5*1994 [measured 2026-08-18].",
       "inference_slope": {
-        "comment": "Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
-        "delta_inferences": 1345302,
+        "comment": "Raised from 1345302 on 2026-08-19, the same 2.01 per row as the inferences lane, 96652 over 47976 rows [measured 2026-08-19: 1441954]. Prior: Raised from 1297444 on 2026-08-18, the same +1 per row as the inferences lane [measured 2026-08-18: 1345302].",
+        "delta_inferences": 1441954,
         "large_operations": 49975,
         "small_operations": 1999
       },
-      "inferences": 280275,
+      "inferences": 300412,
       "operations": 9995,
       "unit": "rows",
       "wall_seconds_per_operation": 2.8308916356174156e-06

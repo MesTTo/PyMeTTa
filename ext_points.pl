@@ -130,9 +130,13 @@ ext_point_kind(metta_on_function_removed/1, event).
 %Space writes: every 'add-atom'/3 and 'remove-atom'/3 runs these hooks with
 %the space and the term, after the write. A standing query, a subscription,
 %an index or a mirror hangs off them; with no handlers nothing changes.
-%A plain-atom removal is retractall, which cannot say whether anything was
-%there, so a removal hook may fire for an atom that was never stored;
-%handlers re-check the space rather than trust the event.
+%A removal hook fires only when something was actually removed, and it carries
+%the term the caller ASKED to remove rather than the occurrence that left. The
+%two coincide for a ground request and diverge for a pattern: removal is
+%multiset subtraction, so (remove-atom &s (p $x)) takes one of the atoms
+%matching (p $x) and the hook cannot say which. A handler that needs the
+%occurrence re-reads the space; python/petta/structures.py's LiveView is the
+%worked instance [tested: test_liveview_mirrors_the_space].
 :- multifile metta_on_atom_added/2.
 ext_point_kind(metta_on_atom_added/2, event).
 :- multifile metta_on_atom_removed/2.

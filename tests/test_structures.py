@@ -215,14 +215,46 @@ def test_liveview_mirrors_the_space(metta):
         sp.add(S.alert(S.red), S.alert(S.red), S.alert(S.amber))
         assert len(alerts) == 3 == sp.count()
         assert alerts.count(S.alert(S.red)) == 2
-        # One removal OPERATION takes every copy, and the view mirrors
-        # the engine's own retractall reading rather than decrementing.
+        # One removal OPERATION takes ONE occurrence, multiset subtraction,
+        # and the view decrements rather than dropping the atom: a ground
+        # removal names the occurrence that left.
         sp.remove(S.alert(S.red))
-        assert len(alerts) == 1 and S.alert(S.red) not in alerts
+        assert alerts.count(S.alert(S.red)) == 1
+        assert len(alerts) == 2 == sp.count()
+        # A PATTERN removal does not name it. The event carries `(alert $q)`
+        # and the space keeps whichever copy the engine did not take, so the
+        # view re-reads instead of guessing; this is the case that used to
+        # empty it.
+        sp.remove(S.alert(V.q))
+        assert len(alerts) == 1 == sp.count()
+        assert list(alerts) == list(sp.atoms())
         sp.remove(S.alert(V.q))
         assert len(alerts) == 0 == sp.count()
         sp.add(S.other(1))  # a non-matching write is not the view's business
         assert len(alerts) == 0
+
+
+def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
+    """The re-read is paid only where the event cannot resolve the removal.
+
+    A ground removal names the occurrence that left, so the view decrements
+    locally and its cost does not move with how much it holds; a pattern
+    removal re-reads and its cost does. Measured 2026-08-19 over views of 10,
+    100 and 1000: 64 inferences flat against 211, 1200 and 11100.
+    """
+    from petta.structures import LiveView
+
+    def removal_cost(size, atom):
+        sp = metta.new_space()
+        sp.add(*[S.alert(S.red) for _ in range(size)])
+        with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
+            sp.remove(atom)
+        assert len(view) == size - 1
+        return spent.inferences
+
+    small, large = removal_cost(10, S.alert(S.red)), removal_cost(200, S.alert(S.red))
+    assert small == large, "a ground removal does not read the space"
+    assert removal_cost(200, S.alert(V.q)) > large, "a pattern removal does"
 
 
 def test_closureview_terminates_and_stays_fresh(metta):

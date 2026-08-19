@@ -174,18 +174,25 @@ class DuckDBSpace(SpaceProvider):
         )
 
     def remove(self, atom: Atom) -> bool:
+        """One row, because a space is a multiset and removal subtracts from
+        it: two identical rows need two removals. `delete ... where` has no
+        LIMIT in SQL, so the row is picked by `rowid` first and deleted by
+        that key, which also makes the pick and the delete report the same
+        fact instead of a count probe standing in front of a sweep."""
         table, values = self._row_of(atom, "remove")
         columns = self.columns(table)
         where = " and ".join(
             f"{_identifier(c)} IS NOT DISTINCT FROM ?" for c in columns
         )
-        before = self._conn.execute(
-            f"select count(*) from {_identifier(table)} where {where}", values
-        ).fetchone()[0]
+        picked = self._conn.execute(
+            f"select rowid from {_identifier(table)} where {where} limit 1", values
+        ).fetchone()
+        if picked is None:
+            return False
         self._conn.execute(
-            f"delete from {_identifier(table)} where {where}", values
+            f"delete from {_identifier(table)} where rowid = ?", [picked[0]]
         )
-        return before > 0
+        return True
 
     def clear(self) -> None:
         """Every row of every table this space serves; the schema stays."""

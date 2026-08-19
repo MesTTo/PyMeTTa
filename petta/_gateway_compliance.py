@@ -12,7 +12,7 @@ same reading SpaceComplianceSuite gives in-process providers.
 Guarantees:
   - the four operations are exercised with the semantics the protocol
     promises: multiset adds, match by pattern, removal by unification of
-    every occurrence [tested test_the_operations_keep_space_semantics,
+    one occurrence [tested test_the_operations_keep_space_semantics,
     test_add_many_lands_the_batch]
   - the refusal ladder answers JSON errors with the documented statuses,
     including the pre-body refusals only a raw socket can probe
@@ -161,8 +161,12 @@ class GatewayComplianceSuite:
         assert held.count("(gc-edge a b)") == 2, "a space is a multiset"
         matched = [str(a) for a in scratch.match(parse("(gc-edge a $x)"))]
         assert matched.count("(gc-edge a b)") == 2
-        # Removal is by unification, every occurrence, variables renamed
-        # apart: (gc-edge $q b) must take both stored atoms at once.
+        # Removal is by unification and takes ONE occurrence, variables
+        # renamed apart: a space is a multiset, and subtracting from a
+        # multiset walks the count down one at a time rather than emptying
+        # it. Two stored copies therefore need two removals, and the third
+        # finds nothing.
+        assert scratch.remove(parse("(gc-edge $q b)")) is True
         assert scratch.remove(parse("(gc-edge $q b)")) is True
         assert scratch.remove(parse("(gc-edge $q b)")) is False
 

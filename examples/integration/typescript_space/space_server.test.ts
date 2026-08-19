@@ -44,12 +44,17 @@ test("unification is structural over expressions and exact over leaves", () => {
   ok(!unifiable(["g", "text"], ["g", "other"]));
 });
 
-test("the store is a multiset and removal takes every unifying occurrence", () => {
+test("the store is a multiset and removal subtracts one unifying occurrence", () => {
   const store = new SpaceStore();
   store.add("&self", edge(sym("a"), sym("b")));
   store.add("&self", edge(sym("a"), sym("b")));
   store.add("&self", edge(sym("a"), sym("c")));
   strictEqual(store.atoms("&self").length, 3);
+  // Multiset subtraction: three stored, three removals, and the fourth
+  // finds nothing. A removal that took them all would empty the store here.
+  strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
+  strictEqual(store.atoms("&self").length, 2);
+  strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
   strictEqual(store.remove("&self", edge(sym("a"), v("any"))), true);
   strictEqual(store.atoms("&self").length, 0);
   strictEqual(store.remove("&self", edge(sym("a"), v("any"))), false);

@@ -490,11 +490,15 @@ def test_bare_atoms_are_refused_loudly(m):
         m.remove(expr())
 
 
-def test_remove_reports_presence_and_removes_every_duplicate(m):
+def test_remove_reports_presence_and_subtracts_one_duplicate(m):
     atom = S.duplicate(S.value)
 
     assert m.remove(atom) is False
     m.add(atom, atom)
+    # Multiset subtraction: the first removal leaves the second copy, so the
+    # atom is still there and the count is one, not zero.
+    assert m.remove(atom) is True
+    assert atom in m and m.count() == 1
     assert m.remove(atom) is True
     assert atom not in m
     assert m.remove(atom) is False

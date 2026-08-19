@@ -71,9 +71,12 @@ class ListSpace(SpaceProvider):
         self.stored.append(atom)
 
     def remove(self, atom):
-        if atom in self.stored:
-            self.stored[:] = [a for a in self.stored if a != atom]
-            return True
+        # One occurrence: the seam's own "remove one", which a provider
+        # copied from here would otherwise get wrong.
+        for index, held in enumerate(self.stored):
+            if held == atom:
+                del self.stored[index]
+                return True
         return False
 
 

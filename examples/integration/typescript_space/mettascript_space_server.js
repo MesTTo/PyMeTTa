@@ -108,14 +108,15 @@ var SpaceStore = class {
   boundedMatch(name, pattern, bound) {
     return this.match(name, pattern).slice(0, bound);
   }
-  // Every unifying occurrence goes, the multiset reading remove-atom has
-  // everywhere, and the answer says whether any was there.
+  // ONE unifying occurrence goes: a space is a multiset and removal is
+  // multiset subtraction, so two stored copies need two removals. The
+  // answer says whether one was there.
   remove(name, pattern) {
     const atoms = this.space(name);
-    const kept = atoms.filter((atom) => !unifiable(pattern, atom));
-    const removed = kept.length !== atoms.length;
-    if (removed) this.spaces.set(name, kept);
-    return removed;
+    const doomed = atoms.findIndex((atom) => unifiable(pattern, atom));
+    if (doomed < 0) return false;
+    atoms.splice(doomed, 1);
+    return true;
   }
   count() {
     let total = 0;
@@ -437,9 +438,10 @@ var MettascriptStore = class {
   remove(name, pattern) {
     const space = this.space(name);
     const wanted = wireToCore(this.core, pattern);
-    const doomed = space.atoms().filter((atom) => this.admits(wanted, pattern, atom));
-    for (const atom of doomed) space.remove(atom);
-    return doomed.length > 0;
+    const doomed = space.atoms().find((atom) => this.admits(wanted, pattern, atom));
+    if (doomed === void 0) return false;
+    space.remove(doomed);
+    return true;
   }
   count() {
     let total = 0;

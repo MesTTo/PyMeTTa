@@ -5,6 +5,10 @@ new provider attaches to the same path. On attach, an incomplete final
 record is copied to ``<journal>.tail`` and removed only when every earlier
 newline-terminated record validates. Earlier corruption is refused.
 Guarantees:
+  - removal subtracts ONE stored fact and journals one `retract(Fact)` for
+    it, the same multiset law a native space obeys, so a provider swap does
+    not change what `remove-atom` means [tested
+    test_a_persistent_space_subtracts_one_fact_like_a_native_one]
   - constructor failure releases its path claim and any unattached reusable
     module [tested test_constructor_failure_releases_path_and_unattached_module]
   - terminal-tail recovery syncs the backup file and its directory before
@@ -312,16 +316,23 @@ def _module_source(
     Goal =.. [AssertHead | Args],
     with_mutex({mutex}, transaction(call(Goal))).
 
+% ONE row, because removal is multiset subtraction and this store is a
+% multiset: assert_/N appends, so two identical facts are two rows and two
+% removals. library(persistency) generates both doors, and this is the
+% retract_/N one: db_retract/1 is retract/1 under the library's own mutex,
+% and it journals retract(Fact) rather than retractall(Fact, Count), which
+% the journal validator above already accepts. It also answers what it did,
+% so the separate presence probe that used to stand in front of the
+% retractall goes, and with it a check-then-act window.
 {helpers["remove"]}(Head, Wires, Removed) :-
     {helpers["schema"]}(Head, Arity),
     length(Wires, Arity),
     maplist({helpers["decode"]}, Wires, Args),
-    Fact =.. [Head | Args],
-    atom_concat(retractall_, Head, RetractHead),
+    atom_concat(retract_, Head, RetractHead),
     Retract =.. [RetractHead | Args],
     with_mutex({mutex},
-        ( once(call(Fact))
-        -> transaction(call(Retract)), Removed = 1
+        ( transaction(call(Retract))
+        -> Removed = 1
         ; Removed = 0
         )).
 

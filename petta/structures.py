@@ -23,6 +23,9 @@ Guarantees:
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
+  - LiveView holds exactly what the space holds for its pattern, through
+    adds and through removals whose event cannot say which occurrence left
+    [tested test_liveview_mirrors_the_space]
 Decides:
   - source text is NOT parsed here, because parsing needs the engine and
     this module's contract is engine-freedom; parse() first, or build
@@ -545,28 +548,48 @@ class LiveView:
             self._subscription = space.subscribe(
                 pattern, self._deliver, on="both"
             )
-            rows = space.query(pattern)
-            names = rows.columns
-            for row in rows:
-                self._held[substitute(_as_atom(pattern), dict(zip(names, row, strict=True)))] += 1
+            self._seed()
 
         space.transaction(setup)
+
+    def _seed(self) -> None:
+        """Read the whole multiset from the space. The first read and the
+        answer to a removal the event cannot resolve are the same
+        computation, so they are one."""
+        rows = self._space.query(self._pattern)
+        names = rows.columns
+        held: Counter[Atom] = Counter()
+        for row in rows:
+            held[substitute(_as_atom(self._pattern), dict(zip(names, row, strict=True)))] += 1
+        self._held = held
 
     def _deliver(self, event: Any) -> None:
         with self._lock:
             if event.action == "add":
                 self._held[event.atom] += 1
                 return
-            # A removal event fires ONCE per operation and carries the
-            # removal PATTERN (measured: two stored copies, one event;
-            # a pattern removal delivers the pattern itself), while the
-            # engine's removal takes every copy of every unifying atom.
-            # Mirroring that means dropping every held atom the event
-            # unifies with, copies and all.
+            # A removal event fires once per removal and carries the
+            # PATTERN asked for, not the occurrence that left (measured
+            # 2026-08-19: `(alert $q)` over {(alert red), (alert amber)}
+            # delivered `(alert $_610)` and the space kept amber). One
+            # removal is one occurrence, multiset subtraction, so the
+            # pattern alone no longer says what changed.
+            #
+            # It does say it when the pattern is ground and the only held
+            # atom unifying with it is the pattern itself: nothing else
+            # stored can unify with a ground atom, so exactly one copy of
+            # it left. That is every `remove(S.alert(S.red))`, and it stays
+            # a local decrement. Anything else re-reads the space, which
+            # is what the subscription's own contract asks of a handler
+            # that needs more than the event carries.
             pattern = event.atom
-            doomed = [held for held in self._held if unify(pattern, held) is not None]
-            for held in doomed:
-                del self._held[held]
+            stale = [held for held in self._held if unify(pattern, held) is not None]
+            if stale == [pattern] and is_ground(pattern):
+                self._held[pattern] -= 1
+                if self._held[pattern] <= 0:
+                    del self._held[pattern]
+                return
+            self._seed()
 
     def __contains__(self, atom: Any) -> bool:
         with self._lock:

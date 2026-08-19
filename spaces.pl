@@ -188,44 +188,75 @@ add_sexp_in(Module, _, Atom, Ref) :-
 native_atom_clause(Space, [Rel|Args], Term) :- !, Term =.. [Space, Rel | Args].
 native_atom_clause(_, Atom, '$petta_native_scalar'(Atom)).
 
-%Remove every atom that unifies with the requested value. Expressions and
+%Remove ONE atom that unifies with the requested value. Expressions and
 %scalars live in different predicates, so neither erases the other.
 remove_sexp(Space, Atom) :- remove_sexp(Space, Atom, _).
 
-%The same removal, answering whether anything WAS there. retractall/1 succeeds
-%whether or not it matched, so the answer had to come from somewhere: this
-%asks first, which is one clause lookup per removal.
+%The same removal, answering whether anything WAS there.
 %
-%Worth it because the engine already disagreed with ITSELF. Removing an
-%EQUATION answers false when nothing matched, forty lines up, and a foreign
-%provider fills metta_foreign_remove/3's Removed argument honestly, so a
-%MeTTa program branching on (remove-atom $space $atom) was correct against two
-%of the three and wrong against the third, with nothing in its text saying
-%which it would get. The seam was more expressive than the engine's own
-%implementation, and the information was one builtin away.
+%ONE occurrence, because removal is multiset SUBTRACTION. This used to take
+%every occurrence, and its stated reason was an invalid inference: "a MeTTa
+%space is a multiset unless something forbids it, SO removal takes EVERY
+%occurrence". The premise argues for the opposite conclusion, and the tree it
+%described was a multiset on ADD and a set on REMOVE, so three adds of (dup 1)
+%gave count 3 and one removal gave count 0. The arbiter reads the premise the
+%other way: "remove-atom must behave as multiset subtraction on the
+%reader-visible view of &self", and its own model "removes the first exact
+%occurrence and returns unit"
+%[source: LeaTTa MettaHyperonFullTests/Properties.lean:107,
+%MettaHyperonFull/Minimal/Stdlib.lean:2223, and wiki/Mechanization-Ledger.md
+%row "Represented removal consumes the first exact occurrence", which pins
+%(one two one) minus (one) as (two one) executably].
 %
-%retractall rather than retract, still: a MeTTa space is a multiset unless
-%something forbids it, so removal takes EVERY occurrence and swapping to
-%retract/1 would change the semantics rather than the report.
+%This engine had already decided it everywhere else. The seam declares
+%metta_foreign_remove/3 as "remove one" (EXTENDING.md), and drop_fun_meta/4
+%takes "one variant-equivalent retained equation" at a time
+%(src/translator.pl:115). The native store was the one holdout.
 %
-%Costs exactly one inference per removal, 10.00 to 11.00 over 20,000 removals,
-%identical across three runs each way [measured 2026-08-16, ai-tmp/rmcost.pl]
-%[tested: spaces_removal_answers_unit_and_reports_internally].
+%retract/1 under double negation, which makes the answer and the removal one
+%lookup instead of two. retractall/1 succeeds whether or not it matched, so
+%the answer had to come from a separate clause/2 probe in front of it, and
+%that pair was also a check-then-act race: retract/1 reports what it did, and
+%SWI adjusts each thread's entry generation so "if multiple threads use
+%once(retract(Term)), no two threads will retract the same clause". Exactly
+%ONE clause goes because the double negation takes retract/1's first solution
+%and never backtracks into it, and it has to: under the logical update view
+%"retract/1 succeeds for all clauses that match Term when the predicate was
+%called", so a retract left open on backtracking would drain the lot
+%[source: SWI-Prolog 10.1 Reference Manual, retract/1].
+%
+%Double negation rather than a copy because the bindings must NOT escape.
+%That is the engine's own rule for the compiled half, "retraction must not
+%bind the caller's variables" (src/translator.pl:115), and the language's:
+%remove-atom answers unit, so (remove-atom &self (pair $x)) is a request, not
+%a query, and $x is no more bound afterwards than before. It is also the
+%cheaper of the two isolations. Measured 2026-08-19 over 20,000 removals, min
+%of three: 1.0001 inferences per removal against the probe-and-retractall
+%shape's 2.0001, and against 2.0001 for the copy_term spelling
+%[measured 2026-08-19, ai-tmp/spaces-p1/rmcost.pl].
+%
+%Answering truthfully at all is worth it because the engine already disagreed
+%with ITSELF. Removing an EQUATION answers false when nothing matched, forty
+%lines up, and a foreign provider fills metta_foreign_remove/3's Removed
+%argument honestly, so a MeTTa program branching on (remove-atom $space $atom)
+%was correct against two of the three and wrong against the third, with
+%nothing in its text saying which it would get
+%[tested: spaces_removal_answers_unit_for_success_and_an_error_for_absence,
+%test_remove_atom_removes_one_occurrence_not_all].
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],
-        native_retract_all(Module:Term, Removed)
+        native_retract_one(Module:Term, Removed)
     ;   Removed = false
     ).
 remove_sexp(Space, Atom, Removed) :-
     (   native_storage_module_ready(Space, Module)
-    ->  native_retract_all(Module:'$petta_native_scalar'(Atom), Removed)
+    ->  native_retract_one(Module:'$petta_native_scalar'(Atom), Removed)
     ;   Removed = false
     ).
 
-native_retract_all(Head, Removed) :-
-    ( \+ \+ clause(Head, true) -> Removed = true ; Removed = false ),
-    retractall(Head).
+native_retract_one(Head, Removed) :-
+    ( \+ \+ retract(Head) -> Removed = true ; Removed = false ).
 
 %Which module a space's compiled clauses live in. EVERY space gets one, &self
 %included, and the mapping is the storage one with a different prefix: total,
@@ -835,13 +866,34 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
        this space\'s own module and shadows it there, leaving the engine\'s \c
        and every other space\'s alone' ].
 
-%Unit here too, and the language is explicit that absence is not reported:
+%Unit for a removal that happened, an error for one that found nothing.
+%
+%The language's own text is what asks for this rather than what forbids it:
 %"if the given atom is not in the space, remove-atom currently neither raises a
-%error nor returns the empty result". metta_remove_atom/3 still answers whether
-%anything went, because the engine's own callers use it.
+%error nor returns the empty result" is a COMPLAINT, and upstream carries the
+%same question as a TODO it has not answered, `stdlib/space.rs:219`, "Is it
+%necessary to distinguish whether the atom was removed or not?". The arbiter
+%answers it: LeaTTa's Hyperon-Hacks-Register row 15 rules "Implement. Keep the
+%distinction", records it SATISFIED in `Metta.Minimal.removeAtomStep`, and
+%pins the wording this reproduces. Hyperon as shipped answers unit for both,
+%so this is a deliberate divergence from the implementation towards the
+%specification, which is also what this engine's own hard-error rule says
+%[source: LeaTTa wiki/Hyperon-Hacks-Register.md row 15, and
+%MettaHyperonFull/Minimal/Interpreter.lean removeAtomStep at 5407-5426].
+%
+%metta_remove_atom/3 still answers whether anything went and still answers ONLY
+%that, because the engine's own callers read the boolean: the loader's
+%rollback, the storage modules, and the seam's removal hooks all ask "did the
+%store hold it" rather than "what does a program see".
 'remove-atom'(Space, Term, Result) :-
     (   metta_space_argument(Space)
-    ->  metta_remove_atom(Space, Term, _), Result = []
+    ->  metta_remove_atom(Space, Term, Removed),
+        (   Removed == true
+        ->  Result = []
+        ;   space_operation_error('remove-atom', [Space, Term],
+                                  "remove-atom: atom is not in the space",
+                                  Result)
+        )
     ;   space_argument_error('remove-atom', [Space, Term], Result)
     ).
 
@@ -866,12 +918,49 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %does: `(collapse (add-atom not-a-space (bad add)))` is a one-element collapse
 %holding the error, and a raise would have emptied the collapse instead
 %[source: LeaTTa tests/semantics/spaces/add_atom.metta].
+%The two READ doors below spell the same test as a bare atom/1 instead of
+%calling this, and that is a measurement rather than an oversight: atom/1 is a
+%type test SWI compiles inline, while this is a predicate call costing one
+%inference on every match and every get-atoms. The benchmarks saw exactly that
+%one inference per operation, +20,002 on py-method-call and +102 on
+%query-limit-guarded, and inlining put all seven back on their baselines
+%[measured 2026-08-19]. It is the split metta_self_module/1 already draws
+%against space_module/2, and it is kept honest the same way, by a test that
+%asserts the two spellings agree rather than by hoping they do
+%[tested: spaces_registration:the_inlined_space_test_is_the_named_one].
 metta_space_argument(Space) :- atom(Space).
 
+%The shape every space operation refuses in: the arbiter's `errAtom a0`, whose
+%subject is the CALL that failed rather than a generic complaint, which is
+%what lets a program tell one refusal from another without reading the message.
+%
+%The subject is a COPY of that call, and that is load-bearing rather than tidy.
+%match/4 takes the output template and the answer in the SAME term: the
+%translator emits `match('&self', [foo, A], A, A)` for
+%`!(match &self (foo $x) $x)`, so unifying the answer with an error whose
+%subject repeats the template builds `A = (Error (match _ (foo A) A) "...")`,
+%a rational tree. SWI has no occurs check here, so nothing failed; the term
+%printed until the 7.5Gb stack ran out, 50,707,153 frames deep in maplist/3
+%[measured 2026-08-19]. Copying makes the subject a snapshot, which is what a
+%record of a call that will not run is, and it makes every caller of this safe
+%whether or not its output slot aliases an input.
+space_operation_error(Operation, Arguments, Reason, Error) :-
+    copy_term(Arguments, Subject),
+    Error = ['Error', [Operation|Subject], Reason].
+
+%get-atoms is worded differently because upstream words it differently: it
+%takes ONE argument, so pinned `space.rs:143` says "its argument" where the
+%two-operand operations' `:172` and `:199` say "the first argument"
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at
+%5450-5452 against addAtomStep at 5386-5388].
 space_argument_error(Operation, Arguments, Error) :-
+    (   Operation == 'get-atoms'
+    ->  Position = "its argument"
+    ;   Position = "the first argument"
+    ),
     format(string(Message),
-           "~w expects a space as the first argument", [Operation]),
-    Error = ['Error', [Operation|Arguments], Message].
+           "~w expects a space as ~w", [Operation, Position]),
+    space_operation_error(Operation, Arguments, Message, Error).
 
 %%%% The three the standard library defines beside add-atom %%%%
 %
@@ -994,20 +1083,32 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),
     space_module(Space, Module),
     drop_fun_meta(Module, F, Args, Body),
+    %ONE compiled clause, the multiset law applied to the compiled half. The
+    %retained-equation half above already worked this way and said so, "remove
+    %one variant-equivalent retained equation... duplicate equations are
+    %removed one at a time", so the two halves used to disagree: the same
+    %equation written twice answered twice, and one removal left the function
+    %undefined because this erased both clauses under the one atom that went.
+    %
     %Only this space's compiled clauses die: the same equation imported into two
     %spaces compiles into two modules, and the term-keyed lookup alone would
     %erase the twin space's clause and, through the term-wide retractall, its
     %record with it.
-    findall(Ref, ( translated_from(Ref, Term),
-                   clause_property(Ref, module(Module)) ), Refs),
-    forall(member(Ref, Refs), ( erase(Ref), retractall(translated_from(Ref, _)) )),
+    %
+    %The probe is a COPY for drop_fun_meta/4's reason: a lookup that binds the
+    %caller's Term would narrow every later use of it in this clause.
+    copy_term(Term, Probe),
+    (   translated_from(Ref, Probe), clause_property(Ref, module(Module))
+    ->  erase(Ref), retractall(translated_from(Ref, _)), Erased = true
+    ;   Erased = false
+    ),
     function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),
          forall(metta_on_function_removed(F), true)
       ; true ),
-    ( Refs == [], Stored \== true -> Removed = false ; Removed = true ).
+    ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
 
 %Where an atom comes out of, the counterpart of store_atom/2. Both answer
 %whether the store actually held it.
@@ -1015,35 +1116,116 @@ unstore_atom(Space, Term, Removed) :- metta_foreign_space(Space), !,
                                       foreign_write(Space, remove,
                                                     metta_foreign_remove(Space, Term,
                                                                          Removed)).
-%Every atom that unifies, and whether any was there. A MeTTa space is a multiset
-%unless something forbids it, so removal takes every occurrence.
+%One atom that unifies, and whether one was there. A MeTTa space is a multiset,
+%and subtracting from a multiset takes one occurrence.
 unstore_atom(Space, Term, Removed) :- remove_sexp(Space, Term, Removed).
 
-%Choose the provider once for the whole match. A conjunction may enumerate
-%millions of native candidates, so routing every conjunct back through match/4
-%would repeat the foreign-space probe for every candidate.
+%A CONJUNCTION finds every row before any of them leaves, which is specified
+%behaviour and not an implementation detail we are free to pick: "match first
+%finds all the matches, and then instantiates the output pattern with them,
+%which is evaluated outside match. If remove-atom and add-atom would be
+%executed right away for each found matching, the condition of circular links
+%would be broken after the first rewrite" [source: the language's Working with
+%spaces, the graph-rewriting example]. The arbiter pins it with an experiment
+%built to tell an eager snapshot from a lazy query that happens to be fully
+%consumed: both implementations retain every row through a template that
+%removes the other one, and only the effect ORDER is a recorded free
+%divergence [source: LeaTTa tests/semantics/matching/
+%nondeterministic_match_snapshot.metta and its EVIDENCE entry].
+%
+%A SINGLE pattern needs nothing here and still streams. It is one goal over
+%one dynamic predicate, and the logical update view already fixes what it sees
+%at the call, so a template that writes cannot change what the goal still has
+%to answer; the arbiter's own single-pattern experiment passes on that alone.
+%A conjunction is where it runs out, because each later conjunct is a fresh
+%goal STARTED AFTER the previous row's template ran, and a fresh goal sees the
+%new generation. Measured on the doc's own example: upstream reverses all
+%three loop edges, and this reversed one, the first template's remove-atom
+%breaking the cycle for every later conjunct [measured 2026-08-19,
+%ai-tmp/spaces-p1/p116/linkloop.metta].
+%
+%What is collected is the BINDINGS, term_variables over the pattern and the
+%output template together, because that is where a row lives: the translator
+%compiles the template into goals reading the PATTERN's own variables,
+%`'remove-atom'('&self', [link, B, C], _)` beside `match('&self', [',',
+%[link,B,C], ...], A, A)`, so collecting the output slot alone would collect a
+%variable the match never binds and lose every row. Taking both terms'
+%variables keeps whatever they share.
+%
+%Cheaper than the arbiter, which collects a BindingsSet for every match; this
+%pays only where a conjunction is written, and leaves
+%(once (match &big (foo $x) $x)) streaming
+%[tested: test_match_snapshots_rows_before_template_effects,
+%spaces_match_snapshot:a_conjunction_finds_every_row_before_any_template_runs].
+%An ANNOTATED space's rows carry their annotation as well as their bindings,
+%because that rides '$petta_answer_k' BACKTRACKABLY and findall would undo it:
+%reset-call-read is metta_top/3's own idiom below, and the write after member/2
+%is what hands the row's k to the template that reads (annotation).
+%
+%A space whose semiring is bool takes the plain collection, which is three
+%inferences a row cheaper and is the traffic: under bool an answer's k can
+%only be 1, because a provider handing one to an undeclared context raises
+%rather than setting it ("a real k is admitted exactly when its context
+%declared a non-Boolean semiring", python/petta/shim.pl), and the engine's own
+%join writes nothing when both sides read 1. Measured on direct-join
+%[measured 2026-08-19: 320,322 inferences with the capture on every row
+%against 289,819 without it, over 10,000 rows]
+%[tested: test_a_join_multiplies_provenance,
+%test_a_conjunction_carries_each_rows_annotation].
+match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
+                                             metta_space_argument(Space), !,
+                                             term_variables(Pattern-OutPattern, Row),
+                                             (   petta_annotations(Space, bool)
+                                             ->  findall(Row,
+                                                         match_conjunction(Space, Pattern, OutPattern),
+                                                         Rows),
+                                                 member(Row, Rows)
+                                             ;   findall(Row-K,
+                                                         ( b_setval('$petta_answer_k', 1),
+                                                           match_conjunction(Space, Pattern, OutPattern),
+                                                           b_getval('$petta_answer_k', K) ),
+                                                         Rows),
+                                                 member(Row-K, Rows),
+                                                 b_setval('$petta_answer_k', K)
+                                             ),
+                                             Result = OutPattern.
+%A single pattern over a foreign space: the provider answers, and the
+%conjunction door above has already taken the conjunctive case.
 match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
                                              metta_foreign_space(Space), !,
                                              match_foreign(Space, Pattern, OutPattern, Result).
-%A native space is a Prolog predicate named after the space. Its conjunction
-%can stay on the direct helper; a space implemented by an earlier multifile
-%match/4 clause, such as MORK, must route each conjunct through match/4 so its
-%own provider clause sees it.
-match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
-                                             nonvar(Space),
-                                             native_storage_module_cache(Space, Module), !,
-                                             match_native(Module, Space, Pattern, OutPattern, Result).
-match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',', !,
-                                             match_routed(Space, Pattern, OutPattern, Result).
 %An unbound space would make this dynamic call enumerate every space that has
 %ever been written to, so a program in &self could read &kb without naming it.
-%Before storage modules the same path reached Term =.. [Space, Rel|Args] and
-%raised, which is the behaviour to keep: matching is against a space you name
-%[tested: spaces_storage_modules:matching_requires_a_named_space].
+%Matching is against a space you NAME, and the refusal is the write path's
+%own: `(add-atom $unbound (foo 1))` already answered
+%`(Error (add-atom $_ (foo 1)) "add-atom expects a space as the first
+%argument")` while this raised SWI's bare `Arguments are not sufficiently
+%instantiated`, which names neither the operation nor the call and reached
+%Python as an EngineError with no operation field at all. Same question, same
+%kind of answer [tested: test_get_atoms_on_an_unbound_space_names_the_operation,
+%spaces_storage_modules:matching_requires_a_named_space].
+%
+%atom/1 rather than metta_space_argument/1, which is the same test inlined:
+%this clause runs on every match a MeTTa program makes, and the predicate call
+%cost one inference each time. See the note above metta_space_argument/1 for
+%the measurement and for the test that keeps the two spellings agreeing.
 match(Space, Pattern, OutPattern, Result) :-
-    ( var(Space) -> instantiation_error(Space) ; true ),
-    native_storage_module_cache(Space, Module),
-    match_native(Module, Space, Pattern, OutPattern, Result).
+    (   atom(Space)
+    ->  native_storage_module_cache(Space, Module),
+        match_native(Module, Space, Pattern, OutPattern, Result)
+    ;   space_argument_error('match', [Space, Pattern, OutPattern], Result)
+    ).
+
+%Choose the provider once for the whole conjunction. It may enumerate millions
+%of native candidates, so deciding per candidate would repeat the foreign-space
+%probe every time. A native space is a Prolog predicate named after the space
+%and stays on the direct helper; anything else routes each conjunct back
+%through match/4, which is how a space implemented by its own clause sees it.
+match_conjunction(Space, Pattern, OutPattern) :- metta_foreign_space(Space), !,
+                                                 match_foreign(Space, Pattern, OutPattern, _).
+match_conjunction(Space, Pattern, OutPattern) :- native_storage_module_cache(Space, Module), !,
+                                                 match_native(Module, Space, Pattern, OutPattern, _).
+match_conjunction(Space, Pattern, OutPattern) :- match_routed(Space, Pattern, OutPattern, _).
 
 match_routed(_, LComma, OutPattern, Result) :- LComma == [','], !,
                                                Result = OutPattern.
@@ -1696,8 +1878,19 @@ native_expression(Module, Space, Rel, PatArgs) :-
                                petta_source_guard(Space),
                                metta_foreign_atoms(Space, Pattern).
 
-%Get all atoms in space, irregard of arity:
-'get-atoms'(Space, Pattern) :- get_native_atom(Space, Pattern).
+%Get all atoms in space, irregard of arity. A first argument that is not a
+%space is refused HERE and not in get_native_atom/2 below, for the same reason
+%metta_add_atom/3 leaves the check to 'add-atom'/3: this is the door a MeTTa
+%program comes through and the one that owes it a MeTTa answer, while the
+%storage read below is an engine internal whose callers hold a space name
+%already and would read an error atom as a stored atom
+%[tested: test_get_atoms_on_an_unbound_space_names_the_operation].
+%atom/1 is metta_space_argument/1 inlined, for the reason its own note gives.
+'get-atoms'(Space, Pattern) :-
+    (   atom(Space)
+    ->  get_native_atom(Space, Pattern)
+    ;   space_argument_error('get-atoms', [Space], Pattern)
+    ).
 
 %Drop every atom a space holds. Expressions and scalars live in different
 %predicates, so a caller that wipes only the space predicate would leave the
@@ -1709,20 +1902,74 @@ native_expression(Module, Space, Rel, PatArgs) :-
 clear_foreign_atoms(Space) :-
     foreign_write(Space, clear, metta_foreign_clear(Space)).
 
+%A space has two halves and this used to empty one of them. The storage sweep
+%below drops every stored atom, and the atoms that also COMPILED left their
+%clauses standing in the space's execution module, so a space holding nothing
+%still answered its own functions: define (= (past-life) inherited), clear,
+%and `!(past-life)` in that space still answered `inherited` over an empty
+%space [measured 2026-08-19, ai-tmp/spaces-p1/probe_p116h.pl]. Space names
+%are POOLED, so that is a previous life answering through a recycled name.
+%
+%It was masked rather than absent: python/petta/shim.pl's clear removes
+%equations through the removal funnel before calling this, so the Python door
+%was whole and the ENGINE's own door was not. Every other caller got the half
+%clear, and P1.14's reload will come through this one.
+%
+%So the compiled half leaves first, through metta_remove_atom/3, which is the
+%code that owns each shape: an equation un-compiles its clause and forgets the
+%function name when nothing else defines it, a declaration recompiles the call
+%sites it was shaping. Only those two shapes, because only those two have a
+%compiled half, which is exactly the two clauses metta_remove_atom/3 answers
+%specially; a plain atom is storage and nothing else, so the sweep is both
+%correct and one retractall per arity rather than one removal per atom.
+%
+%The funnel is idempotent, so the shim's own pass in front of this one leaves
+%nothing here to find and no removal is announced twice
+%[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
+%test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
 clear_native_atoms(Space) :-
-    ( native_storage_module_ready(Space, Module)
-      -> forall(( current_predicate(Module:Space/Arity),
-                  functor(Head, Space, Arity) ),
-                retractall(Module:Head)),
-         retractall(Module:'$petta_native_scalar'(_))
-    ; true ),
+    (   native_storage_module_ready(Space, Module)
+    ->  findall(Atom, compiled_half_atom(Space, Module, Atom), Compiled),
+        forall(member(Atom, Compiled),
+               ( metta_remove_atom(Space, Atom, _) -> true ; true )),
+        forall(( current_predicate(Module:Space/Arity),
+                 functor(Head, Space, Arity) ),
+               retractall(Module:Head)),
+        retractall(Module:'$petta_native_scalar'(_))
+    ;   true
+    ),
     retractall(import_life(Space, _, _)).
 
+%The atoms whose removal has a consequence beyond storage, which are exactly
+%the two shapes metta_remove_atom/3 answers specially; a shape added there
+%without being added here would go back to leaving its compiled half behind a
+%clear.
+%
+%Asked of the storage predicate by HEAD SYMBOL rather than by filtering a walk
+%of the space. The head is the first argument, so this is one indexed lookup
+%per shape and a space of plain atoms pays nothing for the question; filtering
+%an enumeration cost one inference per stored atom on every clear, which the
+%benchmarks saw as +20,002 inferences on py-method-call and +8,000 on
+%handle-round-trip [measured 2026-08-19].
+compiled_half_atom(Space, Module, [=, Head, Body]) :-
+    Term =.. [Space, =, Head, Body],
+    call(Module:Term),
+    Head = [F|_], atom(F).
+compiled_half_atom(Space, Module, [':', F, Type]) :-
+    Term =.. [Space, ':', F, Type],
+    call(Module:Term),
+    atom(F), fun(F).
+
 %Enumeration answers the space's expressions and then its scalar atoms.
-%The read sibling of match/4's guard, and it needs it for the same reason:
 %native_storage_module_ready/2 is a dynamic lookup, so an unbound space
 %enumerated every space ever written to and !(collapse (get-atoms $any))
-%answered with another space's atoms without ever naming it
+%answered with another space's atoms without ever naming it.
+%
+%This raise is the ENGINE's invariant and not the language's answer: a MeTTa
+%program cannot reach it, because 'get-atoms'/2 above refuses a first argument
+%that is not a space before it gets here. What is left is an engine caller
+%that lost its space name, and that is a bug in the engine rather than in a
+%program, so it throws instead of answering an atom the caller would store
 %[tested: spaces_storage_modules:reading_atoms_requires_a_named_space].
 get_native_atom(Space, Pattern) :-
     ( var(Space) -> instantiation_error(Space) ; true ),
