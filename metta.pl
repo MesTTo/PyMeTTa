@@ -1180,6 +1180,12 @@ strict_input_type('Number').
 strict_input_type('String').
 strict_input_type('Symbol').
 strict_input_type('Bool').
+%A space parameter is strict for the same reason the four above are: which
+%space an operation touches cannot be left open. The engine's own surface said
+%`Symbol` for these positions while a space handle answered Symbol, so they
+%were already covered under that spelling and moved with it
+%[tested: builtin_input_guards].
+strict_input_type('SpaceType').
 
 %The constraint family is RELATIONAL by design: (#+ $a 2 $r) is a constraint
 %to post rather than a call to run, and an unbound argument there is the whole
@@ -1861,6 +1867,14 @@ get_type_candidate(X, T) :- \+ get_function_type(X, _),
 get_type_candidate(X, T) :- '$petta_atoms:&self':'&self'(':', X, T),
                             acyclic_term(T).
 get_type_candidate(X, T) :- builtin_type_declaration(X, T).
+%A space handle's own type, which no declaration carries because no program
+%wrote the handle. `(get-type &self)` and the type of a space a program made
+%are both `SpaceType` on hyperon 0.2.10, including for a `(new-space)` nothing
+%has been written to [source: LeaTTa tests/semantics/spaces/space_identity.metta
+%and context_space.metta, both STATUS conforms]. Last, like the engine's own
+%declarations above it, so a program that declares something about a handle is
+%still answered first [tested: space_handle_type].
+get_type_candidate(X, 'SpaceType') :- petta_space_operand(X).
 
 get_type_candidate_in(_, X, 'Number')   :- number(X), !.
 get_type_candidate_in(_, X, _) :- var(X), !.
@@ -1878,6 +1892,7 @@ get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
 
 get_type_candidate_in(Module, X, T) :- type_declaration_in(Module, X, T).
 get_type_candidate_in(_, X, T) :- builtin_type_declaration(X, T).
+get_type_candidate_in(_, X, 'SpaceType') :- petta_space_operand(X).
 
 %An expression no arrow types is read ELEMENT-WISE, and the tuple it reads is
 %%Undefined% as soon as one member's type is. Nothing is known about a tuple
@@ -1969,6 +1984,15 @@ metatype_of(false, 'Grounded') :- !.
 metatype_of(X, 'Grounded') :- python_object_blob(X), py_is_object(X), !.
 metatype_of(X, 'Grounded') :- atom(X), metta_grounded_token(X),
                               metta_operation_admitted(X), !.
+%A SPACE HANDLE is a value and not a name that happens to spell one, which is
+%why this asks the registry rather than the table: `&self` is in upstream's
+%table because upstream registers a token for it, and a space a program makes
+%at runtime is in no table at all yet answers the same. Measured on hyperon
+%0.2.10: `!(get-metatype &self)` and `!(get-metatype &space-a)` after
+%`!(bind! &space-a (new-space))` both print `[Grounded]`
+%[source: LeaTTa tests/semantics/spaces/space_identity.metta, STATUS conforms]
+%[tested: space_handle_type].
+metatype_of(X, 'Grounded') :- atom(X), petta_space_operand(X), !.
 metatype_of(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 metatype_of(X, 'Symbol') :- atom(X), !.            % e.g., a
 metatype_of(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
@@ -2096,7 +2120,9 @@ metta_grounded_token('unique-atom'). metta_grounded_token('xor').
 %[tested: metta_metatypes:a_token_this_engine_does_not_hold_is_a_symbol].
 metta_operation_admitted(Name) :- fun(Name), !.
 metta_operation_admitted(Name) :- metta_translated_head(Name), !.
-metta_operation_admitted('&self').
+%`&self` reaches this through the space registry rather than through either
+%register, which is also how every space a program makes at runtime reaches it.
+metta_operation_admitted(Name) :- petta_space_operand(Name).
 
 %A parameter declared with a METATYPE accepts any atom of that kind, which is
 %what makes a variadic constructor declarable: a container has no fixed arity
@@ -3688,7 +3714,16 @@ run_under_pragmas(Goal) :-
 %full evaluation rather than minimal MeTTa's single rewriting step, which its
 %own comment records, so this is the HE spelling over it. The Type argument is
 %accepted and ignored, as it is for %Undefined% in HE.
-'metta'(Atom, _Type, Space, Out) :- evalc(Atom, Space, Out).
+%The space test is evalc's, repeated rather than delegated, because a refusal
+%has to name the operation the PROGRAM wrote: delegating told a program that
+%wrote `metta` about `evalc`
+%[tested: builtin_input_guards:every_builtin_refuses_an_unbound_input_by_name].
+'metta'(Atom, _Type, Space, Out) :- ( 'is-space'(Space, true)
+                                      -> true
+                                      ;  throw_metta_type_error(metta,
+                                                                'SpaceType',
+                                                                Space) ),
+                                     evalc(Atom, Space, Out).
 
 %%% Python bindings: %%%
 % janus converts Python booleans to @(true)/@(false); normalize them to the
@@ -3790,7 +3825,15 @@ bind_python_call_spec(Spec, Spec).
 %the form means what it says and bind! has something to bind.
 :- dynamic petta_space_counter/1.
 
-'new-space'(Space) :- gensym('&petta-space-', Space).
+%The space is REGISTERED here rather than at its first write, because a space
+%that has been created exists: `(chain (new-space) $s (get-type $s))` is
+%`SpaceType` on hyperon 0.2.10 with nothing written to it
+%[source: LeaTTa tests/semantics/spaces/space_identity.metta, STATUS conforms]
+%[tested: space_handle_type:a_fresh_space_is_one_before_anything_is_written_to_it].
+%Naming a space still registers nothing, which is the property that keeps every
+%symbol in a space position from becoming one.
+'new-space'(Space) :- gensym('&petta-space-', Space),
+                      ensure_native_storage_module(Space, _).
 
 %%% States: %%%
 'bind!'(Var, _, _) :- var(Var), !, refuse_unbound_input('bind!', 1).

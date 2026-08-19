@@ -1332,10 +1332,11 @@ petta_space_operand(S) :-
     ).
 
 %Every space name this engine registers: '&self' and '&petta' from load
-%time, every native space that has been written to, and every foreign
-%provider currently bound. Naming a space never registers it, only a
-%write or a binding does, so this is the same set petta_space_operand/1
-%accepts. sort/2 makes the answer stable and duplicate-free.
+%time, every native space that (new-space) made or that has been written
+%to, and every foreign provider currently bound. Naming a space never
+%registers it, only creating it, writing to it or binding one does, so
+%this is the same set petta_space_operand/1 accepts. sort/2 makes the
+%answer stable and duplicate-free.
 metta_space_names(Names) :-
     findall(S, native_storage_module_cache(S, _), Native),
     findall(S, metta_foreign_space(S), Foreign),

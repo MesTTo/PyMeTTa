@@ -188,16 +188,16 @@
 ;MEASURED [Atom] from the mechanised interpreter and from hyperon
 ;0.2.10 alike].
 ;
-;Both arrows are upstream's, with the one vocabulary translation this
-;tree already applies: SpaceType is written Symbol here, the rule
-;lib/lib_builtin_types.metta states for the whole surface. get-type is
-;(-> Atom %Undefined%) and get-type-space is (-> SpaceType Atom Atom) at
-;pinned stdlib.md:849-868. Either return spelling behaves identically in
+;Both arrows are upstream's, written exactly as upstream writes them:
+;get-type is (-> Atom %Undefined%) and get-type-space is
+;(-> SpaceType Atom Atom) at pinned stdlib.md:849-868. The first parameter
+;said Symbol here while a space handle answered Symbol, and had to move with
+;the handle's own type [tested: spaces:space_handle_type]. Either return spelling behaves identically in
 ;this engine, measured 2026-08-19 over an effectful call, a declared
 ;return, a value and a builtin application, so upstream's is kept because
 ;matching it costs nothing.
 (: get-type (-> Atom %Undefined%))
-(: get-type-space (-> Symbol Atom Atom))
+(: get-type-space (-> SpaceType Atom Atom))
 
 ;match-types is UNIFICATION with wildcards, not equality: %Undefined%
 ;and Atom on either side match anything, and otherwise the two types
