@@ -28,6 +28,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -296,3 +297,26 @@ def test_assertion_order_alone_decides_which_overlapping_rule_wins(
     planted = tmp_path / f"order_{expected}.metta"
     planted.write_text(source)
     assert _run_metta(repo_root, planted)[-1] == expected
+
+
+def test_the_confluence_reporter_analyzes_prelude_registered_rules(repo_root):
+    """Every REGISTERED rule enters the analyzed set.
+
+    The prelude's rules never become space atoms (the loader compiles them
+    into &self's module), so before the engine's prelude_equation/2 register
+    existed the report listed ten registered names and analyzed two rules.
+    The closure's symbol count equalling the registered count is the
+    invariant; the shipped-tier block shows the ladder pairs are actually
+    read, without pinning how many rungs the prelude ships.
+    """
+    report = _confluence_report(repo_root, [])
+    registered = re.search(r"registered translator rules: (\d+),", report)
+    analyzed = re.search(
+        r"compile-time rule set: \d+ rules over (\d+) defined symbols", report
+    )
+    assert registered and analyzed, report
+    assert int(analyzed.group(1)) == int(registered.group(1))
+    assert int(registered.group(1)) > 2
+    assert "shipped tier:" in report
+    assert "specialization pairs" in report
+    assert "EQUIVALENCE OBLIGATION" in report

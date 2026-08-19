@@ -4998,6 +4998,13 @@ load_builtin_type_surface :- index_masking_data_heads.
 %over, and a rule pointing at the program's equations would call them as a
 %compile-time expander, which is not what an ordinary definition means.
 :- dynamic prelude_translator_rule/1.
+%The prelude's equations as TERMS, one row per (= ...) form, so a tool
+%can enumerate the shipped tier without re-parsing prelude source: the
+%loader compiles equations into &self's module rather than storing atoms
+%(get-atoms on a user space must not show engine vocabulary), and this
+%register is the enumerable door that compilation would otherwise close.
+%The confluence reporter is the first consumer.
+:- dynamic prelude_equation/2.
 %Which builtin_type_declaration/2 rows the prelude PUT THERE, as opposed to
 %found there. The two registers overlap once a name needs its Atom mask
 %honoured at call sites AND belongs to the engine's reported type surface:
@@ -5026,6 +5033,7 @@ evict_prelude_definition(FAtom) :-
     ->  forall(retract(prelude_clause_ref(FAtom, Ref)), erase(Ref)),
         retract_prelude_declarations(FAtom),
         retractall(prelude_doc_atom(FAtom, _)),
+        retractall(prelude_equation(FAtom, _)),
         (   retract(prelude_translator_rule(FAtom))
         ->  retractall(translator_rule(FAtom))
         ;   true
@@ -5166,6 +5174,7 @@ load_prelude_form(function, _, Term) :-
     once(with_metta_module(Self, translate_clause(Term, Clause))),
     assert_function_clause(Self, Clause, Ref),
     assertz(prelude_clause_ref(FAtom, Ref)),
+    assertz(prelude_equation(FAtom, Term)),
     (   prelude_owned(FAtom) -> true
     ;   assertz(prelude_owned(FAtom))
     ).
