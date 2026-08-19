@@ -153,3 +153,44 @@ def test_the_metta_library_page_is_up_to_date():
         "metta-libraries.md no longer matches the libraries' @doc atoms; "
         "run `python python/tools/libdoc.py --write`"
     )
+
+
+def _lint_kinds() -> set[str]:
+    """Every kind petta.lint can emit, read out of the analysis module.
+
+    Derived rather than listed, because a hand-kept list is the thing that
+    drifts: the kinds reach a Finding two ways, directly as its first
+    argument and through a simplifier's (kind, detail, replacement) triple,
+    and both shapes are matched here.
+    """
+    tree = ast.parse((_REPO / "python" / "petta" / "_lint_analysis.py").read_text())
+    kinds: set[str] = set()
+    for node in ast.walk(tree):
+        first = None
+        if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Finding":
+            first = node.args[0] if node.args else None
+        elif isinstance(node, ast.Tuple) and len(node.elts) == 3:
+            first = node.elts[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            kinds.add(first.value)
+    return kinds
+
+
+def test_every_lint_kind_is_named_on_the_page_its_findings_link_to():
+    """Every Finding carries docs_link, so the page it names is a promise.
+
+    It was pointed at the generated reference page, which reproduces
+    signatures and docstrings and named none of the seventeen kinds; a
+    reader following the link from a finding learned nothing about it.
+    """
+    from petta import S
+    from petta.lint import Finding
+
+    link = Finding("kind", "subject", "detail", S.evidence).docs_link
+    page, _, anchor = link.partition("#")
+    path = _REPO / page.split("/blob/main/", 1)[1]
+    assert path.is_file(), f"docs_link names {path}, which is not in the tree"
+    text = path.read_text(encoding="utf-8")
+    assert anchor == "lint-a-space" and "## Lint a space" in text
+    missing = sorted(kind for kind in _lint_kinds() if f"`{kind}`" not in text)
+    assert not missing, f"{missing} can be reported and are not documented at {link}"

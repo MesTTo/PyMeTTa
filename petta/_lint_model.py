@@ -26,9 +26,15 @@ from typing import Any
 from .atoms import Atom
 from .errors import EngineError
 
-#: Every kind is described on the lint reference page, so one link serves
-#: the whole family until findings carry source positions to anchor on.
-_LINT_DOCS = "https://github.com/trueagi-io/PeTTa/blob/main/website/reference/petta-lint.md"
+#: The guide's lint section is the catalogue: every kind, what it means and
+#: which severity it carries. One link serves the whole family rather than
+#: one per kind, because a reader who has one finding usually wants the
+#: neighbouring kinds too. NOT the generated reference page, which
+#: reproduces signatures and docstrings and names no kind at all.
+_LINT_DOCS = (
+    "https://github.com/trueagi-io/PeTTa/blob/main/website/guide/run-query.md"
+    "#lint-a-space"
+)
 
 
 @dataclass(frozen=True)

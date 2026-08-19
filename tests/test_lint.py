@@ -280,7 +280,9 @@ def test_findings_carry_the_lsp_diagnostic_fields(m):
         "$_640", str(simplification.autofix[1][1])
     )
     assert simplification.payload["replacement"] is not None
-    assert simplification.docs_link.endswith("petta-lint.md")
+    # Which page, and that it names every kind, is checked by
+    # test_every_lint_kind_is_named_on_the_page_its_findings_link_to.
+    assert simplification.docs_link.startswith("https://")
     # applying the fix is remove-then-add, no positions needed
     assert m.remove(simplification.atom)
     m.add(simplification.autofix)
