@@ -5,6 +5,11 @@
 %   - merge_branch_returns/3 does not bind variable keys until its assoc
 %     lookups finish [source 2026-08-14:
 %     https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl].
+%   - '$skip_list'(-Length, +List, -Tail) reports the tail a list spine ends
+%     in without instantiating it, which is what separates a cases argument
+%     that has not arrived from one that is no list at all
+%     [source 2026-08-19: SWI-Prolog 10.1.13
+%     /usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2].
 % Guarantees:
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
@@ -67,6 +72,32 @@
 %   - maybe_print_compiled_clause/3's trace output works under autoload=false
 %     too [measured 2026-08-18: NO_AUTOLOAD=1 sh test.sh, the full
 %     examples/ corpus].
+%   - A cases argument whose list spine ends in a variable compiles to a
+%     runtime path instead of running select/3 over it forever, and a value
+%     arriving there that is not a list of (pattern value) pairs is refused
+%     naming the form and printing the argument as MeTTa
+%     [tested 2026-08-19: translator_case_open_cases].
+%   - Cases handed over as a value answer what the same cases written out
+%     answer, over sixteen shapes including the Empty default, a
+%     nondeterministic key, a functional pattern and a nested case, so a
+%     one-line switch is an ordinary definition again
+%     [tested 2026-08-19: translator_case_computed_cases]. Writing them out is
+%     unaffected: byte-identical compiled goals over twelve case shapes,
+%     including the two that decide where the default comes from, an Empty
+%     pair anywhere in the list and a pair of two variables that is an
+%     ordinary branch rather than a default, and 3 inferences a call at 3, 12
+%     and 24 cases against 78, 258 and 498 for the same cases handed over
+%     [measured 2026-08-19].
+% Fails when:
+%   - a case whose cases are not written out sits on a hot path. It costs one
+%     translation per call, and a case body holding a lambda generates one
+%     predicate per call that nothing collects. eval/2 is the engine's other
+%     runtime-translation door and behaves identically, so this is the shape
+%     of runtime translation here rather than anything case adds
+%     [measured 2026-08-19: 51 calls of a lambda-bearing computed case left
+%     51 generated lambdas and 50 evals of the same expression left 50 more,
+%     while a body with no lambda left none]. Writing the cases out compiles
+%     them once and pays neither cost.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -251,6 +282,8 @@ constrain_args(In, Out, Goals) :- maplist(constrain_args, In, Out, NestedGoalsLi
 %recompiles every equation in the corpus, reads the goals out of the bodies
 %and fails if one of them is capturable and not named here, so a translation
 %rule added later cannot quietly widen the hole.
+metta_engine_emitted(case_default_runtime/2).
+metta_engine_emitted(case_runtime/3).
 metta_engine_emitted(control_exception/1).
 metta_engine_emitted(foldall/4).
 metta_engine_emitted(has_type/2).
@@ -1105,11 +1138,25 @@ translate_special_dl(unify, [A, B, Then, Else], AfterHead, Goals, Out) :-
     build_branch(ThenConj, ThenValue, Out, ThenBranch),
     build_branch(ElseConj, ElseValue, Out, ElseBranch),
     AfterHead = [(petta_match_atoms(A, B) *-> ThenBranch ; ElseBranch)|Goals].
+%case reads its cases as syntax, so a cases argument that is still a variable
+%has no branches to compile. That shape used to reach case_default_pair/3's
+%select/3, which enumerates longer and longer instances of an open list
+%forever: `!(case 1 $cases)` allocated 7.5 Gb and died, and so did merely
+%LOADING the one-line wrapper `(= (switch $v $cs) (case $v $cs))`. It
+%compiles to the runtime path instead, which is the answer hyperpose already
+%gives a list argument that is not syntax, so the wrapper is an ordinary
+%definition again and the cases a caller writes decide the branches
+%[tested: translator_case_open_cases, translator_case_computed_cases].
 translate_special_dl(case, [KeyExpr, PairsExpr], AfterHead, Goals, Out) :-
-    ( select(Found, PairsExpr, Rest),
-      subsumes_term(['Empty', _], Found),
-      Found = ['Empty', DefaultExpr],
-      NormalCases = Rest
+    ( open_case_list(PairsExpr)
+      -> translate_expr_to_conj(KeyExpr, KeyConj, KeyValue),
+         %The same soft cut the compiled form uses below, for the same
+         %reasons: the key runs once, and its absence of answers is what
+         %selects the default.
+         AfterHead = [( KeyConj
+                      *-> case_runtime(KeyValue, PairsExpr, Out)
+                      ;   case_default_runtime(PairsExpr, Out) )|Goals]
+      ; case_default_pair(PairsExpr, DefaultExpr, NormalCases)
       -> translate_expr_to_conj(KeyExpr, KeyConj, KeyValue),
          translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
          translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
@@ -2167,6 +2214,28 @@ mbr_advance_args(I, N, T, P0, P) :-
     I1 is I + 1,
     mbr_advance_args(I1, N, T, P1, P).
 
+%A cases argument whose list spine ends in a variable. is_list/1 is false for
+%one of those AND for a term that is no list at all, and the two want opposite
+%treatment: an open list is cases that have not arrived yet, while `foo` is
+%not cases and keeps falling through to data as it always has. '$skip_list'/3
+%walks the spine once and reports the tail without instantiating it, which is
+%how library(error) tells a partial list from a bad one and raises an
+%instantiation error for the first where it raises a type error for the
+%second [source 2026-08-19: SWI-Prolog 10.1.13
+%/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
+%is_list_or_partial_list/1].
+open_case_list(Cases) :- '$skip_list'(_, Cases, Tail), var(Tail).
+
+%The Empty pair is the default branch, taken when the key answered nothing,
+%so it is removed from the branches the key is matched against. Found stays
+%unbound through the select: unifying ['Empty', _] in during the search would
+%let an ordinary case pair of two variables be picked as the default.
+case_default_pair(Cases, DefaultExpr, Rest) :-
+    select(Found, Cases, Rest),
+    subsumes_term(['Empty', _], Found),
+    !,
+    Found = ['Empty', DefaultExpr].
+
 %Translate case expression recursively into nested if:
 translate_case([], _, _, fail, []) :- !.
 translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VExpr, ConV, VOut),
@@ -2176,6 +2245,80 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
                                                                   ; translate_case(Rs, Kv, Out, Next, KGi),
                                                                     Goal = ((Kv = Kc) -> Then ; Next) ),
                                                       append([Gc,KGi], KGo).
+
+%The cases when they were not syntax. A case written inside a definition of
+%its own, `(= (switch $v $cs) (case $v $cs))`, reaches translation with no
+%branches to compile and receives them as a VALUE instead, so they compile
+%when that value arrives, through the same translate_case/5 the written-out
+%form uses. One definition therefore decides what a case means either way: a
+%second interpreter for the same form would be a second set of answers to
+%keep in step [tested: translator_case_computed_cases]. The shape is
+%hyperpose_runtime/2's, and the costs are eval/2's: one translation per call,
+%growing with the cases at 78, 258 and 498 inferences a call for 3, 12 and 24
+%of them against a flat 3 for the same cases written out [measured
+%2026-08-19, min of 3, per-call slope over 100 and 1,100 calls], plus the
+%generated-lambda growth the header's Fails when records. A compiled-goal
+%cache would answer both and is deliberately not here: it would need
+%invalidation kept in step with the specializer's and lib_memo's, which is a
+%larger problem than the one this path exists to solve, and writing the cases
+%out already pays neither cost.
+%
+%Writing them out is otherwise untouched: byte-identical compiled output over
+%twelve case shapes, with 4 inferences paid once at COMPILE time for
+%open_case_list/1 [measured 2026-08-19: 67 to 71 translating a three-case
+%form].
+%
+%This and case_default_runtime/2 reach compiled bodies, so both are named in
+%metta_engine_emitted/1 above. Without that, `(= (case_runtime $k $cs) ...)`
+%would take the goal over inside its own space, silently and with a wrong
+%answer rather than an error, because a space resolves a body's goals in its
+%own module first [source 2026-08-19: tests/prolog/static_checks.pl:685-692,
+%the scan that reads the goals out of every equation the corpus compiles and
+%fails on a capturable one that is not named].
+case_runtime(KeyValue, Cases, Out) :-
+    checked_case_list(Cases),
+    ( case_default_pair(Cases, _, NormalCases) -> true ; NormalCases = Cases ),
+    translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
+    append(KeyGoals, [CaseGoal], Runtime),
+    current_metta_module(Module),
+    call_goals_in_(Module, Runtime).
+
+%The key answered nothing, so the Empty pair is the answer. Cases carrying no
+%Empty answer nothing at all, which is what the compiled form says by having
+%no else branch to build in that case.
+case_default_runtime(Cases, Out) :-
+    checked_case_list(Cases),
+    case_default_pair(Cases, DefaultExpr, _),
+    translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
+    build_branch(DefaultConj, DefaultValue, Out, DefaultBranch),
+    current_metta_module(Module),
+    call_goals_in_(Module, [DefaultBranch]).
+
+%Cases arriving as a value are checked before they are compiled, because
+%nothing downstream can. An unbound one is what this form used to allocate
+%7.5 Gb on, and a pair that is not (pattern value) would unify with
+%translate_case/5's own head and compile a branch the program never wrote.
+%Said in MeTTa's vocabulary through throw_metta_type_error/3, so the message
+%names `case` and prints the value the way the program would have written it
+%instead of naming a predicate of the engine's
+%[tested: translator_case_open_cases].
+%
+%A type error rather than the instantiation error ISO asks for when the
+%culprit is unbound [source 2026-08-19: SWI-Prolog 10.1 manual A.16,
+%instantiation_error/1, "an argument is under-instantiated"]. What arrives
+%here is a MeTTa VALUE, not a Prolog input argument, and MeTTa gives an
+%unbound one the metatype Variable where a cases list is an Expression
+%[measured 2026-08-19: !(get-metatype $x) answers Variable and
+%!(get-metatype (1 one)) answers Expression], so the wrong metatype is
+%exactly what happened and the message can say which. The bare ISO error
+%says only that something somewhere was not instantiated, which is the
+%complaint against the engine's other unbound-argument raises.
+checked_case_list(Cases) :-
+    (   is_list(Cases),
+        forall(member(Pair, Cases), subsumes_term([_, _], Pair))
+    ->  true
+    ;   throw_metta_type_error(case, 'a list of (pattern value) cases', Cases)
+    ).
 
 %Translate arguments recursively:
 translate_args([], [], []).
