@@ -6,8 +6,8 @@
 %     lookups finish [source 2026-08-14:
 %     https://www.swi-prolog.org/pldoc/doc/_SWI_/library/assoc.pl].
 %   - '$skip_list'(-Length, +List, -Tail) reports the tail a list spine ends
-%     in without instantiating it, which is what separates a cases argument
-%     that has not arrived from one that is no list at all
+%     in without instantiating it, which is what separates a pair list that
+%     has not arrived from one that is no list at all
 %     [source 2026-08-19: SWI-Prolog 10.1.13
 %     /usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2].
 % Guarantees:
@@ -88,6 +88,21 @@
 %     ordinary branch rather than a default, and 3 inferences a call at 3, 12
 %     and 24 cases against 78, 258 and 498 for the same cases handed over
 %     [measured 2026-08-19].
+%   - A let* whose bindings have not arrived, either because the whole list
+%     is still a variable or because a pair in it is, compiles to a runtime
+%     path instead of dropping the bindings into the rewrite's empty-list
+%     base clause, and a value arriving there that is not a list of
+%     (pattern value) pairs is refused naming the form and printing the
+%     argument as MeTTa
+%     [tested 2026-08-19: translator_letstar_unarrived_bindings].
+%   - Bindings handed over as a value bind the body exactly as the same
+%     bindings written out do, so `let*` under another name is an ordinary
+%     definition [tested 2026-08-19: translator_letstar_computed_bindings,
+%     examples/control/letstarcomputed.metta]. Writing them out is
+%     unaffected: the 203-example corpus answers identically, group for
+%     group, and a call costs a flat 3 inferences at 2 and at 16 bindings
+%     against 62 and 370 for the same bindings handed over
+%     [measured 2026-08-19].
 % Fails when:
 %   - a case whose cases are not written out sits on a hot path. It costs one
 %     translation per call, and a case body holding a lambda generates one
@@ -97,7 +112,14 @@
 %     [measured 2026-08-19: 51 calls of a lambda-bearing computed case left
 %     51 generated lambdas and 50 evals of the same expression left 50 more,
 %     while a body with no lambda left none]. Writing the cases out compiles
-%     them once and pays neither cost.
+%     them once and pays neither cost. A let* whose bindings are not written
+%     out carries the same cost for the same reason.
+%   - the DUAL of a let* whose bindings have not arrived is asked for.
+%     src/duals.pl builds duals at compile time from the recorded MeTTa body,
+%     so bindings that arrive at run time have no dual, and (not-provable ...)
+%     over such a form declines rather than answering [tested 2026-08-19:
+%     duals_let]. The same limit applies to case and has since it gained its
+%     own runtime path.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -288,6 +310,7 @@ metta_engine_emitted(control_exception/1).
 metta_engine_emitted(foldall/4).
 metta_engine_emitted(has_type/2).
 metta_engine_emitted(include/3).
+metta_engine_emitted(letstar_runtime/3).
 metta_engine_emitted(metta_ensure_duals/1).
 %src/duals.pl emits this one, into the dual clause it builds.
 metta_engine_emitted(metta_negation/5).
@@ -1191,9 +1214,24 @@ translate_special_dl(let, Args, AfterHead, Goals, Out) :-
     translate_let_dl(Args, AfterHead, Goals, Out).
 translate_special_dl(chain, Args, AfterHead, Goals, Out) :-
     translate_let_dl(Args, AfterHead, Goals, Out).
+%let* reads its bindings as syntax and rewrites them into nested lets, so
+%bindings that have not arrived have none to read. That shape used to reach
+%letstar_to_rec_let/3's [] base clause, whose cut then committed to it: the
+%argument was UNIFIED with the empty list and every binding was dropped
+%without a word, so `(= (mylet $bs $b) (let* $bs $b))` compiled to
+%`mylet([], A, A)` and answered its body with nothing bound. A pair that is
+%still a variable is the same defect one level in, where the rewrite unified
+%its own [Pattern, Value] pattern INTO the source and `(= (letpair $b)
+%(let* ($b) 99))` compiled to `letpair([A, B], 99)`, changing the head the
+%program wrote. Both compile to the runtime path instead, which is the answer
+%case and hyperpose already give an argument that is not syntax
+%[tested: translator_letstar_unarrived_bindings,
+%translator_letstar_computed_bindings].
 translate_special_dl('let*', [Binds, Body], AfterHead, Goals, Out) :-
-    letstar_to_rec_let(Binds, Body, RecursiveLet),
-    translate_expr_dl(RecursiveLet, AfterHead, Goals, Out).
+    ( unarrived_pairs(Binds)
+      -> AfterHead = [letstar_runtime(Binds, Body, Out)|Goals]
+      ;  letstar_to_rec_let(Binds, Body, RecursiveLet),
+         translate_expr_dl(RecursiveLet, AfterHead, Goals, Out) ).
 %sealed renames the listed variables inside the expression so they are local to
 %it, which is HE's own wording: "Replaces all occurrences of any var from var
 %list inside atom by unique variable. Can be used to create locally scoped
@@ -2096,10 +2134,59 @@ eval_data_list_dl([E|Es], Goals0, Goals, [V|Vs]) :-
                  ; V = E, AfterEntry = Goals0 ),
     eval_data_list_dl(Es, AfterEntry, Goals, Vs).
 
-%Convert let* to recursive let:
+%Convert let* to recursive let. The singleton case is the recursive one over
+%an empty rest, and writing it out as a third clause made the predicate
+%answer the SAME expansion twice: harmless where the compiler took the first
+%solution, and two identical answers a call once letstar_runtime/3 below
+%started backtracking into it.
 letstar_to_rec_let([], Body, Body) :- !.
-letstar_to_rec_let([[Pat,Val]],Body,[let,Pat,Val,Body]).
 letstar_to_rec_let([[Pat,Val]|Rest],Body,[let,Pat,Val,Out]) :- letstar_to_rec_let(Rest,Body,Out).
+
+%Pairs a form reads as syntax have ARRIVED when the list is proper and every
+%element of it is a term rather than a variable. That is the shape a rewrite
+%may read: below it there is a variable standing where the spine or a pair
+%should be, and reading it would unify the rewrite's own pattern INTO the
+%source instead of reading what is there.
+arrived_pairs(Pairs) :- is_list(Pairs), maplist(nonvar, Pairs).
+
+%The pairs have NOT arrived when such a variable is there, which is different
+%from a term that is no list at all: the first can still arrive as a value,
+%the second keeps falling through as it always has. is_list/1 alone cannot
+%tell those two apart, and '$skip_list'/3 can, walking the spine once and
+%reporting the tail without instantiating it, the way library(error) tells a
+%partial list from a bad one [source 2026-08-19: SWI-Prolog 10.1.13
+%/usr/lib/swi-prolog/library/error.pl:311-315, not_a_list/2, and :428-430,
+%is_list_or_partial_list/1].
+unarrived_pairs(Pairs) :-
+    '$skip_list'(_, Pairs, Tail),
+    ( var(Tail) -> true
+                 ; Tail == [], \+ arrived_pairs(Pairs) ).
+
+%The bindings when they were not syntax. `(= (mylet $bs $b) (let* $bs $b))`
+%reaches translation with no bindings to rewrite and receives them as a VALUE
+%instead, so they are rewritten when that value arrives, through the same
+%letstar_to_rec_let/3 the written-out form uses. One definition therefore
+%decides what let* means either way. The shape is case_runtime/3's, and so
+%are the costs: one translation per call, growing with the bindings, against
+%a flat cost for the same bindings written out
+%[measured 2026-08-19: 3 inferences a call at both 2 and 16 written-out
+%bindings; 62 and 370 for the same bindings handed over, min of 3 over a
+%1,000-call slope; tested translator_letstar_computed_bindings].
+%
+%This reaches compiled bodies, so it is named in metta_engine_emitted/1
+%above: without that, `(= (letstar_runtime $bs $b) ...)` would take the goal
+%over inside its own space, silently and with a wrong answer rather than an
+%error, because a space resolves a body's goals in its own module first
+%[source: tests/prolog/static_checks.pl, the scan that reads the goals out of
+%every equation the corpus compiles and fails on a capturable one that is not
+%named].
+letstar_runtime(Bindings, Body, Out) :-
+    checked_pair_list('let*', 'a list of (pattern value) bindings', Bindings),
+    letstar_to_rec_let(Bindings, Body, RecursiveLet),
+    translate_expr_to_conj(RecursiveLet, Conj, Value),
+    build_branch(Conj, Value, Out, Branch),
+    current_metta_module(Module),
+    call_goals_in_(Module, [Branch]).
 
 % Constructs the goal for a single branch of an if-then-else/case.
 build_branch(true, Val, Out, (Out = Val)) :- !.
@@ -2285,7 +2372,7 @@ translate_case([[K,VExpr]|Rs], Kv, Out, Goal, KGo) :- translate_expr_to_conj(VEx
 %the scan that reads the goals out of every equation the corpus compiles and
 %fails on a capturable one that is not named].
 case_runtime(KeyValue, Cases, Out) :-
-    checked_case_list(Cases),
+    checked_pair_list(case, 'a list of (pattern value) cases', Cases),
     ( case_default_pair(Cases, _, NormalCases) -> true ; NormalCases = Cases ),
     translate_case(NormalCases, KeyValue, Out, CaseGoal, KeyGoals),
     append(KeyGoals, [CaseGoal], Runtime),
@@ -2296,21 +2383,22 @@ case_runtime(KeyValue, Cases, Out) :-
 %Empty answer nothing at all, which is what the compiled form says by having
 %no else branch to build in that case.
 case_default_runtime(Cases, Out) :-
-    checked_case_list(Cases),
+    checked_pair_list(case, 'a list of (pattern value) cases', Cases),
     case_default_pair(Cases, DefaultExpr, _),
     translate_expr_to_conj(DefaultExpr, DefaultConj, DefaultValue),
     build_branch(DefaultConj, DefaultValue, Out, DefaultBranch),
     current_metta_module(Module),
     call_goals_in_(Module, [DefaultBranch]).
 
-%Cases arriving as a value are checked before they are compiled, because
-%nothing downstream can. An unbound one is what this form used to allocate
-%7.5 Gb on, and a pair that is not (pattern value) would unify with
-%translate_case/5's own head and compile a branch the program never wrote.
-%Said in MeTTa's vocabulary through throw_metta_type_error/3, so the message
-%names `case` and prints the value the way the program would have written it
-%instead of naming a predicate of the engine's
-%[tested: translator_case_open_cases].
+%Pairs arriving as a value are checked before they are compiled, because
+%nothing downstream can. An unbound cases list is what `case` used to
+%allocate 7.5 Gb on, and a pair that is not (pattern value) would unify with
+%translate_case/5's or letstar_to_rec_let/3's own head and compile a branch
+%or a binding the program never wrote. Said in MeTTa's vocabulary through
+%throw_metta_type_error/3, so the message names the FORM and prints the value
+%the way the program would have written it instead of naming a predicate of
+%the engine's [tested: translator_case_open_cases,
+%translator_letstar_unarrived_bindings].
 %
 %A type error rather than the instantiation error ISO asks for when the
 %culprit is unbound [source 2026-08-19: SWI-Prolog 10.1 manual A.16,
@@ -2322,11 +2410,11 @@ case_default_runtime(Cases, Out) :-
 %exactly what happened and the message can say which. The bare ISO error
 %says only that something somewhere was not instantiated, which is the
 %complaint against the engine's other unbound-argument raises.
-checked_case_list(Cases) :-
-    (   is_list(Cases),
-        forall(member(Pair, Cases), subsumes_term([_, _], Pair))
+checked_pair_list(Form, Expected, Pairs) :-
+    (   is_list(Pairs),
+        forall(member(Pair, Pairs), subsumes_term([_, _], Pair))
     ->  true
-    ;   throw_metta_type_error(case, 'a list of (pattern value) cases', Cases)
+    ;   throw_metta_type_error(Form, Expected, Pairs)
     ).
 
 %Translate arguments recursively:

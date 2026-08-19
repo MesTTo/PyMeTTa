@@ -79,6 +79,13 @@
 %   they produce rather than over every term: a variable of theirs that the
 %   rest of the clause cannot see is quantified away, and one it can see is
 %   narrowed and answered [tested: duals_let, duals_match].
+% Fails when:
+%   - a case's cases or a let*'s bindings only arrive when the program runs.
+%     A dual is built once, out of the equation as it was written, so there
+%     is nothing there to expand and both forms refuse; let* used to expand
+%     an unarrived bindings list into the empty one instead and answer from a
+%     dual with the bindings dropped
+%     [tested: a_let_star_whose_bindings_have_not_arrived_has_no_dual].
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -701,8 +708,13 @@ let_bound_variables([Form, Pattern, _, Body], Vars, Tail) :-
     term_variables(Pattern, PatternVars),
     append(PatternVars, Rest, Vars),
     let_bound_variables(Body, Rest, Tail).
+%arrived_pairs/1 rather than is_list/1, because letstar_to_rec_let/3 reads
+%each pair as syntax: a pair that is still a variable would be unified with
+%the rewrite's own [Pattern, Value] and change the body being walked. Where
+%the bindings have not arrived the walk falls through to the generic list
+%clause below, which finds the same variables without rewriting anything.
 let_bound_variables(['let*', Bindings, Body], Vars, Tail) :-
-    is_list(Bindings),
+    arrived_pairs(Bindings),
     !,
     letstar_to_rec_let(Bindings, Body, RecursiveLet),
     let_bound_variables(RecursiveLet, Vars, Tail).
@@ -924,9 +936,28 @@ body_form_dual(chain, [Pattern, Value, Body], Module, Local, Goal) :-
     body_form_dual(let, [Pattern, Value, Body], Module, Local, Goal).
 %let* is nested lets and the translator already says so, so the dual is the
 %dual of what it expands to rather than a second implementation of it.
+%
+%Only where the bindings have arrived. A dual is built ONCE, at compile time,
+%out of the recorded MeTTa body, so bindings that arrive at run time are not
+%there to expand: unguarded, letstar_to_rec_let/3 unified them with its own
+%empty-list base clause and the dual came out with the bindings DROPPED, so
+%`(= (f $bs) (let* $bs (> 1 0)))` gave `(not-provable (f ...))` no answer
+%where the same bindings written out answered True. Refusing says which of
+%the two it was, where falling through to the generic refusal would have
+%said only that let* is a special form
+%[tested: a_let_star_whose_bindings_have_not_arrived_has_no_dual]. It is the
+%same limit case has, for the same reason.
 body_form_dual('let*', [Bindings, Body], Module, Local, Goal) :-
-    letstar_to_rec_let(Bindings, Body, RecursiveLet),
-    body_nottrue(RecursiveLet, Module, Local, Goal).
+    (   arrived_pairs(Bindings)
+    ->  letstar_to_rec_let(Bindings, Body, RecursiveLet),
+        body_nottrue(RecursiveLet, Module, Local, Goal)
+    ;   throw(error(type_error(dualisable_body, ['let*', Bindings, Body]),
+                    context(body_form_dual/5,
+                            'a dual is built once, out of the equation as it \c
+                             was written, so let* bindings that only arrive \c
+                             when the program runs have none to expand; \c
+                             writing the bindings out gives the form a dual')))
+    ).
 %A case commits to the FIRST pattern its key matches, which the translator
 %writes as a chain of ((Key = Pattern) -> Body ; Next) ending in fail [source:
 %src/translator.pl, translate_case/5]. So its dual is the same chain with each
