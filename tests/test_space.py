@@ -6,6 +6,12 @@ Guarantees:
     `!` may name a function the same source defines lower down [tested
     test_a_source_registers_every_signature_before_any_form_runs,
     test_run_status_registers_signatures_before_any_form_runs]
+  - an equation for a name SWI imports into the engine shadows it inside the
+    space that wrote it and leaves the engine's own predicate answering, so
+    the engine survives what used to brick it [tested
+    test_a_system_predicate_survives_an_equation_for_its_name]
+  - a write into one space never removes atoms from another [tested
+    test_adding_in_one_space_never_removes_atoms_from_another]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -856,3 +862,37 @@ def test_adding_in_one_space_never_removes_atoms_from_another(metta):
         other_before = _atom_multiset(other)
         metta.run("(= (p6-map $f $x) ($f $x))")
         assert _atom_multiset(other) == other_before
+
+
+def test_a_system_predicate_survives_an_equation_for_its_name(metta):
+    """`!(add-atom &self (= (b_setval $a) clash))` used to brick the engine.
+
+    `&self` compiled into the module the engine itself resolves in, so the
+    equation did not shadow `b_setval/2`, it REPLACED it: the predicate went
+    from imported_from(system) to a local definition and every engine path
+    through it stopped. The translator emits `b_setval` into the clause bodies
+    it builds, so the very next form failed to translate, and
+    `with_metta_module/2` failed, which takes every named space with it.
+
+    Refusing the equation is the wrong fix, measured: the guard forbids 78
+    names in `&self`, `plus` among them, and `plus` is an ordinary MeTTa
+    function name a shipped example is right to use. Giving `&self` a module of
+    its own makes the same equation a local shadow, so the engine keeps the
+    predicate and MeTTa keeps the name.
+    """
+    metta.run("!(add-atom &self (= (b_setval $a) clash))")
+    try:
+        # MeTTa's name now answers what the equation says.
+        assert metta.run("!(b_setval anything)") == [[S.clash]]
+        # A form the engine has to translate still translates.
+        assert metta.run("!(+ 1 2)") == [[3]]
+        # And a named space still runs, which is with_metta_module/2 working.
+        with metta.new_space() as other:
+            assert other.run("!(+ 1 2)") == [[3]]
+    finally:
+        metta.run("!(remove-atom &self (= (b_setval $a) clash))")
+    # The shadow goes with the equation, so the name is MeTTa's only while an
+    # equation says so, and removing it leaves the term unreduced rather than
+    # leaving a clause behind in the space's module.
+    assert metta.run("!(b_setval anything)") == [[parse("(b_setval anything)")]]
+    assert metta.run("!(+ 1 2)") == [[3]]
