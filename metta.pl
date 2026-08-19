@@ -358,6 +358,187 @@ repra(Term, R) :- term_to_atom(Term, R).
 parse(Str, _) :- var(Str), !, refuse_unbound_input(parse, 1).
 parse(Str, R) :- sread(Str, R).
 
+%%% What a grounded operation answers when it cannot compute: %%%
+%
+%MeTTa's error channel is an ANSWER and not an exception. `(Error <call>
+%<reason>)` is a value a program can test with if-error, compare with
+%assertEqual and pass on, and the FORM AFTER IT STILL RUNS; a raise here ended
+%the whole file instead, which is why eleven of the arbiter's grounded
+%transcripts stopped at their first probe. So an operation handed an argument
+%it cannot use answers, and which answer is decided by the argument's own type:
+%
+%  - a type the parameter RULES OUT is `(BadArgType <position> <expected>
+%    <actual>)`, one answer per rejected actual type, positions left to right
+%  - an argument whose type does not DECIDE, %Undefined% or a symbol declared
+%    the right type but carrying no value, is the operation's own refusal: its
+%    message where upstream gives it one, and otherwise the call left as
+%    written, which is upstream's NoReduce
+%
+%[source: LeaTTa tests/semantics/grounded/07-partial-core.metta and
+%08-partial-math.metta, both STATUS conforms and both byte-for-byte
+%transcripts; tests/semantics/types-basic/44 through 49 for the multiplicity]
+%[tested: operation_answers].
+%
+%NOTHING HERE IS ON A HOT PATH. Every caller reaches it only after its own
+%ground fast path has already declined, so the type lookups below are paid by
+%the call that was about to fail and by no other.
+metta_operation_answer(Operation, Arguments, Answer) :-
+    findall(Error, metta_bad_argument_error(Operation, Arguments, Error), Errors),
+    (   Errors == []
+    ->  (   metta_operation_refusal(Operation, Arguments, Message)
+        ->  metta_error_atom(Operation, Arguments, Message, Answer)
+        ;   Answer = [Operation|Arguments]
+        )
+    ;   member(Answer, Errors)
+    ).
+
+metta_error_atom(Operation, Arguments, Reason,
+                 ['Error', [Operation|Arguments], Reason]).
+
+%One error per declared ARROW and per rejected ACTUAL type, arrows in
+%declaration order and actual types in the order get-type reports them, which
+%is the multiplicity and the order the arbiter pins.
+metta_bad_argument_error(Operation, Arguments, Error) :-
+    metta_operation_parameters(Operation, Arguments, ParameterTypes),
+    metta_bad_argument(ParameterTypes, Arguments, 1, Position, Expected, Actual),
+    metta_error_atom(Operation, Arguments,
+                     ['BadArgType', Position, Expected, Actual], Error).
+
+%A FRESH copy per arrow: a chain naming a type variable has to be free to bind
+%it again for the next call, and for the next arrow.
+metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
+    current_metta_module(Module),
+    (   type_declaration_in(Module, Operation, Chain0)
+    ;   \+ type_declaration_in(Module, Operation, _),
+        builtin_type_declaration(Operation, Chain0)
+    ),
+    copy_term(Chain0, [->|Types]),
+    append(ParameterTypes, [_], Types),
+    same_length(ParameterTypes, Arguments).
+
+%Every rejected actual type at a position, and then the positions after it,
+%which is what the arbiter reports when one actual type of an argument matched
+%and carried the check forward while another did not
+%[source: types-basic/48-badargtype-argument-order.metta]. The cut commits to
+%the first carrying type, because the check continues under ONE assignment.
+metta_bad_argument([Expected|Rest], [Argument|Arguments], N,
+                   Position, Reported, Actual) :-
+    metta_argument_types(Argument, Types),
+    (   Position = N, Reported = Expected,
+        member(Actual, Types),
+        \+ metta_types_match(Actual, Expected)
+    ;   member(Carried, Types),
+        metta_types_match(Carried, Expected),
+        !,
+        Next is N + 1,
+        metta_bad_argument(Rest, Arguments, Next, Position, Reported, Actual)
+    ).
+
+%The types an ARGUMENT CHECK may read, which is not everything get-type
+%answers. A `get-type` EQUATION is a MeTTa program, and a program that types
+%its argument by COMPUTING on it re-enters the operation whose refusal asked:
+%examples/types/types_dependent.metta writes
+%`(= (get-type $x) (catch (if (=alpha (% $x 2) 0) EvenNumber)))`, so asking
+%get-type why `%` refused ran `%` again, and again
+%[reproduced 2026-08-19: 16,777,031 frames and the 8Gb stack limit].
+%
+%Upstream reads the space's `(: x T)` atoms and the grounded object's own type
+%here and nothing else, so the equations are off for the whole lookup rather
+%than only at its top: the walk reaches them again through a list member's
+%type. The flag is thread-local because the refusal is, and re-entrant because
+%a nested lookup must not turn them back on when it finishes.
+:- thread_local metta_reading_declared_types/0.
+
+metta_argument_types(Argument, Types) :-
+    current_metta_module(Module),
+    (   metta_reading_declared_types
+    ->  type_answers(Module, Argument, Types)
+    ;   setup_call_cleanup(assertz(metta_reading_declared_types, Ref),
+                           type_answers(Module, Argument, Types),
+                           erase(Ref))
+    ).
+
+%The prelude's match-types, in Prolog: %Undefined% and Atom are wildcards on
+%either side and everything else unifies, bindings and all, which is what makes
+%a chain writing one type variable twice report the type its first argument
+%fixed rather than the variable.
+metta_types_match(Left, Right) :-
+    (   Left == '%Undefined%' -> true
+    ;   Right == '%Undefined%' -> true
+    ;   Left == 'Atom' -> true
+    ;   Right == 'Atom' -> true
+    ;   Left = Right
+    ).
+
+%The operations that refuse BY NAME rather than leaving the call. Each text is
+%upstream's own, quoted from the arbiter's transcript rather than invented, and
+%upstream's noun is not uniform: sqrt-math and abs-math say `number` where every
+%later unary operation says `input number`, and log-math names both arguments
+%[source: LeaTTa tests/semantics/grounded/08-partial-math.metta, whose STATUS
+%records that each text is pinned by an upstream unit test in math.rs].
+%
+%The ARGUMENTS are in the head because three of these operations word the
+%refusal differently for different arguments, and the caller has them anyway.
+metta_operation_refusal('/', _,
+    "Divide expects two numbers: dividend and divisor").
+metta_operation_refusal('sqrt-math', _, "sqrt-math expects one argument: number").
+metta_operation_refusal('abs-math', _, "abs-math expects one argument: number").
+metta_operation_refusal('pow-math', _,
+    "pow-math expects two arguments: number (base) and number (power)").
+metta_operation_refusal('log-math', _,
+    "log-math expects two arguments: base (number) and input value (number)").
+metta_operation_refusal(Operation, _, Message) :-
+    metta_input_number_operation(Operation),
+    format(string(Message), "~w expects one argument: input number",
+           [Operation]).
+%min-atom and max-atom carry three texts for three arguments: not an
+%expression at all, an empty one, and one holding something that is not a
+%number, which upstream quotes back as it formats it
+%[source: the same file, whose STATUS names atom.rs:194,228; measured
+%2026-08-19 against the arbiter: `(min-atom 5)` and `(min-atom ())` answer the
+%first two].
+metta_operation_refusal(Operation, [Argument], Message) :-
+    metta_numeric_expression_operation(Operation),
+    (   non_list(Argument)
+    ->  Message = "Atom is not an ExpressionAtom"
+    ;   Argument == []
+    ->  Message = "Empty expression"
+    ;   \+ maplist(number, Argument),
+        swrite(Argument, Written),
+        format(string(Message), "Only numbers are allowed in expression: ~w",
+               [Written])
+    ).
+
+metta_numeric_expression_operation('min-atom').
+metta_numeric_expression_operation('max-atom').
+
+metta_input_number_operation('sin-math').    metta_input_number_operation('cos-math').
+metta_input_number_operation('tan-math').    metta_input_number_operation('asin-math').
+metta_input_number_operation('acos-math').   metta_input_number_operation('atan-math').
+metta_input_number_operation('trunc-math').  metta_input_number_operation('ceil-math').
+metta_input_number_operation('floor-math').  metta_input_number_operation('round-math').
+metta_input_number_operation('isnan-math').  metta_input_number_operation('isinf-math').
+metta_input_number_operation('exp-math').    metta_input_number_operation(exp).
+
+%The math family's recovery, which decides between the two failures the host
+%reports the same way. An argument that is not a number at all is the MeTTa
+%operation's own refusal and an ANSWER; a number the function is undefined at,
+%sqrt of a negative or exp of 10000, is a host error and stays one. It sits in
+%the catch's recovery rather than in front of the call, so the fast path pays
+%nothing: this runs only where is/2 has already raised
+%[tested: operation_answers, metta_operation_errors].
+metta_math_recovery(Operation, Arguments, Error, Answer) :-
+    (   maplist(metta_numeric_operand, Arguments)
+    ->  rethrow_metta_operation_error(Operation, Error)
+    ;   metta_operation_answer(Operation, Arguments, Answer)
+    ).
+
+%An unbound operand counts as numeric here, so the instantiation error is
+%rethrown rather than turned into a type report: a missing value is not a
+%wrong one, which is the split metta_arith_operands/2 already draws.
+metta_numeric_operand(Value) :- var(Value), !.
+metta_numeric_operand(Value) :- number(Value).
+
 %%% Arithmetic & Comparison: %%%
 %An arithmetic operand is a number. Everything else is refused here, before
 %is/2 applies Prolog's own coercion rules to it.
@@ -382,9 +563,13 @@ parse(Str, R) :- sread(Str, R).
 %Both operands in one call: the inline type tests are free, the call is not,
 %so checking them separately cost two inferences per operation instead of one
 %[measured 2026-08-15: alpha-unique +200,010 against +100,005].
-metta_arith_operands(Op, A, B) :-
-    ( var(A) -> true ; number(A) -> true ; throw_metta_type_error(Op, number, A) ),
-    ( var(B) -> true ; number(B) -> true ; throw_metta_type_error(Op, number, B) ).
+%
+%This TESTS and no longer throws. What to answer for an operand that is not a
+%number belongs to metta_operation_answer/3 above, which has the argument's
+%type and can tell a wrong type from a value the operation simply cannot use.
+metta_arith_operands(A, B) :-
+    ( var(A) -> true ; number(A) ),
+    ( var(B) -> true ; number(B) ).
 
 %The four operators run BACKWARDS over integers: exactly one unbound
 %argument among integers solves for it, so (let 4 (- $x 1) $x) answers 5
@@ -403,26 +588,30 @@ metta_arith_operands(Op, A, B) :-
                 ; number(A), number(B)
                   -> catch(R is A + B, E, rethrow_metta_operation_error('+', E))
                 ; petta_int_solve('+', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('+', A, B),
-                  catch(R is A + B, E, rethrow_metta_operation_error('+', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A + B, E, rethrow_metta_operation_error('+', E))
+                ; metta_operation_answer('+', [A, B], R) ).
 '-'(A,B,R)  :- ( integer(A), integer(B) -> R is A - B
                 ; number(A), number(B)
                   -> catch(R is A - B, E, rethrow_metta_operation_error('-', E))
                 ; petta_int_solve('-', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('-', A, B),
-                  catch(R is A - B, E, rethrow_metta_operation_error('-', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A - B, E, rethrow_metta_operation_error('-', E))
+                ; metta_operation_answer('-', [A, B], R) ).
 '*'(A,B,R)  :- ( integer(A), integer(B) -> R is A * B
                 ; number(A), number(B)
                   -> catch(R is A * B, E, rethrow_metta_operation_error('*', E))
                 ; petta_int_solve('*', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('*', A, B),
-                  catch(R is A * B, E, rethrow_metta_operation_error('*', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A * B, E, rethrow_metta_operation_error('*', E))
+                ; metta_operation_answer('*', [A, B], R) ).
 '/'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A / B
                 ; number(A), number(B)
                   -> catch(R is A / B, E, rethrow_metta_operation_error('/', E))
                 ; petta_int_solve('/', A, B, R, Verdict) -> Verdict == solved
-                ; metta_arith_operands('/', A, B),
-                  catch(R is A / B, E, rethrow_metta_operation_error('/', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A / B, E, rethrow_metta_operation_error('/', E))
+                ; metta_operation_answer('/', [A, B], R) ).
 
 %One unbound slot among integers: the verdict says whether the mode
 %applied at all (fail: not this shape, fall through to the float/error
@@ -450,16 +639,19 @@ petta_int_solve('/', A, B, R, Verdict) :-
     ->  ( 0 =:= A mod R -> B is A // R, Verdict = solved ; Verdict = none )
     ).
 '%'(A,B,R)  :- ( integer(A), integer(B), B =\= 0 -> R is A mod B
-                ; metta_arith_operands('%', A, B),
-                  catch(R is A mod B, E, rethrow_metta_operation_error('%', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is A mod B, E, rethrow_metta_operation_error('%', E))
+                ; metta_operation_answer('%', [A, B], R) ).
 '<'(A,B,R)  :- ( number(A), number(B) -> (A<B -> R=true ; R=false)
-                ; metta_arith_operands('<', A, B),
-                  catch((A<B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('<', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A<B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('<', E))
+                ; metta_operation_answer('<', [A, B], R) ).
 '>'(A,B,R)  :- ( number(A), number(B) -> (A>B -> R=true ; R=false)
-                ; metta_arith_operands('>', A, B),
-                  catch((A>B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('>', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A>B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('>', E))
+                ; metta_operation_answer('>', [A, B], R) ).
 %(-> $a $a Bool): ONE type variable, so the two operands must have a
 %consistent type, and a comparison across two known and different kinds is
 %refused rather than answered. `!(== 1 "S")` answered False, which is the
@@ -477,11 +669,11 @@ petta_int_solve('/', A, B, R, Verdict) :-
 %Two numbers inline, the shape '<'/3 above already uses, because that is what
 %a loop compares and the guard must not be felt there.
 '=='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=true ; R=false)
-                ; comparable_operands('==', A, B),
-                  (A==B -> R=true ; R=false) ).
+                ; comparable_operands(A, B) -> (A==B -> R=true ; R=false)
+                ; metta_operation_answer('==', [A, B], R) ).
 '!='(A,B,R) :- ( number(A), number(B) -> (A==B -> R=false ; R=true)
-                ; comparable_operands('!=', A, B),
-                  (A==B -> R=false ; R=true) ).
+                ; comparable_operands(A, B) -> (A==B -> R=false ; R=true)
+                ; metta_operation_answer('!=', [A, B], R) ).
 %The guard the declaration above states, enforced at the predicate's own door
 %rather than through typed dispatch, which is what runtime_type_guarded/1
 %means and what keeps the cost near zero: the common case is two literals and
@@ -502,7 +694,10 @@ petta_int_solve('/', A, B, R, Verdict) :-
 %unguarded, 30514.55 with the lookup on every call, and 4990.45 with this
 %tier in front, so the guard costs 0.50 inferences per comparison instead
 %of 26.03].
-comparable_operands(Operation, A, B) :-
+%This TESTS and no longer throws, for the reason metta_arith_operands/2 does:
+%the refusal belongs to metta_operation_answer/3, which reports the position,
+%the expected type and the actual one rather than a bare pair.
+comparable_operands(A, B) :-
     (   same_intrinsic_kind(A, B)
     ->  true
     ;   is_list(A)
@@ -510,10 +705,7 @@ comparable_operands(Operation, A, B) :-
     ;   is_list(B)
     ->  true
     ;   current_metta_module(Module),
-        \+ ( has_type_in(Module, A, Type), has_type_in(Module, B, Type) )
-    ->  once(has_type_in(Module, A, Expected)),
-        throw_metta_type_error(Operation, Expected, B)
-    ;   true
+        once(( has_type_in(Module, A, Type), has_type_in(Module, B, Type) ))
     ).
 
 %Fails when the kinds DIFFER and when they do not decide, so an undecided
@@ -530,23 +722,29 @@ metta_boolean(false).
 '=alpha'(A,B,R) :- (A =@= B -> R=true ; R=false).
 '=@='(A,B,R) :- (A =@= B -> R=true ; R=false).
 '<='(A,B,R) :- ( number(A), number(B) -> (A =< B -> R=true ; R=false)
-                ; metta_arith_operands('<=', A, B),
-                  catch((A =< B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('<=', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A =< B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('<=', E))
+                ; metta_operation_answer('<=', [A, B], R) ).
 '>='(A,B,R) :- ( number(A), number(B) -> (A >= B -> R=true ; R=false)
-                ; metta_arith_operands('>=', A, B),
-                  catch((A >= B -> R=true ; R=false), E,
-                        rethrow_metta_operation_error('>=', E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch((A >= B -> R=true ; R=false), E,
+                           rethrow_metta_operation_error('>=', E))
+                ; metta_operation_answer('>=', [A, B], R) ).
 min(A,B,R)  :- ( integer(A), integer(B) -> R is min(A,B)
-                ; metta_arith_operands(min, A, B),
-                  catch(R is min(A,B), E,
-                        rethrow_metta_operation_error(min, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is min(A,B), E,
+                           rethrow_metta_operation_error(min, E))
+                ; metta_operation_answer(min, [A, B], R) ).
 max(A,B,R)  :- ( integer(A), integer(B) -> R is max(A,B)
-                ; metta_arith_operands(max, A, B),
-                  catch(R is max(A,B), E,
-                        rethrow_metta_operation_error(max, E)) ).
+                ; metta_arith_operands(A, B)
+                  -> catch(R is max(A,B), E,
+                           rethrow_metta_operation_error(max, E))
+                ; metta_operation_answer(max, [A, B], R) ).
+%exp/2 is PeTTa's own name for the same function exp-math names, so it refuses
+%the same way rather than being the one numeric operation that raises.
 exp(Arg,R) :- catch(R is exp(Arg), E,
-                    rethrow_metta_operation_error(exp, E)).
+                    metta_math_recovery(exp, [Arg], E, R)).
 :- use_module(library(clpfd)).
 '#+'(A, B, R) :- catch(R #= A + B, E,
                        rethrow_metta_operation_error('#+', E)).
@@ -599,57 +797,57 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
                             rethrow_metta_operation_error('#>=', E)).
 
 'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
-                               rethrow_metta_operation_error('pow-math', E)).
+                               metta_math_recovery('pow-math', [A, B], E, Out)).
 'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
-                             rethrow_metta_operation_error('sqrt-math', E)).
+                             metta_math_recovery('sqrt-math', [A], E, Out)).
 'abs-math'(A, Out) :-
     ( integer(A) -> Out is abs(A)
     ; catch(Out is abs(A), E,
-            rethrow_metta_operation_error('abs-math', E)) ).
+            metta_math_recovery('abs-math', [A], E, Out)) ).
 'log-math'(Base, X, Out) :- catch(Out is log(X) / log(Base), E,
-                                  rethrow_metta_operation_error('log-math', E)).
+                                  metta_math_recovery('log-math', [Base, X], E, Out)).
 'exp-math'(A, Out) :- catch(Out is exp(A), E,
-                            rethrow_metta_operation_error('exp-math', E)).
+                            metta_math_recovery('exp-math', [A], E, Out)).
 'trunc-math'(A, Out) :- catch(Out is truncate(A), E,
-                              rethrow_metta_operation_error('trunc-math', E)).
+                              metta_math_recovery('trunc-math', [A], E, Out)).
 'ceil-math'(A, Out) :- catch(Out is ceil(A), E,
-                             rethrow_metta_operation_error('ceil-math', E)).
+                             metta_math_recovery('ceil-math', [A], E, Out)).
 'floor-math'(A, Out) :- catch(Out is floor(A), E,
-                              rethrow_metta_operation_error('floor-math', E)).
+                              metta_math_recovery('floor-math', [A], E, Out)).
 'round-math'(A, Out) :- catch(Out is round(A), E,
-                              rethrow_metta_operation_error('round-math', E)).
+                              metta_math_recovery('round-math', [A], E, Out)).
 'sin-math'(A, Out) :- catch(Out is sin(A), E,
-                            rethrow_metta_operation_error('sin-math', E)).
+                            metta_math_recovery('sin-math', [A], E, Out)).
 'cos-math'(A, Out) :- catch(Out is cos(A), E,
-                            rethrow_metta_operation_error('cos-math', E)).
+                            metta_math_recovery('cos-math', [A], E, Out)).
 'tan-math'(A, Out) :- catch(Out is tan(A), E,
-                            rethrow_metta_operation_error('tan-math', E)).
+                            metta_math_recovery('tan-math', [A], E, Out)).
 'asin-math'(A, Out) :- catch(Out is asin(A), E,
-                             rethrow_metta_operation_error('asin-math', E)).
+                             metta_math_recovery('asin-math', [A], E, Out)).
 'acos-math'(A, Out) :- catch(Out is acos(A), E,
-                             rethrow_metta_operation_error('acos-math', E)).
+                             metta_math_recovery('acos-math', [A], E, Out)).
 'atan-math'(A, Out) :- catch(Out is atan(A), E,
-                             rethrow_metta_operation_error('atan-math', E)).
+                             metta_math_recovery('atan-math', [A], E, Out)).
 'isnan-math'(A, Out) :-
     catch(( A =:= A -> Out = false ; Out = true ), E,
-          rethrow_metta_operation_error('isnan-math', E)).
+          metta_math_recovery('isnan-math', [A], E, Out)).
 'isinf-math'(A, Out) :-
     catch(( ( A =:= 1.0Inf ; A =:= -1.0Inf )
             -> Out = true ; Out = false ), E,
-          rethrow_metta_operation_error('isinf-math', E)).
+          metta_math_recovery('isinf-math', [A], E, Out)).
 %must_be/2 walks the list a second time with a type check per element, so a
 %numeric list costs 3x what min_list alone does [measured 2026-08-15: 20 calls
 %over 50,000 elements, 3,000,220 against 1,000,060 inferences]. That buys
 %'min-atom': Type error: `number' expected, found `a' in place of a leaked
 %lists:min_list/3, which is the trade this file makes everywhere.
-'min-atom'(List, Out) :- non_list(List), !, Out = [].
-'min-atom'(List, Out) :- catch(( must_be(list(number), List),
-                                min_list(List, Out) ), E,
-                              rethrow_metta_operation_error('min-atom', E)).
-'max-atom'(List, Out) :- non_list(List), !, Out = [].
-'max-atom'(List, Out) :- catch(( must_be(list(number), List),
-                                max_list(List, Out) ), E,
-                              rethrow_metta_operation_error('max-atom', E)).
+%A list of numbers computes; anything else is answered by the shared door,
+%whose refusal table words min-atom and max-atom the three ways upstream does.
+'min-atom'(List, Out) :- ( metta_numeric_list(List) -> min_list(List, Out)
+                         ; metta_operation_answer('min-atom', [List], Out) ).
+'max-atom'(List, Out) :- ( metta_numeric_list(List) -> max_list(List, Out)
+                         ; metta_operation_answer('max-atom', [List], Out) ).
+
+metta_numeric_list(List) :- is_list(List), List \== [], maplist(number, List).
 
 %%% Random Generators: %%%
 'random-int'(Min, Max, Result) :-
@@ -676,25 +874,35 @@ bool(false).
 %open answers the whole truth table. That is deliberate and pinned by
 %metta_operation_errors:boolean_operations_remain_relational, which is why
 %these positions are relational_input_position/2 rather than guarded ones.
-boolean_argument(_, _, Value) :- var(Value), !, bool(Value).
-boolean_argument(_, _, true) :- !.
-boolean_argument(_, _, false) :- !.
-boolean_argument(Operation, _, Culprit) :-
-    throw_metta_type_error(Operation, boolean, Culprit).
+%ONE call per operand, with the enumeration inline: an unbound argument still
+%enumerates the booleans, so and/3 with three open arguments answers the whole
+%truth table, and a bound one is settled by two comparisons and no further
+%call. Written as a test predicate plus a separate enumerator instead, and/3
+%cost 6 inferences per call against the throwing shape's 2, and query-where
+%23% [measured 2026-08-19: 688,351 inferences against 848,239].
+boolean_operand(Value) :- ( var(Value) -> bool(Value) ; Value == true -> true
+                          ; Value == false ).
 
-and(A,B,C) :- boolean_argument(and, 1, A), boolean_argument(and, 2, B),
-              ( A == true -> C = B ; A == false -> C = false ).
-or(A,B,C) :- boolean_argument(or, 1, A), boolean_argument(or, 2, B),
-             ( A == true -> C = true ; A == false -> C = B ).
-not(A,B) :- boolean_argument(not, 1, A),
-            ( A == true -> B = false ; A == false -> B = true ).
-xor(A,B,C) :- boolean_argument(xor, 1, A), boolean_argument(xor, 2, B),
-              ( A == B -> C = false ; C = true ).
-implies(A,B,C) :- boolean_argument(implies, 1, A),
-                  boolean_argument(implies, 2, B),
-                  ( A == true -> ( B == true  -> C = true
-                                 ; B == false -> C = false )
-                              ; A == false -> C = true ).
+%The soft cut is what lets an operand that is not a boolean be ANSWERED rather
+%than raise while the enumeration above still runs: it takes every solution the
+%operands have and reaches the refusal only when they have none. `(and True u)`
+%is left as written and `(and True n)` is `(BadArgType 2 Bool Number)`
+%[source: LeaTTa tests/semantics/grounded/07-partial-core.metta].
+and(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                *-> ( A == true -> C = B ; C = false )
+                ;   metta_operation_answer(and, [A, B], C) ).
+or(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+               *-> ( A == true -> C = true ; C = B )
+               ;   metta_operation_answer(or, [A, B], C) ).
+not(A,B) :- ( boolean_operand(A)
+              *-> ( A == true -> B = false ; B = true )
+              ;   metta_operation_answer(not, [A], B) ).
+xor(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                *-> ( A == B -> C = false ; C = true )
+                ;   metta_operation_answer(xor, [A, B], C) ).
+implies(A,B,C) :- ( ( boolean_operand(A), boolean_operand(B) )
+                    *-> ( A == true -> C = B ; C = true )
+                    ;   metta_operation_answer(implies, [A, B], C) ).
 
 %%% Nondeterminism: %%%
 superpose(L, _) :- var(L), !, refuse_unbound_input(superpose, 1).
@@ -1469,10 +1677,15 @@ type_candidate_in(Module, X, T) :- get_type_rule_in(Module, X, T).
 %that wrote it, &self's included: the second clause is that space's own rule
 %and reads &self's module by name rather than calling it unqualified, which
 %before Phase 11 was the same thing and is not any more.
-get_type_rule_in(Module, X, T) :- \+ metta_self_module(Module),
+%A refusal's own type lookup does not run them, because they are programs and
+%one that computes on its argument re-enters the operation that asked; see
+%metta_argument_types/2, which sets the flag.
+get_type_rule_in(Module, X, T) :- \+ metta_reading_declared_types,
+                                  \+ metta_self_module(Module),
                                   fun_in(Module, 'get-type'),
                                   Module:get_type_rule(X, T).
-get_type_rule_in(_, X, T) :- metta_self_module(Self), Self:get_type_rule(X, T).
+get_type_rule_in(_, X, T) :- \+ metta_reading_declared_types,
+                             metta_self_module(Self), Self:get_type_rule(X, T).
 
 python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 

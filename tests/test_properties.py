@@ -164,16 +164,19 @@ def test_python_equality_is_engine_equality(metta, a, b):
     of the same MeTTa type, NaN, negative zero and mixed numeric types
     included.
 
-    Across two DIFFERENT types the engine refuses rather than answering, since
-    `==` is declared `(-> $a $a Bool)` and the question has no verdict. Python
-    still answers False there, and has to: `__eq__` may not raise, or a Gnd
-    could not sit in a dict beside a value of another kind. So the law is
-    "same kind, same verdict; different kind, the engine says so", which is
-    the strongest form both sides can hold at once.
+    Across two DIFFERENT types the engine answers its refusal rather than a
+    verdict, since `==` is declared `(-> $a $a Bool)` and the question has
+    none: the answer is `(Error <call> (BadArgType ...))`. Python still answers
+    False there, and has to: `__eq__` may not raise, or a Gnd could not sit in
+    a dict beside a value of another kind. So the law is "same kind, same
+    verdict; different kind, the engine says so", which is the strongest form
+    both sides can hold at once.
     """
     if _kind(a) != _kind(b):
-        with pytest.raises(MettaOperationError):
-            metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+        refused = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+        assert len(refused) == 1
+        assert str(refused[0]).startswith("(Error (==")
+        assert "BadArgType" in str(refused[0])
         assert (Gnd(a) == Gnd(b)) is False
         return
     engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
