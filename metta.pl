@@ -888,11 +888,10 @@ guarded_input_position(Name, Arity, Position) :-
 %src/parser.pl and raises naming system:atom_codes/2, a predicate the MeTTa
 %program never wrote. parse/2 is the same operation under PeTTa's own name
 %and IS guarded, so the gap is the direct sread call only.
-unguarded_input_position('get-atoms', 1).
-unguarded_input_position(match, 1).
 %git-import!/2 is in lib/lib_gitimport.pl and sleep/2 in a library too; both
 %raise an instantiation_error with no context, so the program is told a value
 %is missing and not which operation wanted it [measured 2026-08-19].
+unguarded_input_position('add-reduct', 1).
 unguarded_input_position('git-import!', 1).
 unguarded_input_position(sleep, 1).
 unguarded_input_position(sread, 1).
@@ -900,7 +899,6 @@ unguarded_input_position(sread, 1).
 %operation it DELEGATES to. `!(add-reduct $u a)` answers
 %(Error (add-atom $u a) "add-atom expects a space as the first argument"), so
 %a program that wrote add-reduct is told about add-atom. src/spaces.pl again.
-unguarded_input_position('add-reduct', 1).
 
 %Names the MeTTa operation and the argument, in the program's own vocabulary.
 %The formal stays ISO so a MeTTa (catch ...) and the Python boundary can both
