@@ -13,6 +13,8 @@ import subprocess
 
 import pytest
 
+from petta import MettaOperationError
+
 
 def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
     """A result past binary64 is the infinity the literal side already reads.
@@ -85,3 +87,31 @@ def test_the_seam_still_refuses_what_arithmetic_can_now_make(metta):
         m.run("!(let $x (+ 1e400 1) (add-atom &self (nf $x)))")
         with pytest.raises(ValueError, match=r"reads back as a symbol"):
             m.digest()
+
+
+def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
+    """Float IEEE non-trapping: division by 0.0 is an infinity, the NaN
+    family is NaN.
+
+    Hyperon's float arm is raw Rust f64 arithmetic with no guard, so the
+    values are the arbiter's answers, and the engine already ships
+    isnan-math and isinf-math to observe them. Integer division by zero
+    stays an error here: the arbiter's answer THERE is the Error atom, a
+    different shape owned by the error-answer story, and this pins that an
+    integer zero keeps raising rather than leaking an infinity.
+    """
+    assert metta.run("!(/ 1.0 0.0)")[0] == [math.inf]
+    assert metta.run("!(/ -1.0 0.0)")[0] == [-math.inf]
+    for form in (
+        "!(/ 0.0 0.0)",
+        "!(- 1e400 1e400)",
+        "!(sqrt-math -1.0)",
+        "!(log-math 10 -5.0)",
+        "!(asin-math 2.0)",
+    ):
+        answers = metta.run(form)[0]
+        assert len(answers) == 1 and math.isnan(answers[0]), form
+    assert metta.run("!(isnan-math (- 1e400 1e400))")[0] == [True]
+    assert metta.run("!(isinf-math (/ 1.0 0.0))")[0] == [True]
+    with pytest.raises(MettaOperationError):
+        metta.run("!(/ 1 0)")

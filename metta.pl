@@ -33,11 +33,17 @@
 %     [measured 2026-08-15].
 %   - A result past binary64 saturates to the IEEE value on the engine's
 %     operations, agreeing with the reader's saturating literals, and an
-%     infinity a literal produced carries through further arithmetic; raw
-%     is/2 keeps the float_overflow flag's error mode [tested 2026-08-20:
+%     infinity a literal produced carries through further arithmetic; the
+%     same recovery answers the whole IEEE family when a float operand is
+%     present, a float zero divides to the signed infinity and the NaN
+%     class answers NaN, while integer division by zero keeps raising; raw
+%     is/2 keeps every flag's error mode [tested 2026-08-20:
 %     engine_operations_saturate_where_raw_is_still_raises,
 %     a_read_infinity_survives_further_arithmetic,
-%     test_arithmetic_overflow_agrees_with_the_literal_side].
+%     a_twice_faulting_compound_saturates_all_the_way,
+%     integer_division_by_zero_keeps_raising,
+%     test_arithmetic_overflow_agrees_with_the_literal_side,
+%     test_float_zero_division_and_nan_agree_with_the_arbiter].
 %   - is-alpha-member/3 tests unifiability without retaining bindings in its
 %     arguments [tested 2026-08-15: metta_alpha_membership].
 %   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
@@ -214,6 +220,9 @@ register_metta_library_path(Alias, Directory0, true) :-
 :- use_module(library(error)).
 :- use_module(library(listing)).
 :- use_module(library(aggregate)).
+%sub_term/2, which the saturating recovery uses to ask whether an erroring
+%arithmetic expression holds a float operand at all.
+:- use_module(library(occurs)).
 %distinct/2, which 'defined-name'/1 and 'undocumented-space'/2 call to
 %dedupe function names read off a space's own equation atoms
 %[measured 2026-08-18: examples/libraries/doc_lib.metta under
@@ -615,16 +624,16 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
 'pow-math'(A, B, Out) :- catch(Out is A ** B, E,
                                metta_saturating_recover('pow-math', A ** B, Out, E)).
 'sqrt-math'(A, Out) :- catch(Out is sqrt(A), E,
-                             rethrow_metta_operation_error('sqrt-math', E)).
+                             metta_saturating_recover('sqrt-math', sqrt(A), Out, E)).
 'abs-math'(A, Out) :-
     ( integer(A) -> Out is abs(A)
     ; catch(Out is abs(A), E,
             rethrow_metta_operation_error('abs-math', E)) ).
 %log of zero is float_overflow-classed by SWI (the result is an infinity),
-%so it saturates with the family; a compound expression like this one can
-%then raise a DIFFERENT error inside the retry (base 1 divides the
-%saturated -inf by log(1) = 0.0), which is why the recovery wraps its
-%retry through the funnel.
+%so it saturates with the family; this compound expression is also why the
+%recovery retries under ALL the IEEE flags at once, because base 1 divides
+%the saturated -inf by log(1) = 0.0 and the answer is -inf, not a second
+%error.
 'log-math'(Base, X, Out) :- catch(Out is log(X) / log(Base), E,
                                   metta_saturating_recover('log-math', log(X) / log(Base), Out, E)).
 'exp-math'(A, Out) :- catch(Out is exp(A), E,
@@ -638,15 +647,15 @@ exp(Arg,R) :- catch(R is exp(Arg), E,
 'round-math'(A, Out) :- catch(Out is round(A), E,
                               rethrow_metta_operation_error('round-math', E)).
 'sin-math'(A, Out) :- catch(Out is sin(A), E,
-                            rethrow_metta_operation_error('sin-math', E)).
+                            metta_saturating_recover('sin-math', sin(A), Out, E)).
 'cos-math'(A, Out) :- catch(Out is cos(A), E,
-                            rethrow_metta_operation_error('cos-math', E)).
+                            metta_saturating_recover('cos-math', cos(A), Out, E)).
 'tan-math'(A, Out) :- catch(Out is tan(A), E,
-                            rethrow_metta_operation_error('tan-math', E)).
+                            metta_saturating_recover('tan-math', tan(A), Out, E)).
 'asin-math'(A, Out) :- catch(Out is asin(A), E,
-                             rethrow_metta_operation_error('asin-math', E)).
+                             metta_saturating_recover('asin-math', asin(A), Out, E)).
 'acos-math'(A, Out) :- catch(Out is acos(A), E,
-                             rethrow_metta_operation_error('acos-math', E)).
+                             metta_saturating_recover('acos-math', acos(A), Out, E)).
 'atan-math'(A, Out) :- catch(Out is atan(A), E,
                              rethrow_metta_operation_error('atan-math', E)).
 'isnan-math'(A, Out) :-
@@ -4702,23 +4711,53 @@ control_exception(error(resource_error(_), _)).
 %could not even carry through (+ inf 1). The flag is borrowed for the one
 %retry and given back, parser.pl's metta_saturating_parse discipline on the
 %evaluation side; the happy path pays nothing because this only runs from a
-%catch recovery. Every other error keeps the funnel below; a NaN-producing
-%operation (inf - inf) raises evaluation_error(undefined) under the
-%float_undefined flag, which this clause deliberately does not touch, and
-%never reaches the retry because its first pass does not raise
-%float_overflow. A COMPOUND expression can raise a different error inside
-%the retry itself (log-math with base 1 divides a saturated -inf by zero),
-%so the retry's residual goes through the funnel rather than escaping raw.
+%catch recovery. The same discipline covers the whole IEEE family when a
+%float operand is present: division by a float zero answers the signed
+%infinity and the NaN class (0.0/0.0, inf - inf, sqrt of a negative, asin
+%past one) answers NaN, which is what isnan-math and isinf-math exist to
+%observe. Every fault outside metta_ieee_retry/1, integer division by zero
+%first among them, keeps the funnel below; the retry's own catch is the net
+%for faults the flags do not govern, none known for the shipped operations.
 metta_saturating_recover(Operation, Expression, Result,
-                         error(evaluation_error(float_overflow), _)) :- !,
-    current_prolog_flag(float_overflow, Was),
-    catch(setup_call_cleanup(set_prolog_flag(float_overflow, infinity),
-                             Result is Expression,
-                             set_prolog_flag(float_overflow, Was)),
+                         error(evaluation_error(Evaluation), _)) :-
+    metta_ieee_retry(Evaluation),
+    (   Evaluation == float_overflow
+    ->  true
+    ;   sub_term(Operand, Expression), float(Operand)
+    ),
+    !,
+    current_prolog_flag(float_overflow, WasOverflow),
+    current_prolog_flag(float_zero_div, WasZeroDiv),
+    current_prolog_flag(float_undefined, WasUndefined),
+    catch(setup_call_cleanup(
+              ( set_prolog_flag(float_overflow, infinity),
+                set_prolog_flag(float_zero_div, infinity),
+                set_prolog_flag(float_undefined, nan) ),
+              Result is Expression,
+              ( set_prolog_flag(float_overflow, WasOverflow),
+                set_prolog_flag(float_zero_div, WasZeroDiv),
+                set_prolog_flag(float_undefined, WasUndefined) )),
           Residual,
           rethrow_metta_operation_error(Operation, Residual)).
 metta_saturating_recover(Operation, _, _, Error) :-
     rethrow_metta_operation_error(Operation, Error).
+
+%Which evaluation faults license the retry. Overflow retries
+%unconditionally, because an ALL-INTEGER division can overflow in its float
+%conversion and the saturated value is this engine's committed answer
+%there. Zero division and the NaN family retry only when a float operand is
+%in the expression: upstream's float arm is raw f64 (1.0/0.0 is inf,
+%0.0/0.0 and inf - inf are NaN, by construction), while its INTEGER
+%division by zero answers a DivisionByZero Error atom, so an integer zero
+%keeps raising here and its shape belongs to the error-answer story, not to
+%this recovery. The retry runs under all three IEEE flags at once rather
+%than only the one that fired, because a compound expression can fault
+%twice: log-math with base 1 overflows in log(0.0) and then divides the
+%saturated -inf by log(1) = 0.0, and one-flag-at-a-time would error where
+%the arbiter's arithmetic answers -inf.
+metta_ieee_retry(float_overflow).
+metta_ieee_retry(zero_divisor).
+metta_ieee_retry(undefined).
 
 %Keep the ISO Formal term because callers and the MeTTa catch form inspect it.
 %Only the host context is replaced, so lists:min_list/3, is/2, and nb_setval/2
