@@ -11,6 +11,7 @@ Open Obligations:
 """
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -42,3 +43,25 @@ def test_no_code_in_the_engine_names_a_host(source):
         "the engine's code names a host; move the line behind a seam into "
         "the host's own hosts/ bridge:\n" + "\n".join(offenders)
     )
+
+
+def test_the_python_binding_calls_only_the_published_host_surface(repo_root):
+    """The host transport's engine calls are all declared host_service.
+
+    The same walk the backends' gate uses, aimed the other way down the
+    wire: prolog_walk_code over python/petta with meta-predicate inference,
+    against the measured list src/ext_points.pl declares. A shim call to an
+    undeclared engine internal fails this naming the pair.
+    """
+    done = subprocess.run(
+        ["swipl", "-q", "-g",
+         "consult(static_checks), consult('../../src/metta.pl'), "
+         "a_host_binding_calls_only_published_surface",
+         "-t", "halt"],
+        cwd=repo_root / "tests" / "prolog",
+        capture_output=True,
+        text=True,
+        timeout=280,
+    )
+    assert done.returncode == 0, done.stderr
+    assert "calls only published surface" in done.stdout

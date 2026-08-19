@@ -30,6 +30,16 @@
 :- use_module(library(dcg/basics)). %atom//1, number//1, eos//0
 :- use_module(library(occurs)). %sub_term/2
 
+%Read ONE form and answer the variable names it bound, for a caller that
+%carries names across a wire: sread/2 is this without the map, and the map
+%is name-to-variable pairs in first-occurrence order, exactly what the DCG
+%builds while it reads.
+sread_with_names(Text, Term, VarMap) :-
+    (   string(Text) -> S = Text ; atom_string(Text, S) ),
+    atom_string(A, S),
+    atom_codes(A, Cs),
+    phrase(sexpr(Term, [], VarMap), Cs).
+
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
 swrite(Term, String) :- stable_print_term(Term, Printable),
                         phrase(swrite_numbered(Printable), Codes),

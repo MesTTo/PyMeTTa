@@ -3866,8 +3866,8 @@ substitute_bound_tokens_(Term, Term).
 %It substitutes where the engine's own bind! tokens substitute, the
 %parsed-form rewrite, so stored data expressions keep their literal
 %atoms exactly as they do for every other token.
-substitute_self_('&self', Term, Term) :- !.
-substitute_self_(Space, Term, Out) :-
+metta_substitute_self('&self', Term, Term) :- !.
+metta_substitute_self(Space, Term, Out) :-
     substitute_self_walk_(Term, Space, Out).
 
 substitute_self_walk_(Term, Space, Out) :- atom(Term), !,
@@ -3897,16 +3897,16 @@ rewrite_parsed_form(Space, FormStr, Term, Rewritten) :-
     ->  Term1 = Term
     ;   string(FormStr)
     ->  (   sub_string(FormStr, _, _, _, "&self")
-        ->  substitute_self_(Space, Term, Term1)
+        ->  metta_substitute_self(Space, Term, Term1)
         ;   Term1 = Term
         )
     ;   atom(FormStr)
     ->  (   sub_atom(FormStr, _, _, _, '&self')
-        ->  substitute_self_(Space, Term, Term1)
+        ->  metta_substitute_self(Space, Term, Term1)
         ;   Term1 = Term
         )
     ;   %No source text to probe: walk, correctness over the shortcut.
-        substitute_self_(Space, Term, Term1)
+        metta_substitute_self(Space, Term, Term1)
     ),
     (   metta_form_rewriter(Rewriter)
     ->  call(Rewriter, Term1, Bound)

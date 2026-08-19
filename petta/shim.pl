@@ -961,9 +961,7 @@ petta_py_parse(Source, Tagged) :-
 %449.00 read straight to a term].
 petta_py_read_form(Source, Term, VarMap) :-
     ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    atom_string(A, S),
-    atom_codes(A, Cs),
-    ( phrase(sexpr(Term, [], VarMap), Cs)
+    ( sread_with_names(S, Term, VarMap)
       -> true
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
       petta_py_raise(syntax, Msg) ).
@@ -998,9 +996,9 @@ petta_py_target_term(Space, Target, Term) :-
         (   Space == '&self'
         ->  Term = Term0
         ;   atom(Target), sub_atom(Target, _, _, _, '&self')
-        ->  substitute_self_(Space, Term0, Term)
+        ->  metta_substitute_self(Space, Term0, Term)
         ;   string(Target), sub_string(Target, _, _, _, "&self")
-        ->  substitute_self_(Space, Term0, Term)
+        ->  metta_substitute_self(Space, Term0, Term)
         ;   Term = Term0
         )
     ;   throw(error(domain_error(petta_py_wire_term, Target), none))
@@ -1142,9 +1140,11 @@ petta_py_clear(Space) :-
 petta_py_clear(Space) :-
     metta_foreign_space(Space), !,
     clear_foreign_atoms(Space).
+%No separate equation pass: the engine's clear_native_atoms/1 funnels the
+%compiled-half shapes itself, and the watched path below removes every atom
+%through the announcing door anyway, so the pass here removed each equation
+%twice and announced nothing extra.
 petta_py_clear(Space) :-
-    findall(Eq, ('get-atoms'(Space, Eq), Eq = [=, _, _]), Eqs),
-    forall(member(Eq, Eqs), 'remove-atom'(Space, Eq, _)),
     petta_py_clear_stored(Space),
     space_module(Space, Module),
     petta_py_clear_tabling(Space, Module).
@@ -2500,7 +2500,7 @@ petta_py_erring_item(CW, Pattern, Limit, Space, answer) :-
 %has no (on-error ...) home, so a raising match_ is a defect at its own
 %yield site.
 metta_matchable_value(Blob) :-
-    python_object_blob(Blob),
+    metta_host_object(Blob),
     py_call(petta_ops:is_matchable(Blob), R),
     R == @(true).
 metta_custom_match(Blob, Other) :-

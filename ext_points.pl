@@ -82,6 +82,7 @@ ext_point_clauses_from(event,       extension).
 ext_point_clauses_from(ownership,   extension).
 ext_point_clauses_from(declaration, extension).
 ext_point_clauses_from(service,     engine).
+ext_point_clauses_from(host_service, engine).
 
 %A seam whose clauses must all stay reachable: contributed by an extension,
 %and not an ownership seam where the first success is meant to claim the
@@ -526,6 +527,64 @@ ext_point_kind(metta_backend_selftest/0, event).
 %metta_unwritable_symbol/2 answers both about a whole term, and its name is
 %narrower than what it reports because names were the only class known to fail
 %when this surface was declared.
+%HOST SERVICE: a service again, engine-defined and engine-owned, but for
+%the other caller: the HOST BINDING's transport (python/petta's shim today,
+%any future binding's transport tomorrow). The backend direction has
+%a_backend_calls_only_published_surface; this kind is what the host
+%direction's twin reads, so the binding can no longer grow a dependency on
+%an engine internal silently. The list is measured, not aspirational: it is
+%exactly the engine predicates the shipped shim calls, and shrinking it is
+%the shim-thinning work's scoreboard.
+ext_point_kind(catch_recover/2, host_service).
+ext_point_kind(claim_function_name/3, host_service).
+ext_point_kind(clear_foreign_atoms/1, host_service).
+ext_point_kind(clear_native_atoms/1, host_service).
+ext_point_kind(foreign_provides/2, host_service).
+ext_point_kind(fun_here/1, host_service).
+ext_point_kind(load_imported_metta_file_impl/3, host_service).
+ext_point_kind(parse_metta_source/2, host_service).
+ext_point_kind(read_metta_source/2, host_service).
+ext_point_kind(replacing_previous_load/4, host_service).
+ext_point_kind(translate_expr/3, host_service).
+ext_point_kind(foreign_pushdown_class/3, host_service).
+ext_point_kind(function_changed/2, host_service).
+ext_point_kind(get_native_atom/2, host_service).
+ext_point_kind(import_when/4, host_service).
+ext_point_kind(match_foreign/5, host_service).
+ext_point_kind(metta_add_atom/3, host_service).
+ext_point_kind(metta_add_atoms/2, host_service).
+ext_point_kind(metta_atom_hook_clause/2, host_service).
+ext_point_kind(metta_remove_atom/3, host_service).
+ext_point_kind(metta_source_declarations/2, host_service).
+ext_point_kind(metta_space_names/1, host_service).
+ext_point_kind(metta_string_declarations/2, host_service).
+ext_point_kind(metta_substitute_self/3, host_service).
+ext_point_kind(metta_trace_source/4, host_service).
+ext_point_kind(native_storage_module/2, host_service).
+ext_point_kind(petta_annotations/2, host_service).
+ext_point_kind(petta_contract_fact/1, host_service).
+ext_point_kind(petta_error_answer/3, host_service).
+ext_point_kind(petta_handles_coherent/1, host_service).
+ext_point_kind(petta_handles_route/5, host_service).
+ext_point_kind(petta_on_error_mode/3, host_service).
+ext_point_kind(petta_refuse_guard/2, host_service).
+ext_point_kind(petta_source_reset/1, host_service).
+ext_point_kind(petta_transaction/1, host_service).
+ext_point_kind(petta_transport_failure/1, host_service).
+ext_point_kind(prepare_parsed_forms/1, host_service).
+ext_point_kind(process_form/3, host_service).
+ext_point_kind(recompile_definitions_mentioning/1, host_service).
+ext_point_kind(refuse_lossy_plan/4, host_service).
+ext_point_kind(refuse_other_tiers_name/2, host_service).
+ext_point_kind(register_fun_in/2, host_service).
+ext_point_kind(release_function_name/1, host_service).
+ext_point_kind(sread_with_names/3, host_service).
+ext_point_kind(translate_special_dl/5, host_service).
+ext_point_kind(unregister_fun_everywhere/1, host_service).
+ext_point_kind(unregister_metta_extension/1, host_service).
+ext_point_kind(with_metta_module/2, host_service).
+ext_point_kind(with_source_load/3, host_service).
+
 ext_point_kind(swrite/2, service).
 ext_point_kind(sread/2, service).
 ext_point_kind(metta_symbol_writable/1, service).
