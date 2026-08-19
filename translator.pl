@@ -238,6 +238,99 @@ metta_dispatch_name(Name, Arity) :- arity(Name, Arity), !.
 metta_dispatch_name(Name, _) :- fun(Name), !.
 metta_dispatch_name(Name, _) :- builtin_fun(Name).
 
+%Resolving at compile time means the answer can go stale: a space that gains
+%a definition of the name becomes the nearer parent, and one that loses its
+%last equation stops being a parent at all. Both are function CHANGES, and the
+%engine already announces those, so the recompile hangs off the announcement
+%rather than off a second mechanism. It is the shape repair_stale_definitions/1
+%(src/filereader.pl) uses for the neighbouring problem, a definition compiled
+%against a declaration that has since moved.
+%
+%Guarded by a flag rather than run always: the hook fires for every compiled
+%equation, and a program that never writes `super` should pay one indexed
+%probe for that rather than a walk over every recorded translation
+%[tested: translator_super:a_later_definition_retargets_an_earlier_super].
+%recompile_function_impl/1 rebuilds a name one MODULE at a time, which is what
+%makes this safe to call on the name that just changed: the definition the
+%super needs is in a different module and is not erased under it.
+:- dynamic super_call_compiled/1.
+
+note_super_call(Fun) :-
+    ( super_call_compiled(Fun) -> true ; assertz(super_call_compiled(Fun)) ).
+
+:- multifile metta_on_function_changed/1.
+metta_on_function_changed(Fun) :-
+    super_call_compiled(Fun),
+    findall(User,
+            ( translated_from(_, [=, [User|_], Body]),
+              atom(User),
+              uses_super(Fun, Body) ),
+            Users0),
+    sort(Users0, Users),
+    forall(member(User, Users), recompile_function_impl(User)).
+
+%The SOURCE shape, `(super (Fun ...))`, read off the recorded term rather than
+%off the compiled body: the compiled body holds the module this resolved to
+%last time, which is exactly the thing that may be wrong.
+uses_super(Fun, Term) :-
+    sub_term(Sub, Term),
+    is_list(Sub),
+    Sub = [super, Call],
+    is_list(Call),
+    Call = [Fun|_],
+    !.
+
+%A `super` form takes a CALL, and it has to name its function: `(super $f)`
+%cannot be resolved without running, and saying so is better than compiling a
+%call to whatever $f turns out to be.
+super_call_parts(Call, Fun, Args) :-
+    (   is_list(Call), Call = [Head|Rest], atom(Head)
+    ->  Fun = Head, Args = Rest
+    ;   throw(error(type_error(metta_super_call, Call),
+                    context(super/1,
+                            'super takes a call whose head is a function name')))
+    ).
+
+%The first module ABOVE this one that owns a definition of the name. Above,
+%not including: a shadow calling `super` means "not me", so the walk starts at
+%the parent, and a space with no shadow of its own gets the same answer it
+%would have got by calling the name plainly.
+%
+%module_owns_function/2 for a MeTTa function, which excludes an inherited
+%clause, and a plain definedness test for a predicate the engine compiled,
+%because the engine's own are not equations and own no clause record.
+super_target_module(Module, Fun, Arity, Parent) :-
+    (   super_chain(Module, Candidate),
+        super_defines(Candidate, Fun, Arity)
+    ->  Parent = Candidate
+    ;   metta_module_space(Module, Space),
+        throw(error(existence_error(metta_super_definition, Fun/Arity),
+                    context(super/1, Space)))
+    ).
+
+super_chain(Module, Parent) :- import_module(Module, Parent).
+super_chain(Module, Ancestor) :-
+    import_module(Module, Parent),
+    Parent \== Module,
+    super_chain(Parent, Ancestor).
+
+%A CLAUSE, not merely a name. retractall/1 on a predicate that has none
+%leaves it defined and empty, which is what a space that removed its last
+%equation for a name leaves behind, and reading that as a definition sent
+%`super` to a module with nothing in it
+%[tested: translator_super:a_later_definition_retargets_an_earlier_super].
+%A foreign or built-in predicate has no clause count and does answer, so the
+%count is required only where it exists.
+super_defines(Module, Fun, Arity) :-
+    compiled_function_name(Fun, Predicate),
+    functor(Head, Predicate, Arity),
+    predicate_property(Module:Head, defined),
+    \+ predicate_property(Module:Head, imported_from(_)),
+    (   predicate_property(Module:Head, number_of_clauses(Clauses))
+    ->  Clauses > 0
+    ;   true
+    ).
+
 %Flatten (= Head Body) MeTTa function into Prolog Clause:
 translate_clause(Input, (Head :- BodyConj)) :- translate_clause(Input, (Head :- BodyConj), true).
 translate_clause(Input, (Head :- BodyConj), ConstrainArgs) :-
@@ -1289,6 +1382,41 @@ translate_special_dl(eval, [Arg], AfterHead, Goals, Out) :-
 translate_special_dl(evalc, [Arg, Space], AfterHead, Goals, Out) :-
     translate_expr_dl(Space, AfterHead, BeforeEval, SpaceValue),
     BeforeEval = [evalc(Arg, SpaceValue, Out)|Goals].
+%(super (f a b)): the definition of f the NEXT module up this space's chain
+%holds, so a shadow can check a call and then let the original run.
+%
+%The relative form, and the language already had the absolute one. `evalc`
+%names the space to evaluate in, which works and does not COMPOSE: two guards
+%on one name in one space, each delegating with `evalc` to &self, both run,
+%and an atom one of them refused is stored anyway by the other, because
+%neither names the next definition along its own chain, they both name the
+%bottom [source: ai-phase11-module-survey.md section 3.2, measured]. That is
+%Logtalk's reason for shipping (^^)/1 beside (::)/2: "Calls an imported or
+%inherited predicate definition ... This control construct preserves the
+%implicit execution context" [source:
+%https://logtalk.org/handbook/refman/control/call_super_1.html].
+%
+%Resolved at COMPILE time, which is what makes it cost nothing at the call
+%(a module-qualified call, a chain hop and an explicit super all measured
+%2.00 inferences per loop iteration, identical to a local unqualified call
+%[measured 2026-08-19]) and what makes a missing target a loud error where the
+%equation is written rather than a silent empty answer where it runs.
+%
+%The arguments are translated the way any call's are, so `(super (f (g 1)))`
+%evaluates g first. Only the HEAD is treated specially, and it has to name a
+%function: `(super $f)` cannot be resolved without running, and saying so is
+%better than compiling a call to whatever $f turns out to be.
+translate_special_dl(super, [Call], AfterHead, Goals, Out) :-
+    super_call_parts(Call, Fun, Args),
+    translate_args_dl(Args, AfterHead, AfterArgs, ArgValues),
+    length(ArgValues, InputArity),
+    Arity is InputArity + 1,
+    current_metta_module(Module),
+    super_target_module(Module, Fun, Arity, Parent),
+    note_super_call(Fun),
+    resolve_dispatch(Fun, ArgValues, Out, Goal),
+    AfterArgs = [Parent:Goal|Goals].
+
 translate_special_dl(quote, [Expr], Goals, Goals, Expr).
 %not-provable keeps its head literal and evaluates its arguments, exactly as
 %an ordinary call does. Which function is being negated has to be known
