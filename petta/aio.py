@@ -65,6 +65,7 @@ from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
 from .space import MeTTa
+from .subscribe import SUBSCRIPTION_QUEUE_MAX
 
 logger = logging.getLogger(__name__)
 
@@ -583,9 +584,17 @@ class AsyncMeTTa:
             )
         )
 
-    async def load(self, path: str) -> list:
+    async def load(
+        self,
+        path: str,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> list:
         """Load source or a fast cache into this space on the worker."""
-        return await self.call(lambda m: m.load(path))
+        return await self.call(
+            lambda m: m.load(path, timeout=timeout, inferences=inferences)
+        )
 
     async def save(self, path: str, format: SaveFormat = "metta") -> int:
         """Save this space and return the number of stored atoms."""
@@ -1137,7 +1146,9 @@ class AsyncMeTTa:
         asynchronous iterators."""
         return _AsyncCursor(self, patterns, where, timeout, inferences)
 
-    def subscribe(self, pattern: Any, *, on: str = "add") -> _AsyncSubscription:
+    def subscribe(
+        self, pattern: Any, *, on: str = "add", queue_max: int = SUBSCRIPTION_QUEUE_MAX
+    ) -> _AsyncSubscription:
         """A standing query as an async event stream: every matching
         write becomes an Event on an asyncio queue, consumed with
         async-for. The synchronous surface's callback form stays there;
@@ -1147,7 +1158,7 @@ class AsyncMeTTa:
                 async for event in events:
                     ...
         """
-        return _AsyncSubscription(self, pattern, on)
+        return _AsyncSubscription(self, pattern, on, queue_max)
 
     def fn(self, name: str) -> _AsyncEngineFunction:
         """An engine function as an async callable: await f(3), with
@@ -1358,22 +1369,45 @@ class _AsyncSubscription:
     finalization duty for asynchronous generators is exactly what
     aclose() makes explicit here."""
 
-    def __init__(self, am: AsyncMeTTa, pattern: Any, on: str) -> None:
+    def __init__(
+        self,
+        am: AsyncMeTTa,
+        pattern: Any,
+        on: str,
+        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+    ) -> None:
         self._am = am
         self._pattern = pattern
         self._on = on
+        self._queue_max = queue_max
         self._subscription: Any = None
         self._queue: asyncio.Queue[Any] | None = None
         self._closed = False
+        self._dropped = 0
+
+    def _offer(self, events: asyncio.Queue[Any], event: Any) -> None:
+        """Hand one event to a consumer that may have stopped consuming.
+
+        The writer is on another thread and the queue is filled through
+        call_soon_threadsafe, so a full queue cannot raise back at whoever
+        wrote: by the time this runs the write has returned. What it can do
+        is refuse to lose the event quietly. Every event already queued is
+        still delivered, and the stream then ends by raising, which is the
+        gap being reported rather than papered over.
+        """
+        try:
+            events.put_nowait(event)
+        except asyncio.QueueFull:
+            self._dropped += 1
 
     async def _ensure(self) -> asyncio.Queue[Any]:
         if self._queue is None:
             loop = asyncio.get_running_loop()
-            events: asyncio.Queue[Any] = asyncio.Queue()
+            events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
             self._queue = events
 
             def deliver(event: Any) -> None:
-                loop.call_soon_threadsafe(events.put_nowait, event)
+                loop.call_soon_threadsafe(self._offer, events, event)
 
             pattern, on = self._pattern, self._on
             self._subscription = await self._am.call(
@@ -1388,6 +1422,16 @@ class _AsyncSubscription:
         if self._closed:
             raise StopAsyncIteration
         events = await self._ensure()
+        if self._dropped and events.empty():
+            # Everything that fit has been delivered; now say what did not.
+            dropped, self._dropped = self._dropped, 0
+            raise PettaError(
+                f"this subscription stream fell {dropped} event(s) behind "
+                f"its queue_max of {self._queue_max} and they are gone. "
+                f"Consume faster, raise queue_max=, or take the events on "
+                f"the synchronous surface, where a full queue refuses the "
+                f"write instead of outrunning the reader."
+            )
         event = await events.get()
         if event is _STREAM_CLOSED:
             raise StopAsyncIteration

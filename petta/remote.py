@@ -22,9 +22,19 @@ Guarantees:
   - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
     non-object JSON with a response instead of dropping the connection
     [tested test_remote_server_rejects_malformed_request_bodies]
+  - RemoteSpace claims every capability the wire carries and refuses
+    subscribe, because the wire carries no event and a watcher would hear
+    only this process's own writes [measured 2026-08-19: an attached space
+    delivered the one atom this process wrote and nothing for the atom the
+    server added] [tested
+    test_remote_space_claims_subscribe_only_if_the_channel_exists]
 Owns:
   - Server owns the HTTP loop and its attached-engine worker until close()
     joins both [tested test_remote_close_waits_for_worker_detach]
+Fails when:
+  - a program wants to watch a remote space. There is no event channel to
+    build that on, so the capability is refused rather than half-kept; the
+    refusal names polling and bridge() as the two routes that do work
 Open Obligations:
   To Do: None
   Hacks: None
@@ -163,11 +173,47 @@ class RemoteSpace(SpaceProvider):
     through; atoms enumerates. The local engine unifies every candidate
     against the local pattern, so a lying or stale remote can only cost
     time, not soundness.
+
+    It does NOT subscribe, and that is the one capability the base class
+    would have given it for free. See can_run.
     """
 
     def __init__(self, transport: Transport, space: str = "&self") -> None:
         self._transport = transport
         self._space = space
+
+    def can_run(self, capability: str, /, **request: Any) -> bool:
+        """Everything the wire carries, and not subscribe.
+
+        SpaceProvider derives subscribe from add and remove, and for a space
+        whose every change goes through this process that inference is
+        exact: the engine's own write hooks are the event source. A remote
+        space is the one shape where it fails, because its contents change
+        on the server, which is the whole reason it is remote. The wire has
+        four operations, match, enumerate, add and remove, and none of them
+        carries an event, so a watcher here hears only the writes this
+        process made and silently misses every other one [measured
+        2026-08-19: an attached space delivered the one atom this process
+        wrote and nothing for the atom the server added].
+
+        A capability is a promise about a space rather than a list of
+        methods, so the honest answer is no until the channel exists.
+        """
+        if capability == "subscribe":
+            return False
+        return super().can_run(capability, **request)
+
+    def refusal(self, capability: str, /, **_request: Any) -> str | None:
+        if capability != "subscribe":
+            return None
+        return (
+            "a remote space has no event channel: its contents change on the "
+            "server and the wire carries no event, so a watcher here would "
+            "hear only this process's own writes and miss every other one. "
+            "Poll match(), or run the subscription on the engine that owns "
+            "the space and bridge() the changes here, which needs only add "
+            "and remove on this side"
+        )
 
     def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
         """Candidates for a pattern; `limit` crosses as the wire's optional

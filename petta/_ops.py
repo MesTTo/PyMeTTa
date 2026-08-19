@@ -8,9 +8,24 @@ Guarantees:
     [tested test_public_context_types_are_distinct]
   - protocol type registrations can be removed by exact identity [tested
     test_protocol_and_reflector_registrations_can_be_removed]
+  - a release that FAILS reaches the caller. Left to the deallocator,
+    CPython prints "Exception ignored while closing generator" and the call
+    answers normally [measured 2026-08-19: an OSError raised while releasing
+    reached stderr and nobody else] [tested
+    test_a_nondeterministic_ops_generator_releases_what_it_holds]
+Owns:
+  - the answer stream a nondeterministic operation returns. It is one-shot
+    and can hold a file, a cursor or a lock between yields, so the code that
+    consumed it closes it before returning rather than leaving that to the
+    collector [tested
+    test_a_nondeterministic_ops_generator_releases_what_it_holds]
 Guarded by:
   - _PROTOCOL_TYPES_LOCK protects protocol type registrations [tested
     test_protocol_and_reflector_registrations_can_be_removed]
+Decides:
+  - closing that stream is this module's job rather than the consumer's,
+    because a Prolog cut, a resource guard and an exception all abandon it
+    from outside Python and only the code holding it can say when it is done
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +37,7 @@ from __future__ import annotations
 import inspect
 import threading
 from collections.abc import Callable
+from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
 
@@ -156,12 +172,19 @@ def _preimages(name: str, result: Any):
         return
     if answers is None:
         return
-    if not inspect.isgeneratorfunction(op.inverse):
-        answers = [answers]
-    for answer in answers:
-        if answer is None:
-            continue
-        yield answer if isinstance(answer, (tuple, list)) else [answer]
+    # A plain callable answers ONE preimage, so it is wrapped rather than
+    # iterated and there is nothing to close; a generator inverse is a
+    # stream this owns.
+    stream = answers if inspect.isgeneratorfunction(op.inverse) else [answers]
+    try:
+        for answer in stream:
+            if answer is None:
+                continue
+            yield answer if isinstance(answer, (tuple, list)) else [answer]
+    finally:
+        close = getattr(stream, "close", None)
+        if close is not None:
+            close()
 
 
 def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
@@ -175,11 +198,15 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     """
     op = REGISTRY[name]
     args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
+    # closing/1 rather than a bare loop: the stream is one-shot and this is
+    # what consumed it. A "many" operation is a generator function by
+    # construction (ops._operation_kind), so close() is always there.
     try:
-        for value in op.fn(*args):
-            if value is None:
-                continue
-            yield _encode_result(value)
+        with closing(op.fn(*args)) as answers:
+            for value in answers:
+                if value is None:
+                    continue
+                yield _encode_result(value)
     # KeyboardInterrupt and SystemExit are BaseException, outside this
     # handler by construction, so control signals pass through untouched.
     except Exception as error:
@@ -226,8 +253,9 @@ def dispatch_raw(name: str, args: list) -> Any:
 
 
 def dispatch_raw_many(name: str, args: list):
-    for value in REGISTRY[name].fn(*[_unbox(a) for a in args]):
-        yield _rebox(_refuse_raw_answer(value))
+    with closing(REGISTRY[name].fn(*[_unbox(a) for a in args])) as answers:
+        for value in answers:
+            yield _rebox(_refuse_raw_answer(value))
 
 
 def _refuse_raw_answer(value: Any) -> Any:

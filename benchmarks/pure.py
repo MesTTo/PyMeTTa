@@ -31,6 +31,10 @@ from benchmarks.engine_workloads import (
     typed_call,
     typed_space,
 )
+from benchmarks.subscription import (
+    close_subscription_case,
+    subscription_dispatch_case,
+)
 from benchmarks.workloads import (
     json_payload,
     json_wire,
@@ -84,6 +88,11 @@ def _let_heavy() -> PerfCase:
     return lambda: let_heavy(space), space.drop
 
 
+def _subscription_dispatch() -> PerfCase:
+    state = subscription_dispatch_case()
+    return state[3], lambda: close_subscription_case(state)
+
+
 _CASES = {
     "alpha-unique": lambda: _engine_case(alpha_unique_case),
     "json-wire": _json_wire,
@@ -96,6 +105,7 @@ _CASES = {
     "space-digest": lambda: _engine_case(digest_case),
     "space-name": lambda: _engine_case(space_name_case),
     "structures-dispatch": lambda: (structures_dispatch, _no_teardown),
+    "subscription-dispatch": _subscription_dispatch,
     "term-operators": _term_operators,
     "typed-call": _typed_call,
     "wire-codec": _wire_codec,

@@ -16,6 +16,9 @@ Guarantees:
     wrapper text [tested test_run_syntax_error_is_loud]
   - engine_thread attaches only a bare foreign thread and detaches exactly
     the engine it attached [tested test_engine_thread_owns_only_its_attachment]
+  - a rehydrated PettaError keeps the __cause__ it was raised with, so the
+    boundary term never displaces the diagnosis [tested
+    test_a_watcher_failure_is_distinguishable_from_a_failed_write]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -579,6 +582,14 @@ class Runtime:
                 # instead of an EngineError holding its transcript. Only
                 # PettaError rehydrates; an op author's ValueError keeps
                 # arriving wrapped, the boundary it crossed visible.
+                #
+                # An error that already chose its own cause keeps it. `from
+                # exc` here would overwrite the diagnosis with the plumbing:
+                # SubscriberError is raised `from` the watcher's own
+                # exception, and that is the thing a caller needs to read.
+                # The boundary term stays reachable as __context__ either way.
+                if original.__cause__ is not None or original.__suppress_context__:
+                    raise original
                 raise original from exc
             try:
                 row = self._janus.query_once(

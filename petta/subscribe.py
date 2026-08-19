@@ -4,6 +4,13 @@ synchronously, inside the write that caused it; without one, by queuing
 events for drain(). This is the actors-and-pub-sub reading of a space: the
 mailbox is the space, the subscription is the standing query that maintains
 itself, and the engine's own write hooks deliver.
+
+Every write consults the subscriptions on its space, so the dispatch is on
+the write path and its cost is the write's. It goes through the
+discrimination tree in petta.structures rather than one unify per
+subscription [measured 2026-08-19, 1000 standing queries on one space and
+200 writes, controlled instructions:u min of 3: 4012009981 scanning against
+48243634 indexed, 83.2x, both delivering 200 of 200].
 Guarantees:
   - registry snapshots and queued event mutation are locked for
     free-threaded Python [tested test_subscription_queue_is_thread_safe,
@@ -18,6 +25,17 @@ Guarantees:
   - identical subscriptions share one reflection descriptor until the last
     subscription cancels [tested
     test_identical_subscriptions_share_one_reflection_fact]
+  - a watcher that raises reaches the writer as SubscriberError, naming the
+    subscription and saying the write stands, where a refused write does
+    not [measured 2026-08-19: both arrived as EngineError with the same
+    "Python '<Type>': <text>" message template, so a caller could only tell
+    them apart by reading the sentence] [tested
+    test_a_watcher_failure_is_distinguishable_from_a_failed_write]
+  - dispatch answers the same subscriptions in the same order the linear
+    scan did, cancels and re-subscriptions included [measured 2026-08-19:
+    routed through the tree before its entry ids were made monotonic, every
+    subscriber still fired and two swapped places] [tested
+    test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
 Guarded by:
   - _SubscriptionRegistry._lock protects subscription state, the active
     runtime, delivery counts, and engine subscription snapshots [tested
@@ -36,12 +54,23 @@ import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Self
+from typing import Any, Final, Self
 
-from .atoms import Atom, Expr, Sym, Var, _to_atom, atom_from_wire, map_atoms, unify
-from .errors import EngineError, PettaError
+from .atoms import (
+    Atom,
+    Expr,
+    Sym,
+    Var,
+    _to_atom,
+    atom_from_wire,
+    is_ground,
+    map_atoms,
+    unify,
+)
+from .errors import EngineError, PettaError, SubscriberError
 from .foreign import require_capability
 from .ops import REFLECTION_SPACE, _reflect_add, _reflect_remove
+from .structures import MatchIndex
 
 __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 
@@ -57,6 +86,14 @@ class Event:
     bindings: Mapping[str, Atom]
 
 
+#: How many undrained events one subscription holds before it refuses more.
+#: A queue nobody drains grew for the life of the process; this is what
+#: replaces that. queue.Queue is the precedent for the POLICY: put_nowait on
+#: a full queue raises rather than dropping, where collections.deque(maxlen=)
+#: discards the oldest without telling anyone.
+SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
+
+
 @dataclass(eq=False)
 class Subscription:
     """One standing query; cancel() ends it. With no callback, events
@@ -66,6 +103,7 @@ class Subscription:
     pattern: Atom
     callback: Callable[[Event], None] | None
     on: str  # "add" | "remove" | "both"
+    queue_max: int = SUBSCRIPTION_QUEUE_MAX
     _queue: list[Event] = field(default_factory=list)
     _active: bool = True
     _fact: Expr | None = None  # the reflection atom in &petta, if any
@@ -152,6 +190,9 @@ class _SubscriptionRegistry:
         self._arrived = threading.Condition(self._lock)
         self._subscriptions: list[Subscription] = []
         self._deliveries: dict[Subscription, dict[int, int]] = {}
+        # One discrimination tree per space, so N stays per-space exactly as
+        # the scan's own space filter made it.
+        self._indexes: dict[str, MatchIndex] = {}
         self.runtime = None
 
     def add(self, runtime, subscription: Subscription) -> None:
@@ -166,6 +207,9 @@ class _SubscriptionRegistry:
             self._publish_locked(runtime, candidate)
             self.runtime = runtime
             self._subscriptions = candidate
+            self._indexes.setdefault(subscription.space, MatchIndex()).add(
+                subscription.pattern, subscription
+            )
 
     def cancel(self, subscription: Subscription) -> _Cancellation | None:
         with self._lock:
@@ -189,6 +233,9 @@ class _SubscriptionRegistry:
             self._publish_locked(self.runtime, candidate)
             self._subscriptions = candidate
             subscription._active = False
+            tree = self._indexes.get(subscription.space)
+            if tree is not None:
+                tree.remove(subscription.pattern, subscription)
             self._arrived.notify_all()  # events() streams end at cancel
             return _Cancellation(self.runtime, order, index)
 
@@ -205,6 +252,12 @@ class _SubscriptionRegistry:
             self._publish_locked(cancellation.runtime, candidate)
             self._subscriptions = candidate
             subscription._active = True
+            # Restoration puts a subscription back where it WAS, so appending
+            # to the tree would file it last. Rebuilding the one space's tree
+            # from the restored order is the only spelling that keeps
+            # delivery order equal to registration order, and this is the
+            # rollback path, where O(N) is not the concern.
+            self._rebuild_locked(subscription.space)
 
     def drain(self, subscription: Subscription) -> list[Event]:
         with self._lock:
@@ -213,6 +266,17 @@ class _SubscriptionRegistry:
 
     def queue(self, subscription: Subscription, event: Event) -> None:
         with self._lock:
+            if len(subscription._queue) >= subscription.queue_max:
+                raise PettaError(
+                    f"the queue holds its limit of {subscription.queue_max} "
+                    f"undrained events and this one has nowhere to go. Call "
+                    f"drain() or consume events(), give the subscription a "
+                    f"callback so delivery never queues, or raise "
+                    f"queue_max=. Dropping the oldest silently is the one "
+                    f"thing it will not do.",
+                    atom=event.atom,
+                    space=subscription.space,
+                )
             subscription._queue.append(event)
             self._arrived.notify_all()
 
@@ -274,6 +338,42 @@ class _SubscriptionRegistry:
                 for subscription in self._subscriptions
                 if subscription._active and subscription.space == space
             )
+
+    def candidates(self, space: str, atom: Atom) -> tuple[Subscription, ...]:
+        """The subscriptions on this space whose pattern could match the
+        atom, in registration order.
+
+        A superset of the ones that WILL match is all this owes: the caller
+        unifies anyway, because it needs the bindings. What it owes exactly
+        is the order and the completeness.
+
+        A probe carrying variables goes down the list instead. The tree
+        reads probe tokens literally, so a variable in the probe would need
+        every edge followed at once, and MatchIndex answers that by scanning
+        its whole entry table and sorting it, which is more work than the
+        list this registry already keeps in order. An atom with variables in
+        it is a real thing to store, `(rule $x)` reads back as
+        `(rule $_608)`, so this is a shape the write path meets rather than
+        one it can refuse.
+        """
+        with self._lock:
+            if not is_ground(atom):
+                return tuple(
+                    subscription
+                    for subscription in self._subscriptions
+                    if subscription._active and subscription.space == space
+                )
+            tree = self._indexes.get(space)
+            if tree is None:
+                return ()
+            return tuple(subscription for _pattern, subscription in tree.matches(atom))
+
+    def _rebuild_locked(self, space: str) -> None:
+        tree = MatchIndex()
+        for subscription in self._subscriptions:
+            if subscription._active and subscription.space == space:
+                tree.add(subscription.pattern, subscription)
+        self._indexes[space] = tree
 
     def has_fact(self, fact: Expr) -> bool:
         with self._lock:
@@ -347,11 +447,15 @@ def subscribe(
     pattern: Atom,
     callback: Callable[[Event], None] | None = None,
     on: str = "add",
+    *,
+    queue_max: int = SUBSCRIPTION_QUEUE_MAX,
 ) -> Subscription:
     if on not in ("add", "remove", "both"):
         raise ValueError(f"on must be add, remove or both, not {on!r}")
+    if queue_max < 1:
+        raise ValueError(f"queue_max must be at least 1, not {queue_max!r}")
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
-    subscription = Subscription(space, pattern, callback, on)
+    subscription = Subscription(space, pattern, callback, on, queue_max)
     # The standing query reflects into the library's own space, removed on
     # cancel, so MeTTa programs see what Python is watching. The fact goes
     # in before the subscription activates: a watcher of &petta sees other
@@ -385,13 +489,30 @@ def subscribe(
 
 def _dispatch(action: str, space: str, wire: list) -> bool:
     atom = atom_from_wire(wire)
-    for subscription in _subscriptions_for(space):
+    for subscription in _REGISTRY.candidates(space, atom):
         if subscription.on not in ("both", action):
             continue
         bindings = unify(subscription.pattern, atom)
         if bindings is None:
             continue
-        subscription._deliver(Event(action, space, atom, bindings))
+        try:
+            subscription._deliver(Event(action, space, atom, bindings))
+        # A control signal is BaseException and passes through untouched:
+        # KeyboardInterrupt is not a watcher saying no.
+        except Exception as failure:
+            raise SubscriberError(
+                f"{space} applied the {action} of {atom} and then a watcher "
+                f"failed. This is not a failed write: retrying it stores a "
+                f"second copy, because a space is a multiset, and an "
+                f"enclosing atomic run or a (transaction ...) scope is the "
+                f"one thing that undoes it, as this error leaves the scope. "
+                f"Delivering to the subscription on {subscription.pattern} "
+                f"raised {type(failure).__name__}: {failure}",
+                subscription=subscription,
+                action=action,
+                atom=atom,
+                space=space,
+            ) from failure
     return True
 
 

@@ -12,7 +12,15 @@ Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]
   - MatchIndex.matches agrees with brute-force unification over every
-    registered pattern [tested test_matchindex_agrees_with_brute_force]
+    registered pattern, including two distinct NaN values, which the kernel
+    calls equal and dict lookup does not [measured 2026-08-19: the tree
+    answered nothing where unify answered a match] [tested
+    test_matchindex_agrees_with_brute_force]
+  - MatchIndex.matches answers in REGISTRATION order whatever order the
+    tree walk reached the entries in, and a remove does not disturb it
+    [measured 2026-08-19: register a, b; remove a; register c; the answer
+    was c before b] [tested
+    test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
 Decides:
@@ -27,6 +35,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import math
 import threading
 from collections import Counter
 from collections.abc import Iterator, MutableMapping, MutableSet
@@ -223,11 +232,20 @@ class MatchIndex:
         [value for _, value in inbox.matches(S.order(val(7), S.express))]
     """
 
-    __slots__ = ("_entries", "_root", "_size")
+    __slots__ = ("_entries", "_next", "_root", "_size")
 
     def __init__(self) -> None:
         self._root: dict = {}
-        self._entries: dict[tuple[int, int], tuple[Atom, Any]] = {}
+        # Keyed by a counter that only ever goes UP, which is what makes the
+        # key both unique and an ordering. Keying on (id(atom), live count)
+        # was neither: the count goes back DOWN on remove, so a later
+        # registration takes a number a survivor already holds, and the two
+        # then sort by whichever the tree walk reached first. Measured
+        # 2026-08-19: register a, b; remove a; register c; matches() answers
+        # c before b. id() alone is no help either, since CPython reuses an
+        # address as soon as the object at it is freed.
+        self._entries: dict[int, tuple[Atom, Any]] = {}
+        self._next = 0
         self._size = 0
 
     @staticmethod
@@ -247,6 +265,16 @@ class MatchIndex:
                 out.append(("sym", node.name))
             else:
                 value = node.value if isinstance(node, Gnd) else node
+                if isinstance(value, float) and math.isnan(value):
+                    # A token is looked up as a dict key, and a NaN is not
+                    # equal to a DIFFERENT NaN, so two atoms the kernel
+                    # calls equal would take different edges and one would
+                    # never be retrieved. The kernel's rule is that a NaN
+                    # IS itself, so every NaN is one token [measured
+                    # 2026-08-19: two distinct float("nan") objects, the
+                    # tree answered nothing where unify answered a match].
+                    out.append(("val", "float", "nan"))
+                    continue
                 try:
                     hash(value)
                 except TypeError:
@@ -261,9 +289,10 @@ class MatchIndex:
         node = self._root
         for token in self._tokens(atom):
             node = node.setdefault(token, {})
-        entry_id = id(atom), self._size
+        entry_id = self._next
         node.setdefault("$leaves", []).append(entry_id)
         self._entries[entry_id] = (atom, value)
+        self._next += 1
         self._size += 1
 
     def remove(self, pattern: Any, value: Any = None) -> bool:
@@ -287,14 +316,15 @@ class MatchIndex:
 
     def matches(self, atom: Any) -> Iterator[tuple[Atom, Any]]:
         """Every registered (pattern, value) whose pattern matches the
-        ground atom, in registration order per node. The tree answers
-        candidates; unify confirms, so nonlinearity is exact."""
+        ground atom, in REGISTRATION order, whatever order the tree walk
+        reached them in. The tree answers candidates; unify confirms, so
+        nonlinearity is exact."""
         probe = _as_atom(atom)
         if not is_ground(probe):
             # The tree's walk reads probe tokens literally, so a probe
             # variable would need every edge followed; brute force is the
             # honest spelling of that, and stays exact through unify.
-            entries = sorted(self._entries.items(), key=lambda entry: entry[0][1])
+            entries = sorted(self._entries.items(), key=itemgetter(0))
             for _, (stored, value) in entries:
                 if _mutually_unifiable(stored, probe):
                     yield (stored, value)
@@ -309,7 +339,7 @@ class MatchIndex:
                 for entry_id in node.get("$leaves", []):
                     entry = self._entries[entry_id]
                     if unify(entry[0], probe) is not None:
-                        found.append((entry_id[1], entry))
+                        found.append((entry_id, entry))
                 continue
             token = tokens[position]
             exact = node.get(token)
