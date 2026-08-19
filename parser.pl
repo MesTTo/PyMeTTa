@@ -128,10 +128,45 @@ sread(S, T) :- atom_codes(S, Cs),
                sread_codes(Cs, S, T).
 
 sread_codes(Cs, Source, T) :-
-    ( phrase(sexpr(T, [], _), Cs)
+    ( catch(phrase(sexpr(T, [], _), Cs),
+            error(syntax_error(float_overflow), _),
+            metta_saturating_parse(sexpr(T, [], _), Cs))
       -> true
        ; format(atom(Msg), 'Parse error in form: ~w', [Source]),
          throw(error(syntax_error(Msg), none)) ).
+
+%Re-run a parse with float overflow SATURATING instead of raising.
+%
+%dcg/basics' number//1 converts what it scanned with number_codes/2, which
+%raises syntax_error(float_overflow) on a literal past binary64 rather than
+%answering. So `(holds 1e400)` did not parse and did not report a parse error
+%either: the raise went straight out through sread/2 and killed the run with
+%`number_codes/2: Syntax error: float_overflow` naming src/main.pl
+%[measured 2026-08-19; found by the generated-spelling law in
+%tests/prolog/property_lane.pl].
+%
+%Upstream SATURATES. Its float token is a regex handed to Rust's f64 FromStr,
+%which returns infinity for a value too large instead of an error
+%[source: hyperon-experimental, lib/src/metta/runner/stdlib/arithmetics.rs,
+%register_context_independent_tokens, whose three number tokens call
+%Number::from_int_str and Number::from_float_str, and hyperon-atom/src/gnd/
+%number.rs, where from_float_str is num.parse::<f64>(); measured 2026-08-19 by
+%running that parse: "1e400" gives Ok(inf), "-1e400" gives Ok(-inf)].
+%Underflow already agreed, 1e-400 giving 0.0 on both sides.
+%
+%SWI has the same saturation behind the float_overflow flag, so the reader
+%borrows it rather than keeping a second number grammar to decide where the
+%literal ends. The flag is set only for the RETRY, so an ordinary parse pays
+%nothing, and it is thread-local, so a thread already running keeps raising on
+%its own arithmetic [measured 2026-08-19: a worker created before the setter
+%still reads `error`]. The engine's ARITHMETIC keeps raising on overflow,
+%which is a different question with a different answer:
+%`(pow-math 10.0 400)` still reports evaluation_error(float_overflow).
+metta_saturating_parse(Grammar, Codes) :-
+    current_prolog_flag(float_overflow, Was),
+    setup_call_cleanup(set_prolog_flag(float_overflow, infinity),
+                       phrase(Grammar, Codes),
+                       set_prolog_flag(float_overflow, Was)).
 
 %%%% Is this a whole form, or is the user still typing? %%%%
 %
@@ -377,7 +412,9 @@ metta_symbol_writable(Symbol) :-
     phrase(writable_token(Codes), Codes),
     (   metta_symbol_ordinary(First, Symbol)
     ->  true
-    ;   phrase(sexpr_token(Read, [], _), Codes),
+    ;   catch(phrase(sexpr_token(Read, [], _), Codes),
+              error(syntax_error(float_overflow), _),
+              metta_saturating_parse(sexpr_token(Read, [], _), Codes)),
         Read == Symbol ).
 
 %One token, and no quote either: the form scanner opens a string on a quote
