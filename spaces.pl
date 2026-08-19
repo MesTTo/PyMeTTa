@@ -918,6 +918,16 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %does: `(collapse (add-atom not-a-space (bad add)))` is a one-element collapse
 %holding the error, and a raise would have emptied the collapse instead
 %[source: LeaTTa tests/semantics/spaces/add_atom.metta].
+%The two READ doors below spell the same test as a bare atom/1 instead of
+%calling this, and that is a measurement rather than an oversight: atom/1 is a
+%type test SWI compiles inline, while this is a predicate call costing one
+%inference on every match and every get-atoms. The benchmarks saw exactly that
+%one inference per operation, +20,002 on py-method-call and +102 on
+%query-limit-guarded, and inlining put all seven back on their baselines
+%[measured 2026-08-19]. It is the split metta_self_module/1 already draws
+%against space_module/2, and it is kept honest the same way, by a test that
+%asserts the two spellings agree rather than by hoping they do
+%[tested: spaces_registration:the_inlined_space_test_is_the_named_one].
 metta_space_argument(Space) :- atom(Space).
 
 %The shape every space operation refuses in: the arbiter's `errAtom a0`, whose
@@ -1145,23 +1155,39 @@ unstore_atom(Space, Term, Removed) :- remove_sexp(Space, Term, Removed).
 %Cheaper than the arbiter, which collects a BindingsSet for every match; this
 %pays only where a conjunction is written, and leaves
 %(once (match &big (foo $x) $x)) streaming
-%[tested: spaces_match_snapshot:a_conjunction_finds_every_row_before_any_
-%template_runs, test_match_snapshots_rows_before_template_effects].
-%A row carries its annotation as well as its bindings, because that rides
-%'$petta_answer_k' BACKTRACKABLY and findall would undo it: reset-call-read is
-%metta_top/3's own idiom two hundred lines down, and the write after member/2
-%is what hands the row's k to the template that reads (annotation)
-%[tested: test_a_join_multiplies_provenance].
+%[tested: test_match_snapshots_rows_before_template_effects,
+%spaces_match_snapshot:a_conjunction_finds_every_row_before_any_template_runs].
+%An ANNOTATED space's rows carry their annotation as well as their bindings,
+%because that rides '$petta_answer_k' BACKTRACKABLY and findall would undo it:
+%reset-call-read is metta_top/3's own idiom below, and the write after member/2
+%is what hands the row's k to the template that reads (annotation).
+%
+%A space whose semiring is bool takes the plain collection, which is three
+%inferences a row cheaper and is the traffic: under bool an answer's k can
+%only be 1, because a provider handing one to an undeclared context raises
+%rather than setting it ("a real k is admitted exactly when its context
+%declared a non-Boolean semiring", python/petta/shim.pl), and the engine's own
+%join writes nothing when both sides read 1. Measured on direct-join
+%[measured 2026-08-19: 320,322 inferences with the capture on every row
+%against 289,819 without it, over 10,000 rows]
+%[tested: test_a_join_multiplies_provenance,
+%test_a_conjunction_carries_each_rows_annotation].
 match(Space, Pattern, OutPattern, Result) :- nonvar(Pattern), Pattern = [Comma|_], Comma == ',',
                                              metta_space_argument(Space), !,
                                              term_variables(Pattern-OutPattern, Row),
-                                             findall(Row-K,
-                                                     ( b_setval('$petta_answer_k', 1),
-                                                       match_conjunction(Space, Pattern, OutPattern),
-                                                       b_getval('$petta_answer_k', K) ),
-                                                     Rows),
-                                             member(Row-K, Rows),
-                                             b_setval('$petta_answer_k', K),
+                                             (   petta_annotations(Space, bool)
+                                             ->  findall(Row,
+                                                         match_conjunction(Space, Pattern, OutPattern),
+                                                         Rows),
+                                                 member(Row, Rows)
+                                             ;   findall(Row-K,
+                                                         ( b_setval('$petta_answer_k', 1),
+                                                           match_conjunction(Space, Pattern, OutPattern),
+                                                           b_getval('$petta_answer_k', K) ),
+                                                         Rows),
+                                                 member(Row-K, Rows),
+                                                 b_setval('$petta_answer_k', K)
+                                             ),
                                              Result = OutPattern.
 %A single pattern over a foreign space: the provider answers, and the
 %conjunction door above has already taken the conjunctive case.
@@ -1176,14 +1202,15 @@ match(Space, Pattern, OutPattern, Result) :- nonvar(Space),
 %argument")` while this raised SWI's bare `Arguments are not sufficiently
 %instantiated`, which names neither the operation nor the call and reached
 %Python as an EngineError with no operation field at all. Same question, same
-%kind of answer [tested: spaces_storage_modules:matching_requires_a_named_
-%space, test_get_atoms_on_an_unbound_space_names_the_operation].
+%kind of answer [tested: test_get_atoms_on_an_unbound_space_names_the_operation,
+%spaces_storage_modules:matching_requires_a_named_space].
 %
-%The check costs nothing here that the guard it replaces did not: this clause
-%is only reached once every clause above has failed, and each of those already
-%requires a bound space.
+%atom/1 rather than metta_space_argument/1, which is the same test inlined:
+%this clause runs on every match a MeTTa program makes, and the predicate call
+%cost one inference each time. See the note above metta_space_argument/1 for
+%the measurement and for the test that keeps the two spellings agreeing.
 match(Space, Pattern, OutPattern, Result) :-
-    (   metta_space_argument(Space)
+    (   atom(Space)
     ->  native_storage_module_cache(Space, Module),
         match_native(Module, Space, Pattern, OutPattern, Result)
     ;   space_argument_error('match', [Space, Pattern, OutPattern], Result)
@@ -1858,8 +1885,9 @@ native_expression(Module, Space, Rel, PatArgs) :-
 %storage read below is an engine internal whose callers hold a space name
 %already and would read an error atom as a stored atom
 %[tested: test_get_atoms_on_an_unbound_space_names_the_operation].
+%atom/1 is metta_space_argument/1 inlined, for the reason its own note gives.
 'get-atoms'(Space, Pattern) :-
-    (   metta_space_argument(Space)
+    (   atom(Space)
     ->  get_native_atom(Space, Pattern)
     ;   space_argument_error('get-atoms', [Space], Pattern)
     ).
@@ -1900,23 +1928,37 @@ clear_foreign_atoms(Space) :-
 %[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
 %test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
 clear_native_atoms(Space) :-
-    findall(Atom, ( get_native_atom(Space, Atom), compiled_half(Atom) ), Compiled),
-    forall(member(Atom, Compiled),
-           ( metta_remove_atom(Space, Atom, _) -> true ; true )),
-    ( native_storage_module_ready(Space, Module)
-      -> forall(( current_predicate(Module:Space/Arity),
-                  functor(Head, Space, Arity) ),
-                retractall(Module:Head)),
-         retractall(Module:'$petta_native_scalar'(_))
-    ; true ),
+    (   native_storage_module_ready(Space, Module)
+    ->  findall(Atom, compiled_half_atom(Space, Module, Atom), Compiled),
+        forall(member(Atom, Compiled),
+               ( metta_remove_atom(Space, Atom, _) -> true ; true )),
+        forall(( current_predicate(Module:Space/Arity),
+                 functor(Head, Space, Arity) ),
+               retractall(Module:Head)),
+        retractall(Module:'$petta_native_scalar'(_))
+    ;   true
+    ),
     retractall(import_life(Space, _, _)).
 
-%Whether removing this atom has a consequence beyond storage. Kept beside
-%metta_remove_atom/3's own clauses in spirit: these are the shapes it answers
-%specially, and a shape added there without being added here would go back to
-%leaving its compiled half behind a clear.
-compiled_half([=, [F|_], _]) :- atom(F).
-compiled_half([':', F, _]) :- atom(F), fun(F).
+%The atoms whose removal has a consequence beyond storage, which are exactly
+%the two shapes metta_remove_atom/3 answers specially; a shape added there
+%without being added here would go back to leaving its compiled half behind a
+%clear.
+%
+%Asked of the storage predicate by HEAD SYMBOL rather than by filtering a walk
+%of the space. The head is the first argument, so this is one indexed lookup
+%per shape and a space of plain atoms pays nothing for the question; filtering
+%an enumeration cost one inference per stored atom on every clear, which the
+%benchmarks saw as +20,002 inferences on py-method-call and +8,000 on
+%handle-round-trip [measured 2026-08-19].
+compiled_half_atom(Space, Module, [=, Head, Body]) :-
+    Term =.. [Space, =, Head, Body],
+    call(Module:Term),
+    Head = [F|_], atom(F).
+compiled_half_atom(Space, Module, [':', F, Type]) :-
+    Term =.. [Space, ':', F, Type],
+    call(Module:Term),
+    atom(F), fun(F).
 
 %Enumeration answers the space's expressions and then its scalar atoms.
 %native_storage_module_ready/2 is a dynamic lookup, so an unbound space
