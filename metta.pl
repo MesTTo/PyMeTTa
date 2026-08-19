@@ -34,8 +34,10 @@
 %   - alpha-unique-atom/2 confirms identity inside each term-hash bucket, so a
 %     hash collision cannot remove an inequivalent term [tested 2026-08-15:
 %     metta_alpha_unique].
-%   - get-metatype/2 classifies every Prolog term used as a MeTTa value
-%     [tested 2026-08-14: metta_metatypes].
+%   - get-metatype/2 classifies every Prolog term used as a MeTTa value, and
+%     classifies a NAME by the arbiter's grounded-token table gated on this
+%     engine holding the operation, so a token nothing here answers to reports
+%     Symbol as an unknown name does [tested 2026-08-20: metta_metatypes].
 %   - petta_transaction/1 answers everything its body answers, and every
 %     answer's writes commit or roll back together [tested 2026-08-19:
 %     python/tests/test_atomic_forms.py::test_a_transaction_preserves_every_answer_of_its_body].
@@ -1965,10 +1967,136 @@ metatype_of(X, 'Grounded') :- string(X), !.
 metatype_of(true,  'Grounded') :- !.
 metatype_of(false, 'Grounded') :- !.
 metatype_of(X, 'Grounded') :- python_object_blob(X), py_is_object(X), !.
-metatype_of(X, 'Grounded') :- atom(X), fun(X), !.  % e.g., '+' is a registered fun/1
+metatype_of(X, 'Grounded') :- atom(X), metta_grounded_token(X),
+                              metta_operation_admitted(X), !.
 metatype_of(X, 'Expression') :- is_list(X), !.     % e.g., (+ 1 2), (a b)
 metatype_of(X, 'Symbol') :- atom(X), !.            % e.g., a
 metatype_of(_, 'Grounded').                        % e.g., partial(f,[1]), f(1)
+
+%The names whose ATOM is grounded, which is what CLASSIFIES a name as Grounded
+%rather than Symbol. A MeTTa program cannot derive it and neither can this
+%engine's own registry, because the classification is about the language and
+%not about the route an engine took to implement a name: `car-atom` is a Prolog
+%predicate HERE and a standard-library equation there, `superpose` is a
+%compiled special form here and a grounded token there. Asking fun/1 answered
+%Grounded for nine names the arbiter answers Symbol for (car-atom, cdr-atom,
+%eval, cons-atom, decons-atom, empty, let, get-doc, type-cast) and Symbol for
+%two it answers Grounded for (nop and &self).
+%
+%So the list is UPSTREAM's, adopted whole rather than re-derived, and generated
+%from the arbiter's own table rather than typed out
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, groundedTokens, 98
+%names read 2026-08-19; tests/semantics/types-meta/
+%02_grounded_token_metatypes.metta and 03_instruction_and_equation_metatypes
+%.metta, both STATUS conforms and both byte-for-byte transcripts]. A name it
+%does not carry is a Symbol, which is what the arbiter answers for one too:
+%`!(get-metatype no-such-operation)` is `[Symbol]` there
+%[tested: metta_metatypes:an_instruction_or_equation_name_is_a_symbol].
+metta_grounded_token('%'). metta_grounded_token('&self').
+metta_grounded_token('*'). metta_grounded_token('+').
+metta_grounded_token('-'). metta_grounded_token('/').
+metta_grounded_token('<'). metta_grounded_token('<=').
+metta_grounded_token('=='). metta_grounded_token('=alpha').
+metta_grounded_token('>'). metta_grounded_token('>=').
+metta_grounded_token('_assert-results-are-alpha-equal').
+metta_grounded_token('_minimal-foldl-atom').
+metta_grounded_token('_assert-results-are-alpha-equal-msg').
+metta_grounded_token('_assert-results-are-equal').
+metta_grounded_token('_assert-results-are-equal-msg').
+metta_grounded_token('_new-state').
+metta_grounded_token('abs-math').
+metta_grounded_token('acos-math').
+metta_grounded_token('add-atom'). metta_grounded_token('and').
+metta_grounded_token('asin-math').
+metta_grounded_token('atan-math'). metta_grounded_token('bind!').
+metta_grounded_token('call-native').
+metta_grounded_token('capture').
+metta_grounded_token('ceil-math').
+metta_grounded_token('change-state!').
+metta_grounded_token('collapse-extract').
+metta_grounded_token('cos-math').
+metta_grounded_token('div-euclid').
+metta_grounded_token('div-floor').
+metta_grounded_token('div-trunc').
+metta_grounded_token('floor-math').
+metta_grounded_token('fork-space').
+metta_grounded_token('format-args').
+metta_grounded_token('fuzzy-match').
+metta_grounded_token('fuzzy-match-space').
+metta_grounded_token('fuzzy-match-context').
+metta_grounded_token('get-atoms').
+metta_grounded_token('get-metatype').
+metta_grounded_token('get-state').
+metta_grounded_token('get-type').
+metta_grounded_token('get-type-space').
+metta_grounded_token('git-import!').
+metta_grounded_token('git-module!').
+metta_grounded_token('hyperpose').
+metta_grounded_token('if-equal'). metta_grounded_token('import!').
+metta_grounded_token('import-into!').
+metta_grounded_token('import-item!').
+metta_grounded_token('include').
+metta_grounded_token('index-atom').
+metta_grounded_token('intersection-atom').
+metta_grounded_token('isinf-math').
+metta_grounded_token('isnan-math').
+metta_grounded_token('loaded-mods!').
+metta_grounded_token('log-math'). metta_grounded_token('match').
+metta_grounded_token('match%'). metta_grounded_token('max-atom').
+metta_grounded_token('min-atom').
+metta_grounded_token('mod-euclid').
+metta_grounded_token('mod-floor').
+metta_grounded_token('mod-space!').
+metta_grounded_token('module-space-no-deps').
+metta_grounded_token('module-tree!').
+metta_grounded_token('near-match').
+metta_grounded_token('new-mork-space').
+metta_grounded_token('new-space'). metta_grounded_token('nop').
+metta_grounded_token('not'). metta_grounded_token('or').
+metta_grounded_token('pow-math'). metta_grounded_token('pragma!').
+metta_grounded_token('print-alternatives!').
+metta_grounded_token('print-mods!').
+metta_grounded_token('println!').
+metta_grounded_token('register-module!').
+metta_grounded_token('rem-trunc').
+metta_grounded_token('remove-atom').
+metta_grounded_token('round-math').
+metta_grounded_token('sealed'). metta_grounded_token('sin-math').
+metta_grounded_token('size-atom').
+metta_grounded_token('skel-swap-pair-native').
+metta_grounded_token('sort-atom').
+metta_grounded_token('sort-strings').
+metta_grounded_token('sqrt-math').
+metta_grounded_token('subtraction-atom').
+metta_grounded_token('superpose').
+metta_grounded_token('tan-math'). metta_grounded_token('trace!').
+metta_grounded_token('trunc-math').
+metta_grounded_token('union-atom').
+metta_grounded_token('unique-atom'). metta_grounded_token('xor').
+
+%The other half of the metatype answer: the table says which names are grounded
+%and this says which of them THIS engine holds an operation for. The arbiter
+%asks both, `groundedTokenNames.contains s && w.opAdmitted s`, and it measured
+%why: hyperon answers Symbol for `flip` and Grounded for it after
+%`!(import! &self random)`, because "WHICH names a tokenizer has bound is a
+%fact about the context, not about the language"
+%[source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, metaTypeOf and the
+%note above groundedTokens, read 2026-08-19]. Without it a name this engine has
+%no operation for reported Grounded, which is a claim it cannot make and which
+%contradicts the `no-such-operation` answer the same corpus pins: 33 of the 98
+%are LeaTTa or hyperon operations PeTTa does not ship [measured 2026-08-20].
+%
+%Both of the engine's registers are asked, because a head has meaning here two
+%ways and fun/1 alone is not the question: 29 of the translator's special-form
+%heads answer false to it, `superpose` and `nop` among them
+%[source: metta_translated_head/1 in src/translator.pl, which is the same
+%question the linter asks]. `&self` is in neither register and is always here,
+%being the space every program starts in, which is why the arbiter grounds it
+%for the same reason it grounds `+`
+%[tested: metta_metatypes:a_token_this_engine_does_not_hold_is_a_symbol].
+metta_operation_admitted(Name) :- fun(Name), !.
+metta_operation_admitted(Name) :- metta_translated_head(Name), !.
+metta_operation_admitted('&self').
 
 %A parameter declared with a METATYPE accepts any atom of that kind, which is
 %what makes a variadic constructor declarable: a container has no fixed arity
