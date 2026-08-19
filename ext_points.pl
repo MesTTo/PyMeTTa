@@ -538,6 +538,19 @@ ext_point_kind(rethrow_metta_operation_error/2, service).
 %compiled call site and an extra argument there is not free.
 ext_point_kind(current_metta_module/1, service).
 
+%CONTEXT, the other half: which MODULE a space compiles into, and which space
+%a module serves. Published because Phase 11 made them necessary rather than
+%convenient. A space and its module were the same atom for every space but
+%&self, so a library could pass a space name wherever a module was wanted and
+%it worked by coincidence; they are different atoms now and
+%with_metta_module/2 REFUSES a space name, so a library that runs a goal in a
+%space has to ask. lib_memo.pl and lib_tabling.pl each carried a hand-written
+%copy of the inverse before this
+%[source: ai-phase11-module-survey.md section 1.3, which counted four copies
+%of it, three of them outside src/spaces.pl].
+ext_point_kind(space_module/2, service).
+ext_point_kind(metta_module_space/2, service).
+
 %Extra type candidates for grounded host objects, beyond the object's own
 %classes: a protocol the object satisfies may name a type, so a declared
 %(-> DLTensor ...) can hold across libraries.
