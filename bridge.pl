@@ -29,6 +29,8 @@
 %   Hacks: None
 %   Future Enhancements: None
 
+:- use_module(library(janus)).
+
 :- multifile metta_grounded_apply/3.
 :- multifile metta_grounded_structure/2.
 :- multifile metta_grounded_text/2.
@@ -609,7 +611,7 @@ bind_python_call_spec(Spec, Spec).
 %`(== "abc" (py-call (str "abc")))` is False and a (-> String Number)
 %parameter rejects it.
 %
-%Every one of those is fixed in src/python.pl, which is the language's own
+%Every one of those is fixed in hosts/python/bridge.pl, which is the language's own
 %surface rather than this one: `py-atom` RESOLVES where this APPLIES, and that
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what
@@ -750,3 +752,16 @@ python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 
 python_object_blob_name(py).
 python_object_blob_name('PyObject').
+
+%This host's transport-failure shape, and the reason text for an error it
+%threw: janus wraps a Python exception as python_error(Class, Value), and
+%the value may be a live exception object only this bridge can render.
+:- multifile metta_host_transport_failure/1.
+metta_host_transport_failure(error(python_error('TransportFailure', _), _)).
+
+:- multifile metta_host_error_reason/2.
+metta_host_error_reason(error(python_error(Class, Message0), _), Reason) :-
+    (   string(Message0) -> Message = Message0
+    ;   petta_py_exception_message(Message0, Message)
+    ),
+    format(string(Reason), "~w: ~w", [Class, Message]).

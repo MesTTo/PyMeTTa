@@ -218,7 +218,6 @@ register_metta_library_path(Alias, Directory0, true) :-
 :- autoload(library(uuid)).
 :- use_module(library(crypto)).
 :- use_module(library(random)).
-:- use_module(library(janus)).
 :- use_module(library(error)).
 :- use_module(library(listing)).
 :- use_module(library(aggregate)).
@@ -326,7 +325,19 @@ goal_expansion(metta_self_module(Module), Module = '$petta_exec:&self').
 goal_expansion(metta_exec_module_prefix(Prefix), Prefix = '$petta_exec:').
 
 :- ensure_loaded([ext_points, parser, translator, specializer, filereader,
-                  '../lib/lib_gitimport', spaces, tracer, duals, python]).
+                  '../lib/lib_gitimport', spaces, tracer, duals]).
+
+%A host is a file in hosts/, the backends split one directory over: the
+%decider file loads unconditionally and whether its bridge is usable is its
+%own business, so the engine names no host and the next host is a dropped
+%file. Hosts load here, before the standard library and the registry
+%directive, so a bridge's declared builtins and seams exist by the time
+%anything reads them.
+:- prolog_load_context(directory, Src),
+   directory_file_path(Src, '../hosts/*.pl', Pattern),
+   expand_file_name(Pattern, Found),
+   msort(Found, Files),
+   forall(member(File, Files), ensure_loaded(File)).
 
 %%%% Native backends %%%%
 %
@@ -3107,20 +3118,21 @@ petta_merge_route(Query, Policy) :-
 %and an absent backend has said nothing about the data. The Python side
 %classifies at the crossing with isinstance, where subclassing is still
 %visible, and re-raises under this one name.
-petta_transport_failure(error(python_error('TransportFailure', _), _)).
+%What counts as a transport failure is the host's to say: the term shape
+%of a connection dying under a provider is host machinery, so the bridge
+%declares it and the engine only forwards the question.
+petta_transport_failure(Error) :- metta_host_transport_failure(Error).
 
 %A kept error as the answer it becomes: MeTTa's own (Error <culprit>
 %<reason>) shape, the culprit being the query pattern as asked, since the
-%failed attempt's bindings were undone with the throw.
-petta_error_answer(Pattern, error(python_error(Class, Message0), _),
-                   ['Error', Pattern, Reason]) :-
-    !,
-    (   string(Message0) -> Message = Message0
-    ;   petta_py_exception_message(Message0, Message)
-    ),
-    format(string(Reason), "~w: ~w", [Class, Message]).
+%failed attempt's bindings were undone with the throw. An error a HOST
+%threw renders through the bridge's own reason hook, which knows its
+%exception shapes; everything else renders through the message system.
 petta_error_answer(Pattern, Error, ['Error', Pattern, Reason]) :-
-    message_to_string(Error, Reason).
+    (   metta_host_error_reason(Error, Reason0)
+    ->  Reason = Reason0
+    ;   message_to_string(Error, Reason)
+    ).
 
 %Critical-pair coherence over a context's entries, for checking a
 %declaration EAGERLY instead of on the first query that falls into an

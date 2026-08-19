@@ -74,7 +74,11 @@ native_storage_module(Space, Module) :-
     atom_concat('$petta_atoms:', Space, Module).
 
 :- dynamic native_storage_module_cache/2.
-:- dynamic petta_py_add_hooks_idle/1.
+%Whether a HOST's own add hooks are idle, the host's clause of it: the
+%shim answers for the Python side, and with no host loaded the seam has no
+%clause and the engine's own test above already answered.
+:- multifile metta_host_add_hooks_idle/1.
+ext_point_kind(metta_host_add_hooks_idle/1, ownership).
 
 %Only a module that actually holds something belongs to somebody else.
 %current_module/1 is not that test: SWI creates a module as a side effect of
@@ -711,7 +715,7 @@ refuse_ruleless_equation(Space, Term) :-
 metta_add_hooks_idle(_) :-
     \+ metta_atom_hook_clause(added, _), !.
 metta_add_hooks_idle(Space) :-
-    petta_py_add_hooks_idle(Space).
+    metta_host_add_hooks_idle(Space).
 
 %%%% The foreign seam's failure contract %%%%
 %

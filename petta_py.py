@@ -2,7 +2,7 @@
     name, reading an attribute, building a container and calling a callable are
     each ONE crossing instead of a conversation.
 Assumes:
-  - janus is importing this module by name after src/python.pl adds src/ to
+  - janus is importing this module by name after hosts/python/bridge.pl adds this directory to
     sys.path with py_add_lib_dir/1, so it must not import anything from the
     `petta` package: the engine runs with janus alone and the package need not
     be installed [tested: examples/integration/py_surface.metta under run.sh]
@@ -11,7 +11,7 @@ Guarantees:
     getattrs the rest, so a path of any depth works [tested: B26 in
     tests/prolog/python_surface.plt]
   - every function here returns the OBJECT, never a converted copy, so the
-    caller decides what crosses; src/python.pl asks janus for py_object(true)
+    caller decides what crosses; hosts/python/bridge.pl asks janus for py_object(true)
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.

@@ -1631,7 +1631,7 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %empty table. Seeding it with the arguments is the whole fix, and the seed is
 %expanded on first use by petta_py_shared_table/2, so a call whose result
 %holds no variable pays nothing at all for it.
-%petta_py_failure/2 is src/python.pl's, and a registered operation was the one
+%petta_py_failure/2 is hosts/python/bridge.pl's, and a registered operation was the one
 %Python caller not reaching it. That is not a cosmetic gap: without it janus's
 %own error term reaches MeTTa carrying the live exception OBJECT and a live
 %TRACEBACK object, which is the defect petta_py_failure/2 was written to fix
@@ -2730,7 +2730,7 @@ petta_py_remove_subscription_hooks :-
 
 %The native batch writer may skip per-atom hook dispatch only when this
 %unwatched space has the subscription hook as its sole added-atom handler.
-petta_py_add_hooks_idle(Space) :-
+metta_host_add_hooks_idle(Space) :-
     \+ petta_py_subscribed_space(Space),
     petta_py_subscription_hook_ref(added, SubscriptionRef),
     findall(Ref, metta_atom_hook_clause(added, Ref), [OnlyRef]),
