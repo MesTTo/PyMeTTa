@@ -439,6 +439,16 @@ metta_module_space(Module, Space) :-
 %[measured 2026-08-19: with_output_to/2]. The property is true for exactly the
 %predicates clause/3 accepts [source: src/tracer.pl, metta_trace_target/1
 %measured 2026-08-16].
+%A BUILTIN is defined by the engine and by no equation, so no removal can
+%undefine it. Without this, a space that extended an engine operation by
+%writing an equation for its name took the ENGINE's operation with it when the
+%equation went: the compiled-clause probe below is the only thing that was
+%asked, a builtin has no compiled clause of that shape, so `fun/1` and the
+%name-wide registers were retracted and `!(get-type 1)` answered
+%`(get-type 1)` unreduced for the rest of the process. Removing an equation
+%for `match`, `+` or any other builtin name did the same
+%[tested: builtin_survives_equation_removal].
+function_still_defined(F) :- builtin_fun(F), !.
 function_still_defined(F) :- compiled_function_name(F, Predicate),
                              ( fun_in(Module, F) ; petta_engine_module(Module) ),
                              current_predicate(Module:Predicate/Arity),
