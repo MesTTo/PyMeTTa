@@ -1,5 +1,7 @@
 """Purpose: exercise the public typing and policy contracts introduced by P3.
 Guarantees:
+  - all six dispatch axes are catalog-readable and patchable per function.
+  [tested: test_every_dispatch_axis_is_readable_settable_and_defaulted; commit=WORKTREE]
   - type faults remain ordinary Error values that ``if-error`` can observe.
   [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=WORKTREE]
   - DontEvalType declarations mask evaluation without relying on a type name.
@@ -24,6 +26,125 @@ def _answers(metta: MeTTa, source: str) -> list[str]:
     groups = metta.run(source)
     assert len(groups) == 1
     return [str(atom) for atom in groups[0]]
+
+
+def _set_dispatch_policy(
+    metta: MeTTa, function: str, axis: str, value: str
+) -> None:
+    assert _answers(
+        metta,
+        f"!(add-atom &petta (dispatch-policy {function} {axis} {value}))",
+    ) == ["()"]
+
+
+def _remove_dispatch_policy(
+    metta: MeTTa, function: str, axis: str, value: str
+) -> None:
+    assert _answers(
+        metta,
+        f"!(remove-atom &petta (dispatch-policy {function} {axis} {value}))",
+    ) == ["()"]
+
+
+def test_every_dispatch_axis_is_readable_settable_and_defaulted():
+    metta = MeTTa(verbose=False)
+    expected = {
+        "(MismatchEnum MismatchOriginal)",
+        "(NoMatchEnum NoMatchOriginal)",
+        "(EvaluationOrderEnum OrderClause)",
+        "(FunctionResultEnum Nondeterministic)",
+        "(ClauseFailedEnum ClauseFailNonDet)",
+        "(OutOfClausesEnum FailureOriginal)",
+    }
+    assert set(
+        _answers(
+            metta,
+            "!(match &petta (dispatch-default $axis $value) ($axis $value))",
+        )
+    ) == expected
+
+    alternates = {
+        "MismatchEnum": "MismatchFail",
+        "NoMatchEnum": "NoMatchFail",
+        "EvaluationOrderEnum": "OrderFittest",
+        "FunctionResultEnum": "Deterministic",
+        "ClauseFailedEnum": "ClauseFailDet",
+        "OutOfClausesEnum": "FailureEmpty",
+    }
+    for axis, value in alternates.items():
+        _set_dispatch_policy(metta, "p31-readable", axis, value)
+        assert _answers(
+            metta,
+            f"!(match &petta "
+            f"(dispatch-policy p31-readable {axis} $value) $value)",
+        ) == [value]
+        _remove_dispatch_policy(metta, "p31-readable", axis, value)
+
+    metta.run("(= (p31-only-a A) hit)")
+    assert _answers(metta, "!(p31-only-a B)") == ["(p31-only-a B)"]
+    _set_dispatch_policy(metta, "p31-only-a", "NoMatchEnum", "NoMatchFail")
+    assert _answers(metta, "!(p31-only-a B)") == []
+    _remove_dispatch_policy(metta, "p31-only-a", "NoMatchEnum", "NoMatchFail")
+
+    metta.run("(= (p31-multi $x) first)")
+    metta.run("(= (p31-multi $x) second)")
+    assert _answers(metta, "!(p31-multi x)") == ["first", "second"]
+    _set_dispatch_policy(
+        metta, "p31-multi", "FunctionResultEnum", "Deterministic"
+    )
+    assert _answers(metta, "!(p31-multi x)") == ["first"]
+    _remove_dispatch_policy(
+        metta, "p31-multi", "FunctionResultEnum", "Deterministic"
+    )
+
+    metta.run("(= (p31-fails $x) (superpose ()))")
+    assert _answers(metta, "!(p31-fails x)") == []
+    _set_dispatch_policy(
+        metta, "p31-fails", "OutOfClausesEnum", "FailureEmpty"
+    )
+    assert _answers(metta, "!(p31-fails x)") == ["()"]
+    _remove_dispatch_policy(
+        metta, "p31-fails", "OutOfClausesEnum", "FailureEmpty"
+    )
+
+    metta.run("(= (p31-clause $x) (superpose ()))")
+    metta.run("(= (p31-clause $x) later)")
+    assert _answers(metta, "!(p31-clause x)") == ["later"]
+    _set_dispatch_policy(
+        metta, "p31-clause", "ClauseFailedEnum", "ClauseFailDet"
+    )
+    assert _answers(metta, "!(p31-clause x)") == []
+    _remove_dispatch_policy(
+        metta, "p31-clause", "ClauseFailedEnum", "ClauseFailDet"
+    )
+
+    metta.run("(: p31-fit (-> Number Symbol))")
+    metta.run("(= (p31-fit $x) number-branch)")
+    metta.run("(: p31-fit (-> String Symbol))")
+    metta.run("(= (p31-fit $x) string-branch)")
+    assert _answers(metta, "!(p31-fit 1)") == [
+        "number-branch",
+        "string-branch",
+    ]
+    _set_dispatch_policy(
+        metta, "p31-fit", "EvaluationOrderEnum", "OrderFittest"
+    )
+    assert _answers(metta, "!(p31-fit 1)") == ["number-branch"]
+    assert _answers(metta, '!(p31-fit "x")') == ["string-branch"]
+    _remove_dispatch_policy(
+        metta, "p31-fit", "EvaluationOrderEnum", "OrderFittest"
+    )
+
+    metta.run("(: p31-number (-> Number Number))")
+    metta.run("(= (p31-number $x) $x)")
+    assert "BadArgType" in _answers(metta, '!(p31-number "x")')[0]
+    _set_dispatch_policy(
+        metta, "p31-number", "MismatchEnum", "MismatchFail"
+    )
+    assert _answers(metta, '!(p31-number "x")') == []
+    _remove_dispatch_policy(
+        metta, "p31-number", "MismatchEnum", "MismatchFail"
+    )
 
 
 def test_an_argument_type_fault_is_a_value_a_program_can_catch():
