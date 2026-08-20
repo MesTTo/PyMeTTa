@@ -1442,6 +1442,16 @@ foreign_write(Space, Capability, Goal) :-
 %trips and never commands.]
 metta_add_atoms(_, []) :- !.
 metta_add_atoms(Space, Terms) :-
+    %A claimed hook gates the write itself, so a hooked space takes the
+    %per-atom door below, where the wrapper consults the handler for every
+    %atom; a pool's admission guard is one such claim, which is how a
+    %batch beyond capacity meets the refusal its atoms meet arriving
+    %alone. Both one-crossing clauses write behind the wrapper's back, the
+    %foreign one through the provider's own bulk door and the native one
+    %through add_sexp_in/4
+    %[tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom,
+    %a_batch_beyond_capacity_is_refused_like_lone_adds].
+    petta_hook_claim_idle(Space),
     atoms_store_only(Terms),
     add_atoms_in_one_crossing(Space, Terms), !.
 metta_add_atoms(Space, Terms) :-
@@ -1963,6 +1973,37 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     ->  erase(Ref), retractall(translated_from(Ref, _)), Erased = true
     ;   Erased = false
     ),
+    %A local predicate the erase just EMPTIED still shadows the same name
+    %inherited through the module chain, &self's builtins above all: after
+    %removing a car-atom shadow from &self, every &self-compiled caller of
+    %car-atom failed for the rest of the process because the empty local
+    %definition answered instead of the engine's. Dropping the emptied
+    %entry lets the chain answer again. The arity comes from the STORED
+    %equation the lookup unified into Probe, never from the caller's Args:
+    %a removal by open pattern, [Head|_], leaves Args a partial list, and
+    %length/2 on a partial list generates arities for ever
+    %[tested: removing_a_self_shadow_restores_the_builtin].
+    (   Erased == true,
+        Probe = [=, [_|StoredArgs], _],
+        is_list(StoredArgs),
+        length(StoredArgs, NArgs),
+        PredArity is NArgs + 1,
+        functor(EmptyHead, F, PredArity),
+        predicate_property(Module:EmptyHead, number_of_clauses(0))
+    ->  (   current_transaction(_)
+        ->  %abolish/1 is predicate-level, so a rollback cannot restore
+            %what it dropped: a failed reload lost the definitions it
+            %promised to keep when this abolished eagerly. The pending
+            %fact IS clause-level, so it vanishes with a rollback and
+            %survives a commit, and the owner of the outermost
+            %transaction sweeps it afterwards
+            %[tested: test_a_reload_that_fails_leaves_the_previous_definitions_standing].
+            assertz('$petta_shadow_repair_pending'(Module, F, PredArity))
+        ;   petta_repair_emptied_shadows,
+            catch(abolish(Module:F/PredArity), _, true)
+        )
+    ;   true
+    ),
     function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
@@ -1973,6 +2014,23 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
          function_removed(F)
       ; true ),
     ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
+
+:- dynamic '$petta_shadow_repair_pending'/3.
+
+%The deferred half of the emptied-shadow repair above: each pending row
+%names a function a committed transaction emptied. The recheck matters,
+%because a reload that REDEFINES a function empties it in withdrawal and
+%refills it in the load, and only a function still empty at the sweep is
+%a shadow to drop. abolish refusing (a tabled shadow) leaves the old
+%behaviour, an empty local predicate.
+petta_repair_emptied_shadows :-
+    forall(retract('$petta_shadow_repair_pending'(Module, F, PredArity)),
+           (   functor(Head, F, PredArity),
+               (   predicate_property(Module:Head, number_of_clauses(0))
+               ->  catch(abolish(Module:F/PredArity), _, true)
+               ;   true
+               )
+           )).
 
 %Where an atom comes out of, the counterpart of store_atom/2. Both answer
 %whether the store actually held it.
@@ -2991,6 +3049,37 @@ clear_foreign_atoms(Space) :-
 %nothing here to find and no removal is announced twice
 %[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
 %test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
+%How many atoms a native space holds, read from the store's own clause
+%bookkeeping rather than by walking it: every stored shape is a clause in
+%the storage module, and number_of_clauses/1 is the count SWI already
+%maintains per predicate, the manual's own count-asserted-facts idiom
+%[source: https://www.swi-prolog.org/pldoc/man?predicate=predicate_property%2F2].
+%One property read per stored arity plus the scalar shelf, so the check a
+%capacity contract runs per add costs the same over a million atoms as over
+%ten [tested: spaces_atom_count]; the write-door capacity row in
+%python/benchmarks/extension-baseline.json carries the number. A space
+%that has never been written has no storage module and holds nothing. A
+%foreign space's atoms live with its provider, where the only general
+%count is an enumeration; at this predicate's contract that would be a lie
+%of a different complexity class, so a foreign space is refused by name
+%and a provider that keeps a count exposes it itself
+%[tested: spaces_atom_count:a_foreign_space_has_no_native_count].
+space_atom_count(Space, Count) :-
+    (   metta_foreign_space(Space)
+    ->  throw(error(petta_foreign_space_count(Space), none))
+    ;   native_storage_module_ready(Space, Module)
+    ->  findall(N,
+                ( current_predicate(Module:Name/Arity),
+                  functor(Head, Name, Arity),
+                  (   predicate_property(Module:Head, number_of_clauses(N))
+                  ->  true
+                  ;   N = 0
+                  ) ),
+                Counts),
+        sum_list(Counts, Count)
+    ;   Count = 0
+    ).
+
 clear_native_atoms(Space) :-
     (   native_storage_module_ready(Space, Module)
     ->  findall(Atom, compiled_half_atom(Space, Module, Atom), Compiled),
@@ -3062,7 +3151,31 @@ metta_refuse_module_for_space(Space, Door) :-
     ;   true
     ).
 
+%A pattern whose SHAPE is known builds the storage head FIRST, so the
+%store's argument indexing dispatches the way match/4's identical read
+%does, instead of enumerating every clause under an unbound head and
+%filtering afterwards: a bound-pattern read through this door was
+%O(space held) where the same read through match was one indexed lookup
+%[measured 2026-08-21: a per-add presence probe through the old path
+%cost 2,055 inferences at 2,000 held atoms and 21,055 at 10,000,
+%linear, against 69.01 flat through match's spelling of the same
+%question; through this clause the same probe reads 57.01 at 2,000 and
+%57.00 at 10,000]. The occurs check mirrors native_expression/4's: a cyclic
+%binding is never a MeTTa answer. A partial list keeps the enumerating
+%clause below, and a bound SCALAR skips both, because =../2 on it threw
+%where the store owed a clean miss and the scalar shelf is that atom's
+%own clause anyway [tested: spaces_contains].
 get_native_atom(Module, Space, Pattern) :-
+    is_list(Pattern),
+    Pattern = [_|_],
+    !,
+    length(Pattern, Arity),
+    functor(Head, Space, Arity),
+    Head =.. [Space | Pattern],
+    call(Module:Head),
+    acyclic_term(Pattern).
+get_native_atom(Module, Space, Pattern) :-
+    \+ atomic(Pattern),
     current_predicate(Module:Space/Arity),
     functor(Head, Space, Arity),
     clause(Module:Head, true),

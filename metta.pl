@@ -1532,6 +1532,94 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
 'size-atom'(List, Size) :- non_list(List), !,
                            ( grounded_list_view(List, View) -> length(View, Size) ; Size = [] ).
 'size-atom'(List, Size) :- length(List, Size).
+%(space-atom-count <space>) answers how many atoms the space holds, from
+%the store's own per-predicate clause counts (src/spaces.pl,
+%space_atom_count/2), so a capacity policy reads a million-atom pool at
+%the same cost as a ten-atom one. It observes the space, so the effect
+%walk reports it as a read; the pattern 'count' is deliberately not a
+%list, which makes a tabled caller land on the unresolved-read refusal:
+%no fixed set of storage predicates can invalidate a count that every
+%write to any arity moves.
+'space-atom-count'(Space, _) :- var(Space), !,
+                                refuse_unbound_input('space-atom-count', 1).
+'space-atom-count'(Space, Count) :-
+    (   'is-space'(Space, true)
+    ->  true
+    ;   throw_metta_type_error('space-atom-count', 'SpaceType', Space)
+    ),
+    space_atom_count(Space, Count).
+%(has-declared-type $x $type) answers whether a (: $x $type) declaration
+%witnesses the type, in the module the call runs in, which for a hook
+%handler is the module captured when the claim was declared. The admission
+%contract's own question, exposed so a policy written in MeTTa can ask it;
+%examples/spaces/admission_pools.metta's metta-admission-typed does. A
+%witness, never a consistency judgement: an atom nothing declares answers
+%False for every type, because "nothing says it is one" is not evidence
+%that it is.
+'has-declared-type'(X, T, _) :- ( var(X) ; var(T) ), !,
+                                ( var(X) -> Position = 1 ; Position = 2 ),
+                                refuse_unbound_input('has-declared-type',
+                                                     Position).
+'has-declared-type'(X, T, R) :-
+    ( has_declared_type(X, T) -> R = true ; R = false ).
+%(space-contains <space> <atom>) answers whether the space holds an atom
+%unifying with the given one, as one probe against the store rather than
+%an enumeration: stored atoms are clauses and SWI's just-in-time argument
+%indexing hashes their arguments, so a ground probe costs the same over
+%ten thousand held atoms as over ten [measured 2026-08-21: a
+%set-semantics pre-add rule spelled over this probe costs 57.01
+%inferences per add at 2,000 held atoms and 57.00 at 10,000, against
+%69.01 flat for the collapse-over-match spelling it replaces and 27.01
+%for a plain add; a replayed duplicate drops at 46.00; the match
+%spelling is its differential, pinned in
+%test_set_semantics_is_a_declared_rule_not_a_property_of_the_space].
+%Kernel vocabulary, beyond the conforming stdlib (the user's standing
+%ruling): LeaTTa does not speak about the name, and the Atom mask on the
+%second parameter lives in src/prelude.metta so the asked-about atom is
+%never reduced by the asking [tested: spaces_contains].
+'space-contains'(Space, _, _) :- var(Space), !,
+                                 refuse_unbound_input('space-contains', 1).
+'space-contains'(_, Atom, _) :- var(Atom), !,
+                                refuse_unbound_input('space-contains', 2).
+'space-contains'(Space, Atom, R) :-
+    (   'is-space'(Space, true)
+    ->  ( \+ \+ 'get-atoms'(Space, Atom) -> R = true ; R = false )
+    ;   throw_metta_type_error('space-contains', 'SpaceType', Space)
+    ).
+%(space-admission-verdict <pool> <atom>) is the shipped judge over the
+%(admits <pool> <type>) and (capacity <pool> <n>) contract atoms in
+%&petta, the handler petta_admission_claim/2's guard equation applies.
+%Prolog-bodied by measurement: the same chain written as prelude
+%equations cost 131.01 inferences per add against this body's, the two
+%collapse-over-match reads of &petta being the gap, and a pool is a
+%millions-of-adds surface [measured 2026-08-20:
+%python/benchmarks/extension_cost.py write-door table, min of 3 runs].
+%The MeTTa-bodied chain runs on as executable documentation with a
+%differential in examples/spaces/admission_pools.metta, and a space may
+%shadow this name like any builtin. Every declared admits type must be
+%carried, the witness reading has-declared-type states above; the
+%verdict names the FIRST violated contract in the general algebra's own
+%words, (refuse (does-not-carry <type>)) or
+%(refuse (pool-at-capacity <limit>)), so the refusal arrives as
+%petta_add_refused like any handler's. The Atom mask on the atom
+%parameter lives in src/prelude.metta: the pool judges the offered atom
+%as itself [tested: the_sugar_judges_the_offered_atom_as_itself].
+'space-admission-verdict'(Pool, Atom, Verdict) :-
+    (   petta_contract_fact([admits, Pool, Type]),
+        \+ has_declared_type(Atom, Type)
+    ->  Verdict = [refuse, ['does-not-carry', Type]]
+    ;   petta_contract_fact([capacity, Pool, Limit]),
+        %A foreign pool's atoms live with its provider, so its count is
+        %the enumeration space-atom-count refuses to hide; a native one
+        %is the store's own clause bookkeeping, O(1) in what it holds.
+        (   metta_foreign_space(Pool)
+        ->  aggregate_all(count, 'get-atoms'(Pool, _), Count)
+        ;   space_atom_count(Pool, Count)
+        ),
+        Count >= Limit
+    ->  Verdict = [refuse, ['pool-at-capacity', Limit]]
+    ;   Verdict = [accept]
+    ).
 'car-atom'(Term, _) :- var(Term), !, refuse_unbound_input('car-atom', 1).
 'car-atom'([H|_], H) :- !.
 'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
@@ -2440,6 +2528,10 @@ metta_grounded_token('ceil-math').
 metta_grounded_token('change-state!').
 metta_grounded_token('collapse-extract').
 metta_grounded_token('cos-math').
+metta_grounded_token('declare-pre-add!').
+metta_grounded_token('declare-post-add!').
+metta_grounded_token('undeclare-pre-add!').
+metta_grounded_token('undeclare-post-add!').
 metta_grounded_token('div-euclid').
 metta_grounded_token('div-floor').
 metta_grounded_token('div-trunc').
@@ -2453,6 +2545,9 @@ metta_grounded_token('get-atoms').
 metta_grounded_token('get-metatype').
 metta_grounded_token('get-state').
 metta_grounded_token('get-type').
+metta_grounded_token('has-declared-type').
+metta_grounded_token('space-admission-verdict').
+metta_grounded_token('space-contains').
 metta_grounded_token('get-type-space').
 metta_grounded_token('git-import!').
 metta_grounded_token('git-module!').
@@ -2491,6 +2586,7 @@ metta_grounded_token('size-atom').
 metta_grounded_token('skel-swap-pair-native').
 metta_grounded_token('sort-atom').
 metta_grounded_token('sort-strings').
+metta_grounded_token('space-atom-count').
 metta_grounded_token('sqrt-math').
 metta_grounded_token('subtraction-atom').
 metta_grounded_token('superpose').
@@ -2697,6 +2793,17 @@ metta_effect_classify(_, match(Space, Pattern, _, _), Queue-Reads0,
                       Queue-[read(match, Space, Pattern)|Reads0]) :- !.
 metta_effect_classify(_, 'get-atoms'(Space, Pattern), Queue-Reads0,
                       Queue-[read('get-atoms', Space, Pattern)|Reads0]) :- !.
+%A count observes the whole space: every write to any arity moves it. The
+%'count' pattern is deliberately not a list, so a resolver that maps reads
+%to fixed storage predicates lands on its unresolved-read refusal instead
+%of tabling a number every write stales.
+metta_effect_classify(_, 'space-atom-count'(Space, _), Queue-Reads0,
+                      Queue-[read('space-atom-count', Space, count)|Reads0]) :- !.
+%The probed atom IS the read's pattern: where it is an expression the
+%tabling admission can resolve the read like a match's, and a scalar
+%probe falls to the same conservative refusal a count does.
+metta_effect_classify(_, 'space-contains'(Space, Atom, _), Queue-Reads0,
+                      Queue-[read('space-contains', Space, Atom)|Reads0]) :- !.
 %A bridge's dispatch goal is classified under the OPERATION's name, not the
 %dispatcher's. Ahead of the generic compound clause because that clause would
 %read the functor and refuse petta_py_dispatch_det/3, naming an internal the
@@ -3150,51 +3257,344 @@ petta_bridge_op([revise, Target, Old, New]) :- !,
 petta_bridge_op(Op) :-
     throw(error(petta_bridge_unknown_op(Op), none)).
 
-%(admits Pool Type) and (capacity Pool N): a pool is a space whose
-%membership is typed by the ontology, so only atoms carrying the
-%declared type enter, and whose size is bounded, an add beyond it
-%refused loudly. Both are ordinary contract atoms checked BEFORE the
-%write through a wrapper installed only when petta_install_admission/0
-%runs, so an engine without pools keeps the direct write path.
-petta_install_admission :-
-    (   petta_admission_installed
+%%%% Space hooks: the general pre-add mechanism (P12) %%%%
+%
+%(declare-pre-add! <space> <handler>) claims the pre-add hook on a space
+%for one MeTTa function of one argument, the incoming atom. Every write
+%into a claimed space consults the handler first, equations and type
+%declarations included, and the handler answers exactly one of
+%
+%    (accept)           the write proceeds with the atom as offered
+%    (accept <atom'>)   the write proceeds with the TRANSFORMED atom.
+%                       The handler's output is the GRANTED form and is
+%                       not re-asked, exactly as a BEFORE trigger's
+%                       modified row does not re-fire the trigger: the
+%                       claimant has decided this request, and a handler
+%                       wanting chained rewriting composes its own
+%                       equations in the body
+%    (refuse <words>)   the write throws, carrying the handler's words
+%    (drop)             the write is silently skipped and the caller
+%                       sees success, which set semantics needs
+%
+%The verdict algebra is a PostgreSQL row-level BEFORE trigger's (return
+%NEW, return a modified row, raise, return NULL) and netfilter's
+%(ACCEPT, mangle, REJECT, DROP); both draw the same silent-drop versus
+%loud-refuse distinction. The refusal carries the handler's OWN
+%sentence, the SpaceProvider.refusal pattern at the hook layer. In
+%CHR's terms the hook fires at most ONE rule step per request, the
+%bounded prefix of the ω_e semantics the arbiter mechanizes over this
+%very atom fragment; ω_e itself has no refusal and no stuck state, so
+%those belong to this admission door alone
+%[source: LeaTTa MettaHyperonFull/Proofs/ChrOperational.lean].
+%
+%ONE claimant per (space, slot), checked when the claim is made, is the
+%interaction-net discipline (Hassan, Mackie and Sato, GT-VMT 2008: at
+%most one rule per pair of agents obtains confluence by construction):
+%a second claimant is refused at declaration naming both, never raced
+%at call time. Pattern-level dispatch belongs to the handler's own
+%equations, which is where the critical-pair reporter already names
+%overlaps. A claimed handler whose equations do not cover the incoming
+%atom is a STUCK STATE and throws saying so, because an active pair
+%with no rule is locally detectable; a handler that wants a default
+%writes its own catch-all equation, one visible line.
+%
+%The handler runs in the module CURRENT AT DECLARATION, captured in the
+%claim, because everything runs where it was written (evalc/3's own
+%principle); its body reaches the hooked space by naming it. A handler
+%error propagates to the add site unchanged. The wrapper installs on
+%the first claim and an engine that never claims keeps the direct
+%write path [tested: a_pre_add_hook_can_refuse_with_its_own_words,
+%a_second_claimant_for_one_name_is_refused_with_both_named,
+%an_unclaimed_request_is_a_stuck_state_that_says_so].
+%The post-add slot mirrors the pre-add slot with the verdicts read
+%against a LANDED atom: (accept) keeps it, (accept <atom'>) replaces it
+%through the same write path with the replacement granted, (refuse
+%<words>) undoes the write and throws, (drop) removes it silently. A
+%post handler that errs or sticks also undoes the write first, so an
+%errored hook leaves no atom behind. The event pair stays pure
+%observation beside it: an observer's answer is discarded and the store
+%does not move, which is the difference P12.2 names
+%[tested: a_post_add_hook_may_transform_while_the_event_pair_only_observes].
+:- dynamic petta_hook_claim/4.
+:- dynamic petta_space_hooks_installed/0.
+
+hook_slot_surface(pre_add, 'pre-add').
+hook_slot_surface(post_add, 'post-add').
+
+hook_slot_declare_form(pre_add, 'declare-pre-add!').
+hook_slot_declare_form(post_add, 'declare-post-add!').
+
+metta_declare_hook(Slot, Space, Handler) :-
+    hook_slot_declare_form(Slot, Form),
+    (   'is-space'(Space, true)
     ->  true
-    ;   assertz(petta_admission_installed),
-        petta_engine_module(Engine),
-        %The wrapper body is unqualified for the reason ext_points.pl's two
-        %give: wrap_predicate/4 declares it `0` and SWI qualifies it with this
-        %file's module, which is the engine's.
-        (   wrap_predicate(Engine:metta_add_atom(Space, Term, _R),
-                           petta_admission_guard, Wrapped,
-                           ( petta_admission_check(Space, Term),
-                             call(Wrapped) ))
-        ->  true
-        ;   throw(error(petta_atom_hook_install_failed(admission), none))
-        )
+    ;   throw_metta_type_error(Form, 'SpaceType', Space)
+    ),
+    (   atom(Handler)
+    ->  true
+    ;   throw_metta_type_error(Form, 'Symbol', Handler)
+    ),
+    current_metta_module(Module),
+    hook_slot_surface(Slot, SlotAtom),
+    %The claim and its contract atom land together or not at all, the
+    %declare_handles shape: a conflict thrown inside the transaction
+    %rolls both back.
+    transaction(( (   petta_hook_claim(Space, Slot, Prior, _)
+                  ->  (   Prior == Handler
+                      ->  true
+                      ;   throw(error(petta_hook_conflict(Space, SlotAtom,
+                                                          Prior, Handler),
+                                      none))
+                      )
+                  ;   assertz(petta_hook_claim(Space, Slot, Handler, Module)),
+                      metta_add_atom('&petta', [SlotAtom, Space, Handler], _),
+                      %Compiled inside the same transaction, so a handler
+                      %whose call site does not translate refuses the whole
+                      %claim loudly at declaration instead of at the first
+                      %write.
+                      petta_hook_compile(Space, Slot, Handler, Module)
+                  ) )),
+    petta_install_space_hooks.
+
+metta_undeclare_hook(Slot, Space) :-
+    hook_slot_surface(Slot, SlotAtom),
+    transaction(( (   retract(petta_hook_claim(Space, Slot, Handler, _))
+                  ->  metta_remove_atom('&petta', [SlotAtom, Space, Handler], _),
+                      petta_hook_drop_compiled(Space, Slot)
+                  ;   true
+                  ) )).
+
+%(admits Pool Type) and (capacity Pool N) in &petta are data until a pool
+%is equipped: this writes the guard equation
+%  (= (space-admission-guard-<pool> $x) (space-admission-verdict <pool> $x))
+%into DECLARER's space and claims POOL's pre-add hook with it, so the
+%shipped judge, the space-admission-verdict builtin above, runs behind the
+%same one-claimant registry as any user handler and a pool the sugar never
+%touched keeps the direct write path. Idempotent per pool; a standing
+%foreign claim on the slot conflicts loudly, which is the one-claimant
+%rule doing its job [tested: hooks_admission_sugar].
+petta_admission_claim(Pool0, Declarer0) :-
+    (   atom(Pool0) -> Pool = Pool0 ; atom_string(Pool, Pool0) ),
+    (   atom(Declarer0) -> Declarer = Declarer0 ; atom_string(Declarer, Declarer0) ),
+    atom_concat('space-admission-guard-', Pool, Guard),
+    (   petta_hook_claim(Pool, pre_add, Guard, _)
+    ->  true
+    ;   space_module(Declarer, Module),
+        with_metta_module(Module,
+            transaction(( (   \+ \+ 'get-atoms'(Declarer, [=, [Guard, _], _])
+                          ->  true
+                          ;   metta_add_atom(Declarer,
+                                             [=, [Guard, X],
+                                              ['space-admission-verdict',
+                                               Pool, X]],
+                                             _)
+                          ),
+                          metta_declare_hook(pre_add, Pool, Guard) )))
     ).
 
-:- dynamic petta_admission_installed/0.
-
-petta_admission_check(Space, Term) :-
-    forall(petta_contract_fact([admits, Space, Type]),
-           %A witness, not consistency: an atom whose type nothing declares
-           %is not evidence that it is one of these, and a contract that let
-           %it in would admit everything a program never got round to
-           %declaring.
-           (   has_declared_type(Term, Type)
-           ->  true
-           ;   throw(error(petta_admission_refused(Space, Term, Type),
-                           none))
-           )),
-    (   petta_contract_fact([capacity, Space, Limit])
-    ->  findall(A, 'get-atoms'(Space, A), Held),
-        length(Held, Count),
-        (   Count < Limit
+petta_install_space_hooks :-
+    (   petta_space_hooks_installed
+    ->  true
+    ;   assertz(petta_space_hooks_installed),
+        petta_engine_module(Engine),
+        %Unqualified body for the reason ext_points.pl's two wrappers give:
+        %wrap_predicate/4 declares it `0` and SWI qualifies it with this
+        %file's module, which is the engine's.
+        (   wrap_predicate(Engine:metta_add_atom(Space, Term, R),
+                           petta_space_hook_guard, Wrapped,
+                           petta_space_hooked_add(Space, Term, R, Wrapped))
         ->  true
-        ;   throw(error(petta_pool_full(Space, Limit), none))
+        ;   throw(error(petta_atom_hook_install_failed(space_hooks), none))
+        ),
+        %The compiled fire clauses below bake each handler's translated call
+        %site, and a changed equation or declaration re-shapes what that
+        %translation would be, so any function change drops them all and the
+        %next fire recompiles against the new program. Conservative on
+        %purpose: claims are few, one stale template is a wrong verdict with
+        %no symptom, and a flush costs one indexed lookup on a table that is
+        %empty until something claims. Installed here, not at load, for the
+        %reason the seam's header gives: a resident handler clause costs
+        %four inferences on every compiled equation. If-then-else rather
+        %than a cut, which is the event-seam law.
+        assertz((metta_on_function_changed(_) :-
+                    (   petta_hook_compiled(_, _, _)
+                    ->  petta_hook_flush_compiled
+                    ;   true
+                    ))),
+        assertz((metta_on_function_removed(_) :-
+                    (   petta_hook_compiled(_, _, _)
+                    ->  petta_hook_flush_compiled
+                    ;   true
+                    )))
+    ).
+
+%The claim-time compilation of a handler's call site, the specializer's
+%own move applied to the hook door: eval_metta_in_module/3 per fire spent
+%its cost re-translating [Handler, Atom] on EVERY write into a claimed
+%space, measured at 234.03 inferences per add against 49.01 for a plain
+%add, and the translation is the same every time until the program
+%changes. The call site is translated once, here, and asserted as one
+%clause in the DECLARING module:
+%
+%    '$petta_hook_fire'(Space, Slot, Atom, Verdict) :- call_goals_in_(M, Goals)
+%
+%The body is call_goals_in_/2 over the translated goal list, not a
+%flattened conjunction, so a translated cut stays exactly as opaque as
+%the eval path has it, and the fire site keeps with_metta_module/2, so a
+%handler body reading (context-space) or compiling against the current
+%module sees what it saw before. Everything observable is the eval
+%path's: same first-verdict law at the callers, same failure-is-stuck,
+%same nondeterminism underneath
+%[tested: hooks:a_compiled_fire_answers_what_the_eval_path_answers].
+:- dynamic petta_hook_compiled/3.
+
+petta_hook_compile(Space, Slot, Handler, Module) :-
+    with_metta_module(Module,
+                      translate_expr([Handler, Atom], Goals, Verdict)),
+    assertz(Module:('$petta_hook_fire'(Space, Slot, Atom, Verdict) :-
+                        call_goals_in_(Module, Goals)),
+            Ref),
+    assertz(petta_hook_compiled(Space, Slot, Ref)).
+
+%Fire through the compiled clause, healing lazily after a flush: the
+%mutex closes the race where two threads heal the same claim and the
+%second assert would double the clause.
+petta_hook_eval(Space, Slot, Handler, Module, Term, Verdict) :-
+    (   petta_hook_compiled(Space, Slot, _)
+    ->  true
+    ;   with_mutex('$petta_hook_compile',
+                   (   petta_hook_compiled(Space, Slot, _)
+                   ->  true
+                   ;   petta_hook_compile(Space, Slot, Handler, Module)
+                   ))
+    ),
+    with_metta_module(Module,
+                      call(Module:'$petta_hook_fire'(Space, Slot, Term,
+                                                     Verdict))).
+
+petta_hook_drop_compiled(Space, Slot) :-
+    forall(retract(petta_hook_compiled(Space, Slot, Ref)),
+           catch(erase(Ref), _, true)).
+
+petta_hook_flush_compiled :-
+    forall(retract(petta_hook_compiled(_, _, Ref)),
+           catch(erase(Ref), _, true)).
+
+petta_space_hooked_add(Space, Term, R, Wrapped) :-
+    (   petta_hook_granted_form(Space, Term)
+    ->  %The handler's own transformed output arriving through the
+        %inner add below: decided on BOTH slots, not re-asked. The
+        %marker names the space AND the term, so a bridge or event
+        %firing a DIFFERENT hooked space mid-write still consults that
+        %space's own handlers.
+        call(Wrapped)
+    ;   petta_hook_pre_phase(Space, Term, R, Wrapped),
+        petta_hook_post_phase(Space, Term)
+    ).
+
+petta_hook_pre_phase(Space, Term, R, Wrapped) :-
+    (   petta_hook_claim(Space, pre_add, Handler, Module)
+    ->  (   petta_hook_eval(Space, pre_add, Handler, Module, Term, Verdict)
+        ->  petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
+        ;   throw(error(petta_hook_stuck(Space, 'pre-add', Handler, Term),
+                        none))
         )
+    ;   call(Wrapped)
+    ).
+
+%The post phase runs only when the pre phase actually wrote Term as
+%offered: a pre transform re-entered the wrapper under the granted
+%marker (its inner add skipped both phases), a refusal threw, and a
+%drop wrote nothing, so in each of those cases there is no landed Term
+%to revise. A post error or stuck state undoes the write before it
+%propagates, so a failed hook leaves no atom behind.
+petta_hook_post_phase(Space, Term) :-
+    (   petta_hook_claim(Space, post_add, Handler, Module),
+        petta_hook_wrote_as_offered(Space, Term)
+    ->  catch(( (   petta_hook_eval(Space, post_add, Handler, Module, Term,
+                                    Verdict)
+                ->  petta_hook_post_apply(Verdict, Space, Handler, Term)
+                ;   throw(error(petta_hook_stuck(Space, 'post-add', Handler,
+                                                 Term),
+                                none))
+                ) ),
+              Ball,
+              %The undo must not mask the error: a removal that finds
+              %nothing (a concurrent taker, a transform that already
+              %moved it) still rethrows the hook's own ball.
+              ( ( metta_remove_atom(Space, Term, _) -> true ; true ),
+                throw(Ball) ))
     ;   true
     ).
+
+%Whether the pre phase left Term itself in the space: a claimed pre
+%hook may have transformed or dropped it, and then the post phase has
+%nothing to revise. Asked only on the doubly-hooked path, one membership
+%probe against the store.
+petta_hook_wrote_as_offered(Space, Term) :-
+    (   petta_hook_claim(Space, pre_add, _, _)
+    ->  \+ \+ 'get-atoms'(Space, Term)
+    ;   true
+    ).
+
+petta_hook_post_apply([accept], _, _, _) :- !.
+petta_hook_post_apply([accept, Term1], Space, _, Term) :- !,
+    (   Term1 == Term
+    ->  true
+    ;   metta_remove_atom(Space, Term, _),
+        setup_call_cleanup(
+            b_setval('$petta_hook_granted', granted(Space, Term1)),
+            metta_add_atom(Space, Term1, _),
+            b_setval('$petta_hook_granted', []))
+    ).
+%The refusal's undo is the catch handler's, once for every error path.
+petta_hook_post_apply([refuse, Words], Space, _, Term) :- !,
+    throw(error(petta_add_refused(Space, Term, Words), none)).
+petta_hook_post_apply([drop], Space, _, Term) :- !,
+    metta_remove_atom(Space, Term, _).
+petta_hook_post_apply(Got, Space, Handler, Term) :-
+    throw(error(petta_hook_bad_verdict(Space, Handler, Term, Got), none)).
+
+petta_hook_granted_form(Space, Term) :-
+    catch(b_getval('$petta_hook_granted', granted(GSpace, GTerm)), _, fail),
+    GSpace == Space,
+    GTerm == Term.
+
+petta_hook_apply([accept], _, _, _, _, Wrapped) :- !, call(Wrapped).
+petta_hook_apply([accept, Term1], Space, _, Term, R, Wrapped) :- !,
+    (   Term1 == Term
+    ->  call(Wrapped)
+    ;   setup_call_cleanup(
+            b_setval('$petta_hook_granted', granted(Space, Term1)),
+            metta_add_atom(Space, Term1, R),
+            b_setval('$petta_hook_granted', []))
+    ).
+petta_hook_apply([refuse, Words], Space, _, Term, _, _) :- !,
+    throw(error(petta_add_refused(Space, Term, Words), none)).
+petta_hook_apply([drop], _, _, _, true, _) :- !.
+petta_hook_apply(Got, Space, Handler, Term, _, _) :-
+    throw(error(petta_hook_bad_verdict(Space, Handler, Term, Got), none)).
+
+%The bulk door's question: a space with a claimed hook on either slot
+%routes its batches through the per-atom door, where the wrapper consults
+%the handler for every atom, and a pool's admission guard is one such
+%claim [tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom,
+%a_batch_beyond_capacity_is_refused_like_lone_adds].
+petta_hook_claim_idle(Space) :-
+    \+ petta_hook_claim(Space, _, _, _).
+
+%The MeTTa surface. Undeclaring is explicit and idempotent: the
+%one-claimant rule would otherwise leave no way to change a handler,
+%and an implicit replace would hide exactly the collision the rule
+%exists to name.
+'declare-pre-add!'(Space, Handler, []) :-
+    metta_declare_hook(pre_add, Space, Handler).
+'undeclare-pre-add!'(Space, []) :-
+    metta_undeclare_hook(pre_add, Space).
+'declare-post-add!'(Space, Handler, []) :-
+    metta_declare_hook(post_add, Space, Handler).
+'undeclare-post-add!'(Space, []) :-
+    metta_undeclare_hook(post_add, Space).
 
 :- multifile prolog:error_message//1.
 prolog:error_message(petta_bridge_cascade(Op)) -->
@@ -3204,14 +3604,29 @@ prolog:error_message(petta_bridge_unknown_op(Op)) -->
     [ 'the bridge operation ~q is not a managed head; the heads are \c
        (insert Ctx Atom), (retract Ctx Atom) and (revise Ctx Old \c
        New)'-[Op] ].
-prolog:error_message(petta_admission_refused(Space, Term, Type)) -->
-    [ '~w admits ~w-typed atoms and ~q does not carry that type; declare \c
-       (: <atom> ~w) or widen the admission'-[Space, Type, Term, Type] ].
-prolog:error_message(petta_pool_full(Space, Limit)) -->
-    [ '~w declares (capacity ~w ~w) and holds that many already; this \c
-       add is refused rather than silently growing the pool'-[Space,
-                                                              Space,
-                                                              Limit] ].
+prolog:error_message(petta_hook_conflict(Space, Slot, Prior, Claimant)) -->
+    [ '~w already claims the ~w hook on ~w and ~w tried to claim it \c
+       too; one claimant per name, checked when the claim is made, so \c
+       undeclare the standing one first'-[Prior, Slot, Space, Claimant] ].
+prolog:error_message(petta_hook_stuck(Space, Slot, Handler, Term)) -->
+    [ 'the ~w hook on ~w is claimed by ~w, whose equations do not \c
+       cover ~q; a request no rule covers is a stuck state that says \c
+       so, so cover the shape or give the handler its own \c
+       catch-all'-[Slot, Space, Handler, Term] ].
+prolog:error_message(petta_add_refused(Space, Term, Words)) -->
+    [ '~w refused ~q: ~w'-[Space, Term, Words] ].
+prolog:error_message(petta_foreign_space_count(Space)) -->
+    [ '~w is a foreign space, so its atoms live with its provider and \c
+       counting them is an enumeration there, not a native property read; \c
+       ask the provider, or count what a match answers'-[Space] ].
+prolog:error_message(petta_hook_bad_verdict(Space, Handler, Term, Got)) -->
+    [ '~w answered ~q for ~q into ~w, which is none of (accept), \c
+       (accept <atom>), (refuse <words>) or (drop)'-[Handler, Got,
+                                                     Term, Space] ].
+prolog:error_message(petta_hook_cascade(Space, Handler)) -->
+    [ 'the pre-add hook ~w on ~w transformed through depth 32: a \c
+       transforming hook must reach a fixed point, and this chain does \c
+       not'-[Handler, Space] ].
 
 %(writes Ctx Atomicity) declares what a context's writes promise:
 %transactional providers participate in the engine's transactions through
@@ -3250,7 +3665,12 @@ petta_transaction(Goal) :-
         nb_getval('$petta_tx_enlisted', Enlisted),
         nb_setval('$petta_tx_enlisted', []),
         (   Outcome == committed
-        ->  forall(member(Space, Enlisted), metta_foreign_commit(Space))
+        ->  forall(member(Space, Enlisted), metta_foreign_commit(Space)),
+            %The committed body may have emptied a function that shadows
+            %an inherited definition; remove_equation/6 deferred the
+            %predicate-level drop to the transaction's owner, which is
+            %here for the user's (transaction ...) form.
+            petta_repair_emptied_shadows
         ;   forall(member(Space, Enlisted),
                    catch(metta_foreign_rollback(Space), RollbackError,
                          print_message(error, RollbackError)))
@@ -3592,6 +4012,7 @@ pure_structure(empty).  pure_structure(id).      pure_structure(noeval).
 pure_structure(copy_term). pure_structure(term_hash).
 
 pure_inspection('get-type').     pure_inspection('get-metatype').
+pure_inspection('has-declared-type').
 pure_inspection('is-var').       pure_inspection('is-ground').
 pure_inspection('is-expr').      pure_inspection('is-space').
 pure_inspection(repr).           pure_inspection(repra).
@@ -6097,7 +6518,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count', 'has-declared-type', 'space-admission-verdict', 'space-contains',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,

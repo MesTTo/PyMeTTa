@@ -64,6 +64,9 @@ class Row:
     # The driver's own drive is measured and baselined but not published: it
     # is the loop the other rows have subtracted, not an extension point.
     published: bool = True
+    # The calls behind the samples; the call table and the space-door table
+    # drive different counts, and the committed baseline records the real one.
+    operations: int = CALLS
 
 
 def _drive(space: MeTTa, prefix: str, name: str, calls: int) -> tuple[int, float]:
@@ -212,6 +215,90 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     return measured
 
 
+SPACE_CALLS = 1_000
+
+
+def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]:
+    """What the write door costs once something claims it.
+
+    The same driver-subtraction discipline as rows(), against the add shape
+    rather than the call shape: each tier's body writes one atom per
+    recursion. The claims-free write is the baseline the hook rows are read
+    against, and the two admission rows go through the same Python
+    declaration surface the sugar keeps, so these rows survive the
+    mechanism under them changing and hold whichever body ships.
+
+    The capacity row's check counts the pool, so its cost grows with what
+    the pool already holds; the drives run in a fixed order over fixed
+    counts, so the committed samples stay deterministic run to run.
+    """
+    space = MeTTa()
+
+    space.run("(= (hk-accept-all $incoming) (accept))")
+    space.run("!(declare-pre-add! &hk-guard hk-accept-all)")
+    space.run("(: hk-probe HKAdmitted)")
+    space.declare_admits("&hk-admit", "HKAdmitted")
+    space.declare_capacity("&hk-cap", 10_000_000)
+
+    bodies = {
+        "plainadd": "(add-atom &hk-plain (hk-item $n))",
+        "guardmetta": "(add-atom &hk-guard (hk-item $n))",
+        "admits": "(add-atom &hk-admit hk-probe)",
+        "capacity": "(add-atom &hk-cap (hk-item $n))",
+    }
+    _install_drivers(space, "hk-tier", bodies)
+
+    base_inferences, base_seconds, base_samples = _measure(
+        space, "hk-tier", "null", calls, rounds
+    )
+    labels = {
+        "plainadd": "add-atom, no claims on the space",
+        "guardmetta": "add-atom through an accept-all pre-add hook",
+        "admits": "add-atom into a pool with a declared admits type",
+        "capacity": "add-atom into a pool with a declared capacity",
+    }
+    measured = [
+        Row(
+            tier="the add driver itself",
+            inferences=base_inferences / calls,
+            microseconds=base_seconds / calls * 1e6,
+            samples=base_samples,
+            published=False,
+            operations=calls,
+        )
+    ]
+    for name, label in labels.items():
+        inferences, seconds, samples = _measure(space, "hk-tier", name, calls, rounds)
+        measured.append(
+            Row(
+                tier=label,
+                inferences=(inferences - base_inferences) / calls,
+                microseconds=(seconds - base_seconds) / calls * 1e6,
+                samples=samples,
+                operations=calls,
+            )
+        )
+    return measured
+
+
+def _render_doors(measured: list[Row]) -> str:
+    baseline = next(row for row in measured if row.tier.startswith("add-atom, no"))
+    lines = [
+        "| write door | inferences/add | vs plain add | microseconds/add | vs plain add |",
+        "|---|---|---|---|---|",
+    ]
+    for row in sorted(
+        (row for row in measured if row.published), key=lambda r: r.inferences
+    ):
+        by_inference = row.inferences / baseline.inferences if baseline.inferences else 0.0
+        by_wall = row.microseconds / baseline.microseconds if baseline.microseconds else 0.0
+        lines.append(
+            f"| {row.tier} | {row.inferences:.2f} | {by_inference:.2f}x "
+            f"| {row.microseconds:.2f} | {by_wall:.2f}x |"
+        )
+    return "\n".join(lines)
+
+
 ENCODING_CALLS = 200
 
 
@@ -312,7 +399,7 @@ def compare(measured: list[Row], *, update: bool, path: Path = BASELINE) -> None
         baseline.observe_counter(
             _case_name(row.tier),
             unit="calls",
-            operations=CALLS,
+            operations=row.operations,
             samples=list(row.samples),
         )
     baseline.finish()
@@ -326,12 +413,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     measured = rows()
     print(_render(measured))
     print()
+    doors = space_door_rows()
+    print(_render_doors(doors))
+    print()
     print("| argument | encoded | raw=True | ratio |")
     print("|---|---|---|---|")
     for label, encoded, raw in encoding_rows():
         ratio = encoded / raw if raw else 0.0
         print(f"| {label} | {encoded:.2f} | {raw:.2f} | {ratio:.2f}x |")
-    compare(measured, update=arguments.update)
+    compare(measured + doors, update=arguments.update)
     return 0
 
 

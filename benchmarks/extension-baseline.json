@@ -1,48 +1,78 @@
 {
   "benchmarks": {
+    "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
+      "comment": "Re-pinned 65217 -> 78219 on 2026-08-20 with P12.4: the bespoke petta_admission_check wrapper became the space-admission-verdict builtin behind the general pre-add hook's compiled guard, so this row now carries the whole fire path (44.02/add for an accept-all hook) plus the judge (has_declared_type is 15 of it). The old 60.01/add sat beside a plain add taxed to 49.22 by the global wrapper; the new 73.01/add sits beside an untaxed 29.01, so a workload that also writes anywhere else comes out ahead. Semantics pinned by hooks_admission_sugar and the differential in examples/spaces/admission_pools.metta.",
+      "inferences": 78219,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-into-a-pool-with-a-declared-capacity": {
+      "comment": "Lowered 4574905 -> 111227 on 2026-08-20 with P12.4, 4569.70 -> 106.02 inferences per add: the bespoke check enumerated every atom the pool held through get-atoms on every add, O(held) per write, and the judge now reads space_atom_count/2, the store's own number_of_clauses bookkeeping, whose cost does not grow with the pool. 43x at the 1000 atoms this row holds, unbounded at millions.",
+      "inferences": 111227,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-no-claims-on-the-space": {
+      "comment": "Lowered 54223 -> 34225 on 2026-08-20 with P12.4, 49.22 -> 29.01 inferences per add: petta_install_admission wrapped metta_add_atom globally, so once any pool declared a contract EVERY space's adds paid the wrapper's forall over the contract atoms. Enforcement is a per-pool hook claim now, and a space nothing claimed keeps the direct write path.",
+      "inferences": 34225,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-through-an-accept-all-pre-add-hook": {
+      "comment": "Lowered from 234.03 to 64.02 inferences per add on 2026-08-20: the hook wrapper re-translated [Handler, Atom] through eval_metta_in_module/3 on every fire, and the call site is now translated once at claim time and asserted as a fire clause in the declaring module, healed lazily after any function change. Semantics pinned by hooks_compiled_fire, including that the offered atom reaches the handler as data. Lowered again to 44.02 the same day with P12.4: the global admission wrapper this row was also paying came off, the no-claims row's comment carries the mechanism.",
+      "inferences": 49231,
+      "operations": 1000,
+      "unit": "calls"
+    },
     "extcost-c-foreign-predicate": {
-      "inferences": 18214,
+      "inferences": 18202,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-m-define-annotated": {
       "comment": "Lowered from 75241 on 2026-08-16, -27000 over 3000 calls, which is nine inferences per call. A literal argument's type is settled while the call site compiles, so translate_args_by_type_dl/7 emits no has_type/2 check for one; a call whose arguments are all literals of the declared types now compiles to exactly what the untyped one does, with no once/1 wrapper either. The published table's annotated row moved 20.00 -> 11.00 inferences per call and 6.67x -> 3.67x against an ordinary MeTTa function. The drop is one-directional and never rejects: a literal of the WRONG declared type keeps its check and is still refused, because a get-type extension may give a literal a second type and deciding that statically would be unsound. Guarded by translator_literal_type_checks in tests/prolog/translator.plt.",
-      "inferences": 24238,
+      "inferences": 24222,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-m-define-no-annotations": {
-      "inferences": 24258,
+      "inferences": 24237,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-ordinary-metta-function": {
-      "inferences": 24230,
+      "comment": "24216 -> 24214 on 2026-08-20, two inferences over 3000 calls riding the P12.4 engine edits: clause-layout drift at the same-binary noise floor, no mechanism to name.",
+      "inferences": 24214,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-prolog-grounded-predicate": {
-      "inferences": 21234,
+      "inferences": 21217,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-python-operation-encoded": {
-      "inferences": 54248,
+      "inferences": 54228,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-python-operation-raw-true": {
-      "inferences": 33230,
+      "inferences": 33214,
       "operations": 3000,
       "unit": "calls"
     },
+    "extcost-the-add-driver-itself": {
+      "inferences": 5211,
+      "operations": 1000,
+      "unit": "calls"
+    },
     "extcost-the-driver-itself": {
-      "inferences": 15226,
+      "inferences": 15211,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-translator-rule-a-macro": {
-      "inferences": 21232,
+      "inferences": 15214,
       "operations": 3000,
       "unit": "calls"
     }

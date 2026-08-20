@@ -31,6 +31,10 @@ def _silent_state(runtime):
 def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, during):
     runtime = metta.runtime
     name = f"round2_helper_{uuid.uuid4().hex}"
+    # The engine is shared across this process's tests, so the flag this
+    # test flips comes back at the end: leaving silent(false) behind made
+    # every later output-capturing test read translation traces.
+    prior = _silent_state(runtime)["Value"]
     runtime.must("petta_py_set_silent(false)")
     runtime.must(
         f"assertz(({name}(_Arg, _Results) :- "
@@ -46,11 +50,13 @@ def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, duri
         assert state["Value"] == "false"
     finally:
         runtime.must(f"retractall({name}(_, _))")
+        runtime.must(f"petta_py_set_silent({prior})")
 
 
 def test_helper_restores_silent_after_an_error(metta):
     runtime = metta.runtime
     name = f"round2_helper_error_{uuid.uuid4().hex}"
+    prior = _silent_state(runtime)["Value"]
     runtime.must("petta_py_set_silent(false)")
     runtime.must(
         f"assertz(({name}(_, _) :- throw(error(round2_helper_failed, none))))"
@@ -63,3 +69,4 @@ def test_helper_restores_silent_after_an_error(metta):
         assert state["Value"] == "false"
     finally:
         runtime.must(f"retractall({name}(_, _))")
+        runtime.must(f"petta_py_set_silent({prior})")
