@@ -17,6 +17,10 @@ Guarantees:
     and field declaration as its value
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
      commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - explicit projection discovers __metta__ on the class and never asks an
+    instance proxy whether an arbitrary attribute exists
+    [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,6 +36,7 @@ from collections.abc import Iterator as IteratorABC
 from enum import Enum, EnumType
 from typing import Any, NamedTuple, cast
 
+from ._atoms_core import explicit_metta_atom
 from ._convert_registry import (
     _default_registration,
     _lookup,
@@ -117,12 +122,9 @@ def _registration_for(cls: type) -> _Registration | None:
 
 
 def _project_unregistered(value: Any, cls: type) -> Projected:
-    hook = getattr(value, "__metta__", None)
-    if hook is None:
+    atom = explicit_metta_atom(value)
+    if atom is None:
         return Projected(val(value), ())
-    atom = hook()
-    if not isinstance(atom, Atom):
-        raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
     return Projected(atom, ())
 
 
@@ -183,13 +185,7 @@ def explicit_projection(value: Any) -> Atom | None:
     registration = _lookup(cls)
     if registration is not None and registration.explicit:
         return _project_registered(value, cls, registration).atom
-    hook = getattr(value, "__metta__", None)
-    if hook is None:
-        return None
-    atom = hook()
-    if not isinstance(atom, Atom):
-        raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
-    return atom
+    return explicit_metta_atom(value)
 
 
 def _project_registered(value: Any, cls: type, registration: _Registration) -> Projected:

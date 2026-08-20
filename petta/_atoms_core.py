@@ -35,6 +35,10 @@ Guarantees:
   - _ENCODE_FAST never disagrees with encode.registry: every entry is
     resolved by asking encode.dispatch, and every registration rebuilds it
     [tested test_the_type_fast_path_precedes_encode_and_survives_a_register]
+  - __metta__ is discovered on the class, so instance fallback and properties
+    cannot run merely because encoding checked for an explicit hook
+    [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
+     commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -47,6 +51,7 @@ Open Obligations:
 from __future__ import annotations
 
 import contextlib
+import inspect
 import math
 import numbers as _numbers
 import re
@@ -1107,16 +1112,29 @@ _set_wire = Expr.__dict__["_wire"].__set__
 # --------------------------------------------------------------------- encoding
 
 
+def explicit_metta_atom(value: Any) -> Atom | None:
+    """Invoke an explicit class-owned ``__metta__`` hook, if one exists."""
+    cls = type(value)
+    descriptor = inspect.getattr_static(cls, "__metta__", None)
+    if descriptor is None or isinstance(descriptor, property):
+        return None
+    hook = descriptor.__get__(value, cls) if hasattr(descriptor, "__get__") else descriptor
+    if not callable(hook):
+        raise TypeError(f"__metta__ on {cls.__name__} is not callable")
+    result = hook()
+    if not isinstance(result, Atom):
+        raise TypeError(
+            f"__metta__ on {cls.__name__} returned "
+            f"{type(result).__name__}, not an Atom"
+        )
+    return result
+
+
 @singledispatch
 def _encode_value(value: Any) -> Atom:
     """The open dispatch behind encode. See encode for the contract."""
-    hook = getattr(value, "__metta__", None)
-    if hook is not None:
-        result = hook()
-        if not isinstance(result, Atom):
-            raise TypeError(
-                f"__metta__ on {type(value).__name__} returned {type(result).__name__}, not an Atom"
-            )
+    result = explicit_metta_atom(value)
+    if result is not None:
         return result
     return Gnd(value)
 

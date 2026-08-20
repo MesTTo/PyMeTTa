@@ -12,7 +12,7 @@ from typing import (
     overload,
 )
 
-from petta import Atom, Expr, Gnd, S, Sym, Var
+from petta import Atom, Expr, Gnd, S, Sym, Var, encode, val
 from petta.convert import build, project
 from petta.ops import annotation_atom_for, type_atoms_for
 
@@ -183,3 +183,35 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     assert "(annotation advanced (param 5 (TypeIs Number)))" in claims
     assert "(annotation advanced (param 6 (type Number)))" in claims
     assert "(annotation advanced (return Empty))" in claims
+
+
+def test_dunder_metta_is_read_off_the_class_not_the_instance():
+    looked_up: list[str] = []
+
+    class Proxy:
+        def __getattr__(self, name):
+            looked_up.append(name)
+            return lambda: S.wrong
+
+    proxy = Proxy()
+    assert project(proxy).atom == val(proxy)
+    assert encode(proxy) == val(proxy)
+    assert looked_up == []
+
+    class Tagged:
+        def __metta__(self):
+            return S.tagged
+
+    assert project(Tagged()).atom == S.tagged
+    assert encode(Tagged()) == S.tagged
+
+    class PropertyTrap:
+        @property
+        def __metta__(self):
+            looked_up.append("property")
+            return S.wrong
+
+    trapped = PropertyTrap()
+    assert project(trapped).atom == val(trapped)
+    assert encode(trapped) == val(trapped)
+    assert looked_up == []
