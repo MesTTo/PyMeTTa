@@ -2554,8 +2554,10 @@ class MeTTa:
         first be introduced with :meth:`declare_algebra`. Capabilities are
         checked against the algebra's requirements before the catalog write;
         amplitude programs, for example, must explicitly declare ``finite``,
-        ``contractive`` and ``staged``. Declaring replaces any earlier row for
-        the context, so the reader never meets two disagreeing atoms.
+        ``contractive`` and ``staged`` [tested:
+        test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
+        commit=84dda69a9e7a73fbe0da50eef9ca6bc40dd9532d]. Declaring replaces any earlier row for the
+        context, so the reader never meets two disagreeing atoms.
         """
         declaration = _algebra.require(self, algebra)
         declared_capabilities = frozenset(capabilities)

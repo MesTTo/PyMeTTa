@@ -4,7 +4,7 @@ Guarantees:
   - exact opposite paths cancel inside the finite, contractive, staged
     fragment and any missing fence capability is refused by name [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=WORKTREE]
+    commit=84dda69a9e7a73fbe0da50eef9ca6bc40dd9532d]
 """
 
 import pytest

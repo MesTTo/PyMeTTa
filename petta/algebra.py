@@ -14,11 +14,11 @@ Guarantees:
   - a linear algebra refuses overlapping premise-occurrence ledgers before it
     publishes a derived answer [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=ab469c3679ab778c91ac73f14797af746a1ea87d]
+    commit=84dda69a9e7a73fbe0da50eef9ca6bc40dd9532d]
   - the amplitude preset is usable only by a context declaring the finite,
     contractive, staged fragment [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=WORKTREE]
+    commit=84dda69a9e7a73fbe0da50eef9ca6bc40dd9532d]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
