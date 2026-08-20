@@ -3,9 +3,12 @@ space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
   - run(), run_status() and load() register a source's whole signature set
     before processing any of its forms, as the engine's file reader does, so a
-    `!` may name a function the same source defines lower down [tested
+    metadata operation may name a function the same source defines lower down
+    while a call still observes the equation prefix at its own source position
+    [tested
     test_a_source_registers_every_signature_before_any_form_runs,
-    test_run_status_registers_signatures_before_any_form_runs]
+    test_run_status_registers_signatures_before_any_form_runs,
+    test_a_bang_before_the_definition_answers_unreduced_not_a_host_error]
   - an equation for a name SWI imports into the engine shadows it inside the
     space that wrote it and leaves the engine's own predicate answering, so
     the engine survives what used to brick it [tested
@@ -832,6 +835,23 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
         "(= (p111-later $x) (+ $x 1))\n"
     )
     assert groups == [[True], [2]]
+
+
+def test_a_bang_before_the_definition_answers_unreduced_not_a_host_error(metta):
+    """A source executes in program order even though its signature metadata
+    is registered in one pass. LeaTTa's evalSequentialRun evaluates each bang
+    against the current knowledge-base prefix and extends that prefix only
+    after a non-bang form, so the first call is data and the second reduces.
+    """
+    groups = metta.run(
+        "!(p121-respond me)\n"
+        "(= (p121-respond me) hello)\n"
+        "!(p121-respond me)\n"
+    )
+    assert [[str(answer) for answer in group] for group in groups] == [
+        ["(p121-respond me)"],
+        ["hello"],
+    ]
 
 
 def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):
