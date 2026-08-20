@@ -20,7 +20,7 @@ Guarantees:
   - explicit projection discovers __metta__ on the class and never asks an
     instance proxy whether an arbitrary attribute exists
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=WORKTREE]
+     commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
 Open Obligations:
   To Do: None
   Hacks: None

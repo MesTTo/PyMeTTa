@@ -38,7 +38,7 @@ Guarantees:
   - __metta__ is discovered on the class, so instance fallback and properties
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=WORKTREE]
+     commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
