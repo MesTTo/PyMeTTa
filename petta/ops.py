@@ -24,7 +24,7 @@ Guarantees:
     declaration space, independent of typed=, under the same transactional
     lifecycle and reference count as type declarations [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
 Open Obligations:
   To Do: None
   Hacks: None
