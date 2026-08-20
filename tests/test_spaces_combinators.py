@@ -5,15 +5,20 @@ Guarantees:
   - overlay and mapped pass the full conformance kit, round-trip law
     included [tested test_overlay_passes_the_conformance_kit,
     test_mapped_passes_the_conformance_kit]
+  - an object view joins stored atoms to live fields and writes with setattr
+    [tested: test_a_query_joins_stored_atoms_with_live_object_fields;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+from dataclasses import dataclass
+
 import pytest
 
-from petta import PettaError, S, V, parse, spaces, testing
+from petta import PettaError, S, V, parse, spaces, testing, val
 
 
 @pytest.fixture()
@@ -182,6 +187,50 @@ def test_combinators_compose(metta, pair):
             metta.space(name).add(S.w(1))
     finally:
         metta.unregister_space(name)
+
+
+def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
+    @dataclass
+    class Manager:
+        age: int
+
+    manager = Manager(31)
+    field = S["py-field"]
+    with metta.new_space() as stored:
+        stored.add(S.manager(S.ada, val(manager)), S.band(31, S.senior))
+        view = spaces.object_view(manager)
+        view_name = "&cmb-object-view"
+        join_name = "&cmb-object-join"
+        metta.register_space(view, view_name)
+        metta.register_space(spaces.union(stored, view), join_name)
+        try:
+            joined = metta.space(join_name)
+            rows = joined.query(
+                S.manager(V.who, V.manager),
+                field(V.manager, S.age, V.age),
+                S.band(V.age, V.band),
+            )
+            assert rows["who"] == [S.ada]
+            assert rows["age"] == [31]
+            assert rows["band"] == [S.senior]
+
+            manager.age = 32
+            stored.add(S.band(32, S.current))
+            assert joined.query(
+                S.manager(S.ada, V.manager),
+                field(V.manager, S.age, V.age),
+                S.band(V.age, V.band),
+            )["band"] == [S.current]
+
+            metta.space(view_name).add(field(val(manager), S.age, 33))
+            assert manager.age == 33
+            assert joined.query(
+                S.manager(S.ada, V.manager),
+                field(V.manager, S.age, V.age),
+            )["age"] == [33]
+        finally:
+            metta.unregister_space(join_name)
+            metta.unregister_space(view_name)
 
 
 def test_diff_answers_the_multiset_difference(metta):

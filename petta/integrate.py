@@ -39,7 +39,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import dataclasses
 import graphlib
 import importlib
 import inspect
@@ -50,6 +49,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from . import convert
+from ._object_fields import field_names as _field_names
 from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
@@ -582,15 +582,3 @@ def install_reflection_ops(m) -> list[str]:
     m.register_op(py_attr, name="py-attr", raw=False, typed=False, pass_atoms=True)
     m.register_op(py_field, name="py-field", raw=False, typed=False, pass_atoms=True)
     return ["py-attr", "py-field"]
-
-
-def _field_names(obj: Any) -> list[str]:
-    if dataclasses.is_dataclass(obj):
-        return [f.name for f in dataclasses.fields(obj)]
-    if hasattr(obj, "_fields"):
-        return list(obj._fields)
-    if hasattr(obj, "__dict__"):
-        return [n for n in vars(obj) if not n.startswith("_")]
-    if hasattr(obj, "__slots__"):
-        return [n for n in obj.__slots__ if not n.startswith("_")]
-    return []

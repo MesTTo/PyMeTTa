@@ -1,7 +1,7 @@
-"""Purpose: space combinators on the public seam: union, readonly, mapped,
-and overlay compose existing spaces into new ones with zero engine changes,
-each an ordinary SpaceProvider, which is the point: the seam proves its
-composability by having the combinators be users of it.
+"""Purpose: space views and combinators on the public seam. Object views,
+union, readonly, mapped, and overlay are ordinary SpaceProvider instances;
+the same engine route therefore matches a live object or composes existing
+spaces without hardcoded integration paths.
 Guarantees:
   - union and readonly implement no write operation, so the engine's own
     capability refusal answers add-atom on them [tested
@@ -11,6 +11,10 @@ Guarantees:
     test_mapped_presents_and_writes_through_the_declaration]
   - overlay reads both layers and writes, removes, and clears the front
     only, ChainMap's own rule [tested test_overlay_routes_writes_to_front]
+  - object_view reads live fields, joins with stored atoms through union, and
+    turns an added py-field atom into setattr [tested:
+    test_a_query_joins_stored_atoms_with_live_object_fields;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,12 +27,128 @@ from collections import Counter
 from collections.abc import Iterator
 from typing import Any
 
-from .atoms import Atom, Expr, _to_atom, is_ground, substitute, unify
+from ._object_fields import field_names
+from .atoms import (
+    Atom,
+    Expr,
+    Gnd,
+    Sym,
+    Var,
+    _to_atom,
+    decode,
+    encode,
+    is_ground,
+    substitute,
+    unify,
+    val,
+)
 from .errors import PettaError
 from .foreign import Matcher, SpaceProvider
 from .structures import _canonical
 
-__all__ = ["diff", "mapped", "overlay", "readonly", "union"]
+__all__ = [
+    "ObjectView",
+    "diff",
+    "mapped",
+    "object_view",
+    "overlay",
+    "readonly",
+    "union",
+]
+
+
+class ObjectView(SpaceProvider):
+    """One live Python object presented as ``(py-field obj name value)``.
+
+    Enumeration names the object's public fields. A bound field may also be
+    served through ``getattr``, which lets an object with ``__getattr__``
+    answer the mode it actually supports without pretending it can enumerate.
+    Adding the same atom shape writes the value with ``setattr``.
+    """
+
+    def __init__(self, obj: Any, relation: str | Sym = "py-field") -> None:
+        if isinstance(relation, str):
+            if not relation:
+                raise PettaError("an object view relation name cannot be empty")
+            relation = Sym(relation)
+        elif not isinstance(relation, Sym):
+            raise TypeError("an object view relation is a symbol or its string name")
+        self.object = obj
+        self.relation = relation
+        self._root = val(obj)
+
+    def atoms(self) -> Iterator[Atom]:
+        for name in field_names(self.object):
+            candidate = self._field_atom(name)
+            if candidate is not None:
+                yield candidate
+
+    def match(self, pattern: Atom) -> Iterator[Atom]:
+        parts = self._parts(pattern)
+        if parts is None:
+            return
+        root, name_atom, _value = parts
+        if not isinstance(root, Var) and root != self._root:
+            return
+        if isinstance(name_atom, Var):
+            names = field_names(self.object)
+        elif isinstance(name_atom, Sym):
+            names = [name_atom.name]
+        elif isinstance(name_atom, Gnd) and isinstance(name_atom.value, str):
+            names = [name_atom.value]
+        else:
+            return
+        for name in names:
+            candidate = self._field_atom(name)
+            if candidate is not None:
+                yield candidate
+
+    def add(self, atom: Atom) -> None:
+        parts = self._parts(atom)
+        if parts is None:
+            raise PettaError(
+                f"an object view writes ({self.relation} <object> <field> <value>); "
+                f"got {atom}"
+            )
+        root, name_atom, value_atom = parts
+        if root != self._root:
+            raise PettaError("an object view writes only the object it presents")
+        if isinstance(name_atom, Sym):
+            name = name_atom.name
+        elif isinstance(name_atom, Gnd) and isinstance(name_atom.value, str):
+            name = name_atom.value
+        else:
+            raise PettaError("an object view write needs one ground field name")
+        setattr(self.object, name, decode(value_atom))
+
+    def _parts(self, atom: Atom) -> tuple[Atom, Atom, Atom] | None:
+        if (
+            not isinstance(atom, Expr)
+            or len(atom.children) != 4
+            or atom.children[0] != self.relation
+        ):
+            return None
+        return atom.children[1], atom.children[2], atom.children[3]
+
+    def _field_atom(self, name: str) -> Expr | None:
+        try:
+            value = getattr(self.object, name)
+        except AttributeError:
+            return None
+        return Expr([self.relation, self._root, Sym(name), encode(value)])
+
+    def __repr__(self) -> str:
+        return f"<object view of {type(self.object).__name__} as {self.relation}>"
+
+
+def object_view(obj: Any, *, relation: str | Sym = "py-field") -> ObjectView:
+    """Present one object as a live, writable provider.
+
+    Compose it with stored facts through ``spaces.union(stored, view)`` and
+    register the result like any other provider. Register the view itself
+    when MeTTa should write its fields through ``add-atom``.
+    """
+    return ObjectView(obj, relation)
 
 
 class _Member:
