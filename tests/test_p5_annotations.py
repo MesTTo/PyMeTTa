@@ -1,5 +1,7 @@
 """Purpose: pin Phase 5's Python annotation and conversion seam."""
 
+from enum import Flag, IntEnum, StrEnum, auto
+
 from petta import Atom, Expr, Gnd, Sym, Var
 from petta.convert import build, project
 from petta.ops import annotation_atom_for, type_atoms_for
@@ -59,3 +61,26 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
         "(annotation container_probe (param 4 (set Number)))",
         "(annotation container_probe (return (set Number)))",
     }
+
+
+def test_int_str_and_flag_enums_each_project_with_their_declarations():
+    class Count(IntEnum):
+        one = 1
+
+    class State(StrEnum):
+        ready = "ready"
+
+    class Capability(Flag):
+        read = auto()
+        write = auto()
+
+    for value, symbol, type_name in (
+        (Count.one, "one", "Count"),
+        (State.ready, "ready", "State"),
+        (Capability.read | Capability.write, "read|write", "Capability"),
+    ):
+        projected = project(value)
+        assert projected.atom == Sym(symbol)
+        declarations = set(map(str, projected.declarations))
+        assert f"(: {type_name} Type)" in declarations
+        assert f"(: {symbol} {type_name})" in declarations

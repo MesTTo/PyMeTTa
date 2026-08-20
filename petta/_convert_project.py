@@ -9,6 +9,10 @@ Guarantees:
     reconstruction detail in the full-annotation hook
     [tested: test_the_four_containers_share_one_parameterised_treatment;
      commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+  - scalar Enum subclasses and composite Flags retain the member and type
+    declarations that distinguish them from their scalar payloads
+    [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -79,6 +83,8 @@ def project(value: Any, annotation: Any = None) -> Projected:
 def _project_direct(value: Any) -> Projected | None:
     if isinstance(value, Atom):
         return Projected(value, ())
+    if isinstance(value, Enum):
+        return None
     if isinstance(value, (bool, int, float, str)):
         return Projected(encode(value), ())
     return None
@@ -215,6 +221,9 @@ def _project_symbol(value: Any, cls: type, registration: _Registration) -> Proje
             Expr([S[":"], Sym(member.name), Sym(type_name)])
             for member in cast(Iterable[Enum], enum_cls)
         )
+        current = Expr([S[":"], Sym(member.name), Sym(type_name)])
+        if current not in decls:
+            decls.append(current)
         return Projected(member, tuple(decls))
     text = str(value)
     return Projected(
