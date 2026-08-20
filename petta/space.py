@@ -45,6 +45,10 @@ Guarantees:
     and no residuals flag changes it [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+  - query(into=cls) rebuilds a complete constructor expression captured in
+    one variable, while cast remains type admission [tested:
+    test_a_constructor_expression_rebuilds_through_the_query_door;
+    commit=WORKTREE]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:
@@ -1071,7 +1075,9 @@ class MeTTa:
         `into=` shapes each row into a dataclass, NamedTuple, or
         TypedDict matched by field name, sqlite3's row_factory reading:
         `m.query(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
-        and Rows stays the default so nothing is lost.
+        and Rows stays the default so nothing is lost. A one-variable query
+        whose column holds complete constructor expressions rebuilds those
+        expressions instead: `m.query(V.edge, into=Edge)`.
 
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """

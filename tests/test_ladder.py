@@ -5,6 +5,10 @@ block (M5), the shipped pytest fixtures (M6), and the exported strategies
 Guarantees:
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
+  - query(into=) and Rows.build rebuild a complete constructor expression,
+    while cast returns the admitted atom [tested:
+    test_a_constructor_expression_rebuilds_through_the_query_door;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -84,6 +88,24 @@ def test_query_into_shapes_rows(metta):
     # A primitive annotation is checked, not assumed.
     with pytest.raises(TypeError, match="not int"):
         m.query(S.edge(V.a, V.n), into=_Pair)
+
+
+def test_a_constructor_expression_rebuilds_through_the_query_door(metta):
+    @petta.record
+    @dataclass
+    class P5Constructor:
+        label: str
+        count: int
+
+    atom = S.P5Constructor("bolts", 4)
+    with metta.new_space() as space:
+        space.add(atom)
+        rows = space.query(V.constructor)
+        assert rows.build(P5Constructor) == [P5Constructor("bolts", 4)]
+        assert space.query(V.constructor, into=P5Constructor) == [
+            P5Constructor("bolts", 4)
+        ]
+        assert space.cast(atom, P5Constructor) is atom
 
 
 def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):
