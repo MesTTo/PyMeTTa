@@ -6,7 +6,8 @@ Guarantees:
   - importing petta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the petta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
+    test_callback_facade_owns_no_state_and_delegates;
+    commit=7feac32972af4ad38561669eabc3c05bf1242f44]
 Open Obligations:
   To Do: None
   Hacks: None
