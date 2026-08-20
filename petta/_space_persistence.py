@@ -14,7 +14,7 @@ Guarantees:
   - save validation consumes the generated save-format catalog tuple rather
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=WORKTREE]
+    commit=42b5d28232e75c32b20a1d5bf1f740fec134938d]
 Owns:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save [tested test_save_failure_preserves_existing_file]
