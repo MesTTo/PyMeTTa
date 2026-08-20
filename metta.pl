@@ -441,8 +441,9 @@ metta_error_atom(Operation, Arguments, Reason,
 %is the multiplicity and the order the arbiter pins.
 metta_bad_argument_error(Operation, Arguments, Error) :-
     \+ metta_call_accepted(Operation, Arguments),
-    metta_operation_parameters(Operation, Arguments, ParameterTypes),
-    metta_bad_argument(ParameterTypes, Arguments, 1, Position, Expected, Actual),
+    metta_operation_parameters(Operation, Arguments, ParameterTypes, Origins),
+    metta_bad_argument(ParameterTypes, Origins, Arguments, 1,
+                       Position, Expected, Actual),
     metta_error_atom(Operation, Arguments,
                      ['BadArgType', Position, Expected, Actual], Error).
 
@@ -458,23 +459,25 @@ metta_bad_argument_error(Operation, Arguments, Error) :-
 %the assignment CONSISTENT: a chain naming one type variable twice is only
 %accepted by a pair of types that agree.
 metta_call_accepted(Operation, Arguments) :-
-    metta_operation_parameters(Operation, Arguments, ParameterTypes),
-    metta_arguments_match(ParameterTypes, Arguments),
+    metta_operation_parameters(Operation, Arguments, ParameterTypes, Origins),
+    metta_arguments_match(ParameterTypes, Origins, Arguments),
     !.
 
-metta_arguments_match([], []).
-metta_arguments_match([Expected|Rest], [Argument|Arguments]) :-
-    (   metta_metatype_settles(Argument, Expected)
-    ->  true
-    ;   metta_argument_types(Argument, Types),
-        member(Type, Types),
-        metta_types_match(Type, Expected)
-    ),
-    metta_arguments_match(Rest, Arguments).
+metta_arguments_match([], [], []).
+metta_arguments_match([Expected|Rest], [Origin|Origins],
+                      [Argument|Arguments]) :-
+    check_argument_type(Argument, Expected, Origin),
+    metta_arguments_match(Rest, Origins, Arguments).
+
+metta_arguments_match_in(_, [], [], []).
+metta_arguments_match_in(Module, [Expected|Rest], [Origin|Origins],
+                         [Argument|Arguments]) :-
+    check_argument_type_in(Module, Argument, Expected, Origin),
+    metta_arguments_match_in(Module, Rest, Origins, Arguments).
 
 %A FRESH copy per arrow: a chain naming a type variable has to be free to bind
 %it again for the next call, and for the next arrow.
-metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
+metta_operation_parameters(Operation, Arguments, ParameterTypes, Origins) :-
     current_metta_module(Module),
     (   type_declaration_in(Module, Operation, Chain0)
     ;   \+ type_declaration_in(Module, Operation, _),
@@ -482,7 +485,65 @@ metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
     ),
     copy_term(Chain0, [->|Types]),
     append(ParameterTypes, [_], Types),
+    metta_argument_type_origins(ParameterTypes, Origins),
     same_length(ParameterTypes, Arguments).
+
+%Keep whether a formal was a raw type variable before an earlier argument
+%binds it. A derived Atom is an ordinary type constraint, not the literal
+%Atom metatype wildcard written in the declaration.
+metta_argument_type_origins(Types, Origins) :-
+    maplist(metta_argument_type_origin(Types), Types, Origins).
+
+metta_argument_type_origin(Types, Expected, derived_variable) :-
+    var(Expected),
+    member(Compound, Types),
+    nonvar(Compound),
+    term_variables(Compound, Variables),
+    member(Variable, Variables),
+    Variable == Expected,
+    !.
+metta_argument_type_origin(_, Expected, variable) :- var(Expected), !.
+metta_argument_type_origin(_, Expected, metatype) :-
+    nonvar(Expected),
+    ( Expected == 'Atom' ; metta_metatype_name(Expected) ),
+    !.
+metta_argument_type_origin(_, _, ordinary).
+
+check_argument_type(Argument, Expected, Origin) :-
+    current_metta_module(Module),
+    check_argument_type_in(Module, Argument, Expected, Origin).
+
+check_argument_type_in(Module, Argument, Expected, metatype) :-
+    (   satisfies_metatype(Argument, Expected)
+    ->  true
+    ;   has_type_in(Module, Argument, Expected)
+    ).
+check_argument_type_in(Module, Argument, Expected, derived_variable) :-
+    metta_runtime_type_candidate(Module, Argument, Actual),
+    metta_derived_types_match(Actual, Expected).
+check_argument_type_in(Module, Argument, Expected, Origin) :-
+    Origin \== metatype,
+    Origin \== derived_variable,
+    (   metta_evaluating_type_rule
+    ->  metta_argument_types_in(Module, Argument, Types),
+        member(Actual, Types),
+        metta_types_match(Actual, Expected)
+    ;   has_type_in(Module, Argument, Expected)
+    ).
+
+metta_runtime_type_candidate(Module, Argument, Actual) :-
+    type_candidate_in(Module, Argument, Actual).
+metta_runtime_type_candidate(Module, Argument, '%Undefined%') :-
+    \+ once(type_candidate_in(Module, Argument, _)).
+
+metta_argument_type_matches(Actual, Expected, variable) :-
+    metta_types_match(Actual, Expected).
+metta_argument_type_matches(Actual, Expected, derived_variable) :-
+    metta_derived_types_match(Actual, Expected).
+metta_argument_type_matches(Actual, Expected, metatype) :-
+    metta_types_match(Actual, Expected).
+metta_argument_type_matches(Actual, Expected, ordinary) :-
+    metta_types_match(Actual, Expected).
 
 %Every rejected actual type at a position, and then the positions after it,
 %which is what the arbiter reports when one actual type of an argument matched
@@ -497,33 +558,25 @@ metta_operation_parameters(Operation, Arguments, ParameterTypes) :-
 %`(Number Number)` [measured 2026-08-19 against the arbiter, which answers
 %"1"]. The declared types still decide when the metatype does not, which is
 %why `(: xs Expression)` also passes and `(: n Number)` does not.
-metta_bad_argument([Expected|Rest], [Argument|Arguments], N,
+metta_bad_argument([Expected|Rest], [Origin|Origins], [Argument|Arguments], N,
                    Position, Reported, Actual) :-
     metta_argument_types(Argument, Types),
-    (   metta_metatype_settles(Argument, Expected)
+    (   Origin == metatype,
+        satisfies_metatype(Argument, Expected)
     ->  Next is N + 1,
-        metta_bad_argument(Rest, Arguments, Next, Position, Reported, Actual)
+        metta_bad_argument(Rest, Origins, Arguments, Next,
+                           Position, Reported, Actual)
     ;   (   Position = N, Reported = Expected,
             member(Actual, Types),
-            \+ metta_types_match(Actual, Expected)
+            \+ metta_argument_type_matches(Actual, Expected, Origin)
         ;   member(Carried, Types),
-            metta_types_match(Carried, Expected),
+            metta_argument_type_matches(Carried, Expected, Origin),
             !,
             Later is N + 1,
-            metta_bad_argument(Rest, Arguments, Later, Position, Reported, Actual)
+            metta_bad_argument(Rest, Origins, Arguments, Later,
+                               Position, Reported, Actual)
         )
     ).
-
-%A metatype parameter, and the four names that are one. Atom and %Undefined%
-%are not here because metta_types_match/2 already takes them as wildcards, and
-%an UNBOUND expected type is not one either: a chain's own type variable must
-%be fixed by a declared type, or `(== 1 "S")` would report the metatype its
-%first operand carries instead of Number.
-metta_metatype_settles(Argument, Expected) :-
-    nonvar(Expected),
-    metta_metatype_name(Expected),
-    'get-metatype'(Argument, Metatype),
-    Metatype == Expected.
 
 metta_metatype_name('Symbol').
 metta_metatype_name('Expression').
@@ -547,6 +600,9 @@ metta_metatype_name('Variable').
 
 metta_argument_types(Argument, Types) :-
     current_metta_module(Module),
+    metta_argument_types_in(Module, Argument, Types).
+
+metta_argument_types_in(Module, Argument, Types) :-
     (   metta_reading_declared_types
     ->  type_answers(Module, Argument, Types)
     ;   setup_call_cleanup(assertz(metta_reading_declared_types, Ref),
@@ -567,6 +623,15 @@ metta_types_match(Left, Right) :-
     ;   Right == '%Undefined%' -> true
     ;   Left == 'Atom' -> true
     ;   Right == 'Atom' -> true
+    ;   Left == 'BigInt', Right == 'Number' -> true
+    ;   Left = Right
+    ).
+
+%A raw type variable uses Atom as an ordinary bound once another formal has
+%fixed it. The gradual unknown and numeric widening rules still apply.
+metta_derived_types_match(Left, Right) :-
+    (   Left == '%Undefined%' -> true
+    ;   Right == '%Undefined%' -> true
     ;   Left == 'BigInt', Right == 'Number' -> true
     ;   Left = Right
     ).
@@ -1599,7 +1664,8 @@ get_function_type([F|Args], T) :- nonvar(F),
                                   ),
                                   append(As,[T],Ts),
                                   metta_self_module(Self),
-                                  maplist(has_type_in(Self), Args, As).
+                                  metta_argument_type_origins(As, Origins),
+                                  metta_arguments_match_in(Self, As, Origins, Args).
 get_function_type_in(Module, [F|Args], T) :- \+ metta_self_module(Module),
                                              nonvar(F),
                                              (   type_declaration_in(Module, F, [->|Ts0])
@@ -1607,7 +1673,24 @@ get_function_type_in(Module, [F|Args], T) :- \+ metta_self_module(Module),
                                              ;   builtin_type_declaration(F, [->|Ts])
                                              ),
                                              append(As,[T],Ts),
-                                             maplist(has_type_in(Module), Args, As).
+                                             metta_argument_type_origins(As,
+                                                                         Origins),
+                                             metta_arguments_match_in(Module, As,
+                                                                      Origins, Args).
+
+application_arrow_declared([F|_]) :-
+    nonvar(F),
+    (   '$petta_atoms:&self':'&self'(':', F, [->, _|_])
+    ->  true
+    ;   builtin_type_declaration(F, [->, _|_])
+    ).
+
+application_arrow_declared_in(Module, [F|_]) :-
+    nonvar(F),
+    (   type_declaration_in(Module, F, [->, _|_])
+    ->  true
+    ;   builtin_type_declaration(F, [->, _|_])
+    ).
 
 %A `get-type` equation compiles into the module of the space that wrote it, so
 %&self's rule predicate lives in &self's module and this declaration goes
@@ -1733,7 +1816,20 @@ type_answers(Module, X, Types) :-
     findall(Type, type_candidate_in(Module, X, Type), Candidates),
     unique_type_answers(Candidates, Unique),
     widen_to_super_types(Module, X, Unique, Widened),
-    ( Widened == [] -> Types = ['%Undefined%'] ; Types = Widened ).
+    (   Widened \== []
+    ->  Types = Widened
+    ;   inapplicable_typed_application(Module, X)
+    ->  Types = []
+    ;   Types = ['%Undefined%']
+    ).
+
+inapplicable_typed_application(Module, X) :-
+    (   metta_self_module(Module)
+    ->  application_arrow_declared(X),
+        \+ get_function_type(X, _)
+    ;   application_arrow_declared_in(Module, X),
+        \+ get_function_type_in(Module, X, _)
+    ).
 
 %%%% Subtyping: (:< Sub Super) %%%%
 %
@@ -1903,12 +1999,20 @@ type_candidate_in(Module, X, T) :- get_type_rule_in(Module, X, T).
 %A refusal's own type lookup does not run them, because they are programs and
 %one that computes on its argument re-enters the operation that asked; see
 %metta_argument_types/2, which sets the flag.
+:- thread_local metta_evaluating_type_rule/0.
+
 get_type_rule_in(Module, X, T) :- \+ metta_reading_declared_types,
                                   \+ metta_self_module(Module),
                                   fun_in(Module, 'get-type'),
-                                  Module:get_type_rule(X, T).
+                                  call_get_type_rule(Module, X, T).
 get_type_rule_in(_, X, T) :- \+ metta_reading_declared_types,
-                             metta_self_module(Self), Self:get_type_rule(X, T).
+                             metta_self_module(Self),
+                             call_get_type_rule(Self, X, T).
+
+call_get_type_rule(Module, X, T) :-
+    setup_call_cleanup(assertz(metta_evaluating_type_rule, Ref),
+                       Module:get_type_rule(X, T),
+                       erase(Ref)).
 
 %The current upstream Number holds Integer(i64) and Float(f64), while its
 %tokenizer names an integer outside that capacity as the future BigInt case.
@@ -1938,7 +2042,7 @@ get_type_candidate(X, T) :- atomic(X), \+ atom(X),
                             metta_host_object(X),
                             metta_grounded_type(X, T).
 get_type_candidate(X, T) :- get_function_type(X,T).
-get_type_candidate(X, T) :- \+ get_function_type(X, _),
+get_type_candidate(X, T) :- \+ application_arrow_declared(X),
                             is_list(X),
                             metta_self_module(Self),
                             maplist(has_type_in(Self), X, Members),
@@ -1964,7 +2068,7 @@ get_type_candidate_in(_, X, T) :- atomic(X), \+ atom(X),
                                   metta_host_object(X),
                                   metta_grounded_type(X, T).
 get_type_candidate_in(Module, X, T) :- get_function_type_in(Module, X, T).
-get_type_candidate_in(Module, X, T) :- \+ get_function_type_in(Module, X, _),
+get_type_candidate_in(Module, X, T) :- \+ application_arrow_declared_in(Module, X),
                                        is_list(X),
                                        maplist(has_type_in(Module), X, Members),
                                        tuple_type(Members, T).
@@ -3335,6 +3439,7 @@ metta_pure_operation(Name) :- pure_engine_helper(Name).
 %the declarations it was computed from.
 pure_engine_helper(metta_arith_operands).
 pure_engine_helper(metta_bad_argument_error).
+pure_engine_helper(check_argument_type).
 pure_engine_helper(function_overapplication).
 pure_engine_helper(throw_metta_type_error).
 pure_engine_helper(rethrow_metta_operation_error).

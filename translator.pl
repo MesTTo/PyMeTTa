@@ -377,6 +377,7 @@ metta_engine_emitted(case_runtime/3).
 metta_engine_emitted(control_exception/1).
 metta_engine_emitted(foldall/4).
 metta_engine_emitted(has_type/2).
+metta_engine_emitted(check_argument_type/3).
 metta_engine_emitted(include/3).
 metta_engine_emitted(letstar_runtime/3).
 metta_engine_emitted(metta_ensure_duals/1).
@@ -1675,7 +1676,10 @@ translate_special_dl(super, [Call], AfterHead, Goals, Out) :-
     resolve_dispatch(Fun, ArgValues, Out, Goal),
     AfterArgs = [Parent:Goal|Goals].
 
-translate_special_dl(quote, [Expr], Goals, Goals, Expr).
+%Quote is a value headed by the ordinary symbol `quote`. Its Atom argument is
+%held and the wrapper survives; a consumer that wants the payload must match
+%or evaluate that value explicitly.
+translate_special_dl(quote, [Expr], Goals, Goals, [quote, Expr]).
 %not-provable keeps its head literal and evaluates its arguments, exactly as
 %an ordinary call does. Which function is being negated has to be known
 %without running it, because the answer comes from that function's dual rather
@@ -1716,11 +1720,9 @@ refuse_uncompilable_seam(Form, Args) :-
 
 %The same mistake reaches the translator by a second route that the clauses
 %above cannot see. A rule whose expansion is built in Prolog returns the form
-%itself, so a quote around it is not consumed by the rule body the way it is
-%when the rule is written in MeTTa source; it survives into the expansion, and
-%quote hands back the seam it wraps as data. Nothing downstream can compile
-%that, and before this the rule answered an unbound variable
-%[tested translator.plt:quoted_seam_expansion_is_refused].
+%itself. A malformed bare seam can therefore survive translation as data and
+%is refused here. A quote around it is a valid inert quote value instead
+%[tested translator.plt:quoted_seam_expansion_stays_inert].
 refuse_seam_expanded_to_data(Rule, Out) :-
     (   nonvar(Out), Out = [Seam|_],
         ( Seam == translatePredicate ; Seam == call )
@@ -2057,9 +2059,12 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     TypeChain = [->|Xs],
     append(ArgTypes0, [OutType], Xs), !,
     drop_unconstraining_types(TypeChain, ArgTypes0, ArgTypes),
+    metta_argument_type_origins(ArgTypes, ArgOrigins),
+    argument_applicability_checks(T, ArgTypes, ArgOrigins, ApplicabilityChecks),
     translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0, ArgChecks),
     ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
-    append(GsH, GsT2, InnerEval),
+    append(GsH, ApplicabilityChecks, BeforeArgs),
+    append(BeforeArgs, GsT2, InnerEval),
     %The output check asks whether the result has the declared type, and
     %nothing reads OutType afterwards, so one witness is the whole answer. A
     %soft cut here instead enumerates every derivation and succeeds once per
@@ -2077,6 +2082,20 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     place_type_checks(ArgTypes, OutType, ArgChecks, OutCheck, InnerEval, Inner, Extra),
     build_call_or_partial(Fun, AVsTmp, Out, Inner, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
+
+%A shared raw type variable needs the whole written call checked before any
+%argument runs. Earlier formals bind it and later formals consume that exact
+%binding; ordinary chains retain the existing evaluate-then-check path.
+argument_applicability_checks(Args, Types, Origins, Checks) :-
+    memberchk(derived_variable, Origins),
+    !,
+    maplist(argument_applicability_check, Args, Types, Origins, Raw),
+    goals_list_to_conj(Raw, Conj),
+    Checks = [once(Conj)].
+argument_applicability_checks(_, _, _, []).
+
+argument_applicability_check(Argument, Type, Origin,
+                             check_argument_type(Argument, Type, Origin)).
 
 %An argument whose declared type is a type variable occurring NOWHERE else in
 %the chain constrains nothing, and its check is pure waste. The check is
@@ -2172,17 +2191,22 @@ shares_a_variable(As, Bs) :- member(A, As), member(B, Bs), A == B, !.
 %translator_typed_checks].
 translate_args_by_type([], _, [], [], []) :- !.
 translate_args_by_type(Args, Types, GsOut, AVs, Checks) :-
-    translate_args_by_type_dl(Args, Types, GsOut, [], AVs, Checks, []).
+    metta_argument_type_origins(Types, Origins),
+    translate_args_by_type_dl(Args, Types, Origins,
+                              GsOut, [], AVs, Checks, []).
 
 translate_args_by_type_dl(Args, Types, Goals0, Goals, AVs) :-
-    translate_args_by_type_dl(Args, Types, Goals0, Tail, AVs, Checks, []),
+    metta_argument_type_origins(Types, Origins),
+    translate_args_by_type_dl(Args, Types, Origins,
+                              Goals0, Tail, AVs, Checks, []),
     ( Checks == []
       -> Tail = Goals
        ; goals_list_to_conj(Checks, CheckConj),
          Tail = [once(CheckConj)|Goals] ).
 
-translate_args_by_type_dl([], _, Goals, Goals, [], Checks, Checks) :- !.
-translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Checks) :-
+translate_args_by_type_dl([], _, _, Goals, Goals, [], Checks, Checks) :- !.
+translate_args_by_type_dl([A|As], [T|Ts], [Origin|Origins],
+                          Goals0, Goals, [AV|AVs], Checks0, Checks) :-
     ( T == 'Atom'
       -> AV = A,
          AfterArg = Goals0,
@@ -2191,10 +2215,11 @@ translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Chec
       ( (T == '%Undefined%' ; T == '_' ; statically_typed_literal(AV, T))
         -> AfterCheck = Checks0
       ; type_check_goal(AV, T,
-                        ( has_type(AV, T) *-> true ; 'get-metatype'(AV, T) ),
+                        check_argument_type(AV, T, Origin),
                         ArgGoal),
         Checks0 = [ArgGoal|AfterCheck] ) ),
-    translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs, AfterCheck, Checks).
+    translate_args_by_type_dl(As, Ts, Origins, AfterArg, Goals, AVs,
+                              AfterCheck, Checks).
 
 %A check that cannot be DROPPED can still be SPECIALISED. Three types are
 %decided by a single Prolog builtin, and when the declared type is one of them

@@ -836,15 +836,9 @@ body_form_dual('and-then', [P, Q], Module, Local, Goal) :-
     body_form_dual(and, [P, Q], Module, Local, Goal).
 body_form_dual('or-else', [P, Q], Module, Local, Goal) :-
     body_form_dual(or, [P, Q], Module, Local, Goal).
-%quote hands its argument back unevaluated, so its value IS that term and the
-%question is only whether the term is True.
-body_form_dual(quote, [Expr], _, _Local, Goal) :-
-    (   var(Expr)
-    ->  Goal = dif(Expr, true)
-    ;   Expr == true
-    ->  Goal = fail
-    ;   Goal = true
-    ).
+%quote constructs a value headed by quote. That value is never the literal
+%True atom, independently of its unevaluated payload.
+body_form_dual(quote, [_], _, _Local, true).
 %(not P) is True exactly when P is False, so it is not True exactly when P is
 %True. No third case survives, because a non-boolean P raises before it gets
 %here.
