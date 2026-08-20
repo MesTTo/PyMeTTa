@@ -16,7 +16,7 @@ Guarantees:
   - an inherited space reads its own multiset before its ancestors, joins
     across those layers, and mutates only its own store
     [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;
-    commit=WORKTREE]
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 Open Obligations:
   To Do: None
   Hacks: None

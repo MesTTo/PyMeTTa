@@ -36,7 +36,7 @@ Guarantees:
   - new_space(inherits=parent) creates a child-first read view whose writes and
     lifecycle stay local [tested:
     test_a_child_space_reads_through_its_parent_and_writes_locally;
-    commit=WORKTREE]
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
   - eval_status and run_status separate a pruned branch from an unevaluated
     term, and strict= refuses only the latter [tested
     test_eval_status_reports_the_four_outcomes,

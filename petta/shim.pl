@@ -23,7 +23,7 @@
 %   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
-%     commit=WORKTREE]
+%     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of

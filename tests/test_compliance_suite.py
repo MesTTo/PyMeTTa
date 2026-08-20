@@ -18,7 +18,7 @@ Guarantees:
     it was found [tested test_the_suite_leaves_a_writable_provider_as_it_found_it]
   - the engine-native inherited space passes the same compliance suite as an
     external provider [tested: TestNativeInheritedSpaceComplies;
-    commit=WORKTREE]
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 Open Obligations:
   To Do: None
   Hacks: None

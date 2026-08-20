@@ -55,7 +55,8 @@ Guarantees:
     nothing [tested test_a_declared_rule_space_holds_a_program]
   - the cross-space join witness carries the shared value and inspects the
     collapse result's children, so one joined row cannot look like no answer
-    [tested: TestNativeInheritedSpaceComplies; commit=WORKTREE]
+    [tested: TestNativeInheritedSpaceComplies;
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 Owns: one registered space name per test, unregistered in the fixture's
   teardown whatever the test did
 Decides: which of the engine's expectations are general enough to hold of ANY
