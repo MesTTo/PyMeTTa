@@ -82,13 +82,62 @@ def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
     assert metta.run("!(exp-math 1000)")[0] == [math.inf]
 
 
-def test_integer_division_past_binary64_saturates_instead_of_escaping(metta):
-    """An all-integer division can still overflow, in the float conversion.
+def test_real_valued_math_treats_integer_and_float_operands_alike(metta):
+    """Real-valued math promotes integers before applying binary64 math.
 
-    (/ (pow-math 10 400) 3) is exact unbounded-integer work until the
-    non-divisible pair converts to float, and that conversion overflowed on
-    the CATCHLESS integer fast path, so the raw is/2 error escaped without
-    even the operation context the float arms attach.
+    LeaTTa's ``toFloat?``-based ``floatUn`` and ``floatBin`` paths govern
+    sqrt, log, trig, and pow. Its ``powMath`` additionally limits an integer
+    exponent to signed i32 while permitting an unbounded Float exponent and
+    always returning Float. ``exp-math`` is covered separately by PeTTa's
+    existing real-valued doctrine because LeaTTa's floatUn table excludes it.
+    """
+    unary_pairs = {
+        "sqrt-math": (4, 2.0),
+        "sin-math": (0, 0.0),
+        "cos-math": (0, 1.0),
+        "tan-math": (0, 0.0),
+        "asin-math": (0, 0.0),
+        "acos-math": (1, 0.0),
+        "atan-math": (0, 0.0),
+    }
+    for operation, (integer, expected) in unary_pairs.items():
+        integer_answer = metta.run(f"!({operation} {integer})")[0][0].value
+        float_answer = metta.run(f"!({operation} {float(integer)})")[0][0].value
+        assert isinstance(integer_answer, float), operation
+        assert isinstance(float_answer, float), operation
+        assert integer_answer == float_answer == expected, operation
+
+    assert metta.run("!(log-math 10 100)")[0] == [2.0]
+    assert metta.run("!(log-math 10.0 100.0)")[0] == [2.0]
+    for integer_form, float_form in (
+        ("!(sqrt-math -1)", "!(sqrt-math -1.0)"),
+        ("!(log-math 10 -5)", "!(log-math 10.0 -5.0)"),
+        ("!(asin-math 2)", "!(asin-math 2.0)"),
+        ("!(acos-math 2)", "!(acos-math 2.0)"),
+    ):
+        integer_answer = metta.run(integer_form)[0][0].value
+        float_answer = metta.run(float_form)[0][0].value
+        assert math.isnan(integer_answer), integer_form
+        assert math.isnan(float_answer), float_form
+
+    assert metta.run("!(pow-math 2 3)")[0] == [8.0]
+    assert metta.run("!(pow-math 1 -2147483648)")[0] == [1.0]
+    assert metta.run("!(pow-math 1 2147483647)")[0] == [1.0]
+    assert metta.run("!(pow-math 0 -1)")[0] == [math.inf]
+    assert metta.run("!(pow-math 1 2147483648.0)")[0] == [1.0]
+    reason = "power argument is too big, try using float value"
+    for exponent in (2147483648, -2147483649):
+        answer = str(metta.run(f"!(pow-math 2 {exponent})")[0][0])
+        assert answer == f'(Error (pow-math 2 {exponent}) "{reason}")'
+
+    assert metta.run("!(exp-math 1)")[0] == metta.run("!(exp-math 1.0)")[0]
+
+
+def test_integer_division_past_binary64_saturates_instead_of_escaping(metta):
+    """A promoted power can still overflow before an integer division.
+
+    ``pow-math`` promotes its base to Float and saturates the result before
+    division sees it. Dividing that infinity by an integer remains infinity.
     """
     assert metta.run("!(/ (pow-math 10 400) 3)")[0] == [math.inf]
 
