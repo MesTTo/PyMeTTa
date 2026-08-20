@@ -14,7 +14,7 @@ Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=WORKTREE]
+    commit=c1eaa36c7a2089801fe9da3cbec3fc02833d66fe]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor]
