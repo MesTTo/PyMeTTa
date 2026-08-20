@@ -1,4 +1,5 @@
 """Purpose: declare value algebras and run their one generic tagged-rule form.
+
 Assumes:
   - facts and rules rest in a space as ordinary ``(fact tag proposition)``
     and ``(rule tag head (premises ...))`` atoms.
@@ -26,14 +27,14 @@ Guarantees:
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
-"""  # noqa: D205 -- the file contract is one continuous invariant
+"""
 
 from __future__ import annotations
 
 import itertools
 import math
 import random
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from numbers import Real
@@ -109,25 +110,30 @@ class Amplitude:
     real: Fraction
     imag: Fraction = Fraction(0)
 
-    def __init__(  # noqa: D107 -- the class documents its exact carrier
+    def __init__(
         self, real: int | Fraction, imag: int | Fraction = 0
     ) -> None:
+        """Store exact rational components."""
         object.__setattr__(self, "real", Fraction(real))
         object.__setattr__(self, "imag", Fraction(imag))
 
-    def __add__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
+    def __add__(self, other: Amplitude) -> Amplitude:
+        """Add two amplitudes exactly."""
         return Amplitude(self.real + other.real, self.imag + other.imag)
 
-    def __mul__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
+    def __mul__(self, other: Amplitude) -> Amplitude:
+        """Multiply two amplitudes exactly."""
         return Amplitude(
             self.real * other.real - self.imag * other.imag,
             self.real * other.imag + self.imag * other.real,
         )
 
-    def __neg__(self) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
+    def __neg__(self) -> Amplitude:
+        """Negate both exact components."""
         return Amplitude(-self.real, -self.imag)
 
-    def __complex__(self) -> complex:  # noqa: D105 -- Python's numeric protocol defines this public conversion
+    def __complex__(self) -> complex:
+        """Convert to Python's inexact complex carrier."""
         return complex(float(self.real), float(self.imag))
 
 
@@ -459,64 +465,102 @@ def _check_binary_closure(metta: MeTTa, declaration: DeclaredAlgebra) -> None:
                 raise AlgebraLawError(msg)
 
 
-def _check_law(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:  # noqa: C901 -- each branch is one named algebra equation kept beside its refusal
+def _check_associative(
+    metta: MeTTa,
+    declaration: DeclaredAlgebra,
+    law: str,
+    operation: Callable[[MeTTa, Atom, Atom], Atom],
+) -> None:
+    for a, b, c in itertools.product(declaration.carrier, repeat=3):
+        left = operation(metta, operation(metta, a, b), c)
+        right = operation(metta, a, operation(metta, b, c))
+        if not _same(left, right):
+            raise _counterexample(declaration, law, (a, b, c), left, right)
+
+
+def _check_commutative(
+    metta: MeTTa,
+    declaration: DeclaredAlgebra,
+    law: str,
+    operation: Callable[[MeTTa, Atom, Atom], Atom],
+) -> None:
+    for a, b in itertools.product(declaration.carrier, repeat=2):
+        left = operation(metta, a, b)
+        right = operation(metta, b, a)
+        if not _same(left, right):
+            raise _counterexample(declaration, law, (a, b), left, right)
+
+
+def _check_idempotent(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
+    for value in declaration.carrier:
+        result = declaration.combine_values(metta, value, value)
+        if not _same(result, value):
+            raise _counterexample(declaration, law, (value,), result, value)
+
+
+def _check_distributive(
+    metta: MeTTa, declaration: DeclaredAlgebra, law: str
+) -> None:
     combine = declaration.combine_values
     extend = declaration.extend_values
-    carrier = declaration.carrier
-    binary = combine if law.startswith("combine-") else extend
-    if law.endswith("-associative"):
-        for a, b, c in itertools.product(carrier, repeat=3):
-            left = binary(metta, binary(metta, a, b), c)
-            right = binary(metta, a, binary(metta, b, c))
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (a, b, c), left, right)
-        return
-    if law.endswith("-commutative"):
-        for a, b in itertools.product(carrier, repeat=2):
-            left = binary(metta, a, b)
-            right = binary(metta, b, a)
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (a, b), left, right)
-        return
-    if law == "combine-idempotent":
-        for value in carrier:
-            result = combine(metta, value, value)
-            if not _same(result, value):
-                raise _counterexample(declaration, law, (value,), result, value)
-        return
-    if law in {"left-distributive", "right-distributive"}:
-        for a, b, c in itertools.product(carrier, repeat=3):
-            if law == "left-distributive":
-                left = extend(metta, a, combine(metta, b, c))
-                right = combine(metta, extend(metta, a, b), extend(metta, a, c))
-            else:
-                left = extend(metta, combine(metta, a, b), c)
-                right = combine(metta, extend(metta, a, c), extend(metta, b, c))
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (a, b, c), left, right)
-        return
-    if law == "combine-zero-identity":
-        operation, identity = combine, declaration.zero
-    elif law == "extend-one-identity":
-        operation, identity = extend, declaration.one
-    elif law == "extend-zero-annihilates":
-        for value in carrier:
-            for left, right in (
-                (extend(metta, declaration.zero, value), declaration.zero),
-                (extend(metta, value, declaration.zero), declaration.zero),
-            ):
-                if not _same(left, right):
-                    raise _counterexample(declaration, law, (value,), left, right)
-        return
-    else:
-        return
-    for value in carrier:
+    for a, b, c in itertools.product(declaration.carrier, repeat=3):
+        if law == "left-distributive":
+            left = extend(metta, a, combine(metta, b, c))
+            right = combine(metta, extend(metta, a, b), extend(metta, a, c))
+        else:
+            left = extend(metta, combine(metta, a, b), c)
+            right = combine(metta, extend(metta, a, c), extend(metta, b, c))
+        if not _same(left, right):
+            raise _counterexample(declaration, law, (a, b, c), left, right)
+
+
+def _check_identity(
+    metta: MeTTa,
+    declaration: DeclaredAlgebra,
+    law: str,
+    operation: Callable[[MeTTa, Atom, Atom], Atom],
+    identity: Atom,
+) -> None:
+    for value in declaration.carrier:
         for left, right in (
             (operation(metta, identity, value), value),
             (operation(metta, value, identity), value),
         ):
             if not _same(left, right):
                 raise _counterexample(declaration, law, (value,), left, right)
+
+
+def _check_zero_annihilates(
+    metta: MeTTa, declaration: DeclaredAlgebra, law: str
+) -> None:
+    extend = declaration.extend_values
+    for value in declaration.carrier:
+        for left, right in (
+            (extend(metta, declaration.zero, value), declaration.zero),
+            (extend(metta, value, declaration.zero), declaration.zero),
+        ):
+            if not _same(left, right):
+                raise _counterexample(declaration, law, (value,), left, right)
+
+
+def _check_law(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
+    combine = declaration.combine_values
+    extend = declaration.extend_values
+    operation = combine if law.startswith("combine-") else extend
+    if law.endswith("-associative"):
+        _check_associative(metta, declaration, law, operation)
+    elif law.endswith("-commutative"):
+        _check_commutative(metta, declaration, law, operation)
+    elif law == "combine-idempotent":
+        _check_idempotent(metta, declaration, law)
+    elif law in {"left-distributive", "right-distributive"}:
+        _check_distributive(metta, declaration, law)
+    elif law == "combine-zero-identity":
+        _check_identity(metta, declaration, law, combine, declaration.zero)
+    elif law == "extend-one-identity":
+        _check_identity(metta, declaration, law, extend, declaration.one)
+    elif law == "extend-zero-annihilates":
+        _check_zero_annihilates(metta, declaration, law)
 
 
 def _validate_laws(metta: MeTTa, declaration: DeclaredAlgebra) -> None:

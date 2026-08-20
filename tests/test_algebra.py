@@ -1,8 +1,9 @@
 """Purpose: black-box acceptance tests for the P4.20 declared-algebra base.
+
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
     [tested: this module; commit=1822ca53390b180e622f262b766f224ae7a9278f]
-"""  # noqa: D205, D415 -- the file contract is one continuous invariant
+"""
 
 from __future__ import annotations
 
@@ -30,7 +31,8 @@ class _WeightedFacts(SpaceProvider):
         yield parse("(left a)")
         yield parse("(right b)")
 
-    def match(self, pattern, *, limit=None):  # noqa: ARG002 -- protocol shape under test
+    def match(self, pattern, *, limit=None):
+        del limit
         text = str(pattern)
         if text == "(left a)":
             yield Answer(value=parse("(left a)"), k=2)
