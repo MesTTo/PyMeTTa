@@ -1,22 +1,23 @@
 """Purpose: MeTTa.parallel, the Python spelling of the engine's hyperpose.
 Guarantees:
   - parallel answers the same set as the sequential superpose twin
-    [tested test_parallel_answers_the_same_set_as_superpose]
-  - branches really run concurrently, so N of them cost about one
-    [tested test_parallel_runs_branches_concurrently]
+    [tested: test_parallel_answers_the_same_set_as_superpose; commit=WORKTREE]
+  - branches really overlap at an in-branch rendezvous
+    [tested: test_parallel_runs_branches_concurrently; commit=WORKTREE]
   - the call takes a timeout and does not take an inference bound, because
     the engine's inference limit counts only the calling thread
-    [tested test_parallel_takes_a_timeout_and_has_no_inference_bound]
+    [tested: test_parallel_takes_a_timeout_and_has_no_inference_bound;
+    commit=WORKTREE]
   - a dual built for the first time by several threads at once is built ONCE,
     which is the property a check-then-act did not have
-    [tested test_a_dual_is_built_once_under_concurrency]
+    [tested: test_a_dual_is_built_once_under_concurrency; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-import time
+import threading
 
 import pytest
 
@@ -54,30 +55,24 @@ def test_parallel_without_targets_answers_nothing(metta):
 
 
 def test_parallel_runs_branches_concurrently(metta):
-    """The point of the method: four branches cost about one branch.
-
-    Wall clock is the only signal for parallelism, so the workload is sized
-    well above this box's timing noise and the margin is generous.
-    """
+    """Four branches must all enter a rendezvous before any can return."""
     with metta.new_space() as space:
-        space.run(SPIN)
-        branch = expr(S["par-spin"], 3_000_000)
+        rendezvous = threading.Barrier(4, timeout=15)
+        worker_threads: set[int] = set()
+        worker_threads_lock = threading.Lock()
 
-        start = time.perf_counter()
-        space.eval(branch)
-        one = time.perf_counter() - start
-        if one < 0.05:
-            pytest.skip(f"one branch took {one:.3f}s, too fast to time reliably")
+        @space.register_op(name="parallel-rendezvous", typed=False)
+        def meet(branch: int) -> int:
+            with worker_threads_lock:
+                worker_threads.add(threading.get_ident())
+            rendezvous.wait()
+            return branch
 
-        start = time.perf_counter()
-        answers = space.parallel(branch, branch, branch, branch)
-        concurrent = time.perf_counter() - start
+        branches = [expr(S["parallel-rendezvous"], branch) for branch in range(4)]
+        answers = space.parallel(*branches, timeout=20)
 
-        assert len(answers) == 4
-        assert concurrent < one * 2.5, (
-            f"four branches took {concurrent:.3f}s against {one:.3f}s for one, "
-            "which is sequential rather than concurrent"
-        )
+        assert sorted(int(answer.value) for answer in answers) == list(range(4))
+        assert len(worker_threads) == 4
 
 
 def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
