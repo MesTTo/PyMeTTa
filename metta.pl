@@ -3090,6 +3090,20 @@ petta_admission_check(Space, Term) :-
     ;   true
     ).
 
+%Whether admission has nothing to say about a space's writes, which is what
+%the bulk door asks before taking the one-crossing path: a pool's batch
+%degrades to per-atom adds so the wrapper above sees every atom. The bulk
+%door's own header cites the discipline (a multi-row INSERT still fires
+%per-row triggers), and before it asked, a pool at capacity 2 held five
+%atoms after a store-only batch landed behind the wrapper's back
+%[tested: a_batch_beyond_capacity_is_refused_like_lone_adds].
+petta_admission_idle(Space) :-
+    (   petta_admission_installed
+    ->  \+ petta_contract_fact([admits, Space, _]),
+        \+ petta_contract_fact([capacity, Space, _])
+    ;   true
+    ).
+
 :- multifile prolog:error_message//1.
 prolog:error_message(petta_bridge_cascade(Op)) -->
     [ 'a bridge cascade passed depth 32 at ~q: bridges firing bridges \c

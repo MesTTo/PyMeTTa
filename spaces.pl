@@ -1442,6 +1442,13 @@ foreign_write(Space, Capability, Goal) :-
 %trips and never commands.]
 metta_add_atoms(_, []) :- !.
 metta_add_atoms(Space, Terms) :-
+    %A pool is the other way an atom carries work: admission gates the
+    %write itself, so a space with an admits or capacity contract takes
+    %the per-atom door below, where the wrapper sees every atom. Both
+    %one-crossing clauses write behind that wrapper's back, the foreign
+    %one through the provider's own bulk door and the native one through
+    %add_sexp_in/4 [tested: a_batch_beyond_capacity_is_refused_like_lone_adds].
+    petta_admission_idle(Space),
     atoms_store_only(Terms),
     add_atoms_in_one_crossing(Space, Terms), !.
 metta_add_atoms(Space, Terms) :-
