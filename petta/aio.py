@@ -985,6 +985,21 @@ class AsyncMeTTa:
             )
         )
 
+    async def sample_rates(
+        self,
+        query: str | Atom,
+        *,
+        algebra: str,
+        draws: int,
+        seed: int,
+    ) -> tuple[Atom, ...]:
+        """Draw from declared rates on the owning engine thread."""
+        return await self.call(
+            lambda m: m.sample_rates(
+                query, algebra=algebra, draws=draws, seed=seed
+            )
+        )
+
     async def declare_capacity(self, name: str, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.declare_capacity(name, limit))
 

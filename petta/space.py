@@ -2649,6 +2649,19 @@ class MeTTa:
             self, query, algebra=algebra, max_rounds=max_rounds
         )
 
+    def sample_rates(
+        self,
+        query: str | Atom,
+        *,
+        algebra: str,
+        draws: int,
+        seed: int,
+    ) -> tuple[Atom, ...]:
+        """Select tagged alternatives by their nonnegative ``(rate n)`` tags."""
+        return _algebra.sample(
+            self, query, algebra=algebra, draws=draws, seed=seed
+        )
+
     def declare_source(
         self,
         name: str,

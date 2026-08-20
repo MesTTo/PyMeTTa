@@ -203,6 +203,7 @@ AlgebraOperationError = _algebra_api.AlgebraOperationError
 AlgebraRequirementError = _algebra_api.AlgebraRequirementError
 DeclaredAlgebra = _algebra_api.DeclaredAlgebra
 PlanDecision = _algebra_api.PlanDecision
+RateDeclarationError = _algebra_api.RateDeclarationError
 TaggedAnswer = _algebra_api.TaggedAnswer
 tagged_fact = _algebra_api.tagged_fact
 tagged_rule = _algebra_api.tagged_rule
@@ -339,6 +340,7 @@ __all__ = [
     "PettaError",
     "PlanDecision",
     "Prepared",
+    "RateDeclarationError",
     "Remover",
     "ResourceLimitError",
     "Row",

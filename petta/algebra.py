@@ -7,6 +7,10 @@ Guarantees:
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
     commit=496643acc4104702e76e7d325e9ffac8c0cc08c1]
+  - declared nonnegative rates drive an isolated seeded sampler without
+    changing ordinary queries [tested:
+    test_declared_rates_make_seeded_selection_match_their_distribution;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -15,11 +19,14 @@ Decides:
 from __future__ import annotations
 
 import itertools
+import math
+import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from numbers import Real
 from typing import TYPE_CHECKING, Any, Final
 
-from .atoms import Atom, Expr, Sym, Var, encode, parse, substitute, unify
+from .atoms import Atom, Expr, Gnd, Sym, Var, decode, encode, parse, substitute, unify
 from .errors import PettaError
 
 if TYPE_CHECKING:
@@ -34,9 +41,11 @@ __all__ = [
     "AlgebraRequirementError",
     "DeclaredAlgebra",
     "PlanDecision",
+    "RateDeclarationError",
     "TaggedAnswer",
     "declare",
     "evaluate",
+    "sample",
     "tagged_fact",
     "tagged_rule",
 ]
@@ -56,6 +65,10 @@ class AlgebraRequirementError(AlgebraDeclarationError):
 
 class AlgebraOperationError(PettaError):
     """A declared operation does not answer one value for two carrier values."""
+
+
+class RateDeclarationError(AlgebraDeclarationError):
+    """A rate is not a finite nonnegative real value."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -462,12 +475,14 @@ def declare(
 def tagged_fact(tag: Any, proposition: Any) -> Expr:
     """Build the normative stored form for one tagged fact."""
     tag_atom = encode(tag)
+    _validate_rate_tag(tag_atom)
     return Expr((Sym("fact"), tag_atom, encode(proposition)))
 
 
 def tagged_rule(tag: Any, head: Any, *premises: Any) -> Expr:
     """Build the once-ever algebra-agnostic threading form for one rule."""
     tag_atom = encode(tag)
+    _validate_rate_tag(tag_atom)
     return Expr(
         (
             Sym("rule"),
@@ -652,3 +667,58 @@ def evaluate(
 
 class AlgebraEvaluationError(PettaError):
     """A tagged program exceeded its declared finite evaluation boundary."""
+
+
+def _rate(tag: Atom) -> float:
+    value: Any = tag
+    if _head(tag, "rate", 2):
+        assert isinstance(tag, Expr)
+        value = tag.children[1]
+    if isinstance(value, Gnd):
+        value = decode(value)
+    if isinstance(value, bool) or not isinstance(value, Real):
+        msg = f"rate_not_numeric({tag})"
+        raise RateDeclarationError(msg)
+    numeric = float(value)
+    if numeric < 0 or not math.isfinite(numeric):
+        msg = f"negative_or_nonfinite_rate({tag})"
+        raise RateDeclarationError(msg)
+    return numeric
+
+
+def _validate_rate_tag(tag: Atom) -> None:
+    if _head(tag, "rate"):
+        _rate(tag)
+
+
+def sample(
+    metta: MeTTa,
+    query: str | Atom,
+    *,
+    algebra: str,
+    draws: int,
+    seed: int,
+) -> tuple[Atom, ...]:
+    """Draw a stable cumulative rate selection using isolated seeded state."""
+    if isinstance(draws, bool) or not isinstance(draws, int) or draws < 0:
+        msg = "draws must be a nonnegative integer"
+        raise ValueError(msg)
+    evaluation = evaluate(metta, query, algebra=algebra)
+    weighted = [(answer, _rate(answer.tag)) for answer in evaluation.answers]
+    total = math.fsum(rate for _, rate in weighted)
+    if not math.isfinite(total):
+        msg = f"rate_total_nonfinite({algebra})"
+        raise RateDeclarationError(msg)
+    if total <= 0:
+        return ()
+    generator = random.Random(seed)  # noqa: S311 -- reproducible simulation, not security
+    selected: list[Atom] = []
+    for _ in range(draws):
+        threshold = generator.random() * total
+        cumulative = 0.0
+        for answer, rate in weighted:
+            cumulative += rate
+            if threshold < cumulative:
+                selected.append(answer.value)
+                break
+    return tuple(selected)
