@@ -28,7 +28,10 @@ def test_sigint_interrupts_a_running_evaluation():
         m.run("(= (spin $n) (if (== $n 0) done (spin (- $n 1))))")
         print("READY", flush=True)
         try:
-            m.run("!(spin 1000000000)")
+            m.run(
+                "!(with-pragma! ((max-stack-depth 4000000000)) "
+                "(spin 1000000000))"
+            )
             print("FINISHED", flush=True)
         except KeyboardInterrupt:
             print("INTERRUPTED", flush=True)

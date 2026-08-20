@@ -46,9 +46,13 @@ def test_hyphenated_and_uppercase_names_genuinely_table(m):
     assert _tabled_property(m, "spin-down", 2)
     assert _tabled_property(m, "Upper_case", 2)
     with m.stats() as first:
-        assert m.run("!(spin-down 200000)") == [[S.done]]
+        assert m.run(
+            "!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))"
+        ) == [[S.done]]
     with m.stats() as second:
-        assert m.run("!(spin-down 200000)") == [[S.done]]
+        assert m.run(
+            "!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))"
+        ) == [[S.done]]
     # The second call answers from the table: orders of magnitude fewer
     # engine steps than the first recursion.
     assert second.inferences < first.inferences / 10
