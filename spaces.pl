@@ -1,5 +1,6 @@
-% Purpose: store MeTTa atoms, compile equations into per-space modules, and
-%   route matching to native and foreign space providers.
+% Purpose: store MeTTa atoms, compile equations into per-space modules,
+%   route matching to native and foreign space providers, and validate
+%   '&petta' declarations against the self-describing catalog.
 % Assumes:
 %   - the removal funnel takes a space NAME rather than a handle, so
 %     metta_remove_atom/3, unstore_atom/3 and remove_equation/6 each take an
@@ -29,6 +30,10 @@
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
 %     [tested 2026-08-14: spaces_arbitrary_atoms].
+%   - A '&petta' declaration violating its declared (kind ...) row is a hard
+%     error at both write doors, naming the atom, the argument position and
+%     the argspec; a head with no kind row passes untouched
+%     [tested 2026-08-20: catalog_self_description].
 %   - A selective native match is one indexed probe rather than a scan, and
 %     the acyclic guard does not change that because it runs on the answer
 %     [tested 2026-08-18:
@@ -173,12 +178,14 @@ add_sexp('&self', Term, Ref) :- !, add_sexp_in('$petta_atoms:&self', '&self', Te
 %inside the shared funnel taxed every write (+26k on source-load's
 %counter, caught by the gate).
 add_sexp('&petta', Term, Ref) :- !,
+    petta_declaration_check(Term),
     (   Term = [_|Args]
     ->  petta_note_ctx_declared(Args)
     ;   true
     ),
     ensure_native_storage_module('&petta', Module),
-    add_sexp_in(Module, '&petta', Term, Ref).
+    add_sexp_in(Module, '&petta', Term, Ref),
+    petta_catalog_note_added(Term).
 add_sexp(Space, Term, Ref) :- ensure_native_storage_module(Space, Module),
                               add_sexp_in(Module, Space, Term, Ref).
 
@@ -220,6 +227,340 @@ add_sexp_in(Module, Space, [Rel|Args], Ref) :- !,
 %call reaches.
 add_sexp_in(Module, _, Atom, Ref) :-
     assertz(Module:'$petta_native_scalar'(Atom), Ref).
+
+%%%% The catalog describes its own kinds %%%%
+%
+%Three declaration heads make the catalog self-describing, themselves
+%ordinary '&petta' atoms a program can match and remove:
+%
+%    (vocabulary Name Value...)       a named value set, every value a symbol
+%    (claim Vocab Value Property...)  properties of one value, read where a
+%                                     consultation site needs a per-value fact
+%                                     rather than a list compiled into the
+%                                     engine
+%    (kind Head ArgSpec...)           the positional shape of every (Head ...)
+%                                     declaration
+%
+%An argspec is symbol, integer, pattern, term, (one-of Vocab),
+%(optional Spec) in the tail only, or (rest Spec) in final position matching
+%zero or more. pattern and term both admit any term; the two names keep a
+%kind's row readable, a pattern is matched against queries and a term is
+%carried.
+%
+%The checker runs at the two doors every native '&petta' write passes, the
+%per-atom funnel above and the bulk door below. A head with a declared kind
+%is validated positionally, and a violation is a hard error naming the atom,
+%the argument position and the argspec it missed, where the old behaviour
+%was an atom that silently never matched its consultation site. A head with
+%NO declared kind passes untouched, which is what keeps the data axis open:
+%a third-party declaration kind is atoms here first, schema-checked only
+%once its author declares a kind row for it. The shape is PostgreSQL's: enum
+%values are catalog rows and a write validates against the catalog, not
+%against a list compiled into the server [source: PostgreSQL documentation,
+%8.7 Enumerated Types]. Removal is monotone-conservative, the
+%petta_ctx_declared rule: a removed kind row means later adds of that head
+%pass unchecked, and remove-then-redeclare, even WIDER than the shipped
+%preset, is how a program deliberately loosens a shipped kind.
+%
+%Self-description bootstraps by declaration order: the presets below add the
+%vocabularies first, then (kind kind ...) while no kind row exists yet, so
+%it enters unchecked, and from that atom on every (kind ...) add is
+%validated against it, its argspecs walked by the same checker that walks
+%any other declaration.
+petta_declaration_check(Term) :-
+    Term = [Head|Args],
+    atom(Head),
+    petta_kind_spec(Head, Spec),
+    !,
+    petta_check_positions(Args, Spec, 1, Term),
+    petta_check_catalog_semantics(Head, Args, Term).
+petta_declaration_check(_).
+
+%A landed catalog row must beat any negative cache row for its subject:
+%the positive rows self-heal through their stored reference, the negative
+%ones have nothing to watch, so the write funnel retracts them here.
+petta_catalog_note_added([kind, Head|_]) :-
+    !,
+    retractall(petta_kind_cache(Head, _, _)).
+petta_catalog_note_added([vocabulary, Vocab|_]) :-
+    !,
+    retractall(petta_vocab_cache(Vocab, _, _)).
+petta_catalog_note_added(_).
+
+%One catalog row as a list, whatever its arity: '&petta'(kind, handles,
+%symbol, ...) reads back as [kind, handles, symbol, ...]. The walk over the
+%arities the storage module holds runs on catalog edits and cache misses,
+%never on a match path and never on the per-write fast path below.
+petta_catalog_row(Row) :-
+    petta_catalog_clause(Row, _).
+
+petta_catalog_clause([Rel|Args], Ref) :-
+    native_storage_module('&petta', Module),
+    current_predicate(Module:'&petta'/N),
+    N >= 1,
+    functor(Goal, '&petta', N),
+    Goal =.. ['&petta', Rel|Args],
+    clause(Module:Goal, true, Ref).
+
+%The write-path cache. The checker runs on every '&petta' write, and the
+%uncached lookup walks current_predicate over the storage arities, which
+%cost register-op +2,302 inferences and made its samples drift as the
+%bench's own writes created new arities [measured 2026-08-20: 42,632 to
+%44,934..46,707]. One first-arg-indexed row per head fixes both. A hit
+%carries the catalog clause's reference and revalidates with erased/1, so
+%removing a kind or vocabulary row self-heals on the next lookup with no
+%hook in the removal path; a miss is cached as a negative row, which the
+%write funnel retracts when a row for that head lands. Cache writes inside
+%a transaction roll back with the catalog writes they mirror, so the two
+%cannot part ways.
+:- dynamic petta_kind_cache/3.    %Head, Spec | none, ref(Ref) | none
+:- dynamic petta_vocab_cache/3.   %Vocab, Values | none, ref(Ref) | none
+
+petta_kind_spec(Head, Spec) :-
+    (   petta_kind_cache(Head, Spec0, Validity)
+    ->  (   Validity = ref(Ref)
+        ->  (   petta_catalog_ref_erased(Ref)
+            ->  retractall(petta_kind_cache(Head, _, _)),
+                petta_kind_spec_fresh(Head, Spec)
+            ;   Spec = Spec0
+            )
+        ;   fail
+        )
+    ;   petta_kind_spec_fresh(Head, Spec)
+    ).
+
+%A reference whose clause is gone, by property or by the reference itself
+%having been collected, either way the cached row is stale.
+petta_catalog_ref_erased(Ref) :-
+    catch(clause_property(Ref, erased), _, true).
+
+petta_kind_spec_fresh(Head, Spec) :-
+    (   petta_catalog_clause([kind, Head|Fresh], Ref)
+    ->  assertz(petta_kind_cache(Head, Fresh, ref(Ref))),
+        Spec = Fresh
+    ;   assertz(petta_kind_cache(Head, none, none)),
+        fail
+    ).
+
+petta_vocabulary_values(Vocab, Values) :-
+    (   petta_vocab_cache(Vocab, Values0, Validity)
+    ->  (   Validity = ref(Ref)
+        ->  (   petta_catalog_ref_erased(Ref)
+            ->  retractall(petta_vocab_cache(Vocab, _, _)),
+                petta_vocabulary_values_fresh(Vocab, Values)
+            ;   Values = Values0
+            )
+        ;   fail
+        )
+    ;   petta_vocabulary_values_fresh(Vocab, Values)
+    ).
+
+petta_vocabulary_values_fresh(Vocab, Values) :-
+    (   petta_catalog_clause([vocabulary, Vocab|Fresh], Ref)
+    ->  assertz(petta_vocab_cache(Vocab, Fresh, ref(Ref))),
+        Values = Fresh
+    ;   assertz(petta_vocab_cache(Vocab, none, none)),
+        fail
+    ).
+
+%The positional walk. Position counts declaration arguments from 1, the way
+%the refusal prints them; the Expected a refusal carries is the argspec as
+%declared, so the message shows the row's own words.
+petta_check_positions([], [], _, _) :- !.
+petta_check_positions([], [Spec|Rest], Position, Term) :-
+    !,
+    (   forall(member(S, [Spec|Rest]), petta_spec_omittable(S))
+    ->  true
+    ;   petta_declaration_refused(Term, Position, Spec)
+    ).
+petta_check_positions([_|_], [], Position, Term) :-
+    !,
+    petta_declaration_refused(Term, Position, 'no further argument').
+petta_check_positions(Args, [[rest, Spec]], Position, Term) :-
+    !,
+    petta_check_rest(Args, Spec, Position, Term).
+petta_check_positions([Arg|Args], [[optional, Spec]|Rest], Position, Term) :-
+    !,
+    petta_check_value(Arg, Spec, Position, Term),
+    Next is Position + 1,
+    petta_check_positions(Args, Rest, Next, Term).
+petta_check_positions([Arg|Args], [Spec|Rest], Position, Term) :-
+    petta_check_value(Arg, Spec, Position, Term),
+    Next is Position + 1,
+    petta_check_positions(Args, Rest, Next, Term).
+
+petta_check_rest([], _, _, _).
+petta_check_rest([Arg|Args], Spec, Position, Term) :-
+    petta_check_value(Arg, Spec, Position, Term),
+    Next is Position + 1,
+    petta_check_rest(Args, Spec, Next, Term).
+
+petta_spec_omittable([optional, _]).
+petta_spec_omittable([rest, _]).
+
+petta_check_value(Arg, symbol, Position, Term) :-
+    !,
+    (   atom(Arg) -> true ; petta_declaration_refused(Term, Position, symbol) ).
+petta_check_value(Arg, integer, Position, Term) :-
+    !,
+    (   integer(Arg) -> true ; petta_declaration_refused(Term, Position, integer) ).
+petta_check_value(_, pattern, _, _) :- !.
+petta_check_value(_, term, _, _) :- !.
+petta_check_value(Arg, ['one-of', Vocab], Position, Term) :-
+    !,
+    (   atom(Arg),
+        petta_vocabulary_values(Vocab, Values),
+        memberchk(Arg, Values)
+    ->  true
+    ;   petta_declaration_refused(Term, Position, ['one-of', Vocab])
+    ).
+petta_check_value(_, Spec, Position, Term) :-
+    petta_declaration_refused(Term, Position, Spec).
+
+%kind and claim rows carry meaning past their shape, and the checker owns
+%their language, so their adds get the deeper walk: a kind's argspecs must
+%be well-formed with optional confined to the tail and rest final, and a
+%claim must name a declared vocabulary and one of its values. Everything
+%else was already covered by the positional walk.
+petta_check_catalog_semantics(kind, [KindHead|Spec], Term) :-
+    !,
+    (   petta_kind_spec(KindHead, _)
+    ->  petta_declaration_refused(Term, 1,
+                                  'one kind row per head; remove the old row first')
+    ;   true
+    ),
+    petta_check_argspecs(Spec, 2, Term).
+petta_check_catalog_semantics(vocabulary, [Name|_], Term) :-
+    !,
+    (   petta_vocabulary_values(Name, _)
+    ->  petta_declaration_refused(Term, 1,
+                                  'one vocabulary row per name; remove the old row first')
+    ;   true
+    ).
+petta_check_catalog_semantics(claim, [Vocab, Value|_], Term) :-
+    !,
+    (   petta_vocabulary_values(Vocab, Values)
+    ->  (   memberchk(Value, Values)
+        ->  true
+        ;   petta_declaration_refused(Term, 2, 'a value of the vocabulary')
+        )
+    ;   petta_declaration_refused(Term, 1, 'a declared vocabulary')
+    ).
+petta_check_catalog_semantics(_, _, _).
+
+petta_check_argspecs([], _, _).
+petta_check_argspecs([Spec|Rest], Position, Term) :-
+    petta_check_argspec_form(Spec, Position, Term),
+    (   Spec = [rest, _], Rest \== []
+    ->  petta_declaration_refused(Term, Position, 'rest only in final position')
+    ;   Spec = [optional, _], Rest = [NextSpec|_], \+ petta_spec_omittable(NextSpec)
+    ->  petta_declaration_refused(Term, Position, 'optional only in the tail')
+    ;   true
+    ),
+    Next is Position + 1,
+    petta_check_argspecs(Rest, Next, Term).
+
+petta_check_argspec_form(symbol, _, _) :- !.
+petta_check_argspec_form(integer, _, _) :- !.
+petta_check_argspec_form(pattern, _, _) :- !.
+petta_check_argspec_form(term, _, _) :- !.
+petta_check_argspec_form(['one-of', Vocab], Position, Term) :-
+    !,
+    (   atom(Vocab),
+        petta_vocabulary_values(Vocab, _)
+    ->  true
+    ;   petta_declaration_refused(Term, Position,
+                                  'a vocabulary declared before the kind that names it')
+    ).
+petta_check_argspec_form([optional, Spec], Position, Term) :-
+    !,
+    petta_check_argspec_form(Spec, Position, Term).
+petta_check_argspec_form([rest, Spec], Position, Term) :-
+    !,
+    petta_check_argspec_form(Spec, Position, Term).
+petta_check_argspec_form(_, Position, Term) :-
+    petta_declaration_refused(Term, Position, 'an argspec').
+
+petta_declaration_refused(Term, Position, Expected) :-
+    throw(error(petta_declaration_malformed(Term, Position, Expected), none)).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_declaration_malformed(Term, Position, Expected)) -->
+    { Term = [Head|_],
+      swrite(Term, TermText),
+      (   is_list(Expected)
+      ->  swrite(Expected, ExpectedText)
+      ;   ExpectedText = Expected
+      ) },
+    [ 'the declaration ~w does not fit its declared kind: argument ~w \c
+       expects ~w. Match (kind ~w $spec) in &petta to read the declared \c
+       shape, or remove the kind row and re-declare it to widen the \c
+       kind'-[TermText, Position, ExpectedText, Head] ].
+
+%The shipped catalog, as data. Every row becomes an ordinary '&petta' atom
+%when the directive below runs, matchable and removable like any other.
+%Vocabularies come first; (kind kind ...) enters while no kind row exists
+%to check it; every later row is validated by the self-description already
+%in place, claims last so their kind row checks them. The value sets are
+%exactly what the engine's consultation sites act on today, strict by
+%design: a value no site acts on would pass the checker only to sit
+%silently inert, the failure mode this catalog exists to make loud.
+petta_catalog_preset([vocabulary, fidelity, 'Exact', 'Partial', 'Sound', 'Refuse']).
+petta_catalog_preset([vocabulary, determinism, det, semidet, nondet]).
+petta_catalog_preset([vocabulary, 'on-error-mode', keep, empty, abort]).
+petta_catalog_preset([vocabulary, 'answer-policy', depth, fair, 'best-first']).
+petta_catalog_preset([vocabulary, semiring, bool, bag, set, ranked, prob, prov]).
+petta_catalog_preset([vocabulary, 'source-kind', linear, repeated, peek]).
+petta_catalog_preset([vocabulary, world, 'closed-world', 'open-world']).
+petta_catalog_preset([vocabulary, atomicity,
+                      transactional, 'atomic-single', 'best-effort']).
+petta_catalog_preset([vocabulary, 'cache-mode', unchecked]).
+petta_catalog_preset([vocabulary, 'effect-class', immutable]).
+petta_catalog_preset([vocabulary, 'op-kind', det, many, raw_det, raw_many]).
+petta_catalog_preset([vocabulary, 'subscription-edge', add, remove, both]).
+petta_catalog_preset([vocabulary, volatility, volatile, stable, immutable]).
+petta_catalog_preset([kind, kind, symbol, [rest, term]]).
+petta_catalog_preset([kind, vocabulary, symbol, [rest, symbol]]).
+petta_catalog_preset([kind, claim, symbol, symbol, [rest, symbol]]).
+petta_catalog_preset([kind, handles, symbol, pattern, ['one-of', fidelity],
+                      [optional, ['one-of', determinism]]]).
+petta_catalog_preset([kind, 'on-error', symbol, pattern,
+                      ['one-of', 'on-error-mode']]).
+petta_catalog_preset([kind, merge, pattern, ['one-of', 'answer-policy']]).
+petta_catalog_preset([kind, annotations, symbol, ['one-of', semiring]]).
+petta_catalog_preset([kind, source, symbol, ['one-of', 'source-kind']]).
+petta_catalog_preset([kind, context, symbol, ['one-of', world]]).
+petta_catalog_preset([kind, admits, symbol, term]).
+petta_catalog_preset([kind, capacity, symbol, integer]).
+petta_catalog_preset([kind, writes, symbol, ['one-of', atomicity]]).
+petta_catalog_preset([kind, emits, symbol, ['one-of', 'answer-policy']]).
+petta_catalog_preset([kind, cache, symbol, ['one-of', 'cache-mode']]).
+petta_catalog_preset([kind, effect, symbol, ['one-of', 'effect-class']]).
+petta_catalog_preset([kind, inverse, symbol]).
+petta_catalog_preset([kind, op, symbol, integer, ['one-of', 'op-kind']]).
+petta_catalog_preset([kind, on, symbol, pattern, term]).
+petta_catalog_preset([kind, tabled, symbol, symbol, integer]).
+petta_catalog_preset([kind, defined, symbol, symbol]).
+petta_catalog_preset([kind, subscription, symbol, pattern,
+                      ['one-of', 'subscription-edge']]).
+petta_catalog_preset([claim, semiring, ranked, ordered]).
+petta_catalog_preset([claim, semiring, prob, ordered]).
+
+%Presets land only where their subject has no row yet, which makes the
+%directive reconsult-idempotent (a re-consulted engine meets its own rows
+%and the duplicate refusal must not fire) and keeps a program's own
+%remove-then-redeclare widening standing across an engine reload.
+petta_catalog_preset_missing([kind, Head|_]) :-
+    !,
+    \+ petta_kind_spec(Head, _).
+petta_catalog_preset_missing([vocabulary, Name|_]) :-
+    !,
+    \+ petta_vocabulary_values(Name, _).
+petta_catalog_preset_missing(Atom) :-
+    \+ petta_catalog_row(Atom).
+
+:- forall(( petta_catalog_preset(Atom), petta_catalog_preset_missing(Atom) ),
+          add_sexp('&petta', Atom, _)).
 
 %The inverse of add_sexp_in/4, written here beside it for the same reason
 %metta_module_space/2 is written beside space_module/2: the mapping is
@@ -837,19 +1178,26 @@ add_atoms_in_one_crossing(Space, Terms) :-
 add_atoms_in_one_crossing(Space, Terms) :-
     metta_add_hooks_idle(Space),
     ensure_native_storage_module(Space, Storage),
-    %The bulk door notes contract subjects exactly as the per-atom door
-    %does, once per batch head test rather than per space test per atom.
+    %The bulk door checks and notes contract subjects exactly as the
+    %per-atom door does, once per batch head test rather than per space
+    %test per atom; the whole batch is checked before any of it lands.
     (   Space == '&petta'
     ->  forall(member(Decl, Terms),
-               (   Decl = [_|Args]
-               ->  petta_note_ctx_declared(Args)
-               ;   true
+               (   petta_declaration_check(Decl),
+                   (   Decl = [_|Args]
+                   ->  petta_note_ctx_declared(Args)
+                   ;   true
+                   )
                ))
     ;   true
     ),
     forall(member(Term, Terms),
            ( add_sexp_in(Storage, Space, Term, Ref),
-             record_source_assertion(Ref) )).
+             record_source_assertion(Ref) )),
+    (   Space == '&petta'
+    ->  forall(member(Term, Terms), petta_catalog_note_added(Term))
+    ;   true
+    ).
 
 %Compile and register a dynamic equation as one database transaction. A
 %translation or change-hook error therefore leaves no stored atom, function
