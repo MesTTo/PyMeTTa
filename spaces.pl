@@ -1810,6 +1810,9 @@ metta_space_expression(Operation, Terms, _) :-
 %all handled by the code that owns them.
 
 %% metta_remove_atom(+Space:atom, ?Atom, -Removed:boolean) is semidet.
+metta_remove_atom(Space, _, _) :-
+    metta_refuse_module_for_space(Space, metta_remove_atom/3),
+    fail.
 metta_remove_atom(Space, Term, Removed) :- var(Term), !,
     findall(A, 'get-atoms'(Space, A), Atoms),
     (   Atoms == []
@@ -2952,8 +2955,29 @@ compiled_half_atom(Space, Module, [':', F, Type]) :-
 %[tested: spaces_storage_modules:reading_atoms_requires_a_named_space].
 get_native_atom(Space, Pattern) :-
     ( var(Space) -> instantiation_error(Space) ; true ),
+    metta_refuse_module_for_space(Space, get_native_atom/2),
     native_storage_module_ready(Space, Module),
     get_native_atom(Module, Space, Pattern).
+
+%The mirror of with_metta_module/2's refusal, at the space-name doors: a
+%space MODULE handed where a NAME is wanted read exactly like a miss, the
+%store answering "not held" with no type error, so a wrong-argument call
+%was indistinguishable from absence and a plt cleanup once removed nothing
+%from four of five cases in silence. One prefix probe turns it into a
+%refusal at the door
+%[tested: test_a_module_where_a_space_name_is_wanted_refuses_by_name].
+metta_refuse_module_for_space(Space, Door) :-
+    (   atom(Space),
+        metta_exec_module_prefix(Prefix),
+        sub_atom(Space, 0, _, _, Prefix)
+    ->  throw(error(type_error(metta_space_name, Space),
+                    context(Door,
+                            'a space MODULE arrived where a space NAME is \c
+                             wanted; a space is named by its own atom and \c
+                             space_module/2 maps it to this module, not \c
+                             back')))
+    ;   true
+    ).
 
 get_native_atom(Module, Space, Pattern) :-
     current_predicate(Module:Space/Arity),
