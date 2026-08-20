@@ -764,3 +764,57 @@ def test_define_needs_a_function_or_prolog_and_then_one(m):
     with pytest.raises(TypeError, match="takes a function"):
         m.define()
 
+
+
+# The space-hook door and the define door compose (P12.3). A hook body is
+# arbitrary MeTTa, and the Python that @m.define compiles participates on
+# both sides of a verdict: a comparison the engine evaluates decides
+# admission, and a constructor-minting transform names the granted form.
+# The mechanism itself is tested in tests/prolog/hooks.plt; this witnesses
+# that "write the policy in Python" is registration plus the existing door,
+# not a second mechanism.
+def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):
+    @m.define
+    def budget_allows(count):
+        return count * 2 <= 6
+
+    @m.define
+    def stamp(item):
+        return Stamped(item)  # noqa: F821  constructor convention
+
+    m.run(
+        '(= (p12-witness-guard (secret $x))'
+        ' (refuse "a python-compiled policy refuses secrets"))'
+    )
+    m.run("(= (p12-witness-guard (raw $x)) (accept (stamp $x)))")
+    m.run(
+        "(= (p12-witness-guard (count $n))"
+        ' (if (budget_allows $n) (accept) (refuse "the python budget said no")))'
+    )
+    m.run("!(declare-pre-add! &p12-witness-pool p12-witness-guard)")
+    try:
+        # The granted form is the Python transform's constructor, not the
+        # offered atom.
+        m.run("!(add-atom &p12-witness-pool (raw 7))")
+        assert m.run("!(match &p12-witness-pool (Stamped $x) $x)") == [[7]]
+        assert (
+            m.run("!(collapse (match &p12-witness-pool (raw $x) $x))")
+            == [[expr()]]
+        )
+
+        # The Python comparison decides admission in both directions.
+        m.run("!(add-atom &p12-witness-pool (count 3))")
+        assert m.run("!(match &p12-witness-pool (count $n) $n)") == [[3]]
+        with pytest.raises(EngineError, match="the python budget said no"):
+            m.run("!(add-atom &p12-witness-pool (count 4))")
+        assert m.run("!(match &p12-witness-pool (count $n) $n)") == [[3]]
+
+        # A refusal carries the handler's own sentence to the Python caller.
+        with pytest.raises(EngineError, match="refuses secrets"):
+            m.run("!(add-atom &p12-witness-pool (secret 1))")
+        assert (
+            m.run("!(collapse (match &p12-witness-pool (secret $x) $x))")
+            == [[expr()]]
+        )
+    finally:
+        m.run("!(undeclare-pre-add! &p12-witness-pool)")
