@@ -19,7 +19,7 @@ Guarantees:
     callable objects, classify generators and refuse coroutine functions
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
-    commit=9b1b808f6b8d8aa6a8080c13092fa73ce7893aaa]
+    commit=WORKTREE]
   - every documented operation owns its portable @doc atom in the
     declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:
@@ -71,6 +71,11 @@ from ._type_annotations import (
     callable_name as _callable_name,
 )
 from .atoms import Atom, Expr, S, Sym, _to_atom, expr
+
+_CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
+_CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
+_CO_ITERABLE_COROUTINE = getattr(inspect, "CO_ITERABLE_COROUTINE", 0x0100)
+_CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
 
 __all__ = [
     "REFLECTION_SPACE",
@@ -349,22 +354,22 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
     code = _callable_code(fn)
     flags = code.co_flags if code is not None else 0
     name = _callable_name(fn)
-    if flags & inspect.CO_ASYNC_GENERATOR:
+    if flags & _CO_ASYNC_GENERATOR:
         raise TypeError(
             f"cannot register {name}: an async-generator function cannot run "
             "through synchronous register_op"
         )
-    if flags & inspect.CO_COROUTINE:
+    if flags & _CO_COROUTINE:
         raise TypeError(
             f"cannot register {name}: a coroutine function cannot run through "
             "synchronous register_op"
         )
-    if flags & inspect.CO_ITERABLE_COROUTINE:
+    if flags & _CO_ITERABLE_COROUTINE:
         raise TypeError(
             f"cannot register {name}: a generator-based coroutine cannot run "
             "through synchronous register_op"
         )
-    many = bool(flags & inspect.CO_GENERATOR)
+    many = bool(flags & _CO_GENERATOR)
     return {
         (False, False): "det",
         (False, True): "many",

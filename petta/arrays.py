@@ -19,7 +19,7 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+     commit=WORKTREE]
   - array transport and Atom-delivery choices use the same declaration
     surface as every registered operation [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -39,7 +39,7 @@ import importlib
 import itertools
 import operator
 import threading
-from typing import Any, Final, Literal, NewType
+from typing import Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
 from ._ops import REGISTRY
@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 ARRAY_OPS: list[str] = []
-DLTensor = NewType("DLTensor", Any)  # type: ignore[valid-newtype]
+DLTensor = NewType("DLTensor", Any)  # type: ignore[valid-newtype]  # ty: ignore[invalid-newtype]
 _PROTOCOLS_REGISTERED = threading.Event()
 _PROTOCOLS_LOCK = threading.Lock()
 
@@ -425,7 +425,7 @@ def install(m, default: Any = None) -> list[str]:
         return namespace_of(a).squeeze(a, axis=int(dimension))
 
     def tensor_index(a: DLTensor, index: int) -> Any:
-        return a[int(index)]
+        return cast(Any, a)[int(index)]
 
     op(reshape, name="reshape", arities=[2, 3, 4, 5])
     op(transpose, name="t-transpose")
@@ -472,7 +472,7 @@ def install(m, default: Any = None) -> list[str]:
     def argmax(a: DLTensor, dim: int = -1) -> Any:
         xp = namespace_of(a)
         out = xp.argmax(a, axis=int(dim))
-        return int(out) if a.ndim <= 1 else out
+        return int(out) if cast(Any, a).ndim <= 1 else out
 
     def tensor_norm(a: DLTensor) -> Any:
         return namespace_of(a).linalg.vector_norm(a)
@@ -484,11 +484,12 @@ def install(m, default: Any = None) -> list[str]:
 
     def relu(a: DLTensor) -> DLTensor:
         xp = namespace_of(a)
-        return xp.where(a > 0, a, xp.zeros_like(a))
+        raw = cast(Any, a)
+        return xp.where(raw > 0, raw, xp.zeros_like(raw))
 
     def sigmoid(a: DLTensor) -> DLTensor:
         xp = namespace_of(a)
-        return 1.0 / (1.0 + xp.exp(-a))
+        return 1.0 / (1.0 + xp.exp(-cast(Any, a)))
 
     def softmax(a: DLTensor, dim: int = -1) -> DLTensor:
         xp = namespace_of(a)
@@ -513,20 +514,20 @@ def install(m, default: Any = None) -> list[str]:
     op(item, name="t-item")
 
     def tolist(a: DLTensor) -> Any:
-        data = decode(a) if isinstance(a, Atom) else a
+        data: Any = decode(a) if isinstance(a, Atom) else a
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
         return expr(*listed) if isinstance(listed, list) else listed
 
     op(tolist, name="t-tolist", transport="encoded")
 
     def shape(a: DLTensor) -> Expr:
-        data = decode(a) if isinstance(a, Atom) else a
+        data: Any = decode(a) if isinstance(a, Atom) else a
         return expr(*[int(dimension) for dimension in data.shape])
 
     op(shape, name="t-shape", transport="encoded")
 
     def dtype(a: DLTensor) -> str:
-        return str(a.dtype)
+        return str(cast(Any, a).dtype)
 
     def device(a: DLTensor) -> str:
         return str(_compat().device(a))

@@ -38,7 +38,7 @@ Guarantees:
   - __metta__ is discovered on the class, so instance fallback and properties
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
+     commit=WORKTREE]
   - Box publishes its transport value through the reserved
     __petta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
@@ -1230,7 +1230,8 @@ def explicit_metta_atom(value: Any) -> Atom | None:
     descriptor = inspect.getattr_static(cls, "__metta__", None)
     if descriptor is None or isinstance(descriptor, property):
         return None
-    hook = descriptor.__get__(value, cls) if hasattr(descriptor, "__get__") else descriptor
+    getter = getattr(descriptor, "__get__", None)
+    hook = getter(value, cls) if getter is not None else descriptor
     if not callable(hook):
         raise TypeError(f"__metta__ on {cls.__name__} is not callable")
     result = hook()

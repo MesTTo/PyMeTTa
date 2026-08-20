@@ -7,11 +7,11 @@ Guarantees:
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
-     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+     commit=WORKTREE]
   - source spans, AST documentation, free variables, and derived purity
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    commit=WORKTREE]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -249,7 +249,7 @@ def _store_clause(
             space.remove(atom)
     added: list[Expr] = []
     try:
-        for atom in [*compiled.aux, equation]:
+        for atom in (*compiled.aux, equation):
             space.add(atom)
             added.append(atom)
     except BaseException:
@@ -472,10 +472,10 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
-        assert replaced is not None
+        if replaced is None:
+            raise RuntimeError("a duplicate clause has no replacement index")
         prospective = earlier.copy()
-        prospective[replaced] = {
-            **earlier[replaced],
+        prospective[replaced] = earlier[replaced] | {
             "facts": compiled.facts,
         }
         _sync_definition_facts(space, name, prospective)

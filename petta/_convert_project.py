@@ -24,7 +24,7 @@ Guarantees:
   - an otherwise opaque buffer carries its identity together with shape,
     format, item size, dimensionality, strides, and access metadata
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -109,7 +109,7 @@ def _project_object(value: Any) -> Projected:
     cls = type(value)
     registration = _registration_for(cls)
     if registration is None:
-        return _project_unregistered(value, cls)
+        return _project_unregistered(value)
     return _project_registered(value, cls, registration)
 
 
@@ -125,7 +125,7 @@ def _registration_for(cls: type) -> _Registration | None:
     return registration
 
 
-def _project_unregistered(value: Any, cls: type) -> Projected:
+def _project_unregistered(value: Any) -> Projected:
     atom = explicit_metta_atom(value)
     if atom is not None:
         return Projected(atom, ())
@@ -139,12 +139,14 @@ def _project_buffer(value: Any) -> Projected | None:
         view = memoryview(value)
     except TypeError:
         return None
+    shape = () if view.shape is None else view.shape
+    strides = () if view.strides is None else view.strides
     metadata = (
-        Expr([S.shape, *(encode(size) for size in (view.shape or ()))]),
+        Expr([S.shape, *(encode(size) for size in shape)]),
         Expr([S.format, encode(view.format)]),
         Expr([S.itemsize, encode(view.itemsize)]),
         Expr([S.ndim, encode(view.ndim)]),
-        Expr([S.strides, *(encode(step) for step in (view.strides or ()))]),
+        Expr([S.strides, *(encode(step) for step in strides)]),
         Expr([S.readonly, encode(view.readonly)]),
         Expr([S["c-contiguous"], encode(view.c_contiguous)]),
     )

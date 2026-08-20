@@ -20,7 +20,7 @@ Guarantees:
   - type_names removes every __petta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
+    commit=WORKTREE]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
@@ -278,7 +278,9 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
 def _unbox(value: Any) -> Any:
     wire_value = getattr(type(value), "__petta_wire_value__", None)
     if isinstance(wire_value, property):
-        return _unbox(wire_value.__get__(value, type(value)))
+        if wire_value.fget is None:
+            raise TypeError("__petta_wire_value__ must be a readable property")
+        return _unbox(wire_value.fget(value))
     return value
 
 

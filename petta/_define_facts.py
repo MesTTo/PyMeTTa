@@ -4,11 +4,11 @@ lexical free variables, and whether every call is in the declared pure set.
 Guarantees:
   - derivation reads syntax and symbol tables without executing user code
     [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    commit=WORKTREE]
   - Python 3.14 annotation scopes cannot be mistaken for the function scope
     whose free variables are reported [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -62,7 +62,6 @@ def _function_table(
     fn: types.FunctionType,
     source: str,
     path: str,
-    definition: ast.FunctionDef,
     absolute_line: int,
 ) -> symtable.SymbolTable:
     """Find the function scope, never the adjacent annotation scope."""
@@ -152,7 +151,7 @@ def derive_definition_facts(
         indentation_bytes + (definition.end_col_offset or definition.col_offset),
     )
 
-    table = _function_table(fn, source, path, definition, start_line)
+    table = _function_table(fn, source, path, start_line)
     free_variables = tuple(
         sorted(
             name

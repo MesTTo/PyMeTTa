@@ -5,7 +5,7 @@ Guarantees:
   - capture never changes an answer shape, and atomic, speculative, and
     strict execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no
@@ -312,7 +312,7 @@ def evaluate(
         ]
     limits = _limits(timeout, inferences)
     captured = _CAPTURED_OUTPUT.get()
-    if limits is None and captured is None:
+    if limits is captured is None:
         wires = rt.apply_must(predicate, *inputs)
     else:
         if captured is not None:
