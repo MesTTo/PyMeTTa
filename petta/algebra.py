@@ -14,7 +14,7 @@ Guarantees:
   - a linear algebra refuses overlapping premise-occurrence ledgers before it
     publishes a derived answer [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=WORKTREE]
+    commit=ab469c3679ab778c91ac73f14797af746a1ea87d]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
