@@ -10,6 +10,10 @@ Guarantees:
     [tested: test_fstrings_str_round_range_slices,
     test_mixed_numeric_equality_and_membership;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - the internal prelude publishes those policies in &petta without leaking
+    implementation annotations or helper documentation into &self [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -76,32 +80,32 @@ def install(runtime) -> None:
                 f"{key!r} is not in this {type(value).__name__}"
             ) from exc
 
-    def py_truthy(value) -> bool:
+    def py_truthy(value):
         return bool(pythonic(value))
 
-    def py_eq(a, b) -> bool:
+    def py_eq(a, b):
         return pythonic(a) == pythonic(b)
 
-    def py_str(value) -> str:
+    def py_str(value):
         v = pythonic(value)
         return v.name if isinstance(v, Sym) else str(v)
 
-    def py_repr(value) -> str:
+    def py_repr(value):
         v = pythonic(value)
         return v.name if isinstance(v, Sym) else repr(v)
 
-    def py_format(value, spec) -> str:
+    def py_format(value, spec):
         return format(pythonic(value), pythonic(spec))
 
-    def py_str_join(parts) -> str:
+    def py_str_join(parts):
         return "".join(
             p.name if isinstance(p, Sym) else str(p) for p in (pythonic(c) for c in parts)
         )
 
-    def py_in(item, container) -> bool:
+    def py_in(item, container):
         return pythonic(item) in pythonic(container)
 
-    def py_len(value) -> int:
+    def py_len(value):
         return len(pythonic(value))
 
     def py_round(value, digits=None):
@@ -112,14 +116,11 @@ def install(runtime) -> None:
     def py_range(*bounds):
         return Expr([Gnd(i) for i in range(*(pythonic(b) for b in bounds))])
 
+    # Index anything Python can index, plus a MeTTa expression. `py-call`
+    # hands back objects themselves, so Python owns every non-Expr subscript.
+    # Keep this as a comment: internal helper prose is not a user declaration
+    # and must not become an @doc atom in every program space.
     def py_at(sequence, index):
-        """Index anything Python can index, plus a MeTTa expression.
-
-        It used to know only `Expr` and `str`, which was enough while every
-        other container was flattened on the way in. `py-call` now hands back
-        the object itself, so a dict, a list, a numpy array or anything with
-        `__getitem__` arrives here intact and indexing it is Python's job.
-        """
         i = pythonic(index)
         if isinstance(sequence, Expr):
             return sequence.children[i]

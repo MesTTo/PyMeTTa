@@ -9,7 +9,7 @@ Guarantees:
   - execution modes are scopes, return shapes are invariant, and callable
     policy is reflected by atoms rather than boolean flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -77,6 +77,8 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     metta,
 ):
     """Execution policy scopes compose; callable policy is queryable data."""
+    from petta._prelude import NAMES as PRELUDE_NAMES
+
     for method, removed in (
         (MeTTa.run, {"capture", "atomic", "speculative", "strict"}),
         (MeTTa.eval, {"capture", "residuals"}),
@@ -117,6 +119,19 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
         with metta.strict():
             metta.run("!(p5-does-not-reduce 1)")
 
+    prelude_names = {S[name] for name in PRELUDE_NAMES}
+    assert not any(
+        isinstance(atom, Expr)
+        and atom.head in (S[":"], S["@doc"])
+        and atom.args[0] in prelude_names
+        for atom in metta.atoms()
+    )
+    reflection = metta.space("&petta")
+    assert {
+        row.name
+        for row in reflection.query(expr(S.arguments, V.name, S.atoms))
+    } >= prelude_names
+
     name = unique("p5-policy")
     effect = expr(S.effect, S[name], S.immutable)
 
@@ -128,7 +143,6 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     def policy_operation(value):
         return value
 
-    reflection = metta.space("&petta")
     assert [row.kind for row in reflection.query(expr(S.op, S[name], 1, V.kind))] == [
         S.raw_det
     ]
