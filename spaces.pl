@@ -1448,7 +1448,10 @@ metta_add_atoms(Space, Terms) :-
     %one-crossing clauses write behind that wrapper's back, the foreign
     %one through the provider's own bulk door and the native one through
     %add_sexp_in/4 [tested: a_batch_beyond_capacity_is_refused_like_lone_adds].
+    %A claimed pre-add hook is the same gate generalised, and takes the
+    %same route [tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom].
     petta_admission_idle(Space),
+    petta_hook_claim_idle(Space),
     atoms_store_only(Terms),
     add_atoms_in_one_crossing(Space, Terms), !.
 metta_add_atoms(Space, Terms) :-
