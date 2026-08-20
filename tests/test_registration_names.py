@@ -4,7 +4,7 @@ Guarantees:
     one symbol, identifies the conflicting character, and leaves no engine or
     reflection state behind [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
-    commit=WORKTREE]
+    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -68,7 +68,7 @@
 %     witness from metta_symbol_writable/1, so register_op rejects unreadable
 %     names before any registry state changes [tested:
 %     test_register_op_refuses_a_name_metta_cannot_read;
-%     commit=WORKTREE]
+%     commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
 %   - petta_py_builtins/1 answers the sorted union of every fun/1 name and
 %     every translate_special_dl/5 head, so host tooling sees the language
 %     rather than only its callable registry [tested:

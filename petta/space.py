@@ -62,7 +62,7 @@ Guarantees:
   - register_op refuses a name the engine reader cannot recover as one symbol,
     before changing either the engine or Python registries [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
-    commit=WORKTREE]
+    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
