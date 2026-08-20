@@ -2556,7 +2556,7 @@ class MeTTa:
         amplitude programs, for example, must explicitly declare ``finite``,
         ``contractive`` and ``staged`` [tested:
         test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-        commit=84dda69a9e7a73fbe0da50eef9ca6bc40dd9532d]. Declaring replaces any earlier row for the
+        commit=1822ca53390b180e622f262b766f224ae7a9278f]. Declaring replaces any earlier row for the
         context, so the reader never meets two disagreeing atoms.
         """
         declaration = _algebra.require(self, algebra)

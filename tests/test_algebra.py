@@ -1,7 +1,7 @@
 """Purpose: black-box acceptance tests for the P4.20 declared-algebra base.
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
-    [tested: this module; commit=496643acc4104702e76e7d325e9ffac8c0cc08c1]
+    [tested: this module; commit=1822ca53390b180e622f262b766f224ae7a9278f]
 """  # noqa: D205, D415 -- the file contract is one continuous invariant
 
 from __future__ import annotations

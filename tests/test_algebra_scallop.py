@@ -5,7 +5,7 @@ Guarantees:
     neighboring table maps every fixed Scallop feature to a general PeTTa seam
     or an explicit filed gap [tested:
     test_the_scallop_readme_examples_answer_identically_through_the_seams;
-    commit=0f93f6aa61e226a8233dfe6989207d050d0419b2]
+    commit=1822ca53390b180e622f262b766f224ae7a9278f]
 """
 
 
