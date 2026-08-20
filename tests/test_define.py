@@ -1,6 +1,10 @@
 """Purpose: the Python-to-MeTTa compiler: lowerings run against the engine,
 refusals name construct and line, helper-bearing redefinitions replace as a
 unit, and guarded Python twins agree with equations on ground inputs.
+Guarantees:
+  - one source docstring reaches Defined.doc, help(), and the definition
+    space's @doc atom [tested:
+    test_one_docstring_reaches_help_dot_doc_and_get_doc; commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -11,6 +15,8 @@ Open Obligations:
 """
 
 import importlib.util
+import inspect
+import pydoc
 import sys
 import tempfile
 import textwrap
@@ -44,6 +50,11 @@ def twin_user_probe(value):
     return twin_base_probe(value) * 2
 
 
+def p5_documented_greeting(value: str) -> str:
+    """Return a defined greeting."""
+    return f"Hello, {value}."
+
+
 def test_define_from_two_threads_is_serialized(m):
     def thread_left(value):
         return value + 1
@@ -71,6 +82,16 @@ def test_existing_twin_sees_later_redefinition(m):
         twin_base_replacement.__name__ = original_name
 
     assert twin_user.py(3) == 26
+
+
+def test_one_docstring_reaches_help_dot_doc_and_get_doc(m):
+    documented = m.define(p5_documented_greeting)
+    expected = inspect.getdoc(p5_documented_greeting)
+    assert documented.doc == expected
+    assert expected in pydoc.render_doc(documented)
+    docs = m.run(f"!(get-doc {documented.name})")
+    assert len(docs) == 1 and expected in str(docs[0][0])
+    assert expected in pydoc.render_doc(m.fn(documented.name))
 
 
 def test_recursion_compiles_and_runs(m):

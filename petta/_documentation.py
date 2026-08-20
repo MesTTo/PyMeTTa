@@ -5,6 +5,8 @@ Guarantees:
     source has no documentation [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
     commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+  - compiled definitions use the same portable atom and cleaned text [tested:
+    test_one_docstring_reaches_help_dot_doc_and_get_doc; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

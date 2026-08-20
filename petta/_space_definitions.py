@@ -4,6 +4,10 @@ Guarantees:
     test_literal_defaults_are_head_patterns_and_clauses_stack]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
+  - a definition is exposed only after its first twin clause exists, and its
+    canonical first-clause documentation follows replacement and clearing
+    [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
+     commit=WORKTREE]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -32,6 +36,7 @@ from ._define_twins import (
     select_clause_twin,
     twin_dispatcher,
 )
+from ._documentation import documentation_atom
 from ._ops import REGISTRY
 from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
 from .define import (
@@ -52,6 +57,7 @@ from .ops import (
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
+_DEFINE_DOCUMENTATION: dict[tuple[str, str], Expr] = {}
 _DEFINE_LOCK = threading.RLock()
 
 
@@ -59,7 +65,7 @@ def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions."""
     with _DEFINE_LOCK:
         space.runtime.must("petta_py_clear(Space)", Space=space.space_name)
-        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
+        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
             for key in [key for key in registry if key[0] == space.space_name]:
                 del registry[key]
         _DEFINED_GENERATORS.difference_update(
@@ -244,6 +250,22 @@ def _reflect_definition(space: Any, name: str) -> None:
     )
 
 
+def _document_definition(space: Any, name: str, dispatcher: Any) -> None:
+    """Publish the dispatcher's canonical first-clause documentation."""
+    key = (space.space_name, name)
+    previous = _DEFINE_DOCUMENTATION.get(key)
+    current = documentation_atom(name, dispatcher)
+    if current == previous:
+        return
+    if current is not None:
+        space.add(current)
+        _DEFINE_DOCUMENTATION[key] = current
+    else:
+        _DEFINE_DOCUMENTATION.pop(key, None)
+    if previous is not None:
+        space.remove(previous)
+
+
 def _declare_definition(
     space: Any,
     fn: types.FunctionType,
@@ -331,10 +353,10 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         params,
     )
     duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
-    defined = _defined_result(space, name, compiled, body, dispatcher)
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
-        return defined
+        _document_definition(space, name, dispatcher)
+        return _defined_result(space, name, compiled, body, dispatcher)
     _store_clause(
         space,
         earlier,
@@ -345,6 +367,8 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         clause_twin=clause_twin,
         replaced=replaced,
     )
+    defined = _defined_result(space, name, compiled, body, dispatcher)
+    _document_definition(space, name, dispatcher)
     if first_clause:
         # The function reflects into the library's own space, one fact
         # per (space, name), following the space through clear().

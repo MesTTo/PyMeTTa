@@ -7,6 +7,10 @@ the line, and what to write instead; every supported construct has one MeTTa
 spelling; and a free identifier must be a
 parameter, a known function, or read as a data constructor, so a compiled
 body is pure atoms that any evaluator can take whole.
+Guarantees:
+  - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
+    docstring after the twin dispatcher contains that clause [tested:
+    test_one_docstring_reaches_help_dot_doc_and_get_doc; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -123,7 +127,7 @@ class Defined(Generic[_P, _R]):
         self.body = body
         self._py = py
         self.space = space
-        self.doc = py.__doc__
+        self.doc = inspect.getdoc(py)
         # The prelude operations the equations lean on: empty means the
         # compiled source runs on any evaluator; named means it needs this
         # runtime's registered operations.
@@ -142,6 +146,11 @@ class Defined(Generic[_P, _R]):
     def py(self) -> Callable[_P, _R]:
         """The ordinary Python function, recursion included."""
         return self._py
+
+    @property
+    def __doc__(self) -> str | None:  # type: ignore[override]
+        """The canonical first clause's cleaned Python docstring."""
+        return self.doc
 
     @property
     def head(self) -> Expr:
