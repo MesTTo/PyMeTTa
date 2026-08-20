@@ -99,6 +99,19 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():
         metta, "p31-multi", "FunctionResultEnum", "Deterministic"
     )
 
+    # The caller is compiled before the override. Changing catalog policy must
+    # invalidate that static fast path, not only affect newly parsed queries.
+    metta.run("(= (p31-precompiled) (p31-multi x))")
+    assert _answers(metta, "!(p31-precompiled)") == ["first", "second"]
+    _set_dispatch_policy(
+        metta, "p31-multi", "FunctionResultEnum", "Deterministic"
+    )
+    assert _answers(metta, "!(p31-precompiled)") == ["first"]
+    _remove_dispatch_policy(
+        metta, "p31-multi", "FunctionResultEnum", "Deterministic"
+    )
+    assert _answers(metta, "!(p31-precompiled)") == ["first", "second"]
+
     metta.run("(= (p31-fails $x) (superpose ()))")
     assert _answers(metta, "!(p31-fails x)") == []
     _set_dispatch_policy(
@@ -191,6 +204,24 @@ def test_a_user_declared_lazy_type_receives_its_argument_unevaluated():
         "(Error (inspect-eager (+ 1 2)) "
         "(BadArgType 1 LooksDontEval Number))"
     ]
+
+    # Both the callee and its caller exist before the marker declaration. The
+    # type-marker dependency must rebuild the stored caller, not merely change
+    # calls compiled after the declaration.
+    metta.run("(: LatePayload Type)")
+    metta.run("(: inspect-late (-> LatePayload Symbol))")
+    metta.run("(= (inspect-late $value) (get-metatype $value))")
+    metta.run("(= (late-inspection) (inspect-late (+ 1 2)))")
+    assert "BadArgType" in _answers(metta, "!(late-inspection)")[0]
+    assert "BadArgType" in _answers(metta, "!(inspect-late (+ 1 2))")[0]
+    metta.run("(: LatePayload DontEvalType)")
+    assert _answers(metta, "!(late-inspection)") == ["Expression"]
+    assert _answers(metta, "!(inspect-late (+ 1 2))") == ["Expression"]
+    assert _answers(
+        metta, "!(remove-atom &self (: LatePayload DontEvalType))"
+    ) == ["()"]
+    assert "BadArgType" in _answers(metta, "!(late-inspection)")[0]
+    assert "BadArgType" in _answers(metta, "!(inspect-late (+ 1 2))")[0]
 
 
 def test_a_duplicate_declaration_names_the_first_one():
