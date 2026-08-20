@@ -15,6 +15,9 @@ Guarantees:
     [tested test_every_builtin_refuses_an_unbound_input_by_name]
   - no such refusal names a Prolog predicate the MeTTa program never wrote
     [tested test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate]
+  - the four cross-file residual inputs and the already-repaired surface match
+    path refuse under their own written names
+    [tested test_the_residual_positions_refuse_by_their_own_names]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -174,6 +177,27 @@ def test_a_surface_match_on_an_unbound_space_answers_the_error(metta):
     with metta.new_space() as space:
         groups = space.run("!(match $u (f 1) matched)")
     assert len(groups) == 1 and len(groups[0]) == 1
+    answer = str(groups[0][0])
+    assert answer.startswith("(Error (match ")
+    assert "match expects a space as the first argument" in answer
+
+
+def test_the_residual_positions_refuse_by_their_own_names(metta):
+    engine = MeTTa()
+    for operation, source, leaked_host_name in (
+        ("add-reduct", "!(add-reduct $u a)", "add-atom"),
+        ("git-import!", "!(git-import! $u)", "atom_string"),
+        ("sleep", "!(sleep $u)", "must_be"),
+        ("sread", "!(sread $u)", "atom_codes"),
+    ):
+        with pytest.raises(PettaError) as refused:
+            engine.run(source)
+        message = str(refused.value)
+        assert operation in message, source
+        assert leaked_host_name not in message, source
+
+    with metta.new_space() as space:
+        groups = space.run("!(match $u (f 1) matched)")
     answer = str(groups[0][0])
     assert answer.startswith("(Error (match ")
     assert "match expects a space as the first argument" in answer
