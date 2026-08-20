@@ -110,3 +110,40 @@ def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):
         scratch.run(f'!(import! (context-space) "{missing}")')
 
     assert str(missing) in str(caught.value)
+
+
+def test_an_import_into_a_named_space_registers_its_equations_there(
+    metta, tmp_path
+):
+    """An alias import admits nothing into the caller: LeaTTa's law.
+
+    grounded/29-builtin-module-alias-import pins it byte-exactly (MEASURED:
+    both alias probes stay unreduced data, and only the companion &self
+    import makes the tiers callable), and its model is World.moduleReady
+    testing the RUNNING CONTEXT's own space's import mark. The loader used
+    to compile an import's equations into &self's module whatever space the
+    atoms went to, so a top-level call reduced through a space it never
+    imported; every receiving space compiles its own copy now.
+    """
+    module = tmp_path / "scoped-import.metta"
+    module.write_text("(= (scoped-swap (Pair $a $b)) (Pair $b $a))\n")
+    with metta.new_space() as importer:
+        assert importer.run(f'!(import! (context-space) "{module}")') == [
+            [expr()]
+        ]
+        assert importer.run("!(scoped-swap (Pair a b))") == [
+            [expr(S.Pair, S.b, S.a)]
+        ]
+        # While the importer holds it, the top level still never imported
+        # it, so there the name stays data, whole call handed back.
+        stayed = metta.run("!(scoped-swap (Pair c d))")
+        assert stayed == [[expr(S["scoped-swap"], expr(S.Pair, S.c, S.d))]]
+
+    # The arbiter's own spelling, a built-in module under an alias.
+    bound = metta.run("!(bind! &scoped-skel (new-space))")
+    assert bound == [[expr()]]
+    assert metta.run("!(import! &scoped-skel skel)") == [[expr()]]
+    alias_probe = metta.run("!(skel-swap-pair (Pair a b))")
+    assert alias_probe == [
+        [expr(S["skel-swap-pair"], expr(S.Pair, S.a, S.b))]
+    ]
