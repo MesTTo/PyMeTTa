@@ -39,7 +39,7 @@ Guarantees:
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
   - declare_image reaches the synchronous declaration owner on the engine
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

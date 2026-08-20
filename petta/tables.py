@@ -51,7 +51,7 @@ Guarantees:
     each row value before it crosses, keeping opaque objects as handles and
     projecting transparent objects [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in

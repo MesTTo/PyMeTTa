@@ -7,12 +7,12 @@ Guarantees:
   - the opaque BLOB image keeps the binary object as a handle, a lazy path
     reaches one field [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
   - the transparent image costs more engine inferences than the opaque image
     for the same 4,096-byte value [measured: minimum of three counter samples;
     command=python -m pytest bindings/python/tests/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Open Obligations:
   To Do: None
   Hacks: None

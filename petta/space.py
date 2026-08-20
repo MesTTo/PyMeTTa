@@ -56,7 +56,7 @@ Guarantees:
   - declare_image records one validated per-type-per-context image choice and
     replaces the previous choice [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:

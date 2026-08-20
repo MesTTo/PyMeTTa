@@ -26,7 +26,7 @@ Guarantees:
   - context image declarations state whether one Python type crosses as a
     handle or a structural expression [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Open Obligations:
   To Do: None
   Hacks: None
