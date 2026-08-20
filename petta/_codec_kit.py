@@ -28,6 +28,10 @@ Guarantees:
   - a driver that raises on everything fails every positive case rather
     than passing as one that refuses correctly
     [tested test_a_driver_that_refuses_everything_is_caught]
+  - a renderer may refuse exactly the corpus cases whose written spelling is
+    declared not to read back, while a refusal for a readable case remains a
+    complaint [tested: test_a_renderer_may_refuse_only_a_non_round_trip_text;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -82,7 +86,7 @@ class CodecDriver(Protocol):
         """Decode into this host's own atom, then encode it back."""
 
     def render(self, wire: Any) -> str:
-        """Decode, then print with the printer this binding ships."""
+        """Decode, then print, or refuse when the term has no inverse text."""
 
     def transport(self, wire: Any) -> Any:
         """Serialise to the concrete encoding and parse it back."""
@@ -305,7 +309,8 @@ def _check_term(case: dict, driver: CodecDriver) -> list[str]:  # noqa: C901  --
                 if actual != expected:
                     complaints.append(f"{here}: render gave {actual!r}, not {expected!r}")
             except Exception as exc:  # noqa: BLE001
-                complaints.append(f"{here}: render refused: {exc}")
+                if case.get("reads_back") is not False:
+                    complaints.append(f"{here}: render refused: {exc}")
 
     try:
         carried = driver.transport(wire)

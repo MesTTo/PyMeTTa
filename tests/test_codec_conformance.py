@@ -10,6 +10,11 @@ engine's library(json), which is what petta.remote puts on a socket. So a
 disagreement between them is a real disagreement between two
 implementations in two languages, which is what the corpus is for.
 
+Guarantees:
+  - a renderer refusal is licensed only where the corpus marks the spelling
+    as non-invertible [tested:
+    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=WORKTREE]
+
 Open Obligations:
   To Do: None
   Hacks: None
@@ -258,6 +263,28 @@ def test_a_driver_that_refuses_everything_is_caught(metta):
     corpus = codec_corpus()
     runnable = {case["id"] for case in corpus["cases"]} & set(plan["run"])
     assert {case_id for case_id in runnable if any(case_id in c for c in complaints)} == runnable
+
+
+def test_a_renderer_may_refuse_only_a_non_round_trip_text(metta):
+    """A strict serializer may reject an unrepresentable term, but that
+    license must not turn a general renderer failure into conformance.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    class _Strict(JsonWireCodec):
+        name = "strict"
+        non_finite = True
+
+        def render(self, wire):
+            if wire == ["s", "foo"]:
+                msg = "readable symbol refused"
+                raise RuntimeError(msg)
+            if wire == ["n", float("inf")]:
+                msg = "non-invertible float refused"
+                raise RuntimeError(msg)
+            return super().render(wire)
+
+    complaints = check_codec(_Strict(metta))
+    assert not [c for c in complaints if "strict/float-infinity: render refused" in c]
+    assert [c for c in complaints if "strict/symbol: render refused" in c]
 
 
 def test_a_driver_declaring_less_than_the_core_profile_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -60,9 +60,8 @@ def test_example_parity_reports_a_planted_difference():
 
 
 def test_spelling_is_not_a_difference():
-    """The engine writes `true` where the library writes `True`, and both
-    parse to the same value. Comparing text reported this on 191 of 200
-    examples; comparing values reports it on none [measured 2026-08-18].
+    """Boolean source aliases parse to the same value even though canonical
+    output now uses `True` and `False` from both configurations.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert parity._value("(true)") == parity._value("(True)")
     assert parity._value("(false)") == parity._value("(False)")

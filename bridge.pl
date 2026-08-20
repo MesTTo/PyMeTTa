@@ -21,6 +21,9 @@
 %     [tested: a_resolved_callable_is_applicable], and a grounded value that is
 %     not an operation stays unreduced rather than raising
 %     [tested: a_grounded_value_that_is_not_callable_stays_unreduced].
+%   - nested host values render through the explicit display service while
+%     the text writer remains free to refuse them [tested:
+%     a_python_value_keeps_its_explicit_display; commit=WORKTREE].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -282,7 +285,7 @@ metta_grounded_text(Obj, Text) :-
 petta_py_element_text(Element, Text) :-
     (   metta_grounded_text(Element, Text0)
     ->  Text = Text0
-    ;   swrite(Element, Text)
+    ;   sdisplay(Element, Text)
     ).
 
 %%%% Resolution %%%%
