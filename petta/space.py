@@ -48,7 +48,7 @@ Guarantees:
   - query(into=cls) rebuilds a complete constructor expression captured in
     one variable, while cast remains type admission [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=WORKTREE]
+    commit=2bf66c123858feaeaf9909729db3e8700aaca546]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:
