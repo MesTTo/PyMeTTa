@@ -4245,7 +4245,9 @@ release_function_name(Name) :- retractall(metta_function_origin(Name, _, _)).
 %The number moves when a seam a library can SEE changes: a hook removed or
 %renamed, a hook's arguments changed, a refusal added where none was. Adding
 %a hook moves the minor.
-metta_extension_api_version(1, 0).
+%1-1: metta_route_cap/4 added, and petta_shape_route/5 published as a
+%service (2026-08-20).
+metta_extension_api_version(1, 1).
 
 metta_extension(Name, Options) :-
     must_be(atom, Name),

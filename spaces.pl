@@ -179,10 +179,7 @@ add_sexp('&self', Term, Ref) :- !, add_sexp_in('$petta_atoms:&self', '&self', Te
 %counter, caught by the gate).
 add_sexp('&petta', Term, Ref) :- !,
     petta_declaration_check(Term),
-    (   Term = [_|Args]
-    ->  petta_note_ctx_declared(Args)
-    ;   true
-    ),
+    petta_note_ctx_declared(Term),
     ensure_native_storage_module('&petta', Module),
     add_sexp_in(Module, '&petta', Term, Ref),
     petta_catalog_note_added(Term).
@@ -206,12 +203,27 @@ add_sexp(Space, Term, Ref) :- ensure_native_storage_module(Space, Module),
 %real context would silently skip a guard. This closes CA-7's open
 %squeeze: the undeclared pure-Prolog foreign match paid the handles,
 %source and on-error probes on every call.
-petta_note_ctx_declared([Ctx|_]) :-
+petta_note_ctx_declared([Head|_]) :-
+    petta_catalog_head(Head),
+    !.
+petta_note_ctx_declared([_, Ctx|_]) :-
     atom(Ctx),
     \+ petta_ctx_declared(Ctx),
     !,
     assertz(petta_ctx_declared(Ctx)).
 petta_note_ctx_declared(_).
+
+%The catalog's own rows never name a context in their first argument, a
+%kind head or a vocabulary name being what sits there, and flagging those
+%grew petta_ctx_declared from a handful of real contexts to forty rows,
+%which the guards' first miss then paid as a linear walk before the JIT
+%index built [measured 2026-08-20: the single-pattern snapshot probe read
+%687 against 685 by warm-up order]. Skipping them keeps the flag exactly
+%what it says: a context some declaration names.
+petta_catalog_head(kind).
+petta_catalog_head(vocabulary).
+petta_catalog_head(claim).
+petta_catalog_head('routed-by-shape').
 
 add_sexp_in(Module, Space, [Rel|Args], Ref) :- !,
                                                Term =.. [Space, Rel | Args],
@@ -1365,10 +1377,7 @@ add_atoms_in_one_crossing(Space, Terms) :-
     (   Space == '&petta'
     ->  forall(member(Decl, Terms),
                (   petta_declaration_check(Decl),
-                   (   Decl = [_|Args]
-                   ->  petta_note_ctx_declared(Args)
-                   ;   true
-                   )
+                   petta_note_ctx_declared(Decl)
                ))
     ;   true
     ),
@@ -2388,7 +2397,12 @@ metta_top_match(Count, Space, Pattern, Out) :-
     member(Out, Best).
 
 petta_top_pushable(Space, Pattern) :-
-    catch(petta_handles_route(Space, Pattern, 'Exact', _), _, fail),
+    %A cap below exact, or a cap refusal, declines the pushdown here and
+    %lets the match itself surface the loud error, so (top k) never pushes
+    %a bound an advisor has withdrawn the licence for.
+    catch(( petta_handles_route(Space, Pattern, 'Exact', _),
+            petta_route_cap_apply(Space, Pattern, exact, exact) ),
+          _, fail),
     petta_emits(Space, 'best-first').
 
 %Best first, ties in emission order: sort/4 with @>= keeps duplicates and
@@ -2415,6 +2429,10 @@ prolog:error_message(petta_top_unordered(Ctx, Semiring)) -->
 %the cautious answer: an inexact provider gets no bound to truncate to and its
 %candidates are re-unified.
 foreign_pushdown_class(Space, Pattern, Class) :-
+    foreign_pushdown_declared_class(Space, Pattern, Declared),
+    petta_route_cap_apply(Space, Pattern, Declared, Class).
+
+foreign_pushdown_declared_class(Space, Pattern, Class) :-
     (   petta_handles_route(Space, Pattern, Entry, Fidelity, _Det)
     ->  %A declared (handles ...) entry outranks the provider's own method:
         %the declaration is the author's claim, checked by its lanes, and
@@ -2433,6 +2451,42 @@ foreign_pushdown_class(Space, Pattern, Class) :-
     ->  Class = Claimed
     ;   Class = inexact
     ).
+
+%The advisors' fold: every metta_route_cap/4 clause is a voice and the
+%most conservative wins, refuse below inexact below exact, so an advisor
+%can only DEMOTE what the declaration or the method proposed. refuse is
+%loud and names the advisor's Why; a cap outside the vocabulary is a bug
+%in the advisor and refuses as one. The common engine has no advisor
+%loaded, and that costs one failed indexed call; with advisors present
+%the probe's work is repeated inside findall, which is accepted, advisors
+%being rare and the fold running only at route classification, never per
+%answer.
+petta_route_cap_apply(Space, Pattern, Class0, Class) :-
+    (   \+ metta_route_cap(Space, Pattern, _, _)
+    ->  Class = Class0
+    ;   findall(Cap-Why, metta_route_cap(Space, Pattern, Cap, Why), Caps),
+        (   member(BadCap-BadWhy, Caps),
+            \+ memberchk(BadCap, [exact, inexact, refuse])
+        ->  throw(error(petta_route_cap_invalid(Space, BadCap, BadWhy),
+                        none))
+        ;   member(refuse-Why, Caps)
+        ->  throw(error(petta_route_capped(Space, Pattern, Why), none))
+        ;   memberchk(inexact-_, Caps)
+        ->  Class = inexact
+        ;   Class = Class0
+        )
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_route_capped(Space, Pattern, Why)) -->
+    { swrite(Pattern, PatternText) },
+    [ 'a route advisor refuses ~w for ~w: ~w. The cap rides \c
+       metta_route_cap/4; remove the advisor''s reason or its declaration \c
+       to route again'-[Space, PatternText, Why] ].
+prolog:error_message(petta_route_cap_invalid(Space, Cap, Why)) -->
+    [ 'a route advisor for ~w answered the cap ~w (why: ~w), outside \c
+       exact, inexact and refuse; an unknown cap would silently advise \c
+       nothing, so it is an error in the advisor'-[Space, Cap, Why] ].
 
 %%%% Multi-context matching: one query over several spaces %%%%
 %

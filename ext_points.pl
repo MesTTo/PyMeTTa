@@ -273,6 +273,29 @@ ext_point_kind(metta_foreign_clear/1, ownership).
 :- multifile metta_foreign_pushdown/3.
 ext_point_kind(metta_foreign_pushdown/3, ownership).
 
+%The routing voice of a third-party declaration kind. Consulted after the
+%declared fidelity or the provider's own method proposes a route class,
+%and every loaded advisor may only DEMOTE: the effective class is the most
+%conservative voice, refuse below inexact below exact, so advisors compose
+%order-independently and none can widen a claim its author never made.
+%metta_route_cap(Space, Pattern, Cap, Why): Cap is exact (no objection),
+%inexact (candidates must be re-unified, the pushdown of the caller's
+%bound is withheld) or refuse (this route must not serve now, loud at the
+%match and naming Why). An advisor typically reads its own kind's atoms
+%from '&petta', often through petta_shape_route/5, which is what lets a
+%freshness or cost kind change routing with no kernel edit
+%[tested: a_route_cap_demotes_and_refuses_through_the_published_seam].
+%Declared metadata steering the router is the oldest optimizer discipline
+%there is: semantic query optimization transforms evaluation by declared
+%integrity constraints [source: Chakravarthy, Grant and Minker, ACM TODS
+%1990], and a FRESHNESS vocabulary gating routes runs in production as
+%Oracle's QUERY_REWRITE_INTEGRITY, whose stale_tolerated mode alone lets
+%a stale materialized view keep serving rewrites [source:
+%https://docs.oracle.com/en/database/oracle/oracle-database/23/dwhsg/basic-query-rewrite-materialized-views.html].
+:- multifile metta_route_cap/4.
+:- dynamic metta_route_cap/4.
+ext_point_kind(metta_route_cap/4, declaration).
+
 %A conjunction, offered WHOLE before the engine splits it. Succeed to claim
 %some of it, binding Goal to a goal that enumerates bindings for Claimed; fail
 %to decline, and the engine plans it exactly as it does today.
@@ -589,6 +612,15 @@ ext_point_kind(swrite/2, service).
 ext_point_kind(sread/2, service).
 ext_point_kind(metta_symbol_writable/1, service).
 ext_point_kind(metta_unwritable_symbol/2, service).
+
+%THE CATALOG'S CONSULTATION SITES, published for extensions. A route-cap
+%advisor or any consumer of a declared kind reads the same routed view the
+%engine reads: petta_shape_route/5 answers the most specific coherent
+%entry for a query under any shape-routed head, shipped or third-party,
+%and petta_contract_fact/1 is the raw row read beneath it (already a
+%host_service above; named here in prose so an extension author finds the
+%pair together).
+ext_point_kind(petta_shape_route/5, service).
 
 %ERRORS. An extension that throws reports in the vocabulary of whatever threw,
 %so `Y is X * 2` on a symbol names is/2 rather than the operation the program
