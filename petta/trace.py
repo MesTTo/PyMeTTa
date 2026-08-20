@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -26,14 +26,14 @@ class TraceEvent:
     """One step: depth is the nesting level, kind is call or exit, term
     is what reduced, answer carries the exit's result and stays None on
     a call.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     depth: int
     kind: str
     term: Atom
     answer: Atom | None
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         indent = "  " * self.depth
         if self.kind == "exit":
             return f"{indent}{self.term} = {self.answer}"

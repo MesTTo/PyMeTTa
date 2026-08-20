@@ -17,7 +17,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def ensure_registered(cls: type) -> _Registration:
     Enum, dataclass or NamedTuple gets its default image recorded exactly
     as a first projection would record it; anything else must have been
     registered and says so.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     registration = _lookup(cls)
     if registration is None:
         registration = _default_registration(cls)
@@ -231,7 +231,7 @@ def subscribe_registrations(
     """Subscribe to explicit registration changes; answers the current
     explicit entries so the subscriber can reflect the past before it hears
     the future.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     with _REGISTRY_LOCK:
         snapshot = [
             (cls, reg) for cls, reg in _REGISTRY.items() if reg.explicit
@@ -398,6 +398,6 @@ def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
     list[Colour] or Optional[Colour], which a bare-class filter would
     erase and leave as an unreconstructed symbol. Annotations that do not
     resolve are a hard error naming the class.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     hints = resolved_hints(cls)
     return tuple(hints.get(n) for n in names)

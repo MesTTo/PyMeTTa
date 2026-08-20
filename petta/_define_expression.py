@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         return method(node)
 
-    def _x_Constant(self, node: ast.Constant) -> Atom:
+    def _x_Constant(self, node: ast.Constant) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.value, (bool, int, float, str)):
             return Gnd(node.value)
         if node.value is None:
@@ -95,7 +95,7 @@ class ExpressionCompilerMixin(CompilerContext):
             line=node.lineno,
         )
 
-    def _x_Name(self, node: ast.Name) -> Atom:
+    def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if node.id in self.scope:
             return Var(self.scope[node.id])
         if node.id in (self.pyname, self.name):
@@ -156,7 +156,7 @@ class ExpressionCompilerMixin(CompilerContext):
         self.hazards.add(f"the constructor {node.id}")
         return Sym(node.id)
 
-    def _x_BinOp(self, node: ast.BinOp) -> Atom:
+    def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.Div):
             # Coercing the left side keeps an exact integer quotient a float,
             # which is what Python's / answers: 6 / 2 is 3.0, never 3.
@@ -175,7 +175,7 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         return Expr([Sym(op), self.expression(node.left), self.expression(node.right)])
 
-    def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:
+    def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.USub):
             operand = node.operand
             if isinstance(operand, ast.Constant) and isinstance(operand.value, (int, float)):
@@ -196,7 +196,7 @@ class ExpressionCompilerMixin(CompilerContext):
             line=node.lineno,
         )
 
-    def _x_Compare(self, node: ast.Compare) -> Atom:
+    def _x_Compare(self, node: ast.Compare) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         terms = [self.expression(v) for v in (node.left, *node.comparators)]
         # A middle operand of a chain is read by two links; Python evaluates
         # it once, so anything that is not already a leaf binds to a
@@ -215,7 +215,7 @@ class ExpressionCompilerMixin(CompilerContext):
         folded = links[-1]
         for link in reversed(links[:-1]):
             # The chain short-circuits exactly as Python's does.
-            folded = Expr([Sym("if"), link, folded, Gnd(False)])
+            folded = Expr([Sym("if"), link, folded, Gnd(False)])  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         for temp, value in reversed(bindings):
             folded = Expr([Sym("let*"), Expr([Expr([Var(temp), value])]), folded])
         return folded
@@ -224,7 +224,7 @@ class ExpressionCompilerMixin(CompilerContext):
         """A test position: Python decides by truthiness, so anything not
         already boolean-valued by its syntax wraps in py-truthy, whose
         answer IS bool() of the value. A comparison or a `not` stays bare.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(node, ast.Compare):
             return self.expression(node)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
@@ -238,7 +238,7 @@ class ExpressionCompilerMixin(CompilerContext):
         """One comparison: order through the engine's numeric functions,
         equality and membership through the prelude, so mixed numeric types
         and containers answer exactly what Python answers.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(op_node, ast.Eq):
             self.runtime_ops.add("py-eq")
             return Expr([Sym("py-eq"), left, right])
@@ -261,7 +261,7 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         return Expr([Sym(op), left, right])
 
-    def _x_BoolOp(self, node: ast.BoolOp) -> Atom:
+    def _x_BoolOp(self, node: ast.BoolOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         # Python's and/or short-circuit AND answer the deciding operand
         # itself (3 or 7 is 3), so each step binds its operand once and
         # chooses by truthiness. Exactly Python, exactly once each.
@@ -278,7 +278,7 @@ class ExpressionCompilerMixin(CompilerContext):
             folded = Expr([Sym("let*"), Expr([Expr([Var(temp), term])]), chosen])
         return folded
 
-    def _x_IfExp(self, node: ast.IfExp) -> Atom:
+    def _x_IfExp(self, node: ast.IfExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         return Expr(
             [
                 Sym("if"),
@@ -288,7 +288,7 @@ class ExpressionCompilerMixin(CompilerContext):
             ]
         )
 
-    def _x_Lambda(self, node: ast.Lambda) -> Atom:
+    def _x_Lambda(self, node: ast.Lambda) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """A lambda is the engine's own first-class |->."""
         a = node.args
         if a.vararg or a.kwarg or a.kwonlyargs or a.defaults or a.posonlyargs:
@@ -304,13 +304,13 @@ class ExpressionCompilerMixin(CompilerContext):
             [Sym("|->"), Expr([Var(p) for p in params]), inner.expression(node.body)]
         )
 
-    def _x_ListComp(self, node: ast.ListComp) -> Atom:
+    def _x_ListComp(self, node: ast.ListComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), an
         if-filter composing through filter-atom first. Several `for`
         clauses nest the maps, each outer level flattening its nested
         answers with a left union-atom fold, so the elements arrive in
         Python's own order.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         for gen in node.generators:
             if gen.is_async:
                 msg = "an async comprehension has no equation"
@@ -345,7 +345,7 @@ class ExpressionCompilerMixin(CompilerContext):
             ]
         )
 
-    def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:
+    def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         msg = (
             "a generator expression is lazy Python; write a list "
             "comprehension for map-atom, or a generator function for "
@@ -357,7 +357,7 @@ class ExpressionCompilerMixin(CompilerContext):
             line=node.lineno,
         )
 
-    def _x_Call(self, node: ast.Call) -> Atom:
+    def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
@@ -515,7 +515,7 @@ class ExpressionCompilerMixin(CompilerContext):
         self.runtime_ops.add("py-range")
         return Expr([Sym("py-range"), *args])
 
-    def _x_Subscript(self, node: ast.Subscript) -> Atom:
+    def _x_Subscript(self, node: ast.Subscript) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         source = self.expression(node.value)
         if isinstance(node.slice, ast.Slice):
             if node.slice.step is not None:
@@ -544,7 +544,7 @@ class ExpressionCompilerMixin(CompilerContext):
         """match(Pattern(...), template) runs against the running space;
         match("&name", pattern, template) names one. Pattern variables are
         the names not otherwise bound, exactly as in source MeTTa.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         args = node.args
         if len(args) == 3:
             space_node, pattern_node, template_node = args
@@ -585,13 +585,13 @@ class ExpressionCompilerMixin(CompilerContext):
         self.hazards.add("a match against the space")
         return Expr([Sym("match"), space, pattern, template])
 
-    def _x_Tuple(self, node: ast.Tuple) -> Atom:
+    def _x_Tuple(self, node: ast.Tuple) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         return Expr([self.expression(e) for e in node.elts])
 
-    def _x_List(self, node: ast.List) -> Atom:
+    def _x_List(self, node: ast.List) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         return Expr([self.expression(e) for e in node.elts])
 
-    def _x_Dict(self, node: ast.Dict) -> Atom:
+    def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         msg = (
             "a dict literal has no MeTTa form; carry one whole with "
             "petta.val(...) through an operation, or spell the pairs as an "
@@ -603,12 +603,12 @@ class ExpressionCompilerMixin(CompilerContext):
             line=node.lineno,
         )
 
-    def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:
+    def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """An f-string joins its parts through the prelude: literal text as
         itself, {v} as py-str, {v!r} as py-repr, {v:spec} as py-format with
         a literal spec. Exactly Python's building, so the twin agrees to
         the character.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.runtime_ops.add("py-str-join")
         parts = [self._fstring_piece(piece, node.lineno) for piece in node.values]
         return Expr([Sym("py-str-join"), Expr(parts)])

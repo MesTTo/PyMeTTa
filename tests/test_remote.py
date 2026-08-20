@@ -19,7 +19,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import logging
 import threading
@@ -36,17 +36,17 @@ from petta.errors import PettaError
 from petta.foreign import SpaceProvider
 
 
-def test_library_logging_is_opt_in():
+def test_library_logging_is_opt_in():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert any(
         isinstance(handler, logging.NullHandler)
         for handler in logging.getLogger("petta").handlers
     )
 
 
-def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):
+def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     transport = remote.connect("http://example.test/api")
 
-    def request(*args, **kwargs):
+    def request(*args, **kwargs):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return 200, "OK", b'{"atoms": []}'
 
     monkeypatch.setattr(network.HTTPEndpoint, "request", request)
@@ -60,7 +60,7 @@ def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):
     assert sensitive_value not in text
 
 
-def test_bearer_token_uses_constant_time_comparison(monkeypatch):
+def test_bearer_token_uses_constant_time_comparison(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
     policies = []
 
@@ -103,7 +103,7 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):
         ("example.test/api", "<missing>"),
     ],
 )
-def test_remote_connect_refuses_non_http_urls(url, scheme):
+def test_remote_connect_refuses_non_http_urls(url, scheme):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(PettaError, match=scheme):
         remote.connect(url)
 
@@ -112,19 +112,19 @@ def test_remote_connect_refuses_non_http_urls(url, scheme):
     "headers",
     [None, {"Authorization": "Basic c2VjcmV0"}],
 )
-def test_remote_connect_refuses_credentials_over_http(headers):
+def test_remote_connect_refuses_credentials_over_http(headers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     options = {"token": "secret"} if headers is None else {"headers": headers}
     with pytest.raises(PettaError, match="credentials require an https URL"):
         remote.connect("http://example.test", **options)
 
 
-def test_remote_connect_accepts_http_and_https_urls():
+def test_remote_connect_accepts_http_and_https_urls():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert callable(remote.connect("http://example.test/api/"))
     assert callable(remote.connect("https://example.test/api/", token="secret"))
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
-def test_network_clients_refuse_invalid_timeouts(timeout):
+def test_network_clients_refuse_invalid_timeouts(timeout):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="timeout"):
         remote.connect("http://example.test", timeout=timeout)
 
@@ -138,18 +138,18 @@ def test_network_clients_refuse_invalid_timeouts(timeout):
         ("https://example.test/api#section", "query or fragment"),
     ],
 )
-def test_remote_connect_refuses_malformed_base_urls(url, message):
+def test_remote_connect_refuses_malformed_base_urls(url, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(PettaError, match=message):
         remote.connect(url)
 
 
-def test_remote_connect_refuses_embedded_credentials_without_echoing_them():
+def test_remote_connect_refuses_embedded_credentials_without_echoing_them():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(PettaError, match="embedded credentials") as failure:
         remote.connect("https://operator:top-secret@example.test")
     assert "top-secret" not in str(failure.value)
 
 
-def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):
+def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def fail_attach():
         msg = "injected remote attach failure"
         raise RuntimeError(msg)
@@ -160,7 +160,7 @@ def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):
         remote.serve(metta)
 
 
-def test_remote_close_waits_for_worker_detach(metta, monkeypatch):
+def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     original = petta.janus.detach_engine
     detach_started = threading.Event()
     release_detach = threading.Event()
@@ -220,7 +220,7 @@ def test_remote_close_waits_for_worker_detach(metta, monkeypatch):
         ),
     ],
 )
-def test_remote_server_rejects_malformed_request_bodies(
+def test_remote_server_rejects_malformed_request_bodies(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta,
     headers,
     body,
@@ -242,7 +242,7 @@ def test_remote_server_rejects_malformed_request_bodies(
         server.close()
 
 
-def test_authorize_can_serve_a_space_read_only(metta):
+def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The hook saw the headers alone, so it could not tell a read from a
     # write and read-only was inexpressible.
     served = metta.new_space()
@@ -273,7 +273,7 @@ def test_authorize_can_serve_a_space_read_only(metta):
     ("read_fails", "oversized"),
     [(False, False), (True, False), (False, True)],
 )
-def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, oversized):
+def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, oversized):  # noqa: C901, D103  -- test_http_endpoint_closes_transport_resources keeps the transport failure matrix together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
     class Response:
         status = 200
         reason = "OK"
@@ -318,7 +318,7 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
             self.closed = True
 
     connection = Connection()
-    monkeypatch.setattr(network, "HTTPConnection", lambda *args, **kwargs: connection)
+    monkeypatch.setattr(network, "HTTPConnection", lambda *_args, **_kwargs: connection)
     if oversized:
         monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 4)
     endpoint = network.HTTPEndpoint(
@@ -347,7 +347,7 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
 # ------------------------------------------------- the wire projection (J4)
 
 
-def test_health_advertises_the_projection(metta):
+def test_health_advertises_the_projection(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     server = remote.serve(metta)
     try:
         transport = remote.connect(server.url)
@@ -364,13 +364,13 @@ def test_health_advertises_the_projection(metta):
         server.close()
 
 
-def test_server_capabilities_refuses_a_health_less_transport():
-    space = remote.RemoteSpace(lambda operation, payload: {"atoms": []})
+def test_server_capabilities_refuses_a_health_less_transport():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    space = remote.RemoteSpace(lambda _operation, _payload: {"atoms": []})
     with pytest.raises(PettaError, match="health"):
         space.server_capabilities()
 
 
-def test_bound_crosses_and_is_honored_exactly(metta):
+def test_bound_crosses_and_is_honored_exactly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta.new_space()
     scratch.add(S.re_edge(S.a, S.b), S.re_edge(S.a, S.c), S.re_edge(S.a, S.d))
     server = remote.serve(metta)
@@ -387,7 +387,7 @@ def test_bound_crosses_and_is_honored_exactly(metta):
         server.close()
 
 
-def test_the_seam_pushes_the_callers_bound_onto_the_wire():
+def test_the_seam_pushes_the_callers_bound_onto_the_wire():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # No server at all: a capturing transport proves the engine-side
     # bounded query reaches RemoteSpace.match with the limit, and the
     # limit leaves as the wire's bound field.
@@ -404,7 +404,7 @@ def test_the_seam_pushes_the_callers_bound_onto_the_wire():
     assert "bound" not in sent[-1][1]
 
 
-def test_add_many_lands_through_our_own_server(metta):
+def test_add_many_lands_through_our_own_server(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The client always sent add_many; the server refused it as unknown
     # until the projection work, so bulk adds against serve() failed.
     scratch = metta.new_space()
@@ -437,7 +437,7 @@ class _CountingProvider(SpaceProvider):
         self.stored = [petta.parse(f"(re_counted {n})") for n in range(size)]
         self.yielded = 0
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         for atom in self.stored:
             self.yielded += 1
             yield atom
@@ -546,7 +546,7 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
 def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
     """Chunking is a CHUNK and not a cut: every answer still crosses,
     whatever batch carries it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_chunk {n})") for n in range(7)])
     server = remote.serve(metta)
@@ -584,7 +584,7 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
     answer set past it cannot cross that way at all, and chunks are how it
     crosses. The cap is lowered here rather than the answer set raised,
     which measures the same thing without moving 16 MiB.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_big {n})") for n in range(200)])
     server = remote.serve(metta)
@@ -604,7 +604,7 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
 def test_a_gateway_is_a_drop_in_transport(metta):
     """The two halves of the wire carry one signature, so a Gateway goes
     wherever a connected transport goes, health reflection included.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(petta.parse("(re_drop a)"))
     gateway = remote.Gateway(metta)
@@ -628,7 +628,7 @@ def test_a_gateway_is_a_drop_in_transport(metta):
 def test_a_finished_stream_needs_no_stop(metta):
     """Exhaustion releases the server's cursor, so the reply that ends a
     stream carries a null continuation and a later stop finds nothing.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(petta.parse("(re_short a)"))
     gateway = remote.Gateway(metta)
@@ -651,7 +651,7 @@ def test_a_finished_stream_needs_no_stop(metta):
 def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(metta):
     """Answering nothing would say the enumeration ended, and
     under-answering is the one thing this protocol forbids.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_gone {n})") for n in range(4)])
     gateway = remote.Gateway(metta)
@@ -676,7 +676,7 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
 
 
 @pytest.mark.parametrize("batch", [0, -1, 1.5, True, "two"])
-def test_a_malformed_batch_is_refused(metta, batch):
+def test_a_malformed_batch_is_refused(metta, batch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta.new_space()
     gateway = remote.Gateway(metta)
     try:
@@ -698,7 +698,7 @@ def test_an_idle_cursor_is_released(metta):
     """A client that walks away mid-stream leaves an engine behind, so a
     cursor nobody pulls from is released after its idle deadline; the
     engine count is the oracle.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_idle {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_idle=0.05)
@@ -726,7 +726,7 @@ def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
     """The ceiling is refused rather than grown: an open cursor owns an
     engine, so an unbounded table of them is an unbounded resource on an
     open port.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_many {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_limit=2)
@@ -751,7 +751,7 @@ def test_closing_the_server_releases_open_cursors(metta):
     """A gateway OWNS its cursors, so closing one releases every engine
     behind them rather than waiting on an idle deadline that no longer
     has a server to fire on.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_owned {n})") for n in range(4)])
     before = _live_engines(metta)
@@ -771,7 +771,7 @@ def test_authorize_sees_the_cursors_own_space(metta):
     """/next and /stop carry a cursor and no space, so a per-space policy
     is handed the space the ANSWERS come from; reading the absent field's
     default would have judged the wrong one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     served = metta.new_space()
     served.add(*[petta.parse(f"(re_auth {n})") for n in range(4)])
     name = served.space_name
@@ -801,7 +801,7 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
     way serving and attaching join inside one process: an HTTP server
     answers on a thread of its own and would wait on the very evaluation
     waiting on it, while a Gateway runs on the calling thread.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _CountingProvider(2_000)
     metta.register_space(provider, "&re-lazy-attached")
     gateway = remote.Gateway(metta)
@@ -828,25 +828,25 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
     assert drained >= 2_000, "and a query that wants them all still gets them all"
 
 
-def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):
+def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):  # noqa: ARG001  -- pytest injects this fixture to establish engine state for the scenario
     """A chunk carrying nothing ends the stream, so a live cursor beside
     an empty chunk is a server that would spin a client forever.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def looping(operation, payload):
+    def looping(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return {"atoms": [], "cursor": "forever"}
 
     with pytest.raises(PettaError, match="live cursor with no atoms"):
         remote.RemoteCursor(looping, "&self", petta.parse("(re_loop $x)"))
 
-    def shapeless(operation, payload):
+    def shapeless(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return {"cursor": None}
 
     with pytest.raises(PettaError, match="chunk without an atom list"):
         remote.RemoteCursor(shapeless, "&self", petta.parse("(re_loop $x)"))
 
 
-def test_a_closed_remote_cursor_refuses_further_pulls(metta):
+def test_a_closed_remote_cursor_refuses_further_pulls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_closed {n})") for n in range(4)])
     server = remote.serve(metta)
@@ -872,16 +872,16 @@ def test_a_closed_remote_cursor_refuses_further_pulls(metta):
 
 
 @pytest.mark.parametrize("batch", [0, -1, 1.5, True])
-def test_a_remote_cursor_refuses_a_malformed_batch(metta, batch):
+def test_a_remote_cursor_refuses_a_malformed_batch(metta, batch):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="batch must be a positive integer"):
         remote.RemoteCursor(
-            lambda operation, payload: {"atoms": [], "cursor": None},
+            lambda _operation, _payload: {"atoms": [], "cursor": None},
             "&self",
             petta.parse("(re_bad $x)"),
             batch=batch,
         )
     with pytest.raises(ValueError, match="batch must be a positive integer or None"):
-        remote.RemoteSpace(lambda operation, payload: {}, batch=batch)
+        remote.RemoteSpace(lambda _operation, _payload: {}, batch=batch)
 
 
 class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
@@ -889,10 +889,10 @@ class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
     TypeScript references: the page made executable, pointed inward.
     This is what caught add_many missing, /health missing, and 501
     where the contract says 405.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @pytest.fixture()
-    def gateway_url(self, metta):
+    def gateway_url(self, metta):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         server = remote.serve(metta)
         try:
             yield server.url

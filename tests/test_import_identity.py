@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import importlib
 import os
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 
-def test_legacy_package_path_aliases_canonical_modules():
+def test_legacy_package_path_aliases_canonical_modules():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     canonical = importlib.import_module("petta")
     legacy = importlib.import_module("python.petta")
 
@@ -30,7 +30,7 @@ def test_legacy_package_path_aliases_canonical_modules():
     assert importlib.import_module("python.petta.subscribe") is canonical.subscribe
 
 
-def test_legacy_path_can_be_imported_first():
+def test_legacy_path_can_be_imported_first():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     root = Path(__file__).resolve().parents[3]
     source = """
 import importlib
@@ -52,7 +52,7 @@ assert importlib.import_module('python.petta.subscribe') is canonical.subscribe
     )
 
 
-def test_optional_surfaces_load_only_when_requested():
+def test_optional_surfaces_load_only_when_requested():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     root = Path(__file__).resolve().parents[3]
     source = """
 import importlib

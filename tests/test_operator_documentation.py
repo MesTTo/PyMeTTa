@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def test_every_operator_is_documented_including_the_non_symbolic_one():
     doc's table, so the table cannot drift from the class: an operator
     added tomorrow is in Python's fixed dunder universe, builds a term
     here, and fails this test until the table names it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     text = DOC.read_text(encoding="utf-8")
     built: dict[str, str] = {}
     for dunder in BINARY_DUNDERS:

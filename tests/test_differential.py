@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import re
@@ -109,7 +109,7 @@ def _library_output(example: Path) -> str:
 
 
 @pytest.mark.parametrize("name", EXAMPLES)
-def test_library_agrees_with_cli(name):
+def test_library_agrees_with_cli(name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     example = REPO / "examples" / name
     assert example.exists(), f"missing example {name}"
     assert _normalize(_library_output(example)) == _normalize(_cli_output(example))

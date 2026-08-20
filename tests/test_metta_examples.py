@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import subprocess
 from pathlib import Path
@@ -27,7 +27,7 @@ FILES = [
 
 
 @pytest.mark.parametrize("name", FILES)
-def test_metta_file(name):
+def test_metta_file(name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     result = subprocess.run(
         ["sh", "run.sh", f"examples/{name}"],
         capture_output=True,

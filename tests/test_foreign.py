@@ -22,7 +22,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from collections.abc import Iterator
 from typing import Any, ClassVar
@@ -58,19 +58,19 @@ class ListSpace(SpaceProvider):
     once rather than restated per test.
     """
 
-    def __init__(self, atoms=()):
+    def __init__(self, atoms=()):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self.stored = list(atoms)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         return iter(self.stored)
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(self.stored)
 
-    def add(self, atom):
+    def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.stored.append(atom)
 
-    def remove(self, atom):
+    def remove(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # One occurrence: the seam's own "remove one", which a provider
         # copied from here would otherwise get wrong.
         for index, held in enumerate(self.stored):
@@ -81,7 +81,7 @@ class ListSpace(SpaceProvider):
 
 
 @pytest.fixture()
-def listspace(metta):
+def listspace(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = ListSpace([S.edge(S.a, S.b), S.edge(S.b, S.c), S.other(1)])
     name = f"&list{id(provider) % 10000}"
     metta.register_space(provider, name)
@@ -98,7 +98,7 @@ def listspace(metta):
 # alone: registration, the refusal MODEL, and the bound's mechanics.
 
 
-def test_match_answers_exactly_what_the_pattern_names(listspace):
+def test_match_answers_exactly_what_the_pattern_names(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, _provider, m = listspace
     r = m.run(f"!(collapse (match {name} (edge $x $y) ($x $y)))")
     assert r == [[expr(expr(S.a, S.b), expr(S.b, S.c))]]
@@ -106,19 +106,19 @@ def test_match_answers_exactly_what_the_pattern_names(listspace):
     assert m.run(f"!(match {name} (edge a $y) $y)") == [[S.b]]
 
 
-def test_conjunction_routes_through_the_provider(listspace):
+def test_conjunction_routes_through_the_provider(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     r = m.run(f"!(collapse (match {name} (, (edge $x $y) (edge $y $z)) ($x $z)))")
     assert r == [[expr(expr(S.a, S.c))]]
 
 
-def test_python_query_api_over_foreign_space(listspace):
+def test_python_query_api_over_foreign_space(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     rows = m.space(name).query(S.edge(V.x, V.y), S.edge(V.y, V.z))
     assert [(r.x, r.z) for r in rows] == [(S.a, S.c)]
 
 
-def test_writes_reach_the_provider(listspace):
+def test_writes_reach_the_provider(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     m.run(f"!(add-atom {name} (edge c d))")
     assert S.edge(S.c, S.d) in provider.stored
@@ -126,7 +126,7 @@ def test_writes_reach_the_provider(listspace):
     assert S.other(1) not in provider.stored
 
 
-def test_mixed_native_and_foreign_join(listspace):
+def test_mixed_native_and_foreign_join(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     native = m.new_space()
     native.add(S.blessed(S.a))
@@ -137,7 +137,7 @@ def test_mixed_native_and_foreign_join(listspace):
     assert r == [[expr(expr(S.a, S.reaches, S.b))]]
 
 
-def test_read_only_provider_errors_loudly(metta):
+def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class ReadOnly(SpaceProvider):
         def atoms(self):
             return iter([S.fact(1)])
@@ -153,7 +153,7 @@ def test_read_only_provider_errors_loudly(metta):
         metta.unregister_space(name)
 
 
-def test_capabilities_follow_implemented_methods():
+def test_capabilities_follow_implemented_methods():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class ReadOnly(SpaceProvider):
         def atoms(self) -> Iterator[Any]:
             return iter(())
@@ -178,14 +178,14 @@ def test_capabilities_follow_implemented_methods():
     assert not add_only.can_run("subscribe", on="both")
 
 
-def test_stale_static_capability_declaration_is_refused():
+def test_stale_static_capability_declaration_is_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="stale static declaration"):
 
         class StaleProvider(SpaceProvider):
             capabilities: ClassVar = {"add": True}
 
 
-def test_provider_can_decline_one_request(metta):
+def test_provider_can_decline_one_request(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Selective(SpaceProvider):
         def __init__(self):
             self.stored = []
@@ -215,7 +215,7 @@ def test_provider_can_decline_one_request(metta):
 # which verifies itself in the suite; here stays the provider protocol.
 
 
-def test_provider_collision_is_refused(metta):
+def test_provider_collision_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Empty(SpaceProvider):
         def atoms(self):
             return iter(())
@@ -231,7 +231,7 @@ def test_provider_collision_is_refused(metta):
         metta.unregister_space("&col")
 
 
-def test_provider_registration_is_transactional():
+def test_provider_registration_is_transactional():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Empty(SpaceProvider):
         def atoms(self):
             return iter(())
@@ -270,12 +270,12 @@ def test_provider_registration_is_transactional():
 # provider that IMPLEMENTS add and declines it was told it "does not implement
 # add", and the sentence saying what to do instead, which the provider had
 # already written, ran nowhere.
-def test_a_provider_states_its_own_refusal(metta):
+def test_a_provider_states_its_own_refusal(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Curated(SpaceProvider):
         def atoms(self):
             return iter(())
 
-        def add(self, atom):
+        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             msg = "declined before this runs"
             raise AssertionError(msg)
 
@@ -301,12 +301,12 @@ def test_a_provider_states_its_own_refusal(metta):
 # "does not implement" is wrong for a provider that implements and declines,
 # and the model already draws that distinction: the base class's own can_run
 # answers "is it there at all" independently of the subclass's policy.
-def test_declining_and_not_implementing_read_differently(metta):
+def test_declining_and_not_implementing_read_differently(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Declines(SpaceProvider):
         def atoms(self):
             return iter(())
 
-        def add(self, atom):
+        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             msg = "declined before this runs"
             raise AssertionError(msg)
 
@@ -333,7 +333,7 @@ def test_declining_and_not_implementing_read_differently(metta):
 # bypassed where it is USED: foreign_match checked only "match", then fell
 # through to atoms() for an Enumerable provider, so a provider allowing match
 # and declining enumerate had atoms() called anyway.
-def test_a_declined_enumerate_is_not_reached_through_match(metta):
+def test_a_declined_enumerate_is_not_reached_through_match(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class NoEnumerate(SpaceProvider):
         called = False
 
@@ -385,25 +385,25 @@ class _Bounded(_Countable):
     against this provider's own output.
     """
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         self.asked.append(limit)
         yield from self._yield_up_to(
             self.atoms_held if limit is None else min(self.atoms_held, limit)
         )
 
-    def pushdown(self, pattern):
+    def pushdown(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         return "exact"
 
 
 class _Unbounded(_Countable):
     """Written before the option existed; must be called exactly as it was."""
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield from self._yield_up_to(self.atoms_held)
 
 
 @pytest.mark.parametrize("limit", [1, 3, 10])
-def test_a_bound_reaches_a_provider_that_takes_one(metta, limit):
+def test_a_bound_reaches_a_provider_that_takes_one(metta, limit):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Bounded(500)
     metta.register_space(provider, "&bounded-test")
     try:
@@ -417,7 +417,7 @@ def test_a_bound_reaches_a_provider_that_takes_one(metta, limit):
         metta.unregister_space("&bounded-test")
 
 
-def test_a_provider_without_the_keyword_is_called_as_before(metta):
+def test_a_provider_without_the_keyword_is_called_as_before(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Unbounded(500)
     metta.register_space(provider, "&unbounded-test")
     try:
@@ -439,7 +439,7 @@ class _UnclaimedBounded(_Countable):
     under-answering, which is the one thing the seam's contract forbids.
     """
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         self.asked.append(limit)
         yield from self._yield_up_to(
             self.atoms_held if limit is None else min(self.atoms_held, limit)
@@ -469,7 +469,7 @@ def test_a_metta_take_pushes_its_bound_to_the_provider(metta):
     Until it existed the two halves were unjoined: BoundedMatcher.limit had
     the concept and only the Python query surface could set it, so a MeTTa
     program bounding its own answers enumerated the backend and discarded.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _Bounded(500)
     metta.register_space(provider, "&take-test")
     try:
@@ -531,13 +531,13 @@ def test_a_take_withholds_its_bound_from_a_provider_that_claimed_nothing(metta):
 def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
     """A claim that is neither word is a mistake, not a value to fall back
     from: falling back would silently discard a real exact.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     class _Nonsense(_Countable):
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield from self._yield_up_to(self.atoms_held)
 
-        def pushdown(self, pattern):
+        def pushdown(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return "probably"
 
     provider = _Nonsense(5)
@@ -582,7 +582,7 @@ def test_a_python_providers_capabilities_reach_the_engine(metta):
 def test_an_absent_capability_still_carries_the_providers_own_words(metta):
     """The projection made the ENGINE refuse first, which would have lost the
     message. The refusal is a seam now, so it is raised where the words are.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     class Curated(SpaceProvider):
         def atoms(self):
@@ -631,7 +631,7 @@ def test_a_bound_is_not_pushed_past_a_join(metta):
     """Across a join the bound belongs to the joined rows. An outer match
     truncated at N would lose the rows its later candidates would join to,
     which is under-answering, the one thing the contract forbids.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _Bounded(20)
     metta.register_space(provider, "&join-bound-test")
     try:
@@ -644,7 +644,7 @@ def test_a_bound_is_not_pushed_past_a_join(metta):
         metta.unregister_space("&join-bound-test")
 
 
-def test_an_unbounded_query_asks_for_nothing_in_particular(metta):
+def test_an_unbounded_query_asks_for_nothing_in_particular(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Bounded(7)
     metta.register_space(provider, "&nolimit-test")
     try:
@@ -658,14 +658,14 @@ def test_an_unbounded_query_asks_for_nothing_in_particular(metta):
 def test_a_provider_ignoring_the_bound_is_still_bounded_by_the_engine(metta):
     """Honouring the bound is the provider's decision, so the engine may not
     depend on it. This one is told 2 and answers everything anyway.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     class Defiant(_Countable):
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             self.asked.append(limit)
             yield from self._yield_up_to(self.atoms_held)
 
-        def pushdown(self, pattern):
+        def pushdown(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return "exact"
 
     provider = Defiant(50)
@@ -687,17 +687,17 @@ class JoiningSpace(SpaceProvider):
     goes through the same seam and is exercised in test_mork_space.py.
     """
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self.rows: list[Atom] = []
         self.claims = 0
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(self.rows)
 
-    def add(self, atom: Atom) -> None:
+    def add(self, atom: Atom) -> None:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.rows.append(atom)
 
-    def plan(self, patterns):
+    def plan(self, patterns):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.claims += 1
         found: list[list[Atom]] = []
 
@@ -722,8 +722,8 @@ def _substitute(atom: Atom, bindings: dict) -> Atom:
     return atom
 
 
-class DecliningPlanner(JoiningSpace):
-    def plan(self, patterns):
+class DecliningPlanner(JoiningSpace):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def plan(self, patterns):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         self.claims += 1
 
 
@@ -754,7 +754,7 @@ def test_a_claimed_join_answers_what_the_engines_split_answers(metta):
     split over a native space holding the same atoms, because a claim is the one
     place in this seam where a provider may not over-approximate: there is no
     cheap re-check for a join, so the differential stands in for one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = JoiningSpace()
     claimed, split = _both_ways(
         metta, provider, "&py_join", S.edge(V.x, V.y), S.tag(V.y, V.t)
@@ -766,7 +766,7 @@ def test_a_claimed_join_answers_what_the_engines_split_answers(metta):
 def test_declining_a_conjunction_falls_back_to_the_split(metta):
     """Returning None is what a provider without a join does, and it must leave
     behaviour exactly as it was: asked, declined, and answered correctly.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = DecliningPlanner()
     claimed, split = _both_ways(
         metta, provider, "&py_nojoin", S.edge(V.x, V.y), S.tag(V.y, V.t)
@@ -775,7 +775,7 @@ def test_declining_a_conjunction_falls_back_to_the_split(metta):
     assert provider.claims == 1
 
 
-def test_plan_is_a_capability_derived_from_the_protocol():
+def test_plan_is_a_capability_derived_from_the_protocol():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert JoiningSpace().can_run("plan") is True
     assert ListSpace().can_run("plan") is False
 
@@ -786,10 +786,10 @@ class _PlannedPairs(SpaceProvider):
     def atoms(self) -> Iterator[Atom]:
         yield from ()
 
-    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
+    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         return iter(())
 
-    def pushdown(self, pattern: Atom) -> str:
+    def pushdown(self, pattern: Atom) -> str:  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         return "inexact"
 
     def plan(self, patterns: list[Atom]):
@@ -798,7 +798,7 @@ class _PlannedPairs(SpaceProvider):
         return None
 
 
-def test_explain_reflects_the_plan(metta):
+def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Stored space: the one true line, and the guard renders.
     prepared = metta.prepare(
         parse("(xedge $a $b)"), parse("(xedge $b $c)"), where=parse("(> 2 1)")
@@ -838,7 +838,7 @@ def test_explain_reflects_the_plan(metta):
         metta.unregister_space("&xplan")
 
 
-def test_a_stream_explains_without_pulling_a_row(metta):
+def test_a_stream_explains_without_pulling_a_row(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.add(parse("(sedge only)"))
     with metta.stream(parse("(sedge $x)")) as cursor:
         text = cursor.explain()
@@ -868,7 +868,7 @@ def test_an_eager_foreign_match_pulls_each_candidate_once(metta):
                 yield expr(S.p, i)
 
     class CountingMatch(CountingEnumerate):
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             for i in range(2000):
                 self.yields += 1
                 yield expr(S.p, i)

@@ -12,14 +12,16 @@ Assumes:
 Guarantees:
   - every position the engine's type surface declares strict, on a builtin
     PeTTa defines, refuses an unbound argument and names the MeTTa operation
-    [tested test_every_builtin_refuses_an_unbound_input_by_name]
+    [tested: test_every_builtin_refuses_an_unbound_input_by_name;
+    commit=WORKTREE]
   - no such refusal names a Prolog predicate the MeTTa program never wrote
-    [tested test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate]
+    [tested: test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import subprocess
@@ -111,7 +113,7 @@ def test_every_builtin_refuses_an_unbound_input_by_name(report):
 
     A table that emptied itself would pass every assertion below, so its size
     is asserted first.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert report["probed"] >= 80, report["probed"]
     assert report["answered"] == [], report["answered"]
     assert report["raised"] == [], report["raised"]
@@ -123,14 +125,14 @@ def test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate(repo
     and cannot act on. Every refusal names its own operation now, which is the
     same assertion from the other side: a message naming a host predicate
     would not contain the MeTTa name.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert report["unnamed"] == [], report["unnamed"]
 
 
-def test_the_measured_examples_read_as_MeTTa():
+def test_the_measured_examples_read_as_metta():
     """The four the specification measured, spelled out, because a generated
     probe proves the property and a written-out case proves it reads.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     engine = MeTTa()
     for source, position in (
         ("!(car-atom $u)", 1),
@@ -157,7 +159,7 @@ def test_a_relational_position_still_enumerates():
     enumerates, and enumerates the truth table, cons builds a pattern with an
     open tail, which the engine's own prelude writes as (cons Error $_), and
     union-atom splits a list from the right, which a shipped library does.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     engine = MeTTa()
     answers = lambda query: [  # noqa: E731 - one shape, read three times
         str(a) for g in engine.run(query) for a in g
@@ -175,7 +177,7 @@ def test_a_surface_match_on_an_unbound_space_answers_the_error(metta):
     already-bound body and the clause died silently, zero answers where a
     direct call answered the refusal [measured 2026-08-19 on the wave-7
     merged tree]. The template and the result are distinct variables now.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with metta.new_space() as space:
         groups = space.run("!(match $u (f 1) matched)")
     assert len(groups) == 1 and len(groups[0]) == 1

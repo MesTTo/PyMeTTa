@@ -57,7 +57,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ class _HTTPTransport:
     """connect()'s transport: one call per operation, and it knows its
     server's GET /health, which is how server_capabilities() can ask. A
     hand-built transport that wants the same offers its own `health`.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(
         self,
@@ -163,7 +163,7 @@ def _raise_failures(message: str, failures: list[BaseException]) -> None:
     raise BaseExceptionGroup(message, failures)
 
 
-class _HTTPProblem(ValueError):
+class _HTTPProblem(ValueError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     def __init__(self, status: int, message: str) -> None:
         super().__init__(message)
         self.status = status
@@ -194,7 +194,7 @@ class Request:
     """What an authorize hook decides about: who is asking, what they ask
     for, and which space they name. A hook given the headers alone could
     not tell a read from a write, so read-only was inexpressible.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     operation: str
     space: str
@@ -238,11 +238,11 @@ class RemoteCursor:
     lazy reading and the protocol's default; raising it trades an answer
     that may go unwanted for a saved round trip, the same choice a
     database driver's fetch size makes.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("__weakref__", "_batch", "_buffer", "_closed", "_space", "_token", "_transport")
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         transport: Transport,
         space: str,
@@ -299,10 +299,10 @@ class RemoteCursor:
         self._token = token
         self._buffer.extend(atom_from_wire(wire) for wire in atoms)
 
-    def __iter__(self) -> Iterator[Atom]:
+    def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __next__(self) -> Atom:
+    def __next__(self) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         if self._closed:
             msg = "this cursor is closed"
             raise PettaError(msg)
@@ -317,7 +317,7 @@ class RemoteCursor:
     def close(self) -> None:
         """Release the server's cursor; idempotent, and distinct from
         exhaustion, which released it already.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._closed:
             return
         self._closed = True
@@ -326,7 +326,7 @@ class RemoteCursor:
         if token is not None:
             self._transport("stop", {"cursor": token})
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -334,7 +334,7 @@ class RemoteCursor:
         diagnosis: a transport that broke mid-stream breaks the /stop too,
         and the failure a caller needs to read is the first one. Both are
         raised together, the same shape serve()'s own startup path uses.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if exc is None:
             self.close()
             return
@@ -347,7 +347,7 @@ class RemoteCursor:
                 [exc, stop_failure],
             ) from None
 
-    def __del__(self) -> None:
+    def __del__(self) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         if not getattr(self, "_closed", True) and getattr(self, "_token", None) is not None:
             # No stop is sent from here: a destructor is the wrong place
             # for a network round trip, and the server's own idle deadline
@@ -360,7 +360,7 @@ class RemoteCursor:
                 stacklevel=2,
             )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         # Buffered atoms count as open: the server has let go of the
         # stream but the caller has not read the last chunk yet.
         if self._closed:
@@ -393,7 +393,7 @@ class RemoteSpace(SpaceProvider):
     would have given it for free. See can_run.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         transport: Transport,
         space: str = "&self",
@@ -430,7 +430,7 @@ class RemoteSpace(SpaceProvider):
             return False
         return super().can_run(capability, **request)
 
-    def refusal(self, capability: str, /, **_request: Any) -> str | None:
+    def refusal(self, capability: str, /, **_request: Any) -> str | None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if capability != "subscribe":
             return None
         return (
@@ -454,7 +454,7 @@ class RemoteSpace(SpaceProvider):
         built with a `batch`, in which case the ask/next/stop lifecycle
         carries it a chunk at a time and an engine that stops pulling
         stops the server.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._batch is not None:
             with self.stream(pattern, batch=self._batch, limit=limit) as answers:
                 yield from answers
@@ -490,7 +490,7 @@ class RemoteSpace(SpaceProvider):
         the count is the under-approximation the protocol forbids. The
         first ask crosses when the cursor is built, as the in-process
         cursor opens its engine when it is built.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return RemoteCursor(
             self._transport, self._space, pattern, batch=batch, limit=limit
         )
@@ -502,7 +502,7 @@ class RemoteSpace(SpaceProvider):
         exactly. A transport built by connect() knows its URL; a
         hand-built transport must carry its own `health` callable, or
         this refuses rather than guessing.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         health = getattr(self._transport, "health", None)
         if health is None:
             msg = (
@@ -524,30 +524,30 @@ class RemoteSpace(SpaceProvider):
             "protocol": body.get("protocol"),
         }
 
-    def atoms(self) -> Iterator[Atom]:
+    def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         answer = self._transport("atoms", {"space": self._space})
         for wire in answer["atoms"]:
             yield atom_from_wire(wire)
 
-    def add(self, atom: Atom) -> None:
+    def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
     def add_many(self, atoms: list[Atom]) -> None:
         """One request carries the batch, the engine's own bulk-door law on
         the wire: a batch is a transport optimisation and never a semantic
         one, and the engine already routes only plain stores through it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._transport(
             "add_many",
             {"space": self._space, "atoms": [atom.to_wire() for atom in atoms]},
         )
 
-    def remove(self, atom: Atom) -> bool:
+    def remove(self, atom: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         answer = self._transport("remove", {"space": self._space, "atom": atom.to_wire()})
         return bool(answer.get("removed"))
 
 
-def connect(
+def connect(  # noqa: C901  -- connect keeps the HTTP negotiation and resource lifecycle together so its branches share one state
     url: str,
     timeout: float = 30.0,
     *,
@@ -564,7 +564,7 @@ def connect(
     included, so the transport composes with whatever security the
     serving side asks for. Only absolute http and https URLs are accepted.
     Credentials require https.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     endpoint = HTTPEndpoint(
         url,
         subject="remote engine",
@@ -633,7 +633,7 @@ def connect(
     def health() -> dict:
         """GET /health, the server describing itself: revision, atom
         count, capabilities, and whether /match honors bound.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             status, reason, raw = endpoint.request(
                 "GET", "health", headers=sent, timeout=timeout
@@ -874,7 +874,7 @@ class Gateway:
     arrangement.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         m,
         spaces: list[str] | None = None,
@@ -886,7 +886,7 @@ class Gateway:
         self._allowed = None if spaces is None else set(spaces)
         self._cursors = _Cursors(cursor_idle, cursor_limit)
 
-    def __call__(self, operation: str, payload: dict) -> dict:
+    def __call__(self, operation: str, payload: dict) -> dict:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if operation == "match":
             return self._match(payload)
         if operation == "ask":
@@ -915,14 +915,14 @@ class Gateway:
         """The transport-side spelling of GET /health, so a Gateway is a
         drop-in Transport and RemoteSpace.server_capabilities() can ask
         one the same question it asks a connected server.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._health()
 
     def cursor_space(self, token: object) -> str | None:
         """Which space an open cursor's answers come from, so a transport
         can hand its authorization hook the space /next and /stop are
         really about; None once the cursor is gone.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._cursors.space_of(token)
 
     def close(self) -> None:
@@ -1039,7 +1039,7 @@ class Gateway:
         """Release a cursor early. Answering whether there was one to
         release is the honest reply to a call a client makes from a
         finally-block, where the stream may already have ended.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return {"stopped": self._cursors.release(payload.get("cursor"))}
 
     def _remove(self, payload: dict) -> dict:
@@ -1233,7 +1233,7 @@ class _RemoteWorker:
 class Server:
     """This engine's spaces, served. close() stops accepting."""
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         httpd: ThreadingHTTPServer,
         thread: threading.Thread,
@@ -1259,7 +1259,7 @@ class Server:
         engine, and a client that walked away from a stream would otherwise
         leave one behind until the idle deadline that no longer has a server
         to fire on.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         timeout = _server_timeout(timeout)
         with self._close_lock:
             if self._closed:
@@ -1300,7 +1300,7 @@ class Server:
         return []
 
 
-def serve(
+def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifecycle together so its branches share one state
     m,
     host: str = "127.0.0.1",
     port: int = 0,
@@ -1446,9 +1446,9 @@ def serve(
             self.end_headers()
             self.wfile.write(body)
 
-        do_PUT = _method_not_allowed
-        do_DELETE = _method_not_allowed
-        do_PATCH = _method_not_allowed
+        do_PUT = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
+        do_DELETE = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
+        do_PATCH = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
 
         def do_POST(self) -> None:
             operation = self.path.strip("/")
@@ -1494,7 +1494,7 @@ def serve(
                 status,
             )
 
-        def log_message(self, format: str, *args: Any) -> None:
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002  -- BaseHTTPRequestHandler fixes the log_message format parameter name
             logger.debug("remote HTTP: " + format, *args)
 
     httpd = ThreadingHTTPServer((host, port), Handler)

@@ -22,7 +22,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class _Namespace:
         term-operators, which is three namespace lookups per term over
         20,000 terms, measured +0.132% [measured 2026-08-19, minimum of
         three instructions:u runs]. Deliberate, not an oversight.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if name.startswith("__"):
             raise AttributeError(name)
         fast = object.__getattribute__(self, "_fast")

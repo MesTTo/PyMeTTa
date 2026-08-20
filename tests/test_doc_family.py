@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -19,7 +19,7 @@ from hypothesis import strategies as st
 from petta import MeTTa, parse
 
 
-def test_the_doc_family_answers_what_upstream_answers(metta):
+def test_the_doc_family_answers_what_upstream_answers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as m:
         m.run(
             """
@@ -136,7 +136,7 @@ def test_the_doc_family_answers_what_upstream_answers(metta):
 
 
 @given(st.integers(min_value=0, max_value=8))
-def test_get_doc_params_preserves_every_generated_position(parameter_count):
+def test_get_doc_params_preserves_every_generated_position(parameter_count):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     params = " ".join(f'(@param "parameter {index}")' for index in range(parameter_count))
     types = " ".join([*(f"Type{index}" for index in range(parameter_count)), "ReturnType"])
     source = f'!(get-doc-params ({params}) (@return "result") ({types}))'

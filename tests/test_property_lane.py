@@ -20,7 +20,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def _prolog(repo_root: Path, goal: str, *, env: dict[str, str] | None = None) ->
     return finished.stdout
 
 
-def test_a_prolog_property_lane_catches_a_planted_roundtrip_violation(repo_root):
+def test_a_prolog_property_lane_catches_a_planted_roundtrip_violation(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     report = _prolog(repo_root, "property_lane_selftest")
 
     for plant, feature in PLANTS.items():
@@ -76,7 +76,7 @@ def test_the_planted_violation_is_the_same_violation_every_run(repo_root):
     assert first == second
 
 
-def test_the_generator_is_seeded_and_the_seed_can_be_widened(repo_root):
+def test_the_generator_is_seeded_and_the_seed_can_be_widened(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     show = (
         "consult('../../engine/metta.pl'), "
         "property_seed(S), set_random(seed(S)), "
@@ -102,7 +102,7 @@ def _unwrapped(path: Path) -> str:
 
 
 @pytest.mark.parametrize("name", VENDORED)
-def test_the_vendored_runner_records_its_provenance(repo_root, name):
+def test_the_vendored_runner_records_its_provenance(repo_root, name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = repo_root / "tests" / "prolog" / "vendor" / name
     vendored = _unwrapped(path)
 
@@ -120,7 +120,7 @@ def test_the_vendored_runner_records_its_provenance(repo_root, name):
     assert "%%%%%%%%%% vendored" in path.read_text()
 
 
-def test_the_vendored_licence_is_the_unlicense_itself(repo_root):
+def test_the_vendored_licence_is_the_unlicense_itself(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     licence = (repo_root / "tests" / "prolog" / "vendor" / "LICENSE").read_text()
     assert "released into the public domain" in licence
     assert "http://unlicense.org" in licence

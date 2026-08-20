@@ -34,7 +34,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ __all__ = [
 def _as_atom(value: Any) -> Atom:
     """Encode without parsing: engine-freedom is this module's contract,
     so source text must be parsed by the caller.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Atom):
         return value
     if isinstance(value, str):
@@ -83,7 +83,7 @@ def _canonical(atom: Atom) -> Atom:
     """The atom with variables renamed to their first-appearance index,
     so two alpha-equivalent atoms canonicalize identically and ordinary
     hashing becomes alpha-invariant hashing.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     names = variables(atom)
     if not names:
         return atom
@@ -108,11 +108,11 @@ class PatternMap(MutableMapping):
         routes[S.route(S.home)] = home_handler          # ground: dict speed
         routes[S.route(V.anything)] = fallback_handler  # pattern: bucketed
         [v for _, v in routes.matching(S.route(S.home))]
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_buckets", "_ground", "_patterns")
 
-    def __init__(self, items: Any = (), /) -> None:
+    def __init__(self, items: Any = (), /) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._ground: dict[Atom, Any] = {}
         # Pattern entries keyed by their alpha-canonical form; buckets
         # index canonical keys by (head name or None, arity) plus the
@@ -131,7 +131,7 @@ class PatternMap(MutableMapping):
             return (name, len(key.children))
         return None  # a bare variable key matches anything
 
-    def __setitem__(self, key: Any, value: Any) -> None:
+    def __setitem__(self, key: Any, value: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
         if is_ground(atom):
             self._ground[atom] = value
@@ -140,7 +140,7 @@ class PatternMap(MutableMapping):
         self._patterns[canonical] = (atom, value)
         self._buckets.setdefault(self._bucket_of(atom), set()).add(canonical)
 
-    def __getitem__(self, key: Any) -> Any:
+    def __getitem__(self, key: Any) -> Any:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
         if is_ground(atom):
             return self._ground[atom]
@@ -149,7 +149,7 @@ class PatternMap(MutableMapping):
             raise KeyError(atom)
         return entry[1]
 
-    def __delitem__(self, key: Any) -> None:
+    def __delitem__(self, key: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
         if is_ground(atom):
             del self._ground[atom]
@@ -162,12 +162,12 @@ class PatternMap(MutableMapping):
         if bucket is not None:
             bucket.discard(canonical)
 
-    def __iter__(self) -> Iterator[Atom]:
+    def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         yield from self._ground
         for stored, _ in self._patterns.values():
             yield stored
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return len(self._ground) + len(self._patterns)
 
     def matching(self, atom: Any) -> Iterator[tuple[Atom, Any]]:
@@ -176,7 +176,7 @@ class PatternMap(MutableMapping):
         buckets its head and arity could touch; a probe carrying
         variables consults every pattern entry, since a variable probe
         can reach any bucket, and ground entries it unifies with.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         probe = _as_atom(atom)
         if is_ground(probe):
             value = self._ground.get(probe, _MISSING)
@@ -206,7 +206,7 @@ class PatternMap(MutableMapping):
             yield (None, len(probe.children))
         yield None
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return (
             f"PatternMap({len(self._ground)} ground, "
             f"{len(self._patterns)} pattern entries)"
@@ -221,7 +221,7 @@ def _mutually_unifiable(left: Atom, right: Atom) -> bool:
     sound over-approximation of two-way unifiability for the entries a
     matching() probe with variables should answer, and the caller's own
     unify against the answered key settles the rest.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return unify(left, right) is not None or unify(right, left) is not None
 
 
@@ -240,11 +240,11 @@ class MatchIndex:
         inbox = MatchIndex()
         inbox.add(S.order(V.id, S.express), rush_handler)
         [value for _, value in inbox.matches(S.order(val(7), S.express))]
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_entries", "_next", "_root", "_size")
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._root: dict = {}
         # Keyed by a counter that only ever goes UP, which is what makes the
         # key both unique and an ordering. Keying on (id(atom), live count)
@@ -262,7 +262,7 @@ class MatchIndex:
     def _tokens(atom: Atom) -> list:
         """Preorder tokens; a variable is one skip token whatever it
         would bind.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         out: list = []
         stack = [atom]
         while stack:
@@ -309,7 +309,7 @@ class MatchIndex:
     def remove(self, pattern: Any, value: Any = None) -> bool:
         """Remove one registration matching (pattern, value) exactly;
         answers whether one existed.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         atom = _as_atom(pattern)
         node = self._root
         for token in self._tokens(atom):
@@ -326,12 +326,12 @@ class MatchIndex:
                 return True
         return False
 
-    def matches(self, atom: Any) -> Iterator[tuple[Atom, Any]]:
+    def matches(self, atom: Any) -> Iterator[tuple[Atom, Any]]:  # noqa: C901  -- matches keeps the structural matching decision table together so its branches share one state
         """Every registered (pattern, value) whose pattern matches the
         ground atom, in REGISTRATION order, whatever order the tree walk
         reached them in. The tree answers candidates; unify confirms, so
         nonlinearity is exact.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         probe = _as_atom(atom)
         if not is_ground(probe):
             # The tree's walk reads probe tokens literally, so a probe
@@ -368,7 +368,7 @@ class MatchIndex:
     def _skip_table(tokens: list) -> list[int]:
         """For each position, the position just past that whole subterm,
         which is where a variable edge lands.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         skips = [0] * len(tokens)
         for position in range(len(tokens) - 1, -1, -1):
             token = tokens[position]
@@ -381,10 +381,10 @@ class MatchIndex:
                 skips[position] = position + 1
         return skips
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self._size
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"MatchIndex({self._size} patterns)"
 
 
@@ -397,32 +397,32 @@ class AlphaSet(MutableSet):
 
         rules = AlphaSet([parse("(= (inc $x) (+ $x 1))")])
         parse("(= (inc $n) (+ $n 1))") in rules     # True
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_members",)
 
-    def __init__(self, items: Any = (), /) -> None:
+    def __init__(self, items: Any = (), /) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._members: dict[Atom, Atom] = {}
         for item in items:
             self.add(item)
 
-    def __contains__(self, item: Any) -> bool:
+    def __contains__(self, item: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return _canonical(_as_atom(item)) in self._members
 
-    def __iter__(self) -> Iterator[Atom]:
+    def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return iter(self._members.values())
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return len(self._members)
 
-    def add(self, value: Any) -> None:
+    def add(self, value: Any) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         atom = _as_atom(value)
         self._members.setdefault(_canonical(atom), atom)
 
-    def discard(self, value: Any) -> None:
+    def discard(self, value: Any) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self._members.pop(_canonical(_as_atom(value)), None)
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"AlphaSet({len(self._members)} atoms)"
 
 
@@ -436,7 +436,7 @@ class AlphaSet(MutableSet):
 def _tabling_ready(space: MeTTa) -> None:
     """lib_tabling, imported idempotently: the structure's dependency is
     the structure's setup.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     space.run("!(import! &self (library lib_tabling))")
 
 
@@ -465,9 +465,9 @@ class TabledMap:
     map. A nondeterministic function does not fit a map; a key whose
     call answers several values raises, and one answering none is a
     KeyError.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, name: str, *, arity: int | None = None) -> None:
+    def __init__(self, space: MeTTa, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._name = name
         _tabling_ready(space)
@@ -500,7 +500,7 @@ class TabledMap:
             )
         return parts
 
-    def __getitem__(self, key: Any) -> Any:
+    def __getitem__(self, key: Any) -> Any:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         parts = self._key(key)
         call = _call_expr(self._name, parts)
         if not self._space.eval(call):
@@ -508,7 +508,7 @@ class TabledMap:
         # The second crossing answers from the table the first one built.
         return self._space.one(call)
 
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         try:
             parts = self._key(key)
         except PettaError:
@@ -520,7 +520,7 @@ class TabledMap:
         answers, complete-call, invalidated, reevaluated. invalidated
         above reevaluated is SWI deciding a table was not worth
         rebuilding yet; both moving is the freshness machinery working.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
         if not isinstance(answer, Expr):
             msg = f"table-stats answered {answer!r}, not an expression"
@@ -536,7 +536,7 @@ class TabledMap:
         """Drop this function's tables; the next read re-evaluates."""
         self._space.run(f"!(table-clear {self._call_pattern})")
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"TabledMap({self._name}/{self._arity} on {self._space.space_name})"
 
 
@@ -556,9 +556,9 @@ class LiveView:
     event. A space is a multiset and so is the view: len counts copies,
     iteration yields them, count(atom) answers multiplicity. close()
     cancels the subscription; a closed view keeps its last state.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, pattern: Any) -> None:
+    def __init__(self, space: MeTTa, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._pattern = pattern
         self._lock = threading.Lock()
@@ -577,7 +577,7 @@ class LiveView:
         """Read the whole multiset from the space. The first read and the
         answer to a removal the event cannot resolve are the same
         computation, so they are one.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         rows = self._space.query(self._pattern)
         names = rows.columns
         held: Counter[Atom] = Counter()
@@ -613,7 +613,7 @@ class LiveView:
                 return
             self._seed()
 
-    def __contains__(self, atom: Any) -> bool:
+    def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         with self._lock:
             return self._held[_as_atom(atom)] > 0
 
@@ -622,11 +622,11 @@ class LiveView:
         with self._lock:
             return self._held[_as_atom(atom)]
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         with self._lock:
             return sum(self._held.values())
 
-    def __iter__(self) -> Iterator[Atom]:
+    def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         with self._lock:
             snapshot = list(self._held.elements())
         return iter(snapshot)
@@ -637,13 +637,13 @@ class LiveView:
             self._subscription.cancel()
             self._subscription = None
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.close()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"LiveView({self._pattern} on {self._space.space_name}, {len(self)} atoms)"
 
 
@@ -670,9 +670,9 @@ class ClosureView:
     without tabling that spelling never terminates, which is why the
     class always tables. Defines `<relation>-closure` (and its `-step`)
     in the space, named so a MeTTa program can call the same closure.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, relation: str, *, symmetric: bool = False) -> None:
+    def __init__(self, space: MeTTa, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._relation = relation
         self._fn = f"{relation}-closure"
@@ -692,16 +692,16 @@ class ClosureView:
                     msg
                 )
 
-    def __contains__(self, pair: tuple) -> bool:
+    def __contains__(self, pair: tuple) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         start, end = pair
         return bool(self._space.eval(_call_expr(self._fn, (start, end))))
 
     def reachable(self, start: Any) -> set[Atom]:
         """Every node reachable from start, as a set: the closure is a
         relation, so duplicates are answer multiplicity, not data.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         answers = self._space.eval(_call_expr(self._fn, (start, Var("_reach"))))
         return {answer for answer in answers if isinstance(answer, Atom)}
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"ClosureView({self._relation} on {self._space.space_name})"

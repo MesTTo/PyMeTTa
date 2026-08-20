@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import math
 import subprocess
@@ -102,7 +102,7 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
     stays an error here: the arbiter's answer THERE is the Error atom, a
     different shape owned by the error-answer story, and this pins that an
     integer zero keeps raising rather than leaking an infinity.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert metta.run("!(/ 1.0 0.0)")[0] == [math.inf]
     assert metta.run("!(/ -1.0 0.0)")[0] == [-math.inf]
     for form in (

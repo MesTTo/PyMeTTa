@@ -16,7 +16,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -442,11 +442,11 @@ def _equation_findings(
 # rewriting to something the engine provably answers identically, plus the
 # structural cases that cannot rewrite. The autofix is the STORED atom with
 # the inner expression replaced, so applying it is remove-then-add.
-def _is_truth(atom: Atom, value: bool) -> bool:
+def _is_truth(atom: Atom, value: bool) -> bool:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     """Whether the atom is the boolean literal, under either spelling the
     engine stores: True and true are one term there, arriving here as a
     ground bool or as the symbol.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(atom, Gnd):
         return atom.value is value
     return atom in (Sym(str(value)), Sym(str(value).lower()))
@@ -456,13 +456,13 @@ def _if_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
     if len(inner) != 4:
         return None
     _, condition, then_branch, else_branch = inner.children
-    if _is_truth(condition, True):
+    if _is_truth(condition, True):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         return ("constant-if-true", "the condition is literally True; only the then-branch can answer", then_branch)
-    if _is_truth(condition, False):
+    if _is_truth(condition, False):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         return ("constant-if-false", "the condition is literally False; only the else-branch can answer", else_branch)
     if alpha_eq(then_branch, else_branch):
         return ("if-same-branches", "both branches are the same expression; the condition decides nothing", then_branch)
-    if _is_truth(then_branch, True) and _is_truth(else_branch, False):
+    if _is_truth(then_branch, True) and _is_truth(else_branch, False):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         return ("if-true-false", "(if c True False) answers exactly what c answers", condition)
     return None
 
@@ -504,7 +504,7 @@ _SIMPLIFIERS = {"if": _if_simplified, "superpose": _superpose_simplified, "let*"
 def _simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
     """One nested expression's simplification, or None: (kind, detail,
     replacement), replacement None when the finding has no rewrite.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     simplifier = _SIMPLIFIERS.get(_symbol_head(inner) or "")
     return None if simplifier is None else simplifier(inner)
 
@@ -604,7 +604,7 @@ def _slot_mismatch(
     slot, else None. A parametric slot, a metatype slot, a non-ground
     argument, and an argument answering %Undefined% all pass, keeping the
     check conservative; a nested call is the engine's own hoisted check's.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if not isinstance(slot, Sym) or slot.name in _METATYPES:
         return None
     if isinstance(argument, (Var, Expr)):

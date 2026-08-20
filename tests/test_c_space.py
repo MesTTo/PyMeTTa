@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -26,7 +26,7 @@ _ARTEFACT = _PROVIDER.with_name("cstore.so")
 
 
 @pytest.fixture
-def cstore():
+def cstore():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _ARTEFACT.is_file():
         pytest.skip("cstore.so is not built; see examples/integration/c_space/README.md")
     m = petta.MeTTa().new_space()
@@ -40,7 +40,7 @@ def cstore():
         m.drop()
 
 
-def test_metta_reaches_the_c_store(cstore):
+def test_metta_reaches_the_c_store(cstore):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = cstore
     m.run("!(add-atom &cstore (edge a b))")
     m.run("!(add-atom &cstore (edge a c))")
@@ -48,7 +48,7 @@ def test_metta_reaches_the_c_store(cstore):
     assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
 
 
-def test_threads_interleave_whole_operations(cstore):
+def test_threads_interleave_whole_operations(cstore):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = cstore
 
     def add(index: int) -> None:

@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from petta import MeTTa
 
@@ -36,7 +36,7 @@ def test_get_type_does_not_run_its_arguments_effects():
     """Measured before this: the op FIRED, the counter went 0 to 1, and the
     answer was Number, the type of the value it returned. Every linter walk
     and every REPL inspection was invisibly effectful.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m, fired = _counting_engine()
     answer = m.run("!(get-type (petta-effectful))")
     assert fired == [], f"get-type ran its argument {len(fired)} time(s)"
@@ -55,7 +55,7 @@ def test_get_type_of_an_application_answers_the_declared_return_type():
     records `[Atom]` from both the mechanised interpreter and hyperon 0.2.10:
     the answer comes from the declaration, so it is the same whether or not
     the body would reduce.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m = MeTTa()
     m.run("(: literal-return (-> Number Atom))")
     m.run("(= (literal-return $x) (+ $x 1))")
@@ -77,7 +77,7 @@ def test_one_untyped_component_makes_the_whole_expressions_type_undefined():
     Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
     interpreter, byte-identical across both. Before this,
     `!(get-type (aa))` answered `(%Undefined%)`, a one-element tuple.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m = MeTTa()
     m.run("(: typed-sym Number)")
 

@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -23,7 +23,7 @@ def _format_date_clause_count(metta) -> int:
     return row["N"]
 
 
-def test_reused_pooled_space_reimports_complete_library(metta):
+def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     free_count = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
@@ -43,7 +43,7 @@ def test_reused_pooled_space_reimports_complete_library(metta):
             space.drop()
 
 
-def test_same_life_double_import_is_a_no_op(metta):
+def test_same_life_double_import_is_a_no_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as scratch:
         assert scratch.run(DATETIME_IMPORT) == [[expr()]]
         clauses_before = _format_date_clause_count(scratch)
@@ -55,7 +55,7 @@ def test_same_life_double_import_is_a_no_op(metta):
         assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
 
-def test_import_translation_leaves_variable_heads_dynamic(metta):
+def test_import_translation_leaves_variable_heads_dynamic(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as scratch:
         assert scratch.run(
             "(= (apply-two $function $left $right) "
@@ -63,7 +63,7 @@ def test_import_translation_leaves_variable_heads_dynamic(metta):
         ) == [[42]]
 
 
-def test_imported_source_error_names_the_file(metta, tmp_path):
+def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     broken = tmp_path / "broken-import.metta"
     # An error carrying no context of its own, because that is the only kind
     # the loader may name the file in: rethrow_metta_file_error/2 leaves an
@@ -103,7 +103,7 @@ def test_imported_source_error_names_the_file(metta, tmp_path):
         assert scratch.run("!(recovered-import)") == [[S.recovered]]
 
 
-def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):
+def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     missing = tmp_path / "missing-import.metta"
 
     with metta.new_space() as scratch, pytest.raises(EngineError) as caught:

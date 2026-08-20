@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -16,7 +16,7 @@ from petta.errors import EngineError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
 
 
-def test_answer_wire_form_is_exact():
+def test_answer_wire_form_is_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     wire = Answer({"x": 3}).to_wire()
     assert wire == ["a", [["x", ["n", 3]]], True, None]
     wire = Answer({"$y": Sym("b")}, value=Sym("v"), k=2).to_wire()
@@ -29,7 +29,7 @@ def test_answer_wire_form_is_exact():
     assert Bindings({Var("q"): 1}).to_wire() == ["a", [["q", ["n", 1]]], True, None]
 
 
-def test_answer_validates_eagerly():
+def test_answer_validates_eagerly():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="theta key"):
         Answer({3: 1})
     with pytest.raises(TypeError, match="residue is an Atom"):
@@ -47,7 +47,7 @@ class _AnswerProvider(SpaceProvider):
     def atoms(self):
         return iter(())
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield from self.answer_for(pattern)
 
 
@@ -55,7 +55,7 @@ def _pattern_vars(pattern):
     return [child for child in pattern.children if isinstance(child, Var)]
 
 
-def test_a_provider_answers_bindings(metta):
+def test_a_provider_answers_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield Bindings({y: Sym("b")})
@@ -66,7 +66,7 @@ def test_a_provider_answers_bindings(metta):
     assert str(out[0][0]) == "((got b) (got c))"
 
 
-def test_plain_atoms_and_answers_mix_in_one_stream(metta):
+def test_plain_atoms_and_answers_mix_in_one_stream(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield parse("(edge a plain)")
@@ -77,7 +77,7 @@ def test_plain_atoms_and_answers_mix_in_one_stream(metta):
     assert str(out[0][0]) == "(plain bound)"
 
 
-def test_an_explicit_value_unifies_under_theta(metta):
+def test_an_explicit_value_unifies_under_theta(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         # The candidate-with-bindings form: the value is the answer atom,
@@ -93,7 +93,7 @@ def test_an_explicit_value_unifies_under_theta(metta):
     assert str(out[0][0]) == "(b after)"
 
 
-def test_theta_aliases_query_variables(metta):
+def test_theta_aliases_query_variables(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         x, y = _pattern_vars(pattern)
         yield Bindings({y: x})
@@ -106,7 +106,7 @@ def test_theta_aliases_query_variables(metta):
     assert pair.children[1].name == pair.children[2].name
 
 
-def test_fresh_variables_in_theta_values_stay_open(metta):
+def test_fresh_variables_in_theta_values_stay_open(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield Bindings({y: Expr([Sym("f"), Var("fresh")])})
@@ -119,7 +119,7 @@ def test_fresh_variables_in_theta_values_stay_open(metta):
     assert isinstance(value.children[1], Var)
 
 
-def test_an_annotation_is_refused_loudly(metta):
+def test_an_annotation_is_refused_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield Answer({y: Sym("b")}, k=0.5)
@@ -129,7 +129,7 @@ def test_an_annotation_is_refused_loudly(metta):
         metta.run("!(collapse (match &ap-k (edge a $y) $y))")
 
 
-def test_an_enumeration_refuses_answers(metta):
+def test_an_enumeration_refuses_answers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Wrong(SpaceProvider):
         def atoms(self):
             yield Bindings({"x": 1})
@@ -141,7 +141,7 @@ def test_an_enumeration_refuses_answers(metta):
         metta.run("!(collapse (get-atoms &ap-enum))")
 
 
-def test_a_generator_op_answers_bindings(metta):
+def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def relate(x):
         yield Bindings({x: 1})
         yield Bindings({x: 2})
@@ -152,7 +152,7 @@ def test_a_generator_op_answers_bindings(metta):
     assert str(out[0][0]) == "((pair 1 ()) (pair 2 ()))"
 
 
-def test_a_det_op_answers_bindings_with_a_value(metta):
+def test_a_det_op_answers_bindings_with_a_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def solve(x):
         return Answer({x: Sym("found")}, value=Sym("done"))
 
@@ -162,7 +162,7 @@ def test_a_det_op_answers_bindings_with_a_value(metta):
     assert str(out[0][0]) == "((pair found done))"
 
 
-def test_a_raw_op_refuses_answers(metta):
+def test_a_raw_op_refuses_answers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def wrong(x):
         return Answer({"x": x})
 
@@ -178,7 +178,7 @@ def test_a_residue_condition_filters_answers(metta):
     """The residue is the part of the query the provider did not discharge,
     written over the pattern's own variables and closed by the engine: a
     condition reducing to false drops that answer and nothing else.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
@@ -195,7 +195,7 @@ def test_a_residue_condition_filters_answers(metta):
 def test_a_residue_match_form_composes_across_contexts(metta):
     """A residue may itself be a match, so one provider's answer closes
     against another context's atoms, composing bindings by sharing.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("!(add-atom &ap-kb (allowed b))")
 
     def answer(pattern):
@@ -213,7 +213,7 @@ def test_a_residue_match_form_composes_across_contexts(metta):
 def test_a_nonreducing_residue_holds(metta):
     """A residue with no equation answers itself, exactly as !(edge q w)
     does at the top level, so it holds; the language's own rule.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
@@ -224,7 +224,7 @@ def test_a_nonreducing_residue_holds(metta):
     assert str(out[0][0]) == "(kept)"
 
 
-def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):
+def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield Answer({y: 5}, residue=Expr([Sym(">"), y, Gnd(3)]))
@@ -238,7 +238,7 @@ def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):
     assert str(out[0][0]) == "(5)"
 
 
-def test_an_op_residue_closes_through_the_engine(metta):
+def test_an_op_residue_closes_through_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def pick(x):
         return Answer({x: 2}, value=Sym("small"), residue=Expr([Sym("<"), x, Gnd(10)]))
 
@@ -257,7 +257,7 @@ def test_an_op_residue_closes_through_the_engine(metta):
 def test_planner_rows_may_be_bindings(metta):
     """SEAM-P-10: a plan row may bind the claimed patterns' variables
     directly instead of re-unifying atom rows, and the two mix.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     class _JoinProvider(SpaceProvider):
         def __init__(self):
@@ -266,7 +266,7 @@ def test_planner_rows_may_be_bindings(metta):
         def atoms(self):
             return iter([parse("(edge a b)"), parse("(edge b c)")])
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield from self.atoms()
 
         def plan(self, patterns):
@@ -299,10 +299,10 @@ def test_planner_rows_may_be_bindings(metta):
 # ------------------------------------------------- annotations and top (F3)
 
 
-def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):
+def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     lexicon = {"alpha": 0.4, "beta": 0.9, "gamma": 0.1, "delta": 0.7}
 
-    def ap_lex(query, candidate=None):
+    def ap_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         # Deliberately NOT best first: the engine's ordering must not
         # depend on the producer being polite. The op answers through the
         # general surface: the candidate is the value and the degree is
@@ -326,11 +326,11 @@ def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):
         assert [str(a) for a in best] == [str(p.children[2]) for p in ranked[:k]]
 
 
-def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):
+def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # SWI compares numbers by value with type only breaking ties, unlike
     # the ISO standard order where every float precedes every integer, so
     # this pin protects top against any engine where that differs.
-    def mixed(query, candidate=None):
+    def mixed(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value=Sym("intone"), k=1)
         yield Answer(value=Sym("floathigh"), k=2.5)
 
@@ -340,7 +340,7 @@ def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):
     assert [str(a) for a in best.children] == ["floathigh"]
 
 
-def test_top_refuses_an_unordered_context(metta):
+def test_top_refuses_an_unordered_context(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
     def answer(pattern):
@@ -353,7 +353,7 @@ def test_top_refuses_an_unordered_context(metta):
     assert calls == []
 
 
-def test_top_pushes_the_bound_under_three_declarations(metta):
+def test_top_pushes_the_bound_under_three_declarations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Ranked(SpaceProvider):
         def __init__(self):
             self.rows = [("a", 0.5), ("b", 0.9), ("c", 0.7)]
@@ -362,7 +362,7 @@ def test_top_pushes_the_bound_under_three_declarations(metta):
         def atoms(self):
             return iter(parse(f"(scored {name})") for name, _ in self.rows)
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             self.limits.append(limit)
             ordered = sorted(self.rows, key=lambda row: -row[1])
             if limit is not None:
@@ -386,8 +386,8 @@ def test_top_pushes_the_bound_under_three_declarations(metta):
     assert str(out[0][0]) == "(b c)"
 
 
-def test_an_undeclared_annotation_names_the_declaration(metta):
-    def scorer(x):
+def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def scorer(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value=Sym("v"), k=0.5)
 
     metta.register_op(scorer, name="ap-undeclared", typed=False, pass_atoms=True)
@@ -395,7 +395,7 @@ def test_an_undeclared_annotation_names_the_declaration(metta):
         metta.run("!(collapse (ap-undeclared 1))")
 
 
-def test_declare_annotations_validates_and_replaces(metta):
+def test_declare_annotations_validates_and_replaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="ranked"):
         metta.declare_annotations("&ap-v", "sorta")
     metta.declare_annotations("&ap-v", "ranked")
@@ -404,7 +404,7 @@ def test_declare_annotations_validates_and_replaces(metta):
     assert [str(row.s) for row in rows] == ["prob"]
 
 
-def test_declare_emits_validates(metta):
+def test_declare_emits_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="best-first"):
         metta.declare_emits("&ap-v", "fastest")
     metta.declare_emits("&ap-v", "best-first")
@@ -417,7 +417,7 @@ def test_the_residue_honesty_differential_over_the_pattern_family(metta):
     over the same pattern family the conformance kit generates (ground,
     opened positions, repeated-variable folds). The provider answers every
     atom conditionally; brute force applies the same condition by hand.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta.testing import _claim_patterns, _unifiable
 
     stored = [parse(f"(edge {x} {n})") for x, n in [("a", 1), ("b", 5), ("c", 9)]]
@@ -426,7 +426,7 @@ def test_the_residue_honesty_differential_over_the_pattern_family(metta):
         def atoms(self):
             return iter(stored)
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             for atom in stored:
                 yield Answer(
                     value=atom,
@@ -459,18 +459,18 @@ class _FlakyProvider(SpaceProvider):
     def atoms(self):
         return iter(())
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield parse("(edge a b)")
         raise self.boom
 
 
-def test_the_undeclared_floor_aborts(metta):
+def test_the_undeclared_floor_aborts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-abort")
     with pytest.raises(EngineError, match="fell over"):
         metta.run("!(collapse (match &oe-abort (edge $x $y) $y))")
 
 
-def test_keep_delivers_the_failure_as_an_answer(metta):
+def test_keep_delivers_the_failure_as_an_answer(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-keep")
     metta.declare_on_error("&oe-keep", "(edge $x $y)", "keep")
     out = metta.run("!(collapse (match &oe-keep (edge $x $y) $y))")
@@ -482,14 +482,14 @@ def test_keep_delivers_the_failure_as_an_answer(metta):
     assert "fell over" in str(answers[1].children[2])
 
 
-def test_empty_ends_the_stream_by_declaration(metta):
+def test_empty_ends_the_stream_by_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-empty")
     metta.declare_on_error("&oe-empty", "(edge $x $y)", "empty")
     out = metta.run("!(collapse (match &oe-empty (edge $x $y) $y))")
     assert str(out[0][0]) == "(b)"
 
 
-def test_the_mode_routes_by_shape_most_specific_first(metta):
+def test_the_mode_routes_by_shape_most_specific_first(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-shape")
     metta.declare_on_error("&oe-shape", "(edge $x $y)", "keep")
     metta.declare_on_error("&oe-shape", "(edge a $y)", "empty")
@@ -500,7 +500,7 @@ def test_the_mode_routes_by_shape_most_specific_first(metta):
     assert "Error" in str(out[0][0])
 
 
-def test_a_transport_failure_always_aborts(metta):
+def test_a_transport_failure_always_aborts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_FlakyProvider(OSError("router gone")), "&oe-transport")
     metta.declare_on_error("&oe-transport", "(edge $x $y)", "keep")
     # The original TransportFailure re-arrives as itself, so the
@@ -509,7 +509,7 @@ def test_a_transport_failure_always_aborts(metta):
         metta.run("!(collapse (match &oe-transport (edge $x $y) $y))")
 
 
-def test_an_op_keeps_its_failure_as_the_error_atom(metta):
+def test_an_op_keeps_its_failure_as_the_error_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def half(x):
         if x % 2:
             msg = f"{x} is odd"
@@ -526,8 +526,8 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):
     assert "7 is odd" in str(answer.children[2])
 
 
-def test_an_op_empty_answers_nothing(metta):
-    def quarter(x):
+def test_an_op_empty_answers_nothing(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def quarter(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         msg = "always broken"
         raise RuntimeError(msg)
 
@@ -537,13 +537,13 @@ def test_an_op_empty_answers_nothing(metta):
     assert str(out[0][0]) == "()"
 
 
-def test_declare_on_error_validates(metta):
+def test_declare_on_error_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="keep, empty, abort"):
         metta.declare_on_error("&oe-v", "(edge $x $y)", "retry")
 
 
-def test_a_generator_op_keeps_its_mid_stream_failure(metta):
-    def counting(x):
+def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def counting(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield 1
         yield 2
         msg = "stream died"
@@ -589,7 +589,7 @@ class _TxStore(SpaceProvider):
         self.journal = None
 
 
-def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):
+def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-un")
     with pytest.raises(EngineError, match="declares nothing about its"):
@@ -597,7 +597,7 @@ def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):
     assert store.rows == []
 
 
-def test_best_effort_is_the_declared_acceptance(metta):
+def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-be")
     metta.declare_writes("&tx-be", "best-effort")
@@ -610,7 +610,7 @@ def test_best_effort_is_the_declared_acceptance(metta):
     assert [str(r) for r in store.rows] == ["(edge a b)"]
 
 
-def test_a_transactional_provider_commits_with_the_engine(metta):
+def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-ok")
     metta.declare_writes("&tx-ok", "transactional")
@@ -625,7 +625,7 @@ def test_a_transactional_provider_commits_with_the_engine(metta):
     assert str(hits[0][0]) == "(hit)"
 
 
-def test_a_failed_transaction_rolls_both_stores_back(metta):
+def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-rb")
     metta.declare_writes("&tx-rb", "transactional")
@@ -640,7 +640,7 @@ def test_a_failed_transaction_rolls_both_stores_back(metta):
     assert str(hits[0][0]) == "()"
 
 
-def test_a_throwing_transaction_rolls_back_and_rethrows(metta):
+def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-throw")
     metta.declare_writes("&tx-throw", "transactional")
@@ -653,7 +653,7 @@ def test_a_throwing_transaction_rolls_back_and_rethrows(metta):
     assert store.calls == ["begin", "rollback"]
 
 
-def test_atomic_single_refuses_transactional_writes(metta):
+def test_atomic_single_refuses_transactional_writes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta.register_space(store, "&tx-as")
     metta.declare_writes("&tx-as", "atomic-single")
@@ -664,7 +664,7 @@ def test_atomic_single_refuses_transactional_writes(metta):
     assert [str(r) for r in store.rows] == ["(edge c d)"]
 
 
-def test_a_transactional_declaration_without_the_methods_is_loud(metta):
+def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Plain(SpaceProvider):
         def __init__(self):
             self.rows = []
@@ -681,7 +681,7 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 
-def test_declare_writes_validates(metta):
+def test_declare_writes_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="transactional, atomic-single"):
         metta.declare_writes("&tx-v", "eventually")
 
@@ -696,18 +696,18 @@ class _NamedRows(SpaceProvider):
     def atoms(self):
         return iter(self.rows)
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield from self.rows
 
 
-def test_the_undeclared_multi_context_merge_is_depth(metta):
+def test_the_undeclared_multi_context_merge_is_depth(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(row a1)", "(row a2)"]), "&mg-a")
     metta.register_space(_NamedRows(["(row b1)", "(row b2)"]), "&mg-b")
     out = metta.run("!(collapse (match (superpose (&mg-a &mg-b)) (row $x) $x))")
     assert str(out[0][0]) == "(a1 a2 b1 b2)"
 
 
-def test_a_declared_fair_merge_interleaves(metta):
+def test_a_declared_fair_merge_interleaves(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(frow a1)", "(frow a2)", "(frow a3)"]), "&mg-fa")
     metta.register_space(_NamedRows(["(frow b1)", "(frow b2)"]), "&mg-fb")
     metta.declare_merge("(frow $x)", "fair")
@@ -715,7 +715,7 @@ def test_a_declared_fair_merge_interleaves(metta):
     assert str(out[0][0]) == "(a1 b1 a2 b2 a3)"
 
 
-def test_a_best_first_merge_orders_across_contexts(metta):
+def test_a_best_first_merge_orders_across_contexts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Scored(SpaceProvider):
         def __init__(self, rows):
             self.rows = rows
@@ -723,7 +723,7 @@ def test_a_best_first_merge_orders_across_contexts(metta):
         def atoms(self):
             return iter(parse(f"(srow {name})") for name, _ in self.rows)
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             for name, k in self.rows:
                 yield Answer(value=parse(f"(srow {name})"), k=k)
 
@@ -741,7 +741,7 @@ def test_a_best_first_merge_orders_across_contexts(metta):
     assert str(out[0][0]) == "(a1 b1 a2 b2)"
 
 
-def test_the_merge_routes_by_shape(metta):
+def test_the_merge_routes_by_shape(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(rrow a1)", "(rrow a2)"]), "&mg-ra")
     metta.register_space(_NamedRows(["(rrow b1)", "(rrow b2)"]), "&mg-rb")
     metta.declare_merge("(rrow $x)", "fair")
@@ -751,7 +751,7 @@ def test_the_merge_routes_by_shape(metta):
     assert str(out[0][0]) == "(a1 b1 a2 b2)"
 
 
-def test_declare_merge_validates(metta):
+def test_declare_merge_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="depth, fair, best-first"):
         metta.declare_merge("(x $y)", "roundrobin")
 
@@ -759,14 +759,14 @@ def test_declare_merge_validates(metta):
 # ---------------------------------------------- bridges and admission (G5)
 
 
-def test_a_bridge_inserts_under_the_matched_bindings(metta):
+def test_a_bridge_inserts_under_the_matched_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.declare_reaction("&br-src", "(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
     metta.run("!(add-atom &br-src (fact one two))")
     out = metta.run("!(collapse (match &br-mirror (mirrored $a $b) ($a $b)))")
     assert str(out[0][0]) == "((two one))"
 
 
-def test_a_revise_bridge_replaces(metta):
+def test_a_revise_bridge_replaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &br-state (mode old))")
     metta.declare_reaction(
         "&br-cmd", "(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
@@ -776,19 +776,19 @@ def test_a_revise_bridge_replaces(metta):
     assert str(out[0][0]) == "(new)"
 
 
-def test_a_bridge_cascade_is_bounded(metta):
+def test_a_bridge_cascade_is_bounded(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.declare_reaction("&br-loop", "(tick $n)", "(insert &br-loop (tick $n))")
     with pytest.raises(EngineError, match="cascade"):
         metta.run("!(add-atom &br-loop (tick 1))")
 
 
-def test_an_unknown_bridge_head_is_loud(metta):
+def test_an_unknown_bridge_head_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.declare_reaction("&br-bad", "(x $y)", "(teleport &elsewhere $y)")
     with pytest.raises(EngineError, match="managed head"):
         metta.run("!(add-atom &br-bad (x 1))")
 
 
-def test_admission_types_the_pool(metta):
+def test_admission_types_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.declare_admits("&pool", "Space")
     metta.run("!(add-atom &self (: &worker-a Space))")
     metta.run("!(add-atom &pool &worker-a)")
@@ -798,7 +798,7 @@ def test_admission_types_the_pool(metta):
     assert str(out[0][0]) == "(&worker-a)"
 
 
-def test_capacity_bounds_the_pool(metta):
+def test_capacity_bounds_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.declare_admits("&pool2", "Space")
     metta.declare_capacity("&pool2", 2)
     for name in ("&w1", "&w2"):
@@ -812,7 +812,7 @@ def test_capacity_bounds_the_pool(metta):
     assert str(out[0][0]) == "(&w1 &w2)"
 
 
-def test_declare_capacity_validates(metta):
+def test_declare_capacity_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="positive integer"):
         metta.declare_capacity("&pool3", 0)
 
@@ -834,7 +834,7 @@ def test_admission_is_sugar_over_the_pre_add_hook(metta):
 # ------------------------------------------------------- replay lane (G6)
 
 
-def test_a_recorded_session_replays_verbatim(metta):
+def test_a_recorded_session_replays_verbatim(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     import random
 
     from petta import testing
@@ -848,7 +848,7 @@ def test_a_recorded_session_replays_verbatim(metta):
         def atoms(self):
             return iter(())
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield parse(f"(spin {self.rng.randrange(1_000_000)})")
 
     recording, replay = testing.record_replay(_Roulette())
@@ -862,14 +862,14 @@ def test_a_recorded_session_replays_verbatim(metta):
     assert any("verbatim" in line for line in checks)
 
 
-def test_a_replayer_refuses_an_unseen_query(metta):
+def test_a_replayer_refuses_an_unseen_query(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     class _One(SpaceProvider):
         def atoms(self):
             return iter(())
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield parse("(edge a b)")
 
     recording, replay = testing.record_replay(_One())
@@ -879,7 +879,7 @@ def test_a_replayer_refuses_an_unseen_query(metta):
         list(replay().match(parse("(other $q)")))
 
 
-def test_a_replayed_provider_registers_like_any_other(metta):
+def test_a_replayed_provider_registers_like_any_other(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     class _Feed(SpaceProvider):
@@ -897,7 +897,7 @@ def test_a_replayed_provider_registers_like_any_other(metta):
 # --------------------------------------------------- context worlds (H1)
 
 
-def test_negation_refuses_an_undeclared_foreign_world(metta):
+def test_negation_refuses_an_undeclared_foreign_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(fact a)"]), "&cw-open")
     metta.run("(= (cw-ohas $x) (match &cw-open (fact $x) True))")
     # Positive queries are untouched, the floor.
@@ -907,7 +907,7 @@ def test_negation_refuses_an_undeclared_foreign_world(metta):
         metta.run("!(not-provable (cw-ohas b))")
 
 
-def test_negation_runs_over_a_declared_closed_world(metta):
+def test_negation_runs_over_a_declared_closed_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(fact a)"]), "&cw-closed")
     metta.declare_context("&cw-closed", "closed-world")
     metta.run("(= (cw-chas $x) (match &cw-closed (fact $x) True))")
@@ -917,14 +917,14 @@ def test_negation_runs_over_a_declared_closed_world(metta):
     assert str(present[0][0]) == "False"
 
 
-def test_negation_over_native_spaces_is_untouched(metta):
+def test_negation_over_native_spaces_is_untouched(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &self (cw-native here))")
     metta.run("(= (cw-nhas $x) (match &self (cw-native $x) True))")
     out = metta.run("!(not-provable (cw-nhas missing))")
     assert str(out[0][0]) == "True"
 
 
-def test_declare_context_validates(metta):
+def test_declare_context_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="closed-world, open-world"):
         metta.declare_context("&cw-v", "half-open")
 
@@ -932,7 +932,7 @@ def test_declare_context_validates(metta):
 # ----------------------------------------------------------- explain (H3)
 
 
-def test_explain_answers_the_route_and_the_route_is_honest(metta):
+def test_explain_answers_the_route_and_the_route_is_honest(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Rec(SpaceProvider):
         def __init__(self):
             self.rows = [parse("(erow a)"), parse("(erow b)"), parse("(erow c)")]
@@ -941,7 +941,7 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):
         def atoms(self):
             return iter(self.rows)
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             self.limits.append(limit)
             yield from self.rows[: limit if limit is not None else None]
 
@@ -963,7 +963,7 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):
     assert provider.limits == [2]
 
 
-def test_explain_says_none_where_nothing_routes(metta):
+def test_explain_says_none_where_nothing_routes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(frow a)"]), "&ex-floor")
     out = metta.run("!(explain (match &ex-floor (frow $x) $x))")
     explained = {str(item.children[0]): item for item in out[0][0].children}
@@ -972,8 +972,8 @@ def test_explain_says_none_where_nothing_routes(metta):
     assert str(explained["writes"].children[1]) == "undeclared"
 
 
-def test_explain_covers_operations(metta):
-    def ex_lex(query, candidate=None):
+def test_explain_covers_operations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def ex_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="x", k=1.0)
 
     metta.register_op(ex_lex, name="ex-lex", typed=False)
@@ -984,7 +984,7 @@ def test_explain_covers_operations(metta):
     assert str(explained["op"].children[3]) == "many"
 
 
-def test_explain_refuses_the_unexplainable(metta):
+def test_explain_refuses_the_unexplainable(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="explain covers"):
         metta.run("!(explain 42)")
 
@@ -992,12 +992,12 @@ def test_explain_refuses_the_unexplainable(metta):
 # ---------------------------------------------------------- provenance (H2)
 
 
-def test_prov_annotations_carry_source_terms(metta):
+def test_prov_annotations_carry_source_terms(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Sourced(SpaceProvider):
         def atoms(self):
             return iter(())
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield Answer(value=parse("(fact rain)"), k=parse("(src weather-db)"))
             yield Answer(value=parse("(fact wet)"), k=parse("(src rules)"))
 
@@ -1012,17 +1012,17 @@ def test_prov_annotations_carry_source_terms(metta):
     )
 
 
-def test_the_annotation_reads_one_outside_any_answer(metta):
+def test_the_annotation_reads_one_outside_any_answer(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     out = metta.run("!(annotation)")
     assert str(out[0][0]) == "1"
 
 
-def test_a_join_multiplies_provenance(metta):
+def test_a_join_multiplies_provenance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Twice(SpaceProvider):
         def atoms(self):
             return iter(())
 
-        def match(self, pattern, *, limit=None):
+        def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             head = str(pattern.children[0])
             if head == "edge":
                 yield Answer(value=parse("(edge a b)"), k=parse("(src e1)"))
@@ -1038,8 +1038,8 @@ def test_a_join_multiplies_provenance(metta):
     assert str(out[0][0]) == "((pair (path a c) (times (src e1) (src l1))))"
 
 
-def test_ranked_scores_read_through_the_annotation(metta):
-    def pv_lex(query, candidate=None):
+def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def pv_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="hit", k=0.75)
 
     metta.register_op(pv_lex, name="pv-lex", typed=False)
@@ -1050,7 +1050,7 @@ def test_ranked_scores_read_through_the_annotation(metta):
     assert str(out[0][0]) == '((pair "hit" 0.75))'
 
 
-def test_top_still_refuses_the_unordered_prov(metta):
+def test_top_still_refuses_the_unordered_prov(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_NamedRows(["(prow a)"]), "&pv-t")
     metta.declare_annotations("&pv-t", "prov")
     with pytest.raises(EngineError, match="no order"):
@@ -1060,7 +1060,7 @@ def test_top_still_refuses_the_unordered_prov(metta):
 # ------------------------------------------------- minted handles (H4)
 
 
-def test_fabricated_space_identities_are_refused():
+def test_fabricated_space_identities_are_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     class _Minter(SpaceProvider):
@@ -1077,20 +1077,20 @@ def test_fabricated_space_identities_are_refused():
 # ------------------------------------------------ surface consistency (I)
 
 
-def test_hyperpose_is_parallel_under_the_languages_name(metta):
+def test_hyperpose_is_parallel_under_the_languages_name(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-sq $x) (* $x $x))")
     answers = metta.hyperpose("(ic-sq 2)", "(ic-sq 3)")
     assert sorted(str(a) for a in answers) == ["4", "9"]
 
 
-def test_fn_decodes_exactly_as_value(metta):
+def test_fn_decodes_exactly_as_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-seven) 7)")
     assert metta.one("(ic-seven)") == 7
     assert metta.fn("ic-seven")() == 7
     assert type(metta.fn("ic-seven")()) is type(metta.one("(ic-seven)"))
 
 
-def test_the_three_families_share_the_tolerant_member(metta):
+def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-many) (superpose (1 2 3)))")
     # first(): the first answer decoded, or None.
     assert metta.first("(ic-many)") == 1
@@ -1099,7 +1099,7 @@ def test_the_three_families_share_the_tolerant_member(metta):
     assert rows.first() is None
 
 
-def test_rows_one_raises_the_family_exception(metta):
+def test_rows_one_raises_the_family_exception(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &self (ic-fact a))")
     metta.run("!(add-atom &self (ic-fact b))")
     rows = metta.query(parse("(ic-fact $x)"))

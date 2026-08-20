@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 
 class _Payload:
@@ -30,7 +30,7 @@ def test_get_type_over_an_encoded_heterogeneous_list_is_total(metta):
     is produced first and then asked about, which is the arbiter's own
     idiom [source: LeaTTa tests/semantics/types-meta/30_evaluation_control.metta,
     "`let` evaluates the sum first, then substitutes"].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.register_op(lambda: [1, _Payload(), 2], name="seam-hetero", typed=False)
     [[types]] = metta.run("!(let $crossed (seam-hetero) (get-type $crossed))")
     rendered = [str(t) for t in types]

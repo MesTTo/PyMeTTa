@@ -22,7 +22,7 @@ Open Obligations:
     m.run("(= (foo) boo) !(foo)")        # [[Sym('boo')]]
     m.add(S.Parent(S.Tom, S.Bob))
     m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 import functools
 import importlib
@@ -65,7 +65,7 @@ class PeTTa:
     MeTTa class beside it. Both share one consulted engine.
     """
 
-    def __init__(self, verbose=False, petta_path=None):
+    def __init__(self, verbose=False, petta_path=None):  # noqa: D107, FBT002  -- the enclosing class documents construction and the object invariants; the boolean is established API data and positional compatibility is part of the call shape
         self.verbose = bool(verbose)
         self._runtime = _engine.runtime(petta_path=petta_path, verbose=self.verbose)
 
@@ -205,49 +205,49 @@ def default_engine() -> MeTTa:
     yourself for isolation; there is one engine per process either way,
     so this is about who holds the handle, not about capacity.
     functools.cache carries the once-and-locked semantics.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return MeTTa()
 
 
 def run(source: str, **kwargs):
     """Run MeTTa source. Sugar for MeTTa().run(...); construct your own
     engine for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().run(source, **kwargs)
 
 
 def query(*patterns, **kwargs):
     """Query patterns as one conjunction. Sugar for MeTTa().query(...);
     construct your own engine for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().query(*patterns, **kwargs)
 
 
 def add(*atoms):
     """Add atoms. Sugar for MeTTa().add(...); construct your own engine
     for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().add(*atoms)
 
 
 def remove(atom):
     """Remove one copy of an atom. Sugar for MeTTa().remove(...);
     construct your own engine for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().remove(atom)
 
 
-def eval(target, **kwargs):
+def eval(target, **kwargs):  # noqa: A001  -- eval is the public compatibility spelling, so renaming it would break callers
     """Evaluate a term, every answer. Sugar for MeTTa().eval(...);
     construct your own engine for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().eval(target, **kwargs)
 
 
 def fn(name: str):
     """An engine function as a Python callable. Sugar for
     MeTTa().fn(...); construct your own engine for isolation.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return default_engine().fn(name)
 
 

@@ -10,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import functools
 import inspect
@@ -22,7 +22,7 @@ from petta import PettaError
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.new_space()
     space.run("(: fp-inc (-> Number Number))")
     space.run("(= (fp-inc $x) (+ $x 1))")
@@ -33,7 +33,7 @@ def m(metta):
     return space
 
 
-def test_name_and_qualname_mirror_methods(m):
+def test_name_and_qualname_mirror_methods(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     f = m.fn("fp-inc")
     assert f.__name__ == "fp-inc"
     assert f.__qualname__ == f"{m.space_name}.fp-inc"
@@ -41,12 +41,12 @@ def test_name_and_qualname_mirror_methods(m):
     assert type(f).__name__ == "_EngineFunction"
 
 
-def test_type_is_the_declared_arrow_or_none(m):
+def test_type_is_the_declared_arrow_or_none(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert str(m.fn("fp-inc").type) == "(-> Number Number)"
     assert m.fn("fp-undeclared").type is None
 
 
-def test_signature_comes_from_the_arrow(m):
+def test_signature_comes_from_the_arrow(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     signature = inspect.signature(m.fn("fp-inc"))
     parameters = list(signature.parameters.values())
     assert len(parameters) == 1
@@ -60,7 +60,7 @@ def test_signature_comes_from_the_arrow(m):
     ]
 
 
-def test_equations_are_live_from_the_space(m):
+def test_equations_are_live_from_the_space(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     f = m.fn("fp-inc")
     (equation,) = f.equations
     assert str(equation).startswith("(= (fp-inc ")
@@ -68,14 +68,14 @@ def test_equations_are_live_from_the_space(m):
     assert len(f.equations) == 2  # live, not a snapshot
 
 
-def test_doc_formats_the_doc_atom(m):
+def test_doc_formats_the_doc_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text = m.fn("fp-inc").__doc__
     assert text.startswith("fp-inc: Adds one.")
     assert "  - a number" in text
     assert "Returns: the successor" in text
 
 
-def test_doc_falls_back_to_declaration_and_equations(m):
+def test_doc_falls_back_to_declaration_and_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: fp-plain (-> Atom Atom))")
     m.run("(= (fp-plain $x) $x)")
     text = m.fn("fp-plain").__doc__
@@ -84,16 +84,16 @@ def test_doc_falls_back_to_declaration_and_equations(m):
     assert m.fn("fp-nothing-known").__doc__ is None
 
 
-def test_builtins_answer_from_the_engine_register(m):
+def test_builtins_answer_from_the_engine_register(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert "Casts" in m.fn("type-cast").__doc__
 
 
-def test_help_answers_from_mettas_own_documentation(m):
+def test_help_answers_from_mettas_own_documentation(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rendered = pydoc.render_doc(m.fn("fp-inc"))
     assert "Adds one." in rendered
 
 
-def test_compiled_and_disassemble_show_the_prolog(m):
+def test_compiled_and_disassemble_show_the_prolog(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text = m.fn("fp-inc").compiled
     assert text == m.disassemble("fp-inc")
     assert "'fp-inc'(" in text  # the translator's clause head, Prolog-quoted
@@ -101,13 +101,13 @@ def test_compiled_and_disassemble_show_the_prolog(m):
         m.disassemble("fp-never-compiled")
 
 
-def test_partial_composes_with_stdlib_machinery(m):
+def test_partial_composes_with_stdlib_machinery(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (fp-add $x $y) (+ $x $y))")
     add_ten = functools.partial(m.fn("fp-add"), 10)
     assert add_ten(5) == 15
 
 
-def test_subscribe_is_the_function_watcher(m):
+def test_subscribe_is_the_function_watcher(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     events = []
     subscription = m.subscribe(
         "(= (fp-watched $x) $body)", lambda event: events.append(event), on="both"

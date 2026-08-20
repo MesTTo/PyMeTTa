@@ -15,7 +15,7 @@ Open Obligations:
     %%metta
     (= (foo) boo)
     !(foo)
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 

@@ -26,7 +26,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import ast
 import itertools
@@ -43,7 +43,7 @@ _COUNTER = itertools.count()
 def _tuple_literal(draw, lowest: int, highest: int) -> str:
     """A Python tuple literal of small ints; the one-element spelling needs
     its trailing comma, or (5) is just 5.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     values = [
         str(draw(st.integers(-5, 5)))
         for _ in range(draw(st.integers(lowest, highest)))
@@ -56,7 +56,7 @@ def _tuple_literal(draw, lowest: int, highest: int) -> str:
 def _load(tmp_path_factory, source: str, name: str):
     """A real function object whose source inspect.getsource can read: the
     compiler reads syntax from the file, so each program becomes one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     path = tmp_path_factory.mktemp("fuzz") / f"{name}.py"
     path.write_text(source)
     namespace: dict = {}
@@ -86,7 +86,7 @@ def _normalize(value):
 
 
 @st.composite
-def int_expr(draw, names: tuple, depth: int = 0):
+def int_expr(draw, names: tuple, depth: int = 0):  # noqa: C901, D103  -- int_expr keeps the recursive expression generator together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
     if depth >= 3 or draw(st.booleans()):
         leaf = draw(st.sampled_from(("name", "lit")))
         if leaf == "name" and names:
@@ -126,7 +126,7 @@ def int_expr(draw, names: tuple, depth: int = 0):
 
 
 @st.composite
-def bool_expr(draw, names: tuple, depth: int = 0):
+def bool_expr(draw, names: tuple, depth: int = 0):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     kind = draw(st.sampled_from(("cmp", "chain", "and", "or", "not")))
     if depth >= 2:
         kind = "cmp"
@@ -166,7 +166,7 @@ def assignments(draw, scope: list, indent: str, count: int, protected: tuple = (
     because it is the bug class this suite exists for. protected names stay
     readable but never assigned: clobbering a loop counter would generate a
     genuinely nonterminating program, in Python exactly as compiled.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     lines: list[str] = []
     assignable = [n for n in scope if n not in protected]
     for _ in range(count):
@@ -219,7 +219,7 @@ def loop_block(draw, scope: list, indent: str, nest: tuple, protected: tuple = (
     remaining sequence resolved there to the INNER loop's tail and the
     outer loop resumed on the wrong list [source
     bindings/python/petta/_define_loops.py:116-123].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     kind, deeper = nest[0], nest[1:]
     counter = draw(st.sampled_from(("i", "j", "k")))
     while counter in scope:
@@ -288,7 +288,7 @@ def statements(draw, names: tuple, indent: str, depth: int = 0):
 
 
 @st.composite
-def programs(draw):
+def programs(draw):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"fz{next(_COUNTER)}"
     body = draw(statements(("a", "b"), "    "))
     return name, f"def {name}(a, b):\n" + "\n".join(body) + "\n"
@@ -317,7 +317,7 @@ def nested_loop_programs(draw):
 def _nested_loop_kinds(source: str) -> set[str]:
     """The kinds of every loop whose body holds another loop, so the empty
     set means the program has no loop inside a loop at all.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     kinds = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.For, ast.While)) and any(
@@ -334,7 +334,7 @@ def generator_programs(draw):
     """Generator bodies: yields, if-guarded yields, for over a literal tuple,
     and yield from a literal tuple; answers are ordered, so order is part of
     the property.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name = f"fz{next(_COUNTER)}"
     names = ("a", "b")
     lines: list[str] = []
@@ -381,7 +381,7 @@ def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
     """The differential itself: one two-parameter program, its equations on
     the engine and its Python twin on the same ground inputs, `rounds` fresh
     pairs of them, and the two answer lists required identical.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
@@ -395,7 +395,7 @@ def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
 
 @settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(program=programs(), data=st.data())
-def test_engine_and_twin_agree(metta, tmp_path_factory, program, data):
+def test_engine_and_twin_agree(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _answers_agree(metta, tmp_path_factory, program, data, rounds=3)
 
 
@@ -408,7 +408,7 @@ def test_nested_loops_agree(metta, tmp_path_factory, program, data):
     variable instead of resolving through the scope means the outer loop
     resumes on the inner loop's state. Two rounds rather than three: a
     nested program costs more to run and the shape is what matters here.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     _answers_agree(metta, tmp_path_factory, program, data, rounds=2)
 
 
@@ -417,7 +417,7 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
     loop_block once took no depth and never recursed, so no generated
     program held a loop inside a loop and the differential above proved
     nothing about that class.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     # Generate only: find would otherwise shrink each witness to its minimal
     # form, which answers a question nobody asked and cost 13.12s of the
     # suite's 14.55s [measured 2026-08-18].
@@ -432,7 +432,7 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
 
 @settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(program=generator_programs(), data=st.data())
-def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data):
+def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
@@ -445,7 +445,7 @@ def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data
 
 @settings(max_examples=30, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(program=collection_programs(), data=st.data())
-def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):
+def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)

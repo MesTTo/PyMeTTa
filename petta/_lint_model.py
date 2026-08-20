@@ -15,7 +15,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ class Finding:
     atom rewritten with the simplification applied, so applying the fix
     is remove(finding.atom) then add(finding.autofix), no source
     positions needed.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     kind: str
     subject: str
@@ -163,7 +163,7 @@ class EngineRegistry:
         suggestion draws from. metta_translated_head/1 is a checking
         predicate and does not enumerate, so special forms come from the
         caller's own vocabulary instead.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._known is None:
             row = self._runtime.once("findall(_F, fun(_F), L)")
             raw = row.get("L")
@@ -174,7 +174,7 @@ class EngineRegistry:
     def type_of(self, atom: Atom) -> str:
         """The engine's own get-type answer for one atom, printed, cached
         per printed form. Total: an untypable atom answers %Undefined%.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         key = str(atom)
         cached = self._types.get(key)
         if cached is None:

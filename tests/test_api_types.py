@@ -13,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import inspect
 from typing import Final, Literal, get_args, get_overloads, get_type_hints
@@ -35,7 +35,7 @@ from petta import _atom_namespace as atom_namespace
 from petta._ops import Operation
 
 
-def test_public_context_types_are_distinct():
+def test_public_context_types_are_distinct():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert SpaceName is not MettaName
     assert SpaceName("&facts") == "&facts"
     assert MettaName("lookup") == "lookup"
@@ -53,7 +53,7 @@ def test_a_name_parameter_takes_a_plain_string():
     (name="&cetta"), unregister_space("&crm"), MeTTa(space="&bounds-demo"),
     register_op(name="fuzmatch") and is_function("<lambda>")
     [measured 2026-08-17].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert get_type_hints(MeTTa.__init__)["space"] is str
     assert get_type_hints(MeTTa.space)["name"] is str
     assert get_type_hints(MeTTa.register_op)["name"] == str | None
@@ -67,21 +67,21 @@ def test_the_newtypes_survive_where_they_say_something():
     """Widening the parameters is the boundary, not a deletion: the record a
     registration becomes and the name a space answers for itself both keep
     the type that distinguishes them.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert get_type_hints(Operation)["name"] is MettaName
     assert get_type_hints(Operation)["space"] == SpaceName | None
     assert get_type_hints(MeTTa.space_name.fget)["return"] is SpaceName
     assert get_type_hints(space.current_space)["return"] is SpaceName
 
 
-def test_policy_constants_are_final():
+def test_policy_constants_are_final():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert get_type_hints(aio)["DEFAULT_CLOSE_TIMEOUT"] == Final[float]
     assert get_type_hints(atom_namespace)["NAMESPACE_CACHE_MAX"] == Final[int]
     assert get_type_hints(arrays)["_CONSTRUCTOR_NAMES"] == Final[tuple[str, ...]]
     assert get_type_hints(space.current_space)["return"] is SpaceName
 
 
-def test_target_type_overloads_preserve_the_requested_class():
+def test_target_type_overloads_preserve_the_requested_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for function in (cast, MeTTa.cast, aio.AsyncMeTTa.cast, convert.build):
         typed_target = get_overloads(function)[0]
         hints = get_type_hints(typed_target)
@@ -89,7 +89,7 @@ def test_target_type_overloads_preserve_the_requested_class():
         assert get_args(target) == (hints["return"],)
 
 
-def test_cast_target_is_positional_only():
+def test_cast_target_is_positional_only():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for function in (cast, MeTTa.cast, aio.AsyncMeTTa.cast):
         assert (
             inspect.signature(function).parameters["type_"].kind

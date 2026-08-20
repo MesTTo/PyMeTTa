@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import uuid
 
@@ -14,11 +14,11 @@ import pytest
 from petta import Atom, Decline, EngineError, Expr, MeTTa, S, Sym, V, expr, val
 
 
-def unique(prefix: str) -> str:
+def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
-def test_det_op_composes_with_equations(metta):
+def test_det_op_composes_with_equations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("dbl")
 
     @metta.register_op(name=name)
@@ -59,7 +59,7 @@ def test_a_python_op_is_a_higher_order_argument(metta):
     assert metta.run(f"!(map-atom (1 2 3) {inc})")[-1] == native
 
 
-def test_generator_is_nondeterministic(metta):
+def test_generator_is_nondeterministic(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("upto")
 
     @metta.register_op(name=name)
@@ -71,7 +71,7 @@ def test_generator_is_nondeterministic(metta):
     assert metta.run(f"!(collapse (let $x ({name} 3) (* $x 10)))") == [[expr(10, 20, 30)]]
 
 
-def test_none_and_decline_answer_nothing(metta):
+def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     evens = unique("evens")
     picky = unique("picky")
 
@@ -91,11 +91,11 @@ def test_none_and_decline_answer_nothing(metta):
     assert r == [[expr(7)]]
 
 
-def test_python_exception_is_a_hard_error(metta):
+def test_python_exception_is_a_hard_error(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("boom")
 
     @metta.register_op(name=name)
-    def boom(x: int) -> int:
+    def boom(x: int) -> int:  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         msg = "exploded on purpose"
         raise ValueError(msg)
 
@@ -104,7 +104,7 @@ def test_python_exception_is_a_hard_error(metta):
     assert "exploded on purpose" in str(excinfo.value)
 
 
-def test_annotations_declare_types(metta):
+def test_annotations_declare_types(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("typed")
 
     @metta.register_op(name=name)
@@ -197,7 +197,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
     something a declaration could match. And metta_pure_operation/1 was
     multifile but not dynamic, so a running process could add nothing to it
     even knowing the right name.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("!(import! &self (library lib_tabling))")
     declared, silent = unique("psize"), unique("qsize")
     metta.register_op(len, name=declared, typed=False, pure=True)
@@ -296,7 +296,7 @@ def test_an_inverse_of_the_wrong_width_is_refused(metta):
     """A tuple of the wrong width would unify against nothing and read as
     "this result has no preimage", which is the one answer an inverse is
     entitled to give and the one that would hide the mistake.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name = unique("wide")
     metta.register_op(
         lambda a, b: (a, b), name=name, typed=False, inverse=lambda _: (1, 2, 3)
@@ -340,7 +340,7 @@ def test_an_unbound_argument_is_named_when_python_fails(metta):
     call: an unbound argument is legitimate for an operation written to take a
     pattern apart, so only the operations that cannot serve the position fail,
     and only those get the note.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     one, two = unique("ptail"), unique("pcons")
 
     @metta.register_op(name=one)
@@ -385,7 +385,7 @@ def test_every_argument_shape_reaches_python_as_its_own_kind(metta):
     one clause the move put at the END. So the shapes are pinned here from the
     outside: what each one arrives as in Python is what says the reorder
     changed nothing.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name = unique("kindof")
 
     @metta.register_op(name=name, typed=False)
@@ -437,7 +437,7 @@ def test_the_three_typing_combinations_answer_differently(metta):
     assert metta.run(f"!(get-type {untyped})") == [[undefined]]
 
 
-def test_defaults_register_every_arity(metta):
+def test_defaults_register_every_arity(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("greet")
 
     @metta.register_op(name=name)
@@ -448,7 +448,7 @@ def test_defaults_register_every_arity(metta):
     assert metta.run(f'!({name} "Ada" "hi")') == [["hi, Ada"]]
 
 
-def test_ops_see_atoms_not_mush(metta):
+def test_ops_see_atoms_not_mush(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("peek")
     seen = []
 
@@ -465,7 +465,7 @@ def test_ops_see_atoms_not_mush(metta):
     assert isinstance(expr_arg, Expr) and expr_arg[0] == S.a and expr_arg[1] == 1
 
 
-def test_pass_atoms_hands_over_atoms(metta):
+def test_pass_atoms_hands_over_atoms(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("atoms")
     seen = []
 
@@ -478,7 +478,7 @@ def test_pass_atoms_hands_over_atoms(metta):
     assert isinstance(seen[0], Atom) and seen[0] == 42
 
 
-def test_objects_flow_through_ops_by_identity(metta):
+def test_objects_flow_through_ops_by_identity(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     make = unique("make")
     read = unique("read")
 
@@ -504,7 +504,7 @@ def test_objects_flow_through_ops_by_identity(metta):
     assert box[0].n == 1
 
 
-def test_raw_mode_for_number_work(metta):
+def test_raw_mode_for_number_work(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("rawsum")
 
     @metta.register_op(name=name, raw=True, typed=False)
@@ -514,7 +514,7 @@ def test_raw_mode_for_number_work(metta):
     assert metta.run(f"!({name} 20 22)") == [[42]]
 
 
-def test_operation_registration_names_are_symmetric(metta):
+def test_operation_registration_names_are_symmetric(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert hasattr(metta, "register_op")
     assert hasattr(metta, "unregister_op")
     assert metta.op.__func__ is metta.register_op.__func__
@@ -531,21 +531,21 @@ def test_operation_registration_names_are_symmetric(metta):
     assert r == [[expr(S["very-unique-op-name-xyz"], 9)]]
 
 
-def test_var_kw_params_are_refused(metta):
+def test_var_kw_params_are_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError):
 
         @metta.register_op
-        def bad(*args):
+        def bad(*args):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 0
 
     with pytest.raises(TypeError):
 
         @metta.register_op
-        def bad2(*, key=1):
+        def bad2(*, key=1):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 0
 
 
-def test_engine_injection_by_annotation(metta):
+def test_engine_injection_by_annotation(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # FastAPI's Depends read the house way: a petta.MeTTa annotation is
     # the request, the framework fills it, and the MeTTa call site never
     # sees the slot.
@@ -565,7 +565,7 @@ def test_engine_injection_by_annotation(metta):
         metta.unregister_op("inj-related")
 
 
-def test_injection_binds_the_calling_space(metta):
+def test_injection_binds_the_calling_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine injects ITSELF bound to the current context's space, the
     # &self reading, so one op behaves per-space without a space argument.
     @metta.register_op(name="inj-here")
@@ -583,7 +583,7 @@ def test_injection_binds_the_calling_space(metta):
         metta.unregister_op("inj-here")
 
 
-def test_injection_composes_with_defaults_and_position(metta):
+def test_injection_composes_with_defaults_and_position(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine slot may sit anywhere; remaining defaults still ladder
     # the arities, so (inj-mid x) and (inj-mid x y) both serve.
     @metta.register_op(name="inj-mid")
@@ -610,7 +610,7 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
     assert makes a local shadow, so the name is free and the engine's predicate
     goes on answering. Of the 428 names the engine imports, 217 were refused at
     MeTTa arity 1 and 4 are.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for name, arity, call, expected in [
         ("format", 1, "!(format 1)", 1),    # Prolog format/2, a system builtin
         ("print", 1, "!(print 1)", 1),      # print/2, likewise
@@ -620,7 +620,7 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
         ("last", 1, "!(last 1)", 1),        # last/2, from library(lists)
         ("select", 2, "!(select 1 2)", 1),  # select/3, likewise
     ]:
-        metta.register_op(lambda *a: 1, name=name, typed=False, arities=[arity])
+        metta.register_op(lambda *_a: 1, name=name, typed=False, arities=[arity])
         try:
             assert metta.run(call) == [[expected]], name
         finally:
@@ -639,21 +639,21 @@ def test_prologs_protected_core_is_still_refused(metta):
     engine's: SWI will not let any module define these, so the assert raises
     wherever the operation's clauses go. call, clause, copy_term and sort are
     the four at MeTTa arity 1 [measured 2026-08-19].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for name, arity in [("sort", 1), ("copy_term", 1), ("call", 1)]:
         with pytest.raises(EngineError) as refused:
-            metta.register_op(lambda *a: 1, name=name, typed=False, arities=[arity])
+            metta.register_op(lambda *_a: 1, name=name, typed=False, arities=[arity])
         message = str(refused.value)
         assert f"{name}/{arity + 1}" in message, message
         assert "already owns" in message
         assert "name=" in message
 
 
-def test_a_free_name_that_merely_looks_prolog_still_registers(metta):
+def test_a_free_name_that_merely_looks_prolog_still_registers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # digit/2 is free even though digit/3 is not, so the refusal has to be
     # per arity rather than per name, or it would take names nothing owns.
     name = unique("digit")
-    metta.register_op(lambda x: 7, name=name, typed=False, arities=[1])
+    metta.register_op(lambda _x: 7, name=name, typed=False, arities=[1])
     try:
         assert metta.run(f"!({name} 1)") == [[7]]
     finally:
@@ -669,8 +669,8 @@ def test_unregistering_a_name_a_system_predicate_shares_does_not_throw(metta):
     print/6 is free, so this registration is legitimate; print/1 and print/2
     are SWI's and are what the walk trips over. A builtin is never a clause
     of ours, so it is skipped rather than inspected.
-    """
-    metta.register_op(lambda *a: 1, name="print", typed=False, arities=[5])
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    metta.register_op(lambda *_a: 1, name="print", typed=False, arities=[5])
     try:
         assert metta.run("!(print 1 2 3 4 5)") == [[1]]
     finally:

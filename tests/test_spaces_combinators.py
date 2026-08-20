@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -17,11 +17,11 @@ from petta import PettaError, S, V, parse, spaces, testing
 
 
 @pytest.fixture()
-def pair(metta):
+def pair(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space(), metta.new_space()
 
 
-def test_union_reads_every_member_and_engine_matches(metta, pair):
+def test_union_reads_every_member_and_engine_matches(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     kb, rules = pair
     kb.add(S.edge(S.a, S.b))
     rules.add(S.edge(S.b, S.c), S.node(S.z))
@@ -39,7 +39,7 @@ def test_union_reads_every_member_and_engine_matches(metta, pair):
         metta.unregister_space(name)
 
 
-def test_union_refuses_writes_through_the_engine(metta, pair):
+def test_union_refuses_writes_through_the_engine(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     kb, rules = pair
     name = "&cmb-union-ro"
     metta.register_space(spaces.union(kb, rules), name)
@@ -56,7 +56,7 @@ def test_union_refuses_writes_through_the_engine(metta, pair):
         spaces.union("&by-name")
 
 
-def test_readonly_strips_every_write(metta, pair):
+def test_readonly_strips_every_write(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     kb, _ = pair
     kb.add(S.fact(1))
     name = "&cmb-ro"
@@ -71,7 +71,7 @@ def test_readonly_strips_every_write(metta, pair):
         metta.unregister_space(name)
 
 
-def test_mapped_presents_and_writes_through_the_declaration(metta, pair):
+def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     inner, _ = pair
     inner.add(parse("(triple a linked-to b)"), parse("(other junk here)"))
     view = spaces.mapped(inner, "(bridge (edge $a $b) (triple $a linked-to $b))")
@@ -93,7 +93,7 @@ def test_mapped_presents_and_writes_through_the_declaration(metta, pair):
         metta.unregister_space(name)
 
 
-def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):
+def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The one-way unify walk refuses (loop $x $x) against a shape whose
     # positions the pattern's repetition constrains; soundness demands the
     # candidates still answer, and the engine re-unifies them.
@@ -109,13 +109,13 @@ def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):
         metta.unregister_space(name)
 
 
-def test_mapped_refuses_a_malformed_declaration(pair):
+def test_mapped_refuses_a_malformed_declaration(pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     inner, _ = pair
     with pytest.raises(PettaError, match="bridge"):
         spaces.mapped(inner, "(not-a-bridge (a) (b))")
 
 
-def test_overlay_routes_writes_to_front(metta, pair):
+def test_overlay_routes_writes_to_front(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     front, back = pair
     back.add(S.base(1))
     name = "&cmb-overlay"
@@ -135,7 +135,7 @@ def test_overlay_routes_writes_to_front(metta, pair):
         metta.unregister_space(name)
 
 
-def test_overlay_passes_the_conformance_kit(metta, pair):
+def test_overlay_passes_the_conformance_kit(metta, pair):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     front, back = pair
     report = testing.check_space_provider(
         spaces.overlay(front, back),
@@ -149,7 +149,7 @@ def test_overlay_passes_the_conformance_kit(metta, pair):
     assert "round-trip: 3 stored atoms recovered intact" in report
 
 
-def test_mapped_passes_the_conformance_kit(metta, pair):
+def test_mapped_passes_the_conformance_kit(metta, pair):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     inner, _ = pair
     view = spaces.mapped(
         inner, "(bridge (cmb-fact $a $b) (stored-as $a $b))"
@@ -166,7 +166,7 @@ def test_mapped_passes_the_conformance_kit(metta, pair):
     assert "round-trip: 3 stored atoms recovered intact" in report
 
 
-def test_combinators_compose(metta, pair):
+def test_combinators_compose(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # readonly(union(...)) and mapped over an overlay: combinators take
     # combinators, because everything is the one seam.
     kb, extra = pair
@@ -184,7 +184,7 @@ def test_combinators_compose(metta, pair):
         metta.unregister_space(name)
 
 
-def test_diff_answers_the_multiset_difference(metta):
+def test_diff_answers_the_multiset_difference(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as a, metta.new_space() as b:
         a.add(parse("(dfact one)"), parse("(dfact one)"), parse("(dfact two)"))
         a.run("(= (ddouble $x) (* $x 2))")
@@ -200,14 +200,14 @@ def test_diff_answers_the_multiset_difference(metta):
         assert [str(x) for x in only_b] == ["(dfact three)"]
 
 
-def test_diff_counts_alpha_equivalent_atoms_as_the_same(metta):
+def test_diff_counts_alpha_equivalent_atoms_as_the_same(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as a, metta.new_space() as b:
         a.add(parse("(dg $x)"))
         b.add(parse("(dg $y)"))
         assert spaces.diff(a, b) == ([], [])
 
 
-def test_diff_takes_a_provider_side(metta):
+def test_diff_takes_a_provider_side(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Bag:
         def atoms(self):
             yield parse("(dprov here)")

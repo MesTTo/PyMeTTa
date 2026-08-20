@@ -13,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -35,13 +35,13 @@ SAFE_DIV = (
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.new_space()
     space.run(SAFE_DIV)
     return space
 
 
-def test_base_fields_default_to_none():
+def test_base_fields_default_to_none():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     error = PettaError("plain")
     assert (error.atom, error.space, error.operation, error.capability) == (
         None,
@@ -51,14 +51,14 @@ def test_base_fields_default_to_none():
     )
 
 
-def test_operation_error_operation_is_the_base_field():
+def test_operation_error_operation_is_the_base_field():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     error = MettaOperationError("m", operation="op", kind="type_error")
     assert error.operation == "op"
     assert isinstance(error, PettaError)
     assert error.capability is None
 
 
-def test_one_raises_a_structured_error_on_an_error_answer(m):
+def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError) as failure:
         m.one("(err-div 1 0)")
     error = failure.value
@@ -73,11 +73,11 @@ def test_one_raises_a_structured_error_on_an_error_answer(m):
     assert not isinstance(error, EngineError)
 
 
-def test_one_still_answers_plain_values(m):
+def test_one_still_answers_plain_values(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.one("(err-div 8 2)") == 4
 
 
-def test_first_raises_on_an_error_first_answer_only(m):
+def test_first_raises_on_an_error_first_answer_only(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError):
         m.first("(err-div 1 0)")
     # Tolerance covers absence and later members, not the returned answer.
@@ -85,14 +85,14 @@ def test_first_raises_on_an_error_first_answer_only(m):
     assert m.first("(empty)") is None
 
 
-def test_aggregation_doors_keep_errors_as_data(m):
+def test_aggregation_doors_keep_errors_as_data(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     answers = m.eval("(err-div 1 0)")
     assert len(answers) == 1
     assert str(answers[0]).startswith("(Error ")
     assert m.run("!(err-div 1 0)") == [answers]
 
 
-def test_fn_doors_split_the_same_way(m):
+def test_fn_doors_split_the_same_way(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     f = m.fn("err-div")
     with pytest.raises(MettaResultError):
         f(1, 0)
@@ -104,7 +104,7 @@ def test_fn_doors_split_the_same_way(m):
     assert f(8, 2) == 4
 
 
-def test_rows_keep_stored_errors_and_offer_the_bridge(m):
+def test_rows_keep_stored_errors_and_offer_the_bridge(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(
         '(log e1 (Error (job 1) "boom"))',
         '(log e2 (Error (job 2) "bust"))',
@@ -124,7 +124,7 @@ def test_rows_keep_stored_errors_and_offer_the_bridge(m):
         assert len(caught.exceptions) == 2
 
 
-def test_raise_for_errors_chains_when_clean_and_raises_one_plainly(m):
+def test_raise_for_errors_chains_when_clean_and_raises_one_plainly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add('(log e1 (Error (job 1) "boom"))', "(log ok fine)")
     clean = m.query(S.log(S.ok, V.what))
     assert clean.raise_for_errors() is clean
@@ -133,7 +133,7 @@ def test_raise_for_errors_chains_when_clean_and_raises_one_plainly(m):
     assert str(failure.value.culprit) == "(job 1)"
 
 
-def test_rows_one_and_first_stay_content_neutral(m):
+def test_rows_one_and_first_stay_content_neutral(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A row is a binding, not an evaluation answer: a stored error record
     # flows through the scalar Rows doors; raise_for_errors is the bridge.
     m.add('(log e1 (Error (job 1) "boom"))')
@@ -141,7 +141,7 @@ def test_rows_one_and_first_stay_content_neutral(m):
     assert str(row.what).startswith("(Error ")
 
 
-def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):
+def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Moody(SpaceProvider):
         def atoms(self):
             return iter(())
@@ -149,7 +149,7 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):
         def add(self, atom):
             pass
 
-        def should_run(self, capability, **request):
+        def should_run(self, capability, **request):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return capability != "add"
 
     name = "&moody-fields"
@@ -171,8 +171,8 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):
         metta.unregister_space(name)
 
 
-def test_an_op_authors_exception_stays_wrapped(metta):
-    def moodyop(x):
+def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    def moodyop(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         msg = "nope"
         raise ValueError(msg)
 

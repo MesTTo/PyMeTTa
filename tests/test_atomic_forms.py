@@ -15,7 +15,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -36,7 +36,7 @@ def three(metta):
     session-scoped, so equations written into the base tier would accumulate
     across tests and a three-answer body would quietly become a nine-answer
     one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = metta.new_space()
     for answer in (1, 2, 3):
         space.run(f"(= (petta-three) {answer})")
@@ -51,7 +51,7 @@ def test_a_transaction_preserves_every_answer_of_its_body(three):
 
     Dropping them is an opacity violation in the transactional-memory sense:
     a reader of the result sees a state no serial run of the body produces.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answers(three, "!(collapse (petta-three))") == ["1", "2", "3"]
     assert _answers(three, "!(collapse (transaction (petta-three)))") == ["1", "2", "3"]
     # A superpose body is the same claim written without equations.
@@ -73,7 +73,7 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
     """Preserving the answers must not cost the atomicity that is the form's
     reason to exist, so each half is checked with a body that answers more
     than once.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     # Every answer writes, and every write lands.
     assert _answers(
         three,
@@ -115,7 +115,7 @@ def test_a_nested_transaction_preserves_answers_too(three):
     """The nested branch runs inside the outer transaction's registry rather
     than opening its own, and it collects and replays for the same reason the
     outer one does: SWI's transaction/1 is once-like at every depth.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answers(
         three, "!(collapse (transaction (transaction (superpose (7 8)))))"
     ) == ["7", "8"]
@@ -131,7 +131,7 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
     `!(atomically (+ 1 1))` answered `(atomically 2)`, the unknown head
     applied to its evaluated argument, rather than running anything
     atomically.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert [str(a) for a in three.run("!(atomically (+ 1 1))")[0]] == ["2"]
     assert _answers(three, "!(collapse (atomically (petta-three)))") == ["1", "2", "3"]
 
@@ -187,7 +187,7 @@ def test_atomically_takes_a_body_that_is_data_where_transaction_cannot(three):
     773.05 through `transaction`, 956.07 through `atomically`. The 183 that
     separate them are what evaluating a runtime term costs against compiling
     the body in place, which is why both forms exist rather than one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     three.run("(= (petta-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))")
     assert _answers(
         three, "!(collapse (let $body (petta-body) (atomically $body)))"

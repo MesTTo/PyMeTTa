@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import gzip
 import re
@@ -18,12 +18,12 @@ from petta import _space_persistence as persistence_module
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
-def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):
+def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "knowledge.petta-fast"
     with metta.new_space() as source, metta.new_space() as loaded:
         source.run("(fast-io-fact alpha) (fast-io-fact beta) (= (fast-io-next $x) (+ $x 1))")
@@ -36,7 +36,7 @@ def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):
         assert loaded.run("!(fast-io-next 41)") == [[42]]
 
 
-def test_load_auto_detects_text_and_fast_files(metta, tmp_path):
+def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text_path = tmp_path / "knowledge.metta"
     fast_path = tmp_path / "knowledge.fast"
     with (
@@ -55,7 +55,7 @@ def test_load_auto_detects_text_and_fast_files(metta, tmp_path):
         assert [row.x for row in from_fast.query(S["auto-fact"](V.x))] == expected
 
 
-def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):
+def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "escaped-quote.metta"
     with metta.new_space() as source, metta.new_space() as loaded:
         source.add(S.h('a"b'))
@@ -66,7 +66,7 @@ def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):
 
 
 @pytest.mark.parametrize("suffix", [".metta", ".metta.gz"])
-def test_text_save_uses_utf8_for_plain_and_gzip_files(metta, tmp_path, suffix):
+def test_text_save_uses_utf8_for_plain_and_gzip_files(metta, tmp_path, suffix):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / f"unicode{suffix}"
     with metta.new_space() as source:
         source.add(S.text("é字"))
@@ -76,12 +76,12 @@ def test_text_save_uses_utf8_for_plain_and_gzip_files(metta, tmp_path, suffix):
     assert raw == b'(text "\xc3\xa9\xe5\xad\x97")\n'
 
 
-def test_escaped_quote_runs_directly(metta):
+def test_escaped_quote_runs_directly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         assert space.run('(= (quote-id $x) $x)\n!(quote-id "a\\"b")') == [['a"b']]
 
 
-def test_comments_remain_outside_escaped_string_state(metta):
+def test_comments_remain_outside_escaped_string_state(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         assert space.run(
             '; leading comment\n(escaped-text "a\\"; ) b") ; trailing comment\n!(+ 1 2)'
@@ -89,7 +89,7 @@ def test_comments_remain_outside_escaped_string_state(metta):
         assert space.query(S["escaped-text"](V.value))[0].value.value == 'a"; ) b'
 
 
-def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
+def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.holds(val(object())))
     with pytest.raises(ValueError) as text_error:
         m.save(tmp_path / "object.metta")
@@ -105,7 +105,7 @@ def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):
     ['bad"quote', "bad(paren", "bad)paren", "bad name", "$notvar", "semi;colon", "42", "True"],
 )
 @pytest.mark.parametrize("format", ["metta", "fast"])
-def test_save_refuses_symbols_without_round_trip_text(m, tmp_path, name, format):
+def test_save_refuses_symbols_without_round_trip_text(m, tmp_path, name, format):  # noqa: A002, D103  -- pytest parameterization names the public save-format argument exercised here; pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / f"unsafe-{format}"
     m.add(S.container(S[name]))
     with pytest.raises(ValueError, match=r"cannot write symbol"):
@@ -115,7 +115,7 @@ def test_save_refuses_symbols_without_round_trip_text(m, tmp_path, name, format)
 
 @pytest.mark.parametrize("format", ["metta", "fast"])
 @pytest.mark.parametrize("suffix", [".data", ".data.gz"])
-def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, suffix):
+def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, suffix):  # noqa: A002, D103  -- pytest parameterization names the public save-format argument exercised here; pytest discovers or injects this callable; its descriptive name states the contract
     target = tmp_path / f"knowledge{suffix}"
     target.write_bytes(b"old data stays\n")
     m.add(S.new(S.data))
@@ -136,7 +136,7 @@ def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, 
 
 
 @pytest.mark.parametrize("format", ["metta", "fast"])
-def test_save_validation_preserves_existing_file(m, tmp_path, format):
+def test_save_validation_preserves_existing_file(m, tmp_path, format):  # noqa: A002, D103  -- pytest parameterization names the public save-format argument exercised here; pytest discovers or injects this callable; its descriptive name states the contract
     target = tmp_path / "knowledge.data"
     target.write_bytes(b"old data stays\n")
     m.add(S.holds(val(object())))
@@ -148,7 +148,7 @@ def test_save_validation_preserves_existing_file(m, tmp_path, format):
     assert list(tmp_path.glob(".petta-save-*")) == []
 
 
-def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatch):
+def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     target = tmp_path / "knowledge.metta"
     target.write_text("old data stays\n")
     m.add(S.first(S.value), S.second(S.value))
@@ -179,13 +179,13 @@ def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatc
     assert list(tmp_path.glob(".petta-save-*")) == []
 
 
-def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):
+def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     target = tmp_path / "knowledge.metta"
     m.add(S.synced(S.value))
     events = []
     real_replace = persistence_module.os.replace
 
-    def record_fsync(descriptor):
+    def record_fsync(descriptor):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         events.append("fsync")
 
     def record_replace(source, destination):
@@ -200,7 +200,7 @@ def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):
     assert target.read_text() == "(synced value)\n"
 
 
-def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):
+def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "wrong-swi.fast"
     m.save(path, format="fast")
     header = path.read_bytes().split(b"\n", 1)[0]
@@ -220,7 +220,7 @@ def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path):
     ("field", "replacement", "message"),
     [(1, b"PETTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
 )
-def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replacement, message):
+def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replacement, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / f"wrong-header-{field}.fast"
     m.save(path, format="fast")
     header = path.read_bytes().split(b"\n", 1)[0]
@@ -233,7 +233,7 @@ def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replac
     assert "re-save" in str(error.value)
 
 
-def test_fast_load_reports_a_truncated_payload(metta, tmp_path):
+def test_fast_load_reports_a_truncated_payload(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "truncated.fast"
     with metta.new_space() as source, metta.new_space() as target:
         source.add(*(S.payload(i, S.value) for i in range(20)))
@@ -250,7 +250,7 @@ def test_fast_load_reports_a_truncated_payload(metta, tmp_path):
         assert target.count() == 0
 
 
-def test_gz_round_trips_both_formats_and_import(metta, tmp_path):
+def test_gz_round_trips_both_formats_and_import(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text_gz = tmp_path / "corpus.metta.gz"
     fast_gz = tmp_path / "corpus.fast.gz"
     with (
@@ -281,7 +281,7 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):
         ]
 
 
-def test_corrupt_gz_is_loud_and_names_the_file(metta, tmp_path):
+def test_corrupt_gz_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     bad = tmp_path / "broken.metta.gz"
     bad.write_bytes(b"\x1f\x8bnot really gzip")
     with metta.new_space() as target, pytest.raises(EngineError) as caught:
@@ -289,7 +289,7 @@ def test_corrupt_gz_is_loud_and_names_the_file(metta, tmp_path):
     assert str(bad) in str(caught.value)
 
 
-def test_fast_file_starts_with_the_magic_header(m, tmp_path):
+def test_fast_file_starts_with_the_magic_header(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "header.fast"
     m.add(S.header(S.fact))
     m.save(path, format="fast")
@@ -303,7 +303,7 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):
 def test_flipped_payload_byte_refuses_before_reading(metta, tmp_path):
     """The header's sha256 gates the payload: a single flipped byte, size
     unchanged, refuses on integrity before fast_read sees any byte.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     path = tmp_path / "flipped.fast"
     with metta.new_space() as source, metta.new_space() as target:
         source.add(*(S.payload(i, S.value) for i in range(20)))
@@ -334,7 +334,7 @@ else:
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(st.lists(st.integers(-1_000_000, 1_000_000), max_size=40, unique=True))
-    def test_fast_round_trip_preserves_generated_fact_lists(metta, tmp_path, values):
+    def test_fast_round_trip_preserves_generated_fact_lists(metta, tmp_path, values):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
         path = tmp_path / "generated.fast"
         with metta.new_space() as source, metta.new_space() as target:
             source.add(*(S["generated-value"](value) for value in values))

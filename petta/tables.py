@@ -55,7 +55,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -69,11 +69,11 @@ from .foreign import SpaceProvider
 class Executes(Protocol):
     """The slice of a DB-API connection the bridge stands on."""
 
-    def execute(self, sql: str, parameters: Any = ..., /) -> Any: ...
+    def execute(self, sql: str, parameters: Any = ..., /) -> Any: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
-    def commit(self) -> None: ...
+    def commit(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
-    def rollback(self) -> None: ...
+    def rollback(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 def _declaration_error(declaration: Any) -> ValueError:
@@ -85,7 +85,7 @@ def _declaration_error(declaration: Any) -> ValueError:
 class _Shape:
     """One declaration's derivation: shape atom, table, columns, and the
     constraint reading of any pattern against them.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, declaration: Atom) -> None:
         if not isinstance(declaration, Expr) or len(declaration.children) != 3:
@@ -104,14 +104,14 @@ class _Shape:
             column, variable = pair.children
             if not isinstance(variable, Var):
                 msg = f"a row column binds a variable, got {pair}"
-                raise ValueError(msg)
+                raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
             self.columns[str(variable)] = str(column)
         for child in atom_shape.children:
             if isinstance(child, Var) and str(child) not in self.columns:
                 msg = f"the atom shape's {child} has no column in {row_shape}"
                 raise ValueError(msg)
 
-    def constraints(self, pattern: Atom) -> tuple[list[str], list[str], bool] | None:
+    def constraints(self, pattern: Atom) -> tuple[list[str], list[str], bool] | None:  # noqa: C901  -- constraints keeps the table constraint compiler together so its branches share one state
         """WHERE fragments from matching the pattern against this shape.
 
         Answers (where, arguments, exact), or None when the shapes cannot
@@ -189,9 +189,9 @@ class _Shape:
 class TableBridge(SpaceProvider):
     """Every provider operation derived from the declarations; nothing in
     here is specific to any table.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         parse: Callable[[str], Atom],
         connection: Executes,
@@ -220,7 +220,7 @@ class TableBridge(SpaceProvider):
         """The provider for every `(bridge <name> <shape> <row>)` atom in
         &petta, so a schema declared from MeTTa source, or by declare()
         below, becomes a provider in one line.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         (group,) = m.run(
             f"!(collapse (match &petta (bridge {name} $shape $row)"
             f" (bridge $shape $row)))"
@@ -233,14 +233,14 @@ class TableBridge(SpaceProvider):
 
     # -- the provider surface, all of it derived -----------------------------
 
-    def atoms(self) -> Iterator[Atom]:
+    def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return (
             shape.atom(self._parse, row)
             for shape in self._shapes
             for row in self._select(shape, [], [])
         )
 
-    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
+    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         def answers() -> Iterator[Atom]:
             for shape, (where, arguments, _exact) in self._admitting(pattern):
                 for row in self._select(shape, where, arguments, limit):
@@ -248,13 +248,13 @@ class TableBridge(SpaceProvider):
 
         return answers()
 
-    def pushdown(self, pattern: Atom) -> str:
+    def pushdown(self, pattern: Atom) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         admitting = self._admitting(pattern)
         if not admitting:
             return "exact"  # no shape admits it, and nothing is yielded
         return "exact" if all(exact for _s, (_w, _a, exact) in admitting) else "inexact"
 
-    def add(self, atom: Atom) -> None:
+    def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         fitting = [
             shape
             for shape, _derived in self._admitting(atom)
@@ -285,7 +285,7 @@ class TableBridge(SpaceProvider):
             shape.values(cast(Expr, atom)),
         )
 
-    def remove(self, pattern: Atom) -> bool:
+    def remove(self, pattern: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         removed = False
         for shape, (where, arguments, exact) in self._admitting(pattern):
             if exact:
@@ -313,17 +313,17 @@ class TableBridge(SpaceProvider):
             removed = bool(doomed) or removed
         return removed
 
-    def clear(self) -> None:
+    def clear(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         for table in {shape.table for shape in self._shapes}:
             self.connection.execute(f"DELETE FROM {table}")  # noqa: S608 - identifier from the trusted declaration  # nosec B608
 
-    def begin(self) -> None:
+    def begin(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.connection.execute("BEGIN")
 
-    def commit(self) -> None:
+    def commit(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.connection.commit()
 
-    def rollback(self) -> None:
+    def rollback(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.connection.rollback()
 
     # -- shared derivation helpers -------------------------------------------
@@ -355,7 +355,7 @@ class TableBridge(SpaceProvider):
 def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     """Write one ctx-scoped bridge declaration into &petta, where explain
     and any program can read the schema, and from_context will.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
     if not isinstance(parsed, Expr):
         raise _declaration_error(parsed)

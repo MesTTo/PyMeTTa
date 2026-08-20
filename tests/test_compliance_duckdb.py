@@ -35,7 +35,7 @@ _EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 def _duckdb_space_module():
     """The example, imported by path: it lives under examples/ rather than in
     the package, and its _common import needs examples/ on the path.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     sys.path.insert(0, str(_EXAMPLES))
     try:
         spec = importlib.util.spec_from_file_location(
@@ -48,12 +48,12 @@ def _duckdb_space_module():
         sys.path.remove(str(_EXAMPLES))
 
 
-class TestDuckDBSpaceComplies(SpaceComplianceSuite):
+class TestDuckDBSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     # Its own in-memory database, so clearing it destroys nothing.
     destructive = True
 
     @pytest.fixture()
-    def provider(self):
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         module = _duckdb_space_module()
         connection = duckdb.connect(":memory:")
         connection.execute("create table users (id integer, name text)")

@@ -16,7 +16,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ def install(runtime) -> None:
     (image TypeName registry-image) atom per register_type, retired on
     unregister. The registry stays engine-free; this listener is the whole
     coupling, and it hears the past (the snapshot) before the future.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:

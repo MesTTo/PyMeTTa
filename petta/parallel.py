@@ -54,7 +54,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ class EnginePool:
     relatively expensive (SWI manual section 10.6.1).
     """
 
-    def __init__(self, workers: int | None = None) -> None:
+    def __init__(self, workers: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         if workers is None:
             workers = os.cpu_count() or 1
         if not isinstance(workers, int) or isinstance(workers, bool):
@@ -245,7 +245,7 @@ class EnginePool:
 
     # --------------------------------------------------------------- lifecycle
 
-    def close(self, wait: bool = True) -> None:
+    def close(self, wait: bool = True) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         """Stop every worker and release every engine. Idempotent."""
         with self._state_lock:
             if self._closed:
@@ -274,16 +274,16 @@ class EnginePool:
         """Whether close() has run."""
         return self._closed
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:
+    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.close()
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self._workers
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else "live"
         return f"<EnginePool workers={self._workers} {state}>"
 

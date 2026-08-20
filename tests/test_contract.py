@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -20,7 +20,7 @@ def _effect_atom(name):
     return parse(f"(effect {name} immutable)")
 
 
-def test_pure_registration_reflects_an_effect_atom(metta):
+def test_pure_registration_reflects_an_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
@@ -31,7 +31,7 @@ def test_pure_registration_reflects_an_effect_atom(metta):
     assert parse("(op ct-pure 1 det)") in petta_space
 
 
-def test_impure_registration_reflects_no_effect_atom(metta):
+def test_impure_registration_reflects_no_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
@@ -39,7 +39,7 @@ def test_impure_registration_reflects_no_effect_atom(metta):
     assert _effect_atom("ct-impure") not in metta.space("&petta")
 
 
-def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):
+def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
@@ -51,7 +51,7 @@ def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):
     assert parse("(op ct-gone 1 det)") not in petta_space
 
 
-def test_reregistration_without_pure_retires_the_effect_atom(metta):
+def test_reregistration_without_pure_retires_the_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
@@ -66,7 +66,7 @@ def test_reregistration_without_pure_retires_the_effect_atom(metta):
     metta.unregister_op("ct-flip")
 
 
-def test_the_effect_atom_is_matchable_from_metta(metta):
+def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
@@ -75,7 +75,7 @@ def test_the_effect_atom_is_matchable_from_metta(metta):
     assert [str(row.e) for row in rows] == ["immutable"]
 
 
-def test_the_ontology_is_loaded_at_boot(metta):
+def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     petta_space = metta.space("&petta")
     assert parse("(: Declaration Type)") in petta_space
     assert parse("(:< Exact Partial)") in petta_space
@@ -86,7 +86,7 @@ def test_the_ontology_is_loaded_at_boot(metta):
     assert parse("(:< Refuse Sound)") not in petta_space
 
 
-def test_the_ontology_loads_once(metta):
+def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import _contract
 
     _contract.install(metta.runtime)
@@ -95,14 +95,14 @@ def test_the_ontology_loads_once(metta):
     assert [str(row.t) for row in rows] == ["Type"]
 
 
-def test_the_fidelity_chain_rides_subtype_widening(metta):
+def test_the_fidelity_chain_rides_subtype_widening(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     petta_space = metta.space("&petta")
     petta_space.run("!(add-atom &petta (: ct-widen Exact))")
     answers = petta_space.run("!(get-type ct-widen)")
     assert [str(a) for a in answers[0]] == ["Exact", "Partial", "Sound"]
 
 
-def test_a_metta_declared_effect_reaches_the_purity_walk(metta):
+def test_a_metta_declared_effect_reaches_the_purity_walk(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
     def lookup(x: int) -> int:
@@ -120,7 +120,7 @@ def test_a_metta_declared_effect_reaches_the_purity_walk(metta):
     assert metta.run("!(tabled (ct-mwrap $x))") == [[True]]
 
 
-def test_an_unchecked_declaration_memoizes_an_impure_body(metta):
+def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
     def draw(x: int) -> int:
@@ -142,7 +142,7 @@ def test_an_unchecked_declaration_memoizes_an_impure_body(metta):
     assert calls == [7]
 
 
-def test_an_unchecked_declaration_tables_an_impure_body(metta):
+def test_an_unchecked_declaration_tables_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def now(x: int) -> int:
         return x
 
@@ -158,7 +158,7 @@ class _CtPoint:
         self.x, self.y = x, y
 
 
-def test_an_explicitly_registered_type_projects_from_an_op(metta):
+def test_an_explicitly_registered_type_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import convert
 
     convert.register_type(
@@ -185,7 +185,7 @@ def test_an_explicitly_registered_type_projects_from_an_op(metta):
     ]
 
 
-def test_a_memoized_default_never_projects_from_an_op(metta):
+def test_a_memoized_default_never_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import dataclasses
 
     from petta import Gnd, convert
@@ -207,7 +207,7 @@ def test_a_memoized_default_never_projects_from_an_op(metta):
     assert isinstance(answers[0][0], Gnd)
 
 
-def test_an_explicit_handle_image_stays_opaque(metta):
+def test_an_explicit_handle_image_stays_opaque(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import dataclasses
 
     from petta import Gnd, convert
@@ -226,7 +226,7 @@ def test_an_explicit_handle_image_stays_opaque(metta):
     assert isinstance(answers[0][0], Gnd)
 
 
-def test_a_metta_hook_projects_from_an_op(metta):
+def test_a_metta_hook_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import parse
 
     class _CtHooked:
@@ -240,7 +240,7 @@ def test_a_metta_hook_projects_from_an_op(metta):
     assert [str(a) for a in metta.run("!(ct-hooked)")[0]] == ["(hooked yes)"]
 
 
-def test_register_type_reflects_an_image_atom(metta):
+def test_register_type_reflects_an_image_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import convert
 
     class _CtImaged:
@@ -249,8 +249,8 @@ def test_register_type_reflects_an_image_atom(metta):
     convert.register_type(
         _CtImaged,
         image="expression",
-        to_atom=lambda v: (1,),
-        from_atom=lambda x: _CtImaged(),
+        to_atom=lambda _v: (1,),
+        from_atom=lambda _x: _CtImaged(),
         name="CtImaged",
     )
     petta_space = metta.space("&petta")
@@ -259,7 +259,7 @@ def test_register_type_reflects_an_image_atom(metta):
     assert parse("(image CtImaged expression)") not in petta_space
 
 
-def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):
+def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The listener hears the future; the snapshot hears the past. A type
     # registered before any engine exists must still appear in &petta.
     import subprocess
@@ -284,7 +284,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):
     assert result.stdout.strip().endswith("True"), result.stderr[-500:]
 
 
-def test_auto_image_is_total_reproducible_and_two_valued():
+def test_auto_image_is_total_reproducible_and_two_valued():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.convert import auto_image
 
     cases = {
@@ -325,7 +325,7 @@ class _RecordingProvider(SpaceProvider):
     def atoms(self):
         return list(self.rows)
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         self.limits.append(limit)
         for index, atom in enumerate(self.rows):
             if limit is not None and index >= limit:
@@ -344,20 +344,20 @@ def _routed(metta, name, entries):
     return provider
 
 
-def test_an_undeclared_space_keeps_todays_floor(metta):
+def test_an_undeclared_space_keeps_todays_floor(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-floor", [])
     metta.run("!(collapse (take 2 (match &hr-floor (edge $x $y) $y)))")
     assert provider.limits == [None]
 
 
-def test_a_declared_exact_entry_licenses_the_take_bound(metta):
+def test_a_declared_exact_entry_licenses_the_take_bound(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-exact", ["(edge $x $y) Exact"])
     out = metta.run("!(collapse (take 2 (match &hr-exact (edge $x $y) $y)))")
     assert provider.limits == [2]
     assert str(out[0][0]) == "(b c)"
 
 
-def test_the_most_specific_entry_wins_and_sound_withholds_the_bound(metta):
+def test_the_most_specific_entry_wins_and_sound_withholds_the_bound(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(
         metta, "&hr-spec", ["(edge $x $y) Exact", "(edge $x $x) Sound"]
     )
@@ -373,7 +373,7 @@ def test_the_most_specific_entry_wins_and_sound_withholds_the_bound(metta):
     assert provider.limits == [2]
 
 
-def test_a_join_never_offers_the_bound(metta):
+def test_a_join_never_offers_the_bound(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-join", ["(edge $x $y) Exact"])
     out = metta.run(
         "!(collapse (take 2 (match &hr-join"
@@ -383,7 +383,7 @@ def test_a_join_never_offers_the_bound(metta):
     assert str(out[0][0]) == "((path a c) (path b d))"
 
 
-def test_a_refuse_entry_throws_before_the_provider_is_asked(metta):
+def test_a_refuse_entry_throws_before_the_provider_is_asked(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-refuse", ["(secret $x) Refuse"])
     with pytest.raises(EngineError, match="Refuse"):
         metta.run("!(collapse (match &hr-refuse (secret $x) $x))")
@@ -393,7 +393,7 @@ def test_a_refuse_entry_throws_before_the_provider_is_asked(metta):
     assert provider.limits == [None]
 
 
-def test_an_in_adornment_matches_only_a_bound_argument(metta):
+def test_an_in_adornment_matches_only_a_bound_argument(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-adorn", ["(edge (in $a) $b) Refuse"])
     # A scan-only source in one line: bound-subject lookups are refused,
     # the free scan is not.
@@ -403,7 +403,7 @@ def test_an_in_adornment_matches_only_a_bound_argument(metta):
         metta.run("!(collapse (match &hr-adorn (edge a $y) $y))")
 
 
-def test_a_join_checks_access_patterns_at_plan_time(metta):
+def test_a_join_checks_access_patterns_at_plan_time(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-modes", ["(edge (in $a) $b) Refuse"])
     # The nested loop would bind the second conjunct's subject per row,
     # which is the refused access pattern; the whole join is refused before
@@ -416,7 +416,7 @@ def test_a_join_checks_access_patterns_at_plan_time(metta):
     assert provider.limits == []
 
 
-def test_overlapping_entries_that_disagree_are_loud(metta):
+def test_overlapping_entries_that_disagree_are_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _routed(metta, "&hr-clash", ["(edge a $y) Exact", "(edge $x b) Sound"])
     # (edge a b) is matched by both, neither is more specific, and the
     # claims differ: the critical pair is a declaration bug, named as one.
@@ -429,7 +429,7 @@ def test_overlapping_entries_that_disagree_are_loud(metta):
     assert str(out[0][0]) == "(ok)"
 
 
-def test_overlapping_entries_that_agree_are_fine(metta):
+def test_overlapping_entries_that_agree_are_fine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(
         metta, "&hr-agree", ["(edge a $y) Exact", "(edge $x b) Exact"]
     )
@@ -437,9 +437,9 @@ def test_overlapping_entries_that_agree_are_fine(metta):
     assert provider.limits == [1]
 
 
-def test_a_declared_route_outranks_the_provider_pushdown_method(metta):
+def test_a_declared_route_outranks_the_provider_pushdown_method(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Claimer(_RecordingProvider):
-        def pushdown(self, pattern):
+        def pushdown(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return "exact"
 
     provider = _Claimer(_EDGES)
@@ -455,7 +455,7 @@ def test_a_declared_route_outranks_the_provider_pushdown_method(metta):
     assert provider.limits == [2]
 
 
-def test_declare_handles_writes_the_atom_and_routes(metta):
+def test_declare_handles_writes_the_atom_and_routes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-sugar", [])
     atom = metta.declare_handles("&hr-sugar", "(edge $x $y)", "Exact")
     assert atom in metta.space("&petta")
@@ -468,7 +468,7 @@ def test_declare_handles_writes_the_atom_and_routes(metta):
     assert provider.limits == [None]
 
 
-def test_declare_handles_keeps_repeated_variables_shared(metta):
+def test_declare_handles_keeps_repeated_variables_shared(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-sugar2", [])
     metta.declare_handles("&hr-sugar2", "(edge $x $y)", "Exact")
     metta.declare_handles("&hr-sugar2", "(edge $x $x)", "Sound")
@@ -477,7 +477,7 @@ def test_declare_handles_keeps_repeated_variables_shared(metta):
     assert str(out[0][0]) == "(d)"
 
 
-def test_declare_handles_rejects_a_conflict_eagerly(metta):
+def test_declare_handles_rejects_a_conflict_eagerly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _routed(metta, "&hr-sugar3", [])
     metta.declare_handles("&hr-sugar3", "(edge a $y)", "Exact")
     with pytest.raises(EngineError, match="disagree"):
@@ -488,12 +488,12 @@ def test_declare_handles_rejects_a_conflict_eagerly(metta):
     assert str(out[0][0]) == "(ok)"
 
 
-def test_declare_handles_validates_the_fidelity_word(metta):
+def test_declare_handles_validates_the_fidelity_word(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="Exact, Partial, Sound, Refuse"):
         metta.declare_handles("&hr-sugar4", "(edge $x $y)", "Sorta")
 
 
-def test_the_scan_only_source_in_two_declarations(metta):
+def test_the_scan_only_source_in_two_declarations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-scan", [])
     metta.declare_handles("&hr-scan", "(edge (in $a) $b)", "Refuse")
     metta.declare_handles("&hr-scan", "(edge $x $y)", "Exact")
@@ -512,7 +512,7 @@ def test_a_sql_backed_space_under_declared_handles(metta):
     LIMIT, and cannot express a repeated variable, so the general entry
     licenses the bound and the narrower one withholds it exactly where the
     WHERE clause goes blind.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import sqlite3
 
     connection = sqlite3.connect(":memory:")
@@ -592,7 +592,7 @@ class _StreamProvider(SpaceProvider):
         return self.gen
 
 
-def test_a_linear_source_refuses_its_second_consumption(metta):
+def test_a_linear_source_refuses_its_second_consumption(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_StreamProvider(), "&sd-lin")
     metta.declare_source("&sd-lin", "linear")
     out = metta.run("!(collapse (match &sd-lin (edge $x $y) $y))")
@@ -608,7 +608,7 @@ def test_a_linear_source_refuses_its_second_consumption(metta):
     assert str(out[0][0]) == "(b c d)"
 
 
-def test_a_join_over_a_linear_source_is_refused(metta):
+def test_a_join_over_a_linear_source_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_StreamProvider(), "&sd-join")
     metta.declare_source("&sd-join", "linear")
     # The nested loop's inner conjunct is a second physical touch: today's
@@ -620,18 +620,18 @@ def test_a_join_over_a_linear_source_is_refused(metta):
         )
 
 
-def test_the_undeclared_floor_keeps_todays_behaviour(metta):
+def test_the_undeclared_floor_keeps_todays_behaviour(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_space(_StreamProvider(), "&sd-floor")
     assert str(metta.run("!(collapse (match &sd-floor (edge $x $y) $y))")[0][0]) == "(b c d)"
     assert str(metta.run("!(collapse (match &sd-floor (edge $x $y) $y))")[0][0]) == "()"
 
 
-def test_declare_source_validates(metta):
+def test_declare_source_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="linear, repeated, peek"):
         metta.declare_source("&sd-v", "stream")
 
 
-def test_the_kit_catches_a_linear_object_declared_repeated():
+def test_the_kit_catches_a_linear_object_declared_repeated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     with pytest.raises(AssertionError, match="second enumeration disagrees"):

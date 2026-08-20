@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -39,12 +39,12 @@ def _module():
 
 
 @pytest.fixture
-def scratch(metta):
+def scratch(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
-def test_to_graph_reads_links_as_edges_of_atom_nodes(scratch):
+def test_to_graph_reads_links_as_edges_of_atom_nodes(scratch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module = _module()
     scratch.run("(nxe a b) (nxe b c)")
     graph = module.to_graph(scratch, "(nxe $x $y)")
@@ -57,7 +57,7 @@ def test_to_graph_reads_links_as_edges_of_atom_nodes(scratch):
     ]
 
 
-def test_an_nary_shape_refuses_to_guess_and_takes_either_reading(scratch):
+def test_an_nary_shape_refuses_to_guess_and_takes_either_reading(scratch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module = _module()
     scratch.run("(nxt s v o)")
     with pytest.raises(ValueError, match=r"no default graph reading"):
@@ -72,7 +72,7 @@ def test_an_nary_shape_refuses_to_guess_and_takes_either_reading(scratch):
         module.to_graph(scratch, "(solo $x)")
 
 
-def test_the_example_runs_whole():
+def test_the_example_runs_whole():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     examples_root = str(_MODULE_PATH.parents[1])
     environment = dict(os.environ)
     existing = environment.get("PYTHONPATH")

@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import shutil
@@ -43,7 +43,7 @@ def _cetta_space_module():
 
 
 @pytest.fixture
-def cetta_space():
+def cetta_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
@@ -51,7 +51,7 @@ def cetta_space():
     return module.CettaSpace(cetta=binary)
 
 
-def test_metta_reaches_atoms_matched_by_cetta(cetta_space):
+def test_metta_reaches_atoms_matched_by_cetta(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = petta.MeTTa().new_space()
     try:
         m.register_space(cetta_space, "&cetta")
@@ -65,7 +65,7 @@ def test_metta_reaches_atoms_matched_by_cetta(cetta_space):
         m.drop()
 
 
-def test_removal_is_by_unification_and_takes_one_occurrence(cetta_space):
+def test_removal_is_by_unification_and_takes_one_occurrence(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     cetta_space.add(S.edge(S.a, S.b))
     cetta_space.add(S.edge(S.a, S.c))
     cetta_space.add(S.other(S.a))
@@ -78,7 +78,7 @@ def test_removal_is_by_unification_and_takes_one_occurrence(cetta_space):
     assert cetta_space.remove(S.edge(S.a, V.x)) is False
 
 
-def test_the_conformance_kit_certifies_the_cetta_provider(cetta_space):
+def test_the_conformance_kit_certifies_the_cetta_provider(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     report = testing.check_space_provider(
         cetta_space,
         atoms_to_store=[S.edge(S.a, S.b), S.edge(S.a, S.c), S.fact(S.f(S.k), S.k)],
@@ -86,7 +86,7 @@ def test_the_conformance_kit_certifies_the_cetta_provider(cetta_space):
     assert any("over-approximation holds over" in line for line in report)
 
 
-def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):
+def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # (fact $y $y) against a stored (fact (f $x) $x) is a rational-tree
     # match: PeTTa's matcher answers it (Prolog unification, no occurs
     # check) and CeTTa's refuses it. The kit's repeated-variable fold is
@@ -101,7 +101,7 @@ def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):
         )
 
 
-def test_cetta_answers_bind_inside_petta_unification():
+def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")

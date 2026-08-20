@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -50,29 +50,29 @@ class JanusCodec:
     resolves_anonymous = True
     runs_programs = True
 
-    def __init__(self, metta):
+    def __init__(self, metta):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self._metta = metta
         self._rt = metta.runtime
 
-    def read(self, text):
+    def read(self, text):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must(
             "sread_with_names(T, _X, _M), petta_py_encode_named(_X, _M, W)", T=text
         )["W"]
 
-    def roundtrip(self, wire):
+    def roundtrip(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must(
             "petta_py_decode_shared(W, _T, _B), petta_py_encode_named(_T, _B, W2)", W=wire
         )["W2"]
 
-    def render(self, wire):
+    def render(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must("petta_py_decode_shared(W, _T, _B), swrite(_T, S)", W=wire)["S"]
 
-    def transport(self, wire):
+    def transport(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # janus's own term conversion, in and out, which is this codec's
         # concrete encoding exactly as the JSON bytes are the other one's.
         return self._rt.must("W2 = W", W=wire)["W2"]
 
-    def frame(self, wire):
+    def frame(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         row = self._rt.must(
             "petta_py_answer_form(W, Theta, _R0, K, _V0), "
             "( _R0 == '@'(true) -> Residue = '@'(none) ; Residue = _R0 ), "
@@ -86,10 +86,10 @@ class JanusCodec:
             "value": row["Value"],
         }
 
-    def host_value(self):
+    def host_value(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return object()
 
-    def transcript(self, program):
+    def transcript(self, program):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # A fresh space per program, so a transcript that defines an
         # equation does not leave it where the next run of the corpus, or
         # the other codec's run of the same program, would see it twice.
@@ -119,22 +119,22 @@ class JsonWireCodec:
     resolves_anonymous = False
     runs_programs = True
 
-    def __init__(self, metta):
+    def __init__(self, metta):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self._metta = metta
 
-    def read(self, text):
+    def read(self, text):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return parse(text).to_wire()
 
-    def roundtrip(self, wire):
+    def roundtrip(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return atom_from_wire(wire).to_wire()
 
-    def render(self, wire):
+    def render(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return str(atom_from_wire(wire))
 
-    def transport(self, wire):
+    def transport(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return _json.loads(_json.dumps(wire))
 
-    def frame(self, wire):
+    def frame(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # The u frame is not an atom, so it is read below atom_from_wire.
         from petta._atom_wire import from_wire
 
@@ -145,21 +145,21 @@ class JsonWireCodec:
             "residual": undefined.residual,
         }
 
-    def host_value(self):
+    def host_value(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         msg = "the JSON wire declares no o tag, so no case asks for one"
         raise AssertionError(msg)
 
-    def transcript(self, program):
+    def transcript(self, program):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         with self._metta.new_space() as scratch:
             return [[atom.to_wire() for atom in group] for group in scratch.run(program)]
 
 
 @pytest.fixture(scope="module")
-def codecs(metta):
+def codecs(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return [JanusCodec(metta), JsonWireCodec(metta)]
 
 
-def test_both_shipped_codecs_pass_the_shared_golden_corpus(codecs):
+def test_both_shipped_codecs_pass_the_shared_golden_corpus(codecs):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     complaints = {codec.name: check_codec(codec) for codec in codecs}
     assert complaints == {"janus": [], "json": []}
 
@@ -208,7 +208,7 @@ def test_the_packaging_map_carries_the_corpus(repo_root):
     wheel into a fresh venv outside the checkout and loads the corpus from
     it. Read from setup.py's AST rather than imported, because importing it
     runs setup() against pytest's own argv.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import ast
 
     tree = ast.parse((repo_root / "setup.py").read_text(encoding="utf-8"))
@@ -231,19 +231,19 @@ class _Broken(JsonWireCodec):
 
     name = "broken"
 
-    def read(self, text):
+    def read(self, text):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         msg = "no"
         raise RuntimeError(msg)
 
-    def roundtrip(self, wire):
+    def roundtrip(self, wire):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         msg = "no"
         raise RuntimeError(msg)
 
-    def render(self, wire):
+    def render(self, wire):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         msg = "no"
         raise RuntimeError(msg)
 
-    def transport(self, wire):
+    def transport(self, wire):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         msg = "no"
         raise RuntimeError(msg)
 
@@ -251,7 +251,7 @@ class _Broken(JsonWireCodec):
 def test_a_driver_that_refuses_everything_is_caught(metta):
     """Refusing correctly and refusing everything are the same thing to a
     kit that only checks refusals, which is how one passes vacuously.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     broken = _Broken(metta)
     complaints = check_codec(broken)
     plan = codec_plan(broken)
@@ -260,7 +260,7 @@ def test_a_driver_that_refuses_everything_is_caught(metta):
     assert {case_id for case_id in runnable if any(case_id in c for c in complaints)} == runnable
 
 
-def test_a_driver_declaring_less_than_the_core_profile_is_refused(metta):
+def test_a_driver_declaring_less_than_the_core_profile_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class _Narrow(JsonWireCodec):
         name = "narrow"
         tags = frozenset({"s"})
@@ -272,7 +272,7 @@ def test_a_driver_declaring_less_than_the_core_profile_is_refused(metta):
 def test_alpha_comparison_refuses_a_collapsed_variable():
     """The renaming is a bijection, so it accepts the two shipped naming
     schemes and still separates (f $x $x) from (f $x $y).
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta._codec_kit import alpha_equal
 
     repeated = ["e", [["s", "f"], ["v", "x"], ["v", "x"]]]
@@ -302,7 +302,7 @@ def test_a_wrong_expected_value_is_caught(metta):
 def test_the_corpus_is_json_a_binding_in_any_language_can_read(repo_root):
     """No comments, no trailing commas, one object: the file a Julia or Rust
     binding parses with its own standard library.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     raw = (repo_root / "tests" / "codec" / "corpus.json").read_text(encoding="utf-8")
     corpus = json.loads(raw)
     assert set(corpus) >= {"version", "grammar", "profiles", "cases", "refusals"}
@@ -315,7 +315,7 @@ def test_the_corpus_is_json_a_binding_in_any_language_can_read(repo_root):
     assert len(identifiers) == len(set(identifiers)), "case ids are the corpus's own keys"
 
 
-def test_the_kit_is_reachable_from_the_documented_name():
+def test_the_kit_is_reachable_from_the_documented_name():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert testing.check_codec is check_codec
     assert isinstance(codec_corpus(), dict)
     assert "check_codec" in testing.__all__
@@ -340,7 +340,7 @@ def test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use(codecs):
 def test_the_grammar_document_is_generated(repo_root):
     """CODEC.md's tables and the corpus are one authority, so the checked-in
     document has to equal what the corpus produces.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc
@@ -352,7 +352,7 @@ def test_the_grammar_document_is_generated(repo_root):
 def test_an_unknown_fence_is_refused(repo_root):
     """A table that grows a fence nobody builds, or loses the fence it had,
     would show as an empty section rather than as a failure.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc

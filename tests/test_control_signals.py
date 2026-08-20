@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -16,7 +16,7 @@ from petta import EngineError, InferenceLimitError, TimeLimitError
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
@@ -25,7 +25,7 @@ def test_control_signals_pass_through_recovery_catches(m):
     """A swallowed limit signal DISARMED the budget before the fix,
     measured as six million inferences spent under a thousand-step bound
     when the raise landed inside a recovery catch mid-translation.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("(= (deep-spin $n) (if (== $n 0) done (deep-spin (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.eval("(== (deep-spin 3000000) done)", inferences=1_000)
@@ -49,7 +49,7 @@ def test_control_signals_pass_through_recovery_catches(m):
         ("interrupted", "Interrupted"),
     ],
 )
-def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
+def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     error_type = getattr(petta, error_name)
     with pytest.raises(error_type):
         m.runtime.must("petta_py_raise(Kind, detail)", Kind=kind)
@@ -64,7 +64,7 @@ def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):
         "metta_host_interrupted",
     ],
 )
-def test_exception_names_nested_in_other_terms_stay_engine_errors(m, sentinel):
+def test_exception_names_nested_in_other_terms_stay_engine_errors(m, sentinel):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError) as failure:
         m.runtime.must(f"throw(error(type_error({sentinel}, oops), none))")
     assert type(failure.value) is EngineError

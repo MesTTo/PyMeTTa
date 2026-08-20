@@ -12,7 +12,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -37,7 +37,7 @@ def typed():
 def _answers(m, query):
     """Every answer of `query`, as strings. Collapsed so a refusal reads as
     an empty list rather than as a missing group.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     [[collapsed]] = m.run("!(collapse " + query + ")")
     return [str(a) for a in collapsed]
 
@@ -52,7 +52,7 @@ def test_an_unknown_type_is_consistent_with_every_declared_type(typed):
     `(: f2 (-> Number Number))`, `(f2 a)` and `(f2 (undeclared-call))` answer
     while `(f2 "s")` is a `BadArgType`, and with
     `(: g2 (-> %Undefined% Number))` both `(g2 1)` and `(g2 "s")` answer.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     # A value of the declared type, and one whose type nothing declares.
     assert _answers(typed, "(concrete 1)") == ["(got 1)"]
     assert _answers(typed, "(concrete undeclared-symbol)") == [
@@ -88,7 +88,7 @@ def test_the_gradual_rule_reaches_metatype_parameters(typed):
     Measured 2026-08-19 on both references, byte-identical:
     `(: meta-expr (-> Expression Atom))` gives `!(meta-expr foo)` =
     `(got foo)` and `!(meta-expr 7)` = `(BadArgType 1 Expression Number)`.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     typed.run("(: takes-expr (-> Expression Atom))")
     typed.run("(= (takes-expr $e) (gote $e))")
     assert _answers(typed, "(takes-expr (1 2))") == ["(gote (1 2))"]
@@ -119,7 +119,7 @@ def test_a_declared_parameter_type_still_types_its_own_application(typed):
     its own `%Undefined%` parameter and `!(get-type (tensor (1.0)))` answered
     `((-> %Undefined% DLTensor) (Number))`, the arrow beside its argument's
     type, rather than `DLTensor`.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     typed.run("(: wraps (-> %Undefined% Wrapped))")
     for argument in ("1.0", "(1.0)", "undeclared-symbol", '"s"'):
         assert _answers(typed, f"(get-type (wraps {argument}))") == ["Wrapped"], argument

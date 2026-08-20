@@ -2,21 +2,22 @@
 Guarantees:
   - every named case runs in a fresh process, so global engine state cannot
     make subset and suite counters disagree [tested
-    test_benchmark_cli_spawns_each_case]
+    test_benchmark_cli_spawns_each_case; commit=WORKTREE]
   - unknown names fail through argparse and --list reports every case
-    [tested test_benchmark_cli_lists_and_rejects_case_names]
-Owns:
+    [tested: test_benchmark_cli_lists_and_rejects_case_names; commit=WORKTREE]
+Owns resources:
   - main joins each benchmark process and terminates one that exceeds its
-    explicit limit [tested test_benchmark_cli_spawns_each_case]
+    explicit limit [tested: test_benchmark_cli_spawns_each_case; commit=WORKTREE]
   - JSON output is assembled in a temporary directory and atomically
-    replaces its destination [tested test_benchmark_json_merge_is_atomic]
+    replaces its destination
+    [tested: test_benchmark_json_merge_is_atomic; commit=WORKTREE]
   - updating selected cases preserves every unselected committed case
-    [tested test_benchmark_json_merge_preserves_unselected_cases]
+    [tested: test_benchmark_json_merge_preserves_unselected_cases; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -94,7 +95,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _run_case(pytest_arguments: list[str], update: bool) -> None:
+def _run_case(pytest_arguments: list[str], *, update: bool) -> None:
     os.environ["PETTA_BENCHMARK_COUNTERS"] = "1"
     os.environ["PETTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
     result = pytest.main(pytest_arguments)
@@ -127,7 +128,7 @@ def _arguments_for(
     return arguments
 
 
-def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
+def _benchmark_documents(paths: Sequence[Path]) -> list[dict[str, Any]]:
     documents = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     if not documents:
         msg = "cannot write an empty benchmark JSON document"
@@ -135,7 +136,7 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
     for path, document in zip(paths, documents, strict=True):
         if not isinstance(document, dict) or not isinstance(document.get("benchmarks"), list):
             msg = f"benchmark JSON has invalid structure: {path}"
-            raise ValueError(msg)
+            raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
         if len(document["benchmarks"]) != 1:
             msg = f"benchmark JSON must hold exactly one case: {path}"
             raise ValueError(msg)
@@ -145,6 +146,11 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
         if document.get("commit_info") != documents[0].get("commit_info"):
             msg = f"benchmark JSON commit metadata changed: {path}"
             raise ValueError(msg)
+    return documents
+
+
+def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
+    documents = _benchmark_documents(paths)
     merged: dict[str, Any] = documents[0]
     updated = {
         benchmark["name"]: benchmark
@@ -173,7 +179,7 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
         raise
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps the child-process timeout and cleanup together so its branches share one state
     """Run the requested benchmark cases through isolated pytest processes."""
     parser = _parser()
     arguments = parser.parse_args(argv)
@@ -189,8 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     directory = Path(__file__).resolve().parent
     selected = [
-        name for name in (arguments.names or sorted(CASES))
-        if name not in set(arguments.skip)
+        name for name in (arguments.names or sorted(CASES)) if name not in set(arguments.skip)
     ]
     if not selected:
         parser.error("every selected benchmark was skipped")
@@ -218,8 +223,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         compare_wall=arguments.compare_wall,
                         json_path=json_path,
                     ),
-                    arguments.update_baseline,
                 ),
+                kwargs={"update": arguments.update_baseline},
                 name=f"petta-benchmark-{name}",
             )
             process.start()
@@ -230,17 +235,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if process.is_alive():
                     process.kill()
                     process.join()
-                message = (
-                    f"benchmark {name} exceeded its {arguments.timeout:g} second limit"
-                )
+                message = f"benchmark {name} exceeded its {arguments.timeout:g} second limit"
                 if not arguments.keep_going:
                     raise TimeoutError(message)
                 failures.append(message)
                 continue
             if process.exitcode != 0:
-                message = (
-                    f"benchmark {name} process exited with status {process.exitcode}"
-                )
+                message = f"benchmark {name} process exited with status {process.exitcode}"
                 if not arguments.keep_going:
                     raise RuntimeError(message)
                 failures.append(message)

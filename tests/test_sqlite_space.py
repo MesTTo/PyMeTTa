@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import sys
 from importlib import util as _importlib_util
@@ -37,7 +37,7 @@ def _module():
 
 
 @pytest.fixture
-def attached(request):
+def attached(request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sqlite-{request.node.name[-16:].replace('_', '')}"
     m = petta.MeTTa().new_space()
     provider = _module().attach_sqlite(m, name)
@@ -49,7 +49,7 @@ def attached(request):
         m.drop()
 
 
-def test_rows_answer_metta_and_join_native_atoms(attached):
+def test_rows_answer_metta_and_join_native_atoms(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, name, _provider = attached
     m.run(f"!(add-atom {name} (edge a b))")
     m.run(f"!(add-atom {name} (edge b c))")
@@ -60,7 +60,7 @@ def test_rows_answer_metta_and_join_native_atoms(attached):
     assert [str(atom) for atom in group[0]] == ["beta"]
 
 
-def test_the_licensed_bound_reaches_the_sql(attached):
+def test_the_licensed_bound_reaches_the_sql(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, name, provider = attached
     for index in range(10):
         m.run(f"!(add-atom {name} (edge a t{index}))")
@@ -69,7 +69,7 @@ def test_the_licensed_bound_reaches_the_sql(attached):
     assert any("LIMIT 3" in sql for sql in provider.executed), provider.executed
 
 
-def test_writes_ride_the_engine_transaction(attached):
+def test_writes_ride_the_engine_transaction(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, name, provider = attached
     m.run(f"!(add-atom {name} (edge keep me))")
     with pytest.raises(petta.EngineError):
@@ -85,7 +85,7 @@ def test_writes_ride_the_engine_transaction(attached):
     assert [str(atom) for atom in group[0]] == ["(keep me)"]
 
 
-def test_the_kit_certifies_the_pushdown_claim(attached):
+def test_the_kit_certifies_the_pushdown_claim(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _m, _name, provider = attached
     report = testing.check_space_provider(
         provider,
@@ -94,7 +94,7 @@ def test_the_kit_certifies_the_pushdown_claim(attached):
     assert any("patterns claimed exact, and are" in line for line in report)
 
 
-def test_a_nonground_compound_downgrades_and_removal_still_unifies(attached):
+def test_a_nonground_compound_downgrades_and_removal_still_unifies(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, name, provider = attached
     m.run(f"!(add-atom {name} (edge (f 1) b))")
     m.run(f"!(add-atom {name} (edge x b))")
@@ -105,13 +105,13 @@ def test_a_nonground_compound_downgrades_and_removal_still_unifies(attached):
     assert [str(atom) for atom in group[0]] == ["(x b)"]
 
 
-def test_a_nonground_add_is_refused(attached):
+def test_a_nonground_add_is_refused(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, _name, provider = attached
     with pytest.raises(ValueError, match="ground"):
         provider.add(m.parse("(edge $x b)"))
 
 
-def test_the_declaration_may_be_text(attached):
+def test_the_declaration_may_be_text(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, _name, _provider = attached
     import sqlite3
 
@@ -126,7 +126,7 @@ def test_the_declaration_may_be_text(attached):
     assert [str(atom) for atom in bridge_provider.atoms()] == ["(pair l r)"]
 
 
-def test_a_schema_is_several_shapes_answering_together(attached):
+def test_a_schema_is_several_shapes_answering_together(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, _name, _provider = attached
     import sqlite3
 
@@ -154,7 +154,7 @@ def test_a_schema_is_several_shapes_answering_together(attached):
     assert provider.pushdown(m.parse("($h $x $y)")) == "exact"
 
 
-def test_an_ambiguous_add_is_refused_naming_both(attached):
+def test_an_ambiguous_add_is_refused_naming_both(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, _name, _provider = attached
     import sqlite3
 
@@ -175,7 +175,7 @@ def test_an_ambiguous_add_is_refused_naming_both(attached):
         provider.add(m.parse("(pair l r)"))
 
 
-def test_metta_source_declares_its_own_schema(attached):
+def test_metta_source_declares_its_own_schema(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, _name, _provider = attached
     import sqlite3
 

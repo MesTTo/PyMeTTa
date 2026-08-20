@@ -14,7 +14,7 @@ Open Obligations:
   To Do: Re-verify these rules when LeaTTa adds its announced BigInt type.
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from typing import get_args
 
@@ -32,7 +32,7 @@ def _answers(metta, form: str) -> list[str]:
     return [str(atom) for group in metta.run(form) for atom in group]
 
 
-def test_bigint_and_number_type_the_numeric_tower(metta):
+def test_bigint_and_number_type_the_numeric_tower(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert _answers(metta, f"!(get-type {I64_MIN})") == ["Number"]
     assert _answers(metta, f"!(get-type {I64_MAX})") == ["Number"]
     assert _answers(metta, f"!(get-type {I64_MIN - 1})") == ["BigInt"]
@@ -55,12 +55,12 @@ def test_bigint_and_number_type_the_numeric_tower(metta):
 
 @settings(max_examples=50)
 @given(st.integers(min_value=-(2**256), max_value=2**256))
-def test_integer_type_follows_the_signed_i64_boundary(metta, value):
+def test_integer_type_follows_the_signed_i64_boundary(metta, value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     expected = "Number" if I64_MIN <= value <= I64_MAX else "BigInt"
     assert _answers(metta, f"!(get-type {value})") == [expected]
 
 
-def test_number_parameters_accept_bigint_without_retyping_number(metta):
+def test_number_parameters_accept_bigint_without_retyping_number(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for form in (
         "(: p145-number (-> Number Atom))",
         "(= (p145-number $value) (number-accepted $value))",
@@ -83,14 +83,14 @@ def test_number_parameters_accept_bigint_without_retyping_number(metta):
     assert _answers(metta, "!(get-type p145-declared-bigint)") == ["BigInt"]
 
 
-def test_mixed_bigint_number_equality_uses_exact_values(metta):
+def test_mixed_bigint_number_equality_uses_exact_values(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     wide = I64_MAX + 1
     assert metta.run(f"!(== {wide} {wide})") == [[True]]
     assert metta.run(f"!(== {wide} {I64_MAX})") == [[False]]
     assert metta.run(f"!(!= {wide} {I64_MAX})") == [[True]]
 
 
-def test_numeric_types_are_published_from_the_catalog(metta):
+def test_numeric_types_are_published_from_the_catalog(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert metta.run(
         "!(match &petta (vocabulary numeric-type $first $second) "
         "($first $second))"
@@ -99,7 +99,7 @@ def test_numeric_types_are_published_from_the_catalog(metta):
     assert get_args(NumericType) == NUMERIC_TYPE
 
 
-def test_janus_carries_bigint_losslessly(metta):
+def test_janus_carries_bigint_losslessly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     values = (
         I64_MIN - 1,
         I64_MAX + 1,

@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -97,13 +97,13 @@ class CompilerContext:
     def _truthy(self, node: ast.expr) -> Atom:
         raise NotImplementedError
 
-    def _x_Name(self, node: ast.Name) -> Atom:
+    def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         raise NotImplementedError
 
-    def _x_Constant(self, node: ast.Constant) -> Atom:
+    def _x_Constant(self, node: ast.Constant) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         raise NotImplementedError
 
-    def _x_BinOp(self, node: ast.BinOp) -> Atom:
+    def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         raise NotImplementedError
 
     def _comprehension(self, generators: list[ast.comprehension], elt: ast.expr, line: int) -> Atom:

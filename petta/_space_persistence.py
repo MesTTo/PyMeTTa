@@ -1,24 +1,26 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested test_save_syncs_before_replacing]
+    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file]
+    test_text_save_write_failure_preserves_existing_file; commit=WORKTREE]
   - fast cache headers are validated before payload loading [tested
-    test_fast_load_refuses_a_different_swi_version_before_payload]
+    test_fast_load_refuses_a_different_swi_version_before_payload;
+    commit=WORKTREE]
   - text snapshots use UTF-8 regardless of the process locale [tested
-    test_text_save_uses_utf8_for_plain_and_gzip_files]
+    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=WORKTREE]
   - the save format type admits exactly metta and fast [tested
-    test_public_context_types_are_distinct]
-Owns:
+    test_public_context_types_are_distinct; commit=WORKTREE]
+Owns resources:
   - save_space owns one sibling temporary file and removes it after every
-    failed or successful save [tested test_save_failure_preserves_existing_file]
+    failed or successful save
+    [tested: test_save_failure_preserves_existing_file; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -112,9 +114,7 @@ def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
             f"form reads back as a symbol of that spelling rather than as "
             f"the value"
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     reason = (
         "the empty symbol writes as nothing at all, so its term reads back one element shorter"
         if not value.name
@@ -134,9 +134,7 @@ def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
                 f"{atom} carries a live Python object; a file cannot hold it. "
                 f"Remove it, or persist its data explicitly."
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
     # Which values survive a round trip is the grammar's question, so the
     # engine answers it. A blacklist kept here missed a leading $, which reads
     # back as a variable, a semicolon, which starts a comment, and any name
@@ -161,9 +159,7 @@ def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
             f"{atom} carries a live Python object; a file cannot hold it. "
             f"Remove it, or persist its data explicitly."
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     if kind == "symbol":
         raise_unsafe_text_atom(atom_from_wire(value), "save")
     if kind != "saved":
@@ -184,18 +180,20 @@ def save_space(
     space: str,
     atoms: list[Atom],
     path: str | os.PathLike[str],
-    format: SaveFormat,
+    save_format: SaveFormat,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
-    if format not in ("metta", "fast"):
-        msg = f"save format must be 'metta' or 'fast', got {format!r}"
+    if save_format not in ("metta", "fast"):
+        msg = f"save format must be 'metta' or 'fast', got {save_format!r}"
         raise ValueError(msg)
     _validate_atoms(rt, space, atoms)
     target = Path(path)
     temporary = _temporary_sibling(target)
     try:
         count = (
-            _write_fast(rt, space, temporary) if format == "fast" else _write_text(temporary, atoms)
+            _write_fast(rt, space, temporary)
+            if save_format == "fast"
+            else _write_text(temporary, atoms)
         )
         _sync_and_replace(temporary, target)
         return count
@@ -212,9 +210,7 @@ def _fast_header(path: str) -> list[bytes]:
             f"cannot read the fast cache header from {path!r}: {exc}; "
             f"re-save the cache from its source data"
         )
-        raise EngineError(
-            msg
-        ) from exc
+        raise EngineError(msg) from exc
     if not actual.endswith(b"\n"):
         raise _cache_rejection(path, "the header is truncated or malformed")
     fields = actual[:-1].split(b"\t")
@@ -271,9 +267,7 @@ def _load_fast(rt: Runtime, space: str, path: str, bounds: tuple[float, int]) ->
             f"fast load failed for {path!r}: {exc}. The cache is corrupt or "
             f"incomplete; re-save it from the source data."
         )
-        raise EngineError(
-            msg
-        ) from exc
+        raise EngineError(msg) from exc
     return []
 
 

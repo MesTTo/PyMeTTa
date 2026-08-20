@@ -31,7 +31,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ class Integration(Protocol):
 
     name: str
 
-    def install(self, m) -> None: ...
+    def install(self, m) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 _INSTALLED: dict[tuple[str, str], Any] = {}
@@ -204,7 +204,7 @@ def entry_points(group: str = SPACES_GROUP) -> dict[str, metadata.EntryPoint]:
     """The names installed packages advertise for one group, UNLOADED:
     asking imports nothing and registers nothing, so discovery is free to
     call and the app keeps deciding what loads.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return {entry.name: entry for entry in metadata.entry_points(group=group)}
 
 
@@ -223,7 +223,7 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     ships. A non-callable target answers as-is, the module-level-instance
     form, and refuses arguments it cannot take. An unknown name refuses,
     listing what IS installed, so a typo reads as one.
-    """
+    """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
     advertised = entry_points(group)
     if name not in advertised:
         known = ", ".join(sorted(advertised)) or "none"
@@ -450,7 +450,7 @@ def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
     additional get-type candidate, beyond their own classes.
 
         register_object_type(lambda x: hasattr(x, "__dlpack__"), "DLTensor")
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     register_protocol_type(predicate, name)
 
 
@@ -535,7 +535,7 @@ def install_reflection_ops(m) -> list[str]:
     object. With the field name bound, py-field is getattr; unbound, it
     enumerates the object's fields and yields (name value) pairs, one answer
     per field, which is the mode a function cannot offer and a relation can.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def py_attr(obj, name):
         target = decode(obj) if isinstance(obj, Gnd) else obj

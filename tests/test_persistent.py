@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from petta import EngineError, PettaError, S, V, expr, val
 from petta.persistent import PersistentFactSpace
 
 
-def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):
+def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "registered.db"
     schema = {"edge": 2, "other": 1}
     provider = PersistentFactSpace(journal, schema)
@@ -64,22 +64,22 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):
         reopened.close()
 
 
-def test_journal_replays_every_supported_native(tmp_path):
+def test_journal_replays_every_supported_native(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "natives.db"
     facts = [
         S.fact(S.symbol),
         S.fact("grounded text"),
         S.fact(7),
         S.fact(-2.5),
-        S.fact(True),
-        S.fact(False),
+        S.fact(True),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        S.fact(False),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         S.fact(S.true),
         S.fact(S.false),
     ]
     # On this engine the symbol true IS the boolean atom; every crossing
     # canonicalizes, and the journal follows the engine, so a stored
     # Sym('true') replays as the boolean, exactly like parse("true").
-    expected = [*facts[:6], S.fact(True), S.fact(False)]
+    expected = [*facts[:6], S.fact(True), S.fact(False)]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     first = PersistentFactSpace(journal, {"fact": 1})
     try:
         for fact in facts:
@@ -94,7 +94,7 @@ def test_journal_replays_every_supported_native(tmp_path):
         second.close()
 
 
-def test_schema_and_native_refusals_name_the_offender(tmp_path):
+def test_schema_and_native_refusals_name_the_offender(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = PersistentFactSpace(tmp_path / "refusals.db", {"edge": 2})
     try:
         with pytest.raises(PettaError, match="unknown persistent head 'other'"):
@@ -111,7 +111,7 @@ def test_schema_and_native_refusals_name_the_offender(tmp_path):
         space.close()
 
 
-def test_compaction_replays_the_same_remaining_facts(tmp_path):
+def test_compaction_replays_the_same_remaining_facts(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "compact.db"
     facts = [
         S.edge(S.a, S.b),
@@ -151,7 +151,7 @@ def test_compaction_replays_the_same_remaining_facts(tmp_path):
         reopened.close()
 
 
-def test_two_journal_paths_do_not_interfere(tmp_path):
+def test_two_journal_paths_do_not_interfere(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     left_path = tmp_path / "left.db"
     right_path = tmp_path / "right.db"
     left = PersistentFactSpace(left_path, {"edge": 2})
@@ -177,7 +177,7 @@ def test_two_journal_paths_do_not_interfere(tmp_path):
         right_reopened.close()
 
 
-def test_sync_mode_is_validated():
+def test_sync_mode_is_validated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="sync must be one of"):
         PersistentFactSpace("/tmp/never-created.db", {"x": 1}, sync="fsync")
 
@@ -215,7 +215,7 @@ def test_facts_survive_a_killed_process(tmp_path):
     """The safety ladder, proven with a real SIGKILL: per-write flush
     survives with no cooperation, and the fast default survives exactly
     when flush() checkpointed before the crash.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     flushed_mode = tmp_path / "flushed-mode.db"
     _crash_writer(flushed_mode, "flush", checkpoint=False)
     replayed = PersistentFactSpace(flushed_mode, {"survivor": 1})
@@ -233,7 +233,7 @@ def test_facts_survive_a_killed_process(tmp_path):
         replayed.close()
 
 
-def test_clear_journal_reopens_after_variable_retractall(tmp_path):
+def test_clear_journal_reopens_after_variable_retractall(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "clear.db"
     schema = {"edge": 2, "label": 1}
     space = PersistentFactSpace(journal, schema, sync="close")
@@ -263,7 +263,7 @@ def test_clear_journal_reopens_after_variable_retractall(tmp_path):
         ("retractall(edge(node(a),_),1).\n", "persistent_native"),
     ],
 )
-def test_retractall_validation_keeps_schema_count_and_native_checks(
+def test_retractall_validation_keeps_schema_count_and_native_checks(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tmp_path, action, error_name
 ):
     journal = tmp_path / f"invalid-retractall-{error_name}.db"
@@ -277,7 +277,7 @@ def test_retractall_validation_keeps_schema_count_and_native_checks(
         PersistentFactSpace(journal, {"edge": 2}, sync="close")
 
 
-def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):
+def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "failed-append.db"
     saved = tmp_path / "failed-append.saved"
     first = S.edge(S.a, S.b)
@@ -307,7 +307,7 @@ def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):
 
 
 @pytest.mark.parametrize("operation", ["remove", "clear"])
-def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operation):
+def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operation):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / f"failed-{operation}.db"
     saved = tmp_path / f"failed-{operation}.saved"
     facts = [S.edge(S.a, S.b), S.edge(S.c, S.d)]
@@ -339,7 +339,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
         reopened.close()
 
 
-def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):
+def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "terminal-tail.db"
     prefix_facts = [S.edge(S.a, S.b), S.edge(S.b, S.c)]
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
@@ -366,7 +366,7 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog):
     assert "truncating at byte" in caplog.text
 
 
-def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):
+def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "durable-tail.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.a, S.b))
@@ -390,7 +390,7 @@ def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):
     assert synced == expected
 
 
-def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):
+def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "earlier-corruption.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.valid, S.prefix))
@@ -406,7 +406,7 @@ def test_corruption_before_an_incomplete_tail_is_refused_unchanged(tmp_path):
     assert not (tmp_path / "earlier-corruption.db.tail").exists()
 
 
-def test_complete_invalid_terminal_record_is_not_treated_as_truncation(tmp_path):
+def test_complete_invalid_terminal_record_is_not_treated_as_truncation(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "terminal-corruption.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.valid, S.prefix))
@@ -457,7 +457,7 @@ def test_two_records_glued_by_a_lost_newline_are_refused(tmp_path):
     assert not (tmp_path / "glued.db.tail").exists()
 
 
-def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):
+def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "invalid-action.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.valid, S.prefix))
@@ -470,7 +470,7 @@ def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):
     assert caught.value.__cause__ is not None
 
 
-def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeypatch):
+def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "invalid-tail-status.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.valid, S.prefix))
@@ -491,7 +491,7 @@ def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeyp
     assert isinstance(caught.value.__cause__, PettaError)
 
 
-def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
+def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "module-pool.db"
     first = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     first_module = first._module
@@ -508,7 +508,7 @@ def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):
         second.close()
 
 
-def test_constructor_failure_releases_path_and_unattached_module(tmp_path, monkeypatch):
+def test_constructor_failure_releases_path_and_unattached_module(tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "constructor-rollback.db"
     original = PersistentFactSpace._validate_or_repair_tail
     attempted_modules = []

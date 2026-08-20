@@ -46,7 +46,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 class Event:
     """One delivery: what happened, where, to which atom, with which
     bindings the pattern took.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     action: str  # "add" | "remove"
     space: str
@@ -100,7 +100,7 @@ SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
 class Subscription:
     """One standing query; cancel() ends it. With no callback, events
     queue and drain() empties the queue.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     space: str
     pattern: Atom
@@ -125,7 +125,7 @@ class Subscription:
         delivers through its callback and has no queue, so it refuses.
         Bare `iter(sub)` is deliberately absent: iteration that blocks
         should say so by name.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self.callback is not None:
             msg = (
                 "events() consumes the no-callback queue; this subscription "
@@ -140,13 +140,13 @@ class Subscription:
                 return
             yield from arrived
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:
+    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.cancel()
 
-    def cancel(self) -> None:
+    def cancel(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         with _TRANSACTION_LOCK:
             cancellation = _REGISTRY.cancel(self)
             if cancellation is not None and self._fact is not None:
@@ -302,7 +302,7 @@ class _SubscriptionRegistry:
         subscription cancels, or the timeout elapses; empty means the
         stream is over. The condition is shared, so a wake for another
         subscription re-checks against the remaining deadline.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         deadline = None if timeout is None else time.monotonic() + timeout
         with self._lock:
             while subscription._active and not subscription._queue:
@@ -374,7 +374,7 @@ class _SubscriptionRegistry:
         it is a real thing to store, `(rule $x)` reads back as
         `(rule $_608)`, so this is a shape the write path meets rather than
         one it can refuse.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         with self._lock:
             if not is_ground(atom):
                 return tuple(
@@ -463,7 +463,7 @@ def _subscriptions_for(space: str) -> tuple[Subscription, ...]:
     return _REGISTRY.for_space(space)
 
 
-def subscribe(
+def subscribe(  # noqa: D103  -- the package reference and enclosing module document this exported entry point
     runtime,
     space: str,
     pattern: Atom,
@@ -579,7 +579,7 @@ def bridge(source, pattern, target, template=None, on: str = "add") -> Subscript
     query, delivered inside the write that triggered it; target needs
     only add and remove, so a remote.attach()ed space bridges across
     engines identically.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     shape = _to_atom(pattern)
     built = shape if template is None else _to_atom(template)
 

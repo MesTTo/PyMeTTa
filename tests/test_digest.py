@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -18,7 +18,7 @@ import pytest
 from petta import S, val
 
 
-def test_digest_ignores_order_and_variable_names(metta):
+def test_digest_ignores_order_and_variable_names(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as a, metta.new_space() as b:
         a.add(S.dg(1), S.dg(2))
         a.run("(= (dg-f $x) (+ $x 1))")
@@ -30,7 +30,7 @@ def test_digest_ignores_order_and_variable_names(metta):
         assert a.digest() != b.digest()
 
 
-def test_digest_counts_duplicates(metta):
+def test_digest_counts_duplicates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as a, metta.new_space() as b:
         a.add(S.dup(S.x))
         b.add(S.dup(S.x))
@@ -38,7 +38,7 @@ def test_digest_counts_duplicates(metta):
         assert a.digest() != b.digest()
 
 
-def test_digest_matches_across_processes(metta):
+def test_digest_matches_across_processes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as here:
         here.run("(dgx alpha) (dgx beta) (= (dgx-f $v) (* $v 2))")
         program = (
@@ -60,7 +60,7 @@ def test_digest_matches_across_processes(metta):
         assert done.stdout.strip() == here.digest()
 
 
-def test_digest_refuses_live_objects(metta):
+def test_digest_refuses_live_objects(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as m:
         m.add(S.holds(val(object())))
         with pytest.raises(ValueError, match="cross-process identity"):
@@ -82,7 +82,7 @@ def test_digest_refuses_live_objects(metta):
         "True",
     ],
 )
-def test_digest_refuses_symbols_without_round_trip_text(metta, name):
+def test_digest_refuses_symbols_without_round_trip_text(metta, name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as m:
         m.add(S.container(S[name]))
         with pytest.raises(ValueError, match=r"cannot write symbol"):
@@ -114,7 +114,7 @@ def test_refuses_a_number_with_no_round_trip_text(metta, tmp_path, number, opera
 
 
 @pytest.mark.parametrize("number", [0, -3, 2.5, -0.0, 1e10, 1.5e-10, 2**80])
-def test_save_keeps_every_number_it_accepts(metta, tmp_path, number):
+def test_save_keeps_every_number_it_accepts(metta, tmp_path, number):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "one.metta"
     with metta.new_space() as writer:
         writer.add(S.container(val(number)))
@@ -125,7 +125,7 @@ def test_save_keeps_every_number_it_accepts(metta, tmp_path, number):
 
 
 @pytest.mark.parametrize("name", ["plain", "a-b", "<=", "#+", "0x1f", ".5", "3x", "-abc"])
-def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):
+def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The refusal has to guard the writer that actually runs: a saved file is
     # read back by the top-level form scanner, which tracks a string state
     # sread alone never sees.

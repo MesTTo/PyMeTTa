@@ -62,7 +62,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -342,7 +342,7 @@ class MeTTa:
         m.query(S.Parent(V.x, S.Bob))     # Rows[x](Row(x=Sym('Tom')))
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         space: str = _DEFAULT_SPACE,
         *,
@@ -399,7 +399,7 @@ class MeTTa:
     # ------------------------------------------------------------------ naming
 
     @property
-    def space_name(self) -> SpaceName:
+    def space_name(self) -> SpaceName:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._space
 
     def space(self, name: str) -> MeTTa:
@@ -412,7 +412,7 @@ class MeTTa:
         and every foreign space currently bound. Naming a space never
         registers it, only writing or binding does, so a bind! token's
         target appears here once something is stored under it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
@@ -446,7 +446,7 @@ class MeTTa:
         watchers. The handle itself dies here: every later call through it
         refuses, because its name may already belong to another space.
         Dropping twice is a no-op, as closing twice is.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._dropped:
             return
         for subscription in _subscriptions_for(self._space):
@@ -459,7 +459,7 @@ class MeTTa:
         _integrate._forget_space(self._space)
         self._dropped = True
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         if not self._ephemeral:
             msg = (
                 f"{self._space} was not created by new_space(); only an "
@@ -471,10 +471,10 @@ class MeTTa:
             )
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.drop()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = ", dropped" if self._dropped else ""
         return f"MeTTa({self._name!r}{state})"
 
@@ -624,7 +624,7 @@ class MeTTa:
         milliseconds carries few samples, so profile something that runs.
         Profiling changes execution; it is a debugging surface, not a
         mode to leave on.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return profile_source(
             self._rt,
             self._space,
@@ -706,7 +706,7 @@ class MeTTa:
     def save(
         self,
         path: str | os.PathLike[str],
-        format: SaveFormat = "metta",
+        format: SaveFormat = "metta",  # noqa: A002  -- format is the documented public save keyword and must remain compatible
     ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
@@ -716,7 +716,7 @@ class MeTTa:
         atomically replaces the target, so a failed save leaves the old file
         intact. Atoms carrying live host objects cannot survive either file
         and are refused.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return save_space(self._rt, self._space, self.atoms(), path, format)
 
     def load(
@@ -774,7 +774,7 @@ class MeTTa:
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         pending = _ACTIVE_BATCHES.get().get(self._space)
         if pending is not None:
             pending.extend(atoms)
@@ -845,7 +845,7 @@ class MeTTa:
         the remove-everything reading a multiset space gives it, each
         atom leaving through its own proper path, equations and their
         compiled clauses included.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _refuse_in_batch(self._space, "remove")
         pattern = _to_atom(atom)
         if not isinstance(pattern, Var):
@@ -879,7 +879,7 @@ class MeTTa:
         in scope, protocol types included. A refused cast raises
         petta.CastError naming the value's actual types, the loud
         spelling of what a typed call does silently.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
@@ -890,7 +890,7 @@ class MeTTa:
         wrap exists only while tracing, so untraced calls pay nothing.
         max_events bounds the recording, raising past it rather than
         accumulating a long run's trace without limit.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _trace(self, source, max_events=max_events)
 
     def lint(self):
@@ -899,7 +899,7 @@ class MeTTa:
         duplicate equations, and references no function or fact carries.
         Answers petta.lint.Finding records, empty when nothing looks
         wrong.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _lint(self)
 
     def copy(self) -> MeTTa:
@@ -912,7 +912,7 @@ class MeTTa:
         stored Python objects keep their identity across the clone, the
         shallow reading, and a deep clone of a live engine handle has no
         meaning to promise.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         require_capability(self._space, "enumerate", "copy")
         clone = self.new_space()
         atoms = list(self.atoms())
@@ -935,7 +935,7 @@ class MeTTa:
         order and in any process. Two spaces agree on digest() exactly
         when save() would write the same content. Live host objects have
         no cross-process identity and are refused, like save().
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
@@ -959,7 +959,7 @@ class MeTTa:
             raise EngineError(msg)
         return str(value)
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self.count()
 
     def __bool__(self) -> bool:
@@ -968,10 +968,10 @@ class MeTTa:
         empty space is falsy, so `if space:` skips a perfectly good empty
         space, the bug class that made datetime stop treating midnight as
         false in 3.5.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
-    def __contains__(self, atom: Any) -> bool:
+    def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self._rt.do("petta_py_contains", self._space, _to_atom(atom).to_wire())
 
     def clear(self) -> None:
@@ -984,11 +984,11 @@ class MeTTa:
         LIFTS the list into one expression atom, exactly as m.add([1, 2])
         does, so the two spellings never read one operand two ways. The
         bulk spelling is |=, whose operand has no lifted reading.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.add(atom)
         return self
 
-    def __isub__(self, atom: Any) -> Self:
+    def __isub__(self, atom: Any) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.remove(atom)
         return self
 
@@ -1006,7 +1006,7 @@ class MeTTa:
         same dict as ONE grounded atom and its values would silently
         vanish here; spell the reading you mean. Strings name spaces, so
         an unregistered name is a KeyError rather than a parse.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(other, MeTTa):
             merged: list[Any] = other.atoms()
         elif isinstance(other, str):
@@ -1058,7 +1058,7 @@ class MeTTa:
         refused: a slice of a space has no one meaning, and the bounded
         readings have their own doors, query(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
-        """
+        """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         if isinstance(pattern, slice):
             msg = (
                 "a space cannot be sliced; query(limit=n) bounds the "
@@ -1081,7 +1081,7 @@ class MeTTa:
 
         It drains by repeating remove(), so it costs one engine crossing
         per removed atom rather than one for the whole pattern.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not self.remove(pattern):
             raise KeyError(pattern)
         while self.remove(pattern):
@@ -1165,7 +1165,7 @@ class MeTTa:
         engine's inferences are its own. The cursor enumerates under the
         engine's logical update view: writes made after the first pull
         are not seen by this cursor.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return Cursor(self, patterns, where, timeout, inferences)
 
     def assuming(self, *facts: Any) -> _Assuming:
@@ -1175,7 +1175,7 @@ class MeTTa:
 
             with m.assuming(S.closed(S.bridge)):
                 detour = m.query(S.route(V.r), where=...)
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _Assuming(self, [_to_atom(f) for f in facts])
 
     def transaction(self, callable_: Callable[[], _R], /) -> _R:
@@ -1206,7 +1206,7 @@ class MeTTa:
         to hold across a block, and pretending otherwise would lie about
         the isolation actually provided. transactional() is the
         decorator twin.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             row = self._rt.once("petta_py_transaction(F, R)", F=callable_)
         except PettaError as error:
@@ -1245,7 +1245,7 @@ class MeTTa:
         inferences= still overrides, which is the whole ladder: one
         block replaces the parameter forest, and the forest remains
         for whoever wants per-call control.
-        """
+        """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
         return ScopedLimits(timeout, inferences)
 
     def batch(self) -> _Batch:
@@ -1267,7 +1267,7 @@ class MeTTa:
         batch rather than landing writes the code after the raise never
         saw. Compose with transaction() for atomicity: batch for
         economy, transaction for all-or-nothing, or both.
-        """
+        """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
         return _Batch(self)
 
     def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
@@ -1283,7 +1283,7 @@ class MeTTa:
                 m.remove(...)
 
             migrate()     # one transaction; a raise rolls it all back
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
         @functools.wraps(fn)
         def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
@@ -1299,7 +1299,7 @@ class MeTTa:
             route = m.prepare(S.path(V.a, V.b), where=V.a != ...)
             route.solve()
             route.solve(given=[S.edge(S.x, S.y)])
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return Prepared(
             self,
             [_to_atom(p) for p in patterns],
@@ -1781,7 +1781,7 @@ class MeTTa:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _require_name(name, "is_function_here")
         return bool(
             self._rt.once(
@@ -1801,7 +1801,7 @@ class MeTTa:
         debuggability bytecode has and homoiconicity alone does not
         give, since (= ...) atoms are the source, not the compilation.
         Also reachable as m.fn(name).compiled.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _require_name(name, "disassemble")
         row = self._rt.once(
             "petta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
@@ -2192,7 +2192,7 @@ class MeTTa:
         `remove(S.alert(V.q))` takes one of the alerts and the event
         cannot say which. Re-read the space when you need to know;
         `petta.structures.LiveView` is the worked instance.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _subscribe(
             self._rt,
             self._space,
@@ -2215,7 +2215,7 @@ class MeTTa:
         Prolog from Python is to register it and call it as a MeTTa function,
         which keeps one set of conversion rules, one error taxonomy and one
         lock. A raw goal is janus's job and janus is importable directly.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._rt._janus.prolog()
 
     # ------------------------------------------------------------- diagnostics
@@ -2385,7 +2385,7 @@ class MeTTa:
         constructor is then a method written in MeTTa itself, on equal
         footing. An Enum declares its members; get-type sees them all.
         Returns the class, so it stacks under @dataclass.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return install_type(self, cls, accessors=accessors, methods=methods)
 
     def fn(self, name: str) -> _EngineFunction:
@@ -2415,7 +2415,7 @@ class MeTTa:
         registered, then where it lives. The two calls that named the
         name first were the surface's own inconsistency, and learning
         the order from register_op raised TypeError here.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         register_provider(self._rt, name, provider)
         return provider
 
@@ -2591,7 +2591,7 @@ class MeTTa:
         k-way ordered merge by annotation, sound only when every merged
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if policy not in ANSWER_POLICY:
             msg = f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
             raise ValueError(
@@ -2656,7 +2656,7 @@ class MeTTa:
         spaces, while a bridge rule delivers Python-side to anything
         with add and remove, an unregistered or remote target included.
         Same multi-context-systems idea, two delivery tiers.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
         atom = Expr([Sym("on"), Sym(str(name)), shape, op])

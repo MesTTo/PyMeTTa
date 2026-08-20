@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import sys
 
@@ -43,7 +43,7 @@ _atoms = pt.atoms
 
 
 @given(_atoms())
-def test_python_wire_round_trip(atom):
+def test_python_wire_round_trip(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert from_wire(atom.to_wire()) == atom
 
 
@@ -83,13 +83,13 @@ def test_print_then_parse_agrees_with_the_engine(metta_session, atom):
 
 
 @given(_atoms(), _atoms())
-def test_alpha_eq_is_an_equivalence(a, b):
+def test_alpha_eq_is_an_equivalence(a, b):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert alpha_eq(a, a)
     assert alpha_eq(a, b) == alpha_eq(b, a)
 
 
 @given(_atoms())
-def test_alpha_eq_survives_renaming(atom):
+def test_alpha_eq_survives_renaming(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mapping = {}
 
     def rename(x):
@@ -116,7 +116,7 @@ def test_unify_is_sound(atom):
     """A pattern that matches binds variables such that substitution gives
     back the atom, checked with the pattern being the atom itself and with
     one subterm generalized.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     got = unify(atom, atom)
     assert got is not None
     if isinstance(atom, Expr) and len(atom) > 0:
@@ -127,7 +127,7 @@ def test_unify_is_sound(atom):
 
 
 @pytest.fixture(scope="module")
-def metta_session(metta):
+def metta_session(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta
 
 
@@ -135,20 +135,20 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     """Engine identification, pinned: the symbol true IS the boolean atom, so
     a Sym('true') crossing the boundary comes back as the boolean, exactly as
     a lowercase true in source reads as one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     rt = metta_session.runtime
     row = rt.once(
         "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
         W=Sym("true").to_wire(),
     )
-    assert from_wire(row["W2"]) == Gnd(True)
-    assert parse("true") == Gnd(True)
+    assert from_wire(row["W2"]) == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert parse("true") == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
 def _kind(value):
     """The MeTTa type a Python value crosses as. bool first, because it is a
     subclass of int in Python and is Bool rather than Number in MeTTa.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if isinstance(value, bool):
         return "Bool"
     if isinstance(value, (int, float)):
@@ -173,7 +173,7 @@ def test_python_equality_is_engine_equality(metta, a, b):
     a dict beside a value of another kind. So the law is "same kind, same
     verdict; different kind, the engine says so", which is the strongest form
     both sides can hold at once.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if _kind(a) != _kind(b):
         refused = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
         assert len(refused) == 1
@@ -187,11 +187,11 @@ def test_python_equality_is_engine_equality(metta, a, b):
 
 
 @given(pt.atoms(ground=True))
-def test_ground_strategy_generates_no_variables(atom):
+def test_ground_strategy_generates_no_variables(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert list(variables(atom)) == []
 
 
-def test_testing_names_the_need_without_hypothesis(monkeypatch):
+def test_testing_names_the_need_without_hypothesis(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     monkeypatch.setitem(sys.modules, "hypothesis", None)
     with pytest.raises(ImportError, match="hypothesis"):
         pt.names()

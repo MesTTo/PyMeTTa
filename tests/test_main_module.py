@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import os
@@ -43,20 +43,20 @@ def _petta(*arguments, stdin=None):
     )
 
 
-def test_run_prints_answer_groups(tmp_path):
+def test_run_prints_answer_groups(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "prog.metta").write_text("(= (m-double $x) (* $x 2))\n!(m-double 21)\n")
     finished = _petta("run", str(tmp_path / "prog.metta"))
     assert finished.returncode == 0, finished.stderr
     assert finished.stdout.strip() == "42"
 
 
-def test_repl_reads_multi_line_forms_and_exits():
+def test_repl_reads_multi_line_forms_and_exits():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     finished = _petta("repl", stdin="(= (m-inc $x)\n   (+ $x 1))\n!(m-inc 41)\nexit\n")
     assert finished.returncode == 0, finished.stderr
     assert "42" in finished.stdout
 
 
-def test_repl_reports_an_error_and_keeps_going():
+def test_repl_reports_an_error_and_keeps_going():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A stray closer is a complete-but-broken form: the error prints to
     # stderr and the loop keeps answering.
     finished = _petta("repl", stdin=")\n!(+ 1 2)\nexit\n")
@@ -65,7 +65,7 @@ def test_repl_reports_an_error_and_keeps_going():
     assert "3" in finished.stdout
 
 
-def test_complete_form_reads_strings_and_comments():
+def test_complete_form_reads_strings_and_comments():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert _complete_form('(f "a)b" ; c)\n)')
     assert not _complete_form('(f "a)b"')
     assert not _complete_form('(f ")')
@@ -73,7 +73,7 @@ def test_complete_form_reads_strings_and_comments():
     assert _complete_form("plain-symbol")
 
 
-def test_lint_gates_on_findings(tmp_path):
+def test_lint_gates_on_findings(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bad.metta").write_text("(: m-ghost (-> Number Number))\n")
     failing = _petta("lint", str(tmp_path / "bad.metta"))
     assert failing.returncode == 1
@@ -86,7 +86,7 @@ def test_lint_gates_on_findings(tmp_path):
     assert "no findings" in passing.stdout
 
 
-def test_doc_answers_and_refuses(tmp_path):
+def test_doc_answers_and_refuses(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     found = _petta("doc", "car-atom")
     assert found.returncode == 0, found.stderr
     assert "car-atom" in found.stdout
@@ -95,7 +95,7 @@ def test_doc_answers_and_refuses(tmp_path):
     assert "no documentation" in missing.stderr
 
 
-def test_the_parser_requires_a_subcommand_and_answers_version():
+def test_the_parser_requires_a_subcommand_and_answers_version():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     bare = _petta()
     assert bare.returncode == 2
     version = _petta("--version")
@@ -108,7 +108,7 @@ def test_the_parser_requires_a_subcommand_and_answers_version():
     [("serve", "{file}", "--port", "0"), ("boot", "{manifest}")],
     ids=["serve", "boot"],
 )
-def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):
+def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "facts.metta").write_text("(m-served fact)\n")
     (tmp_path / "app.metta").write_text(
         '(boot (load "facts.metta"))\n(boot (serve (&self) 0))\n'

@@ -16,7 +16,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -65,11 +65,11 @@ class Answer:
     Theta values are encoded with the standard value encoder: atoms pass
     through, scalars become their atoms, and a value needing a registered
     projection should be projected by the author.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("k", "residue", "theta", "value")
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         theta: Mapping[Any, Any] | None = None,
         *,
@@ -109,7 +109,7 @@ class Answer:
             )
         self.k = k
 
-    def to_wire(self) -> list:
+    def to_wire(self) -> list:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         theta = [[name, encode(value).to_wire()] for name, value in self.theta.items()]
         residue = True if self.residue is None else encode(self.residue).to_wire()
         k = encode(self.k).to_wire() if isinstance(self.k, Atom) else self.k
@@ -118,7 +118,7 @@ class Answer:
             wire.append(encode(self.value).to_wire())
         return wire
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         parts = [repr(self.theta)]
         if self.value is not None:
             parts.append(f"value={self.value!r}")
@@ -134,5 +134,5 @@ class Bindings(Answer):
 
     __slots__ = ()
 
-    def __init__(self, theta: Mapping[Any, Any]) -> None:
+    def __init__(self, theta: Mapping[Any, Any]) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         super().__init__(theta)

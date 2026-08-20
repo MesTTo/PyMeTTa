@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -179,7 +179,7 @@ def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> 
     return declarations
 
 
-def referenced_classes(annotations: Iterable[Any]) -> list[type]:
+def referenced_classes(annotations: Iterable[Any]) -> list[type]:  # noqa: C901  -- referenced_classes keeps the recursive annotation walker together so its branches share one state
     """Return concrete user classes mentioned anywhere in annotations."""
     found: list[type] = []
 

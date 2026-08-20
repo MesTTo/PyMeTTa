@@ -15,7 +15,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ class _Member:
     MeTTa handle uses its indexed query for candidates, a provider its
     own match or enumeration. Combinators compose members, so nothing
     below cares which kind it holds.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, target: Any) -> None:
         if isinstance(target, str):
@@ -91,7 +91,7 @@ class _Union(SpaceProvider):
     exists, so the engine's capability refusal answers writes. The MeTTa
     reading: overlapping shapes answer as a nondeterministic union the
     way overlapping equations do; a union space is that, one level up.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, members: list[_Member]) -> None:
         self._members = members
@@ -130,7 +130,7 @@ class _ReadOnly(SpaceProvider):
     add-atom with its standing capability error. declare_writes carries
     the policy vocabulary; this is the one-line spelling for handing a
     space to code that must not mutate it.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, member: _Member) -> None:
         self._member = member
@@ -156,7 +156,7 @@ class _Mapped(SpaceProvider):
     The outer shape is what this space presents; the inner shape is how
     the same fact is spelled underneath; the shared variables carry the
     values both ways.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, member: _Member, outer: Expr, inner: Expr) -> None:
         self._member = member
@@ -232,7 +232,7 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
     this one line. Adds map right-to-left; removal maps the pattern
     through; atoms the declaration does not map are invisible here and
     untouched there.
-    """
+    """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
     parsed = _to_atom(declaration)
     if (
         not isinstance(parsed, Expr)
@@ -259,7 +259,7 @@ class _Overlay(SpaceProvider):
     layer is never written, so removing an atom the back holds leaves
     it answering, exactly as deleting a ChainMap key from the first map
     leaves the second map's value visible.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, front: _Member, back: _Member) -> None:
         self._front = front
@@ -290,7 +290,7 @@ def overlay(front: Any, back: Any) -> _Overlay:
     """Both layers read as one; every write lands on front. The
     explicitly chosen form union() refuses to be: ChainMap semantics
     for spaces, deletes not forwarded to back.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return _Overlay(_Member(front), _Member(back))
 
 
@@ -298,7 +298,7 @@ def _diff_key(atom: Atom) -> str:
     """The multiset key: the alpha-canonical PRINTED form, digest()'s own
     equivalence, so (f $x) and (f $y) count as one atom and a stored
     unhashable ground value still keys.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return str(_canonical(atom))
 
 

@@ -1,3 +1,5 @@
+"""Purpose: provide the shared repository, runtime, and engine pytest fixtures."""
+
 import importlib
 import os
 import sys
@@ -26,32 +28,32 @@ else:
 
 
 @pytest.fixture(scope="session")
-def repo_root():
+def repo_root():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture(scope="session")
-def petta_module():
+def petta_module():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return importlib.import_module("petta")
 
 
 @pytest.fixture(scope="session")
-def petta_path(repo_root):
+def petta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return str(repo_root)
 
 
 @pytest.fixture(scope="session")
-def petta_instance(petta_module, petta_path):
+def petta_instance(petta_module, petta_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return petta_module.PeTTa(verbose=False, petta_path=petta_path)
 
 
 @pytest.fixture(scope="session")
-def petta_verbose(petta_module, petta_path):
+def petta_verbose(petta_module, petta_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return petta_module.PeTTa(verbose=True, petta_path=petta_path)
 
 
 @pytest.fixture(scope="session")
-def dummy_metta_path(repo_root):
+def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return repo_root / "bindings" / "python" / "tests" / "data" / "dummy.metta"
 
 

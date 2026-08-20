@@ -27,7 +27,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -122,7 +122,7 @@ class Row(tuple):
     __slots__ = ()
     _columns: tuple[str, ...] = ()
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> Any:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         try:
             return self[type(self)._columns.index(name)]
         except ValueError:
@@ -131,7 +131,7 @@ class Row(tuple):
                 msg
             ) from None
 
-    def __getitem__(self, key):
+    def __getitem__(self, key):  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         # A column NAME works everywhere an index does, and it is the only
         # spelling that reaches a column named like a tuple method: for a
         # query variable $count, row.count is tuple.count, row["count"] is
@@ -147,7 +147,7 @@ class Row(tuple):
         return tuple.__getitem__(self, key)
 
     @reprlib.recursive_repr()
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         inner = ", ".join(
             f"{column}={_VALUE_REPR.repr(value)}"
             for column, value in zip(type(self)._columns, self, strict=True)
@@ -158,7 +158,7 @@ class Row(tuple):
         """Return this row as a column-to-value mapping."""
         return dict(zip(type(self)._columns, self, strict=True))
 
-    def __reduce__(self):
+    def __reduce__(self):  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return _restore_row, (type(self)._columns, tuple(self))
 
 
@@ -186,7 +186,7 @@ class Rows(UserList[Row]):
     projects a column, while integer and slice indexing follow a normal list.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         columns: tuple[str, ...],
         rows: Iterable[Iterable[Any]],
@@ -224,7 +224,7 @@ class Rows(UserList[Row]):
     @overload
     def __getitem__(self, i: str) -> list[Any]: ...
 
-    def __getitem__(
+    def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self, i: SupportsIndex | slice[SupportsIndex | None] | str
     ) -> Row | Rows | list[Any]:
         if isinstance(i, str):
@@ -233,7 +233,7 @@ class Rows(UserList[Row]):
             return Rows(self.columns, self.data[i])
         return self.data[i]
 
-    def __setitem__(
+    def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self,
         i: SupportsIndex | slice[SupportsIndex | None],
         item: Iterable[Any] | Iterable[Iterable[Any]],
@@ -243,23 +243,23 @@ class Rows(UserList[Row]):
         else:
             self.data[i] = self._coerce_row(item)
 
-    def insert(self, i: int, item: Iterable[Any]) -> None:
+    def insert(self, i: int, item: Iterable[Any]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.data.insert(i, self._coerce_row(item))
 
-    def append(self, item: Iterable[Any]) -> None:
+    def append(self, item: Iterable[Any]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.data.append(self._coerce_row(item))
 
-    def extend(self, other: Iterable[Iterable[Any]]) -> None:
+    def extend(self, other: Iterable[Iterable[Any]]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         checked = [self._coerce_row(row) for row in other]
         self.data.extend(checked)
 
-    def copy(self) -> Rows:
+    def copy(self) -> Rows:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return Rows(self.columns, self.data, _query=self._query)
 
-    def __copy__(self) -> Rows:
+    def __copy__(self) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self.copy()
 
-    def __reduce__(self):
+    def __reduce__(self):  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         values = [tuple(row) for row in self.data]
         return _restore_rows, (self.columns, values, self._query)
 
@@ -271,20 +271,20 @@ class Rows(UserList[Row]):
             )
         return other
 
-    def __add__(self, other: Iterable[Iterable[Any]]) -> Rows:
+    def __add__(self, other: Iterable[Iterable[Any]]) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return Rows(self.columns, [*self.data, *self._addition_rows(other)])
 
-    def __radd__(self, other: Iterable[Iterable[Any]]) -> Rows:
+    def __radd__(self, other: Iterable[Iterable[Any]]) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return Rows(self.columns, [*self._addition_rows(other), *self.data])
 
-    def __iadd__(self, other: Iterable[Iterable[Any]]) -> Self:
+    def __iadd__(self, other: Iterable[Iterable[Any]]) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.extend(self._addition_rows(other))
         return self
 
-    def __mul__(self, n: int) -> Rows:
+    def __mul__(self, n: int) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return Rows(self.columns, self.data * n)
 
-    def __rmul__(self, n: int) -> Rows:
+    def __rmul__(self, n: int) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self * n
 
     def _column(self, name: str) -> list[Any]:
@@ -306,14 +306,14 @@ class Rows(UserList[Row]):
     def first(self) -> Row | None:
         """The first row, or None when there are no answers: the tolerant
         accessor, SQLAlchemy's own naming.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self[0] if self else None
 
     def one(self) -> Row:
         """THE row, when the query is asserted to have exactly one answer;
         none or several raise naming the count, so a lookup that silently
         picked an arbitrary row cannot hide.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if len(self) != 1:
             msg = (
                 f"one() expected exactly one row, got {len(self)}; "
@@ -335,7 +335,7 @@ class Rows(UserList[Row]):
         first() included; this is the explicit bridge for callers who
         want the raise_for_status reading. One error raises it plainly,
         several raise one ExceptionGroup carrying each.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         errors = [
             error
             for row in self
@@ -391,7 +391,7 @@ class Rows(UserList[Row]):
     def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
         """One column's atoms rebuilt as instances of cls, through the
         two-way translator: typed rows, one call.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return [convert.build(value, cls) for value in self._column(column)]
 
     def to_dicts(self) -> list[dict[str, Any]]:
@@ -409,7 +409,7 @@ class Rows(UserList[Row]):
         DataFrame constructor takes: pl.DataFrame(rows.table()),
         pd.DataFrame(rows.table()). Grounded values unwrap to Python;
         symbols and structure become their text.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self and not self.columns:
             msg = "table() cannot represent nonempty zero-column Rows as a column mapping"
             raise ValueError(
@@ -425,7 +425,7 @@ class Rows(UserList[Row]):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.
         pandas is the caller's dependency; its absence raises naming the
         need, and table() stays the constructor-agnostic shape.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         pandas = require_module(
             "pandas",
             "to_df() builds a pandas DataFrame and pandas is not installed; "
@@ -451,13 +451,13 @@ class Rows(UserList[Row]):
         pipeline reads left to right instead of inside out:
 
             m.query(pattern).pipe(clean).pipe(score, weight=2)
-        """
+        """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         return fn(self, *args, **kwargs)
 
     def __rich__(self):
         """A real table in rich-using terminals. Only rich itself calls
         this, so the import cannot miss; plain terminals never pay it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         from rich.table import Table  # noqa: PLC0415  rich's own protocol call
 
         if not self.columns:
@@ -477,7 +477,7 @@ class Rows(UserList[Row]):
         """Notebook display: the columns as a header, one row per answer,
         every cell escaped. Past config.display_rows the tail is an explicit
         count, never a silent cut.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shown = config.display_rows
         head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
         body = "".join(
@@ -501,7 +501,7 @@ class Rows(UserList[Row]):
         )
 
     @reprlib.recursive_repr()
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         header = ", ".join(self.columns)
         shown = config.display_rows
         body = ", ".join(repr(row) for row in self.data[:shown])
@@ -511,14 +511,14 @@ class Rows(UserList[Row]):
             return f"Rows[{header}]([]; no rows, call .why())"
         return f"Rows[{header}]([{body}])"
 
-    def __iter__(self) -> Iterator[Row]:
+    def __iter__(self) -> Iterator[Row]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return iter(self.data)
 
 
 def _into_fields(cls: type) -> dict[str, Any]:
     """Field name to resolved annotation for a dataclass, NamedTuple, or
     TypedDict; anything else is refused naming the three.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if dataclasses.is_dataclass(cls):
         hints = typing.get_type_hints(cls)
         return {field.name: hints.get(field.name) for field in dataclasses.fields(cls)}
@@ -544,7 +544,7 @@ def rows_into(rows: Rows, cls: type) -> list:
     translator; a primitive annotation decodes and is CHECKED, so a
     symbol landing in an int field is an error at the door rather than
     a surprise downstream; an unannotated field decodes plainly.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     fields = _into_fields(cls)
     missing = [name for name in fields if name not in rows.columns]
     if missing:

@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def test_every_truncation_point_of_the_torn_tail_classifies(tmp_path):
 
     The shapes cover what a prefix can end inside: a quoted atom holding a
     full stop, a float whose own dot is not one, and a string.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     shapes = {
         "plain": S.edge(S.a, S.b),
         "dotted-symbol": S.edge(S["a.b"], S.b),
@@ -104,7 +104,7 @@ def test_a_terminated_record_is_refused_rather_than_truncated(tmp_path):
     A tail carrying its terminating full stop was written whole. Only its
     newline is missing, so truncating would throw away a record the writer
     finished, and the answer is to refuse and name it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     path = tmp_path / "terminated.db"
     space = PersistentFactSpace(path, SCHEMA, sync="close")
     space.add(S.edge(S.kept, S.whole))

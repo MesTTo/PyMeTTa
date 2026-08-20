@@ -1,15 +1,16 @@
 """Purpose: verify PeTTa's validated process-wide configuration surface.
 Guarantees:
   - startup settings freeze after a successful consult while presentation
-    settings remain live [tested test_runtime_settings_freeze_after_startup,
-    test_live_limits_control_declarations_and_rows]
+    settings remain live [tested: test_runtime_settings_freeze_after_startup,
+    test_live_limits_control_declarations_and_rows; commit=WORKTREE]
   - MORK startup never changes the host process working directory [tested
-    test_backend_startup_does_not_change_process_working_directory]
+    test_backend_startup_does_not_change_process_working_directory;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -19,7 +20,7 @@ from petta._config import Config
 from petta._type_annotations import _bounded_product
 
 
-def test_configuration_reads_and_validates_environment():
+def test_configuration_reads_and_validates_environment():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     configured = Config(
         {
             "PETTA_STACK_LIMIT": "64000000",
@@ -40,7 +41,7 @@ def test_configuration_reads_and_validates_environment():
         Config({"PETTA_DISPLAY_ROWS": "0"})
 
 
-def test_configuration_updates_are_atomic():
+def test_configuration_updates_are_atomic():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     configured = Config({})
     before = configured.as_dict()
     with pytest.raises(ValueError, match=r"heartbeat_interval.*positive"):
@@ -55,7 +56,7 @@ def test_configuration_updates_are_atomic():
         configured.stack_limit = True
 
 
-def test_runtime_settings_freeze_after_startup():
+def test_runtime_settings_freeze_after_startup():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     configured = Config({})
     with configured._startup() as startup:
         assert startup == (8_000_000_000, 100_000)
@@ -74,7 +75,7 @@ def test_runtime_settings_freeze_after_startup():
     assert retryable.stack_limit == 64_000_000
 
 
-def test_live_limits_control_declarations_and_rows():
+def test_live_limits_control_declarations_and_rows():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     original = petta.config.as_dict()
     try:
         petta.config.configure(declaration_limit=3, display_rows=2)
@@ -91,7 +92,7 @@ def test_live_limits_control_declarations_and_rows():
         )
 
 
-def test_backend_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):
+def test_backend_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime_root = tmp_path / "runtime"
     main_file = runtime_root / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
@@ -109,7 +110,7 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
             self.consulted.append(path)
 
     bridge = Bridge()
-    monkeypatch.setattr(_engine.importlib, "import_module", lambda name: bridge)
+    monkeypatch.setattr(_engine.importlib, "import_module", lambda _name: bridge)
 
     def refuse_chdir(path):
         msg = f"engine startup changed directory to {path}"

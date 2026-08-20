@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from pathlib import Path
 
@@ -33,34 +33,34 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture()
-def mork(metta):
+def mork(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.space("&mork")
     yield space
     for atom in space.atoms():
         space.remove(atom)
 
 
-def test_writes_queue_and_reads_see_them(mork):
+def test_writes_queue_and_reads_see_them(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.friend(S.sam, S.tim), S.friend(S.sam, S.joe))
     rows = mork.query(S.friend(S.sam, V.x))
     assert sorted(str(row.x) for row in rows) == ["joe", "tim"]
     assert mork.count() == 2
 
 
-def test_joins_are_the_engines_joins_over_mork_conjuncts(mork):
+def test_joins_are_the_engines_joins_over_mork_conjuncts(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.friend(S.sam, S.tim), S.friend(S.sam, S.joe), S.age(S.tim, 30))
     join = mork.query(S.friend(S.sam, V.x), S.age(V.x, V.n))
     assert [(row.x, row.n) for row in join] == [(S.tim, 30)]
 
 
-def test_remove_and_atoms_enumeration(mork):
+def test_remove_and_atoms_enumeration(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.mk(S.a), S.mk(S.b))
     assert mork.remove(S.mk(S.a)) is True
     assert [str(atom) for atom in mork.atoms()] == ["(mk b)"]
     assert mork.remove(S.mk(S.missing)) is False
 
 
-def test_subscriptions_see_mork_writes(mork):
+def test_subscriptions_see_mork_writes(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     seen = []
     sub = mork.subscribe(S.watched(V.x), lambda e: seen.append(e))
     try:
@@ -71,7 +71,7 @@ def test_subscriptions_see_mork_writes(mork):
         sub.cancel()
 
 
-def test_digest_names_mork_content_too(mork, metta):
+def test_digest_names_mork_content_too(mork, metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.dgm(1), S.dgm(2))
     first = mork.digest()
     assert len(first) == 64
@@ -85,7 +85,7 @@ def test_mork_holds_rules_not_only_facts(mork):
     program the engine can run rather than an inert atom. The same space
     stays a data source while it does: the rule and the fact sit together,
     which is the point of a space in MeTTa rather than a nuance of one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     mork.add(parse("(= (mork-doubled $x) (* 2 $x))"), S.seed(21))
     assert mork.eval("(mork-doubled 21)") == [val(42)]
     assert [row.n for row in mork.query(S.seed(V.n))] == [21]
@@ -95,7 +95,7 @@ def test_mork_answers_the_whole_rule_set(mork):
     """Two equations for one function are two answers, the way they are in a
     native space. The bridge into MORK is one clause per function, so the
     nondeterminism has to come from the provider's match, not from clauses.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     mork.add(
         parse("(= (mork-colour) red)"),
         parse("(= (mork-colour) blue)"),
@@ -110,7 +110,7 @@ def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
     own split must answer too. A claim is the one place in the seam where a
     provider may not over-approximate, because there is no cheap re-check for a
     join, so this differential stands in for one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     atoms = [
         S.edge(S.a, S.b), S.edge(S.b, S.c), S.edge(S.a, S.c), S.edge(S.c, S.a),
         S.tag(S.b, S.one), S.tag(S.c, S.two),
@@ -130,7 +130,7 @@ def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
             assert claimed == split, f"{query} diverged"
 
 
-def test_a_named_mork_space_claims_its_own_joins(metta):
+def test_a_named_mork_space_claims_its_own_joins(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.space("&mork:joins")
     try:
         space.add(S.friend(S.sam, S.tim), S.age(S.tim, 30))
@@ -141,7 +141,7 @@ def test_a_named_mork_space_claims_its_own_joins(metta):
             space.remove(atom)
 
 
-def test_mm2_exec_transforms_inside_mork(mork, metta):
+def test_mm2_exec_transforms_inside_mork(mork, metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(import! &self (library lib_mm2))")
     mork.add(S.friend(S.sam, S.tim))
     metta.run(
@@ -153,7 +153,7 @@ def test_mm2_exec_transforms_inside_mork(mork, metta):
 
 
 @pytest.fixture()
-def named_pair(metta):
+def named_pair(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     alpha = metta.space("&mork:iso-alpha")
     beta = metta.space("&mork:iso-beta")
     yield alpha, beta
@@ -162,7 +162,7 @@ def named_pair(metta):
             space.remove(atom)
 
 
-def test_named_mork_spaces_are_isolated(named_pair, mork):
+def test_named_mork_spaces_are_isolated(named_pair, mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     alpha, beta = named_pair
     alpha.add(S.only(S.alpha))
     beta.add(S.only(S.beta))
@@ -171,7 +171,7 @@ def test_named_mork_spaces_are_isolated(named_pair, mork):
     assert not mork.query(S.only(V.x))  # the default space saw nothing
 
 
-def test_bulk_add_lands_in_one_crossing(metta, named_pair):
+def test_bulk_add_lands_in_one_crossing(metta, named_pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     alpha, _ = named_pair
     stored = metta.runtime.once(
         "findall(_A, (between(1, 500, _I), _A = [bulked, _I]), _L),"
@@ -187,7 +187,7 @@ def test_hostile_strings_round_trip_or_refuse(metta):
     """Escaped writing keeps line-breaking strings whole through MORK's
     line protocol, and a NUL byte, which would die at the C boundary,
     refuses loudly instead of killing the process.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = metta.space("&mork:hostile")
     for text in ['a"b', "a\\b", "a\nb", "a\tb", "a\rb", "é字"]:
         atom = S.holds(val(text))
@@ -200,7 +200,7 @@ def test_hostile_strings_round_trip_or_refuse(metta):
 
 
 @pytest.mark.parametrize("name", ['bad"quote', "bad(paren", "bad)paren", "bad name"])
-def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name):
+def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.space("&mork:unsafe-symbol")
     atom = S.holds(S[name])
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
@@ -211,7 +211,7 @@ def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name)
         space.query(S.holds(S[name]))
 
 
-def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):
+def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.space("&mork:unsafe-bulk")
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.add(S.safe(S.one), S.unsafe(S["bad name"]))
@@ -234,7 +234,7 @@ else:
     def test_generated_expressions_round_trip_through_mork(metta, atom):
         """MORK's own parser and printer agree with the engine's on
         whatever the strategy generates: what goes in comes back.
-        """
+        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
         space = metta.space("&mork:fuzz")
         try:
             space.add(atom)

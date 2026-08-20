@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import subprocess
 import sys
@@ -24,7 +24,7 @@ import petta
 from petta import InferenceLimitError, PettaError, S, V
 
 
-def test_module_tier_is_sugar_over_one_default_engine():
+def test_module_tier_is_sugar_over_one_default_engine():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert petta.default_engine() is petta.default_engine()
     scratch = petta.default_engine().new_space()
     scratch.add(S.ml(1))
@@ -41,7 +41,7 @@ def test_module_tier_is_sugar_over_one_default_engine():
     assert petta.space is space_module
 
 
-def test_scoped_limits_apply_and_per_call_overrides(metta):
+def test_scoped_limits_apply_and_per_call_overrides(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.new_space()
     m.run("(= (ll-spin $n) (if (== $n 0) done (ll-spin (- $n 1))))")
     with m.limits(inferences=60):
@@ -53,7 +53,7 @@ def test_scoped_limits_apply_and_per_call_overrides(metta):
     assert str(m.eval("(ll-spin 50)")[0]) == "done"
 
 
-def test_scoped_limits_validate_at_the_block(metta):
+def test_scoped_limits_validate_at_the_block(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="positive"):
         metta.limits(inferences=-1)
     with pytest.raises(TypeError, match="seconds"):
@@ -71,7 +71,7 @@ class _Pair(NamedTuple):
     n: int
 
 
-def test_query_into_shapes_rows(metta):
+def test_query_into_shapes_rows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.new_space()
     m.add(S.edge(S.x, S.y), S.edge(S.y, S.z))
     edges = m.query(S.edge(V.a, V.b), into=_Edge)
@@ -86,7 +86,7 @@ def test_query_into_shapes_rows(metta):
         m.query(S.edge(V.a, V.n), into=_Pair)
 
 
-def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):
+def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.new_space()
     with m.batch() as batch:
         for n in range(10):
@@ -96,7 +96,7 @@ def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):
     assert len(m.query(S.bt(V.n))) == 10
 
 
-def test_batch_edges_are_enforced(metta):
+def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.new_space()
     m.add(S.keep(1))
     with pytest.raises(PettaError, match="batch"):
@@ -124,7 +124,7 @@ def test_batch_edges_are_enforced(metta):
         assert len(other.query(S.ob(V.x))) == 1
 
 
-def test_batch_composes_with_transaction(metta):
+def test_batch_composes_with_transaction(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.new_space()
 
     def work():
@@ -140,7 +140,7 @@ def test_batch_composes_with_transaction(metta):
     assert len(m.query(S.tx(V.n))) == 0
 
 
-def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):
+def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A bare test file with no conftest gets metta and scratch_space from
     # the plugin module itself; -p loads it exactly as the pytest11 entry
     # point does in an installed environment.
@@ -183,7 +183,7 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):
     assert "1 passed" in done.stdout
 
 
-def test_the_entry_point_is_declared():
+def test_the_entry_point_is_declared():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import tomllib
 
     pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
@@ -192,20 +192,20 @@ def test_the_entry_point_is_declared():
 
 
 @given(petta.testing.patterns(max_leaves=4))
-def test_patterns_strategy_always_carries_a_variable(pattern):
+def test_patterns_strategy_always_carries_a_variable(pattern):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.atoms import is_ground
 
     assert not is_ground(pattern)
 
 
 @given(petta.testing.ground_atoms(max_leaves=4))
-def test_ground_atoms_strategy_is_ground(atom):
+def test_ground_atoms_strategy_is_ground(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.atoms import is_ground
 
     assert is_ground(atom)
 
 
-def test_ladder_rungs_cross_the_async_seam(metta):
+def test_ladder_rungs_cross_the_async_seam(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import asyncio
 
     from petta import aio
@@ -239,7 +239,7 @@ class _Count(NamedTuple):
     n: int
 
 
-def test_record_wires_the_declarative_dance(metta):
+def test_record_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # In-process: the classes declare on the next engine touch (the
     # engine exists here already, so immediately).
     from dataclasses import dataclass
@@ -265,7 +265,7 @@ def test_record_wires_the_declarative_dance(metta):
     assert sp.query("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
 
 
-def test_record_before_any_engine_defers_without_booting():
+def test_record_before_any_engine_defers_without_booting():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import os
     import subprocess
 
@@ -300,7 +300,7 @@ def test_record_before_any_engine_defers_without_booting():
     assert "deferred ok" in done.stdout
 
 
-def test_record_refuses_an_unregistrable_class():
+def test_record_refuses_an_unregistrable_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="default image"):
 
         @petta.record

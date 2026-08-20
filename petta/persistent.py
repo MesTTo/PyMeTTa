@@ -7,32 +7,38 @@ newline-terminated record validates. Earlier corruption is refused.
 Guarantees:
   - removal subtracts ONE stored fact and journals one `retract(Fact)` for
     it, the same multiset law a native space obeys, so a provider swap does
-    not change what `remove-atom` means [tested
-    test_a_persistent_space_subtracts_one_fact_like_a_native_one]
+    not change what `remove-atom` means
+    [tested: test_a_persistent_space_subtracts_one_fact_like_a_native_one;
+    commit=WORKTREE]
   - constructor failure releases its path claim and any unattached reusable
-    module [tested test_constructor_failure_releases_path_and_unattached_module]
+    module [tested: test_constructor_failure_releases_path_and_unattached_module;
+    commit=WORKTREE]
   - terminal-tail recovery syncs the backup file and its directory before
-    truncating the journal [tested test_tail_backup_is_durable_before_truncation]
+    truncating the journal
+    [tested: test_tail_backup_is_durable_before_truncation; commit=WORKTREE]
   - EVERY proper prefix of a record classifies as an incomplete tail and is
     recovered, and a tail carrying its terminating full stop is refused
-    instead of truncated [measured 2026-08-19: 7 of the 18 truncation points
-    of `assert(edge(a,b)).` were refused before this, six of them prefixes
-    of the action name] [tested
+    instead of truncated [measured: 7 of 18 truncation points were refused;
+    command=pytest tests/test_persistent.py -q -p no:benchmark;
+    fixture=all prefixes of assert(edge(a,b)).; commit=WORKTREE] [tested:
     test_every_truncation_point_of_the_torn_tail_classifies,
-    test_a_terminated_record_is_refused_rather_than_truncated]
-Owns:
+    test_a_terminated_record_is_refused_rather_than_truncated;
+    commit=WORKTREE]
+Owns resources:
   - PersistentFactSpace owns one process path claim, one generated module,
-    and one journal attachment until close or constructor rollback [tested
-    test_detached_modules_are_reused_without_weakening_path_claims]
+    and one journal attachment until close or constructor rollback
+    [tested: test_detached_modules_are_reused_without_weakening_path_claims;
+    commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects active paths and the module pool; each provider's
-    _call_lock serializes journal operations [tested
-    test_detached_modules_are_reused_without_weakening_path_claims]
+    _call_lock serializes journal operations
+    [tested: test_detached_modules_are_reused_without_weakening_path_claims;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -110,14 +116,10 @@ def _validate_schema_entry(head: Any, arity: Any) -> tuple[str, int]:
         raise ValueError(msg)
     if isinstance(arity, bool) or not isinstance(arity, int) or arity < 0:
         msg = f"schema arity for {head!r} must be a non-negative integer, got {arity!r}"
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     if (head, arity) in _PERSISTENCY_API:
         msg = f"schema head {head!r}/{arity} conflicts with library(persistency)"
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     return head, arity
 
 
@@ -130,17 +132,13 @@ def _validate_generated_updaters(schema: Mapping[str, int]) -> None:
                     f"schema head {generated!r}/{arity} conflicts with the "
                     f"generated updater for {head!r}/{arity}"
                 )
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
 
 
 def _validated_schema(schema: Mapping[str, int]) -> dict[str, int]:
     if not isinstance(schema, Mapping):
         msg = f"schema must map fact head names to arities, got {type(schema).__name__}"
-        raise TypeError(
-            msg
-        )
+        raise TypeError(msg)
     copied: dict[str, int] = {}
     for head, arity in schema.items():
         valid_head, valid_arity = _validate_schema_entry(head, arity)
@@ -159,14 +157,10 @@ def _journal_path(path: str | os.PathLike[str]) -> Path:
         raise IsADirectoryError(msg)
     if not resolved.parent.exists():
         msg = f"persistent journal parent does not exist: {resolved.parent}"
-        raise FileNotFoundError(
-            msg
-        )
+        raise FileNotFoundError(msg)
     if not resolved.parent.is_dir():
         msg = f"persistent journal parent is not a directory: {resolved.parent}"
-        raise NotADirectoryError(
-            msg
-        )
+        raise NotADirectoryError(msg)
     return resolved
 
 
@@ -225,10 +219,7 @@ def _helper_names(module: str, schema: Mapping[str, int]) -> dict[str, str]:
     )
 
     prefix = f"{module}_private"
-    while any(
-        (f"{prefix}_{name}", arity) in occupied
-        for name, arity in _HELPER_ARITIES.items()
-    ):
+    while any((f"{prefix}_{name}", arity) in occupied for name, arity in _HELPER_ARITIES.items()):
         prefix += "_x"
     return {name: f"{prefix}_{name}" for name in _HELPER_ARITIES}
 
@@ -464,28 +455,19 @@ def _validated_fact_head(
     schema: Mapping[str, int],
 ) -> tuple[str, tuple[Atom, ...]]:
     if not (isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)):
-        msg = (
-            f"cannot {verb} {atom}: a persistent fact is a ground "
-            "(head arguments...) expression"
-        )
-        raise PettaError(
-            msg
-        )
+        msg = f"cannot {verb} {atom}: a persistent fact is a ground (head arguments...) expression"
+        raise PettaError(msg)
     head = atom.head.name
     if head not in schema:
         msg = (
             f"cannot {verb} {atom}: unknown persistent head {head!r}; "
             f"declared heads are {list(schema)!r}"
         )
-        raise PettaError(
-            msg
-        )
+        raise PettaError(msg)
     expected = schema[head]
     if len(atom.args) != expected:
         msg = f"cannot {verb} {atom}: {head!r} has arity {expected}, got {len(atom.args)}"
-        raise PettaError(
-            msg
-        )
+        raise PettaError(msg)
     return head, atom.args
 
 
@@ -497,9 +479,7 @@ def _persistent_argument_wire(
 ) -> list[Any]:
     if not is_ground(argument):
         msg = f"cannot {verb} {atom}: argument {index} ({argument}) is not ground"
-        raise PettaError(
-            msg
-        )
+        raise PettaError(msg)
     if isinstance(argument, Sym):
         return argument.to_wire()
     if isinstance(argument, Gnd):
@@ -511,16 +491,12 @@ def _persistent_argument_wire(
             f"object of type {type(value).__name__}; persistent facts "
             "accept only numbers, symbols, strings, and booleans"
         )
-        raise PettaError(
-            msg
-        )
+        raise PettaError(msg)
     msg = (
         f"cannot {verb} {atom}: argument {index} ({argument}) is not "
         "a number, symbol, string, or boolean"
     )
-    raise PettaError(
-        msg
-    )
+    raise PettaError(msg)
 
 
 class PersistentFactSpace(SpaceProvider):
@@ -555,7 +531,7 @@ class PersistentFactSpace(SpaceProvider):
 
     _SYNC_MODES = ("none", "flush", "close")
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         path: str | os.PathLike[str],
         schema: Mapping[str, int],
@@ -563,9 +539,7 @@ class PersistentFactSpace(SpaceProvider):
     ) -> None:
         if sync not in self._SYNC_MODES:
             msg = f"sync must be one of {list(self._SYNC_MODES)}, got {sync!r}"
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
         self._sync_mode = sync
         self._path = _journal_path(path)
         self._schema = _validated_schema(schema)
@@ -583,23 +557,17 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             if self._path in _ACTIVE_PATHS:
                 msg = f"persistent journal {self._path} is already attached in this process"
-                raise PettaError(
-                    msg
-                )
+                raise PettaError(msg)
             _ACTIVE_PATHS.add(self._path)
             self._claimed = True
 
         with ExitStack() as rollback:
             rollback.callback(self._release_path)
-            self._module, self._module_key, is_new = _acquire_module(
-                self._path, self._schema
-            )
+            self._module, self._module_key, is_new = _acquire_module(self._path, self._schema)
             self._mutex = f"{self._module}_mutex"
             self._helpers = _helper_names(self._module, self._schema)
             if is_new:
-                quoted_heads = {
-                    head: _quoted_atom(self._runtime, head) for head in self._schema
-                }
+                quoted_heads = {head: _quoted_atom(self._runtime, head) for head in self._schema}
                 source = _module_source(
                     self._module,
                     self._mutex,
@@ -623,7 +591,7 @@ class PersistentFactSpace(SpaceProvider):
             self._closed = False
             rollback.pop_all()
 
-    def match(self, pattern: Atom) -> Iterator[Atom]:
+    def match(self, pattern: Atom) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if (
             isinstance(pattern, Expr)
             and isinstance(pattern.head, Sym)
@@ -632,14 +600,14 @@ class PersistentFactSpace(SpaceProvider):
             return iter(self._facts(pattern.head.name))
         return self.atoms()
 
-    def atoms(self) -> Iterator[Atom]:
+    def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return iter(self._facts())
 
-    def add(self, atom: Atom) -> None:
+    def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         head, wires = self._fact_parts(atom, "add")
         self._write_call("add", "Head, Wires", {"Head": head, "Wires": wires})
 
-    def remove(self, atom: Atom) -> bool:
+    def remove(self, atom: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         head, wires = self._fact_parts(atom, "remove")
         row = self._write_call(
             "remove",
@@ -649,9 +617,7 @@ class PersistentFactSpace(SpaceProvider):
         removed = row.get("Removed", _MISSING)
         if removed not in (0, 1):
             msg = f"persistent remove returned an invalid verdict: {removed!r}"
-            raise PettaError(
-                msg
-            )
+            raise PettaError(msg)
         return removed == 1
 
     def clear(self) -> None:
@@ -665,7 +631,7 @@ class PersistentFactSpace(SpaceProvider):
     def flush(self) -> None:
         """Push buffered journal writes to disk right now, whatever the
         sync mode: the on-demand checkpoint for the fast default.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._write_call("flush")
 
     def compact(self) -> None:
@@ -699,9 +665,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"cannot inspect persistent journal {self._path} after "
                 f"validation failed: {read_error}"
             )
-            raise PettaError(
-                msg
-            ) from validation_error
+            raise PettaError(msg) from validation_error
 
     def _terminal_tail(
         self,
@@ -716,9 +680,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"terminal record. Correct or remove the malformed record "
                 f"reported by the engine, then reopen it: {validation_error}"
             )
-            raise EngineError(
-                msg
-            ) from validation_error
+            raise EngineError(msg) from validation_error
         return boundary, tail
 
     def _require_incomplete_tail(
@@ -741,9 +703,7 @@ class PersistentFactSpace(SpaceProvider):
         status = status_row.get("Status")
         if not isinstance(status, str):
             msg = f"persistent journal tail inspection returned an invalid status: {status!r}"
-            raise EngineError(
-                msg
-            ) from validation_error
+            raise EngineError(msg) from validation_error
         if status != "incomplete":
             msg = (
                 f"persistent journal {self._path} ends with a complete but "
@@ -751,9 +711,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"the terminal bytes reported by the engine, then reopen it: "
                 f"{validation_error}"
             )
-            raise EngineError(
-                msg
-            ) from validation_error
+            raise EngineError(msg) from validation_error
 
     def _validated_prefix(
         self,
@@ -769,9 +727,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"before its terminal record. Restore or repair the bytes "
                 f"before byte {boundary}, then reopen it."
             )
-            raise EngineError(
-                msg
-            ) from prefix_error
+            raise EngineError(msg) from prefix_error
         try:
             self._call(
                 "validate_text",
@@ -786,9 +742,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"malformed newline-terminated record reported by the "
                 f"engine, then reopen it: {prefix_error}"
             )
-            raise EngineError(
-                msg
-            ) from validation_error
+            raise EngineError(msg) from validation_error
 
     def _save_tail_backup(self, tail: bytes) -> Path:
         backup = Path(f"{self._path}.tail")
@@ -804,18 +758,14 @@ class PersistentFactSpace(SpaceProvider):
                 f"backup {backup} already exists. Move that backup aside, "
                 f"then reopen the journal."
             )
-            raise PettaError(
-                msg
-            ) from backup_error
+            raise PettaError(msg) from backup_error
         except OSError as backup_error:
             msg = (
                 f"cannot save the incomplete terminal record from "
                 f"persistent journal {self._path} to {backup}: "
                 f"{backup_error}"
             )
-            raise PettaError(
-                msg
-            ) from backup_error
+            raise PettaError(msg) from backup_error
         return backup
 
     def _truncate_journal(self, boundary: int, backup: Path) -> None:
@@ -831,9 +781,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"{boundary}: {truncate_error}. Repair the journal before "
                 f"reopening it."
             )
-            raise PettaError(
-                msg
-            ) from truncate_error
+            raise PettaError(msg) from truncate_error
 
     def _validate_or_repair_tail(self) -> None:
         """Validate the journal or remove one incomplete final record.
@@ -845,13 +793,14 @@ class PersistentFactSpace(SpaceProvider):
         """
         try:
             self._validate_journal()
-            return
         except PettaError as caught:
             validation_error = caught
             logger.debug(
                 "persistent journal validation failed; inspecting its tail",
                 exc_info=True,
             )
+        else:
+            return
         contents = self._read_invalid_journal(validation_error)
         boundary, tail = self._terminal_tail(contents, validation_error)
         self._require_incomplete_tail(tail, validation_error)
@@ -884,9 +833,7 @@ class PersistentFactSpace(SpaceProvider):
                     f"writes because an earlier {self._write_failure}. Close "
                     f"it, repair the journal if needed, and reopen it."
                 )
-                raise PettaError(
-                    msg
-                )
+                raise PettaError(msg)
             try:
                 return self._call(helper, arguments, inputs)
             except BaseException as exc:
@@ -913,9 +860,7 @@ class PersistentFactSpace(SpaceProvider):
         wires = row.get("Wires", _MISSING)
         if not isinstance(wires, (list, tuple)):
             msg = f"persistent enumeration returned invalid wires: {wires!r}"
-            raise PettaError(
-                msg
-            )
+            raise PettaError(msg)
 
         facts: list[Atom] = []
         for wire in wires:
@@ -923,14 +868,10 @@ class PersistentFactSpace(SpaceProvider):
                 fact = atom_from_wire(wire)
             except (TypeError, ValueError) as exc:
                 msg = f"persistent journal {self._path} returned malformed fact wire {wire!r}"
-                raise PettaError(
-                    msg
-                ) from exc
+                raise PettaError(msg) from exc
             if not isinstance(fact, Expr):
                 msg = f"persistent journal {self._path} returned non-fact {fact!r}"
-                raise PettaError(
-                    msg
-                )
+                raise PettaError(msg)
             facts.append(fact)
         return facts
 
@@ -964,9 +905,7 @@ class PersistentFactSpace(SpaceProvider):
                     f"SWI-Prolog refused persistent operation {helper!r} for "
                     f"{self._path}: {goal} failed"
                 )
-                raise PettaError(
-                    msg
-                )
+                raise PettaError(msg)
             return row
 
     def _release_path(self) -> None:

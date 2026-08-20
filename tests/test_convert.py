@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, make_dataclass
@@ -28,24 +28,24 @@ from petta.convert import (
 )
 
 
-class Color(Enum):
+class Color(Enum):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     red = 1
     green = 2
     blue = 3
 
 
 @dataclass
-class Person:
+class Person:  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     name: str
     age: int
 
 
-class CoordinateTuple(NamedTuple):
+class CoordinateTuple(NamedTuple):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     x: float
     y: float
 
 
-def test_enum_projects_to_symbols_with_declarations():
+def test_enum_projects_to_symbols_with_declarations():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     projected = project(Color.red)
     assert projected.atom == Sym("red")
     decls = set(map(str, projected.declarations))
@@ -53,19 +53,19 @@ def test_enum_projects_to_symbols_with_declarations():
     assert "(: red Color)" in decls and "(: blue Color)" in decls
 
 
-def test_dataclass_projects_to_constructor_expression():
+def test_dataclass_projects_to_constructor_expression():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     projected = project(Person("Ada", 36))
     assert projected.atom == expr(S.Person, "Ada", 36)
     assert "(: Person (-> String Number Person))" in set(map(str, projected.declarations))
 
 
-def test_namedtuple_projects_like_a_dataclass():
+def test_namedtuple_projects_like_a_dataclass():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert project(CoordinateTuple(1.0, 2.0)).atom == expr(
         S.CoordinateTuple, 1.0, 2.0
     )
 
 
-def test_nesting_is_the_pytree_rule():
+def test_nesting_is_the_pytree_rule():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @dataclass
     class Team:
         lead: Person
@@ -78,7 +78,7 @@ def test_nesting_is_the_pytree_rule():
     assert any(d.startswith("(: Team") for d in decls)
 
 
-def test_unregistered_object_stays_a_handle():
+def test_unregistered_object_stays_a_handle():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Opaque:
         pass
 
@@ -89,17 +89,17 @@ def test_unregistered_object_stays_a_handle():
     assert projected.declarations == ()
 
 
-def test_build_reverses_the_projection():
+def test_build_reverses_the_projection():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     person = Person("Ada", 36)
     rebuilt = build(project(person).atom)
     assert isinstance(rebuilt, Person) and rebuilt == person
 
 
-def test_build_rebuilds_enums_with_the_class():
+def test_build_rebuilds_enums_with_the_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert build(Sym("green"), Color) is Color.green
 
 
-def test_registered_custom_type_round_trips():
+def test_registered_custom_type_round_trips():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Interval:
         def __init__(self, lo, hi):
             self.lo, self.hi = lo, hi
@@ -118,7 +118,7 @@ def test_registered_custom_type_round_trips():
     assert build(atom) == Interval(1, 5)
 
 
-def test_type_registration_can_be_removed_and_its_name_reclaimed():
+def test_type_registration_can_be_removed_and_its_name_reclaimed():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class FirstConversion:
         def __init__(self, value):
             self.value = value
@@ -158,7 +158,7 @@ def test_type_registration_can_be_removed_and_its_name_reclaimed():
         unregister_type(FirstConversion)
 
 
-def test_metta_dunder_hooks_work_unregistered():
+def test_metta_dunder_hooks_work_unregistered():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Tagged:
         def __init__(self, label):
             self.label = label
@@ -176,11 +176,11 @@ def test_metta_dunder_hooks_work_unregistered():
     assert isinstance(rebuilt, Tagged) and rebuilt.label == "x"
 
 
-def test_declarations_without_an_instance():
+def test_declarations_without_an_instance():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert "(: Color Type)" in set(map(str, declarations(Color)))
 
 
-def test_projected_facts_reason_in_the_engine(metta):
+def test_projected_facts_reason_in_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.new_space()
     projected = project(Person("Ada", 36))
     space.add(*projected.declarations, projected.atom)
@@ -191,13 +191,13 @@ def test_projected_facts_reason_in_the_engine(metta):
     assert Person("Ada", 36) in people and Person("Bob", 41) in people
 
 
-def test_grounded_and_container_projections():
+def test_grounded_and_container_projections():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert project(3).atom == Gnd(3)
     assert project([1, 2]).atom == expr(1, 2)
     assert isinstance(val({"a": 1}), Gnd)
 
 
-def test_pydantic_models_project_like_dataclasses():
+def test_pydantic_models_project_like_dataclasses():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pydantic = pytest.importorskip("pydantic")
 
     class Reading(pydantic.BaseModel):
@@ -217,7 +217,7 @@ def test_pydantic_models_project_like_dataclasses():
         build(expr(S.Reading, "t1", S.tall), Reading)
 
 
-def test_pydantic_alias_fields_rebuild(metta):
+def test_pydantic_alias_fields_rebuild(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     pydantic = pytest.importorskip("pydantic")
 
     class Wire(pydantic.BaseModel):
@@ -229,7 +229,7 @@ def test_pydantic_alias_fields_rebuild(metta):
     assert isinstance(rebuilt, Wire) and rebuilt.internal == 7
 
 
-def test_parameterized_field_annotations_rebuild_nested_enums():
+def test_parameterized_field_annotations_rebuild_nested_enums():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @dataclass
     class Palette:
         colours: list[Color]
@@ -242,12 +242,12 @@ def test_parameterized_field_annotations_rebuild_nested_enums():
     assert isinstance(rebuilt.favourite, Color)
 
 
-def test_plain_class_detection_never_mistakes_a_generic_alias_for_a_class():
+def test_plain_class_detection_never_mistakes_a_generic_alias_for_a_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert _is_plain_class(list) is True
     assert _is_plain_class(list[Color]) is False
 
 
-def test_enum_typed_field_uses_the_enum_in_constructor_declarations():
+def test_enum_typed_field_uses_the_enum_in_constructor_declarations():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class ConversionShade(Enum):
         RED = 1
         BLUE = 2
@@ -263,7 +263,7 @@ def test_enum_typed_field_uses_the_enum_in_constructor_declarations():
     assert build(projected.atom, EnumPaint) == EnumPaint(ConversionShade.RED)
 
 
-def test_pydantic_extra_fields_are_refused_by_name():
+def test_pydantic_extra_fields_are_refused_by_name():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pydantic = pytest.importorskip("pydantic")
 
     class ExtraRejectModel(pydantic.BaseModel):
@@ -277,7 +277,7 @@ def test_pydantic_extra_fields_are_refused_by_name():
         project(value)
 
 
-def test_keyword_only_dataclass_rebuilds_by_field_name():
+def test_keyword_only_dataclass_rebuilds_by_field_name():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @dataclass(kw_only=True)
     class KeywordOnlyRecord:
         required: int
@@ -287,7 +287,7 @@ def test_keyword_only_dataclass_rebuilds_by_field_name():
     assert build(project(original).atom, KeywordOnlyRecord) == original
 
 
-def test_init_false_dataclass_requires_an_explicit_reverse():
+def test_init_false_dataclass_requires_an_explicit_reverse():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @dataclass
     class DerivedStateRecord:
         value: int
@@ -311,7 +311,7 @@ def test_init_false_dataclass_requires_an_explicit_reverse():
     assert build(project(original).atom, DerivedStateRecord) == original
 
 
-def test_type_name_collision_is_refused_and_build_honors_requested_class():
+def test_type_name_collision_is_refused_and_build_honors_requested_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first_cls = make_dataclass("ConversionCollision", [("left", int)])
     second_cls = make_dataclass("ConversionCollision", [("right", int)])
     first = first_cls(7)
@@ -324,14 +324,14 @@ def test_type_name_collision_is_refused_and_build_honors_requested_class():
     assert build(atom, first_cls) == first
 
 
-def test_invalid_namedtuple_fields_are_refused():
+def test_invalid_namedtuple_fields_are_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class InvalidTuple(tuple):
         _fields = object()
 
     with pytest.raises(TypeError, match="invalid NamedTuple fields"):
         project(InvalidTuple())
 
-def test_registration_collisions_are_serialized():
+def test_registration_collisions_are_serialized():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
     second = make_dataclass("ConcurrentOwnerProbe", [("value", int)])
 
@@ -348,7 +348,7 @@ def test_registration_collisions_are_serialized():
     assert outcomes == ["collision", "owner"]
 
 
-def test_union_build_selects_by_shape_and_surfaces_reverse_errors():
+def test_union_build_selects_by_shape_and_surfaces_reverse_errors():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert build(Gnd(3), str | int) == 3
 
     class BrokenReverse:

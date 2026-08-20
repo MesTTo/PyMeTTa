@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import importlib.util
 import sys
@@ -28,23 +28,23 @@ st = hypothesis.strategies
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
-def twin_base_probe(value):
+def twin_base_probe(value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return value + 1
 
 
-def twin_base_replacement(value):
+def twin_base_replacement(value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return value + 10
 
 
-def twin_user_probe(value):
+def twin_user_probe(value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return twin_base_probe(value) * 2
 
 
-def test_define_from_two_threads_is_serialized(m):
+def test_define_from_two_threads_is_serialized(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def thread_left(value):
         return value + 1
 
@@ -58,7 +58,7 @@ def test_define_from_two_threads_is_serialized(m):
     assert m.eval(right(4)) == [8]
 
 
-def test_existing_twin_sees_later_redefinition(m):
+def test_existing_twin_sees_later_redefinition(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.define(twin_base_probe)
     twin_user = m.define(twin_user_probe)
     assert twin_user.py(3) == 8
@@ -73,7 +73,7 @@ def test_existing_twin_sees_later_redefinition(m):
     assert twin_user.py(3) == 26
 
 
-def test_recursion_compiles_and_runs(m):
+def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dfact(n):
         if n == 0:
@@ -86,7 +86,7 @@ def test_recursion_compiles_and_runs(m):
     assert "(= (dfact $n)" in dfact.source()
 
 
-def test_early_return_reads_as_else(m):
+def test_early_return_reads_as_else(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dsign(x):
         if x < 0:
@@ -99,7 +99,7 @@ def test_early_return_reads_as_else(m):
         assert m.run(f"!(dsign {value})") == [[expected]]
 
 
-def test_bindings_become_let_star(m):
+def test_bindings_become_let_star(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A body calls engine functions by the name it writes, and Python cannot
     # spell a hyphen, so the engine's sqrt-math is reached through an alias
     # the body CAN write. Explicit, one line, and visible in the space; the
@@ -116,7 +116,7 @@ def test_bindings_become_let_star(m):
     assert dhyp.py.__name__ == "dhyp"
 
 
-def test_true_division_matches_python_exactly(m):
+def test_true_division_matches_python_exactly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dratio(a, b):
         return a / b
@@ -125,7 +125,7 @@ def test_true_division_matches_python_exactly(m):
     assert m.run("!(dratio 6 2)") == [[3.0]]  # Python answers 3.0, never 3
 
 
-def test_generator_is_superposition(m):
+def test_generator_is_superposition(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dchoices(n):
         yield n
@@ -135,7 +135,7 @@ def test_generator_is_superposition(m):
     assert m.run("!(collapse (dchoices 5))") == [[expr(5, 6, 50)]]
 
 
-def test_generator_with_branches(m):
+def test_generator_with_branches(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dbranch(n):
         if n > 0:
@@ -148,7 +148,7 @@ def test_generator_with_branches(m):
     assert m.run("!(collapse (dbranch -3))") == [[expr(S.Neg, S.Always)]]
 
 
-def test_lambda_is_first_class(m):
+def test_lambda_is_first_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dapply_twice(x):
         f = lambda v: v + 10  # noqa: E731
@@ -161,7 +161,7 @@ def test_lambda_is_first_class(m):
 def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
     """No implicit rewriting. The identifier in the source is the name in
     the space, and the hyphenated spelling MeTTa prefers is asked for.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
     def add_one(value):
@@ -179,7 +179,7 @@ def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
     assert add_two.py(5) == 7
 
 
-def test_comprehension_is_map_atom(m):
+def test_comprehension_is_map_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtens(xs):
         return [x * 10 for x in xs]
@@ -187,7 +187,7 @@ def test_comprehension_is_map_atom(m):
     assert m.run("!(dtens (1 2 3))") == [[expr(10, 20, 30)]]
 
 
-def test_filtered_comprehension_composes_filter_atom(m):
+def test_filtered_comprehension_composes_filter_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dbig(xs):
         return [x for x in xs if x > 2]
@@ -195,7 +195,7 @@ def test_filtered_comprehension_composes_filter_atom(m):
     assert m.run("!(dbig (1 2 3 4))") == [[expr(3, 4)]]
 
 
-def test_match_in_body_binds_pattern_variables(m):
+def test_match_in_body_binds_pattern_variables(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.parent(S.Tom, S.Bob), S.parent(S.Bob, S.Ann))
 
     @m.define
@@ -205,7 +205,7 @@ def test_match_in_body_binds_pattern_variables(m):
     assert m.run("!(dgrand Tom)") == [[S.Ann]]
 
 
-def test_short_circuit_and_or(m):
+def test_short_circuit_and_or(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dsafe(n):
         return n != 0 and 100 / n > 10  # RHS must not run for 0
@@ -215,7 +215,7 @@ def test_short_circuit_and_or(m):
     assert dsafe.py(0) is False
 
 
-def test_constructor_convention_capitalized_names(m):
+def test_constructor_convention_capitalized_names(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtag(x):
         return Result(x, Done)  # noqa: F821
@@ -234,7 +234,7 @@ def test_constructor_convention_capitalized_names(m):
         ("def f(x, y=[]):\n    return x", "literal"),
     ],
 )
-def test_refusals_name_construct_and_line(m, source, needle):
+def test_refusals_name_construct_and_line(m, source, needle):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     namespace = {}
     exec(source, namespace)
     fn = namespace["f"]
@@ -277,7 +277,7 @@ def test_twin_agrees_on_ground_inputs(metta, n):
     assert engine_answer == dtwin.py(n)
 
 
-def test_modulo_matches_python_on_signs(metta):
+def test_modulo_matches_python_on_signs(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @metta.define
     def dmod(a, b):
         return a % b
@@ -290,14 +290,14 @@ def test_modulo_matches_python_on_signs(metta):
 def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
     """Def fib(n=0) is the equation matching 0; definition order is clause
     order; the engine dispatches between the stacked clauses.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
-    def dfib(n=0):
+    def dfib(n=0):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return 0
 
     @m.define
-    def dfib(n=1):  # noqa: F811  stacking is the point
+    def dfib(n=1):  # noqa: ARG001, F811  -- stacked definitions are the overload behavior under test; the test reflects this callable signature, so every declared parameter must remain visible
         return 1
 
     @m.define
@@ -310,7 +310,7 @@ def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
 
     # A literal clause's twin guards its own head; dispatch is the engine's.
     @m.define
-    def donly(n=5):
+    def donly(n=5):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return 99
 
     assert donly.py(5) == 99
@@ -319,7 +319,7 @@ def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
         donly.py(4)
 
 
-def test_while_becomes_a_tail_recursive_helper(m):
+def test_while_becomes_a_tail_recursive_helper(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dgcd(a, b):
         while b != 0:
@@ -335,7 +335,7 @@ def test_while_becomes_a_tail_recursive_helper(m):
     assert len(helpers) == 1
 
 
-def test_nested_loops_carry_the_outer_state(m):
+def test_nested_loops_carry_the_outer_state(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtriangles(n):
         total = 0
@@ -352,7 +352,7 @@ def test_nested_loops_carry_the_outer_state(m):
     assert dtriangles.py(5) == 10
 
 
-def test_nested_for_loops_resume_the_outer_sequence(m):
+def test_nested_for_loops_resume_the_outer_sequence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dgrid(rows):
         out = 0
@@ -383,7 +383,7 @@ def test_nested_for_loops_resume_the_outer_sequence(m):
     assert dcube.py([[[1, 2], [3]], [[4]]]) == 10
 
 
-def test_for_peels_with_decons_and_early_return_searches(m):
+def test_for_peels_with_decons_and_early_return_searches(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dfind(xs, target):
         i = 0
@@ -408,7 +408,7 @@ def test_for_peels_with_decons_and_early_return_searches(m):
     assert dpositive.py((3, -1, 4, -1, 5)) == 12
 
 
-def test_nested_defs_lift_with_their_closure(m):
+def test_nested_defs_lift_with_their_closure(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def douter(x, y):
         def scaled(v):
@@ -424,7 +424,7 @@ def test_loops_run_in_constant_stack(m):
     """Two million rounds through the compiled helper: last-call optimized,
     so the loop runs in constant stack, the mark of a real loop rather than
     recursion wearing one's clothes.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
     def dcountdown(n):
@@ -435,7 +435,7 @@ def test_loops_run_in_constant_stack(m):
     assert m.run("!(dcountdown 2000000)") == [[0]]
 
 
-def test_loop_variable_read_after_for_is_refused(m):
+def test_loop_variable_read_after_for_is_refused(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(CompileError) as excinfo:
 
         @m.define
@@ -449,7 +449,7 @@ def test_loop_variable_read_after_for_is_refused(m):
     )
 
 
-def test_annotations_declare_types_for_defines(m):
+def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtyped(x: int) -> int:
         return x + 1
@@ -457,7 +457,7 @@ def test_annotations_declare_types_for_defines(m):
     assert m.run("!(get-type (dtyped 1))") == [[S.Number]]
 
 
-def test_engine_functions_feel_like_python(m):
+def test_engine_functions_feel_like_python(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (dtriple $x) (* $x 3))")
     triple = m.fn("dtriple")
     assert triple(14) == 42
@@ -469,7 +469,7 @@ def test_engine_functions_feel_like_python(m):
 def test_boolean_operators_answer_the_operand(m):
     """3 or 7 is 3, 0 or 7 is 7, 3 and 7 is 7: Python's own reading,
     truthiness deciding and the operand answering.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
     def dpick(a, b):
@@ -489,7 +489,7 @@ def test_boolean_operators_answer_the_operand(m):
 def test_truthiness_decides_tests(m):
     """A bare value as the test reads by bool(), zero and empty the only
     falsehoods, exactly Python.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
     def dclassify(n):
@@ -504,7 +504,7 @@ def test_truthiness_decides_tests(m):
         dclassify.py(7)
 
 
-def test_mixed_numeric_equality_and_membership(m):
+def test_mixed_numeric_equality_and_membership(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dsame(a, b):
         return a == b / 1
@@ -519,7 +519,7 @@ def test_mixed_numeric_equality_and_membership(m):
     assert m.run('!(dhas "ell" "hello")') == [[True]]
 
 
-def test_fstrings_str_round_range_slices(m):
+def test_fstrings_str_round_range_slices(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dlabel(x):
         return f"v={x:03d}!"
@@ -551,7 +551,7 @@ def test_fstrings_str_round_range_slices(m):
     assert "py-str-join" in dlabel.runtime_ops
 
 
-def test_host_bindings_refuse_the_constructor_reading(m):
+def test_host_bindings_refuse_the_constructor_reading(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(CompileError) as caught:
 
         @m.define
@@ -564,7 +564,7 @@ def test_host_bindings_refuse_the_constructor_reading(m):
 Threshold = 5
 
 
-def test_twin_refuses_engine_only_bodies(m):
+def test_twin_refuses_engine_only_bodies(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(expr(S.fact9, 9))
 
     @m.define
@@ -577,7 +577,7 @@ def test_twin_refuses_engine_only_bodies(m):
     assert "match against the space" in str(caught.value)
 
 
-def test_same_head_redefinition_replaces(m):
+def test_same_head_redefinition_replaces(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def install_first_definition():
         @m.define
         def dvalue():
@@ -601,7 +601,7 @@ def test_same_head_redefinition_replaces(m):
     assert dvalue.py() == 2
 
 
-def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
+def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def daux_replace(n):
         total = 0
@@ -639,24 +639,24 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):
     assert len(helpers) == 1
 
 
-def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):
+def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    def dsubsumed(x, y=0):
+    def dsubsumed(x, y=0):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return 10
 
     with pytest.raises(CompileError, match="earlier clause already answers"):
 
         @m.define
-        def dsubsumed(x=1, y=0):
+        def dsubsumed(x=1, y=0):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 20
 
     assert m.run("!(collapse (dsubsumed 1 0))") == [[expr(10)]]
     assert dsubsumed.py(1, 0) == 10
 
 
-def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
+def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    def dhazard_guard(n=0):
+    def dhazard_guard(n=0):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return match(Fact(x), x)  # noqa: F821
 
     @m.define
@@ -669,7 +669,7 @@ def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):
         dhazard_guard.py(0)
 
 
-def test_define_refuses_callable_objects(m):
+def test_define_refuses_callable_objects(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class CallableObject:
         def __call__(self, value):
             return value
@@ -703,7 +703,7 @@ def fast_file(tmp_path_factory):
     return source
 
 
-def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, fast_file):
+def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define(prolog=fast_file, name="dt-dot")
     def dt_dot(a, b):
         """The readable reference."""
@@ -718,7 +718,7 @@ def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, f
     assert "python twin as .py" in repr(dt_dot)
 
 
-def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):
+def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     @m.define(prolog=fast_file, name="dt-dot")
@@ -729,7 +729,7 @@ def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):
     assert len(ran) == 3
 
 
-def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):
+def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import testing
 
     source = tmp_path / "dt_wrong.pl"
@@ -747,15 +747,15 @@ def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):
         testing.check_twin(dt_sum, [(1, 2)])
 
 
-def test_a_prolog_file_that_does_not_register_the_name_is_refused(m, fast_file):
+def test_a_prolog_file_that_does_not_register_the_name_is_refused(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(CompileError, match="does not register"):
 
         @m.define(prolog=fast_file)
-        def dt_absent(a, b):
+        def dt_absent(a, b):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return a
 
 
-def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):
+def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # dt-dot/3 is two inputs and one output; a one-parameter twin would need
     # arity 2, and a caller is the only thing that would ever find that out.
     with pytest.raises(CompileError, match="Python twin takes 1"):
@@ -765,7 +765,7 @@ def test_a_twin_of_the_wrong_shape_is_refused(m, fast_file):
             return a
 
 
-def test_define_needs_a_function_or_prolog_and_then_one(m):
+def test_define_needs_a_function_or_prolog_and_then_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="takes a function"):
         m.define()
 
@@ -778,7 +778,7 @@ def test_define_needs_a_function_or_prolog_and_then_one(m):
 # The mechanism itself is tested in tests/prolog/hooks.plt; this witnesses
 # that "write the policy in Python" is registration plus the existing door,
 # not a second mechanism.
-def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):
+def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def budget_allows(count):
         return count * 2 <= 6

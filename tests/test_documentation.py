@@ -20,7 +20,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import ast
 import importlib.util
@@ -36,7 +36,7 @@ def _load_reference():
     """The generator is a tool, not a package member, so it is loaded by path
     rather than imported: putting it under petta/ would ship a build-time
     script in the wheel.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     spec = importlib.util.spec_from_file_location(
         "petta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
     )
@@ -64,7 +64,7 @@ def test_the_seam_list_is_not_empty():
 
 
 @pytest.mark.parametrize("seam", _declared_seams())
-def test_every_declared_seam_is_documented(seam):
+def test_every_declared_seam_is_documented(seam):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     page = _PAGE.read_text(encoding="utf-8")
     # The page may write prolog:error_message with or without its module
     # qualifier, so the bare name is what has to appear.
@@ -89,7 +89,7 @@ def test_every_reference_page_names_its_source():
         assert title.startswith("petta"), page.name
 
 
-def test_the_reference_pages_are_up_to_date():
+def test_the_reference_pages_are_up_to_date():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     stale = [
         page.name
         for page, module_path, title in _reference.sources()
@@ -104,7 +104,7 @@ def test_the_reference_pages_are_up_to_date():
 def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
     """ast.unparse writes any signature on one line, and one method's came out
     at 300 columns.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     node = ast.parse(
         "def a_method_with_a_long_name(self, a: dict[str, int] = {}, *, "
         "keyword_one: str | None = None, keyword_two: int = 1, "
@@ -119,7 +119,7 @@ def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
 def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave MeTTa.run
     four identical reference entries.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     page = _reference.page_for("bindings/python/petta/space.py", "petta.space")
     assert page.count("### `MeTTa.run`") == 1
 
@@ -129,7 +129,7 @@ def test_a_tag_shaped_word_in_prose_is_escaped_and_code_is_not():
     unknown element as nothing, so a docstring saying "(wrapped name <obj>)"
     lost the word it was about. markdown-it escapes code spans and indented
     code blocks itself, so escaping those too would display the escape.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _reference.escape_tags("a (wrapped name <obj>) b") == (
         "a (wrapped name &lt;obj>) b"
     )
@@ -155,7 +155,7 @@ def _load_libdoc():
     return module
 
 
-def test_the_metta_library_page_is_up_to_date():
+def test_the_metta_library_page_is_up_to_date():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     libdoc = _load_libdoc()
     current = libdoc._PAGE.read_text(encoding="utf-8")
     assert current == libdoc.page(), (
@@ -247,7 +247,7 @@ def test_the_repository_ships_its_governance_documents():
     them: a form whose YAML is malformed, or whose non-markdown element has no
     id, is rejected wholesale and simply does not appear in the chooser, which
     looks from the outside exactly like a repository that ships no template.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for name, clauses in (
         ("SECURITY.md", _SECURITY_CLAUSES),
         ("CONTRIBUTING.md", _CONTRIBUTING_CLAUSES),

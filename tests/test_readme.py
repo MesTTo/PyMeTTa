@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import re
 from pathlib import Path
@@ -24,7 +24,7 @@ _NAMESPACE: dict = {}
 
 
 @pytest.mark.parametrize("index", range(len(_BLOCKS)), ids=lambda i: f"block-{i + 1}")
-def test_readme_block_executes(index, metta, tmp_path):
+def test_readme_block_executes(index, metta, tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     source = _BLOCKS[index]
     if "torch" in source or "pettorch" in source:
         pytest.importorskip("torch")

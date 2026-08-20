@@ -12,7 +12,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ import example_parity as parity  # noqa: E402
 def test_unquote_evaluates_as_the_arbiter_records():
     """`(unquote (quote (+ 1 2)))` answers 3. Removing the eval would make
     this answer `(+ 1 2)` and the assertion here would name the change.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = REPO / "bindings" / "python" / "tests" / "data" / "unquote_conformance.metta"
     source.write_text(
         "!(import! &self (library lib_he))\n"

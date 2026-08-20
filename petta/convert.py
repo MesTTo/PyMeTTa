@@ -10,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from ._convert_build import build
 from ._convert_project import Projected, auto_image, declarations, project

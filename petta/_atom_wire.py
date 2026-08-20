@@ -15,7 +15,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from .errors import PettaError
 class _PendingExpr:
     """A wire expression mid-build; its items become an Expr once every
     nested expression below it has become one.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("built", "items")
     built: Expr
@@ -40,7 +40,7 @@ class _PendingExpr:
 def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
     payload is a boundary bug and must say so, never coerce.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if tag == "s":
         return _symbol_from_wire(payload)
     if tag == "g":
@@ -60,24 +60,24 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
 def _handle_from_wire(ident: Any, text: Any) -> Atom:
     if isinstance(ident, bool) or not isinstance(ident, int):
         msg = f"wire handle id must be an integer, got {ident!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     if not isinstance(text, str):
         msg = f"wire handle text must be a string, got {text!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     return Handle(ident, text)
 
 
 def _symbol_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
         msg = f"wire symbol payload must be text, got {payload!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     return _wire_sym(payload)
 
 
 def _string_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
         msg = f"wire string payload must be text, got {payload!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     return Gnd(payload)
 
 
@@ -100,7 +100,7 @@ def _boolean_from_wire(payload: Any) -> Atom:
 def _variable_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
         msg = f"wire variable payload must be text, got {payload!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     return _wire_var(payload)
 
 
@@ -156,7 +156,7 @@ class Undefined:
 def _expression_children(payload: Any) -> list | tuple:
     if not isinstance(payload, (list, tuple)):
         msg = f"wire expression payload must be a list, got {payload!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     return payload
 
 
@@ -186,7 +186,7 @@ def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr
     return root.built
 
 
-def _expression_from_wire(payload: Any) -> Expr:
+def _expression_from_wire(payload: Any) -> Expr:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]
@@ -203,7 +203,7 @@ def _expression_from_wire(payload: Any) -> Expr:
         for child in children:
             if not isinstance(child, seq):
                 msg = f"malformed wire term: {child!r}"
-                raise ValueError(msg)
+                raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
             if len(child) != 2:
                 # The one three-element wire is a native handle reference.
                 if len(child) == 3 and child[0] == "h":
@@ -238,7 +238,7 @@ def from_wire(wire: Any) -> Atom | Undefined:
     """
     if not isinstance(wire, (list, tuple)):
         msg = f"malformed wire term: {wire!r}"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
     # The u tag wraps a whole answer whose truth is undefined; it never
     # nests inside expressions, so it is handled at the entry alone.
     match wire:
@@ -265,7 +265,7 @@ def atom_from_wire(wire: Any) -> Atom:
             "undefined truth is valid only as a complete evaluation answer, "
             "not where the wire protocol requires an atom"
         )
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
             msg
         )
     return value

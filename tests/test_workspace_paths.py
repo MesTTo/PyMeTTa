@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import subprocess
 
@@ -23,7 +23,7 @@ _FIXED_ORACLE_PATH_PATTERN = {
 _WORKSPACE_ROOT = "/" + "home/"
 
 
-def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):
+def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tracked = subprocess.run(
         ["git", "ls-files"],
         cwd=repo_root, capture_output=True, text=True, timeout=60, check=True,

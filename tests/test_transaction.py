@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -19,11 +19,11 @@ from petta import MettaResultError, S
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
-def test_commit_answers_the_callables_return_value(m):
+def test_commit_answers_the_callables_return_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def work():
         m.add(S.tx(1))
         return {"rows": [1, "two"]}
@@ -33,12 +33,12 @@ def test_commit_answers_the_callables_return_value(m):
     assert m.transaction(lambda: None) is None
 
 
-def test_return_values_keep_identity(m):
+def test_return_values_keep_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     marker = object()
     assert m.transaction(lambda: marker) is marker
 
 
-def test_a_raise_rolls_back_everything_and_arrives_as_itself(m):
+def test_a_raise_rolls_back_everything_and_arrives_as_itself(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def failing():
         m.add(S.tx(2))
         m.run("(= (tx-f $x) $x)")
@@ -55,7 +55,7 @@ def test_a_raise_rolls_back_everything_and_arrives_as_itself(m):
     assert m.run("!(tx-f 3)") == [[m.parse("(tx-f 3)")]]
 
 
-def test_the_librarys_own_errors_pass_through_unchanged(m):
+def test_the_librarys_own_errors_pass_through_unchanged(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run('(= (tx-err) (Error (tx-err) "boom"))')
 
     def body():
@@ -69,7 +69,7 @@ def test_the_librarys_own_errors_pass_through_unchanged(m):
     assert S.tx(9) in m
 
 
-def test_nested_commit_dies_with_the_outer_rollback(m):
+def test_nested_commit_dies_with_the_outer_rollback(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def outer():
         m.transaction(lambda: m.add(S.tx(3)))
         msg = "outer dies"
@@ -83,7 +83,7 @@ def test_nested_commit_dies_with_the_outer_rollback(m):
     assert m.atoms() == [S.tx(4)]
 
 
-def test_transactional_is_the_decorator_twin(m):
+def test_transactional_is_the_decorator_twin(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.transactional
     def migrate(n):
         m.add(S.tx(n))

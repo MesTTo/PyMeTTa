@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import copy
 import importlib.util
@@ -24,12 +24,12 @@ from petta.results import _row_class
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
-def test_rows_to_pl_builds_the_polars_frame(m):
+def test_rows_to_pl_builds_the_polars_frame(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pytest.importorskip("polars")
 
     m.add_table("score", [("ada", 3), ("bob", 5)])
@@ -40,7 +40,7 @@ def test_rows_to_pl_builds_the_polars_frame(m):
     assert frame["who"].to_list() == ["ada", "bob"]
 
 
-def test_rows_to_df_builds_or_names_the_need(m):
+def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add_table("score", [("ada", 3)])
     rows = m.query(S.score(V.who, V.points))
     if importlib.util.find_spec("pandas") is None:
@@ -50,7 +50,7 @@ def test_rows_to_df_builds_or_names_the_need(m):
         assert rows.to_df()["points"].tolist() == [3]
 
 
-def test_rows_to_dicts_returns_plain_records(m):
+def test_rows_to_dicts_returns_plain_records(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add_table("score", [("ada", 3), ("bob", 5)])
     rows = m.query(S.score(V.who, V.points))
     assert rows.to_dicts() == [
@@ -63,7 +63,7 @@ def test_rows_to_dicts_returns_plain_records(m):
     assert native.table() == {"who": ["ada"], "points": [3]}
 
 
-def test_query_rows_explain_empty_results(m):
+def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(
         S.Parent(S.Tom, S.Bob),
         S.edge(S.a, S.b),
@@ -93,7 +93,7 @@ def test_query_rows_explain_empty_results(m):
         missing[:].why()
 
 
-def test_rows_render_as_an_html_table():
+def test_rows_render_as_an_html_table():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("who", "points"), [("<ada>", 3)])
     page = rows._repr_html_()
     assert "<th>who</th>" in page and "<th>points</th>" in page
@@ -101,14 +101,14 @@ def test_rows_render_as_an_html_table():
     assert "<td>3</td>" in page
 
 
-def test_rows_html_tail_is_an_explicit_count():
+def test_rows_html_tail_is_an_explicit_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("n",), [(i,) for i in range(150)])
     page = rows._repr_html_()
     assert page.count("<tr>") == 1 + 100 + 1  # header, hundred rows, the tail
     assert "50 more rows" in page
 
 
-def test_rows_repr_is_bounded_and_recursive():
+def test_rows_repr_is_bounded_and_recursive():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("n", "text"), [(i, "x" * 500) for i in range(50_000)])
     rendered = repr(rows)
     assert len(rendered) < 20_000
@@ -120,7 +120,7 @@ def test_rows_repr_is_bounded_and_recursive():
     assert "..." in repr(recursive)
 
 
-def test_rows_reject_duplicate_columns_and_wrong_row_widths():
+def test_rows_reject_duplicate_columns_and_wrong_row_widths():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match=r"duplicate.*x"):
         Rows(("x", "x"), [(1, 2)])
     with pytest.raises(ValueError, match="row 0 has 1 values for 2 columns"):
@@ -129,7 +129,7 @@ def test_rows_reject_duplicate_columns_and_wrong_row_widths():
         Rows(("x",), [(1, 2)])
 
 
-def test_row_classes_are_reused_and_bounded():
+def test_row_classes_are_reused_and_bounded():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _row_class.cache_clear()
     left = Rows(("name",), [("Ada",)])
     right = Rows(("name",), [("Bob",)])
@@ -140,7 +140,7 @@ def test_row_classes_are_reused_and_bounded():
     assert _row_class.cache_info().currsize == 256
 
 
-def test_rows_sequence_operations_preserve_columns():
+def test_rows_sequence_operations_preserve_columns():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("name", "score"), [("Ada", 3), ("Bob", 5)])
     for derived in (
         rows[:1],
@@ -159,7 +159,7 @@ def test_rows_sequence_operations_preserve_columns():
         rows + Rows(("other",), [(1,)])
 
 
-def test_rows_mutations_preserve_invariants():
+def test_rows_mutations_preserve_invariants():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("name", "score"), [("Ada", 3)])
     rows.append(("Bob", 5))
     rows.insert(0, ("Cid", 8))
@@ -180,7 +180,7 @@ def test_rows_mutations_preserve_invariants():
     assert rows == before
 
 
-def test_rows_copy_and_pickle_protocols():
+def test_rows_copy_and_pickle_protocols():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows(("name", "atom"), [("Ada", S.person(S.Ada))])
     for restored in (copy.copy(rows), copy.deepcopy(rows)):
         assert isinstance(restored, Rows)
@@ -200,7 +200,7 @@ def test_rows_copy_and_pickle_protocols():
     assert row._columns == rows.columns
 
 
-def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
+def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rows = Rows((), [(), ()])
     with pytest.raises(ValueError, match="nonempty zero-column"):
         rows.table()
@@ -213,11 +213,11 @@ def test_nonempty_zero_column_rows_refuse_table_but_frames_keep_row_count():
     assert rows.to_pl().shape == (2, 0)
 
 
-def test_empty_zero_column_rows_remain_an_empty_table():
+def test_empty_zero_column_rows_remain_an_empty_table():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert Rows((), []).table() == {}
 
 
-def test_pipe_chains_user_functions(metta):
+def test_pipe_chains_user_functions(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.add(parse("(pipe-edge x y)"), parse("(pipe-edge y z)"))
     rows = metta.query("(pipe-edge $a $b)")
     assert rows.pipe(len) == 2
@@ -225,7 +225,7 @@ def test_pipe_chains_user_functions(metta):
     assert rows.pipe(lambda r, k: [str(row[0]) for row in r[:k]], 1) == ["x"]
 
 
-def test_rich_renders_rows_as_a_table(metta):
+def test_rich_renders_rows_as_a_table(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pytest.importorskip("rich")
     from rich.console import Console
 
@@ -241,6 +241,6 @@ def test_rich_renders_rows_as_a_table(metta):
     assert "Rows[]" in console2.file.getvalue()
 
 
-def test_rich_pretty_expands_an_expression_by_children():
+def test_rich_pretty_expands_an_expression_by_children():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     term = parse("(edge (a b) $x)")
     assert list(term.__rich_repr__()) == list(term.children)

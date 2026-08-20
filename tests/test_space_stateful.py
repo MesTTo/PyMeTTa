@@ -10,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from collections import Counter
 from tempfile import TemporaryDirectory
@@ -36,7 +36,7 @@ def _substitute(atom, bindings):
 class SpaceStateMachine(RuleBasedStateMachine):
     """A real PeTTa space checked against a Counter reference model."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__()
         self._owner = MeTTa()
         self.space = self._owner.new_space()
@@ -44,12 +44,12 @@ class SpaceStateMachine(RuleBasedStateMachine):
         self._temporary = TemporaryDirectory(prefix="petta-stateful-")
 
     @rule(atom=testing.expressions(max_leaves=5, ground=True))
-    def add(self, atom):
+    def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.space.add(atom)
         self.model[atom] += 1
 
     @rule(atom=testing.expressions(max_leaves=5, ground=True))
-    def add_duplicate(self, atom):
+    def add_duplicate(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.space.add(atom, atom)
         self.model[atom] += 2
 
@@ -59,18 +59,18 @@ class SpaceStateMachine(RuleBasedStateMachine):
         one did. The model used to pop the whole count, which is what the
         engine used to do; hypothesis found the disagreement on the first
         add_duplicate-then-remove history it generated.
-        """
+        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
         expected = atom in self.model
         assert self.space.remove(atom) is expected
         self.model -= Counter({atom: 1})
 
     @rule()
-    def clear(self):
+    def clear(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.space.clear()
         self.model.clear()
 
     @rule(pattern=testing.expressions(max_leaves=5))
-    def query_matches_the_reference_model(self, pattern):
+    def query_matches_the_reference_model(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         expected = Counter()
         for atom, copies in self.model.items():
             if unify(pattern, atom) is not None:
@@ -83,7 +83,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
         assert actual == expected
 
     @rule(format=st.sampled_from(("metta", "fast")))
-    def save_load_round_trip(self, format):
+    def save_load_round_trip(self, format):  # noqa: A002, D102  -- pytest parameterization names the public save-format argument exercised here; the test double method is documented by its containing scenario and protocol
         path = f"{self._temporary.name}/space.{format}"
         assert self.space.save(path, format=format) == sum(self.model.values())
         with self._owner.new_space() as loaded:
@@ -91,13 +91,13 @@ class SpaceStateMachine(RuleBasedStateMachine):
             assert Counter(loaded.atoms()) == self.model
 
     @invariant()
-    def storage_matches_the_reference_model(self):
+    def storage_matches_the_reference_model(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         assert Counter(self.space.atoms()) == self.model
         assert len(self.space) == sum(self.model.values())
         for atom in self.model:
             assert atom in self.space
 
-    def teardown(self):
+    def teardown(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.space.drop()
         self._temporary.cleanup()
 

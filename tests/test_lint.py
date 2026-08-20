@@ -10,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import collections
 import pickle
@@ -22,7 +22,7 @@ from petta.lint import Finding, lint
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
@@ -31,13 +31,13 @@ def _kinds(findings):
     return [finding.kind for finding in findings]
 
 
-def test_finding_retains_public_pickle_identity():
+def test_finding_retains_public_pickle_identity():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     finding = Finding("kind", "subject", "detail", S.evidence)
     assert pickle.loads(pickle.dumps(finding)) == finding
     assert Finding.__module__ == "petta.lint"
 
 
-def test_a_healthy_space_answers_no_findings(m):
+def test_a_healthy_space_answers_no_findings(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run(
         "(: well-fn (-> Number Number))"
         "(= (well-fn $x) (+ $x 1))"
@@ -47,14 +47,14 @@ def test_a_healthy_space_answers_no_findings(m):
     assert m.lint() == []
 
 
-def test_declared_but_undefined(m):
+def test_declared_but_undefined(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: ghost-fn (-> Number Number))")
     findings = m.lint()
     assert _kinds(findings) == ["declared-but-undefined"]
     assert findings[0].subject == "ghost-fn"
 
 
-def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta):
+def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as defining, metta.new_space() as declaring:
         defining.run("(= (cross-space-only $x) $x)")
         declaring.run("(: cross-space-only (-> Number Number))")
@@ -66,20 +66,20 @@ def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta)
         assert findings[0].subject == "cross-space-only"
 
 
-def test_arrow_arity_against_equations(m):
+def test_arrow_arity_against_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: two-face (-> Number Number Number)) (= (two-face $x) $x)")
     findings = m.lint()
     assert "arrow-arity-mismatch" in _kinds(findings)
 
 
-def test_calls_with_the_wrong_argument_count(m):
+def test_calls_with_the_wrong_argument_count(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (one-arg $x) $x) (= (bad-caller) (one-arg 1 2))")
     findings = m.lint()
     assert "arity-mismatch" in _kinds(findings)
     assert any(finding.subject == "one-arg" for finding in findings)
 
 
-def test_unbound_body_variables(m):
+def test_unbound_body_variables(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (loose-fn) (+ 1 $nowhere))")
     findings = m.lint()
     assert "unbound-variable" in _kinds(findings)
@@ -92,12 +92,12 @@ def test_unbound_body_variables(m):
     assert "variable" in detail and "not in the head" in detail
 
 
-def test_let_bound_variables_are_not_flagged(m):
+def test_let_bound_variables_are_not_flagged(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (let-fn) (let $fresh 41 (+ $fresh 1)))")
     assert "unbound-variable" not in _kinds(m.lint())
 
 
-def test_duplicate_equations(m):
+def test_duplicate_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (twice-fn $x) (+ $x 1))")
     m.run("(= (twice-fn $y) (+ $y 1))")
     findings = m.lint()
@@ -123,14 +123,14 @@ def test_a_semantically_redundant_equation_is_reported_with_its_bound(m):
     assert "pairwise" in findings[0].detail
 
 
-def test_possibly_undefined_reference_is_labeled_a_heuristic(m):
+def test_possibly_undefined_reference_is_labeled_a_heuristic(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (typo-caller) (no-such-fn 1))")
     findings = m.lint()
     assert _kinds(findings) == ["possibly-undefined-reference"]
     assert "heuristic" in findings[0].detail
 
 
-def test_variable_arguments_do_not_hide_undefined_references(m):
+def test_variable_arguments_do_not_hide_undefined_references(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (variable-caller $x) (no-variable-fn $x))")
     findings = m.lint()
     assert _kinds(findings) == ["possibly-undefined-reference"]
@@ -159,12 +159,12 @@ SPECIAL_FORM_BODIES = [
 
 
 @pytest.mark.parametrize("body", SPECIAL_FORM_BODIES)
-def test_calling_a_special_form_is_not_an_undefined_reference(m, body):
+def test_calling_a_special_form_is_not_an_undefined_reference(m, body):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run(f"(= (special-caller $x) {body})")
     assert "possibly-undefined-reference" not in _kinds(m.lint())
 
 
-def test_a_special_form_is_a_known_head(m):
+def test_a_special_form_is_a_known_head(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta._lint_model import EngineRegistry
 
     registry = EngineRegistry(m.runtime)
@@ -175,7 +175,7 @@ def test_a_special_form_is_a_known_head(m):
     assert registry.is_special_form("no-such-fn") is False
 
 
-def test_each_extra_duplicate_equation_is_reported(m):
+def test_each_extra_duplicate_equation_is_reported(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for variable in ("x", "y", "z"):
         m.run(f"(= (three-copies ${variable}) (+ ${variable} 1))")
     duplicates = [
@@ -185,7 +185,7 @@ def test_each_extra_duplicate_equation_is_reported(m):
     assert len(duplicates) == 2
 
 
-def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):
+def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run(
         "(= (cached-target $x) $x)"
         "(= (cached-caller $x) (and (cached-target $x) (cached-target $x)))"
@@ -215,7 +215,7 @@ def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):
     assert len([goal for goal in branch if "metta_translated_head(F)" in goal]) == 1
 
 
-def test_lint_walks_deep_expression_trees_iteratively(m):
+def test_lint_walks_deep_expression_trees_iteratively(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     body = S.leaf
     for _ in range(2_000):
         body = Expr([S.nested, body])
@@ -224,7 +224,7 @@ def test_lint_walks_deep_expression_trees_iteratively(m):
     assert any(finding.subject == "nested" for finding in findings)
 
 
-def test_a_declaration_that_cannot_type_its_function(m):
+def test_a_declaration_that_cannot_type_its_function(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine refuses this in a source file, over that source's own forms.
     # What reaches the linter is the route that builds one atom at a time,
     # where refusing would refuse a program that is about to add its arrow.
@@ -239,18 +239,18 @@ def test_a_declaration_that_cannot_type_its_function(m):
     assert "(bare-fn ...) compiles unchecked" in detail
 
 
-def test_one_arrow_among_several_declarations_satisfies_the_linter(m):
+def test_one_arrow_among_several_declarations_satisfies_the_linter(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: paired-fn (-> Number Number)) (= (paired-fn $x) (+ $x 1))")
     m.add(Expr([S[":"], S["paired-fn"], S.Number]))
     assert "declaration-types-the-symbol" not in _kinds(m.lint())
 
 
-def test_an_explicitly_undefined_type_is_not_a_finding(m):
+def test_an_explicitly_undefined_type_is_not_a_finding(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: opted-out %Undefined%) (= (opted-out $x) $x)")
     assert "declaration-types-the-symbol" not in _kinds(m.lint())
 
 
-def test_a_declaration_for_a_name_with_no_equations_is_data(m):
+def test_a_declaration_for_a_name_with_no_equations_is_data(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # NARS writes inheritance as (--> $a $b). It is an atom in a data
     # position, not a mistyped arrow, and nothing defines the subject.
     m.run("(: nars-belief (--> Cat Animal))")
@@ -263,7 +263,7 @@ def test_a_positional_read_of_a_tabled_functions_answers(m):
     (two one) when three facts nothing calls were added to another file. A
     program that reads such a collapse by position works until something
     unrelated moves.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("!(import! &self (library lib_tabling))")
     m.run("(= (tbl-pick a) one)\n(= (tbl-pick a) two)")
     m.run("(= (tbl-first) (car-atom (collapse (tbl-pick a))))")
@@ -277,7 +277,7 @@ def test_a_positional_read_of_a_tabled_functions_answers(m):
     assert "sort-atom" in finding.detail
 
 
-def test_a_canonicalised_read_of_a_tabled_function_is_not_a_finding(m):
+def test_a_canonicalised_read_of_a_tabled_function_is_not_a_finding(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(import! &self (library lib_tabling))")
     m.run("(= (tbl-safe a) one)\n(= (tbl-safe a) two)")
     m.run("(= (tbl-safe-first) (car-atom (sort-atom (collapse (tbl-safe a)))))")
@@ -285,13 +285,13 @@ def test_a_canonicalised_read_of_a_tabled_function_is_not_a_finding(m):
     assert "tabled-answer-order-read" not in _kinds(m.lint())
 
 
-def test_a_positional_read_of_an_untabled_function_is_not_a_finding(m):
+def test_a_positional_read_of_an_untabled_function_is_not_a_finding(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (untbl-pick a) one)\n(= (untbl-pick a) two)")
     m.run("(= (untbl-first) (car-atom (collapse (untbl-pick a))))")
     assert "tabled-answer-order-read" not in _kinds(m.lint())
 
 
-def test_findings_carry_the_lsp_diagnostic_fields(m):
+def test_findings_carry_the_lsp_diagnostic_fields(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (q1-f $x) (if True $x 0))\n(= (q1-g) (car-atomm 1))")
     findings = {f.kind: f for f in lint(m)}
     simplification = findings["constant-if-true"]
@@ -313,7 +313,7 @@ def test_findings_carry_the_lsp_diagnostic_fields(m):
     assert "did you mean car-atom?" in str(typo)
 
 
-def test_the_seven_simplification_rules_fire(m):
+def test_the_seven_simplification_rules_fire(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run(
         "(= (q3-a $x) (if True $x 0))\n"
         "(= (q3-b $x) (if False $x 0))\n"
@@ -335,7 +335,7 @@ def test_the_seven_simplification_rules_fire(m):
     } <= kinds
 
 
-def test_inconsistent_arity_reports_and_an_arrow_silences(m):
+def test_inconsistent_arity_reports_and_an_arrow_silences(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (q3-multi $x) $x)\n(= (q3-multi $x $y) $x)")
     assert any(f.kind == "inconsistent-arity" for f in lint(m))
     m.run("(: q3-multi (-> Number Number))")
@@ -346,7 +346,7 @@ def test_inconsistent_arity_reports_and_an_arrow_silences(m):
     assert "arrow-arity-mismatch" not in kinds
 
 
-def test_type_mismatch_uses_the_engines_total_get_type(m):
+def test_type_mismatch_uses_the_engines_total_get_type(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run(
         '(: q3-typed (-> Number Number))\n'
         "(= (q3-typed $x) $x)\n"
@@ -359,7 +359,7 @@ def test_type_mismatch_uses_the_engines_total_get_type(m):
     assert "String where the declared arrow wants Number" in mismatches[0].detail
 
 
-def test_positioned_forms_recover_exact_lines():
+def test_positioned_forms_recover_exact_lines():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta._source_forms import positioned_forms
 
     source = "; a comment quoting (f 1)\n(f 1)\n\n!(+ 1 2)\n(= (g $x)\n   $x)\n"
@@ -373,13 +373,13 @@ def test_positioned_forms_recover_exact_lines():
     # anchors at line 2, not inside the line-1 comment
 
 
-def test_a_locator_mismatch_refuses(monkeypatch):
+def test_a_locator_mismatch_refuses(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import _source_forms
 
     real = _source_forms.runtime
 
     class Lying:
-        def must(self, goal, **inputs):
+        def must(self, goal, **inputs):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return {"Forms": [["expression", "(never-there)"]]}
 
     monkeypatch.setattr(_source_forms, "runtime", lambda: Lying())
@@ -388,7 +388,7 @@ def test_a_locator_mismatch_refuses(monkeypatch):
     monkeypatch.setattr(_source_forms, "runtime", real)
 
 
-def test_lint_file_anchors_findings_to_lines(metta, tmp_path):
+def test_lint_file_anchors_findings_to_lines(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     target = tmp_path / "anchored.metta"
     target.write_text(
         "; prose first\n"

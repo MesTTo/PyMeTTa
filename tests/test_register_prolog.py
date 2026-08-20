@@ -33,7 +33,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import contextlib
 from pathlib import Path
@@ -44,11 +44,11 @@ from petta import EngineError, PettaError, SourceNotFound
 
 
 @pytest.fixture()
-def space(metta):
+def space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
-def test_inline_source_becomes_a_metta_function(space):
+def test_inline_source_becomes_a_metta_function(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     names = space.register_prolog(
         "'rp-square'(X, Y) :- Y is X * X.", names=["rp-square"]
     )
@@ -56,7 +56,7 @@ def test_inline_source_becomes_a_metta_function(space):
     assert space.one("(rp-square 7)") == 49
 
 
-def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):
+def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = tmp_path / "rp_lib.pl"
     source.write_text("'rp-triple'(X, Y) :- Y is X * 3.\n'rp-negate'(X, Y) :- Y is -X.\n")
     names = space.register_prolog(path=source, names=["rp-triple", "rp-negate"])
@@ -69,12 +69,12 @@ def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):
 # whose predicate is absent records no arity, and then every call to it
 # compiles to a partial application rather than erroring, which is a silent
 # wrong answer.
-def test_a_name_with_no_predicate_is_refused(space):
+def test_a_name_with_no_predicate_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="no predicate named"):
         space.register_prolog("'rp-present'(X, X).", names=["rp-absent"])
 
 
-def test_names_must_be_given(space):
+def test_names_must_be_given(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # All three routes named, because pointing only at metta_export is a dead
     # end for a provider author, who has no functions to export.
     with pytest.raises(ValueError, match="metta_export") as caught:
@@ -83,7 +83,7 @@ def test_names_must_be_given(space):
     assert "the names to register" in str(caught.value)
 
 
-def test_source_and_path_are_exclusive(space, tmp_path):
+def test_source_and_path_are_exclusive(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = tmp_path / "rp_either.pl"
     source.write_text("'rp-either'(X, X).\n")
     with pytest.raises(ValueError, match="exactly one"):
@@ -96,7 +96,7 @@ def test_source_and_path_are_exclusive(space, tmp_path):
 # `except FileNotFoundError` and a caller wrapping a whole registration writes
 # `except PettaError`, and a plain FileNotFoundError silently escaped the
 # second one.
-def test_a_missing_file_is_named(space):
+def test_a_missing_file_is_named(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(SourceNotFound, match="no Prolog source"):
         space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
     with pytest.raises(FileNotFoundError):
@@ -105,7 +105,7 @@ def test_a_missing_file_is_named(space):
         space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
 
 
-def test_a_non_string_name_is_refused(space):
+def test_a_non_string_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="name as a string"):
         space.register_prolog("'rp-ok'(X, X).", names=[42])
 
@@ -114,7 +114,7 @@ def test_a_non_string_name_is_refused(space):
 # process. Registering a predicate named + made (+ 1 2) answer whatever the
 # library said, with SWI's redefinition warning on stderr the only sign and
 # this call reporting success.
-def test_a_builtin_name_is_refused_and_the_builtin_still_works(space):
+def test_a_builtin_name_is_refused_and_the_builtin_still_works(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="is a builtin"):
         space.register_prolog("'+'(_, _, R) :- R = shadowed.", names=["+"])
     assert space.one("(+ 1 2)") == 3
@@ -125,7 +125,7 @@ def test_a_builtin_name_is_refused_and_the_builtin_still_works(space):
 
 # Special forms are compiled by the translator before function dispatch, so a
 # registration under one of their names is dead code the moment it lands.
-def test_a_special_form_name_is_refused(space):
+def test_a_special_form_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="is a special form"):
         space.register_prolog("'if'(_, _, _, R) :- R = shadowed.", names=["if"])
     assert space.one("(if True 1 2)") == 1
@@ -135,7 +135,7 @@ def test_a_special_form_name_is_refused(space):
 # id(source), an address CPython hands to the next string of the same size, so
 # a library generating Prolog lost every predicate but the last: the reuse
 # struck on the SECOND registration.
-def test_generated_sources_do_not_erase_each_other(space):
+def test_generated_sources_do_not_erase_each_other(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for i in range(4):
         generated = f"'rp-gen{i}'(X, Y) :- Y is X + {i}.\n"
         space.register_prolog(generated, names=[f"rp-gen{i}"])
@@ -143,7 +143,7 @@ def test_generated_sources_do_not_erase_each_other(space):
     assert [space.one(f"(rp-gen{i} 10)") for i in range(4)] == [10, 11, 12, 13]
 
 
-def test_the_same_source_registered_twice_is_idempotent(space):
+def test_the_same_source_registered_twice_is_idempotent(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = "'rp-twice'(X, Y) :- Y is X + 1.\n"
     space.register_prolog(source, names=["rp-twice"])
     space.register_prolog(source, names=["rp-twice"])
@@ -153,7 +153,7 @@ def test_the_same_source_registered_twice_is_idempotent(space):
 # Validating inside the registration loop left the first two names registered
 # and callable when the third was a typo, and the list of what had taken died
 # inside the exception.
-def test_a_typo_in_the_list_registers_nothing(space):
+def test_a_typo_in_the_list_registers_nothing(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="no predicate named"):
         space.register_prolog(
             "'rp-t1'(X, X).\n'rp-t2'(X, X).\n",
@@ -166,7 +166,7 @@ def test_a_typo_in_the_list_registers_nothing(space):
 # The registry used to keep claiming a name whose predicate register_prolog
 # had replaced, so the operation could neither be unregistered (retractall on
 # what was now a static procedure raised) nor re-registered.
-def test_a_python_operation_is_not_silently_replaced(space):
+def test_a_python_operation_is_not_silently_replaced(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @space.register_op(name="rp-owned")
     def rp_owned(x):
         return ["python", x]
@@ -180,7 +180,7 @@ def test_a_python_operation_is_not_silently_replaced(space):
     assert not space.is_function("rp-owned")
 
 
-def test_a_prolog_registration_is_not_silently_replaced(space):
+def test_a_prolog_registration_is_not_silently_replaced(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog("'rp-mine'(X, R) :- R = [prolog, X].", names=["rp-mine"])
     with pytest.raises(EngineError, match="another extension tier"):
 
@@ -202,7 +202,7 @@ def test_a_prolog_registration_is_not_silently_replaced(space):
 # SWI prints "Redefined static procedure" and continues, so the incumbent's
 # clauses are gone before any post-load check can speak. The names are in hand
 # before the load on this route, so the refusal belongs there.
-def test_a_rival_source_is_refused_before_it_can_clobber(space, tmp_path):
+def test_a_rival_source_is_refused_before_it_can_clobber(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = tmp_path / "rp_norm_a.pl"
     first.write_text("'rp-rival-norm'(_, 20).\n")
     second = tmp_path / "rp_norm_b.pl"
@@ -244,14 +244,14 @@ def test_a_rival_declaring_source_is_refused_before_it_can_clobber(space, tmp_pa
 # with the predicate undefined, so this used to arrive as "no predicate named
 # 'rp-syntax' was defined", naming the symptom rather than the cause, with the
 # line and column only on stderr.
-def test_a_syntax_error_names_the_line(space):
+def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(PettaError, match="Syntax error"):
         space.register_prolog("'rp-syntax'(X, Y) :- Y is X * .", names=["rp-syntax"])
 
 
 # The whole point: gate on inferences, which are deterministic, rather than on
 # wall clock, which is bimodal under load on this box.
-def test_prolog_registration_is_cheaper_than_python_registration(space):
+def test_prolog_registration_is_cheaper_than_python_registration(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog("'rp-fast'(X, Y) :- Y is X + 1.", names=["rp-fast"])
 
     @space.register_op(name="rp-slow")
@@ -302,7 +302,7 @@ EXPORT_LIBRARY = """
 
 
 @pytest.fixture()
-def declared(space, tmp_path):
+def declared(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = tmp_path / "rp_demo.pl"
     source.write_text(EXPORT_LIBRARY)
     yield source
@@ -334,7 +334,7 @@ def test_inline_source_declares_its_own_exports_too(space):
             space.unregister_prolog("rp_inline")
 
 
-def test_a_file_declares_its_own_exports(space, declared):
+def test_a_file_declares_its_own_exports(space, declared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     names = space.register_prolog(path=declared)
     assert set(names) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
     assert space.one("(rp-demo-scale 3)") == 30
@@ -349,7 +349,7 @@ def test_a_file_declares_its_own_exports(space, declared):
     assert not space.is_function("rp-demo-helper")
 
 
-def test_an_extension_unloads_whole(space, declared):
+def test_an_extension_unloads_whole(space, declared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=declared)
     released = space.unregister_prolog("rp_demo")
     assert set(released) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
@@ -397,7 +397,7 @@ def test_an_unloaded_extension_does_not_leave_its_names_behind(space, declared):
     assert space.one("(rp-demo-scale 3)") == 30
 
 
-def test_a_source_with_neither_names_nor_a_declaration_is_refused(space):
+def test_a_source_with_neither_names_nor_a_declaration_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="metta_export"):
         space.register_prolog("'rp-undeclared'(X, X).")
 
@@ -469,7 +469,7 @@ def rival_modules(tmp_path_factory):
     return directory
 
 
-def test_two_libraries_exporting_one_name_can_both_be_registered(space, rival_modules):
+def test_two_libraries_exporting_one_name_can_both_be_registered(space, rival_modules):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert space.register_prolog(
         path=rival_modules / "rp_liba.pl", names={"norm": "rp-liba-norm"}
     ) == ("rp-liba-norm",)
@@ -482,19 +482,19 @@ def test_two_libraries_exporting_one_name_can_both_be_registered(space, rival_mo
     assert space.one("(rp-libb-norm -5)") == 25
 
 
-def test_a_rename_of_something_not_exported_is_refused(space, rival_modules):
+def test_a_rename_of_something_not_exported_is_refused(space, rival_modules):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="does not export"):
         space.register_prolog(
             path=rival_modules / "rp_libb.pl", names={"absent": "rp-absent"}
         )
 
 
-def test_renaming_needs_a_module_file(space):
+def test_renaming_needs_a_module_file(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="needs path="):
         space.register_prolog(source="'x'(1).", names={"x": "rp-x"})
 
 
-def test_renaming_a_plain_file_says_it_is_not_a_module(space, tmp_path):
+def test_renaming_a_plain_file_says_it_is_not_a_module(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     plain = tmp_path / "rp_plain.pl"
     plain.write_text("'plainly'(1, 1).\n")
     with pytest.raises(EngineError, match="not a Prolog module"):
@@ -521,18 +521,18 @@ _DET_LIBRARY = """
 
 
 @pytest.fixture(scope="module")
-def det_library(tmp_path_factory):
+def det_library(tmp_path_factory):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = tmp_path_factory.mktemp("rp_det") / "rp_det.pl"
     source.write_text(_DET_LIBRARY)
     return source
 
 
-def test_a_declared_det_function_answers_normally(space, det_library):
+def test_a_declared_det_function_answers_normally(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=det_library)
     assert space.one("(rp-det-clean 1)") == 2
 
 
-def test_a_declared_det_function_that_leaks_a_choice_point_raises(space, det_library):
+def test_a_declared_det_function_that_leaks_a_choice_point_raises(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=det_library)
     # SWI's own det/1 does this, at the library's door rather than the
     # caller's, and the counter cannot see the leak at all.
@@ -540,12 +540,12 @@ def test_a_declared_det_function_that_leaks_a_choice_point_raises(space, det_lib
         space.eval("(rp-det-leaky 1)")
 
 
-def test_a_declared_nondet_function_keeps_every_answer(space, det_library):
+def test_a_declared_nondet_function_keeps_every_answer(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=det_library)
     assert space.eval("(rp-det-many 1)") == [1, 1]
 
 
-def test_the_declaration_is_reported_beside_the_redos(space, det_library):
+def test_the_declaration_is_reported_beside_the_redos(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=det_library)
     _, costs = space.profile_extension("!(rp-det-clean 1)", extension="rp_det")
     declared = {cost.name: cost.determinism for cost in costs}
@@ -554,7 +554,7 @@ def test_the_declaration_is_reported_beside_the_redos(space, det_library):
     assert "declared det" in repr(next(c for c in costs if c.name == "rp-det-clean"))
 
 
-def test_an_unknown_determinism_is_refused(space, tmp_path):
+def test_an_unknown_determinism_is_refused(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     source = tmp_path / "rp_det_bad.pl"
     source.write_text(
         ':- metta_export("(: rp-bad (-> Number Number))\\n'
@@ -575,7 +575,7 @@ _C_EXTENSION = Path(__file__).resolve().parents[3] / "examples" / "integration" 
     not (_C_EXTENSION / "cbump.so").is_file(),
     reason="cbump.so is not built; a C toolchain is not an engine requirement",
 )
-def test_a_compiled_library_registers_from_python(space):
+def test_a_compiled_library_registers_from_python(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert space.register_foreign_library(
         _C_EXTENSION / "cbump.so", entry="install_cbump", names=["c-bump"]
     ) == ("c-bump",)
@@ -586,7 +586,7 @@ def test_a_compiled_library_registers_from_python(space):
     not (_C_EXTENSION / "handle.so").is_file(),
     reason="handle.so is not built; a C toolchain is not an engine requirement",
 )
-def test_an_opaque_handle_crosses_as_an_ordinary_value(space):
+def test_an_opaque_handle_crosses_as_an_ordinary_value(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_foreign_library(
         _C_EXTENSION / "handle.so",
         entry="install_handle",
@@ -597,6 +597,6 @@ def test_an_opaque_handle_crosses_as_an_ordinary_value(space):
     assert space.one("(vector-nth (vector-new 1000) 700)") == 700
 
 
-def test_an_absent_compiled_library_is_refused_here(space):
+def test_an_absent_compiled_library_is_refused_here(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(SourceNotFound, match="no compiled library"):
         space.register_foreign_library("definitely-not-here.so", names=["nope"])

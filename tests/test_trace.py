@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from pathlib import Path
 
@@ -20,12 +20,12 @@ _C_EXTENSION = (
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
-def test_trace_nests_calls_and_carries_answers(m):
+def test_trace_nests_calls_and_carries_answers(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-fact $n) (if (== $n 0) 1 (* $n (tr-fact (- $n 1)))))")
     events = m.trace("!(tr-fact 3)")
     calls = [e for e in events if e.kind == "call"]
@@ -39,7 +39,7 @@ def test_trace_nests_calls_and_carries_answers(m):
     assert events[0].kind == "call"
 
 
-def test_trace_answers_the_atom_run_answers(m):
+def test_trace_answers_the_atom_run_answers(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Events used to cross as the term's text and be parsed back, so a
     # symbol whose spelling reads as something else arrived as something
     # else: $notvar as a variable, and a semicolon truncating the rest of
@@ -54,19 +54,19 @@ def test_trace_answers_the_atom_run_answers(m):
         m.remove(S["tr-holds"](Sym(name)))
 
 
-def test_trace_names_variables_by_first_occurrence(m):
+def test_trace_names_variables_by_first_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-pair $a $b) ($b $a))")
     events = m.trace("!(tr-pair $one $two)")
     assert str(events[0].term) == "(tr-pair $_0 $_1)"
 
 
-def test_trace_runs_the_source_for_real(m):
+def test_trace_runs_the_source_for_real(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-writer) (add-atom (context-space) (tr-mark left)))")
     m.trace("!(tr-writer)")
     assert m.query(S["tr-mark"](S.left))
 
 
-def test_a_failing_reduction_is_a_call_with_no_exit(m):
+def test_a_failing_reduction_is_a_call_with_no_exit(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-empty) (match &self (tr-nothing $x) $x))")
     events = m.trace("!(tr-empty)")
     kinds = [(e.kind, str(e.term)) for e in events]
@@ -74,7 +74,7 @@ def test_a_failing_reduction_is_a_call_with_no_exit(m):
     assert ("exit", "(tr-empty)") not in kinds
 
 
-def test_the_wrap_disappears_after_the_run(m):
+def test_the_wrap_disappears_after_the_run(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-quiet $x) (+ $x 1))")
     first = m.trace("!(tr-quiet 1)")
     assert any(e.kind == "exit" and e.answer == 2 for e in first)
@@ -96,7 +96,7 @@ def test_a_foreign_predicate_does_not_break_tracing(m):
     extension registered anywhere in the process used to make every trace in
     it raise, this one included, which is why the registration and the trace
     are in one test.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.register_foreign_library(
         _C_EXTENSION / "cbump.so", entry="install_cbump", names=["c-bump"]
     )

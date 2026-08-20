@@ -3,7 +3,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -15,7 +15,7 @@ import pytest
 from petta import cli
 
 
-def test_package_import_does_not_require_janus():
+def test_package_import_does_not_require_janus():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     program = (
         "import importlib\n"
         "real_import_module = importlib.import_module\n"
@@ -37,7 +37,7 @@ def test_package_import_does_not_require_janus():
     assert done.returncode == 0, done.stderr
 
 
-def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
+def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime = tmp_path / "runtime with spaces"
     main_file = runtime / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
@@ -73,7 +73,7 @@ def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
     backends. Which backends exist is backends/*.pl now, and whether one is
     usable is that backend's own business. The preload went with it: a backend
     opens its own library with global symbol visibility.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     runtime = tmp_path / "runtime"
     call = Mock(return_value=0)
     monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
@@ -87,7 +87,7 @@ def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
     assert "env" not in call.call_args.kwargs
 
 
-def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):
+def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime = tmp_path / "runtime"
     main_file = runtime / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)

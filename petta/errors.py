@@ -13,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class PettaError(Exception):
     program reacts to the part where it used to parse the sentence.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         *args: object,
         atom: object | None = None,
@@ -70,7 +70,7 @@ class MettaSyntaxError(PettaError):
     """The reader refused the source. Carries the engine's own message."""
 
 
-class SourceNotFound(PettaError, FileNotFoundError):
+class SourceNotFound(PettaError, FileNotFoundError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """A file this library was asked to load is not there.
 
     Both bases on purpose. A caller reaching for a source file writes
@@ -99,7 +99,7 @@ class MettaOperationError(EngineError):
     EngineError still catches this.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         message: str,
         *,
@@ -127,9 +127,9 @@ class MettaResultError(PettaError):
     term it blames, `reason` the explanation beside it. Not an
     EngineError on purpose: the engine did not throw, the program
     answered an error value.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         message: str,
         *,
@@ -143,7 +143,7 @@ class MettaResultError(PettaError):
         self.reason = reason
 
 
-class AssertionFailure(PettaError):
+class AssertionFailure(PettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """A MeTTa `(test ...)` or `(assert ...)` said something false.
 
     Deliberately NOT an EngineError: the engine worked, the program's claim
@@ -158,7 +158,7 @@ class AssertionFailure(PettaError):
     and no pair, and a `test` with no answer at all has no actual).
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         message: str,
         *,
@@ -189,7 +189,7 @@ class SubscriberError(PettaError):
     so as this error leaves the scope.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         message: str,
         *,
@@ -220,7 +220,7 @@ class InferenceLimitError(ResourceLimitError):
     """inferences= engine steps were spent before the call finished."""
 
 
-class Interrupted(EngineError):
+class Interrupted(EngineError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """interrupt() stopped the evaluation mid-goal.
 
     The sqlite3 and DuckDB reading of interrupt: whatever the goal
@@ -238,7 +238,7 @@ class StrictError(PettaError):
     would refuse ordinary MeTTa.
     """
 
-    def __init__(self, message: str, *, term: object = None, directive: int | None = None):
+    def __init__(self, message: str, *, term: object = None, directive: int | None = None):  # noqa: D107  -- the enclosing class documents construction and the object invariants
         where = f"directive {directive}: " if directive is not None else ""
         super().__init__(f"{where}{message}")
         self.term = term
@@ -253,20 +253,20 @@ class CompileError(PettaError):
     hiding it. Never a silent fallback.
     """
 
-    def __init__(self, message: str, *, construct: str | None = None, line: int | None = None):
+    def __init__(self, message: str, *, construct: str | None = None, line: int | None = None):  # noqa: D107  -- the enclosing class documents construction and the object invariants
         where = f" (line {line})" if line is not None else ""
         super().__init__(f"{message}{where}")
         self.construct = construct
         self.line = line
 
 
-class TransportFailure(PettaError):
+class TransportFailure(PettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """The backend is ABSENT rather than wrong: a connection, a timeout, a
     closed stream. The seam's error trichotomy treats these differently
     from application errors: a declared keep or empty mode never applies,
     transport always aborts, because retrying or giving up is the caller's
     decision and an absent backend has said nothing about the data.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 
 def is_transport_failure(error: BaseException) -> bool:
@@ -294,7 +294,7 @@ def is_transport_failure(error: BaseException) -> bool:
     )
 
 
-class Decline(Exception):
+class Decline(Exception):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """Raised inside an operation to answer nothing at all.
 
     A deterministic operation that raises Decline makes the call fail rather

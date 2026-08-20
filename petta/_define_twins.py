@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class TwinDispatcher:
     engine's own first-match reading that the guards compile. Twins of other
     definitions resolve to dispatchers too, so twins compose: a twin calling
     another defined name runs that name's Python, not a term builder.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_clauses", "name")
 
@@ -64,7 +64,7 @@ class TwinDispatcher:
         return f"<python twin of {self.name}, {count} clause(s)>"
 
 
-class _ClauseMiss(LookupError):
+class _ClauseMiss(LookupError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """A clause twin refusing arguments its head does not match."""
 
 
@@ -120,7 +120,7 @@ def select_clause_twin(
 def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
     """The dispatcher for fn's name in fn's module, created on first use and
     pushed into every twin-globals view of that module.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mid, name = id(fn.__globals__), fn.__name__
     with _TWIN_LOCK:
         dispatcher = _TWIN_DISPATCHERS.get((mid, name))

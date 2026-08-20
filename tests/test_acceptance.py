@@ -10,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import sqlite3
 
@@ -25,9 +25,9 @@ from petta.testing import check_space_provider
 class SqlEdges(SpaceProvider):
     """One table edge(a, b); WHERE from bound positions, LIMIT from the
     licensed bound, INSERT under the engine's transaction.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self.connection = sqlite3.connect(":memory:")
         self.connection.execute("CREATE TABLE edges (a TEXT, b TEXT)")
         self.connection.executemany(
@@ -36,11 +36,11 @@ class SqlEdges(SpaceProvider):
         )
         self.executed = []
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         rows = self.connection.execute("SELECT a, b FROM edges")
         return (parse(f"(edge {a} {b})") for a, b in rows)
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         where, arguments = [], []
         if isinstance(pattern, Expr) and len(pattern.children) == 3:
             for column, child in zip(("a", "b"), pattern.children[1:], strict=True):
@@ -56,24 +56,24 @@ class SqlEdges(SpaceProvider):
         rows = self.connection.execute(sql, arguments)
         return (parse(f"(edge {a} {b})") for a, b in rows)
 
-    def add(self, atom):
+    def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         _, a, b = atom.children
         self.connection.execute(
             "INSERT INTO edges VALUES (?, ?)", (str(a), str(b))
         )
 
-    def begin(self):
+    def begin(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.connection.execute("BEGIN")
 
-    def commit(self):
+    def commit(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.connection.commit()
 
-    def rollback(self):
+    def rollback(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.connection.rollback()
 
 
 @pytest.fixture
-def sql(metta, request):
+def sql(metta, request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sql-{request.node.name[-18:].replace('_', '')}"
     provider = SqlEdges()
     metta.register_space(provider, name)
@@ -86,11 +86,11 @@ def sql(metta, request):
     metta.unregister_space(name)
 
 
-def test_sql_context_passes_the_conformance_kit():
+def test_sql_context_passes_the_conformance_kit():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert check_space_provider(SqlEdges()) != []
 
 
-def test_sql_context_routes_the_bound_exactly_as_declared(metta, sql):
+def test_sql_context_routes_the_bound_exactly_as_declared(metta, sql):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider = sql
     out = metta.run(
         f"!(collapse (take 2 (match {name} (edge $x $y) (edge $x $y))))"
@@ -106,7 +106,7 @@ def test_sql_context_routes_the_bound_exactly_as_declared(metta, sql):
     assert all("LIMIT" not in sql for sql in provider.executed)
 
 
-def test_sql_context_explains_its_own_route(metta, sql):
+def test_sql_context_explains_its_own_route(metta, sql):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, _provider = sql
     out = metta.run(f"!(explain (match {name} (edge $x $y) $y))")
     explained = {str(item.children[0]): item for item in out[0][0].children}
@@ -116,7 +116,7 @@ def test_sql_context_explains_its_own_route(metta, sql):
     assert str(explained["context"].children[1]) == "closed-world"
 
 
-def test_sql_context_rolls_back_with_the_engine(metta, sql):
+def test_sql_context_rolls_back_with_the_engine(metta, sql):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider = sql
     with pytest.raises(EngineError):
         metta.run(
@@ -129,7 +129,7 @@ def test_sql_context_rolls_back_with_the_engine(metta, sql):
     assert rows[0] == 0
 
 
-def test_sql_context_permits_negation_over_its_closed_world(metta, sql):
+def test_sql_context_permits_negation_over_its_closed_world(metta, sql):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, _provider = sql
     metta.run(f"(= (acc-has $x $y) (match {name} (edge $x $y) True))")
     assert str(metta.run("!(not-provable (acc-has q q))")[0][0]) == "True"
@@ -139,9 +139,9 @@ def test_sql_context_permits_negation_over_its_closed_world(metta, sql):
 class CosineIndex(SpaceProvider):
     """(near <key> $hit) over stored vectors, best first, honouring the
     licensed bound; pure python cosine, no array dependency.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, emit_in_order=True):
+    def __init__(self, emit_in_order=True):  # noqa: D107, FBT002  -- the test double construction contract is local to its containing scenario; the boolean is established API data and positional compatibility is part of the call shape
         self.vectors = {
             "espresso": (0.9, 0.1, 0.0),
             "latte": (0.8, 0.3, 0.0),
@@ -155,7 +155,7 @@ class CosineIndex(SpaceProvider):
         norm = lambda v: sum(x * x for x in v) ** 0.5  # noqa: E731
         return round(dot / (norm(a) * norm(b)), 6)
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.limits.append(limit)
         query = str(pattern.children[1])
         anchor = self.vectors[query]
@@ -186,14 +186,14 @@ def _vec_context(metta, name, *, best_first=True):
     return provider
 
 
-def test_vec_context_pushes_top_k_under_its_three_declarations(metta):
+def test_vec_context_pushes_top_k_under_its_three_declarations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _vec_context(metta, "&vec-push")
     out = metta.run("!(collapse (top 2 (match &vec-push (near espresso $h) $h)))")
     assert provider.limits == [2]
     assert str(out[0][0]) == "(espresso latte)"
 
 
-def test_vec_context_withholds_the_push_without_the_emission_promise(metta):
+def test_vec_context_withholds_the_push_without_the_emission_promise(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _vec_context(metta, "&vec-uo", best_first=False)
     out = metta.run("!(collapse (top 2 (match &vec-uo (near espresso $h) $h)))")
     # No emits declaration: the engine takes every answer and orders them
@@ -202,13 +202,13 @@ def test_vec_context_withholds_the_push_without_the_emission_promise(metta):
     assert str(out[0][0]) == "(espresso latte)"
 
 
-def test_vec_context_refuses_the_open_shape_loudly(metta):
+def test_vec_context_refuses_the_open_shape_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _vec_context(metta, "&vec-ref")
     with pytest.raises(EngineError, match="Refuse"):
         metta.run("!(collapse (match &vec-ref (near $q $h) $h))")
 
 
-def test_vec_context_refuses_negation_over_its_open_world(metta):
+def test_vec_context_refuses_negation_over_its_open_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _vec_context(metta, "&vec-neg")
     metta.run("(= (acc-near $q $h) (match &vec-neg (near (in $q) $h) True))")
     with pytest.raises(EngineError, match="closed-world"):

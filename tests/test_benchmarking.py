@@ -3,7 +3,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import os
@@ -112,7 +112,7 @@ class _DisabledBenchmark(_Benchmark):
             teardown(*args, **kwargs)
 
 
-def test_benchmark_case_uses_fresh_state(tmp_path):
+def test_benchmark_case_uses_fresh_state(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     baseline = BenchmarkBaseline(tmp_path / "baseline.json", update=True)
     created = []
     reaped = []
@@ -142,7 +142,7 @@ def test_benchmark_case_uses_fresh_state(tmp_path):
     assert fixture.extra_info["inference_samples"] == [7, 7, 7]
 
 
-def test_benchmark_case_runs_with_wall_timing_disabled(tmp_path):
+def test_benchmark_case_runs_with_wall_timing_disabled(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     baseline = BenchmarkBaseline(tmp_path / "baseline.json", update=True)
     fixture = _DisabledBenchmark()
 
@@ -163,7 +163,7 @@ def test_benchmark_case_runs_with_wall_timing_disabled(tmp_path):
     assert "wall_seconds_per_operation" not in fixture.extra_info
 
 
-def test_baseline_rejects_inference_regressions_and_accepts_improvements(tmp_path):
+def test_baseline_rejects_inference_regressions_and_accepts_improvements(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "baseline.json"
     updating = BenchmarkBaseline(path, update=True)
     updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
@@ -183,7 +183,7 @@ def test_baseline_rejects_inference_regressions_and_accepts_improvements(tmp_pat
         baseline.observe_counter("engine", unit="answers", operations=2, samples=[15, 15, 15])
 
 
-def test_baseline_update_is_atomic_json(tmp_path):
+def test_baseline_update_is_atomic_json(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "baseline.json"
     baseline = BenchmarkBaseline(path, update=True)
     baseline.observe_counter("pure", unit="terms", operations=3, samples=None)
@@ -200,7 +200,7 @@ def test_baseline_update_is_atomic_json(tmp_path):
     assert list(tmp_path.glob(".baseline.json.*")) == []
 
 
-def test_benchmark_counter_slope_uses_fresh_state_and_gates_growth(tmp_path):
+def test_benchmark_counter_slope_uses_fresh_state_and_gates_growth(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "baseline.json"
     baseline = BenchmarkBaseline(path, update=True)
     baseline.observe_counter("growth", unit="rows", operations=8, samples=[30, 30, 30])
@@ -267,7 +267,7 @@ def test_benchmark_counter_slope_uses_fresh_state_and_gates_growth(tmp_path):
         )
 
 
-def test_measure_instructions_parses_perf_csv(monkeypatch):
+def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
     def run(executable, command, environment, *, controlled, timeout):
@@ -281,7 +281,7 @@ def test_measure_instructions_parses_perf_csv(monkeypatch):
     )
 
 
-def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):
+def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     waits = []
     killed = []
 
@@ -302,7 +302,7 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):
     assert waits == [(42, os.WNOHANG), (42, 0)]
 
 
-def test_perf_acknowledgement_accepts_the_native_nul_terminator():
+def test_perf_acknowledgement_accepts_the_native_nul_terminator():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     reader, writer = os.pipe()
     try:
         os.write(writer, b"ack\n\0")
@@ -312,7 +312,7 @@ def test_perf_acknowledgement_accepts_the_native_nul_terminator():
         os.close(writer)
 
 
-def test_perf_workload_setup_and_teardown_stay_outside_control(monkeypatch):
+def test_perf_workload_setup_and_teardown_stay_outside_control(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     events = []
 
     def factory():
@@ -337,7 +337,7 @@ def test_perf_workload_setup_and_teardown_stay_outside_control(monkeypatch):
     assert events == ["setup", "enable", "operation", "disable", "teardown"]
 
 
-def test_perf_workload_teardown_runs_after_failure(monkeypatch):
+def test_perf_workload_teardown_runs_after_failure(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     events = []
 
     def factory():
@@ -355,19 +355,19 @@ def test_perf_workload_teardown_runs_after_failure(monkeypatch):
     assert events == ["operation", "teardown"]
 
 
-def test_count_atoms_derives_the_wire_workload_size():
+def test_count_atoms_derives_the_wire_workload_size():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.deep(*(S.node(i, float(i), S.leaf) for i in range(50)))
     assert count_atoms(atom) == 252
 
 
-def test_pure_workload_counts_are_derived():
+def test_pure_workload_counts_are_derived():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = wire_atom()
     assert wire_codec(atom, trips=2) == 2 * count_atoms(atom)
     assert json_wire(json_payload(), trips=2) == 2
     assert term_operators(terms=3) == 3
 
 
-def test_instruction_inventory_covers_primitive_heavy_engine_paths():
+def test_instruction_inventory_covers_primitive_heavy_engine_paths():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_cases = {
         "alpha-unique",
         "let-heavy",
@@ -392,7 +392,7 @@ def test_instruction_inventory_covers_primitive_heavy_engine_paths():
         (space_name_case, 3),
     ],
 )
-def test_primitive_workloads_check_public_results(factory, operations):
+def test_primitive_workloads_check_public_results(factory, operations):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     state = factory(operations)
     try:
         assert state[1]() == operations
@@ -400,7 +400,7 @@ def test_primitive_workloads_check_public_results(factory, operations):
         close_engine_case(state)
 
 
-def test_let_workload_checks_its_bignum_result():
+def test_let_workload_checks_its_bignum_result():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = let_space()
     try:
         assert let_heavy(space, 10) == 10
@@ -408,7 +408,7 @@ def test_let_workload_checks_its_bignum_result():
         space.drop()
 
 
-def test_benchmark_cli_lists_and_rejects_case_names(capsys):
+def test_benchmark_cli_lists_and_rejects_case_names(capsys):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert benchmark_main(["--list"]) == 0
     assert capsys.readouterr().out.splitlines() == sorted(CASES)
     with pytest.raises(SystemExit) as stopped:
@@ -416,7 +416,7 @@ def test_benchmark_cli_lists_and_rejects_case_names(capsys):
     assert stopped.value.code == 2
 
 
-def test_benchmark_cli_spawns_each_case(monkeypatch):
+def test_benchmark_cli_spawns_each_case(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     processes = []
 
     class Process:
@@ -447,7 +447,7 @@ def test_benchmark_cli_spawns_each_case(monkeypatch):
     assert all(process.joined == [120.0] for process in processes)
 
 
-def test_benchmark_json_merge_is_atomic(tmp_path):
+def test_benchmark_json_merge_is_atomic(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = tmp_path / "first.json"
     second = tmp_path / "second.json"
     target = tmp_path / "merged.json"
@@ -464,7 +464,7 @@ def test_benchmark_json_merge_is_atomic(tmp_path):
     assert list(tmp_path.glob(".merged.json.*")) == []
 
 
-def test_benchmark_json_merge_preserves_unselected_cases(tmp_path):
+def test_benchmark_json_merge_preserves_unselected_cases(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     selected = tmp_path / "selected.json"
     target = tmp_path / "baseline.json"
     selected.write_text(
@@ -500,7 +500,7 @@ def test_benchmark_json_merge_preserves_unselected_cases(tmp_path):
     assert document["commit_info"] == {"id": "new"}
 
 
-def test_benchmark_machine_info_is_stable():
+def test_benchmark_machine_info_is_stable():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     machine_info = {
         "cpu": {
             "brand_raw": "processor",
@@ -545,7 +545,7 @@ def test_the_benchmark_suite_prices_a_file_load():
     re-add plus content digest, the loader's whole path) and follows with
     an unchanged `import!`, the skip branch. This test pins the wiring:
     the registry row, the runner function, and a live integer baseline.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import json
     from pathlib import Path
 

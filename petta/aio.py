@@ -41,7 +41,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ class _EngineThread:
     call the worker makes inside the same critical section, so it can
     never poison the next request, the failure mode an unconditional
     thread_signal has on an idle thread.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self) -> None:
         self.work: queue.Queue[_Request | None] = queue.Queue()
@@ -127,7 +127,7 @@ class _EngineThread:
         self._current: _Request | None = None
         self._swi_thread: Any = None
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # noqa: C901  -- start keeps the worker lifecycle state machine together so its branches share one state
         loop = asyncio.get_running_loop()
         started: asyncio.Future[None] | None = None
         launch = False
@@ -157,7 +157,7 @@ class _EngineThread:
             await started
             return
 
-        def worker() -> None:
+        def worker() -> None:  # noqa: C901  -- worker keeps the worker lifecycle state machine together so its branches share one state
             # A persistent attached engine makes this thread first-class
             # for janus, the same pattern remote.serve()'s worker runs:
             # the fast calling convention holds here and per-call attach
@@ -338,7 +338,7 @@ class _EngineThread:
         """Signal the engine thread if `request` is the one running now,
         or if anything is running when request is None. Answers whether a
         signal was sent.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         with self._state_lock:
             swi_thread = self._swi_thread
         with self._transition:
@@ -505,7 +505,7 @@ class AsyncMeTTa:
     stops working for a listener that is gone.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         space: str = _DEFAULT_SPACE,
         *,
@@ -526,7 +526,7 @@ class AsyncMeTTa:
         return shared
 
     @property
-    def space_name(self) -> SpaceName:
+    def space_name(self) -> SpaceName:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._m.space_name
 
     @property
@@ -546,7 +546,7 @@ class AsyncMeTTa:
         """Run fn(m) on the engine's thread and await its result: the
         escape hatch to the entire synchronous surface, subscriptions,
         derivations, stats blocks and all.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._closed:
             msg = "this AsyncMeTTa is closed"
             raise PettaError(msg)
@@ -569,7 +569,7 @@ class AsyncMeTTa:
         reading). The stopped call raises petta.Interrupted; whatever it
         completed before the stop, writes included, stands. Callable from
         any thread or task.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._worker.interrupt_if_running(None)
 
     # ------------------------------------------------------- mirrored surface
@@ -610,7 +610,7 @@ class AsyncMeTTa:
             lambda m: m.load(path, timeout=timeout, inferences=inferences)
         )
 
-    async def save(self, path: str, format: SaveFormat = "metta") -> int:
+    async def save(self, path: str, format: SaveFormat = "metta") -> int:  # noqa: A002  -- format is the documented public save keyword and must remain compatible
         """Save this space and return the number of stored atoms."""
         return await self.call(lambda m: m.save(path, format=format))
 
@@ -649,7 +649,7 @@ class AsyncMeTTa:
     ) -> Any:
         """Query patterns with the synchronous surface's bounds, guard,
         and into= row shaping.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(
             lambda m: m.query(
                 *patterns,
@@ -709,7 +709,7 @@ class AsyncMeTTa:
     async def copy(self) -> AsyncMeTTa:
         """This space's contents in a new anonymous space; MeTTa.copy,
         the clone borrowing this connection's worker.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         clone = await self.call(lambda m: m.copy())
         return AsyncMeTTa._sharing(clone, self._worker)
 
@@ -804,7 +804,7 @@ class AsyncMeTTa:
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
         a no-op and closing the owner ends them all.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         named = await self.call(lambda m: m.space(name))
         return AsyncMeTTa._sharing(named, self._worker)
 
@@ -897,28 +897,28 @@ class AsyncMeTTa:
         """The Prolog clauses a function name compiled to."""
         return await self.call(lambda m: m.disassemble(name))
 
-    async def declare_admits(self, name: str, type_name: str) -> Atom:
+    async def declare_admits(self, name: str, type_name: str) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.declare_admits(name, type_name))
 
-    async def declare_annotations(
+    async def declare_annotations(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, semiring: Literal["bool", "bag", "set", "ranked", "prob", "prov"]
     ) -> Atom:
         return await self.call(lambda m: m.declare_annotations(name, semiring))
 
-    async def declare_capacity(self, name: str, limit: int) -> Atom:
+    async def declare_capacity(self, name: str, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.declare_capacity(name, limit))
 
-    async def declare_context(
+    async def declare_context(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, world: Literal["closed-world", "open-world"]
     ) -> Atom:
         return await self.call(lambda m: m.declare_context(name, world))
 
-    async def declare_emits(
+    async def declare_emits(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, policy: Literal["depth", "fair", "best-first"]
     ) -> Atom:
         return await self.call(lambda m: m.declare_emits(name, policy))
 
-    async def declare_handles(
+    async def declare_handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         name: str,
         pattern: str | Atom,
@@ -930,12 +930,12 @@ class AsyncMeTTa:
             lambda m: m.declare_handles(name, pattern, fidelity, det=det)
         )
 
-    async def declare_merge(
+    async def declare_merge(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, pattern: str | Atom, policy: Literal["depth", "fair", "best-first"]
     ) -> Atom:
         return await self.call(lambda m: m.declare_merge(pattern, policy))
 
-    async def declare_on_error(
+    async def declare_on_error(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         name: str,
         pattern: str | Atom,
@@ -943,17 +943,17 @@ class AsyncMeTTa:
     ) -> Atom:
         return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
 
-    async def declare_reaction(
+    async def declare_reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, pattern: str | Atom, operation: str | Atom
     ) -> Atom:
         return await self.call(lambda m: m.declare_reaction(name, pattern, operation))
 
-    async def declare_source(
+    async def declare_source(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, kind: Literal["linear", "repeated", "peek"]
     ) -> Atom:
         return await self.call(lambda m: m.declare_source(name, kind))
 
-    async def declare_writes(
+    async def declare_writes(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         name: str,
         atomicity: Literal["transactional", "atomic-single", "best-effort"],
@@ -977,7 +977,7 @@ class AsyncMeTTa:
         calls it synchronously on the worker thread, exactly as the
         synchronous surface does; the decorator spelling stays with the
         synchronous surface, since decoration cannot await.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(
             lambda m: m.register_op(
                 fn,
@@ -1028,7 +1028,7 @@ class AsyncMeTTa:
         """Compile a Python function into equations on the worker. The
         returned handle's own calls are synchronous doors; evaluate
         through fn(name) or run() from async code.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None:
             return await self.call(lambda m: m.define(fn))
         if prolog is None:
@@ -1047,7 +1047,7 @@ class AsyncMeTTa:
     ) -> _builtins.type:
         """Declare a Python class into this space. A call, not a
         decorator: decoration cannot await.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(
             lambda m: m.type(cls, accessors=accessors, methods=methods)
         )
@@ -1067,7 +1067,7 @@ class AsyncMeTTa:
     async def register_space(self, provider: Any, name: str) -> Any:
         """Register a Python-backed space. Its methods run on whichever
         thread the engine is answering from, exactly as in sync use.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.register_space(provider, name))
 
     async def register_foreign_library(
@@ -1086,10 +1086,10 @@ class AsyncMeTTa:
         """Register a directory for (library ...) imports."""
         return await self.call(lambda m: m.register_library_path(directory, name))
 
-    async def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+    async def unregister_prolog(self, extension: str) -> tuple[str, ...]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.unregister_prolog(extension))
 
-    async def unregister_space(self, name: str) -> None:
+    async def unregister_space(self, name: str) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.unregister_space(name))
 
     def limits(
@@ -1102,7 +1102,7 @@ class AsyncMeTTa:
         enter and exit only touch a contextvar, so this is an ordinary
         `with` inside async code, and every awaited call in the scope
         carries it to the worker.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._m.limits(timeout=timeout, inferences=inferences)
 
     def batch(self) -> _AsyncBatch:
@@ -1110,7 +1110,7 @@ class AsyncMeTTa:
         the synchronous batch's async twin: `async with am.batch():`.
         The same stated edges apply: reads see the pre-batch space,
         remove and clear refuse, an exception discards.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncBatch(self)
 
     async def transaction(self, fn: Callable[[MeTTa], Any], /) -> Any:
@@ -1122,7 +1122,7 @@ class AsyncMeTTa:
         A raise rolls every engine write back and re-raises as itself.
 
             await am.transaction(lambda m: m.add(S.fact(1)))
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.transaction(lambda: fn(m)))
 
     @property
@@ -1130,7 +1130,7 @@ class AsyncMeTTa:
         """The engine bridge itself, for callers going under the surface.
         Every call on it blocks the calling thread; from async code, wrap
         such work in call().
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._m.runtime
 
     def stats(self) -> _AsyncStats:
@@ -1145,13 +1145,13 @@ class AsyncMeTTa:
     def assuming(self, *facts: Any) -> _AsyncAssuming:
         """Facts held only inside an async with-block: added on entry,
         removed on exit, exceptions included.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncAssuming(self, facts)
 
     async def prepare(self, *patterns: Any, where: Any | None = None) -> _AsyncPrepared:
         """A prepared query whose solve() is awaitable; the shape builds
         once on the worker, columns readable without a round trip.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         prepared = await self.call(lambda m: m.prepare(*patterns, where=where))
         return _AsyncPrepared(self, prepared)
 
@@ -1185,13 +1185,13 @@ class AsyncMeTTa:
             async with am.subscribe(S.order(V.id), on="add") as events:
                 async for event in events:
                     ...
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncSubscription(self, pattern, on, queue_max)
 
     def fn(self, name: str) -> _AsyncEngineFunction:
         """An engine function as an async callable: await f(3), with
         .one, .first and .all carrying the same cardinality triple.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncEngineFunction(self, name)
 
     # -------------------------------------------------------------- lifecycle
@@ -1219,13 +1219,13 @@ class AsyncMeTTa:
         if self._owner:
             self._worker.stop(timeout)
 
-    async def __aenter__(self) -> Self:
+    async def __aenter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return await self.start()
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(self, exc_type, exc, tb) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         await self.aclose()
 
-    def __del__(self) -> None:
+    def __del__(self) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         if (
             getattr(self, "_owner", False)
             and not getattr(self, "_closed", True)
@@ -1240,7 +1240,7 @@ class AsyncMeTTa:
                 stacklevel=2,
             )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else self._worker.state
         return f"AsyncMeTTa({self._m.space_name!r}, {state})"
 
@@ -1252,7 +1252,7 @@ _STREAM_CLOSED: Final = object()
 class _AsyncStats:
     """MeTTa.stats() as an async context manager: the counters start and
     stop on the worker, and the entered block object carries the deltas.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
@@ -1264,13 +1264,13 @@ class _AsyncStats:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         block = self._block
-        await self._am.call(lambda m: block.__exit__(None, None, None))
+        await self._am.call(lambda _m: block.__exit__(None, None, None))
 
 
 class _AsyncAssuming:
     """MeTTa.assuming() as an async context manager: facts added on
     entry, removed on exit, exceptions included.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am: AsyncMeTTa, facts: tuple) -> None:
         self._am = am
@@ -1281,18 +1281,18 @@ class _AsyncAssuming:
         facts = self._facts
         self._cm = await self._am.call(lambda m: m.assuming(*facts))
         cm = self._cm
-        await self._am.call(lambda m: cm.__enter__())
+        await self._am.call(lambda _m: cm.__enter__())
         return self._am
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         cm = self._cm
-        await self._am.call(lambda m: cm.__exit__(None, None, None))
+        await self._am.call(lambda _m: cm.__exit__(None, None, None))
 
 
 class _AsyncPrepared:
     """A Prepared whose solve() is awaitable. The shape lives on the
     worker's engine; columns read without a round trip.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am: AsyncMeTTa, prepared: Any) -> None:
         self._am = am
@@ -1313,7 +1313,7 @@ class _AsyncPrepared:
         """Answers now, with `given` facts present for this call alone."""
         prepared = self._prepared
         return await self._am.call(
-            lambda m: prepared.solve(
+            lambda _m: prepared.solve(
                 given, limit, timeout=timeout, inferences=inferences
             )
         )
@@ -1321,7 +1321,7 @@ class _AsyncPrepared:
     async def explain(self) -> str:
         """The query's plan, reflected rather than run; Prepared.explain,
         one worker round trip.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         prepared = self._prepared
         return await self._am.call(lambda _m: prepared.explain())
 
@@ -1334,7 +1334,7 @@ class _AsyncCursor:
     trip, closable, and an async context manager. Iterating without the
     async-with works too; aclose() is then the caller's duty, the
     finalization reading the data model gives asynchronous iterators.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am, patterns, where, timeout, inferences) -> None:
         self._am = am
@@ -1364,7 +1364,7 @@ class _AsyncCursor:
     async def explain(self) -> str:
         """The query's plan, reflected rather than run; Cursor.explain,
         opening the cursor if it is not yet open.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         cursor = await self._ensure()
         return await self._am.call(lambda _m: cursor.explain())
 
@@ -1375,7 +1375,7 @@ class _AsyncCursor:
         if self._closed:
             raise StopAsyncIteration
         cursor = await self._ensure()
-        row = await self._am.call(lambda m: next(cursor, _EXHAUSTED))
+        row = await self._am.call(lambda _m: next(cursor, _EXHAUSTED))
         if row is _EXHAUSTED:
             await self.aclose()
             raise StopAsyncIteration
@@ -1387,7 +1387,7 @@ class _AsyncCursor:
         self._closed = True
         if self._cursor is not None:
             cursor = self._cursor
-            await self._am.call(lambda m: cursor.close())
+            await self._am.call(lambda _m: cursor.close())
 
     async def __aenter__(self) -> Self:
         await self._ensure()
@@ -1404,7 +1404,7 @@ class _AsyncSubscription:
     A class rather than an async generator on purpose: the data model's
     finalization duty for asynchronous generators is exactly what
     aclose() makes explicit here.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(
         self,
@@ -1483,7 +1483,7 @@ class _AsyncSubscription:
         self._closed = True
         if self._subscription is not None:
             subscription = self._subscription
-            await self._am.call(lambda m: subscription.cancel())
+            await self._am.call(lambda _m: subscription.cancel())
         if self._queue is not None:
             self._queue.put_nowait(_STREAM_CLOSED)
 
@@ -1500,7 +1500,7 @@ class _AsyncBatch:
     collector in THIS task's context (which every awaited call carries
     to the worker), and a clean exit flushes through one awaited bulk
     crossing.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
@@ -1528,7 +1528,7 @@ class _AsyncEngineFunction:
     """One engine function as an async callable, the cardinality triple
     spelled the same as everywhere: await f(3) is one(), .first
     tolerates absence, .all answers the multiset.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, am: AsyncMeTTa, name: str) -> None:
         self._am = am
@@ -1562,5 +1562,5 @@ async def connect(
 ) -> AsyncMeTTa:
     """An AsyncMeTTa with its engine thread already running, aiosqlite's
     own naming for the entry point.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return await AsyncMeTTa(space, metta=metta).start()

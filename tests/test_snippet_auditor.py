@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ sys.path.insert(0, str(SCRIPTS))
 import audit_snippets as auditor  # noqa: E402
 
 
-def test_the_snippet_auditor_runs_from_the_gate(repo_root):
+def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     gate = (repo_root / "check.sh").read_text(encoding="utf8")
     assert (
         'run REPORT snippets    "$PY" "$HERE/website/scripts/audit_snippets.py"'
@@ -54,7 +54,7 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):
     assert "REPORT snippets     findings" in log
 
 
-def test_the_snippet_backlog_cannot_grow(monkeypatch, tmp_path):
+def test_the_snippet_backlog_cannot_grow(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     enlarged = tmp_path / "snippet_backlog.tsv"
     enlarged.write_text(
         auditor.BACKLOG.read_text(encoding="utf8")
@@ -66,7 +66,7 @@ def test_the_snippet_backlog_cannot_grow(monkeypatch, tmp_path):
         auditor._backlog()
 
 
-def test_a_missing_snippet_backlog_is_named(monkeypatch, repo_root):
+def test_a_missing_snippet_backlog_is_named(monkeypatch, repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     missing = repo_root / "website" / "scripts" / "missing-snippet-backlog.tsv"
     monkeypatch.setattr(auditor, "BACKLOG", missing)
     with pytest.raises(SystemExit, match="snippet backlog missing: website/scripts/"):

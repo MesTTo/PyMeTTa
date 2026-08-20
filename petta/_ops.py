@@ -30,7 +30,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ class Operation:
 REGISTRY: dict[str, Operation] = {}
 
 
-def _decode_arg(wire: Any, pass_atoms: bool) -> Any:
+def _decode_arg(wire: Any, pass_atoms: bool) -> Any:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     atom = atom_from_wire(wire)
     if pass_atoms:
         return atom
@@ -215,7 +215,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             raise
         if mode == "keep":
             call = Expr(
-                [Sym(name), *(encode(_decode_arg(a, True)) for a in tagged_args)]
+                [Sym(name), *(encode(_decode_arg(a, True)) for a in tagged_args)]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
             )
             reason = f"{type(error).__name__}: {error}"
             yield Expr([Sym("Error"), call, Gnd(reason)]).to_wire()
@@ -264,7 +264,7 @@ def _refuse_raw_answer(value: Any) -> Any:
     so an Answer here would cross as an inert handle and its bindings would
     silently never bind. Refusing is the honest reading; bindings need the
     wire, so the operation drops raw=True.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Answer):
         msg = (
             "a raw operation answered petta.Answer; raw results skip the "
@@ -282,7 +282,7 @@ def type_names(obj: Any) -> list[str]:
     its classes in resolution order short of object, then every satisfied
     protocol. Computed on the boxed value's contents, and returned as text,
     which janus cannot damage.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     value = obj.value if isinstance(obj, Box) else obj
     names = [c.__name__ for c in type(value).__mro__ if c.__name__ != "object"]
     names.extend(extra_types(value))

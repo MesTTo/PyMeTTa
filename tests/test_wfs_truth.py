@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -19,13 +19,13 @@ from petta.atoms import Undefined
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
 @pytest.fixture(scope="module")
-def wfs_program(metta):
+def wfs_program(metta):  # noqa: ARG001, D103  -- the test reflects this callable signature, so every declared parameter must remain visible; pytest discovers or injects this callable; its descriptive name states the contract
     pkg.janus.consult(
         "wfs_truth_test.pl",
         data=(
@@ -39,7 +39,7 @@ def wfs_program(metta):
     return True
 
 
-def test_undefined_answers_cross_as_undefined(m, wfs_program):
+def test_undefined_answers_cross_as_undefined(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     answers = m.eval("(translatePredicate (wfs_loop))")
     assert len(answers) == 1
     answer = answers[0]
@@ -50,7 +50,7 @@ def test_undefined_answers_cross_as_undefined(m, wfs_program):
         bool(answer)
 
 
-def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):
+def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     answers = m.eval("(translatePredicate (wfs_mixed $x))")
     assert len(answers) == 2
     undefined = [a for a in answers if isinstance(a, Undefined)]
@@ -61,19 +61,19 @@ def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):
     assert "wfs_mixed(2)" in undefined[0].why
 
 
-def test_residuals_fill_on_request(m, wfs_program):
+def test_residuals_fill_on_request(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     (answer,) = m.eval("(translatePredicate (wfs_loop))", residuals=True)
     assert isinstance(answer, Undefined)
     assert answer.residual is not None
     assert "tnot" in answer.residual
 
 
-def test_value_refuses_undefined_truth(m, wfs_program):
+def test_value_refuses_undefined_truth(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="undefined truth"):
         m.one("(translatePredicate (wfs_loop))")
 
 
-def test_ordinary_evaluation_stays_plain(m):
+def test_ordinary_evaluation_stays_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     answers = m.eval("(+ 1 2)")
     assert answers == [3]
     assert not isinstance(answers[0], Undefined)

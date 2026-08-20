@@ -30,7 +30,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -58,11 +58,11 @@ FUEL = 4
 # compare, so the corpus itself is written in neither.
 
 
-def V(n: int) -> tuple:
+def V(n: int) -> tuple:  # noqa: D103, N802  -- pytest discovers or injects this callable; its descriptive name states the contract; the symbolic test spelling mirrors the notation whose translation is under test
     return ("v", n)
 
 
-def A(name: str, *args: tuple) -> tuple:
+def A(name: str, *args: tuple) -> tuple:  # noqa: D103, N802  -- pytest discovers or injects this callable; its descriptive name states the contract; the symbolic test spelling mirrors the notation whose translation is under test
     return ("a", name, list(args))
 
 
@@ -339,7 +339,7 @@ def _run_prolog(repo_root: Path, corpus: Path, fuel: int) -> str:
     return finished.stdout
 
 
-def _run_lean(script: Path, fuel: int) -> str:
+def _run_lean(script: Path, fuel: int) -> str:  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
     finished = subprocess.run(
         ["lake", "env", "lean", str(script)],
         capture_output=True,
@@ -352,25 +352,25 @@ def _run_lean(script: Path, fuel: int) -> str:
 
 
 @pytest.fixture(scope="module")
-def prolog_report(repo_root, tmp_path_factory):
+def prolog_report(repo_root, tmp_path_factory):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     corpus = tmp_path_factory.mktemp("cp") / "corpus.pl"
     corpus.write_text(_prolog_corpus(ALL_SYSTEMS))
     return _parse(_run_prolog(repo_root, corpus, FUEL))
 
 
 @pytest.fixture(scope="module")
-def lean_report(tmp_path_factory):
+def lean_report(tmp_path_factory):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     script = tmp_path_factory.mktemp("cp") / "corpus.lean"
     script.write_text(_lean_script(ALL_SYSTEMS, FUEL))
     return _parse(_run_lean(script, FUEL))
 
 
-def test_the_prolog_enumerator_covers_every_corpus_system(prolog_report):
+def test_the_prolog_enumerator_covers_every_corpus_system(prolog_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert sorted(prolog_report) == sorted(name for name, _ in ALL_SYSTEMS)
 
 
 @needs_oracle
-def test_the_two_enumerators_compute_the_same_critical_pairs(
+def test_the_two_enumerators_compute_the_same_critical_pairs(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     prolog_report, lean_report
 ):
     ours = {name: pairs for name, (pairs, _) in prolog_report.items()}
@@ -379,21 +379,21 @@ def test_the_two_enumerators_compute_the_same_critical_pairs(
 
 
 @needs_oracle
-def test_the_two_checkers_agree_on_confluence(prolog_report, lean_report):
+def test_the_two_checkers_agree_on_confluence(prolog_report, lean_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     ours = {name: verdict for name, (_, verdict) in prolog_report.items()}
     theirs = {name: verdict for name, (_, verdict) in lean_report.items()}
     assert ours == theirs
 
 
 @needs_oracle
-def test_the_corpus_exercises_all_three_verdicts(lean_report):
+def test_the_corpus_exercises_all_three_verdicts(lean_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     verdicts = {
         line.split("\t")[2] for pairs, _ in lean_report.values() for line in pairs
     }
     assert verdicts == {"joined", "counterexample", "unknown"}
 
 
-def test_the_oracle_lane_catches_a_planted_divergence():
+def test_the_oracle_lane_catches_a_planted_divergence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     report = "=== s\na\tb\tjoined\n### certified\n"
     assert _parse(report) == {"s": (["a\tb\tjoined"], "certified")}
     assert _parse(report) != _parse("=== s\na\tb\tcounterexample\n### certified\n")

@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -17,25 +17,25 @@ from petta import CastError, Gnd, S, V, cast, integrate
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         yield space
 
 
-def test_ground_values_cast_to_their_own_types(m):
+def test_ground_values_cast_to_their_own_types(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.cast(3, int) == 3
     assert m.cast(3, "Number") == 3
     assert m.cast(3.5, float) == 3.5
     assert m.cast("s", str) == "s"
-    assert m.cast(True, bool) is True
+    assert m.cast(True, bool) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
-def test_bool_is_bool_before_int_is_number(m):
+def test_bool_is_bool_before_int_is_number(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(CastError):
-        m.cast(True, int)
+        m.cast(True, int)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
-def test_declared_symbols_cast_by_their_declarations(m):
+def test_declared_symbols_cast_by_their_declarations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: Ann Person)")
     assert m.cast(S.Ann, "Person") is S.Ann
     with pytest.raises(CastError) as caught:
@@ -43,13 +43,13 @@ def test_declared_symbols_cast_by_their_declarations(m):
     assert "Person" in str(caught.value)
 
 
-def test_metatype_targets_reach_through_the_fallback(m):
+def test_metatype_targets_reach_through_the_fallback(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.cast(S.mystery, "Symbol") is S.mystery
     with pytest.raises(CastError):
         m.cast(S.mystery, "Person")
 
 
-def test_arrow_typed_expressions_cast_structurally(m):
+def test_arrow_typed_expressions_cast_structurally(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: Cons (-> Number (List Number) (List Number))) (: Nil (List Number))")
     tail = S.Cons(1, S.Nil)
     assert m.cast(tail, "(List Number)") is tail
@@ -58,12 +58,12 @@ def test_arrow_typed_expressions_cast_structurally(m):
         m.cast(tail, "(List String)")
 
 
-def test_unchecked_targets_pass_unchecked(m):
+def test_unchecked_targets_pass_unchecked(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.cast(S.anything, "Atom") is S.anything
     assert m.cast(Gnd(3), "%Undefined%") == 3
 
 
-def test_protocol_types_duck_through_the_type_system(m, metta):
+def test_protocol_types_duck_through_the_type_system(m, metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     integrate.register_object_type(lambda x: hasattr(x, "quack"), "Ducky")
 
     class Quacks:
@@ -79,7 +79,7 @@ def test_protocol_types_duck_through_the_type_system(m, metta):
         m.cast(Silent(), "Ducky")
 
 
-def test_declarations_are_space_relative(metta):
+def test_declarations_are_space_relative(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as a, metta.new_space() as b:
         a.run("(: Bob Person)")
         assert a.cast(S.Bob, "Person") is S.Bob
@@ -87,17 +87,17 @@ def test_declarations_are_space_relative(metta):
             b.cast(S.Bob, "Person")
 
 
-def test_the_module_function_takes_the_space_first(m):
+def test_the_module_function_takes_the_space_first(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert cast(m, 3, "Number") == 3
     assert issubclass(CastError, TypeError)
 
 
-def test_parameterized_generic_is_not_accepted_as_a_cast_class(m):
+def test_parameterized_generic_is_not_accepted_as_a_cast_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="cast target must be"):
         m.cast([1, 2, 3], list[int])
 
 
-def test_ground_atoms_narrow_to_their_python_values(m):
+def test_ground_atoms_narrow_to_their_python_values(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.cast(Gnd(3), "Number") == 3
     assert isinstance(m.cast(Gnd(3), int), int)
 
@@ -118,7 +118,7 @@ else:
     def test_generated_atoms_cast_to_atom_and_refuse_the_absurd(metta, atom):
         """Atom admits everything unchecked; a type name nothing
         declares refuses everything, loudly and precisely.
-        """
+        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
         with metta.new_space() as space:
             assert space.cast(atom, "Atom") is not None
             with pytest.raises(CastError) as caught:

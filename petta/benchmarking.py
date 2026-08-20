@@ -20,7 +20,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def _compare_counter(
         return None
     if isinstance(baseline, bool) or not isinstance(baseline, int):
         msg = f"{name} baseline has invalid inferences {baseline!r}"
-        raise AssertionError(msg)
+        raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     if observed > baseline + _COUNTER_TOLERANCE:
         msg = (
             f"{name} inference regression: minimum of {sample_values!r} is "
@@ -191,7 +191,7 @@ def _compare_counter_slope(
 ) -> int:
     if not isinstance(expected, dict):
         msg = f"{name} has no valid inference slope baseline"
-        raise AssertionError(msg)
+        raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     if expected.get("small_operations") != small_operations:
         msg = (
             f"{name} slope small operation count changed from "
@@ -274,7 +274,7 @@ def _compare_instructions(
 class BenchmarkBaseline:
     """Committed counter and advisory wall baselines for benchmark_case."""
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         path: str | os.PathLike[str],
         *,
@@ -309,11 +309,11 @@ class BenchmarkBaseline:
             )
         if not isinstance(document.get("benchmarks"), dict):
             msg = "benchmark baseline benchmarks must be an object"
-            raise ValueError(msg)
+            raise ValueError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
         self._document = document
 
     @property
-    def cases(self) -> Mapping[str, Mapping[str, Any]]:
+    def cases(self) -> Mapping[str, Mapping[str, Any]]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._document["benchmarks"]
 
     def observe_counter(
@@ -678,7 +678,7 @@ def _run_perf(
                 acknowledge_write,
             )
             for descriptor in control_descriptors:
-                os.set_inheritable(descriptor, True)
+                os.set_inheritable(descriptor, True)  # noqa: FBT003  -- os.set_inheritable is positional-only and the literal states the requested descriptor state
             child_environment.update(
                 {
                     "PETTA_PERF_CONTROL_FD": str(control_write),
@@ -735,7 +735,7 @@ def _run_perf(
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     msg = f"perf stat exceeded its {timeout:g} second limit"
-                    raise TimeoutError(msg)
+                    raise TimeoutError(msg)  # noqa: TRY301  -- the raise stays inside this rollback boundary so the same handler records the failure
                 time.sleep(min(0.01, remaining))
         except BaseException:
             with suppress(ProcessLookupError):

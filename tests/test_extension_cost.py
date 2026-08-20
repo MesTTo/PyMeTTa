@@ -35,16 +35,16 @@ from benchmarks.extension_cost import encoding_rows, rows
 # which _install_drivers says in as many words. Three rounds because a
 # committed counter baseline compares at least three samples.
 @pytest.fixture(scope="module")
-def drives():
+def drives():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return rows(calls=500, rounds=3)
 
 
 @pytest.fixture(scope="module")
-def measured(drives):
+def measured(drives):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return {row.tier: row for row in drives}
 
 
-def test_extension_cost_rows_are_marginal(measured):
+def test_extension_cost_rows_are_marginal(measured):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     baseline = measured["ordinary MeTTa function"].inferences
 
     # A tier cheaper than a MeTTa function can only READ as cheaper once the

@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class _ReadOnly(SpaceProvider, Adder, Enumerable):
     def __init__(self) -> None:
         self.store: list = []
 
-    def add(self, atom) -> None:
+    def add(self, atom) -> None:  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         msg = "the store is read-only today"
         raise RuntimeError(msg)
 
@@ -61,7 +61,7 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
     space = metta.new_space()
     try:
 
-        def angry(event):
+        def angry(event):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             msg = "the watcher is broken"
             raise ValueError(msg)
 

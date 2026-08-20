@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from petta.atoms import unify
 def _scan(registered, space, atom, action="add"):
     """The strategy this replaces, written out: every registration on this
     space, in the order it was made, one unify each, deliver the matches.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     return [
         name
         for name, subscription, pattern, on, watched in registered
@@ -61,7 +61,7 @@ def test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_or
 
     def watch(name, target, pattern, on="add"):
         subscription = target.subscribe(
-            pattern, lambda event, name=name: delivered.append(name), on=on
+            pattern, lambda _event, name=name: delivered.append(name), on=on
         )
         registered.append((name, subscription, pattern, on, target))
         return subscription

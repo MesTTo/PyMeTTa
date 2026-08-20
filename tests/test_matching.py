@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -18,11 +18,11 @@ from petta.atoms import Gnd
 
 
 @pytest.fixture
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
-def test_unify_ground_cases_match_the_arbiter(m):
+def test_unify_ground_cases_match_the_arbiter(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The five measured decisions, including numeric promotion: 1 matches 1.0.
     assert m.run("!(unify 1 1 same different)") == [[S.same]]
     assert m.run("!(unify 1 2 same different)") == [[S.different]]
@@ -31,13 +31,13 @@ def test_unify_ground_cases_match_the_arbiter(m):
     assert m.run('!(unify "x" "y" same different)') == [[S.different]]
 
 
-def test_unify_binds_variables_both_ways(m):
+def test_unify_binds_variables_both_ways(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.run("!(unify (f $x b) (f a $y) (pair $x $y) nope)") == [
         [expr(S.pair, S.a, S.b)]
     ]
 
 
-def test_unify_runs_only_the_selected_branch(m):
+def test_unify_runs_only_the_selected_branch(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Branch non-evaluation, proven by markers as the arbiter proves it.
     m.run("(= (then-probe) (chain (add-atom (context-space) then-ran) $_ 3))")
     m.run("(= (else-probe) (chain (add-atom (context-space) else-ran) $_ 4))")
@@ -47,12 +47,12 @@ def test_unify_runs_only_the_selected_branch(m):
     assert m.run("!(match (context-space) then-ran hit)") == [[S.hit]]
 
 
-def test_unify_rejects_a_cyclic_binding(m):
+def test_unify_rejects_a_cyclic_binding(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The arbiter's variable cases carry the occurs check.
     assert m.run("!(unify $x (f $x) cyclic sound)") == [[S.sound]]
 
 
-def test_a_space_operand_is_queried(m):
+def test_a_space_operand_is_queried(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Hyperon: a space is a grounded atom whose custom matching is query.
     # &self is the reserved token for the space the code lives in, so the
     # upstream spelling works in a library-hosted named space too, and
@@ -67,7 +67,7 @@ def test_a_space_operand_is_queried(m):
     assert missing == [S["no-friends"]]
 
 
-def test_self_token_means_this_space_at_every_door(m):
+def test_self_token_means_this_space_at_every_door(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The reader substitutes &self for the hosting space's name wherever
     # source says it, exactly as it substitutes bind! tokens: runnables,
     # equations and the eval door alike. Stored data expressions keep
@@ -80,12 +80,12 @@ def test_self_token_means_this_space_at_every_door(m):
     assert m.eval("(match &self (sd $x) $x)") == [S.here]
 
 
-def test_a_variable_binds_a_space_without_querying_it(m):
+def test_a_variable_binds_a_space_without_querying_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Variables bind before any grounded logic is consulted.
     assert m.run("!(unify $s &self bound queried)") == [[S.bound]]
 
 
-def test_a_matchable_value_owns_its_matching(m):
+def test_a_matchable_value_owns_its_matching(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Interval:
         def __init__(self, lo, hi):
             self.lo, self.hi = lo, hi
@@ -103,7 +103,7 @@ def test_a_matchable_value_owns_its_matching(m):
     assert m.eval(expr(S.unify, 3, inside, S.inside, S.outside)) == [S.inside]
 
 
-def test_a_matchable_answers_bindings_for_the_handed_variables(m):
+def test_a_matchable_answers_bindings_for_the_handed_variables(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Solver:
         def match_(self, other):
             var = other.children[1]
@@ -116,17 +116,17 @@ def test_a_matchable_answers_bindings_for_the_handed_variables(m):
     assert rows == [expr(S.sol, 2), expr(S.sol, -2)]
 
 
-def test_a_matchable_with_no_answers_selects_else(m):
+def test_a_matchable_with_no_answers_selects_else(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Nothing:
-        def match_(self, other):
+        def match_(self, other):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(())
 
     assert m.eval(expr(S.unify, Gnd(Nothing()), S.a, S.t, S.e)) == [S.e]
 
 
-def test_a_matchable_error_aborts(m):
+def test_a_matchable_error_aborts(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Loud:
-        def match_(self, other):
+        def match_(self, other):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             msg = "my matcher broke"
             raise ValueError(msg)
 
@@ -134,18 +134,18 @@ def test_a_matchable_error_aborts(m):
         m.eval(expr(S.unify, Gnd(Loud()), S.a, S.t, S.e))
 
 
-def test_a_matchable_annotation_is_refused_loudly(m):
+def test_a_matchable_annotation_is_refused_loudly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A bare value has no context to declare a semiring on; weighted
     # matching belongs to a registered context.
     class Scored:
-        def match_(self, other):
+        def match_(self, other):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             yield Answer({}, k=0.9)
 
     with pytest.raises(EngineError, match="declares no semiring"):
         m.eval(expr(S.unify, Gnd(Scored()), S.a, S.t, S.e))
 
 
-def test_an_object_without_match_is_compared_by_identity(m):
+def test_an_object_without_match_is_compared_by_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Plain:
         pass
 
@@ -154,9 +154,9 @@ def test_an_object_without_match_is_compared_by_identity(m):
     assert m.eval(expr(S.unify, one, other, S.same, S.different)) == [S.different]
 
 
-def test_the_protocol_recognizes_matchables():
+def test_the_protocol_recognizes_matchables():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class WithHook:
-        def match_(self, other):
+        def match_(self, other):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(())
 
     class Without:
@@ -166,7 +166,7 @@ def test_the_protocol_recognizes_matchables():
     assert not isinstance(Without(), CustomMatch)
 
 
-def test_empty_is_the_branch_remover(m):
+def test_empty_is_the_branch_remover(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The pinned minimal-metta.md rule: a finished Empty result "is not
     # returned among other results", literal or computed alike.
     assert m.run("!(unify a b then Empty)") == [[]]

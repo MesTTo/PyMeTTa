@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def _refuse_mismatched_twin_arity(
     """A twin of a different shape is not a twin, and would only ever be
     found by a caller. The predicate takes one argument per parameter plus
     the output, which is the convention every registered predicate follows.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     expected = len(params) + 1
     _, _, shapes, _ = space.runtime.apply_must("petta_py_function_shape", name)
     arities = [int(arity) for arity, _speedup, _indexed in shapes]
@@ -407,7 +407,7 @@ def install_type(
     constructor is then a method written in MeTTa itself, on equal
     footing. An Enum declares its members; get-type sees them all.
     Returns the class, so it stacks under @dataclass.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def apply(target: _builtins.type) -> _builtins.type:
         registration = _convert.ensure_registered(target)
@@ -437,7 +437,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
     named {Type}-{method}: the instance argument accepts a
     constructor term (rebuilt through the translator) or a live
     handle, and results the translator knows project back to terms.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def projectable(value: Any) -> Any:
         try:

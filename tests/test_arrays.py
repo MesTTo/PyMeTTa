@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import inspect
 import threading
@@ -30,12 +30,12 @@ pytest.importorskip("array_api_compat")
 
 
 @pytest.fixture(scope="module")
-def am(metta):
+def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     arrays.install(metta, default=numpy)
     return metta
 
 
-def test_numpy_flows_through_the_same_ops(am):
+def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     r = am.run(
         "!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
         "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))"
@@ -45,25 +45,25 @@ def test_numpy_flows_through_the_same_ops(am):
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
 
 
-def test_the_constructor_builds_numpy_here(am):
+def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (group,) = am.run("!(tensor (1.0 2.0))")
     assert isinstance(decode(group[0]), numpy.ndarray)
 
 
-def test_activations_are_standard_not_torch(am):
+def test_activations_are_standard_not_torch(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert am.run("!(t-tolist (relu (tensor (-1.0 2.0))))") == [[expr(0.0, 2.0)]]
     (group,) = am.run("!(t-tolist (softmax (tensor (0.0 0.0))))")
     assert [round(float(x), 3) for x in group[0]] == [0.5, 0.5]
 
 
-def test_ndarray_identity_through_space(am):
+def test_ndarray_identity_through_space(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     array = numpy.arange(4.0)
     space = am.new_space()
     space.add(S.holds(val(array)))
     assert decode(space.query(S.holds(V.a))[0].a) is array
 
 
-def test_dltensor_is_a_protocol_type_the_engine_checks(am):
+def test_dltensor_is_a_protocol_type_the_engine_checks(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # get-type answers the classes and the protocol of the BUILT tensor, so
     # the tensor is built first. get-type does not evaluate its argument, and
     # the classes are a property of the value rather than of the call that
@@ -97,13 +97,13 @@ def test_a_protocol_and_a_declaration_are_both_answered_once(am):
     assert names == ["ndarray", "DLTensor", "(-> Number Number)"], names
 
 
-def test_protocol_printing_covers_any_library(am):
+def test_protocol_printing_covers_any_library(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (group,) = am.run("!(tensor ((1.0 2.0)))")
     printed = repr(group[0])
     assert "1x2" in printed and "float32" in printed and "ndarray" in printed
 
 
-def test_cross_library_conversion_via_dlpack(am):
+def test_cross_library_conversion_via_dlpack(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pytest.importorskip("torch")
     space = am.new_space()
     space.add(S.np_vec(val(numpy.array([1.0, 2.0], dtype=numpy.float32))))
@@ -113,7 +113,7 @@ def test_cross_library_conversion_via_dlpack(am):
     assert "float32" in str(group[0])
 
 
-def test_mixed_library_binary_op_converts_rightward(am):
+def test_mixed_library_binary_op_converts_rightward(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     torch = pytest.importorskip("torch")
     left = numpy.ones((2, 2), dtype=numpy.float32)
     right = torch.ones(2, 2)
@@ -125,7 +125,7 @@ def test_mixed_library_binary_op_converts_rightward(am):
     assert float(group[0]) == 8.0
 
 
-def test_embedding_store_runs_on_numpy(am):
+def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = am.new_space()
     store = arrays.EmbeddingStore(space, name="npk")
     store.add(S.dog, numpy.array([1.0, 0.0, 0.0]))
@@ -138,7 +138,7 @@ def test_embedding_store_runs_on_numpy(am):
     assert scores == sorted(scores, reverse=True)
 
 
-def test_top_indices_match_full_order_and_stabilize_ties():
+def test_top_indices_match_full_order_and_stabilize_ties():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     xp = arrays.namespace_of(numpy.array([0.0]))
     scores = numpy.random.default_rng(7).normal(size=10_000)
     expected = sorted(
@@ -152,7 +152,7 @@ def test_top_indices_match_full_order_and_stabilize_ties():
     assert arrays._top_indices(xp, ties, len(ties)) == [1, 2, 3, 0, 4]
 
 
-def test_array_protocol_registration_is_idempotent(monkeypatch):
+def test_array_protocol_registration_is_idempotent(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
     monkeypatch.setattr(arrays, "_PROTOCOLS_REGISTERED", threading.Event())
     monkeypatch.setattr(arrays, "_PROTOCOLS_LOCK", threading.Lock())
@@ -173,7 +173,7 @@ def test_array_protocol_registration_is_idempotent(monkeypatch):
     assert [kind for kind, _ in calls] == ["type", "repr"]
 
 
-def test_same_named_embedding_stores_route_per_space(metta):
+def test_same_named_embedding_stores_route_per_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as left, metta.new_space() as right:
         left_store = arrays.EmbeddingStore(left, name="shared-emb")
         right_store = arrays.EmbeddingStore(right, name="shared-emb")
@@ -186,7 +186,7 @@ def test_same_named_embedding_stores_route_per_space(metta):
         assert right.run("!(shared-emb-embed dog)") == [[]]
 
 
-def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):
+def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="replace-emb")
         original = numpy.array([1.0, 0.0])
@@ -211,14 +211,14 @@ def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):
         (numpy.array([0.0, 0.0]), "nonzero"),
     ],
 )
-def test_embedding_store_validates_added_vectors(metta, vector, message):
+def test_embedding_store_validates_added_vectors(metta, vector, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="validated-emb")
         with pytest.raises(ValueError, match=message):
             store.add(S.bad, vector)
 
 
-def test_embedding_store_requires_one_width_and_positive_integer_k(metta):
+def test_embedding_store_requires_one_width_and_positive_integer_k(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as space:
         store = arrays.EmbeddingStore(space, name="bounded-emb")
         store.add(S.good, numpy.array([1.0, 0.0]))

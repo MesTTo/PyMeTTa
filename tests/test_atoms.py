@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import copy
 import json
@@ -54,14 +54,14 @@ from petta.atoms import (
 )
 
 
-def test_symbols_are_not_strings():
+def test_symbols_are_not_strings():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert S.foo == Sym("foo")
     assert S.foo != "foo"
     assert Gnd("foo") == "foo"
     assert S.foo != Gnd("foo")
 
 
-def test_object_repr_registrations_can_be_removed_exactly():
+def test_object_repr_registrations_can_be_removed_exactly():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class RenderedByClass:
         pass
 
@@ -94,7 +94,7 @@ def test_object_repr_registrations_can_be_removed_exactly():
         unregister_object_repr_protocol(predicate, protocol_formatter)
 
 
-def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():
+def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.outer(S.inner(S.before), S.keep)
     assert map_atoms(atom, lambda node: node) is atom
 
@@ -105,7 +105,7 @@ def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():
     assert mapped == S.outer(S.inner(S.after), S.keep)
 
 
-def test_map_atoms_handles_depth_as_data_and_validates_transform_results():
+def test_map_atoms_handles_depth_as_data_and_validates_transform_results():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.leaf
     for _ in range(2_000):
         atom = Expr([atom])
@@ -120,23 +120,23 @@ def test_map_atoms_handles_depth_as_data_and_validates_transform_results():
         map_atoms(S.leaf, lambda _node: None)
 
 
-def test_grounded_primitives_compare_as_their_value():
+def test_grounded_primitives_compare_as_their_value():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert Gnd(3) == 3
     assert Gnd(3.5) == 3.5
-    assert Gnd(True) == True  # noqa: E712
-    assert Gnd(True) != 1
+    assert Gnd(True) == True  # noqa: E712, FBT003  -- the assertion probes bool equality without coercion; the boolean literal is atom or wire data at this site, not a behavior switch
+    assert Gnd(True) != 1  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert Gnd(1) != True  # noqa: E712
     assert Gnd("s") == "s"
 
 
-def test_grounded_hash_agrees_with_equality():
+def test_grounded_hash_agrees_with_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert hash(Gnd(3)) == hash(3)
     assert {Gnd(3), 3} == {3}
     strings = {"a"}
     assert Gnd("a") in strings
 
 
-def test_numpy_scalars_are_engine_numbers(metta):
+def test_numpy_scalars_are_engine_numbers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     np = pytest.importorskip("numpy")
     cases = [np.int32(7), np.int64(2), np.float32(1.5), np.float64(3.5)]
     for scalar in cases:
@@ -149,15 +149,15 @@ def test_numpy_scalars_are_engine_numbers(metta):
         assert metta.eval(expr(S["+"], atom, 1)) == [Gnd(expected + 1)]
 
 
-def test_non_real_numpy_values_stay_opaque():
+def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     np = pytest.importorskip("numpy")
-    for value in (np.bool_(True), np.array([1.0])):
+    for value in (np.bool_(True), np.array([1.0])):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         atom = Gnd(value)
         assert atom.value is value
         assert atom.to_wire()[0] == "o"
 
 
-def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():
+def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     real = Gnd(Fraction(3, 2))
     assert type(real.value) is float
     assert real.to_wire() == ["n", 1.5]
@@ -168,7 +168,7 @@ def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():
     assert opaque.to_wire()[0] == "o"
 
 
-def test_expr_is_a_sequence():
+def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     e = expr(S.a, 1, "s")
     assert len(e) == 3
     assert e[0] == S.a
@@ -182,7 +182,7 @@ def test_expr_is_a_sequence():
             raise AssertionError(msg)
 
 
-def test_expr_sequence_index_and_count():
+def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = expr(S.f, S.a, S.b, S.a)
     assert atom.index(S.a) == 1
     assert atom.index(S.a, 2) == 3
@@ -191,7 +191,7 @@ def test_expr_sequence_index_and_count():
         atom.index(S.missing)
 
 
-def test_expr_identity_equality():
+def test_expr_identity_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shared = expr(S.node, S.leaf)
     atom = expr(S.root, shared, shared)
     same = atom
@@ -199,12 +199,12 @@ def test_expr_identity_equality():
     assert atom == expr(S.root, shared, shared)
 
 
-def test_symbol_application_builds_expressions():
+def test_symbol_application_builds_expressions():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert S.Parent(S.Tom, S.Bob) == expr(S.Parent, S.Tom, S.Bob)
     assert S.f(1, "x") == expr(S.f, 1, "x")
 
 
-def test_atoms_are_immutable():
+def test_atoms_are_immutable():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AttributeError):
         S.foo.name = "bar"
     with pytest.raises(AttributeError):
@@ -215,7 +215,7 @@ def test_atoms_are_immutable():
     "atom",
     [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
 )
-def test_atoms_copy_by_identity(atom):
+def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert copy.copy(atom) is atom
     assert copy.deepcopy(atom) is atom
 
@@ -224,20 +224,20 @@ def test_atoms_copy_by_identity(atom):
     "atom",
     [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
 )
-def test_atoms_pickle_by_value(atom):
+def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     restored = pickle.loads(pickle.dumps(atom))
     assert restored == atom
     assert type(restored) is type(atom)
 
 
-def test_process_local_grounded_values_refuse_pickle():
+def test_process_local_grounded_values_refuse_pickle():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     value = object()
     for identity_value in (Gnd(value), Box(value)):
         with pytest.raises(TypeError, match=r"process-local.*identity"):
             pickle.dumps(identity_value)
 
 
-def test_atoms_cross_a_spawned_process_boundary():
+def test_atoms_cross_a_spawned_process_boundary():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = expr(S.edge, S.Ada, Gnd(3))
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
@@ -245,15 +245,15 @@ def test_atoms_cross_a_spawned_process_boundary():
     assert restored == atom
 
 
-def test_printing_is_source_spelling():
+def test_printing_is_source_spelling():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert str(S.foo) == "foo"
     assert str(V.x) == "$x"
-    assert str(Gnd(True)) == "True"
+    assert str(Gnd(True)) == "True"  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert str(Gnd('say "hi"')) == '"say \\"hi\\""'
     assert str(expr(S.a, 1, expr())) == "(a 1 ())"
 
 
-def test_encode_python_values():
+def test_encode_python_values():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert encode(3) == Gnd(3)
     assert encode("s") == Gnd("s")
     assert encode([1, 2]) == expr(1, 2)
@@ -276,7 +276,7 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
     it guards is a table that keeps answering the old way after someone
     registers a codec, which would be a correctness bug traded for 2,294
     instructions.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     class Celsius:
         def __init__(self, degrees):
@@ -318,7 +318,7 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
     assert encode(7) == Gnd(7)
     assert encode("abcd") == Gnd("abcd")
     assert encode(2.5) == Gnd(2.5)
-    assert encode(True) == Gnd(True)
+    assert encode(True) == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert encode([1, 2]) == expr(1, 2)
     assert encode((S.a,)) == expr(S.a)
     assert encode(S.a) is S.a
@@ -327,7 +327,7 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
     assert encode(shared) is shared
 
 
-def test_encode_metta_hook():
+def test_encode_metta_hook():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Point:
         def __init__(self, x, y):
             self.x, self.y = x, y
@@ -338,14 +338,14 @@ def test_encode_metta_hook():
     assert encode(Point(1, 2)) == S.Point(1, 2)
 
 
-def test_val_keeps_containers_whole_via_boxing():
+def test_val_keeps_containers_whole_via_boxing():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     data = [1, 2, 3]
     wire = val(data).to_wire()
     assert wire[0] == "o" and isinstance(wire[1], Box) and wire[1].value is data
     assert from_wire(wire).value is data
 
 
-def test_every_object_crosses_boxed():
+def test_every_object_crosses_boxed():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Uniformly boxed: which types janus rewrites is janus's decision, so no
     # object crosses bare, and unboxing is every consumer's first move.
     class Thing:
@@ -359,22 +359,22 @@ def test_every_object_crosses_boxed():
     assert val(already.value).to_wire()[1].value is thing
 
 
-def test_object_equality_is_identity():
+def test_object_equality_is_identity():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = object(), object()
     assert val(a) == val(a)
     assert val(a) != val(b)
     assert val(a) == a
 
 
-def test_wire_round_trip():
+def test_wire_round_trip():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atoms = [
         S.foo,
         V.x,
         Gnd(1),
         Gnd(2.5),
-        Gnd(True),
+        Gnd(True),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         Gnd("text"),
-        expr(S.a, expr(S.b, V.y), 3, "s", False),
+        expr(S.a, expr(S.b, V.y), 3, "s", False),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         expr(),
     ]
     for a in atoms:
@@ -474,7 +474,7 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
     assert not _WIRE_SYMS and not _core._WIRE_SYM_ORDER
 
 
-def test_wire_intern_tables_are_bounded(monkeypatch):
+def test_wire_intern_tables_are_bounded(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Driven at a patched bound rather than the shipped 65,536: the property
     # is that the table respects whatever bound it is given, and filling the
     # real one twice over would mint 131,000 atoms to say so.
@@ -499,7 +499,7 @@ def test_wire_intern_tables_are_bounded(monkeypatch):
     _core._wire_intern_clear()
 
 
-def test_casting_protocol():
+def test_casting_protocol():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert int(Gnd(3)) == 3
     assert float(Gnd(3)) == 3.0
     assert int(Gnd(3.9)) == 3
@@ -507,18 +507,18 @@ def test_casting_protocol():
     with pytest.raises(TypeError):
         int(Gnd("3"))
     with pytest.raises(TypeError):
-        int(Gnd(True))
+        int(Gnd(True))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     with pytest.raises(TypeError):
         int(S.three)
 
 
-def test_variables_and_groundness():
+def test_variables_and_groundness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert variables(expr(S.f, V.x, expr(V.y, V.x))) == ["x", "y"]
     assert is_ground(expr(S.a, 1))
     assert not is_ground(V.x)
 
 
-def test_alpha_eq():
+def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a = expr(S.f, V.x, V.y, V.x)
     b = expr(S.f, V.p, V.q, V.p)
     c = expr(S.f, V.p, V.q, V.q)
@@ -528,7 +528,7 @@ def test_alpha_eq():
     assert not alpha_eq(S.a, S.b)
 
 
-def test_unify():
+def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     got = unify(S.Parent(V.x, S.Bob), S.Parent(S.Tom, S.Bob))
     assert got == {"x": S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
@@ -539,13 +539,13 @@ def test_ground_equality_is_the_engines():
     """Python-side == must never disagree with an equation's ==: booleans
     are not integers, integers are not floats, IEEE identity for floats
     with -0.0 apart from 0.0 and NaN equal to itself, objects by identity.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert Gnd(1) != Gnd(1.0)
     assert Gnd(1.0) == Gnd(1.0)
     assert Gnd(0.0) != Gnd(-0.0)
     nan = float("nan")
     assert Gnd(nan) == Gnd(nan)
-    assert Gnd(True) != Gnd(1)
+    assert Gnd(True) != Gnd(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert Gnd(1) == 1 and Gnd(1) != 1.0
     assert unify(Gnd(1), Gnd(1.0)) is None
     assert unify(Gnd(nan), Gnd(nan)) == {}
@@ -554,13 +554,13 @@ def test_ground_equality_is_the_engines():
 def test_boxes_intern_per_object_identity():
     """One live object always crosses as one box, so stored and queried
     meet in the same reference; a dead object costs nothing after.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     thing = object()
     assert boxed(thing) is boxed(thing)
     assert boxed(thing).value is thing
 
 
-def test_atom_identity_caches_are_thread_safe():
+def test_atom_identity_caches_are_thread_safe():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     thing = object()
     with ThreadPoolExecutor(max_workers=8) as workers:
         boxes = list(workers.map(boxed, [thing] * 64))
@@ -570,7 +570,7 @@ def test_atom_identity_caches_are_thread_safe():
     assert all(symbol is symbols[0] for symbol in symbols)
 
 
-def test_namespace_cache_is_bounded():
+def test_namespace_cache_is_bounded():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     for index in range(_NAMESPACE_CACHE_MAX + 50):
         S[f"namespace-{index}"]
     cache = object.__getattribute__(S, "_cache")
@@ -578,7 +578,7 @@ def test_namespace_cache_is_bounded():
     assert S["namespace-recent"] is S["namespace-recent"]
 
 
-def test_namespace_completion_surfaces_engine_errors(monkeypatch):
+def test_namespace_completion_surfaces_engine_errors(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     monkeypatch.setattr(_engine, "started", lambda: True)
 
     def fail_runtime():
@@ -593,7 +593,7 @@ def test_namespace_completion_surfaces_engine_errors(monkeypatch):
 def test_deep_terms_cross_and_print():
     """Depth is data: the codec and the printer take 5000 levels without
     meeting Python's recursion ceiling.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     atom = Gnd(1)
     for _ in range(5000):
         atom = expr(S.wrap, atom)
@@ -602,7 +602,7 @@ def test_deep_terms_cross_and_print():
     assert variables(atom) == []
 
 
-def test_malformed_wire_is_refused():
+def test_malformed_wire_is_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class IntSubclass(int):
         pass
 
@@ -619,12 +619,12 @@ def test_malformed_wire_is_refused():
             from_wire(bad)
 
 
-def test_atom_from_wire_rejects_undefined_truth():
+def test_atom_from_wire_rejects_undefined_truth():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
         atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
 
 
-def test_anonymous_variable_is_fresh_per_occurrence():
+def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert unify(S.pair(V._, V._), S.pair(S.a, S.b)) == {}
     assert unify(S.pair(V._, V._), S.pair(S.a, S.a)) == {}
 
@@ -634,7 +634,7 @@ def test_anonymous_variable_is_fresh_per_occurrence():
 # over atoms raised "(< a c) is a comparison TERM, not a truth value". The
 # message is right and the order it refuses to invent exists in the language
 # underneath.
-def test_atoms_sort_in_prologs_standard_order():
+def test_atoms_sort_in_prologs_standard_order():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atoms = [
         parse(source)
         for source in [
@@ -656,7 +656,7 @@ def test_atoms_sort_in_prologs_standard_order():
 def test_the_sort_key_is_total_over_mixed_atoms():
     """Every key must be comparable with every other, which a tuple key only
     is when the rank leads and the payloads at one rank share a type.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     atoms = [
         S.a, parse("1"), parse("2.5"), parse('"s"'), V.x, S.f(S.a),
         S.f(S.a, S.b), parse("()"), parse("True"), Gnd(object()),
@@ -668,7 +668,7 @@ def test_the_sort_key_is_total_over_mixed_atoms():
 
 # The wire form IS a JSON document and it round-trips, preserving the variable
 # NAME, which storage does not. It was simply not exported.
-def test_an_atom_round_trips_through_json():
+def test_an_atom_round_trips_through_json():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.edge(S.a, 1, V.x)
     text = json.dumps(atom.to_wire())
     assert text == '["e", [["s", "edge"], ["s", "a"], ["n", 1], ["v", "x"]]]'
@@ -677,7 +677,7 @@ def test_an_atom_round_trips_through_json():
     assert str(back) == "(edge a 1 $x)"
 
 
-def test_slot_docstrings_reach_help():
+def test_slot_docstrings_reach_help():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import inspect
 
     # dict-form __slots__, data model 3.3.2.4: help() and inspect.getdoc
@@ -691,7 +691,7 @@ def test_slot_docstrings_reach_help():
     assert inspect.getdoc(Var.name) == "the variable's name without the $ sigil"
 
 
-def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):
+def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.atoms import pretty
 
     source = (

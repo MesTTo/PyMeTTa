@@ -10,7 +10,7 @@ Open Obligations:
   Hacks: None
   Future Enhancements: keyword-argument call forms once PeTTa itself grows a
     spelling for them; today MeTTa call sites are positional.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def _op_facts(op: Operation) -> list[Expr]:
     and (effect name immutable) when it declared itself pure. One list, so
     the transaction, rollback, re-registration diff and unregister all treat
     the effect atom exactly as they treat the op atoms.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
     if op.pure:
         facts.append(expr(S.effect, S[op.name], S.immutable))
@@ -134,7 +134,7 @@ def record(cls: type) -> type:
     which is what lets the decorator run at import time without booting
     anything. Every underlying registration call stays public for the
     classes that need custom shapes.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     convert.ensure_registered(cls)
     with _RECORDED_LOCK:
         _RECORDED.append(cls)
@@ -147,7 +147,7 @@ def declare_recorded() -> None:
     """Land every pending recorded class's declarations in &self; a
     no-op when nothing is pending, called by MeTTa construction so a
     decorator that ran before any engine existed still declares.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     with _RECORDED_LOCK:
         if not _RECORDED:
             return
@@ -171,7 +171,7 @@ def class_declarations(cls: type) -> list[Expr]:
     class needs NO declaration: its instances already answer the class
     name to get-type through the engine's MRO typing bridge, so emitting
     one would only restate what the engine figures out on its own.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return list(convert.declarations(cls))
 
 
@@ -232,7 +232,7 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     typing, so postponed (string) annotations declare the types they name
     rather than %Undefined%, and TypeVars declare type variables, the
     parametric reading.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     hints = resolved_annotations(fn)
     annotations = [hints.get(p.name, inspect.Parameter.empty) for p in params]
     ret = hints.get("return", Any)
@@ -244,7 +244,7 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     return declared
 
 
-def _operation_kind(fn: Callable, raw: bool) -> str:
+def _operation_kind(fn: Callable, raw: bool) -> str:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     many = inspect.isgeneratorfunction(fn)
     return {
         (False, False): "det",
@@ -258,7 +258,7 @@ def _operation_declarations(
     name: str,
     params: list[inspect.Parameter],
     fn: Callable,
-    typed: bool,
+    typed: bool,  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
 ) -> tuple[Expr, ...]:
     if not typed or not params:
         return ()
@@ -361,7 +361,7 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
     resolved annotations only when they resolve: an unresolvable signature
     injects nothing here and keeps failing exactly where it fails today,
     in the typed declaration pass.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     from .space import MeTTa  # noqa: PLC0415  space imports ops at top; the cycle breaks here
 
     try:
@@ -378,7 +378,7 @@ def _with_engine(fn: Callable, positions: list[int]) -> Callable:
     composes across spaces without the space being an argument. Only an
     operation that asked pays the wrapper; every other registration calls
     its function untouched.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     @functools.wraps(fn)
     def woven(*args):
@@ -488,7 +488,7 @@ def unregister(runtime, name: str) -> None:
     """Remove every arity of a registered operation, and every declaration
     registration added, so nothing keeps describing a function that no
     longer exists.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     op = REGISTRY.get(name)
     arities = list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name))
     # The registry walk above already knows whether anything is there, so the

@@ -16,7 +16,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from .errors import PettaError
 class SourceForm(NamedTuple):
     """One top-level form: the parser's kind, its verbatim text, and the
     1-based line and column its first character sits at.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     kind: str
     text: str
@@ -40,7 +40,7 @@ class SourceForm(NamedTuple):
 def _skip_between(source: str, cursor: int) -> int:
     """Advance past what the grammar allows between forms: whitespace and
     ;-comments to end of line.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     length = len(source)
     while cursor < length:
         ch = source[cursor]

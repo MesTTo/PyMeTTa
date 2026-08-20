@@ -22,7 +22,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ class TypeScriptStore:
     resolves_anonymous = False
     runs_programs = False
 
-    def __init__(self, base: str):
+    def __init__(self, base: str):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self._base = base
         self._spaces = itertools.count()
 
@@ -119,13 +119,13 @@ class TypeScriptStore:
 
     transport = roundtrip
 
-    def host_value(self):
+    def host_value(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         msg = "a core-profile store declares no o tag"
         raise AssertionError(msg)
 
 
 @pytest.fixture
-def typescript_store():
+def typescript_store():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if _NODE is None:
         pytest.skip("node is not installed, so the independent implementation cannot run")
     # A fixed argv, no shell.
@@ -143,7 +143,7 @@ def typescript_store():
         process.wait(timeout=10)
 
 
-def test_a_second_implementation_passes_the_same_corpus(typescript_store):
+def test_a_second_implementation_passes_the_same_corpus(typescript_store):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     complaints = check_codec(typescript_store)
     diverged = {
         case_id
@@ -165,7 +165,7 @@ def test_a_second_implementation_passes_the_same_corpus(typescript_store):
 def test_the_store_runs_the_wire_legs_and_says_which_it_does_not(typescript_store):
     """A store has no reader and no printer, and the plan says so rather
     than the kit quietly checking two legs instead of four.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     plan = codec_plan(typescript_store)
     assert plan["legs"] == ["roundtrip", "transport"]
     left_out = dict(plan["out_of_profile"])

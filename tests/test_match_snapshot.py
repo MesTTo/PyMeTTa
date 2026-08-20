@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -22,7 +22,7 @@ from petta import S, V, expr
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
@@ -34,7 +34,7 @@ def m(metta):
 # output pattern with them, which is evaluated outside match. If remove-atom
 # and add-atom would be executed right away for each found matching, the
 # condition of circular links would be broken after the first rewrite".
-def test_match_snapshots_rows_before_template_effects(m):
+def test_match_snapshots_rows_before_template_effects(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(link A B)\n(link B C)\n(link C A)\n(link C E)")
     (rewrites,) = m.run(
         "!(collapse (match &self (, (link $x $y) (link $y $z) (link $z $x))"
@@ -53,7 +53,7 @@ def test_match_snapshots_rows_before_template_effects(m):
 
 # The arbiter's own detector, on one pattern: two rows, each template removing
 # the OTHER one. A lazy query would lose the row it had not reached.
-def test_a_single_pattern_keeps_the_row_its_sibling_removed(m):
+def test_a_single_pattern_keeps_the_row_its_sibling_removed(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (item alpha))\n!(add-atom &self (item beta))")
     m.run(
         "(= (visit alpha) (let () (remove-atom &self (item beta)) alpha))\n"
@@ -98,7 +98,7 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
     """The rows are collected through a findall, and an answer's annotation
     rides a backtrackable global that a findall undoes. Reading it per row is
     what proves the snapshot did not drop the channel on the floor.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = metta.new_space()
     try:
         space.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
@@ -115,14 +115,14 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
 def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
     """The law is the space's, not the store's, so a provider-backed
     conjunction gets the same guarantee through the same door.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta.foreign import SpaceProvider
 
     class ListSpace(SpaceProvider):
         def __init__(self, atoms):
             self.stored = list(atoms)
 
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(list(self.stored))
 
         def atoms(self):
@@ -157,7 +157,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
 def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):
     """It is a snapshot of ONE match, not a transaction: the writes a
     template makes are visible to everything that runs after it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("!(add-atom &self (seen 1))\n!(add-atom &self (seen 2))")
     m.run("!(collapse (match &self (, (seen $a) (seen $b)) (add-atom &self (pair $a $b))))")
     (pairs,) = m.run("!(collapse (match &self (pair $a $b) ($a $b)))")

@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
     operations and none of them carries an event. That is what the test name
     means by "only if", so it is asserted here rather than left to the
     refusal message to imply.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = "&remote-caps"
     store: list = []
     provider = remote.attach(metta, space, _store_transport(store))
@@ -71,7 +71,7 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
 
         # And the refusal says what is missing, not just that it is missing.
         with pytest.raises(PettaError, match="no event") as caught:
-            metta.space(space).subscribe(S.fact(V.x), lambda event: None)
+            metta.space(space).subscribe(S.fact(V.x), lambda _event: None)
         assert "bridge" in str(caught.value), "the refusal names no way forward"
 
         # Withdrawing it is surgical: what the wire does carry still works.

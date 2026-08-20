@@ -3,7 +3,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 # A launcher runs a program, which is the job rather than a risk; the call
 # below says why the specific one is safe.

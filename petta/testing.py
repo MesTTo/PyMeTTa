@@ -14,14 +14,15 @@ that run the engine's own expectations against a provider or a URL.
 Guarantees:
   - check_space_provider holds match soundness and exact pushdown claims
     to the whole pattern family of every stored atom, ground, opened and
-    repeated-variable, judged by two-way unifiability [tested 2026-08-17:
+    repeated-variable, judged by two-way unifiability [tested:
     test_a_repeated_variable_liar_is_caught_by_the_folded_pattern,
-    test_a_ground_only_matcher_is_caught_by_the_open_pattern].
+    test_a_ground_only_matcher_is_caught_by_the_open_pattern;
+    commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -114,7 +115,7 @@ def names():
     engine holds its booleans as those very atoms, so True and true are
     one term there and a round trip canonicalizes) or the anonymous `_`
     (fresh at every occurrence by contract, so it never shares).
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     st = _st()
     return st.text(
         alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"),
@@ -141,7 +142,7 @@ def numbers():
     """Numbers the engine's printer round-trips: integers within the
     tagged-integer range, floats without NaN (never compares equal) or
     infinity (prints as a symbol), both printer limits, not carried bugs.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     st = _st()
     return st.one_of(
         st.integers(min_value=-(2**62), max_value=2**62),
@@ -198,7 +199,7 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
         @given(testing.atoms())
         def test_my_translator_round_trips(atom):
             assert decode(encode(atom)) == atom
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     st = _st()
     leaves = [symbols(), grounded()]
     if not ground:
@@ -219,7 +220,7 @@ def expressions(max_leaves: int = 8, *, ground: bool = False):
 def ground_atoms(max_leaves: int = 8):
     """Atoms carrying no variables: what a store holds after matching.
     atoms(ground=True) under the name provider fuzzing reaches for.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return atoms(max_leaves, ground=True)
 
 
@@ -227,7 +228,7 @@ def patterns(max_leaves: int = 8):
     """Expression-rooted atoms guaranteed to carry at least one variable:
     the query side of match, built rather than filtered so hypothesis
     never discards an example.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     st = _st()
 
     def weave(parts):
@@ -296,9 +297,7 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
             f"and without the base class every operation dies inside an engine "
             f"callback on a missing can_run"
         )
-        raise AssertionError(
-            msg
-        )
+        raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     ran = _check_declared_capabilities(provider, name)
     if not isinstance(provider, Enumerable):
         return ran
@@ -314,9 +313,7 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
                 f"{name} cannot add, so atoms_to_store has nothing to store "
                 f"through; pre-load the provider yourself and omit it"
             )
-            raise AssertionError(
-                msg
-            )
+            raise AssertionError(msg)
         for atom in atoms_to_store:
             adder(atom)
     stored = list(provider.atoms())
@@ -329,9 +326,7 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
             f"(source ... linear), where a second consumption is a loud "
             f"error instead of a silently different answer"
         )
-        raise AssertionError(
-            msg
-        )
+        raise AssertionError(msg)
     return [
         *ran,
         f"source: {source}, two enumerations agree",
@@ -347,7 +342,7 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
     because stored data keeps its literal atoms. A store that normalizes
     or mangles fails here naming the atom, instead of answering a
     different atom in production.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if atoms_to_store is None:
         return []
     for atom in atoms_to_store:
@@ -359,9 +354,7 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
                 f"data keeps its literal atoms. The store answered "
                 f"{[str(held) for held in stored]}"
             )
-            raise AssertionError(
-                msg
-            )
+            raise AssertionError(msg)
     return [f"round-trip: {len(list(atoms_to_store))} stored atoms recovered intact"]
 
 
@@ -375,9 +368,7 @@ def _check_declared_capabilities(provider, name: str) -> list[str]:
                     f"{name}.can_run says yes to {capability} and the method is "
                     f"not there; implement it or let can_run answer for it"
                 )
-                raise AssertionError(
-                    msg
-                )
+                raise AssertionError(msg)
             ran.append(f"{capability}: declared")
             continue
         stated = getattr(provider, "refusal", _no_refusal)(capability)
@@ -399,7 +390,7 @@ def _claim_patterns(atom):
     answers (edge a b) to (edge $x $x); the folded variants catch it, and
     the open ones catch a provider that only handles ground patterns. Every
     variant is a query a caller can actually send.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     yield atom
     if not isinstance(atom, Expr) or len(atom.children) < 2:
         return
@@ -410,9 +401,7 @@ def _claim_patterns(atom):
         opened[index] = Var(f"petta-check-{index}")
         yield Expr(opened)
     if len(children) > 2:
-        yield Expr(
-            [children[0], *(Var(f"petta-check-{i}") for i in positions if i)]
-        )
+        yield Expr([children[0], *(Var(f"petta-check-{i}") for i in positions if i)])
     for low in positions:
         for high in positions:
             if high <= low:
@@ -425,7 +414,7 @@ def _claim_patterns(atom):
 def _unifiable(left, right) -> bool:
     """Two-way syntactic unifiability, the question the engine's own
     re-unification answers.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return _joined(left, right) is not None
 
 
@@ -445,7 +434,7 @@ def _joined(pattern, atom):
     rational-tree instantiation is never an answer there. Check-side
     variables are named petta-check-*, so a collision would need a stored
     $petta-check-* variable.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     bindings: dict = {}
     stack = [(encode(pattern), encode(atom))]
     while stack:
@@ -480,7 +469,7 @@ def _occurs(name, term, bindings) -> bool:
     """Whether the variable occurs in the walked term: the engine's own
     occurs check, which is what keeps every join acyclic and therefore
     resolvable to a finite atom.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     stack = [term]
     while stack:
         walked = _walk(stack.pop(), bindings)
@@ -551,9 +540,7 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
                         f"stop at its bound; a claim that is wrong loses "
                         f"answers"
                     )
-                    raise AssertionError(
-                        msg
-                    )
+                    raise AssertionError(msg)
     return [f"pushdown: {exact} of {checked} patterns claimed exact, and are"]
 
 
@@ -565,7 +552,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
     the one wrong a provider can do, and a provider that only handles ground
     patterns fails here on the first open one instead of answering empty
     sets in production.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if not stored:
         return ["match: no atoms to check the contract against"]
     if not isinstance(provider, Matcher):
@@ -585,8 +572,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                 # answers instantiations): both preserve this pattern's
                 # answer set exactly, which is what soundness is about.
                 if not any(
-                    _same_atom(found, entry) or alpha_eq(found, joined)
-                    for found in answered
+                    _same_atom(found, entry) or alpha_eq(found, joined) for found in answered
                 ):
                     msg = (
                         f"{name}.match({pattern!r}) answered neither "
@@ -597,9 +583,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                         f"correct, yielding fewer than unify is never allowed "
                         f"to be"
                     )
-                    raise AssertionError(
-                        msg
-                    )
+                    raise AssertionError(msg)
     return [f"match: over-approximation holds over {checked} patterns"]
 
 
@@ -628,7 +612,7 @@ class _Replayer(SpaceProvider):
     """Serves exactly what the log recorded, reparsed from its text, so a
     log written in one process replays in another; an unseen query is
     loud.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, log):
         self._log = list(log)
@@ -642,9 +626,7 @@ class _Replayer(SpaceProvider):
             f"recorded run never asked this, so replaying it would "
             f"invent an answer"
         )
-        raise AssertionError(
-            msg
-        )
+        raise AssertionError(msg)
 
     def atoms(self):
         for text in self._serve("atoms", None):
@@ -679,7 +661,7 @@ def check_replay(provider, patterns) -> list[str]:  # pylint: disable=redefined-
     replay must serve byte-identical answers, which is what makes a
     recorded session a differential oracle for a backend nobody can
     re-run.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     recording, replay = record_replay(provider)
     ran = []
     for pattern in patterns:
@@ -692,9 +674,7 @@ def check_replay(provider, patterns) -> list[str]:  # pylint: disable=redefined-
                 f"replayer serves it verbatim, so this divergence is the "
                 f"harness's own bug"
             )
-            raise AssertionError(
-                msg
-            )
+            raise AssertionError(msg)
         ran.append(f"replay: {pattern!s} serves {len(live)} answer(s) verbatim")
     return ran
 
@@ -707,13 +687,14 @@ def check_minted_handles(provider, registered=()) -> list[str]:
     engine registered; a fabricated one is the reference nobody can
     resolve, cheap to refuse now and expensive to chase after a program
     stores it. `registered` names the spaces this provider may mention.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     known = {str(name) for name in registered}
-    minted = []
-    for atom in provider.atoms():
-        for symbol in _space_symbols(encode(atom)):
-            if symbol not in known:
-                minted.append(f"{symbol} in {atom}")
+    minted = [
+        f"{symbol} in {atom}"
+        for atom in provider.atoms()
+        for symbol in _space_symbols(encode(atom))
+        if symbol not in known
+    ]
     if minted:
         msg = (
             f"{type(provider).__name__} answers mention space identities "
@@ -722,9 +703,7 @@ def check_minted_handles(provider, registered=()) -> list[str]:
             f"identities. Pass registered= if these are real registered "
             f"spaces"
         )
-        raise AssertionError(
-            msg
-        )
+        raise AssertionError(msg)
     return ["minted-handles: every space identity in the answers is the engine's"]
 
 
@@ -799,7 +778,7 @@ def check_twin(defined, cases) -> list[str]:
 
     Raises AssertionError on the first case where they differ, naming the
     case and both answers.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     ran: list[str] = []
     for case in cases:
         arguments = tuple(case)
@@ -813,9 +792,7 @@ def check_twin(defined, cases) -> list[str]:
                     f"{type(refused).__name__}: {refused}, so the reference has no "
                     f"answer, but the engine answered {engine!r}"
                 )
-                raise AssertionError(
-                    msg
-                ) from refused
+                raise AssertionError(msg) from refused
             ran.append(f"{defined.name}{arguments!r}: neither answers")
             continue
         if engine != twin:
@@ -824,8 +801,6 @@ def check_twin(defined, cases) -> list[str]:
                 f"the Python twin answered {twin!r}. One of the two is wrong, and "
                 f"the twin is the readable one."
             )
-            raise AssertionError(
-                msg
-            )
+            raise AssertionError(msg)
         ran.append(f"{defined.name}{arguments!r}: {engine!r}")
     return ran

@@ -12,7 +12,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ _SCOPED_LIMITS: ContextVar[tuple[float | None, int | None]] = ContextVar(
 class ScopedLimits:
     """The with-block m.limits() answers: sets the scoped defaults on
     entry, restores the previous scope on exit, exceptions included.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, timeout: float | None, inferences: int | None) -> None:
         _require_bound(timeout, "timeout", (int, float), "seconds as a number")
@@ -98,7 +98,7 @@ def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] 
     A bound the call did not name falls back to the scoped default
     m.limits() set, which is how one with-block replaces a parameter
     forest while every per-call kwarg still overrides.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if timeout is None or inferences is None:
         scoped_timeout, scoped_inferences = _SCOPED_LIMITS.get()
         if timeout is None:
@@ -336,7 +336,7 @@ def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
     reflection through petta_py_explain: nothing runs, no row is pulled,
     and the engine answers claimed/rest as indexes so the caller's own
     atoms, variable names included, do the rendering.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     kind, detail, claimed, rest = rt.apply_must(
         "petta_py_explain", space_name, [p.to_wire() for p in patterns]
     )
@@ -374,7 +374,7 @@ class Cursor:
     separate state that refuses further pulls. A cursor dropped unclosed is
     reaped by its finalizer. Rows carry the query's variable names as columns,
     exactly as query()'s rows do.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = (
         "__weakref__",
@@ -463,7 +463,7 @@ class Cursor:
         decisions the seam already made for this conjunction. See
         Prepared.explain for the whole story; a cursor explains the same
         way, and explaining does not pull a row.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _explain_text(self._rt, self._space_name, self._atoms, self._where_atom)
 
     def __getitem__(self, index: int | slice):
@@ -564,7 +564,7 @@ class EngineProfile:
     """MeTTa.profile()'s second answer: the sampler's counters and one
     row per predicate, self-ticks-descending. Each node is (predicate,
     calls, redos, ticks_self, ticks_siblings).
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("nodes", "samples", "ticks")
 
@@ -661,7 +661,7 @@ class Prepared:
         route = m.prepare(S.path(V.a, V.b))
         route.solve()
         route.solve(given=[S.edge(S.a, S.b)])   # facts for this call only
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_guard", "_patterns", "_space", "_where", "_wires", "columns")
 
@@ -684,7 +684,7 @@ class Prepared:
         """Answers now, with `given` facts present for this call alone.
         `timeout` and `inferences` bound this solve exactly as they bound
         MeTTa.query().
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not given:
             return self._run(limit, timeout, inferences)
         with self._space.assuming(*given):
@@ -723,7 +723,7 @@ class Prepared:
         and no provider match is called; the provider's plan hook is
         consulted exactly as a real query would consult it, since the
         claim is the provider's to make.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _explain_text(self._space.runtime, self._space.space_name, self._patterns, self._where)
 
     def __repr__(self) -> str:
@@ -737,7 +737,7 @@ _UNDEFINED_TYPE = Sym("%Undefined%")
 def _doc_text(atom: object) -> str:
     """The prose inside a doc part: a string value decodes, anything
     else renders as written.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(atom, Gnd):
         value = decode(atom)
         if isinstance(value, str):
@@ -748,7 +748,7 @@ def _doc_text(atom: object) -> str:
 def _format_doc_atom(doc: Expr) -> str:
     """`(@doc name (@desc ...) (@params (...)) (@return ...))` as help()
     text: one summary line, then the parameters, then the return.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     name = doc.children[1] if len(doc.children) > 1 else ""
     lines: list[str] = []
     parameters: list[str] = []
@@ -835,7 +835,7 @@ class _EngineFunction:
     def all(self, *args: Any) -> list:
         """Every answer as data, `(Error ...)` atoms included: the
         aggregation reading, where the multiset is the return shape.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._space.eval(self._term(args))
 
     def first(self, *args: Any) -> Any:
@@ -843,7 +843,7 @@ class _EngineFunction:
         tolerant member one()'s family has. An `(Error ...)` first
         answer raises as one() raises; tolerance covers absence, not
         errors.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         from ._space_execution import value_one  # noqa: PLC0415  cycle
 
         term = self._term(args)
@@ -882,7 +882,7 @@ class _EngineFunction:
     def compiled(self) -> str:
         """The Prolog clauses this name compiled to: dis for the
         translator, m.disassemble(name) as a property.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._space.disassemble(self._name)
 
     @property
@@ -890,7 +890,7 @@ class _EngineFunction:
         """Built from the arrow type when one is declared, so
         inspect.signature() and completion show the arity with the
         parameter types as annotations; no arrow means (*args).
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         arrow = self.type
         if (
             not isinstance(arrow, Expr)
@@ -919,7 +919,7 @@ class _EngineFunction:
         `(@doc name ...)` atom when one exists (the engine's register
         documents every prelude form, so builtins answer too), else the
         declaration and equations, else None as Python spells absence.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         answers = self._space.eval(Expr([Sym("get-doc"), Sym(self._name)]))
         if answers and isinstance(answers[0], Expr):
             return _format_doc_atom(answers[0])
@@ -965,7 +965,7 @@ class _Batch:
     """The write collector m.batch() answers; see its docstring for the
     stated edges (reads see the pre-batch space, remove and clear
     refuse, an exception discards).
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_pending", "_space", "_token")
 

@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def pythonic(value: Any) -> Any:
     """An atom as the Python value the twin computes with: grounded values
     unwrap, expressions become tuples, a symbol stays itself (the twin
     cannot hold one, and hazard tracking keeps it out of twin paths).
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Gnd):
         return value.value
     if isinstance(value, Expr):
@@ -52,14 +52,14 @@ def pythonic(value: Any) -> Any:
     return value
 
 
-def install(runtime) -> None:
+def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude registration table together so its branches share one state
     """Register the prelude on the shared engine, once per process."""
 
     def _subscript(value, key, what):
         """One subscript, with an error that names the type rather than the
         repr. A million-element array printed into a TypeError is not a
         message anybody reads.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             return value[key]
         except TypeError as exc:

@@ -6,7 +6,7 @@ Guarantees:
   - a type variable bound by an earlier application constrains later arguments
     before those arguments are evaluated.
   - quote remains a value while let can evaluate before constructing that value.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def _run_file(metta, name: str) -> tuple[list[list[str]], str]:
 
 
 @needs_arbiter
-def test_a_type_variable_bound_through_an_application_constrains_the_next_argument():
+def test_a_type_variable_bound_through_an_application_constrains_the_next_argument():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta = MeTTa(verbose=False)
     groups, _ = _run_file(metta, "11_atom_parameter_type_variable.metta")
     assert groups == [
@@ -58,7 +58,7 @@ def test_a_type_variable_bound_through_an_application_constrains_the_next_argume
 
 
 @needs_arbiter
-def test_quote_survives_as_a_value():
+def test_quote_survives_as_a_value():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     groups, _ = _run_file(
         MeTTa(verbose=False), "30_evaluation_control.metta"
     )

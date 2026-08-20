@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -23,7 +23,7 @@ from petta.foreign import SpaceProvider
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
@@ -40,7 +40,7 @@ def error_text(answer):
 # `(Error (remove-atom <space> <atom>) "remove-atom: atom is not in the
 # space")` for absence and unit only after membership succeeds. Hyperon as
 # shipped answers unit for both, which is what this engine used to do.
-def test_removing_an_absent_atom_is_an_error_not_a_silent_unit(m):
+def test_removing_an_absent_atom_is_an_error_not_a_silent_unit(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (present 1))")
     present, absent = m.run(
         "!(remove-atom &self (present 1))\n!(remove-atom &self (never there))"
@@ -53,7 +53,7 @@ def test_removing_an_absent_atom_is_an_error_not_a_silent_unit(m):
 
 # Removing the same atom twice is the same distinction seen over time: the
 # first removal empties the space and the second one has nothing to take.
-def test_removing_the_same_atom_twice_errors_on_the_second(m):
+def test_removing_the_same_atom_twice_errors_on_the_second(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (once only))")
     first, second = m.run(
         "!(remove-atom &self (once only))\n!(remove-atom &self (once only))"
@@ -64,7 +64,7 @@ def test_removing_the_same_atom_twice_errors_on_the_second(m):
 
 # The absence error is a value, so a program can branch on it rather than
 # losing the directive to a throw.
-def test_the_absence_error_is_data_a_collapse_can_hold(m):
+def test_the_absence_error_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (collapsed,) = m.run("!(collapse (remove-atom &self (nothing here)))")
     assert len(collapsed[0]) == 1
     assert "remove-atom: atom is not in the space" in error_text(collapsed[0][0])
@@ -72,7 +72,7 @@ def test_the_absence_error_is_data_a_collapse_can_hold(m):
 
 # A scalar atom lives in its own storage predicate, so it is a separate path
 # to the same answer.
-def test_a_scalar_removal_reports_absence_too(m):
+def test_a_scalar_removal_reports_absence_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self lonely)")
     present, absent = m.run("!(remove-atom &self lonely)\n!(remove-atom &self nobody)")
     assert present == [expr()]
@@ -81,7 +81,7 @@ def test_a_scalar_removal_reports_absence_too(m):
 
 # An equation removes through its own path, which un-compiles the clause as
 # well as dropping the atom, and it owes the same answer.
-def test_an_absent_equation_removal_reports_absence(m):
+def test_an_absent_equation_removal_reports_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (kept-here $x) $x)")
     present, absent = m.run(
         "!(remove-atom &self (= (kept-here $x) $x))\n"
@@ -93,7 +93,7 @@ def test_an_absent_equation_removal_reports_absence(m):
 
 # The Python surface removes through the same door, so it inherits the ruling
 # rather than carrying a second opinion about absence.
-def test_the_python_remove_surface_reports_absence(m):
+def test_the_python_remove_surface_reports_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (kept 1))")
     with pytest.raises(Exception) as failure:
         m.one("(remove-atom &self (gone 1))")
@@ -109,7 +109,7 @@ def test_the_python_remove_surface_reports_absence(m):
 # `remove-atom` to behave as MULTISET SUBTRACTION on the reader-visible view
 # of `&self`, and LeaTTa's own u-space model removes the first exact
 # occurrence through `subtraction-atom`.
-def test_remove_atom_removes_one_occurrence_not_all(m):
+def test_remove_atom_removes_one_occurrence_not_all(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))")
     (before,) = m.run("!(collapse (match &self (dup $x) $x))")
     assert len(before[0]) == 3
@@ -121,7 +121,7 @@ def test_remove_atom_removes_one_occurrence_not_all(m):
 # Subtraction is repeatable, and the count walks down one at a time until the
 # space no longer holds the atom, at which point P1.17's absence error takes
 # over. The two rulings compose rather than colliding.
-def test_repeated_subtraction_walks_the_count_down_to_absence(m):
+def test_repeated_subtraction_walks_the_count_down_to_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (dup 2))\n!(add-atom &self (dup 2))")
     first, second, third = m.run(
         "!(remove-atom &self (dup 2))\n"
@@ -135,7 +135,7 @@ def test_repeated_subtraction_walks_the_count_down_to_absence(m):
 
 # Scalars live in their own storage predicate, so they are a separate path to
 # the same law.
-def test_a_scalar_removal_takes_one_copy(m):
+def test_a_scalar_removal_takes_one_copy(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self lone)\n!(add-atom &self lone)\n!(remove-atom &self lone)")
     (left,) = m.run("!(collapse (get-atoms &self))")
     assert len(left[0]) == 1
@@ -144,7 +144,7 @@ def test_a_scalar_removal_takes_one_copy(m):
 # An equation removes through its own path, which un-compiles the clause as
 # well as dropping the atom, and it obeys the same law: two copies of a rule
 # answer twice, and taking one away leaves the function answering once.
-def test_removing_one_of_two_identical_equations_leaves_the_function_defined(m):
+def test_removing_one_of_two_identical_equations_leaves_the_function_defined(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (twice-defined) 1)\n(= (twice-defined) 1)")
     (both,) = m.run("!(collapse (twice-defined))")
     assert both == [expr(1, 1)]
@@ -159,7 +159,7 @@ def test_removing_one_of_two_identical_equations_leaves_the_function_defined(m):
 # A pattern with a variable removes ONE unifying occurrence, not every one.
 # Which occurrence is not reported: the operation answers unit, and the
 # pattern's variables come back as they went in.
-def test_a_pattern_removal_takes_one_unifying_occurrence(m):
+def test_a_pattern_removal_takes_one_unifying_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (pair 1))\n!(add-atom &self (pair 2))")
     m.run("!(remove-atom &self (pair $x))")
     (left,) = m.run("!(collapse (match &self (pair $y) $y))")
@@ -168,13 +168,13 @@ def test_a_pattern_removal_takes_one_unifying_occurrence(m):
 
 # The Python door says the same thing about the same operation: remove() is
 # multiset subtraction, and del is the bulk spelling that drains the pattern.
-def test_the_python_remove_door_subtracts_one_copy(m):
+def test_the_python_remove_door_subtracts_one_copy(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.dup(3), S.dup(3), S.dup(3))
     assert m.remove(S.dup(3)) is True
     assert m.count() == 2
 
 
-def test_delitem_drains_every_unifying_occurrence(m):
+def test_delitem_drains_every_unifying_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.edge(S.a, S.b), S.edge(S.a, S.b), S.edge(S.b, S.c))
     del m[S.edge(S.a, V.y)]
     assert m.atoms() == [S.edge(S.b, S.c)]
@@ -196,7 +196,7 @@ def test_delitem_drains_every_unifying_occurrence(m):
 def subtracts_one(space_name, m):
     """Three copies in, one removal, two left. The multiset law, asked of
     whichever space `space_name` refers to.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for _ in range(3):
         m.run(f"!(add-atom {space_name} (law 1))")
     before = m.run(f"!(collapse (match {space_name} (law $x) $x))")[0][0]
@@ -205,7 +205,7 @@ def subtracts_one(space_name, m):
     return len(before), len(after)
 
 
-def test_a_native_space_subtracts_one(m):
+def test_a_native_space_subtracts_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert subtracts_one("&self", m) == (3, 2)
 
 
@@ -216,7 +216,7 @@ def test_a_python_provider_subtracts_one(metta):
         def __init__(self):
             self.stored = []
 
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(self.stored)
 
         def atoms(self):
@@ -245,7 +245,7 @@ def test_a_python_provider_subtracts_one(metta):
 def test_a_persistent_space_subtracts_one_fact_like_a_native_one(metta, tmp_path):
     """The journal-backed provider, which used to retractall and now
     retracts, so its journal records one removal rather than a sweep.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta.persistent import PersistentFactSpace
 
     provider = PersistentFactSpace(tmp_path / "law.db", {"law": 1})

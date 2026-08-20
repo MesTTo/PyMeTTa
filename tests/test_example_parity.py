@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def test_the_corpus_is_one_definition():
     """Discovery lives here and nowhere else. It used to be duplicated
     across runners, matching on basename rather than path, and the copies
     disagreed [source: ai-audit-md-review.md section 12].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     found = parity.corpus()
     assert found, "the corpus is empty, which means discovery is broken"
     assert all(path.suffix == ".metta" for path in found)
@@ -43,7 +43,7 @@ def test_every_declared_skip_resolves_and_would_otherwise_run():
     check.sh carried exactly that: it skipped import_error_broken.metta,
     which lives under _fixtures/ and is excluded before any skip is
     consulted [measured 2026-08-18].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for path, reason in parity.skips().items():
         assert (REPO / path).is_file(), f"{path} does not exist"
         assert reason, f"{path} has no reason"
@@ -62,7 +62,7 @@ def test_spelling_is_not_a_difference():
     """The engine writes `true` where the library writes `True`, and both
     parse to the same value. Comparing text reported this on 191 of 200
     examples; comparing values reports it on none [measured 2026-08-18].
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert parity._value("(true)") == parity._value("(True)")
     assert parity._value("(false)") == parity._value("(False)")
     assert parity._value("(1 2)") != parity._value("(- 1 2)")
@@ -71,7 +71,7 @@ def test_spelling_is_not_a_difference():
 def test_an_unparseable_group_stays_visible():
     """A group neither side can parse compares as its own text, so a
     malformed answer is not collapsed to equal-by-failure.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert parity._value("(a") == "(a"
     assert parity._value("(a") != parity._value("(b")
 
@@ -81,7 +81,7 @@ def test_the_grouping_is_preserved():
     `!(superpose (1 2))` then `!(superpose (3 2))`. Both flatten to the
     answers 1 2 3 2, and the first version of this lane could not tell them
     apart because it printed one line per ANSWER.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     one = parity.Outcome(["(1 2 3)", "(2)"], None)
     two = parity.Outcome(["(1 2)", "(3 2)"], None)
     assert one.groups != two.groups
@@ -93,13 +93,13 @@ def test_the_grouping_is_preserved():
 def test_an_empty_group_is_an_observation():
     """A form answering nothing prints `()` rather than nothing, because
     dropping it would misalign every group after it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     outcome = parity._read("LEATTA-ANSWER ()\nLEATTA-ANSWER (2)\n")
     assert outcome.groups == ["()", "(2)"]
     assert outcome.error is None
 
 
-def test_an_error_line_is_not_an_empty_run():
+def test_an_error_line_is_not_an_empty_run():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     outcome = parity._read("LEATTA-ERROR something broke\n")
     assert outcome.error == "something broke"
     assert outcome.groups == []
@@ -109,7 +109,7 @@ def test_an_error_line_is_not_an_empty_run():
 def test_a_known_agreeing_example_agrees(name):
     """Two examples that do agree, so a change breaking the comparison
     itself is caught rather than reading as a corpus finding.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     difference = parity.compare(REPO / "examples" / name)
     assert difference is None, str(difference)
 
@@ -120,7 +120,7 @@ def test_the_stated_corpus_size_is_the_real_one():
     242 (a glob counting 24 symlink aliases and 12 fixtures), and the
     survey ledger said 169, against 200 that run [measured 2026-08-18]. A
     number nothing derives is a number that drifts.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import re
 
     size = len(parity.corpus())

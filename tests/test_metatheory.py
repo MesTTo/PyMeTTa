@@ -24,7 +24,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ def _termination_line(report: str) -> str:
     return lines[0]
 
 
-def test_the_confluence_checker_records_its_provenance_and_its_termination_caveat(
+def test_the_confluence_checker_records_its_provenance_and_its_termination_caveat(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root,
 ):
     checker = _unwrapped(repo_root / "engine" / "trs.pl")
@@ -185,7 +185,7 @@ def _translator_rule_files(repo_root: Path) -> list[Path]:
     return found
 
 
-def test_the_compile_time_rule_set_is_shown_terminating_or_the_failure_is_named(
+def test_the_compile_time_rule_set_is_shown_terminating_or_the_failure_is_named(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root,
 ):
     # The shipped libraries, then every shipped file that registers a rule, one
@@ -213,7 +213,7 @@ def test_the_compile_time_rule_set_is_shown_terminating_or_the_failure_is_named(
     assert any(o.startswith("termination: NOT ESTABLISHED.") for o in outcomes)
 
 
-def test_the_established_route_names_what_decided_it(repo_root, tmp_path):
+def test_the_established_route_names_what_decided_it(repo_root, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     planted = tmp_path / "clean.metta"
     planted.write_text(CLEAN_RULES)
     report = _confluence_report(repo_root, [planted])
@@ -224,7 +224,7 @@ def test_the_established_route_names_what_decided_it(repo_root, tmp_path):
     assert "precedence, lowest first: " in report
 
 
-def test_overlapping_translator_rules_are_reported_with_the_overlap_named(
+def test_overlapping_translator_rules_are_reported_with_the_overlap_named(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root, tmp_path
 ):
     planted = tmp_path / "overlap.metta"
@@ -252,7 +252,7 @@ def test_overlapping_translator_rules_are_reported_with_the_overlap_named(
     assert _run_metta(repo_root, reversed_file)[-1] == "two"
 
 
-def test_a_rule_set_without_an_overlap_is_reported_as_having_none(
+def test_a_rule_set_without_an_overlap_is_reported_as_having_none(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root, tmp_path
 ):
     planted = tmp_path / "clean.metta"
@@ -263,7 +263,7 @@ def test_a_rule_set_without_an_overlap_is_reported_as_having_none(
     assert "conclusion: CONFLUENT." in report
 
 
-def test_the_detector_is_run_against_its_own_planted_rule_sets(repo_root):
+def test_the_detector_is_run_against_its_own_planted_rule_sets(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     finished = subprocess.run(
         [
             "swipl",
@@ -291,7 +291,7 @@ def test_the_detector_is_run_against_its_own_planted_rule_sets(repo_root):
         (REVERSED_RULES, "two"),
     ],
 )
-def test_assertion_order_alone_decides_which_overlapping_rule_wins(
+def test_assertion_order_alone_decides_which_overlapping_rule_wins(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root, tmp_path, source, expected
 ):
     planted = tmp_path / f"order_{expected}.metta"

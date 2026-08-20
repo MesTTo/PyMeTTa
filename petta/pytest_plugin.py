@@ -13,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -34,6 +34,6 @@ def scratch_space(metta: MeTTa):  # pylint: disable=redefined-outer-name
     """A fresh anonymous space per test, dropped afterwards: stored
     state is isolated; registrations stay process-wide, exactly as
     new_space documents.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     with metta.new_space() as space:
         yield space

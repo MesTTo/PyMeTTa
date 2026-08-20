@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import time
 
@@ -100,7 +100,7 @@ def test_parallel_reports_a_failing_branch(metta):
     """A branch that raises is not swallowed by the concurrency. A wrongly
     typed operand answers `(Error ...)` rather than raising now, so the branch
     that has to raise is a HOST error, division by zero.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta.errors import EngineError
 
     with metta.new_space() as space:
@@ -126,7 +126,7 @@ def test_a_dual_is_built_once_under_concurrency(metta):
 
     Asserted against the SERIAL answer rather than against a literal, because
     the claim is that concurrency changes nothing.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("(= (conc-p $x) (> $x 1))")
     calls = " ".join(["(not-provable (conc-p 0))"] * 16)
     concurrent = metta.run(f"!(collapse (hyperpose ({calls})))")[-1]

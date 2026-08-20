@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import uuid
 
@@ -28,7 +28,7 @@ def _silent_state(runtime):
     ("verbose", "during"),
     [("false", "True"), ("true", "False")],
 )
-def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, during):
+def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, during):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime = metta.runtime
     name = f"round2_helper_{uuid.uuid4().hex}"
     # The engine is shared across this process's tests, so the flag this
@@ -53,7 +53,7 @@ def test_helper_uses_one_silent_value_and_restores_previous(metta, verbose, duri
         runtime.must(f"petta_py_set_silent({prior})")
 
 
-def test_helper_restores_silent_after_an_error(metta):
+def test_helper_restores_silent_after_an_error(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime = metta.runtime
     name = f"round2_helper_error_{uuid.uuid4().hex}"
     prior = _silent_state(runtime)["Value"]

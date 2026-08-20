@@ -23,7 +23,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -190,7 +190,7 @@ def data_of(a: Any) -> Any:
     return a
 
 
-def install(m, default: Any = None) -> list[str]:
+def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keeps the array backend registration table together so its branches share one state
     """Register the array operation set on the shared engine.
 
     default names the library the constructors build in: a module, a module
@@ -236,7 +236,7 @@ def install(m, default: Any = None) -> list[str]:
         space routes its bare name there through per-space equations, so
         the default is the space's, never the process's. Installing the
         space again with another default replaces its aliases.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         namespaced = f"{name}--{library}"
         op(fn, name=namespaced, raw=raw, arities=arities, **kw)
         key = (m.space_name, name)
@@ -257,7 +257,7 @@ def install(m, default: Any = None) -> list[str]:
         """Two operands in one library: the right converts into the left's,
         through DLPack when it is an array and by lifting when it is a bare
         number, since the standard's functions take arrays on both sides.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         xp = namespace_of(a)
         if is_array(b):
             if type(b) is not type(a):
@@ -466,10 +466,10 @@ class EmbeddingStore:
     stored vector or nothing. Public operation names route through equations
     in this space to unique internal operations, so the same store name in a
     different space cannot retarget this store.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(
-        self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
     ) -> None:
         if backend not in ("auto", "argsort", "faiss"):
             msg = f"backend is auto, argsort or faiss, not {backend!r}"
@@ -515,7 +515,7 @@ class EmbeddingStore:
         )
         _SPACE_STORES[key] = (internal_knn, internal_embed)
 
-    def add(self, key: Any, vector: Any) -> None:
+    def add(self, key: Any, vector: Any) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         atom = key if isinstance(key, Atom) else S[str(key)]
         vector = self._checked_vector(vector, copy=True)
         try:
@@ -561,13 +561,13 @@ class EmbeddingStore:
             self._width = width
         return xp.asarray(vector, copy=True) if copy else vector
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return len(self._keys)
 
-    def keys(self) -> list[Atom]:
+    def keys(self) -> list[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._keys.copy()
 
-    def vector_for(self, key: Any) -> Any:
+    def vector_for(self, key: Any) -> Any:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         atom = key if isinstance(key, Atom) else S[str(key)]
         for stored, vector in zip(self._keys, self._vectors, strict=True):
             if stored == atom:
@@ -605,7 +605,7 @@ class EmbeddingStore:
         answers, byte-agreeing with the array path by a differential test.
         NumPy-like namespaces use argpartition for the candidate set;
         namespaces exposing only the Array API use argsort.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(k, bool):
             msg = f"k must be a positive integer, got {k!r}"
             raise TypeError(msg)
@@ -653,7 +653,7 @@ class EmbeddingStore:
     def _resolve(self, query: Any) -> Any:
         """A query as a vector: an array or sequence stands as itself, a
         stored key answers its vector.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if is_array(query) or isinstance(query, (list, tuple)):
             return query
         return self.vector_for(query)

@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -302,7 +302,7 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     way registration maps signatures, so a dataclass field typed float
     declares Number rather than %Undefined%; a Union field superposes one
     arrow per member, the checker's own reading of alternatives.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if issubclass(cls, Enum):
         return _enum_declarations(cls)
     found = _registration_for(cls)

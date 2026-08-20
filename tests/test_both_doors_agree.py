@@ -15,7 +15,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_load_pre_registers_signatures_so_a_later_definition_resolves(door_fixtu
 
     The pre-pass is what this names, not the corpus: a file whose only
     content is the failing shape.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = door_fixture(
         "signature_prepass",
         "!(memoize petta-prepass)\n(= (petta-prepass) ok)\n!(test (petta-prepass) ok)\n",
@@ -80,7 +80,7 @@ def test_a_forward_call_behaves_the_same_through_both_doors(door_fixture):
     AGREEMENT rather than the answer, so this compares them instead of
     asserting a value, and it would fail just as loudly if the engine
     started succeeding where the library did not.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = door_fixture(
         "forward_call",
         "(= (petta-forward-caller) (petta-forward-callee))\n"

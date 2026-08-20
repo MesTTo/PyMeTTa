@@ -19,7 +19,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def _dev(repo_root: Path, goal: str, *, optimise: bool = False) -> str:
     return finished.stdout
 
 
-def test_the_dev_build_checks_a_planted_type_violation_and_optimise_strips_it(repo_root):
+def test_the_dev_build_checks_a_planted_type_violation_and_optimise_strips_it(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     development = _dev(repo_root, "dev_typed_selftest")
     optimised = _dev(repo_root, "dev_typed_selftest", optimise=True)
 
@@ -78,7 +78,7 @@ def test_the_dev_build_checks_a_planted_type_violation_and_optimise_strips_it(re
 
 
 @pytest.mark.parametrize("funnel", FUNNELS)
-def test_the_engines_funnels_are_checked_in_the_development_build(repo_root, funnel):
+def test_the_engines_funnels_are_checked_in_the_development_build(repo_root, funnel):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     report = _dev(repo_root, "dev_typed_report")
     assert "build: development" in report
     line = next(row for row in report.splitlines() if row.startswith(f"{funnel}:"))
@@ -87,7 +87,7 @@ def test_the_engines_funnels_are_checked_in_the_development_build(repo_root, fun
     assert checks > 0, line
 
 
-def test_optimise_leaves_no_check_anywhere_in_the_engine(repo_root):
+def test_optimise_leaves_no_check_anywhere_in_the_engine(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     report = _dev(repo_root, "dev_typed_report", optimise=True)
     assert "build: optimised" in report
     assert f"typed: {len(FUNNELS)} predicates, 0 inserted checks" in report

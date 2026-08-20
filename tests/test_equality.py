@@ -13,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -24,7 +24,7 @@ from petta import MeTTa
 def declared():
     """One symbol of each kind a declaration can pin, so the rule can be
     exercised on symbols and not only on literals.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m = MeTTa()
     for form in ("(: xnum Number)", "(: ystr String)", "(: zbool Bool)"):
         m.run(form)
@@ -43,7 +43,7 @@ def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
     `==` is declared `(-> $a $a Bool)`, one type variable, so the two operands
     must have a consistent type. Measured 2026-08-19 on hyperon 0.2.10 and on
     the LeaTTa mechanised interpreter, byte-identical across both.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     # Both sides KNOWN and different: refused, and the refusal is an ANSWER
     # naming the position, the type the first operand fixed and the type the
     # second carries. The form after it still runs, which a raise took away.
@@ -92,7 +92,7 @@ def test_an_expression_operand_is_left_alone(declared):
     both answer False for `(== (1 2 3) ())` and `(== (1 2) (a b))`, which is
     the shape a MeTTa program writes. The collapse-and-compare idiom is what
     hangs on this, so it is checked directly.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answer(declared, "(== (collapse (superpose ())) ())") == ["True"]
     assert _answer(declared, "(== (collapse (superpose (1 2))) ())") == ["False"]
     for query in (
@@ -112,7 +112,7 @@ def test_alpha_equality_still_compares_across_kinds(declared):
     `=alpha` is declared `(-> Atom Atom Bool)`, so it takes anything and
     compares structurally. Both references answer False for
     `!(=alpha 1 "S")`, measured 2026-08-19.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answer(declared, '(=alpha 1 "S")') == ["False"]
     assert _answer(declared, "(=alpha True 1)") == ["False"]
     assert _answer(declared, "(=alpha 1 1)") == ["True"]

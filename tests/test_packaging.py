@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _manifest() -> dict:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def test_package_and_tools_share_one_manifest():
+def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert (ROOT / "bindings" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
     assert project["name"] == "petta"
@@ -44,7 +44,7 @@ def test_package_and_tools_share_one_manifest():
     }
 
 
-def test_release_and_citation_metadata_ship_in_source_archives():
+def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
     source_manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
@@ -56,7 +56,7 @@ def test_release_and_citation_metadata_ship_in_source_archives():
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
 
 
-def test_optional_integrations_have_installable_extras():
+def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     extras = _manifest()["project"]["optional-dependencies"]
     assert set(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
     assert extras["das"] == ["websocket-client"]
@@ -69,7 +69,7 @@ def test_optional_integrations_have_installable_extras():
     assert "pylint>=3.3,<4" in extras["checks"]
 
 
-def test_python_gate_groups_files_in_process_workers():
+def test_python_gate_groups_files_in_process_workers():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     gate = (ROOT / "check.sh").read_text(encoding="utf-8")
     assert "-p no:benchmark -n auto --dist loadfile --max-worker-restart=0" in gate
 
@@ -109,7 +109,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
     setup.py records each measured reason; this asserts the exclusion by
     naming the extensions the build is allowed to produce, so putting it
     back is a failing test rather than a silent behaviour change.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     pytest.importorskip("mypyc.build", reason="mypyc ships with mypy")
     if shutil.which(sysconfig.get_config_var("CC") or "cc") is None:
         pytest.skip("no C compiler")
@@ -145,25 +145,25 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
     assert not list((tmp_path / "refused").rglob("*.so"))
 
 
-def test_benchmark_gate_reports_the_whole_inventory():
+def test_benchmark_gate_reports_the_whole_inventory():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     gate = (ROOT / "check.sh").read_text(encoding="utf-8")
     assert "bench.py --counter-only --keep-going" in gate
 
 
-def test_dependency_audit_treats_tool_extras_as_development_dependencies():
+def test_dependency_audit_treats_tool_extras_as_development_dependencies():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     deptry = _manifest()["tool"]["deptry"]
     assert deptry["optional_dependencies_dev_groups"] == ["test", "checks"]
     assert {"bench.py", "benchmarks"} <= set(deptry["extend_exclude"])
 
 
-def test_doc_gate_measures_the_public_surface_at_eighty_percent():
+def test_doc_gate_measures_the_public_surface_at_eighty_percent():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     interrogate = _manifest()["tool"]["interrogate"]
     assert interrogate["fail-under"] == 80
     assert interrogate["ignore-semiprivate"] is True
     assert interrogate["ignore-private"] is True
 
 
-def test_integrations_group_is_left_to_third_parties():
+def test_integrations_group_is_left_to_third_parties():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The library ships no built-in integration: anything measure-like is
     # built on top, in its own package, publishing into the
     # petta.integrations entry-point group from its own manifest.

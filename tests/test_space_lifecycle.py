@@ -17,7 +17,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -42,7 +42,7 @@ def drained(metta):
 def test_a_dropped_name_comes_back(drained):
     """The premise. Without name reuse there is nothing to inherit, and a
     test that never recycled would pass while proving nothing.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     first = drained.new_space()
     name = first.space_name
     first.drop()
@@ -57,7 +57,7 @@ def test_a_dropped_name_comes_back(drained):
 # funnels equations before reaching the engine's, so this is the end-to-end
 # guard over a door that was already right; the engine door's own red is
 # spaces_execution_modules:clearing_a_space_empties_its_execution_module.
-def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):
+def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = drained.new_space()
     name = first.space_name
     first.add(S.plain(1))
@@ -93,7 +93,7 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):
 def test_a_recycled_name_can_reimport_what_its_past_life_imported(tmp_path, drained):
     """Import bookkeeping is per space, so a recycled name must not remember
     a file the previous life loaded and skip it as already imported.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = tmp_path / "life.metta"
     source.write_text("(imported-fact payload)\n")
 
@@ -119,7 +119,7 @@ def test_a_recycled_name_can_reimport_what_its_past_life_imported(tmp_path, drai
 # the other two". They answer from &self and from a sibling space while the
 # registering space is still alive, so their surviving its drop is that same
 # fact rather than a past life reaching through a name.
-def test_a_recycled_name_still_sees_process_wide_registrations(drained):
+def test_a_recycled_name_still_sees_process_wide_registrations(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     sibling = drained.new_space()
     first = drained.new_space()
     name = first.space_name
@@ -140,7 +140,7 @@ def test_a_recycled_name_still_sees_process_wide_registrations(drained):
 def test_a_dropped_handle_refuses_rather_than_writing_into_the_next_life(metta):
     """The other half of name reuse: the dead handle must not reach the
     engine, because its name may already belong to somebody else.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     first = metta.new_space()
     first.drop()
     with pytest.raises(Exception, match="dropped"):

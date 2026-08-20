@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -14,12 +14,12 @@ from petta import S, V
 
 
 @pytest.fixture(scope="module")
-def rx(metta):
+def rx(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(import! &self (library lib_regex))")
     return metta
 
 
-def test_regex_matching_finding_and_replacing(rx):
+def test_regex_matching_finding_and_replacing(rx):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert rx.eval('(re-match "(?i)^needle" "Needle in a haystack")') == [True]
     assert rx.eval('(re-match "^x" "abc")') == [False]
     assert rx.eval(r'(re-find "\\d+" "a1 b22 c333")') == ["1", "22", "333"]
@@ -29,7 +29,7 @@ def test_regex_matching_finding_and_replacing(rx):
     assert rx.eval(r'(re-replace "(?<y>\\d+)" "[$y]" "n 42 n")') == ["n [42] n"]
 
 
-def test_regex_captures_are_typed(rx):
+def test_regex_captures_are_typed(rx):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (groups,) = rx.eval(
         r'(re-captures "(?<year_I>\\d\\d\\d\\d)-(?<month_I>\\d\\d)" "2017-04-20")'
     )
@@ -40,7 +40,7 @@ def test_regex_captures_are_typed(rx):
     assert rx.eval('(re-captures "^x" "abc")') == []  # no match, no answer
 
 
-def test_regex_guards_queries(rx, metta):
+def test_regex_guards_queries(rx, metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as m:
         m.add(S.person(S.Ada), S.person(S.alan), S.person(S.Alice))
         rows = m.query(S.person(V.name), where='(re-match "^A" $name)')

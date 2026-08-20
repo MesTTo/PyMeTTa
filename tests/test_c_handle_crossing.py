@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from pathlib import Path
 
@@ -25,7 +25,7 @@ _LIBRARY = (
 
 
 @pytest.fixture
-def vectors():
+def vectors():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _LIBRARY.is_file():
         pytest.skip("handle.so is not built; see examples/integration/c_extension/README.md")
     m = petta.MeTTa().new_space()
@@ -44,7 +44,7 @@ def unpack_vector(m, handle: Handle) -> list[int]:
     """The Python-side unpack method: the handle stays opaque here, and the
     extension's own accessors read the native structure out element by
     element. Nothing in this function knows what a vector is inside.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     (row,) = m.run("!(vector-length h)", using={"h": handle})
     length = int(str(row[0]))
     return [
@@ -53,7 +53,7 @@ def unpack_vector(m, handle: Handle) -> list[int]:
     ]
 
 
-def test_a_c_object_crosses_by_identity_and_unpacks_in_python(vectors):
+def test_a_c_object_crosses_by_identity_and_unpacks_in_python(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = vectors
     (row,) = m.run("!(vector-new 5)")
     handle = row[0]
@@ -66,7 +66,7 @@ def test_a_c_object_crosses_by_identity_and_unpacks_in_python(vectors):
     assert unpack_vector(m, handle) == [0, 1, 2, 4, 4]
 
 
-def test_a_handle_nests_inside_expressions_both_ways(vectors):
+def test_a_handle_nests_inside_expressions_both_ways(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = vectors
     (row,) = m.run("!(holds (vector-new 3) tagged)")
     expression = row[0]
@@ -75,7 +75,7 @@ def test_a_handle_nests_inside_expressions_both_ways(vectors):
     assert unpack_vector(m, inner) == [0, 1, 2]
 
 
-def test_a_released_handle_raises_by_id(vectors):
+def test_a_released_handle_raises_by_id(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = vectors
     (row,) = m.run("!(vector-new 2)")
     handle = row[0]
@@ -85,7 +85,7 @@ def test_a_released_handle_raises_by_id(vectors):
         m.run("!(vector-length h)", using={"h": handle})
 
 
-def test_a_handle_refuses_pickling(vectors):
+def test_a_handle_refuses_pickling(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import pickle
 
     m = vectors
@@ -94,7 +94,7 @@ def test_a_handle_refuses_pickling(vectors):
         pickle.dumps(row[0])
 
 
-def test_a_handle_is_a_context_manager(vectors):
+def test_a_handle_is_a_context_manager(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = vectors
     (row,) = m.run("!(vector-new 2)")
     with row[0] as handle:

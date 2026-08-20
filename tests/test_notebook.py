@@ -4,7 +4,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import os
@@ -33,7 +33,7 @@ def _has_rows_table(notebook) -> bool:
     )
 
 
-def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):
+def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     notebook_path = repo_root / "notebooks" / "tour.ipynb"
     stored = json.loads(notebook_path.read_text(encoding="utf8"))
     assert _has_rows_table(stored)

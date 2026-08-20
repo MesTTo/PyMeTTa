@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import re
@@ -19,7 +19,7 @@ import petta
 from petta import _engine
 
 
-def test_backend_info_reports_versions_and_consulted_tree():
+def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     fresh = not _engine.started()
 
     info = petta.backend_info()
@@ -52,7 +52,7 @@ def test_backend_info_reports_versions_and_consulted_tree():
 def test_backend_info_never_starts_the_runtime():
     """The no-start guarantee, pinned where it is deterministic: a fresh
     interpreter answers every version and still has no runtime.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     program = (
         "import petta\n"
         "from petta import _engine\n"
@@ -75,7 +75,7 @@ def test_backend_info_never_starts_the_runtime():
     assert "NO-START-OK" in done.stdout
 
 
-def test_engine_thread_owns_only_its_attachment(metta):
+def test_engine_thread_owns_only_its_attachment(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     observed = {}
 
     def work():
@@ -90,7 +90,7 @@ def test_engine_thread_owns_only_its_attachment(metta):
         try:
             with petta.engine_thread():
                 msg = "exceptional context exit"
-                raise LookupError(msg)
+                raise LookupError(msg)  # noqa: TRY301  -- the raised exception is the deliberate catch-path probe exercised by this test
         except LookupError:
             pass
         observed["after_exception"] = petta.janus.engine()

@@ -21,7 +21,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import re
 
@@ -82,7 +82,7 @@ _ROW = re.compile(r"^ext_point_kind\(([a-zA-Z_'/0-9-]+/\d+),\s*host_service\)\."
                   re.MULTILINE)
 
 
-def test_the_host_service_scoreboard_matches_the_tree(repo_root):
+def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     declared = set(
         _ROW.findall((repo_root / "engine" / "ext_points.pl").read_text())
     )

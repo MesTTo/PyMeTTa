@@ -3,7 +3,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -19,7 +19,7 @@ from petta import (
 )
 
 
-def test_multi_step_proof_names_equations_and_facts(metta):
+def test_multi_step_proof_names_equations_and_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(
         "(par-d Tom Bob)\n(par-d Bob Ann)\n"
         "(= (anc-d $x $y) (match &self (par-d $x $y) $y))\n"
@@ -39,7 +39,7 @@ def test_multi_step_proof_names_equations_and_facts(metta):
     assert "fact (par-d Tom Bob)" in text
 
 
-def test_every_proof_enumerates(metta):
+def test_every_proof_enumerates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(
         "(par-e Tom Bob)\n(par-e Bob Ann)\n"
         "(= (anc-e $x $y) (match &self (par-e $x $y) $y))\n"
@@ -50,7 +50,7 @@ def test_every_proof_enumerates(metta):
     assert answers == {S.Bob, S.Ann}
 
 
-def test_depth_bound_marks_runaway_search_as_partial(metta):
+def test_depth_bound_marks_runaway_search_as_partial(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (loop-d $x) (loop-d $x))")
     (proof,) = metta.derivation(S["loop-d"](1), depth=5)
     assert not proof.complete
@@ -58,7 +58,7 @@ def test_depth_bound_marks_runaway_search_as_partial(metta):
     assert isinstance(proof.truncations[0], Truncated)
 
 
-def test_conditional_derivation_exposes_the_recursive_branch(metta):
+def test_conditional_derivation_exposes_the_recursive_branch(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(
         "(= (fact-tree $n) "
         "(if (== $n 0) 1 (* $n (fact-tree (- $n 1)))))"
@@ -75,14 +75,14 @@ def test_conditional_derivation_exposes_the_recursive_branch(metta):
     )
 
 
-def test_disjunction_derivation_enumerates_each_taken_branch(metta):
+def test_disjunction_derivation_enumerates_each_taken_branch(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (pick-tree) (superpose (1 2 3)))")
     proofs = metta.derivation(S["pick-tree"]())
     assert {proof.answer for proof in proofs} == {1, 2, 3}
     assert all(proof.complete for proof in proofs)
 
 
-def test_derivation_honours_a_cut(metta):
+def test_derivation_honours_a_cut(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A cut prunes the equations after it. Recorded as a leaf and called,
     # it pruned nothing, so the proof list carried a conclusion the program
     # cannot reach: run answered first, derivation proved first and second.
@@ -92,13 +92,13 @@ def test_derivation_honours_a_cut(metta):
     assert [proof.answer for proof in metta.derivation(S["cut-tree"](1))] == [S.first]
 
 
-def test_derivation_still_enumerates_equations_without_a_cut(metta):
+def test_derivation_still_enumerates_equations_without_a_cut(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (open-tree $x) one)")
     metta.run("(= (open-tree $x) two)")
     assert [proof.answer for proof in metta.derivation(S["open-tree"](1))] == [S.one, S.two]
 
 
-def test_a_cut_inside_once_stays_inside_it(metta):
+def test_a_cut_inside_once_stays_inside_it(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # once/1 is a cut barrier: the cut may not prune the equations beside
     # the one it sits in.
     metta.run("(= (barrier-tree $x) (let $c (once (cut)) first))")
@@ -109,7 +109,7 @@ def test_a_cut_inside_once_stays_inside_it(metta):
     ]
 
 
-def test_once_and_findall_derivations_expose_their_inner_goals(metta):
+def test_once_and_findall_derivations_expose_their_inner_goals(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(
         "(= (once-tree) (once (superpose (1 2)))) "
         "(= (findall-tree) (collapse (superpose (1 2))))"
@@ -128,7 +128,7 @@ def test_once_and_findall_derivations_expose_their_inner_goals(metta):
     assert any("2=2" in leaf for leaf in leaves)
 
 
-def test_depth_exhaustion_returns_a_partial_proof(metta):
+def test_depth_exhaustion_returns_a_partial_proof(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     depth = 40
     peano = "z"
     for _ in range(depth):
@@ -145,19 +145,19 @@ def test_depth_exhaustion_returns_a_partial_proof(metta):
     assert metta.derivation("(dep-tree not-a-peano)") == []
 
 
-def test_unbounded_derivation_obeys_resource_guards(metta):
+def test_unbounded_derivation_obeys_resource_guards(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (loop-guard-d $x) (loop-guard-d $x))")
     with pytest.raises(InferenceLimitError):
         metta.derivation(S["loop-guard-d"](1), inferences=2_000)
 
 
 @pytest.mark.parametrize("depth", [0, -1, True, 1.5])
-def test_derivation_depth_must_be_a_positive_integer_or_none(metta, depth):
+def test_derivation_depth_must_be_a_positive_integer_or_none(metta, depth):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="positive integer or None"):
         metta.derivation(S.anything(), depth=depth)
 
 
-def test_html_rendering(metta):
+def test_html_rendering(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(fact-h here)\n(= (find-h) (match &self (fact-h $x) $x))")
     (proof,) = metta.derivation(S["find-h"]())
     assert "<pre>" in proof._repr_html_()
@@ -205,12 +205,12 @@ def test_html_rendering(metta):
         ),
     ],
 )
-def test_malformed_derivation_nodes_are_named(tree, message):
+def test_malformed_derivation_nodes_are_named(tree, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match=message):
         Derivation.from_atom(tree)
 
 
-def test_derivation_facts_deduplicate_in_first_seen_order():
+def test_derivation_facts_deduplicate_in_first_seen_order():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     fact_a = expr(S.fact, S["&self"], S.a(1))
     fact_b = expr(S.fact, S["&self"], S.b(2))
     tree = expr(

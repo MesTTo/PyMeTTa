@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import subprocess
 import sys
@@ -56,7 +56,7 @@ def _run_lane(repo_root, corpus, gate_file):
     )
 
 
-def test_a_recorded_divergence_does_not_block_area_promotion(repo_root, tmp_path):
+def test_a_recorded_divergence_does_not_block_area_promotion(repo_root, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     area = tmp_path / "delta"
     area.mkdir()
     (area / "agrees.metta").write_text(CONFORMS)

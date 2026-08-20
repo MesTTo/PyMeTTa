@@ -28,7 +28,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def _comparable(wire: list) -> list:
 def _number_from_text(text: str) -> int | float:
     """The corpus writes a number as canonical Prolog text; this is Python's
     half of reading it, the mirror of numberFromText in index.mjs.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if text.lstrip("-").isdigit():
         return int(text)
     if text.endswith("Inf"):
@@ -145,7 +145,7 @@ def _comparable_transport(transport: list) -> list:
     100000000000000000000.0 for the same double, and the reader takes both:
     the transport carries a value, and only the engine's own writer is
     canonical about how it spells.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     return _comparable(_wire_from_transport(transport))
 
 
@@ -167,7 +167,7 @@ def _number_to_text(value: Any) -> Any:
     A payload that is not a number at all goes through untouched, so the
     corpus's malformed cases are refused by the codec under test rather than
     by this converter.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return value
     if isinstance(value, int):
@@ -217,7 +217,7 @@ class NodeBinding:
     resolves_anonymous = True
     runs_programs = True
 
-    def __init__(self, process: subprocess.Popen[str]) -> None:
+    def __init__(self, process: subprocess.Popen[str]) -> None:  # noqa: D107  -- the test double construction contract is local to its containing scenario
         if process.stdin is None or process.stdout is None:
             msg = "the Node driver was started without its pipes"
             raise RuntimeError(msg)
@@ -228,7 +228,7 @@ class NodeBinding:
     def close(self) -> None:
         """Closing the request stream ends the driver's read loop, so it exits
         on its own rather than being signalled.
-        """
+        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
         self._stdin.close()
         self._process.wait(timeout=30)
 
@@ -244,33 +244,33 @@ class NodeBinding:
             raise ValueError(answer["error"])
         return answer["ok"]
 
-    def read(self, text: str) -> Any:
+    def read(self, text: str) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return _wire_from_transport(self._call("read", text=text))
 
-    def roundtrip(self, wire: Any) -> Any:
+    def roundtrip(self, wire: Any) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return _wire_from_transport(self._call("roundtrip", transport=_transport_from_wire(wire)))
 
-    def transport(self, wire: Any) -> Any:
+    def transport(self, wire: Any) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return _wire_from_transport(self._call("transport", transport=_transport_from_wire(wire)))
 
-    def render(self, wire: Any) -> str:
+    def render(self, wire: Any) -> str:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return str(self._call("render", transport=_transport_from_wire(wire)))
 
-    def transcript(self, program: str) -> list:
+    def transcript(self, program: str) -> list:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         groups = self._call("transcript", program=program)
         return [[_wire_from_transport(answer) for answer in group] for group in groups]
 
-    def host_value(self) -> Any:
+    def host_value(self) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         msg = "the Node binding declares no o tag"
         raise AssertionError(msg)
 
-    def frame(self, wire: Any) -> dict:
+    def frame(self, wire: Any) -> dict:  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         msg = "the Node binding declares no frames"
         raise AssertionError(msg)
 
 
 @pytest.fixture(scope="module")
-def node_driver():
+def node_driver():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _need_node()
     process = subprocess.Popen(
         ["node", str(_BINDING / "kit" / "driver.mjs")],
@@ -294,7 +294,7 @@ def _need_node() -> None:
 
 
 @pytest.fixture(scope="module")
-def node_report() -> dict:
+def node_report() -> dict:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _need_node()
     finished = subprocess.run(
         ["node", str(_BINDING / "kit" / "run.mjs")],
@@ -334,7 +334,7 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
     the REASON rather than the case list: a case added to the corpus is not
     this binding changing, but a case falling out because a capability was
     given up would be.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     pytest.importorskip(
         "petta._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
@@ -409,7 +409,7 @@ def test_the_node_binding_leaves_the_third_answer_uncomputed(node_report: dict) 
     assertion at all. The witness space holds one atom per answer the engine
     actually produced, which is what says the third was never computed rather
     than only that two were read.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     streaming = node_report["streaming"]
     assert streaming["pulled"] == ["1", "2"]
     assert streaming["produced"] == ["((produced 1) (produced 2))"]

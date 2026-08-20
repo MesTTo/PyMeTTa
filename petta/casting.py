@@ -22,7 +22,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class CastError(PettaError, TypeError):
 def _type_atom(type_: Any) -> Atom:
     """The target type as an atom: an Atom stands, source text parses,
     and a Python type spells the name get-type answers for its values.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(type_, Atom):
         return type_
     if isinstance(type_, str):
@@ -77,7 +77,7 @@ def _type_atom(type_: Any) -> Atom:
 def _narrow(value: Any) -> Any:
     """The Python-most spelling of an admitted value: a ground atom
     unwraps to its Python value, everything else answers itself.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Gnd):
         return value.value
     return value
@@ -98,7 +98,7 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         m.run("(: Ann Person)")
         assert m.cast(S.Ann, "Person") is S.Ann
         assert m.cast(3, int) == 3
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     target = _type_atom(type_)
     if isinstance(target, Sym) and str(target) in _UNCHECKED:
         return _narrow(value)

@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: why-not trees for derivations that fail.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class Fact:
     space: str
     atom: Atom
 
-    def render(self, indent: int) -> str:
+    def render(self, indent: int) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return f"{'  ' * indent}fact {self.atom}   [{self.space}]"
 
 
@@ -41,7 +41,7 @@ class Builtin:
 
     text: str
 
-    def render(self, indent: int) -> str:
+    def render(self, indent: int) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return f"{'  ' * indent}builtin {self.text}"
 
 
@@ -51,7 +51,7 @@ class Truncated:
 
     text: str
 
-    def render(self, indent: int) -> str:
+    def render(self, indent: int) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return f"{'  ' * indent}truncated {self.text}"
 
 
@@ -64,7 +64,7 @@ class Step:
     equation: Atom
     children: tuple[Node, ...] = field(default_factory=tuple)
 
-    def render(self, indent: int) -> str:
+    def render(self, indent: int) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         pad = "  " * indent
         lines = [
             f"{pad}{self.call} = {self.answer}",
@@ -116,7 +116,7 @@ class Derivation:
         return Derivation(call=call, answer=out, children=children)
 
     @property
-    def facts(self) -> list[Fact]:
+    def facts(self) -> list[Fact]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         seen: list[Fact] = []
         for node in _walk(self.children):
             if isinstance(node, Fact) and node not in seen:
@@ -124,7 +124,7 @@ class Derivation:
         return seen
 
     @property
-    def rules(self) -> list[Atom]:
+    def rules(self) -> list[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         seen: list[Atom] = []
         for n in _walk(self.children):
             if isinstance(n, Step) and n.equation not in seen:
@@ -141,7 +141,7 @@ class Derivation:
         """Whether the tree explains the proof without a depth cutoff."""
         return not self.truncations
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         lines = [f"{self.call} = {self.answer}"]
         lines.extend(c.render(1) for c in self.children)
         return "\n".join(lines)

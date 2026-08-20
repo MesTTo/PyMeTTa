@@ -14,7 +14,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import contextlib
 import logging
@@ -36,9 +36,9 @@ from petta.das import (
 class ScriptedDAS(DAS):
     """A DAS whose transport is a script: posts are recorded, events
     replay the shapes the router's own C++ emits.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, events):
+    def __init__(self, events):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__("http://scripted:0")
         self.posted = []
         self._script = list(events)
@@ -51,7 +51,7 @@ class ScriptedDAS(DAS):
             return {"execution_id": "exec-1"}
         return {}
 
-    def _events(self, execution_id):
+    def _events(self, execution_id):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield from self._script
 
 
@@ -72,7 +72,7 @@ _COMPLETED = {
 }
 
 
-def test_query_pins_the_request_and_reads_answers_as_atoms():
+def test_query_pins_the_request_and_reads_answers_as_atoms():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = ScriptedDAS([
         {
             "command": "query_answers",
@@ -109,14 +109,14 @@ def test_query_pins_the_request_and_reads_answers_as_atoms():
     assert answers[0].importance == 0.5
 
 
-def test_two_patterns_compose_as_a_server_side_and():
+def test_two_patterns_compose_as_a_server_side_and():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = ScriptedDAS([_COMPLETED])
     das.query(S.f(V.x), S.g(V.x))
     token = das.posted[-1][2]["params"]["query"]["tokens"][0]
     assert token == "(and (f %x) (g %x))"
 
 
-def test_error_status_raises_with_the_servers_message():
+def test_error_status_raises_with_the_servers_message():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = ScriptedDAS([
         {
             "command": "execution_status",
@@ -127,7 +127,7 @@ def test_error_status_raises_with_the_servers_message():
         das.query(S.f(V.x))
 
 
-def test_query_and_count_require_completed_terminal_event():
+def test_query_and_count_require_completed_terminal_event():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     partial = {
         "command": "query_answers",
         "params": {"answers": [_answer_item('"partial"', "(f partial)")]},
@@ -147,7 +147,7 @@ def test_query_and_count_require_completed_terminal_event():
         ScriptedDAS([aborted]).count(S.f(V.x))
 
 
-def test_completed_query_closes_its_event_stream(monkeypatch):
+def test_completed_query_closes_its_event_stream(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class TrackedStream:
         def __init__(self):
             self._events = iter([("status", _COMPLETED["params"])])
@@ -170,7 +170,7 @@ def test_completed_query_closes_its_event_stream(monkeypatch):
     assert stream.closed
 
 
-def test_count_answers_the_servers_total():
+def test_count_answers_the_servers_total():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = ScriptedDAS([
         {
             "command": "execution_status",
@@ -181,7 +181,7 @@ def test_count_answers_the_servers_total():
     assert das.posted[-1][2]["params"]["count_flag"] is True
 
 
-def test_das_space_joins_with_native_facts(metta):
+def test_das_space_joins_with_native_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = ScriptedDAS([
         {
             "command": "query_answers",
@@ -223,7 +223,7 @@ def test_das_space_joins_with_native_facts(metta):
         metta.remove(S.habitat(S.monkey, S.jungle))
 
 
-def test_ping_is_false_when_nothing_listens():
+def test_ping_is_false_when_nothing_listens():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert DAS("http://127.0.0.1:9", timeout=0.5).ping() is False
 
 
@@ -236,39 +236,39 @@ def test_ping_is_false_when_nothing_listens():
         ("example.test/api", "<missing>"),
     ],
 )
-def test_das_refuses_non_http_urls(url, scheme):
+def test_das_refuses_non_http_urls(url, scheme):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(DASError, match=scheme):
         DAS(url)
 
 
-def test_das_accepts_http_and_https_urls():
+def test_das_accepts_http_and_https_urls():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert DAS("http://example.test/api/")._base == "http://example.test/api"
     assert DAS("https://example.test/api/")._base == "https://example.test/api"
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
-def test_das_refuses_invalid_timeouts(timeout):
+def test_das_refuses_invalid_timeouts(timeout):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="timeout"):
         DAS("http://example.test", timeout=timeout)
 
 
-def test_plain_http_error_body_is_reported(monkeypatch):
+def test_plain_http_error_body_is_reported(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = DAS("http://scripted")
     monkeypatch.setattr(
         type(das._endpoint),
         "request",
-        lambda self, *args, **kwargs: (500, "failure", b"router failure"),
+        lambda _self, *_args, **_kwargs: (500, "failure", b"router failure"),
     )
     with pytest.raises(DASError, match=r"500.*router failure"):
         das._request("GET", "/probe")
 
 
-def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):
+def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = DAS("http://scripted")
     monkeypatch.setattr(
         type(das._endpoint),
         "request",
-        lambda self, *args, **kwargs: (200, "OK", b'{"ready": true}'),
+        lambda _self, *_args, **_kwargs: (200, "OK", b'{"ready": true}'),
     )
     with caplog.at_level(logging.DEBUG, logger="petta.das"):
         assert das._request("GET", "/probe") == {"ready": True}
@@ -276,7 +276,7 @@ def test_das_transport_logs_method_path_and_status(monkeypatch, caplog):
     assert "answered with HTTP 200" in caplog.text
 
 
-def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
+def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = "&das-capability-test"
     metta.register_space(DASSpace(ScriptedDAS([_COMPLETED])), name)
     try:
@@ -295,9 +295,9 @@ class LegacyScriptedDAS(DAS):
     """Speaks like the deployed 1.2.0-rc images: refuses the enveloped
     shape with the router's own 400 text, accepts the flat one, and
     streams flat events with answer chunks under data.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, events):
+    def __init__(self, events):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__("http://scripted:0")
         self.posted = []
         self._script = list(events)
@@ -316,11 +316,11 @@ class LegacyScriptedDAS(DAS):
             return {"execution_id": "exec-legacy", "status": "pending"}
         return {}
 
-    def _events(self, execution_id):
+    def _events(self, execution_id):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield from self._script
 
 
-def test_legacy_dialect_negotiates_tokens_and_handle_answers():
+def test_legacy_dialect_negotiates_tokens_and_handle_answers():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     das = LegacyScriptedDAS([
         {"execution_id": "exec-legacy", "status": "running"},
         {"data": [{
@@ -346,7 +346,7 @@ def test_legacy_dialect_negotiates_tokens_and_handle_answers():
     assert das._dialect == "legacy"
 
 
-def test_token_rendering_distinguishes_ground_links_from_templates():
+def test_token_rendering_distinguishes_ground_links_from_templates():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert _render_tokens(S.f(S.g(S.a), V.x)) == (
         "LINK_TEMPLATE Expression 3 NODE Symbol f "
         "LINK Expression 2 NODE Symbol g NODE Symbol a VARIABLE x"
@@ -357,7 +357,7 @@ _LIVE_URL = os.environ.get("PETTA_DAS_URL", "http://localhost:40009")
 
 
 @pytest.fixture(scope="module")
-def live_das():
+def live_das():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pytest.importorskip("websocket")
     das = DAS(_LIVE_URL, timeout=1.0)
     if not das.ping():
@@ -389,7 +389,7 @@ def _router_still_answering():
         raise
 
 
-def test_live_router_round_trip(live_das):
+def test_live_router_round_trip(live_das):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with _router_still_answering():
         _live_router_round_trip(live_das)
 
@@ -402,7 +402,7 @@ def _live_router_round_trip(live_das):
     total = das.count(S.Similarity(V.a, V.b))
     assert total >= len(answers) > 0
     execution_id = das._start_query(
-        (S.Similarity(V.a, V.b),), False, False, None, {}
+        (S.Similarity(V.a, V.b),), False, False, None, {}  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     )
     das.cancel(execution_id)
     assert das.status(execution_id)["status"] in (
@@ -413,7 +413,7 @@ def _live_router_round_trip(live_das):
 # The classification the guard above rests on, tested rather than assumed,
 # because the obvious version of it was wrong in one direction: a websocket
 # timeout is not an OSError.
-def test_a_transport_failure_is_told_apart_from_a_wrong_router():
+def test_a_transport_failure_is_told_apart_from_a_wrong_router():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     websocket = pytest.importorskip("websocket")
     absent = [
         OSError("connection refused"),

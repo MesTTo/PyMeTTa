@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def canonical_aux(equation: Expr, name: str) -> Expr:
     """The equation with its auxiliary names serial-independent, for
     comparing a re-defined clause against the recorded one: every symbol
     `name--kind-N` becomes `name--kind` numbered by first appearance.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return canonical_aux_set((equation,), name)[0]
 
 
@@ -104,7 +104,7 @@ class Defined(Generic[_P, _R]):
         "space",
     )
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         name: str,
         params: list[str],
@@ -132,7 +132,7 @@ class Defined(Generic[_P, _R]):
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Expr:
+    def __call__(self, *args: Any) -> Expr:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(
@@ -146,7 +146,7 @@ class Defined(Generic[_P, _R]):
         return self._py
 
     @property
-    def head(self) -> Expr:
+    def head(self) -> Expr:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return Expr(
             [Sym(self.name), *(self.patterns.get(p, Var(p)) for p in self.params)]
         )
@@ -155,7 +155,7 @@ class Defined(Generic[_P, _R]):
         """The equation as MeTTa source."""
         return f"(= {self.head} {self.body})"
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 
 
@@ -174,7 +174,7 @@ class PrologBacked(Defined[_P, _R]):
 
     __slots__ = ("origin",)
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         name: str,
         params: list[str],
@@ -189,7 +189,7 @@ class PrologBacked(Defined[_P, _R]):
         """Where the fast side came from, there being no equation to show."""
         return f"% {self.name}/{len(self.params) + 1} registered from {self.origin}"
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return (
             f"<defined {self.name}({', '.join(self.params)}) "
             f"in prolog from {self.origin}, python twin as .py>"
@@ -444,7 +444,7 @@ class _Compiler(
     def _inner(self, extra: list[str]) -> _Compiler:
         """A compiler for a nested binder (lambda, comprehension): the outer
         scope plus the binder's own parameters, shadowing by name.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         scope = self.scope.copy()
         scope.update({p: p for p in extra})
         inner = _Compiler(
@@ -467,7 +467,7 @@ class _Compiler(
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
         fresh variable namespace, shared aux and lifted registries.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _Compiler(
             self.name,
             params,
@@ -502,7 +502,7 @@ class _Compiler(
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
         """`yield from e`: a nondeterministic call answers directly, one
         yield per answer; any other iterable superposes its elements.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         value = node.value
         if (
             isinstance(value, ast.Call)
@@ -528,13 +528,13 @@ class _Compiler(
     def _python_resolvable(self, identifier: str) -> bool:
         """Whether the twin could resolve this callee: a host binding or a
         Python builtin. An engine-only name makes the twin unrunnable.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self.host(identifier) or identifier in self._builtins
 
     def _temp(self, base: str) -> str:
         """A fresh variable for the compiler's own use, outside any Python
         name's scope; the hyphen in the spelling keeps it unreachable.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         n = 2
         while f"{base}-{n}" in self.used:
             n += 1

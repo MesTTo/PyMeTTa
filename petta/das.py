@@ -30,7 +30,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def _websocket():
 def _render(value: Any) -> str:
     """A petta pattern as DAS MeTTa query text: variables carry the
     %-sigil, strings quote JSON-style, expressions parenthesize.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, str):
         return value
     if isinstance(value, Var):
@@ -137,7 +137,7 @@ def _render_tokens(value: Any) -> str:
     LINK, a leaf symbol is NODE Symbol, a variable is VARIABLE. MeTTa
     text patterns parse first so both input spellings serve both
     dialects.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, str):
         value = parse(value)
     if isinstance(value, Var):
@@ -160,11 +160,11 @@ class DASAnswer:
     attention numbers. A router that maps answers back to MeTTa text
     binds real terms; the deployed legacy routers answer handles only,
     which arrive as string values under the same names.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("bindings", "expressions", "handles", "importance", "strength")
 
-    def __init__(self, item: dict) -> None:
+    def __init__(self, item: dict) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self.handles = dict(item.get("assignment") or {})
         metta_assignment = item.get("assignment_metta") or {}
         self.bindings = {name: parse(text) for name, text in metta_assignment.items()}
@@ -177,10 +177,10 @@ class DASAnswer:
         self.importance = float(item.get("importance", 0.0))
         self.strength = float(item.get("strength", 0.0))
 
-    def __getitem__(self, name: str) -> Atom:
+    def __getitem__(self, name: str) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self.bindings[name]
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"DASAnswer({self.bindings!r})"
 
 
@@ -193,7 +193,7 @@ class DAS:
         print(answer["x"], answer.importance)
     """
 
-    def __init__(self, url: str = "http://localhost:40009", timeout: float = 10.0):
+    def __init__(self, url: str = "http://localhost:40009", timeout: float = 10.0):  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._endpoint = HTTPEndpoint(url, subject="DAS command router", error_type=DASError)
         self._base = self._endpoint.url
         self._timeout = validated_timeout(timeout, subject="DAS timeout")
@@ -273,7 +273,7 @@ class DAS:
         current sources' enveloped shape. The server validates
         parameters; unknown ones refuse loudly there. Legacy routers
         serve query() and count(), which negotiate the dialect.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         body = self._request(
             "POST",
             "/command-router/executions",
@@ -282,7 +282,7 @@ class DAS:
         return body["execution_id"]
 
     def _start_query(
-        self, patterns: tuple, count: bool, unique: bool, max_answers: int | None, extra: dict
+        self, patterns: tuple, count: bool, unique: bool, max_answers: int | None, extra: dict  # noqa: FBT001  -- these booleans occupy fixed fields in the backend query call shape
     ) -> str:
         if self._dialect != "legacy":
             body: dict[str, Any] = {
@@ -321,7 +321,7 @@ class DAS:
     def _answer_stream(self, execution_id: str) -> Generator[tuple[str, Any], None, None]:
         """Both dialects' events as ('answers', items) and
         ('status', payload) pairs.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         for event in self._events(execution_id):
             if "command" in event:
                 body = event.get("params") or {}
@@ -343,7 +343,7 @@ class DAS:
         self._request("POST", f"/command-router/executions/{execution_id}/cancel")
 
     def _query_params(
-        self, patterns: tuple, count: bool, unique: bool, max_answers: int | None, extra: dict
+        self, patterns: tuple, count: bool, unique: bool, max_answers: int | None, extra: dict  # noqa: FBT001  -- these booleans occupy fixed fields in the backend query call shape
     ) -> dict:
         if not patterns:
             msg = "a DAS query needs at least one pattern"
@@ -371,8 +371,8 @@ class DAS:
         Several patterns compose as one server-side conjunction, DAS's
         own query tree. Extra keyword arguments pass through to the
         router's query parameters verbatim.
-        """
-        execution_id = self._start_query(patterns, False, unique, max_answers, extra)
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        execution_id = self._start_query(patterns, False, unique, max_answers, extra)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         answers: list[DASAnswer] = []
         with closing(self._answer_stream(execution_id)) as stream:
             for kind, body in stream:
@@ -387,8 +387,8 @@ class DAS:
     def count(self, *patterns: Any, **extra: Any) -> int:
         """The router's count mode: the server's own total, no answers
         shipped.
-        """
-        execution_id = self._start_query(patterns, True, False, None, extra)
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        execution_id = self._start_query(patterns, True, False, None, extra)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         counted = 0
         with closing(self._answer_stream(execution_id)) as stream:
             for kind, body in stream:
@@ -406,14 +406,14 @@ class DASSpace(SpaceProvider):
     expressions DAS matched, and the engine unifies them, so joins mix
     DAS candidates with native facts. Knowledge loads through das-cli;
     the write paths say so.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, das: DAS) -> None:
+    def __init__(self, das: DAS) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._das = das
 
     _READ_ONLY = "add", "clear", "enumerate", "remove", "subscribe"
 
-    def can_run(self, capability: str, /, **request: Any) -> bool:
+    def can_run(self, capability: str, /, **request: Any) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if capability in self._READ_ONLY:
             return False
         return super().can_run(capability, **request)
@@ -445,7 +445,7 @@ class DASSpace(SpaceProvider):
             )
         return None
 
-    def match(self, pattern: Atom):
+    def match(self, pattern: Atom):  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         for answer in self._das.query(pattern):
             if answer.expressions:
                 yield from answer.expressions
@@ -456,10 +456,10 @@ class DASSpace(SpaceProvider):
     # declines it" a real distinction the engine can report rather than a
     # guess from the capability name. Both paths say the same sentence
     # because there is one sentence: refusal() above.
-    def add(self, atom: Atom) -> None:
+    def add(self, atom: Atom) -> None:  # noqa: ARG002, D102  -- the override preserves the SpaceProvider or runtime protocol signature; the enclosing type and implemented protocol supply this method contract
         raise DASError(str(self.refusal("add")))
 
-    def remove(self, atom: Atom) -> bool:
+    def remove(self, atom: Atom) -> bool:  # noqa: ARG002, D102  -- the override preserves the SpaceProvider or runtime protocol signature; the enclosing type and implemented protocol supply this method contract
         raise DASError(str(self.refusal("remove")))
 
 

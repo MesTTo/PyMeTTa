@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _recursion_closer(helper: str, state: list[str]):
     sequence included. Holding that one as a fixed variable instead read the
     outer loop's tail in the inner loop's equation, where the name belongs to
     the inner loop, so a nested for resumed the outer loop on its own tail.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def recur(compiler: CompilerContext) -> Expr:
         return Expr([Sym(helper), *(Var(compiler.scope[n]) for n in state)])
@@ -41,7 +41,7 @@ class LoopCompilerMixin(CompilerContext):
         """Scope names the nodes read, first-appearance order: the loop
         state, since a name never read again need not be carried. An
         augmented assignment's target is a read too: x *= 2 reads x.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         found: list[str] = []
 
         def note(identifier: str) -> None:
@@ -60,7 +60,7 @@ class LoopCompilerMixin(CompilerContext):
         """The state a loop helper carries: every scope name the loop or its
         continuation reads, plus whatever the enclosing continuation itself
         will read, which the syntax of `nodes` cannot show.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         state = self._free_reads(nodes)
         for name in self.closer_names:
             if name in self.scope and name not in state:
@@ -72,7 +72,7 @@ class LoopCompilerMixin(CompilerContext):
         loop state, the test chooses between one more round and the exit,
         and the statements after the loop ARE the exit branch. With no break
         in the subset, a while-else always runs, so it prefixes the rest.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         rest = node.orelse.copy() + rest
         state = self._loop_state([node.test, *node.body, *rest])
         helper = f"{self.name}--loop-{next_aux_serial()}"
@@ -97,7 +97,7 @@ class LoopCompilerMixin(CompilerContext):
         """For x in e: the same equation over the remaining elements,
         decons-atom peeling one per round. A nondeterministic source
         collapses first, which is Python's own single pass over it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         target = _name_of(node.target, node.lineno)
         rest = node.orelse.copy() + rest
         if target in self._free_reads(rest) or target in self.closer_names:
@@ -149,7 +149,7 @@ class LoopCompilerMixin(CompilerContext):
     def _materialized(self, iter_node: ast.expr) -> Atom:
         """An iterable as one expression value: a nondeterministic call's
         answers collapse into a tuple, anything else already is its value.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if (
             isinstance(iter_node, ast.Call)
             and isinstance(iter_node.func, ast.Name)

@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import os
@@ -26,7 +26,7 @@ def _run_lane(repo_root, environment, extra):
     )
 
 
-def test_the_forward_corpus_lane_verifies_the_repinned_manifest(
+def test_the_forward_corpus_lane_verifies_the_repinned_manifest(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root, tmp_path
 ):
     absent = dict(os.environ, CETTA_PATH="/nonexistent-cetta-checkout")

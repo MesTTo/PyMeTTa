@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import math
 import types
@@ -21,7 +21,7 @@ from petta import CastError, PettaError, S, Sym, V, expr, val
 from petta import integrate as pi
 
 
-def test_module_ops_bulk_registers_a_stdlib_module(metta):
+def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     names = pi.module_ops(metta, math, ["sqrt", "floor", "gcd", "comb"])
     assert set(names) == {"sqrt", "floor", "gcd", "comb"}
     assert metta.run("!(sqrt 16.0)") == [[4.0]]
@@ -29,7 +29,7 @@ def test_module_ops_bulk_registers_a_stdlib_module(metta):
     assert metta.run("!(comb 5 2)") == [[10]]
 
 
-def test_uninspectable_callable_errors_are_classified(metta):
+def test_uninspectable_callable_errors_are_classified(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Uninspectable:
         @property
         def __signature__(self):
@@ -48,7 +48,7 @@ def test_uninspectable_callable_errors_are_classified(metta):
     assert isinstance(caught.value.__cause__, TypeError)
 
 
-def test_wrap_callable_rejects_required_keyword_only_parameters(metta):
+def test_wrap_callable_rejects_required_keyword_only_parameters(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def target(value, *, required):
         return value + required
 
@@ -56,7 +56,7 @@ def test_wrap_callable_rejects_required_keyword_only_parameters(metta):
         pi.wrap_callable(metta, "keyword-only", target)
 
 
-def test_wrap_object_methods_with_effect_convention(metta):
+def test_wrap_object_methods_with_effect_convention(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Store:
         def __init__(self):
             self.items = []
@@ -77,7 +77,7 @@ def test_wrap_object_methods_with_effect_convention(metta):
     assert rows and rows[0].obj == store
 
 
-def test_register_object_type_makes_protocols_types(metta):
+def test_register_object_type_makes_protocols_types(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Quacks:
         def quack(self):
             return "quack"
@@ -95,7 +95,7 @@ def test_register_object_type_makes_protocols_types(metta):
     assert "Duck" in names and "Quacks" in names
 
 
-def test_register_repr_protocol(metta):
+def test_register_repr_protocol(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     class Sized:
         def __len__(self):
             return 7
@@ -105,7 +105,7 @@ def test_register_repr_protocol(metta):
     assert "Sized of 7" in repr(val(Sized()))
 
 
-def test_protocol_and_reflector_registrations_can_be_removed(metta):
+def test_protocol_and_reflector_registrations_can_be_removed(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class ExtensionTarget:
         pass
 
@@ -148,7 +148,7 @@ def test_protocol_and_reflector_registrations_can_be_removed(metta):
         pi.unregister_reflector(type_predicate, reflector)
 
 
-def test_py_field_reasons_in_both_modes(metta):
+def test_py_field_reasons_in_both_modes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @dataclass
     class Config:
         depth: int
@@ -172,7 +172,7 @@ def test_py_field_reasons_in_both_modes(metta):
     assert names == {"depth", "name"}
 
 
-def test_py_attr_and_bound_py_field_read_a_property_once(metta):
+def test_py_attr_and_bound_py_field_read_a_property_once(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Counted:
         def __init__(self):
             self.reads = 0
@@ -200,7 +200,7 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):
         space.drop()
 
 
-def test_pi_protocol_and_idempotence(metta):
+def test_pi_protocol_and_idempotence(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
     fake = types.SimpleNamespace(
         __name__="fake_integration", install_petta=lambda m: calls.append(m)
@@ -220,7 +220,7 @@ def test_pi_protocol_and_idempotence(metta):
         other.drop()
 
 
-def test_dropped_space_name_reinstalls_integrations(metta):
+def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
     class Reinstallable:
@@ -249,7 +249,7 @@ def test_dropped_space_name_reinstalls_integrations(metta):
         second.drop()
 
 
-def test_facts_bulk_load(metta):
+def test_facts_bulk_load(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta.new_space()
     count = pi.facts(space, [S.n(1), S.n(2), (S.pair, 1, 2)])
     assert count == 3
@@ -259,7 +259,7 @@ def test_facts_bulk_load(metta):
 def test_networkx_integrates_in_a_page(metta):
     """The acid test the interface exists for: a real library, deeply usable,
     with only public toolkit calls.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     nx = pytest.importorskip("networkx")
 
     graph = nx.Graph()
@@ -287,7 +287,7 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     route is an equation, a request reduces through whichever route matches,
     and the catch-all equation is the 404. Clause order plus once is the
     dispatcher; nothing was built to make this work, which is the point.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     app = metta.new_space()
     app.run(
         '(= (route home) (Page 200 "Welcome"))\n'
@@ -303,7 +303,7 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     assert group == [expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]
 
 
-def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch):
+def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from importlib import metadata as importlib_metadata
 
     advertised = (

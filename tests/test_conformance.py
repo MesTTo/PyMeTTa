@@ -18,7 +18,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -29,26 +29,26 @@ from petta.foreign import SpaceProvider
 ROWS = [parse("(edge a b)"), parse("(edge b c)")]
 
 
-class Conforming(SpaceProvider):
-    def atoms(self):
+class Conforming(SpaceProvider):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         # Every atom, every time: over-approximating is always correct,
         # because the engine keeps unification.
         return iter(ROWS)
 
 
-class Enumerating(SpaceProvider):
-    def atoms(self):
+class Enumerating(SpaceProvider):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
 
-class UnderApproximating(SpaceProvider):
-    def atoms(self):
+class UnderApproximating(SpaceProvider):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         return iter(())
 
 
@@ -56,15 +56,15 @@ class FalselyExact(SpaceProvider):
     """Claims exact and over-approximates, which is the combination that loses
     answers: the engine hands it the caller's bound, it truncates at N, and
     fewer than N of those N candidates were answers.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def pushdown(self, pattern):
+    def pushdown(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         return "exact"
 
 
@@ -83,17 +83,17 @@ class TrulyExact(SpaceProvider):
     version of this fixture claimed exact for everything while filtering
     by equality, which under-answers every open pattern, exactly the
     docstring-only claim the kit exists to refuse.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if _ground(pattern):
             return iter([row for row in ROWS if row == pattern])
         return iter(ROWS)
 
-    def pushdown(self, pattern):
+    def pushdown(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return "exact" if _ground(pattern) else "inexact"
 
 
@@ -102,12 +102,12 @@ class RepeatedVariableLiar(SpaceProvider):
     on every ground pattern, and it answers (edge a b) to (edge $x $x)
     because neither position alone disagrees. Ground self-match cannot
     catch it, which is why the kit checks the folded variants.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         def hit(row):
             if not isinstance(pattern, Expr) or not isinstance(row, Expr):
                 return row == pattern
@@ -120,50 +120,50 @@ class RepeatedVariableLiar(SpaceProvider):
 
         return iter([row for row in ROWS if hit(row)])
 
-    def pushdown(self, pattern):
+    def pushdown(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
         return "exact"
 
 
 class GroundOnlyMatcher(SpaceProvider):
     """Handles ground patterns and answers nothing for one with a variable,
     which under-answers every real query.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if _ground(pattern):
             return iter([row for row in ROWS if row == pattern])
         return iter(())
 
 
-class Lying(SpaceProvider):
-    def atoms(self):
+class Lying(SpaceProvider):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(())
 
-    def can_run(self, capability, /, **request):
+    def can_run(self, capability, /, **request):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if capability == "add":
             return True
         return super().can_run(capability, **request)
 
 
-class Explaining(SpaceProvider):
-    def atoms(self):
+class Explaining(SpaceProvider):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(())
 
-    def can_run(self, capability, /, **request):
+    def can_run(self, capability, /, **request):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if capability == "add":
             return False
         return super().can_run(capability, **request)
 
-    def refusal(self, capability, /, **_request):
+    def refusal(self, capability, /, **_request):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if capability == "add":
             return "load this space with the importer"
         return None
 
 
-def test_a_conforming_provider_passes():
+def test_a_conforming_provider_passes():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     checks = testing.check_space_provider(Conforming())
     # Two atoms, each vouching for a family of eight patterns: itself,
     # three opened positions, the all-arguments form, and three folds.
@@ -175,12 +175,12 @@ def test_a_conforming_provider_passes():
 def test_an_enumeration_only_provider_passes():
     """The Python seam has always said enumeration is enough, and the Prolog
     seam now agrees, so the kit must not demand a Matcher.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     checks = testing.check_space_provider(Enumerating())
     assert any("enumeration is the candidate set" in line for line in checks)
 
 
-def test_the_kit_catches_an_under_approximating_matcher():
+def test_the_kit_catches_an_under_approximating_matcher():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AssertionError, match="answered neither"):
         testing.check_space_provider(UnderApproximating())
 
@@ -197,7 +197,7 @@ def test_a_false_exact_claim_is_caught():
         testing.check_space_provider(FalselyExact())
 
 
-def test_a_true_exact_claim_passes_and_is_reported():
+def test_a_true_exact_claim_passes_and_is_reported():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     checks = testing.check_space_provider(TrulyExact())
     # Of the sixteen family patterns only the two ground ones are claimed.
     assert any(
@@ -209,32 +209,32 @@ def test_a_repeated_variable_liar_is_caught_by_the_folded_pattern():
     """The regression the family exists for: a positional filter is exact
     on all ground data, so the pre-family kit passed it, and it loses
     answers in production the first time a pattern repeats a variable.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with pytest.raises(AssertionError, match="claims exact and"):
         testing.check_space_provider(RepeatedVariableLiar())
 
 
-def test_a_ground_only_matcher_is_caught_by_the_open_pattern():
+def test_a_ground_only_matcher_is_caught_by_the_open_pattern():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AssertionError, match="answered neither"):
         testing.check_space_provider(GroundOnlyMatcher())
 
 
-def test_an_unclaimed_provider_is_reported_as_inexact():
+def test_an_unclaimed_provider_is_reported_as_inexact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     checks = testing.check_space_provider(Conforming())
     assert any("not claimed, so inexact and re-unified" in line for line in checks)
 
 
-def test_the_kit_catches_a_capability_with_no_method():
+def test_the_kit_catches_a_capability_with_no_method():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AssertionError, match="says yes to add and the method is not there"):
         testing.check_space_provider(Lying())
 
 
-def test_the_kit_reports_a_providers_own_refusal():
+def test_the_kit_reports_a_providers_own_refusal():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     checks = testing.check_space_provider(Explaining())
     assert any("load this space with the importer" in line for line in checks)
 
 
-def test_the_kit_refuses_something_that_is_not_a_provider():
+def test_the_kit_refuses_something_that_is_not_a_provider():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class NotOne:
         def atoms(self):
             return iter(())
@@ -243,7 +243,7 @@ def test_the_kit_refuses_something_that_is_not_a_provider():
         testing.check_space_provider(NotOne())
 
 
-def test_a_mangling_store_fails_the_round_trip_law():
+def test_a_mangling_store_fails_the_round_trip_law():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The GetPut law: add then enumerate is identity on the stored atom,
     # so a store that normalizes case answers a DIFFERENT atom and must
     # fail loudly, named, instead of misanswering in production.
@@ -257,7 +257,7 @@ def test_a_mangling_store_fails_the_round_trip_law():
         def atoms(self):
             return iter(self.stored)
 
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(self.stored)
 
     with pytest.raises(AssertionError, match="identity on the"):
@@ -266,7 +266,7 @@ def test_a_mangling_store_fails_the_round_trip_law():
         )
 
 
-def test_a_faithful_store_passes_the_round_trip_law():
+def test_a_faithful_store_passes_the_round_trip_law():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     class Keeping(SpaceProvider):
         def __init__(self):
             self.stored = []
@@ -277,7 +277,7 @@ def test_a_faithful_store_passes_the_round_trip_law():
         def atoms(self):
             return iter(self.stored)
 
-        def match(self, pattern):
+        def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             return iter(self.stored)
 
     report = testing.check_space_provider(

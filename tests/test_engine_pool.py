@@ -17,7 +17,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import threading
 import time
@@ -34,12 +34,12 @@ st = hypothesis.strategies
 
 
 @pytest.fixture()
-def m(metta):
+def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta.new_space()
 
 
 @pytest.fixture()
-def p():
+def p():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_pool = pool(workers=4)
     yield engine_pool
     engine_pool.close()
@@ -51,7 +51,7 @@ def p():
 def test_each_worker_holds_a_distinct_engine(p):
     """The whole design rests on per-worker engines, so assert the engine ids
     differ rather than inferring it from a timing win.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     # petta.bridge is subscribe.bridge(source, pattern, target); the janus
     # bridge is the one in _engine.
     from petta._engine import bridge
@@ -71,7 +71,7 @@ def test_each_worker_holds_a_distinct_engine(p):
     assert all(engine >= 0 for engine in ids)
 
 
-def test_pool_reports_its_shape(p):
+def test_pool_reports_its_shape(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert p.workers == 4
     assert len(p) == 4
     assert not p.closed
@@ -79,13 +79,13 @@ def test_pool_reports_its_shape(p):
 
 
 @pytest.mark.parametrize("workers", [0, -1])
-def test_a_pool_needs_at_least_one_worker(workers):
+def test_a_pool_needs_at_least_one_worker(workers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="at least one worker"):
         EnginePool(workers)
 
 
 @pytest.mark.parametrize("workers", ["4", True, 2.0])
-def test_workers_must_be_an_int(workers):
+def test_workers_must_be_an_int(workers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="must be an int"):
         EnginePool(workers)
 
@@ -122,7 +122,7 @@ def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values)
     assert worker == home
 
 
-def test_a_worker_can_write_and_the_home_engine_sees_it(m, p):
+def test_a_worker_can_write_and_the_home_engine_sees_it(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     p.map(lambda n: m.add(S.pool_wrote(n)), range(4))
     rows = sorted(str(r.n) for r in m.query(S.pool_wrote(V.n)))
     assert rows == ["0", "1", "2", "3"]
@@ -131,7 +131,7 @@ def test_a_worker_can_write_and_the_home_engine_sees_it(m, p):
 def test_a_worker_sees_what_the_home_engine_compiled(m, p):
     """Functions compile into shared Prolog modules, so a fresh engine
     inherits them; only global-variable state is per-engine.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("(= (pool-later $x) (+ $x 100))")
     assert p.map(lambda n: m.one(f"(pool-later {n})"), [1, 2]) == [101, 102]
 
@@ -149,7 +149,7 @@ def test_pool_composes_with_in_engine_parallel(m, p):
 # every worker has to arrive before any is released, so it can only be reached
 # if the work genuinely overlaps. Serialised workers would time out on it, and
 # no amount of background load can make a serialised run pass.
-def test_pool_runs_work_concurrently(p):
+def test_pool_runs_work_concurrently(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     barrier = threading.Barrier(p.workers, timeout=30)
 
     def arrive(_item):
@@ -168,18 +168,18 @@ def test_map_answers_in_input_order(p):
     assert order == list(range(8))
 
 
-def test_starmap_spreads_the_arguments(m, p):
+def test_starmap_spreads_the_arguments(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert p.starmap(lambda a, b: m.one(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
 
 
-def test_imap_unordered_yields_every_result(p):
+def test_imap_unordered_yields_every_result(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert sorted(imap_unordered(p, lambda n: n * 2, range(6))) == [0, 2, 4, 6, 8, 10]
 
 
 # -------------------------------------------------------------------- failure
 
 
-def test_map_raises_every_failure_in_input_order(p):
+def test_map_raises_every_failure_in_input_order(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def boom(n):
         if n in (2, 5):
             msg = f"item {n}"
@@ -191,13 +191,13 @@ def test_map_raises_every_failure_in_input_order(p):
     assert [str(e) for e in caught.value.exceptions] == ["item 2", "item 5"]
 
 
-def test_a_worker_error_does_not_kill_the_pool(p):
+def test_a_worker_error_does_not_kill_the_pool(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ZeroDivisionError):
         p.map(lambda n: 1 / 0 if n else n, range(2))
     assert p.map(lambda n: n, range(3)) == [0, 1, 2]
 
 
-def test_an_engine_error_crosses_to_the_caller(m, p):
+def test_an_engine_error_crosses_to_the_caller(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(PettaError):
         p.map(lambda _: m.run("(this is not ("), [0])
 
@@ -205,7 +205,7 @@ def test_an_engine_error_crosses_to_the_caller(m, p):
 # ------------------------------------------------------------------ lifecycle
 
 
-def test_close_releases_every_engine():
+def test_close_releases_every_engine():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_pool = pool(workers=3)
     threads = list(engine_pool._started)
     engine_pool.close()
@@ -213,21 +213,21 @@ def test_close_releases_every_engine():
     assert not any(thread.is_alive() for thread in threads)
 
 
-def test_close_is_idempotent():
+def test_close_is_idempotent():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_pool = pool(workers=2)
     engine_pool.close()
     engine_pool.close()
     assert engine_pool.closed
 
 
-def test_closed_pool_refuses_work():
+def test_closed_pool_refuses_work():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_pool = pool(workers=2)
     engine_pool.close()
     with pytest.raises(PettaError, match="closed"):
         engine_pool.submit(lambda: 1)
 
 
-def test_the_context_manager_closes_on_an_exception():
+def test_the_context_manager_closes_on_an_exception():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(RuntimeError), pool(workers=2) as engine_pool:
         saved = engine_pool
         msg = "boom"
@@ -235,13 +235,13 @@ def test_the_context_manager_closes_on_an_exception():
     assert saved.closed
 
 
-def test_metta_pool_is_the_same_pool(m):
+def test_metta_pool_is_the_same_pool(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with m.pool(workers=2) as engine_pool:
         assert isinstance(engine_pool, EnginePool)
         assert engine_pool.map(lambda n: m.one(f"(+ {n} 1)"), [1, 2]) == [2, 3]
 
 
-def test_several_failures_raise_together_one_raises_plain(m):
+def test_several_failures_raise_together_one_raises_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def half_broken(n):
         if n % 2 == 0:
             msg = f"even {n}"

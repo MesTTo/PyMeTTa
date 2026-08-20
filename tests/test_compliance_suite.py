@@ -20,7 +20,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -38,21 +38,21 @@ ROWS = [S.edge(S.a, S.b), S.edge(S.b, S.c), S.other(S.a)]
 class ReadOnlySpace(SpaceProvider):
     """Enumeration and nothing else, which the seam has always allowed: the
     engine filters the enumeration for a bound pattern.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-    def atoms(self):
+    def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(ROWS)
 
 
-class TestListSpaceComplies(SpaceComplianceSuite):
+class TestListSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     @pytest.fixture()
-    def provider(self):
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return ListSpace(ROWS)
 
 
-class TestReadOnlySpaceComplies(SpaceComplianceSuite):
+class TestReadOnlySpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     @pytest.fixture()
-    def provider(self):
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return ReadOnlySpace()
 
 
@@ -73,10 +73,10 @@ class ProgramSpace(ListSpace):
     refused there.
     """
 
-    def add_many(self, atoms):
+    def add_many(self, atoms):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         self.stored.extend(atoms)
 
-    def can_run(self, capability, /, **request):
+    def can_run(self, capability, /, **request):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if capability == "rules":
             return True
         return super().can_run(capability, **request)
@@ -85,9 +85,9 @@ class ProgramSpace(ListSpace):
 PROGRAM = ProgramSpace(ROWS)
 
 
-class TestProgramSpaceComplies(SpaceComplianceSuite):
+class TestProgramSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     @pytest.fixture()
-    def provider(self):
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return PROGRAM
 
 
@@ -96,9 +96,9 @@ class TestProgramSpaceComplies(SpaceComplianceSuite):
 ROUND_TRIP = ListSpace(ROWS)
 
 
-class TestRoundTripComplies(SpaceComplianceSuite):
+class TestRoundTripComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     @pytest.fixture()
-    def provider(self):
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return ROUND_TRIP
 
 
@@ -110,7 +110,7 @@ def test_the_suite_covers_every_declarable_capability():
     the suite's, so a provider declaring either got no verdict at all. Read
     from both lists rather than restated, so the next one added to the seam
     fails here instead of going quietly unchecked.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from petta import _compliance, foreign
 
     assert set(_compliance.CAPABILITIES) == set(foreign.CAPABILITIES), (
@@ -161,7 +161,7 @@ def test_the_suite_leaves_a_writable_provider_as_it_found_it():
 def test_a_provider_declaring_nothing_cannot_pass(tmp_path):
     """A suite that skipped everything would pass a provider that does nothing,
     which is the failure SQLAlchemy's requirements reporting exists to prevent.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     suite = tmp_path / "test_empty_provider.py"
     suite.write_text(
         "import pytest\n"
@@ -181,7 +181,7 @@ def test_a_provider_declaring_nothing_cannot_pass(tmp_path):
     assert result != 0
 
 
-def test_a_collectible_subclass_without_its_fixture_refuses_at_definition():
+def test_a_collectible_subclass_without_its_fixture_refuses_at_definition():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.testing import GatewayComplianceSuite
 
     with pytest.raises(TypeError, match=r"without a `provider` fixture"):

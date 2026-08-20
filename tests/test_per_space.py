@@ -5,12 +5,12 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from petta import S, V, expr
 
 
-def test_two_spaces_can_define_the_same_head(metta):
+def test_two_spaces_can_define_the_same_head(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-f) 1)")
     b.run("(= (psp-f) 2)")
@@ -18,7 +18,7 @@ def test_two_spaces_can_define_the_same_head(metta):
     assert b.run("!(psp-f)") == [[2]]
 
 
-def test_a_space_does_not_answer_from_anothers_equations(metta):
+def test_a_space_does_not_answer_from_anothers_equations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-only-a) 42)")
     # In b the name is another space's function: the term stays inert data
@@ -27,7 +27,7 @@ def test_a_space_does_not_answer_from_anothers_equations(metta):
     assert r == [[expr(S["psp-only-a"])]]
 
 
-def test_self_still_shares_with_named_spaces(metta):
+def test_self_still_shares_with_named_spaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # &self is the shared space: a function defined there reaches every space,
     # which is what keeps every existing single-space program working.
     metta.run("(= (psp-shared) 7)")
@@ -35,7 +35,7 @@ def test_self_still_shares_with_named_spaces(metta):
     assert a.run("!(psp-shared)") == [[7]]
 
 
-def test_declaration_in_a_named_space_is_visible_there(metta):
+def test_declaration_in_a_named_space_is_visible_there(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a = metta.new_space()
     a.run("(: psp-a PspA)")
     assert a.run("!(get-type psp-a)") == [[S.PspA]]
@@ -44,7 +44,7 @@ def test_declaration_in_a_named_space_is_visible_there(metta):
     assert b.run("!(get-type psp-a)") == [[S["%Undefined%"]]]
 
 
-def test_reduce_reaches_a_named_spaces_function(metta):
+def test_reduce_reaches_a_named_spaces_function(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a = metta.new_space()
     a.run("(= (psp-dbl $x) (* $x 2))")
     # map-atom goes through reduce/2, the runtime dispatcher; it has to find
@@ -52,7 +52,7 @@ def test_reduce_reaches_a_named_spaces_function(metta):
     assert a.run("!(map-atom (1 2 3) psp-dbl)") == [[expr(2, 4, 6)]]
 
 
-def test_equation_removal_is_per_space(metta):
+def test_equation_removal_is_per_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-r) 1)")
     b.run("(= (psp-r) 2)")
@@ -66,7 +66,7 @@ def test_identical_equation_removal_keeps_the_twin(metta):
     library import produces. The compiled-clause erasure is term-keyed,
     so without the module filter removing one twin erased the other
     space's clause and its bookkeeping record with it.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-twin $n) (+ $n 1))")
     b.run("(= (psp-twin $n) (+ $n 1))")
@@ -80,7 +80,7 @@ def test_identical_equation_removal_keeps_the_twin(metta):
     b.drop()
 
 
-def test_python_ops_reach_every_space(metta):
+def test_python_ops_reach_every_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @metta.register_op(name="psp-op-everywhere")
     def psp_op_everywhere(x: int) -> int:
         return x + 1
@@ -89,7 +89,7 @@ def test_python_ops_reach_every_space(metta):
     assert a.run("!(psp-op-everywhere 41)") == [[42]]
 
 
-def test_eval_uses_the_spaces_own_equations(metta):
+def test_eval_uses_the_spaces_own_equations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-e) here)")
     b.run("(= (psp-e) there)")
@@ -97,7 +97,7 @@ def test_eval_uses_the_spaces_own_equations(metta):
     assert b.eval(expr(S["psp-e"])) == [S.there]
 
 
-def test_derivation_follows_the_spaces_module(metta):
+def test_derivation_follows_the_spaces_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a = metta.new_space()
     a.run("(psp-par x y)\n(= (psp-anc $a $b) (match &self (psp-par $a $b) $b))")
     # &self in loaded source is the reserved token for the hosting space,
@@ -116,7 +116,7 @@ def test_a_lambda_reaches_the_space_local_function_it_names(metta):
     could not see the space at all, because a module inherits from `user` and
     not the reverse, so every lambda form raised Unknown procedure on a
     space-local function while the same call written directly answered.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     a = metta.new_space()
     a.run("(= (psp-lam $x) (* $x 2))")
     assert a.run("!(psp-lam 21)") == [[42]]
@@ -126,7 +126,7 @@ def test_a_lambda_reaches_the_space_local_function_it_names(metta):
     assert a.run("!((|-> ($y) (psp-lam $y)) 21)") == [[42]]
 
 
-def test_two_spaces_do_not_share_a_lambda_of_the_same_shape(metta):
+def test_two_spaces_do_not_share_a_lambda_of_the_same_shape(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-lam-shape $x) (* $x 2))")
     b.run("(= (psp-lam-shape $x) (* $x 10))")

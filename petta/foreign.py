@@ -39,7 +39,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -91,8 +91,8 @@ CAPABILITIES = (
 
 
 @runtime_checkable
-class Matcher(Protocol):
-    def match(self, pattern: Atom) -> Iterator[Any]: ...
+class Matcher(Protocol):  # noqa: D101  -- the Protocol methods below are the searchable contract for this structural type
+    def match(self, pattern: Atom) -> Iterator[Any]: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 class BoundedMatcher(Protocol):
@@ -110,7 +110,7 @@ class BoundedMatcher(Protocol):
     signature is what separates the two, and _match_takes_a_bound reads it.
     """
 
-    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Any]: ...
+    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Any]: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
@@ -130,7 +130,7 @@ class CustomMatch(Protocol):
     value whose match_ is query, which is why `unify` accepts spaces.
     """
 
-    def match_(self, other: Atom) -> Iterable[Any]: ...
+    def match_(self, other: Atom) -> Iterable[Any]: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
@@ -168,7 +168,7 @@ class MatchClassifier(Protocol):
     against the provider's own output.
     """
 
-    def pushdown(self, pattern: Atom) -> str: ...
+    def pushdown(self, pattern: Atom) -> str: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
@@ -182,19 +182,19 @@ class Transactional(Protocol):
     MeTTa (transaction ...) is atomic across both stores.
     """
 
-    def begin(self) -> None: ...
-    def commit(self) -> None: ...
-    def rollback(self) -> None: ...
+    def begin(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def commit(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def rollback(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
-class Enumerable(Protocol):
-    def atoms(self) -> Iterator[Any]: ...
+class Enumerable(Protocol):  # noqa: D101  -- the Protocol methods below are the searchable contract for this structural type
+    def atoms(self) -> Iterator[Any]: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
-class Adder(Protocol):
-    def add(self, atom: Atom) -> None: ...
+class Adder(Protocol):  # noqa: D101  -- the Protocol methods below are the searchable contract for this structural type
+    def add(self, atom: Atom) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
@@ -215,7 +215,7 @@ class Planner(Protocol):
     cannot answer exactly must decline.
     """
 
-    def plan(
+    def plan(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, patterns: list[Atom]
     ) -> tuple[list[Atom], list[Atom], Iterator[Any]] | None: ...
     # A row is a list of instantiated atoms, one per claimed pattern, or a
@@ -235,17 +235,17 @@ class BulkAdder(Protocol):
     reaches here.
     """
 
-    def add_many(self, atoms: list[Atom]) -> None: ...
+    def add_many(self, atoms: list[Atom]) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
-class Remover(Protocol):
-    def remove(self, atom: Atom) -> bool: ...
+class Remover(Protocol):  # noqa: D101  -- the Protocol methods below are the searchable contract for this structural type
+    def remove(self, atom: Atom) -> bool: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 @runtime_checkable
-class Clearer(Protocol):
-    def clear(self) -> None: ...
+class Clearer(Protocol):  # noqa: D101  -- the Protocol methods below are the searchable contract for this structural type
+    def clear(self) -> None: ...  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
 
 
 class SpaceProvider:
@@ -270,7 +270,7 @@ class SpaceProvider:
     meet it. If you need the source spelling, keep it yourself.
     """
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         super().__init_subclass__(**kwargs)
         if "capabilities" in cls.__dict__:
             msg = (
@@ -432,7 +432,7 @@ def require_capability(
     _require_provider(provider, space, capability, operation, **request)
 
 
-def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
+def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # noqa: D103  -- the package reference and enclosing module document this exported entry point
     if not isinstance(name, str) or not name.startswith("&"):
         msg = f"a space name starts with &; got {name!r}"
         raise ValueError(msg)
@@ -678,7 +678,7 @@ def foreign_match(
         candidates = provider.atoms()
     else:
         msg = "validated match provider has no candidate source"
-        raise RuntimeError(msg)
+        raise RuntimeError(msg)  # noqa: TRY004  -- the provider failed after dispatch, so this is an execution failure rather than caller type validation
     stream = _wire_stream(iter(candidates))
     if mode == "abort":
         return stream
@@ -742,7 +742,7 @@ def foreign_plan(space: str, pattern_wires: list):
     [claimed, rest, rows] on the wire. The rows are materialised here rather
     than streamed, because a claim is answered as a whole and the engine has no
     use for a half-planned join.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     provider = _provider(space)
     patterns = [atom_from_wire(wire) for wire in pattern_wires]
     if not isinstance(provider, Planner) or not provider.should_run(

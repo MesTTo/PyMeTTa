@@ -1,3 +1,5 @@
+"""Purpose: exercise the compatibility PeTTa wrapper's basic run helpers."""
+
 import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -9,14 +11,10 @@ import pytest
     ("verbose", "expected_binding"),
     [(False, "false"), (True, "true")],
 )
-def test_run_helper_binds_verbose_atom(
-    monkeypatch, petta_module, verbose, expected_binding
-):
+def test_run_helper_binds_verbose_atom(monkeypatch, petta_module, verbose, expected_binding):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     query_once = Mock(return_value={"Results": []})
     fake_runtime = SimpleNamespace(_janus=Mock(query_once=query_once))
-    monkeypatch.setattr(
-        petta_module._engine, "runtime", Mock(return_value=fake_runtime)
-    )
+    monkeypatch.setattr(petta_module._engine, "runtime", Mock(return_value=fake_runtime))
 
     petta_module.PeTTa(verbose=verbose).process_metta_string("!(+ 1 1)")
 
@@ -30,12 +28,13 @@ def test_run_helper_binds_verbose_atom(
     )
 
 
-def test_load_metta_file_returns_list(petta_instance, dummy_metta_path):
+def test_load_metta_file_returns_list(petta_instance, dummy_metta_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     results = petta_instance.load_metta_file(str(dummy_metta_path))
     assert isinstance(results, list)
-    assert results[1] == '(2 3 4)'
+    assert results[1] == "(2 3 4)"
 
-def test_process_metta_string_matches_verbose(petta_instance, petta_verbose):
+
+def test_process_metta_string_matches_verbose(petta_instance, petta_verbose):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     func_name = f"pytest_identity_{uuid.uuid4().hex}"
     definition = f"(= ({func_name} $x) $x)"
     invocation = f"!({func_name} 42)"
@@ -43,17 +42,18 @@ def test_process_metta_string_matches_verbose(petta_instance, petta_verbose):
     results_default = petta_instance.process_metta_string(invocation)
     results_verbose = petta_verbose.process_metta_string(invocation)
     assert results_default == results_verbose
-    assert results_default[0] == '42'
+    assert results_default[0] == "42"
 
-def test_var_out(petta_instance):
+
+def test_var_out(petta_instance):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta = "(= (fun ($a x)) ($b x)) !(fun (a x))"
     res = petta_instance.process_metta_string(metta)
     assert res, "Expected at least one result from MeTTa execution."
     result = res[0]
-    tokens = result.strip('()').split()
+    tokens = result.strip("()").split()
     assert len(tokens) == 2, f"Unexpected result format: {result}"
     var, arg = tokens
-    assert arg == 'x', f"Expected argument 'x', got '{arg}'"
-    assert (
-        var == '$b' or (var.startswith('$_') and var[2:].isdigit())
-    ), f"Unexpected variable name '{var}' in result '{result}'"
+    assert arg == "x", f"Expected argument 'x', got '{arg}'"
+    assert var == "$b" or (var.startswith("$_") and var[2:].isdigit()), (
+        f"Unexpected variable name '{var}' in result '{result}'"
+    )

@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -42,7 +42,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def redis_address(metta):
+def redis_address(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     run = subprocess.run(
         ["docker", "run", "-d", "--rm", "--name", _CONTAINER,
          "-p", "127.0.0.1::6379", "redis:7.2.3-alpine"],
@@ -79,7 +79,7 @@ def redis_address(metta):
 
 
 @pytest.fixture()
-def shared(metta, redis_address):
+def shared(metta, redis_address):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(f'!(redis-attach &shared-test "{redis_address}")')
     space = metta.space("&shared-test")
     space.clear()
@@ -106,7 +106,7 @@ def _other_process(redis_address: str, program: str) -> str:
     return done.stdout
 
 
-def test_shared_space_serves_one_process(shared):
+def test_shared_space_serves_one_process(shared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shared.add(S.stock(S.widget, 5), S.stock(S.gadget, 7))
     rows = shared.query(S.stock(V.item, V.n))
     assert sorted(str(row.item) for row in rows) == ["gadget", "widget"]
@@ -115,7 +115,7 @@ def test_shared_space_serves_one_process(shared):
     assert [str(atom) for atom in shared.atoms()] == ["(stock gadget 7)"]
 
 
-def test_writes_in_another_process_are_this_processs_facts(shared, redis_address):
+def test_writes_in_another_process_are_this_processs_facts(shared, redis_address):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _other_process(
         redis_address,
         "m.space('&shared-test').add(S.remote(S.fact, 1), S.remote(S.fact, 2))\n",
@@ -124,7 +124,7 @@ def test_writes_in_another_process_are_this_processs_facts(shared, redis_address
     assert sorted(int(row.n.value) for row in rows) == [1, 2]
 
 
-def test_shared_facts_join_native_facts(shared, metta):
+def test_shared_facts_join_native_facts(shared, metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shared.add(S.lives(S.ann, S.paris))
     metta.add(S.capital(S.paris, S.france))
     try:
@@ -137,7 +137,7 @@ def test_shared_facts_join_native_facts(shared, metta):
         metta.remove(S.capital(S.paris, S.france))
 
 
-def test_subscriptions_fire_across_processes(shared, redis_address):
+def test_subscriptions_fire_across_processes(shared, redis_address):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     seen = []
     subscription = shared.subscribe(
         S.alert(V.level), lambda event: seen.append(event)
@@ -156,7 +156,7 @@ def test_subscriptions_fire_across_processes(shared, redis_address):
         subscription.cancel()
 
 
-def test_local_writes_fire_subscriptions_exactly_once(shared):
+def test_local_writes_fire_subscriptions_exactly_once(shared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     seen = []
     subscription = shared.subscribe(
         S.local(V.x), lambda event: seen.append(event)

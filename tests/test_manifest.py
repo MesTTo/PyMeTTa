@@ -9,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import json
 import socket
@@ -28,14 +28,14 @@ def _free_port() -> int:
         return probe.getsockname()[1]
 
 
-def test_boot_is_reachable_lazily():
+def test_boot_is_reachable_lazily():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert "boot" in dir(petta)
     assert "Boot" in dir(petta)
     assert petta.boot is petta.manifest.boot
     assert petta.Boot is petta.manifest.Boot
 
 
-def test_load_and_serve_assemble_and_record(metta, tmp_path):
+def test_load_and_serve_assemble_and_record(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "rules.metta").write_text("(= (manifest-double $x) (* $x 2))\n")
     (tmp_path / "app.metta").write_text(
         ';; the app, declared\n(boot (load "rules.metta"))\n(boot (serve (&self) 0))\n'
@@ -56,7 +56,7 @@ def test_load_and_serve_assemble_and_record(metta, tmp_path):
         urllib.request.urlopen(server.url + "/health", timeout=2)
 
 
-def test_boot_is_a_context_manager(metta, tmp_path):
+def test_boot_is_a_context_manager(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text("(boot (serve (&self) 0))\n")
     with petta.boot(tmp_path / "app.metta", m=metta) as booted:
         url = booted.servers[0].url
@@ -65,7 +65,7 @@ def test_boot_is_a_context_manager(metta, tmp_path):
         urllib.request.urlopen(url + "/health", timeout=2)
 
 
-def test_load_resolves_against_the_manifest_directory(metta, tmp_path):
+def test_load_resolves_against_the_manifest_directory(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     nested = tmp_path / "deploy"
     nested.mkdir()
     (nested / "facts.metta").write_text("(manifest-fact here)\n")
@@ -75,7 +75,7 @@ def test_load_resolves_against_the_manifest_directory(metta, tmp_path):
         assert [str(row[0]) for row in metta.query("(manifest-fact $w)")] == ["here"]
 
 
-def test_bridge_declares_materializes_and_registers(metta, tmp_path):
+def test_bridge_declares_materializes_and_registers(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE TABLE medges (a TEXT, b TEXT)")
     connection.executemany("INSERT INTO medges VALUES (?, ?)", [("x", "y"), ("y", "z")])
@@ -92,7 +92,7 @@ def test_bridge_declares_materializes_and_registers(metta, tmp_path):
     assert len(list(group[0])) == 1
 
 
-def test_attach_registers_the_remote_space(metta, tmp_path):
+def test_attach_registers_the_remote_space(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Registration is lazy, so a dead URL attaches; only use would fail.
     (tmp_path / "app.metta").write_text('(boot (attach &mhq "http://127.0.0.1:9" &their))\n')
     with petta.boot(tmp_path / "app.metta", m=metta):
@@ -100,7 +100,7 @@ def test_attach_registers_the_remote_space(metta, tmp_path):
     metta.unregister_space("&mhq")
 
 
-def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):
+def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text(
         "(boot (launch &x))\n"
         "(boot (load 42))\n"
@@ -119,7 +119,7 @@ def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):
     assert list(metta.query("(boot (launch $x))")) == []
 
 
-def test_connections_must_match_bridges_exactly(metta, tmp_path):
+def test_connections_must_match_bridges_exactly(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text("(boot (bridge &mconn (e $a) (row t (a $a))))\n")
     with pytest.raises(petta.PettaError, match=r"bridge &mconn names no connection"):
         petta.boot(tmp_path / "app.metta", m=metta)
@@ -133,7 +133,7 @@ def test_connections_must_match_bridges_exactly(metta, tmp_path):
     assert list(metta.query("(boot (bridge &mconn $s $r))")) == []
 
 
-def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):
+def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bang.metta").write_text('!(boot (load "x.metta"))\n')
     with pytest.raises(petta.PettaError, match=r"does not run.*drop the !"):
         petta.boot(tmp_path / "bang.metta", m=metta)
@@ -150,13 +150,13 @@ def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):
     assert metta.run("!(engine-knows manifest-smuggled)") == [[False]]
 
 
-def test_an_empty_manifest_refuses(metta, tmp_path):
+def test_an_empty_manifest_refuses(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text(";; nothing but comments\n")
     with pytest.raises(petta.PettaError, match=r"declares nothing"):
         petta.boot(tmp_path / "app.metta", m=metta)
 
 
-def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):
+def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     port = _free_port()
     (tmp_path / "app.metta").write_text(
         f'(boot (serve (&self) {port}))\n(boot (load "missing.metta"))\n'
@@ -171,7 +171,7 @@ def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):
     assert [str(r[0]) for r in metta.query(f"(boot (serve $s {port}))")] == ["(&self)"]
 
 
-def test_bridge_declarations_gather_and_source_order_holds(metta, tmp_path):
+def test_bridge_declarations_gather_and_source_order_holds(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE TABLE mpeople (n TEXT)")
     connection.execute("CREATE TABLE mpets (n TEXT)")

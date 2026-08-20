@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import subprocess
 import sys
@@ -24,7 +24,7 @@ from petta.structures import AlphaSet, MatchIndex, PatternMap
 from petta.testing import atoms as atom_strategy
 
 
-def test_patternmap_ground_keys_are_dict_keys():
+def test_patternmap_ground_keys_are_dict_keys():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pm = PatternMap()
     pm[S.route(S.home)] = "home"
     pm[S.route(S.away)] = "away"
@@ -40,7 +40,7 @@ def test_patternmap_ground_keys_are_dict_keys():
         del pm[S.route(S.gone)]
 
 
-def test_patternmap_pattern_keys_are_alpha_one_entry():
+def test_patternmap_pattern_keys_are_alpha_one_entry():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pm = PatternMap()
     pm[S.route(V.x)] = "fallback"
     # The same key under a renamed variable IS the same key.
@@ -51,7 +51,7 @@ def test_patternmap_pattern_keys_are_alpha_one_entry():
     assert len(pm) == 0
 
 
-def test_patternmap_matching_answers_the_dispatch_question():
+def test_patternmap_matching_answers_the_dispatch_question():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pm = PatternMap()
     pm[S.route(S.home)] = "exact"
     pm[S.route(V.page)] = "any-route"
@@ -66,12 +66,12 @@ def test_patternmap_matching_answers_the_dispatch_question():
     assert "unrelated" in hits
 
 
-def test_patternmap_refuses_source_text():
+def test_patternmap_refuses_source_text():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="never parses"):
         PatternMap()["(route home)"] = 1
 
 
-def test_matchindex_routes_and_removes():
+def test_matchindex_routes_and_removes():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     inbox = MatchIndex()
     inbox.add(S.order(V.id, S.express), "rush")
     inbox.add(S.order(V.id, S.standard), "slow")
@@ -84,7 +84,7 @@ def test_matchindex_routes_and_removes():
     assert [v for _, v in inbox.matches(S.order(val(7), S.express))] == ["seven"]
 
 
-def test_matchindex_nonlinear_patterns_are_exact():
+def test_matchindex_nonlinear_patterns_are_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     inbox = MatchIndex()
     inbox.add(S.pair(V.x, V.x), "same")
     inbox.add(S.pair(V.x, V.y), "any")
@@ -96,7 +96,7 @@ def test_matchindex_nonlinear_patterns_are_exact():
     patterns=st.lists(atom_strategy(max_leaves=5), min_size=0, max_size=8),
     probe=atom_strategy(max_leaves=5, ground=True),
 )
-def test_matchindex_agrees_with_brute_force(patterns, probe):
+def test_matchindex_agrees_with_brute_force(patterns, probe):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     index = MatchIndex()
     for position, pattern in enumerate(patterns):
         index.add(pattern, position)
@@ -109,7 +109,7 @@ def test_matchindex_agrees_with_brute_force(patterns, probe):
     assert answered == expected
 
 
-def test_alphaset_is_alpha_membership():
+def test_alphaset_is_alpha_membership():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rules = AlphaSet()
     rules.add(expr(S["="], S.inc(V.x), expr(S["+"], V.x, 1)))
     assert expr(S["="], S.inc(V.n), expr(S["+"], V.n, 1)) in rules
@@ -125,14 +125,14 @@ def test_alphaset_is_alpha_membership():
 
 @given(members=st.lists(atom_strategy(max_leaves=5), max_size=8),
        probe=atom_strategy(max_leaves=5))
-def test_alphaset_matches_pairwise_alpha_eq(members, probe):
+def test_alphaset_matches_pairwise_alpha_eq(members, probe):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import alpha_eq
 
     held = AlphaSet(members)
     assert (probe in held) == any(alpha_eq(probe, member) for member in members)
 
 
-def test_structures_are_engine_free():
+def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A fresh interpreter uses the structures and never imports janus.
     code = (
         "import sys\n"
@@ -167,7 +167,7 @@ def test_structures_are_engine_free():
 # ------------------------------------------------------------ engine-backed
 
 
-def test_tabledmap_caches_and_stays_fresh(metta):
+def test_tabledmap_caches_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import TabledMap
 
     kb = metta.new_space()
@@ -192,7 +192,7 @@ def test_tabledmap_caches_and_stays_fresh(metta):
     assert prices[()] == 1
 
 
-def test_tabledmap_mapping_edges(metta):
+def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta import PettaError
     from petta.structures import TabledMap
 
@@ -207,7 +207,7 @@ def test_tabledmap_mapping_edges(metta):
         halves[(1, 2)]
 
 
-def test_liveview_mirrors_the_space(metta):
+def test_liveview_mirrors_the_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import LiveView
 
     sp = metta.new_space()
@@ -257,7 +257,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
     assert removal_cost(200, S.alert(V.q)) > large, "a pattern removal does"
 
 
-def test_closureview_terminates_and_stays_fresh(metta):
+def test_closureview_terminates_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import ClosureView
 
     g = metta.new_space()

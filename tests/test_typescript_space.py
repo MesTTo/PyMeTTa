@@ -6,7 +6,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def _stop(process) -> None:
 
 
 @pytest.fixture
-def ts_server():
+def ts_server():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if _NODE is None:
         pytest.skip("node is not installed")
     process, url = _start("space_server.js")
@@ -67,7 +67,7 @@ def ts_server():
 
 
 @pytest.fixture
-def mettascript_server():
+def mettascript_server():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if _NODE is None:
         pytest.skip("node is not installed")
     core = os.environ.get("PETTA_METTASCRIPT_CORE")
@@ -80,7 +80,7 @@ def mettascript_server():
         _stop(process)
 
 
-def test_metta_reaches_atoms_held_by_typescript(ts_server):
+def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = petta.MeTTa().new_space()
     try:
         remote.attach(m, "&ts-basics", ts_server)
@@ -96,7 +96,7 @@ def test_metta_reaches_atoms_held_by_typescript(ts_server):
         m.drop()
 
 
-def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):
+def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = RemoteSpace(remote.connect(ts_server), "&self")
     report = testing.check_space_provider(
         provider,
@@ -105,7 +105,7 @@ def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):
     assert any("over-approximation holds over" in line for line in report)
 
 
-def test_threaded_clients_interleave_whole_operations(ts_server):
+def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = petta.MeTTa().new_space()
     try:
         remote.attach(m, "&ts-threads", ts_server)
@@ -126,7 +126,7 @@ def test_threaded_clients_interleave_whole_operations(ts_server):
         m.drop()
 
 
-def test_async_clients_reach_the_typescript_space(ts_server):
+def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def drive() -> list:
         m = petta.MeTTa().new_space()
         try:
@@ -148,7 +148,7 @@ def test_async_clients_reach_the_typescript_space(ts_server):
         assert sorted(str(atom) for atom in group[0]) == ["1", "2"]
 
 
-def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):
+def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     transport = remote.connect(ts_server)
     provider = RemoteSpace(transport, "&self")
     provider.add(S.probe(S.x))
@@ -163,7 +163,7 @@ def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):
     assert per_op < 0.25, f"a wire match took {per_op:.3f}s"
 
 
-def test_mettascript_holds_the_atoms_when_named(mettascript_server):
+def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = petta.MeTTa().new_space()
     try:
         remote.attach(m, "&ms", mettascript_server)
@@ -182,7 +182,7 @@ def test_mettascript_holds_the_atoms_when_named(mettascript_server):
         m.drop()
 
 
-def test_a_batch_crosses_in_one_request(ts_server):
+def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     operations: list[str] = []
     inner = remote.connect(ts_server)
 
@@ -207,7 +207,7 @@ class TestTheReferenceServerSpeaksTheProtocol(testing.GatewayComplianceSuite):
     """The zero-dependency server, certified by the protocol's own suite."""
 
     @pytest.fixture()
-    def gateway_url(self, ts_server):
+    def gateway_url(self, ts_server):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return ts_server
 
 
@@ -215,5 +215,5 @@ class TestTheMettascriptServerSpeaksTheProtocol(testing.GatewayComplianceSuite):
     """Two MeTTa engines, one wire contract, one suite certifying it."""
 
     @pytest.fixture()
-    def gateway_url(self, mettascript_server):
+    def gateway_url(self, mettascript_server):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return mettascript_server

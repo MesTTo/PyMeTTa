@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import gc
 import uuid
@@ -18,7 +18,7 @@ from petta import S, Sym
 from petta._ops import dispatch_many
 
 
-def unique(prefix: str) -> str:
+def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 

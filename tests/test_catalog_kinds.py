@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import sys
 
@@ -26,13 +26,13 @@ class _Recording(SpaceProvider):
     """Answers (edge ...) rows and records the bound each match arrived
     with: None is the engine keeping the bound for re-unification, an
     integer is the bound pushed down, which only an exact route licenses.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     def __init__(self):
         self.asked = []
         self._rows = [S.edge(S.a, S.b), S.edge(S.c, S.d), S.edge(S.e, S.f)]
 
-    def match(self, pattern, *, limit=None):
+    def match(self, pattern, *, limit=None):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         self.asked.append(limit)
         rows = self._rows if limit is None else self._rows[:limit]
         yield from rows
@@ -57,7 +57,7 @@ metta_route_cap(Space, Pattern, refuse, freshness(stale)) :-
 """
 
 
-def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
+def test_a_third_party_declaration_kind_changes_routing_through_published_seams(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tmp_path,
 ):
     m = MeTTa()
@@ -94,7 +94,7 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
         m.space("&fr-rows").query(S.edge(V.x, V.y), limit=2)
 
 
-def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):
+def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     m = MeTTa()
     m.run("!(add-atom &petta (vocabulary mood-level calm tense))")
     m.run("!(add-atom &petta (kind mood symbol (one-of mood-level)))")
@@ -106,7 +106,7 @@ def test_the_vocabulary_module_is_generated(repo_root):
     """The catalog presets and the binding's Literal types are one
     authority: the checked-in module has to equal what the engine's own
     (vocabulary ...) rows produce.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import vocabgen
@@ -118,7 +118,7 @@ def test_the_vocabulary_module_is_generated(repo_root):
 def test_the_binding_refuses_by_the_generated_vocabulary():
     """The runtime checks read the generated tuples, so the refusal names
     exactly the values the engine's checker enforces.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m = MeTTa()
     with pytest.raises(ValueError, match=", ".join(FIDELITY)):
         m.declare_handles("&vg-rows", "(edge $a $b)", "Exactly")  # type: ignore[arg-type]

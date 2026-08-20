@@ -5,7 +5,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import signal
@@ -15,7 +15,7 @@ import textwrap
 import time
 
 
-def test_sigint_interrupts_a_running_evaluation():
+def test_sigint_interrupts_a_running_evaluation():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The spin would run for minutes; the test passes only because the
     # heartbeat lets the signal through in well under the timeout.
     program = textwrap.dedent(

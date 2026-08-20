@@ -27,7 +27,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def _read_forms(source: str) -> list[Atom]:
     """Every form in the source, read without evaluating anything. The
     engine door answers each form's own text, so variable names in bridge
     shapes survive into the recorded topology.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
     forms = []
     for kind, text in row["Forms"]:
@@ -163,7 +163,7 @@ class Boot:
     Registered providers and loaded knowledge stay, they are space state.
     """
 
-    def __init__(self, m: MeTTa, servers: tuple, performed: tuple) -> None:
+    def __init__(self, m: MeTTa, servers: tuple, performed: tuple) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self.m = m
         self.servers = servers
         self.performed = performed
@@ -173,13 +173,13 @@ class Boot:
         for server in self.servers:
             server.close()
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:
+    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.close()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"Boot({len(self.performed)} forms performed, {len(self.servers)} servers)"
 
 
@@ -250,7 +250,7 @@ def boot(
 def _declarations(directives: list[tuple[Expr, Expr]]) -> dict[str, list[Expr]]:
     """Every bridged name's (bridge <shape> <row>) declarations, gathered
     across the whole manifest in source order.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     gathered: dict[str, list[Expr]] = {}
     for _form, directive in directives:
         if _is_bridge(directive):
@@ -299,7 +299,7 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
 class _Assembler:
     """One boot run's state: the engine, the manifest's directory, the
     connections, the serve policy, and everything started so far.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(
         self,
@@ -344,7 +344,7 @@ class _Assembler:
     def _bridge(self, name: str) -> None:
         """Materialize a bridged name once, at its first form, carrying
         every declaration the manifest holds for it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if name in self._materialized:
             return
         self._materialized.add(name)

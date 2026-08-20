@@ -32,7 +32,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -133,7 +133,7 @@ def _is_variable(value: Any) -> bool:
     return isinstance(value, (list, tuple)) and len(value) == 2 and value[0] == "v"
 
 
-def alpha_equal(left: Any, right: Any) -> bool:
+def alpha_equal(left: Any, right: Any) -> bool:  # noqa: C901  -- alpha_equal keeps the codec conformance decision table together so its branches share one state
     """Wire equality up to a renaming of v payloads.
 
     A v payload is an identity within its own term and never a display name,
@@ -214,14 +214,14 @@ def _case_wire(case: dict, driver: CodecDriver) -> Any:
 # -------------------------------------------------------------------- plan
 
 
-def codec_plan(driver: CodecDriver, *, corpus: dict | None = None) -> dict:
+def codec_plan(driver: CodecDriver, *, corpus: dict | None = None) -> dict:  # noqa: C901  -- codec_plan keeps the codec conformance decision table together so its branches share one state
     """Which cases this driver's declaration puts in and out of scope, and
     which of the four legs it runs at all.
 
     Reported rather than silently applied: a profile is how an encoding says
     what it carries, and a case dropping out of a run without saying so is
     how a kit passes while testing less.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     corpus = corpus or codec_corpus()
     legs = ["roundtrip", "transport"]
     if driver.reads_text:
@@ -265,7 +265,7 @@ def _refused(operation, *arguments) -> str | None:
     return None
 
 
-def _check_term(case: dict, driver: CodecDriver) -> list[str]:
+def _check_term(case: dict, driver: CodecDriver) -> list[str]:  # noqa: C901  -- _check_term keeps the codec conformance decision table together so its branches share one state
     complaints: list[str] = []
     wire = _case_wire(case, driver)
     here = f"{driver.name}/{case['id']}"

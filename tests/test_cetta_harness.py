@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -26,7 +26,7 @@ def _run_lane(repo_root, environment, extra):
     )
 
 
-def test_the_two_runtime_differential_corpus_gates_the_shared_fragment(
+def test_the_two_runtime_differential_corpus_gates_the_shared_fragment(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo_root, tmp_path
 ):
     pin = repo_root / "tests" / "conformance" / "cetta_shared_fragment.txt"

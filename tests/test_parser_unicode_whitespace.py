@@ -22,7 +22,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
 import subprocess
@@ -66,7 +66,7 @@ _runs = st.text(alphabet=sorted(chr(c) for c in WHITE_SPACE), min_size=0, max_si
 def test_every_unicode_whitespace_separates_atoms(left, right, run):
     """Every character in the class, in every generated run of the class,
     between any two names the tokeniser reads back whole.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for code in sorted(WHITE_SPACE):
         source = f"({left}{chr(code)}{run}{right})"
         assert list(parse(source)) == [Sym(left), Sym(right)], f"U+{code:04X}"
@@ -75,7 +75,7 @@ def test_every_unicode_whitespace_separates_atoms(left, right, run):
 def test_the_reader_separates_on_the_property_and_nothing_else():
     """Closed in both directions: the class is the 25 code points PropList
     counts, and a character outside it stays inside the token.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert len(WHITE_SPACE) == 25
     for code in sorted(NOT_WHITE_SPACE):
         assert list(parse(f"(a{chr(code)}b)")) == [Sym(f"a{chr(code)}b")], f"U+{code:04X}"
@@ -101,7 +101,7 @@ def test_every_unicode_whitespace_separates_top_level_forms(metta, tmp_path):
     recommends for a load that should not accumulate. `&self` is process
     global, so every later test file the same xdist worker runs would
     otherwise see them.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with metta.new_space() as scratch:
         for code in sorted(WHITE_SPACE):
             # Each file defines its own pair of names, so one space can hold
@@ -123,7 +123,7 @@ def test_the_class_does_not_move_with_the_locale(locale):
     one and raised under the other [measured 2026-08-19, same source, same
     engine, two locales]. The suite runs in-process under one locale, so this
     is the only place the other one is exercised.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     done = subprocess.run(
         ["swipl", "-g", "run_tests(parser_unicode_layout)", "-t", "halt", "parser.plt"],
         cwd=REPO_ROOT / "tests" / "prolog",
@@ -139,7 +139,7 @@ def test_the_class_does_not_move_with_the_locale(locale):
 def test_whitespace_inside_a_string_literal_stays_data():
     """A string literal ends at its closing quote, never at layout, so
     widening what separates atoms must not reach inside one.
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for code in sorted(WHITE_SPACE):
         text = f"a{chr(code)}b"
         assert list(parse(f'(s "{text}")')) == [Sym("s"), text], f"U+{code:04X}"

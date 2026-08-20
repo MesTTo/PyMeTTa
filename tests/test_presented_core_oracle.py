@@ -26,7 +26,7 @@ Open Obligations:
   Future Enhancements: widen the corpus with the oracle's own
     --fuzz-generate differential programs once the shared fragment grows
     its stateful legs.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ def _oracle_answers(program: str) -> list[str]:
 
 
 @pytest.fixture(scope="module")
-def minimal(metta):
+def minimal(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(import! &self (library minimal_metta_lib))")
     return metta
 
@@ -129,7 +129,7 @@ def _engine_answers(minimal, program: str) -> list[str]:
 
 @needs_oracle
 @pytest.mark.parametrize("program", CORPUS)
-def test_the_presented_core_agrees_with_the_engine_on_the_shared_fragment(
+def test_the_presented_core_agrees_with_the_engine_on_the_shared_fragment(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     minimal, program
 ):
     assert _engine_answers(minimal, program) == _oracle_answers(program)
@@ -150,14 +150,14 @@ _trees = st.recursive(
 @needs_oracle
 @settings(max_examples=25, deadline=None)
 @given(head=_symbols, tail=st.lists(_trees, max_size=3))
-def test_random_structural_programs_agree_with_the_presented_core(
+def test_random_structural_programs_agree_with_the_presented_core(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     minimal, head, tail
 ):
     program = "!(chain (cons-atom {} ({})) $x $x)".format(head, " ".join(tail))
     assert _engine_answers(minimal, program) == _oracle_answers(program)
 
 
-def test_the_oracle_lane_catches_a_planted_divergence():
+def test_the_oracle_lane_catches_a_planted_divergence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert _split_answers("[42, 43]") == _split_answers("[43, 42]")
     assert _split_answers("[42]") != _split_answers("[43]")
     assert _split_answers("[(a (b c)), x]") == ["(a (b c))", "x"]

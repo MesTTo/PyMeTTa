@@ -11,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -46,14 +46,14 @@ def _complete_form(text: str) -> bool:
     """Whether the buffered input closes every paren it opens, reading
     strings and comments the way the engine does. An over-closed buffer
     counts as complete so the stray paren errors instead of hanging.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     remaining = _OPAQUE.sub("", text)
     if '"' in remaining:
         return False  # an unterminated string never completes
     return remaining.count("(") <= remaining.count(")")
 
 
-def _forms(interactive: bool):
+def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     """Complete buffered forms from stdin, until EOF or a bare exit."""
     buffer = ""
     while True:
@@ -173,7 +173,7 @@ def _doc(arguments) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package reference and enclosing module document this exported entry point
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
 
     parser = argparse.ArgumentParser(

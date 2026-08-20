@@ -7,7 +7,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import itertools
 
@@ -37,7 +37,7 @@ cube_check(Name0, Arity, Kind0, Verdict) :-
 
 
 @pytest.fixture(scope="module")
-def cube(metta):
+def cube(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.register_prolog(CHECKER, names=["cube_check"])
     return metta
 
@@ -102,7 +102,7 @@ def _points():
         }
 
 
-def test_every_cube_point_compiles_the_expected_clause(cube):
+def test_every_cube_point_compiles_the_expected_clause(cube):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     points = list(_points())
     assert len(points) == 44  # 2^6 minus 16 raw+pass_atoms minus 4 pure raw generators
     for index, (fn, kind, kwargs) in enumerate(points):
@@ -115,7 +115,7 @@ def test_every_cube_point_compiles_the_expected_clause(cube):
             cube.unregister_op(name)
 
 
-def test_multi_arity_compiles_every_declared_clause(cube):
+def test_multi_arity_compiles_every_declared_clause(cube):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def spread(*args):
         return len(args)
 
@@ -128,7 +128,7 @@ def test_multi_arity_compiles_every_declared_clause(cube):
         cube.unregister_op("cube-multi")
 
 
-def test_the_lane_can_fail(cube):
+def test_the_lane_can_fail(cube):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # CalDar's law: a lane that cannot fail is a defect. The planted
     # mismatch compares a det registration against the many builder and
     # must NOT answer match.

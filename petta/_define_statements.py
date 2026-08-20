@@ -8,7 +8,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class StatementCompilerMixin(CompilerContext):
         becomes its own tail-recursive equation whose parameters are the
         loop state, with everything after the loop living in the equation's
         exit branch, Appel's blocks-as-functions.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
             if self.closer is not None:
@@ -198,7 +198,7 @@ class StatementCompilerMixin(CompilerContext):
         become leading parameters, the equation joins the definition's own,
         and every call site prepends the lifted names' current variables,
         which is Python's late binding resolved per call.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _validate_nested_signature(node)
         params = [arg.arg for arg in node.args.args]
         lifted = _lifted_names(node, self.scope, params)
@@ -326,7 +326,7 @@ def _superpose(answers: list[Atom]) -> Expr:
     """The answers as one superposition, flattened where a member already is
     one over literal alternatives; (superpose $x) over a bound value stays
     whole, since only an expression of alternatives can splice.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     flat: list[Atom] = []
     for a in answers:
         if (

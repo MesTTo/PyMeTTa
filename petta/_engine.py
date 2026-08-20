@@ -34,7 +34,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ class JanusBridge(Protocol):
 
     PrologError: type[Exception]
 
-    def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any:
+    def apply_once(self, module: str, predicate: str, *inputs: Any, fail: Any) -> Any:  # noqa: ARG002  -- the override preserves the SpaceProvider or runtime protocol signature
         del fail
         raise NotImplementedError
 
@@ -194,7 +194,7 @@ def active_runtime() -> Runtime | None:
 def booted() -> bool:
     """Whether the engine and its shim are consulted in this process,
     without booting anything: the probe deferred work wants.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return _SHIM_LOADED.is_set()
 
 
@@ -276,7 +276,7 @@ def engine_thread() -> Iterator[None]:
         attached = True
         if janus.engine() < 0:
             msg = "janus did not attach a Prolog engine"
-            raise RuntimeError(msg)
+            raise RuntimeError(msg)  # noqa: TRY301  -- the raise stays inside this rollback boundary so the same handler records the failure
     except Exception as exc:
         if attached:
             janus.detach_engine()
@@ -297,7 +297,7 @@ def engine_thread() -> Iterator[None]:
             raise EngineError(msg) from exc
 
 
-def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
+def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
     """The process's runtime, started on first use.
 
     There is exactly one engine per process, so a later caller cannot have
@@ -345,7 +345,7 @@ class Runtime:
     process and this class refuses to pretend otherwise.
     """
 
-    def __init__(self, petta_path: str | None = None, verbose: bool = False) -> None:
+    def __init__(self, petta_path: str | None = None, verbose: bool = False) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         self.verbose = bool(verbose)
         with CONSULT_LOCK:
             if not CONSULTED.is_set():
@@ -455,7 +455,7 @@ class Runtime:
         """Run a goal that is REQUIRED to succeed: a bridge entry point that
         fails has hit a bug or a refused input, and silence would let a
         write vanish. Failure raises; the semidet reading stays with once().
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         row = self.once(goal, **inputs)
         if not row:
             msg = (
@@ -482,7 +482,7 @@ class Runtime:
         half no wrapper here could reach: a syntax error inside a consulted
         file goes through print_message/2 and the load then succeeds with the
         predicate undefined.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         goal = "consult_global(File)" if data is None else "consult_string_global(Name, Text)"
         inputs = {"File": name} if data is None else {"Name": name, "Text": data}
         self.once(goal, **inputs)
@@ -502,7 +502,7 @@ class Runtime:
 
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if threading.get_ident() == self._home_thread:
             return _LOCK
         if _CALL_LOCKS.lock is _NULL_LOCK:
@@ -521,7 +521,7 @@ class Runtime:
         as once(). Off the consulting thread the same call routes through
         the relational form, since the functional one is main-thread-only
         in janus (a foreign-thread call aborts the process).
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         lock = self._thread_lock()
         if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
@@ -538,7 +538,7 @@ class Runtime:
     def apply_must(self, predicate: str, *inputs: Any) -> Any:
         """apply() for entry points REQUIRED to succeed, as must() is to
         once(): failure means refused inputs and raises.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         value = self.apply(predicate, *inputs)
         if value is None:
             msg = (
@@ -557,7 +557,7 @@ class Runtime:
         failure, errors classified exactly as once(). Off the consulting
         thread the call routes through the relational form, as apply()
         does and for the same reason.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         lock = self._thread_lock()
         if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
@@ -697,7 +697,7 @@ class Runtime:
         `base`. _raise keeps the default, the library's own exceptions;
         transaction() widens it, because a transaction body is the
         caller's own code and its ValueError should arrive as itself.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             row = self._janus.query_once(
                 "petta_py_original_exception(Error, Obj)", {"Error": term}

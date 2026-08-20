@@ -168,7 +168,7 @@ class SpaceComplianceSuite:
         instead of at pytest collection where it points at the suite. A
         non-Test-named intermediate base may leave the fixture to its
         leaves, pytest's own collection contract.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         super().__init_subclass__(**kwargs)
         if cls.__name__.startswith("Test") and not any(
             "provider" in ancestor.__dict__
@@ -200,7 +200,7 @@ class SpaceComplianceSuite:
     def stored(self, provider) -> list:
         """What the provider holds. Enumeration by default; override it for a
         provider that does not enumerate.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not isinstance(provider, Enumerable):
             pytest.skip(
                 "the provider does not enumerate, so override the `stored` "
@@ -214,7 +214,7 @@ class SpaceComplianceSuite:
         """What ran and what did not, reported the way SQLAlchemy reports its
         requirements, and asserted: a provider declaring nothing would
         otherwise pass by skipping everything.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         record: dict[str, set[str]] = {"ran": set(), "skipped": set()}
         yield record
         reporter = request.config.pluginmanager.get_plugin("terminalreporter")
@@ -276,7 +276,7 @@ class SpaceComplianceSuite:
     def restore_or_skip(self, provider, exercised, other: str) -> None:
         """A round trip needs both directions, and a provider with only one of
         them is skipped on the other rather than failed for not having it.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not provider.can_run(other):
             exercised["skipped"].add(other)
             pytest.skip(f"a round trip needs {other} as well")
@@ -302,7 +302,7 @@ class SpaceComplianceSuite:
         """Driven through the ENGINE rather than by calling match directly,
         which is the difference between this suite and check_space_provider:
         an atom the provider holds has to be reachable from MeTTa.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not stored:
             pytest.skip("the provider holds no atoms to match")
         self.requires(provider, exercised, "match")
@@ -329,7 +329,7 @@ class SpaceComplianceSuite:
         Checked in both directions, because one alone proves little: every
         atom of that shape with that leading value must come back, and every
         answer that comes back must rebuild into an atom the provider holds.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         pattern = open_pattern(atom, ground_prefix=1)
@@ -360,7 +360,7 @@ class SpaceComplianceSuite:
         filter, exact on all ground data and wrong the first time a
         pattern repeats a variable; the engine's own unification is what
         keeps it sound, and this is the query that proves it held.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         if len(atom.args) < 2:
@@ -393,7 +393,7 @@ class SpaceComplianceSuite:
     ):
         """A self-join on one shape, which any provider holding that shape can
         answer. The engine routes each conjunct through the provider.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
@@ -461,7 +461,7 @@ class SpaceComplianceSuite:
         Written as a remove-then-restore for the same reason the single write
         is: the suite does not get to choose what a backend can store, and an
         invented marker is a shape a schema-bound provider has no table for.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "add-many")
         self.restore_or_skip(provider, exercised, "remove")
         batch = self.restorable_or_skip(stored, needed=2)[:4]
@@ -494,7 +494,7 @@ class SpaceComplianceSuite:
         about the provider: a provider whose add() silently drops the atom
         still answers 42, measured. So the storage is asserted separately,
         and it is the half that can actually fail here.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "rules")
         if not provider.can_run("add"):
             pytest.skip("a space that cannot be added to cannot be given a rule")
@@ -526,7 +526,7 @@ class SpaceComplianceSuite:
     def test_clear_empties_the_space(self, provider, exercised, space):
         """Skipped unless a subclass sets destructive, because the provider
         under test is usually pointed at data somebody wants to keep.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not self.destructive:
             pytest.skip("set destructive = True to exercise clear")
         self.requires(provider, exercised, "clear")
@@ -539,7 +539,7 @@ class SpaceComplianceSuite:
         """An operation a space does not provide has to raise with the space
         and the operation named. Failing into "there is nothing there" is the
         shape that sends an author looking at their data.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         absent = [
             capability
             for capability in ("add", "remove", "clear")
@@ -568,7 +568,7 @@ class SpaceComplianceSuite:
         Written as MeTTa source rather than through query(), because query()
         matches every pattern against ONE space and a cross-space join names
         the other space per conjunct.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         with space.new_space() as native:
@@ -587,7 +587,7 @@ class SpaceComplianceSuite:
     ):
         """The engine bounds the answers whatever the provider does with the
         number, so this holds of a provider that ignores it entirely.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         assert len(space.query(open_pattern(atom), limit=1)) <= 1

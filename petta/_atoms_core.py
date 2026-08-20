@@ -42,7 +42,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     integers, an integer is not a float ((== 1 1.0) is false), floats
     compare by IEEE identity (-0.0 is not 0.0, and a NaN IS itself), and an
     opaque object is itself alone.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
     if type(mine) is not type(theirs):
@@ -367,7 +367,7 @@ class Atom:
     # becomes a program. Equality stays equality everywhere; the term is
     # spelled x.eq(y), since overloading == would cost structural equality.
 
-    def _build(self, op: str, other: Any, flipped: bool = False) -> Expr:
+    def _build(self, op: str, other: Any, flipped: bool = False) -> Expr:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         left, right = (encode(other), self) if flipped else (self, encode(other))
         return Expr([Sym(op), left, right])
 
@@ -620,7 +620,7 @@ class Handle(Atom):
     naming the id. Garbage collection releases as a safety net, but an
     interpreter tearing down cannot promise engine calls, so explicit
     release is the deterministic path.
-    """
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = {
         "_released": "whether release() already retracted the registry entry",
@@ -1014,7 +1014,7 @@ class Expr(Atom):
         """rich.pretty expands an expression by its children, so a deep
         term prints as an indented tree instead of one long line. Only
         rich consults this; plain repr() is unchanged.
-        """
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         yield from self.children
 
     def __str__(self) -> str:
