@@ -202,6 +202,7 @@ AlgebraLawError = _algebra_api.AlgebraLawError
 AlgebraOperationError = _algebra_api.AlgebraOperationError
 AlgebraRequirementError = _algebra_api.AlgebraRequirementError
 DeclaredAlgebra = _algebra_api.DeclaredAlgebra
+LinearEvidenceError = _algebra_api.LinearEvidenceError
 PlanDecision = _algebra_api.PlanDecision
 RateDeclarationError = _algebra_api.RateDeclarationError
 TaggedAnswer = _algebra_api.TaggedAnswer
@@ -330,6 +331,7 @@ __all__ = [
     "Handle",
     "InferenceLimitError",
     "Interrupted",
+    "LinearEvidenceError",
     "Matcher",
     "MeTTa",
     "MettaName",

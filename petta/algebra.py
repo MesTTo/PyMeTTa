@@ -11,6 +11,10 @@ Guarantees:
     changing ordinary queries [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
     commit=f95becb09e1d83fbb7bfd083fdb5b8b3f84ee225]
+  - a linear algebra refuses overlapping premise-occurrence ledgers before it
+    publishes a derived answer [tested:
+    test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -40,6 +44,7 @@ __all__ = [
     "AlgebraOperationError",
     "AlgebraRequirementError",
     "DeclaredAlgebra",
+    "LinearEvidenceError",
     "PlanDecision",
     "RateDeclarationError",
     "TaggedAnswer",
@@ -69,6 +74,10 @@ class AlgebraOperationError(PettaError):
 
 class RateDeclarationError(AlgebraDeclarationError):
     """A rate is not a finite nonnegative real value."""
+
+
+class LinearEvidenceError(PettaError):
+    """One stored premise occurrence was consumed twice in one derivation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -552,6 +561,7 @@ def _derive_rule(
     states: list[tuple[dict[str, Atom], Atom, frozenset[int], tuple[int, ...]]] = [
         ({}, rule.tag, frozenset(), (rule.order,))
     ]
+    linear = "linear" in declaration.requires
     for premise in rule.premises:
         next_states: list[
             tuple[dict[str, Atom], Atom, frozenset[int], tuple[int, ...]]
@@ -562,6 +572,13 @@ def _derive_rule(
                 matched = unify(pattern, candidate.value)
                 if matched is None:
                     continue
+                overlap = tokens & candidate.tokens
+                if linear and overlap:
+                    token = min(overlap)
+                    msg = (
+                        f"linear_evidence_already_spent({declaration.name}, token={token})"
+                    )
+                    raise LinearEvidenceError(msg)
                 merged = _merge_bindings(bindings, matched)
                 if merged is None:
                     continue
