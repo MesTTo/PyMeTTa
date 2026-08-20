@@ -11,6 +11,10 @@ Guarantees:
     test_text_save_uses_utf8_for_plain_and_gzip_files]
   - the save format type admits exactly metta and fast [tested
     test_public_context_types_are_distinct]
+  - save validation consumes the generated save-format catalog tuple rather
+    than owning a second closed list [tested:
+    test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
+    commit=WORKTREE]
 Owns:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save [tested test_save_failure_preserves_existing_file]
@@ -35,6 +39,7 @@ from ._engine import Runtime
 from ._space_objects import _limits
 from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
 from .errors import EngineError, ResourceLimitError
+from .vocabularies import SAVE_FORMAT
 
 _FAST_PREFIX = b"PETTA-CACHE\t"
 _FAST_ERRORS = (
@@ -175,7 +180,7 @@ def save_space(
     format: SaveFormat,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
-    if format not in ("metta", "fast"):
+    if format not in SAVE_FORMAT:
         raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
     _validate_atoms(rt, space, atoms)
     target = Path(path)

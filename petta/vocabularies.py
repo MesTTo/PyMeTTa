@@ -23,10 +23,13 @@ __all__ = [
     "DETERMINISM",
     "EFFECT_CLASS",
     "FIDELITY",
+    "MEMO_AGGREGATE",
+    "MEMO_STRATEGY",
     "NUMERIC_TYPE",
     "ON_ERROR_MODE",
     "OP_KIND",
     "ROUTE_KEY",
+    "SAVE_FORMAT",
     "SEMIRING",
     "SOURCE_KIND",
     "SUBSCRIPTION_EDGE",
@@ -38,10 +41,13 @@ __all__ = [
     "Determinism",
     "EffectClass",
     "Fidelity",
+    "MemoAggregate",
+    "MemoStrategy",
     "NumericType",
     "OnErrorMode",
     "OpKind",
     "RouteKey",
+    "SaveFormat",
     "Semiring",
     "SourceKind",
     "SubscriptionEdge",
@@ -73,6 +79,14 @@ EffectClass = Literal["immutable"]
 FIDELITY = ("Exact", "Partial", "Sound", "Refuse")
 Fidelity = Literal["Exact", "Partial", "Sound", "Refuse"]
 
+#: (vocabulary memo-aggregate none min max sum count)
+MEMO_AGGREGATE = ("none", "min", "max", "sum", "count")
+MemoAggregate = Literal["none", "min", "max", "sum", "count"]
+
+#: (vocabulary memo-strategy wtinylfu lru)
+MEMO_STRATEGY = ("wtinylfu", "lru")
+MemoStrategy = Literal["wtinylfu", "lru"]
+
 #: (vocabulary numeric-type Number BigInt)
 NUMERIC_TYPE = ("Number", "BigInt")
 NumericType = Literal["Number", "BigInt"]
@@ -88,6 +102,10 @@ OpKind = Literal["det", "many", "raw_det", "raw_many"]
 #: (vocabulary route-key context global)
 ROUTE_KEY = ("context", "global")
 RouteKey = Literal["context", "global"]
+
+#: (vocabulary save-format metta fast)
+SAVE_FORMAT = ("metta", "fast")
+SaveFormat = Literal["metta", "fast"]
 
 #: (vocabulary semiring bool bag set ranked prob prov)
 SEMIRING = ("bool", "bag", "set", "ranked", "prob", "prov")
