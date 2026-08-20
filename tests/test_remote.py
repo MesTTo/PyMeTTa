@@ -18,7 +18,7 @@ Guarantees:
   - lazy enumeration measurements vary only the atom count in one space and
     use the minimum of three samples [tested:
     test_two_answers_cross_the_wire_without_the_third_being_computed;
-    commit=WORKTREE]
+    commit=88f8730f4a68bd426503b2a0e463405f7399ad78]
 Open Obligations:
   To Do: None
   Hacks: None
