@@ -36,7 +36,8 @@ Guarantees:
   - a database row becomes an atom from its typed cell values; plain text is
     always a symbol, NULL is Gnd(None), and structured values use the tagged
     atom wire rather than the source parser [tested:
-    test_a_row_value_becomes_an_atom_without_being_reparsed; commit=WORKTREE]
+    test_a_row_value_becomes_an_atom_without_being_reparsed;
+    commit=09c5ca4528bc3763e94155d5cb00e9e0a662cc95]
   - the whole pattern family is filtered exactly where SQL can express
     it: ground positions become comparisons, a repeated variable becomes
     the equality it demands (column to column, or column to the declared
