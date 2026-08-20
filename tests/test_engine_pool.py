@@ -50,7 +50,8 @@ def p():
 
 def test_each_worker_holds_a_distinct_engine(p):
     """The whole design rests on per-worker engines, so assert the engine ids
-    differ rather than inferring it from a timing win."""
+    differ rather than inferring it from a timing win.
+    """
     # petta.bridge is subscribe.bridge(source, pattern, target); the janus
     # bridge is the one in _engine.
     from petta._engine import bridge
@@ -129,7 +130,8 @@ def test_a_worker_can_write_and_the_home_engine_sees_it(m, p):
 
 def test_a_worker_sees_what_the_home_engine_compiled(m, p):
     """Functions compile into shared Prolog modules, so a fresh engine
-    inherits them; only global-variable state is per-engine."""
+    inherits them; only global-variable state is per-engine.
+    """
     m.run("(= (pool-later $x) (+ $x 100))")
     assert p.map(lambda n: m.one(f"(pool-later {n})"), [1, 2]) == [101, 102]
 

@@ -634,7 +634,8 @@ class PersistentFactSpace(SpaceProvider):
 
     def flush(self) -> None:
         """Push buffered journal writes to disk right now, whatever the
-        sync mode: the on-demand checkpoint for the fast default."""
+        sync mode: the on-demand checkpoint for the fast default.
+        """
         self._write_call("flush")
 
     def compact(self) -> None:

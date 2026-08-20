@@ -294,7 +294,8 @@ def test_a_raw_operations_inverse_crosses_raw_too(metta):
 def test_an_inverse_of_the_wrong_width_is_refused(metta):
     """A tuple of the wrong width would unify against nothing and read as
     "this result has no preimage", which is the one answer an inverse is
-    entitled to give and the one that would hide the mistake."""
+    entitled to give and the one that would hide the mistake.
+    """
     name = unique("wide")
     metta.register_op(
         lambda a, b: (a, b), name=name, typed=False, inverse=lambda _: (1, 2, 3)

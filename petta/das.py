@@ -79,7 +79,8 @@ def _websocket():
 
 def _render(value: Any) -> str:
     """A petta pattern as DAS MeTTa query text: variables carry the
-    %-sigil, strings quote JSON-style, expressions parenthesize."""
+    %-sigil, strings quote JSON-style, expressions parenthesize.
+    """
     if isinstance(value, str):
         return value
     if isinstance(value, Var):
@@ -127,7 +128,8 @@ def _render_tokens(value: Any) -> str:
     any variable inside is a LINK_TEMPLATE, a fully ground link is a
     LINK, a leaf symbol is NODE Symbol, a variable is VARIABLE. MeTTa
     text patterns parse first so both input spellings serve both
-    dialects."""
+    dialects.
+    """
     if isinstance(value, str):
         value = parse(value)
     if isinstance(value, Var):
@@ -148,7 +150,8 @@ class DASAnswer:
     matched expressions themselves, the raw atom handles, and the
     attention numbers. A router that maps answers back to MeTTa text
     binds real terms; the deployed legacy routers answer handles only,
-    which arrive as string values under the same names."""
+    which arrive as string values under the same names.
+    """
 
     __slots__ = ("bindings", "expressions", "handles", "importance", "strength")
 
@@ -257,7 +260,8 @@ class DAS:
         """Start any router command and answer its execution id, in the
         current sources' enveloped shape. The server validates
         parameters; unknown ones refuse loudly there. Legacy routers
-        serve query() and count(), which negotiate the dialect."""
+        serve query() and count(), which negotiate the dialect.
+        """
         body = self._request(
             "POST",
             "/command-router/executions",
@@ -301,7 +305,8 @@ class DAS:
 
     def _answer_stream(self, execution_id: str) -> Generator[tuple[str, Any], None, None]:
         """Both dialects' events as ('answers', items) and
-        ('status', payload) pairs."""
+        ('status', payload) pairs.
+        """
         for event in self._events(execution_id):
             if "command" in event:
                 body = event.get("params") or {}
@@ -349,7 +354,8 @@ class DAS:
         """Run a pattern query and collect its STI-ordered answers.
         Several patterns compose as one server-side conjunction, DAS's
         own query tree. Extra keyword arguments pass through to the
-        router's query parameters verbatim."""
+        router's query parameters verbatim.
+        """
         execution_id = self._start_query(patterns, False, unique, max_answers, extra)
         answers: list[DASAnswer] = []
         with closing(self._answer_stream(execution_id)) as stream:
@@ -363,7 +369,8 @@ class DAS:
 
     def count(self, *patterns: Any, **extra: Any) -> int:
         """The router's count mode: the server's own total, no answers
-        shipped."""
+        shipped.
+        """
         execution_id = self._start_query(patterns, True, False, None, extra)
         counted = 0
         with closing(self._answer_stream(execution_id)) as stream:
@@ -380,7 +387,8 @@ class DASSpace(SpaceProvider):
     """A DAS connection as a read-only petta space: match answers the
     expressions DAS matched, and the engine unifies them, so joins mix
     DAS candidates with native facts. Knowledge loads through das-cli;
-    the write paths say so."""
+    the write paths say so.
+    """
 
     def __init__(self, das: DAS) -> None:
         self._das = das

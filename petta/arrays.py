@@ -230,7 +230,8 @@ def install(m, default: Any = None) -> list[str]:
         """A constructor registers per backend as name--library, and THIS
         space routes its bare name there through per-space equations, so
         the default is the space's, never the process's. Installing the
-        space again with another default replaces its aliases."""
+        space again with another default replaces its aliases.
+        """
         namespaced = f"{name}--{library}"
         op(fn, name=namespaced, raw=raw, arities=arities, **kw)
         key = (m.space_name, name)
@@ -250,7 +251,8 @@ def install(m, default: Any = None) -> list[str]:
     def aligned(a, b):
         """Two operands in one library: the right converts into the left's,
         through DLPack when it is an array and by lifting when it is a bare
-        number, since the standard's functions take arrays on both sides."""
+        number, since the standard's functions take arrays on both sides.
+        """
         xp = namespace_of(a)
         if is_array(b):
             if type(b) is not type(a):
@@ -590,7 +592,8 @@ class EmbeddingStore:
         (or asked for), an exact IndexFlatIP over the normalized matrix
         answers, byte-agreeing with the array path by a differential test.
         NumPy-like namespaces use argpartition for the candidate set;
-        namespaces exposing only the Array API use argsort."""
+        namespaces exposing only the Array API use argsort.
+        """
         if isinstance(k, bool):
             raise TypeError(f"k must be a positive integer, got {k!r}")
         try:
@@ -633,7 +636,8 @@ class EmbeddingStore:
 
     def _resolve(self, query: Any) -> Any:
         """A query as a vector: an array or sequence stands as itself, a
-        stored key answers its vector."""
+        stored key answers its vector.
+        """
         if is_array(query) or isinstance(query, (list, tuple)):
             return query
         return self.vector_for(query)

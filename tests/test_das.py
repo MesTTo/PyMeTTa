@@ -35,7 +35,8 @@ from petta.das import (
 
 class ScriptedDAS(DAS):
     """A DAS whose transport is a script: posts are recorded, events
-    replay the shapes the router's own C++ emits."""
+    replay the shapes the router's own C++ emits.
+    """
 
     def __init__(self, events):
         super().__init__("http://scripted:0")
@@ -293,7 +294,8 @@ def test_das_space_refuses_unsupported_composed_operations_at_entry(metta):
 class LegacyScriptedDAS(DAS):
     """Speaks like the deployed 1.2.0-rc images: refuses the enveloped
     shape with the router's own 400 text, accepts the flat one, and
-    streams flat events with answer chunks under data."""
+    streams flat events with answer chunks under data.
+    """
 
     def __init__(self, events):
         super().__init__("http://scripted:0")

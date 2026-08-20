@@ -200,7 +200,8 @@ def _resolve(name: str) -> Any:
 def entry_points(group: str = SPACES_GROUP) -> dict[str, metadata.EntryPoint]:
     """The names installed packages advertise for one group, UNLOADED:
     asking imports nothing and registers nothing, so discovery is free to
-    call and the app keeps deciding what loads."""
+    call and the app keeps deciding what loads.
+    """
     return {entry.name: entry for entry in metadata.entry_points(group=group)}
 
 
@@ -218,7 +219,8 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     petta.libraries target answers the directory of sources the package
     ships. A non-callable target answers as-is, the module-level-instance
     form, and refuses arguments it cannot take. An unknown name refuses,
-    listing what IS installed, so a typo reads as one."""
+    listing what IS installed, so a typo reads as one.
+    """
     advertised = entry_points(group)
     if name not in advertised:
         known = ", ".join(sorted(advertised)) or "none"

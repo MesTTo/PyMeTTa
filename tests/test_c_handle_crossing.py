@@ -43,7 +43,8 @@ def vectors():
 def unpack_vector(m, handle: Handle) -> list[int]:
     """The Python-side unpack method: the handle stays opaque here, and the
     extension's own accessors read the native structure out element by
-    element. Nothing in this function knows what a vector is inside."""
+    element. Nothing in this function knows what a vector is inside.
+    """
     (row,) = m.run("!(vector-length h)", using={"h": handle})
     length = int(str(row[0]))
     return [

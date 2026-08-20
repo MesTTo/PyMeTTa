@@ -115,7 +115,8 @@ def _substitute(pattern, bindings):
 def test_unify_is_sound(atom):
     """A pattern that matches binds variables such that substitution gives
     back the atom, checked with the pattern being the atom itself and with
-    one subterm generalized."""
+    one subterm generalized.
+    """
     got = unify(atom, atom)
     assert got is not None
     if isinstance(atom, Expr) and len(atom) > 0:
@@ -133,7 +134,8 @@ def metta_session(metta):
 def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     """Engine identification, pinned: the symbol true IS the boolean atom, so
     a Sym('true') crossing the boundary comes back as the boolean, exactly as
-    a lowercase true in source reads as one."""
+    a lowercase true in source reads as one.
+    """
     rt = metta_session.runtime
     row = rt.once(
         "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
@@ -145,7 +147,8 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
 
 def _kind(value):
     """The MeTTa type a Python value crosses as. bool first, because it is a
-    subclass of int in Python and is Bool rather than Number in MeTTa."""
+    subclass of int in Python and is Bool rather than Number in MeTTa.
+    """
     if isinstance(value, bool):
         return "Bool"
     if isinstance(value, (int, float)):

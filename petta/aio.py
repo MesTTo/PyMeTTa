@@ -333,7 +333,8 @@ class _EngineThread:
     def interrupt_if_running(self, request: _Request | None) -> bool:
         """Signal the engine thread if `request` is the one running now,
         or if anything is running when request is None. Answers whether a
-        signal was sent."""
+        signal was sent.
+        """
         with self._state_lock:
             swi_thread = self._swi_thread
         with self._transition:
@@ -534,7 +535,8 @@ class AsyncMeTTa:
     async def call(self, fn: Callable[[MeTTa], Any]) -> Any:
         """Run fn(m) on the engine's thread and await its result: the
         escape hatch to the entire synchronous surface, subscriptions,
-        derivations, stats blocks and all."""
+        derivations, stats blocks and all.
+        """
         if self._closed:
             raise PettaError("this AsyncMeTTa is closed")
         await self._worker.start()
@@ -555,7 +557,8 @@ class AsyncMeTTa:
         whether anything was running (idle is a no-op, sqlite3's own
         reading). The stopped call raises petta.Interrupted; whatever it
         completed before the stop, writes included, stands. Callable from
-        any thread or task."""
+        any thread or task.
+        """
         return self._worker.interrupt_if_running(None)
 
     # ------------------------------------------------------- mirrored surface
@@ -634,7 +637,8 @@ class AsyncMeTTa:
         into: _builtins.type | None = None,
     ) -> Any:
         """Query patterns with the synchronous surface's bounds, guard,
-        and into= row shaping."""
+        and into= row shaping.
+        """
         return await self.call(
             lambda m: m.query(
                 *patterns,
@@ -693,7 +697,8 @@ class AsyncMeTTa:
 
     async def copy(self) -> AsyncMeTTa:
         """This space's contents in a new anonymous space; MeTTa.copy,
-        the clone borrowing this connection's worker."""
+        the clone borrowing this connection's worker.
+        """
         clone = await self.call(lambda m: m.copy())
         return AsyncMeTTa._sharing(clone, self._worker)
 
@@ -787,7 +792,8 @@ class AsyncMeTTa:
     async def space(self, name: str) -> AsyncMeTTa:
         """Another space through the same engine thread. The connection
         owns the thread; spaces borrow it, so closing a borrowed space is
-        a no-op and closing the owner ends them all."""
+        a no-op and closing the owner ends them all.
+        """
         named = await self.call(lambda m: m.space(name))
         return AsyncMeTTa._sharing(named, self._worker)
 
@@ -959,7 +965,8 @@ class AsyncMeTTa:
         """Register a Python callable as a MeTTa function. The engine
         calls it synchronously on the worker thread, exactly as the
         synchronous surface does; the decorator spelling stays with the
-        synchronous surface, since decoration cannot await."""
+        synchronous surface, since decoration cannot await.
+        """
         return await self.call(
             lambda m: m.register_op(
                 fn,
@@ -1009,7 +1016,8 @@ class AsyncMeTTa:
     ) -> Any:
         """Compile a Python function into equations on the worker. The
         returned handle's own calls are synchronous doors; evaluate
-        through fn(name) or run() from async code."""
+        through fn(name) or run() from async code.
+        """
         if fn is not None:
             return await self.call(lambda m: m.define(fn))
         if prolog is None:
@@ -1026,7 +1034,8 @@ class AsyncMeTTa:
         methods: bool = True,
     ) -> _builtins.type:
         """Declare a Python class into this space. A call, not a
-        decorator: decoration cannot await."""
+        decorator: decoration cannot await.
+        """
         return await self.call(
             lambda m: m.type(cls, accessors=accessors, methods=methods)
         )
@@ -1045,7 +1054,8 @@ class AsyncMeTTa:
 
     async def register_space(self, provider: Any, name: str) -> Any:
         """Register a Python-backed space. Its methods run on whichever
-        thread the engine is answering from, exactly as in sync use."""
+        thread the engine is answering from, exactly as in sync use.
+        """
         return await self.call(lambda m: m.register_space(provider, name))
 
     async def register_foreign_library(
@@ -1079,14 +1089,16 @@ class AsyncMeTTa:
         """Scoped default bounds, the synchronous surface's own block:
         enter and exit only touch a contextvar, so this is an ordinary
         `with` inside async code, and every awaited call in the scope
-        carries it to the worker."""
+        carries it to the worker.
+        """
         return self._m.limits(timeout=timeout, inferences=inferences)
 
     def batch(self) -> _AsyncBatch:
         """Collect this space's add() calls and cross once at exit,
         the synchronous batch's async twin: `async with am.batch():`.
         The same stated edges apply: reads see the pre-batch space,
-        remove and clear refuse, an exception discards."""
+        remove and clear refuse, an exception discards.
+        """
         return _AsyncBatch(self)
 
     async def transaction(self, fn: Callable[[MeTTa], Any], /) -> Any:
@@ -1105,26 +1117,29 @@ class AsyncMeTTa:
     def runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface.
         Every call on it blocks the calling thread; from async code, wrap
-        such work in call()."""
+        such work in call().
+        """
         return self._m.runtime
 
     def stats(self) -> _AsyncStats:
         """The engine's counters over an async with-block, as deltas.
 
-            async with am.stats() as s:
-                await am.query(...)
-            s.inferences
+        async with am.stats() as s:
+            await am.query(...)
+        s.inferences
         """
         return _AsyncStats(self)
 
     def assuming(self, *facts: Any) -> _AsyncAssuming:
         """Facts held only inside an async with-block: added on entry,
-        removed on exit, exceptions included."""
+        removed on exit, exceptions included.
+        """
         return _AsyncAssuming(self, facts)
 
     async def prepare(self, *patterns: Any, where: Any | None = None) -> _AsyncPrepared:
         """A prepared query whose solve() is awaitable; the shape builds
-        once on the worker, columns readable without a round trip."""
+        once on the worker, columns readable without a round trip.
+        """
         prepared = await self.call(lambda m: m.prepare(*patterns, where=where))
         return _AsyncPrepared(self, prepared)
 
@@ -1143,7 +1158,8 @@ class AsyncMeTTa:
 
         Iterating without the async-with also works; aclose() is then the
         caller's duty, the finalization reading the data model gives
-        asynchronous iterators."""
+        asynchronous iterators.
+        """
         return _AsyncCursor(self, patterns, where, timeout, inferences)
 
     def subscribe(
@@ -1162,7 +1178,8 @@ class AsyncMeTTa:
 
     def fn(self, name: str) -> _AsyncEngineFunction:
         """An engine function as an async callable: await f(3), with
-        .one, .first and .all carrying the same cardinality triple."""
+        .one, .first and .all carrying the same cardinality triple.
+        """
         return _AsyncEngineFunction(self, name)
 
     # -------------------------------------------------------------- lifecycle
@@ -1221,7 +1238,8 @@ _STREAM_CLOSED: Final = object()
 
 class _AsyncStats:
     """MeTTa.stats() as an async context manager: the counters start and
-    stop on the worker, and the entered block object carries the deltas."""
+    stop on the worker, and the entered block object carries the deltas.
+    """
 
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
@@ -1238,7 +1256,8 @@ class _AsyncStats:
 
 class _AsyncAssuming:
     """MeTTa.assuming() as an async context manager: facts added on
-    entry, removed on exit, exceptions included."""
+    entry, removed on exit, exceptions included.
+    """
 
     def __init__(self, am: AsyncMeTTa, facts: tuple) -> None:
         self._am = am
@@ -1259,7 +1278,8 @@ class _AsyncAssuming:
 
 class _AsyncPrepared:
     """A Prepared whose solve() is awaitable. The shape lives on the
-    worker's engine; columns read without a round trip."""
+    worker's engine; columns read without a round trip.
+    """
 
     def __init__(self, am: AsyncMeTTa, prepared: Any) -> None:
         self._am = am
@@ -1287,7 +1307,8 @@ class _AsyncPrepared:
 
     async def explain(self) -> str:
         """The query's plan, reflected rather than run; Prepared.explain,
-        one worker round trip."""
+        one worker round trip.
+        """
         prepared = self._prepared
         return await self._am.call(lambda _m: prepared.explain())
 
@@ -1299,7 +1320,8 @@ class _AsyncCursor:
     """MeTTa.stream() pulled asynchronously: one row per worker round
     trip, closable, and an async context manager. Iterating without the
     async-with works too; aclose() is then the caller's duty, the
-    finalization reading the data model gives asynchronous iterators."""
+    finalization reading the data model gives asynchronous iterators.
+    """
 
     def __init__(self, am, patterns, where, timeout, inferences) -> None:
         self._am = am
@@ -1328,7 +1350,8 @@ class _AsyncCursor:
 
     async def explain(self) -> str:
         """The query's plan, reflected rather than run; Cursor.explain,
-        opening the cursor if it is not yet open."""
+        opening the cursor if it is not yet open.
+        """
         cursor = await self._ensure()
         return await self._am.call(lambda _m: cursor.explain())
 
@@ -1367,7 +1390,8 @@ class _AsyncSubscription:
     an asyncio queue through call_soon_threadsafe; async-for consumes.
     A class rather than an async generator on purpose: the data model's
     finalization duty for asynchronous generators is exactly what
-    aclose() makes explicit here."""
+    aclose() makes explicit here.
+    """
 
     def __init__(
         self,
@@ -1459,7 +1483,8 @@ class _AsyncBatch:
     """The batch block's async twin: entering opens the synchronous
     collector in THIS task's context (which every awaited call carries
     to the worker), and a clean exit flushes through one awaited bulk
-    crossing."""
+    crossing.
+    """
 
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
@@ -1486,7 +1511,8 @@ class _AsyncBatch:
 class _AsyncEngineFunction:
     """One engine function as an async callable, the cardinality triple
     spelled the same as everywhere: await f(3) is one(), .first
-    tolerates absence, .all answers the multiset."""
+    tolerates absence, .all answers the multiset.
+    """
 
     def __init__(self, am: AsyncMeTTa, name: str) -> None:
         self._am = am
@@ -1519,5 +1545,6 @@ async def connect(
     metta: MeTTa | None = None,
 ) -> AsyncMeTTa:
     """An AsyncMeTTa with its engine thread already running, aiosqlite's
-    own naming for the entry point."""
+    own naming for the entry point.
+    """
     return await AsyncMeTTa(space, metta=metta).start()

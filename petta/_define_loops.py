@@ -40,7 +40,8 @@ class LoopCompilerMixin(CompilerContext):
     def _free_reads(self, nodes: list) -> list[str]:
         """Scope names the nodes read, first-appearance order: the loop
         state, since a name never read again need not be carried. An
-        augmented assignment's target is a read too: x *= 2 reads x."""
+        augmented assignment's target is a read too: x *= 2 reads x.
+        """
         found: list[str] = []
 
         def note(identifier: str) -> None:
@@ -58,7 +59,8 @@ class LoopCompilerMixin(CompilerContext):
     def _loop_state(self, nodes: list) -> list[str]:
         """The state a loop helper carries: every scope name the loop or its
         continuation reads, plus whatever the enclosing continuation itself
-        will read, which the syntax of `nodes` cannot show."""
+        will read, which the syntax of `nodes` cannot show.
+        """
         state = self._free_reads(nodes)
         for name in self.closer_names:
             if name in self.scope and name not in state:
@@ -69,7 +71,8 @@ class LoopCompilerMixin(CompilerContext):
         """The loop as its own tail-recursive equation: parameters are the
         loop state, the test chooses between one more round and the exit,
         and the statements after the loop ARE the exit branch. With no break
-        in the subset, a while-else always runs, so it prefixes the rest."""
+        in the subset, a while-else always runs, so it prefixes the rest.
+        """
         rest = node.orelse.copy() + rest
         state = self._loop_state([node.test, *node.body, *rest])
         helper = f"{self.name}--loop-{next_aux_serial()}"
@@ -91,9 +94,10 @@ class LoopCompilerMixin(CompilerContext):
         return Expr([Sym(helper), *(Var(self.scope[n]) for n in state)])
 
     def _for_statement(self, node: ast.For, rest: list[ast.stmt]) -> Atom:
-        """for x in e: the same equation over the remaining elements,
+        """For x in e: the same equation over the remaining elements,
         decons-atom peeling one per round. A nondeterministic source
-        collapses first, which is Python's own single pass over it."""
+        collapses first, which is Python's own single pass over it.
+        """
         target = _name_of(node.target, node.lineno)
         rest = node.orelse.copy() + rest
         if target in self._free_reads(rest) or target in self.closer_names:
@@ -141,7 +145,8 @@ class LoopCompilerMixin(CompilerContext):
 
     def _materialized(self, iter_node: ast.expr) -> Atom:
         """An iterable as one expression value: a nondeterministic call's
-        answers collapse into a tuple, anything else already is its value."""
+        answers collapse into a tuple, anything else already is its value.
+        """
         if (
             isinstance(iter_node, ast.Call)
             and isinstance(iter_node.func, ast.Name)

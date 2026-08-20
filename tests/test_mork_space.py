@@ -84,7 +84,8 @@ def test_mork_holds_rules_not_only_facts(mork):
     """MORK declares the rules capability, so an equation stored in it is a
     program the engine can run rather than an inert atom. The same space
     stays a data source while it does: the rule and the fact sit together,
-    which is the point of a space in MeTTa rather than a nuance of one."""
+    which is the point of a space in MeTTa rather than a nuance of one.
+    """
     mork.add(parse("(= (mork-doubled $x) (* 2 $x))"), S.seed(21))
     assert mork.eval("(mork-doubled 21)") == [val(42)]
     assert [row.n for row in mork.query(S.seed(V.n))] == [21]
@@ -93,7 +94,8 @@ def test_mork_holds_rules_not_only_facts(mork):
 def test_mork_answers_the_whole_rule_set(mork):
     """Two equations for one function are two answers, the way they are in a
     native space. The bridge into MORK is one clause per function, so the
-    nondeterminism has to come from the provider's match, not from clauses."""
+    nondeterminism has to come from the provider's match, not from clauses.
+    """
     mork.add(
         parse("(= (mork-colour) red)"),
         parse("(= (mork-colour) blue)"),
@@ -107,7 +109,8 @@ def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
     a native space holding the same atoms: whatever MORK claims, the engine's
     own split must answer too. A claim is the one place in the seam where a
     provider may not over-approximate, because there is no cheap re-check for a
-    join, so this differential stands in for one."""
+    join, so this differential stands in for one.
+    """
     atoms = [
         S.edge(S.a, S.b), S.edge(S.b, S.c), S.edge(S.a, S.c), S.edge(S.c, S.a),
         S.tag(S.b, S.one), S.tag(S.c, S.two),
@@ -183,7 +186,8 @@ def test_bulk_add_lands_in_one_crossing(metta, named_pair):
 def test_hostile_strings_round_trip_or_refuse(metta):
     """Escaped writing keeps line-breaking strings whole through MORK's
     line protocol, and a NUL byte, which would die at the C boundary,
-    refuses loudly instead of killing the process."""
+    refuses loudly instead of killing the process.
+    """
     space = metta.space("&mork:hostile")
     for text in ['a"b', "a\\b", "a\nb", "a\tb", "a\rb", "é字"]:
         atom = S.holds(val(text))
@@ -229,7 +233,8 @@ else:
     @given(expressions(max_leaves=6, ground=True))
     def test_generated_expressions_round_trip_through_mork(metta, atom):
         """MORK's own parser and printer agree with the engine's on
-        whatever the strategy generates: what goes in comes back."""
+        whatever the strategy generates: what goes in comes back.
+        """
         space = metta.space("&mork:fuzz")
         try:
             space.add(atom)

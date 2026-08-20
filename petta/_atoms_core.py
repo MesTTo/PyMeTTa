@@ -103,7 +103,8 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     Python and one made in an equation never disagree: booleans are not
     integers, an integer is not a float ((== 1 1.0) is false), floats
     compare by IEEE identity (-0.0 is not 0.0, and a NaN IS itself), and an
-    opaque object is itself alone."""
+    opaque object is itself alone.
+    """
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
     if type(mine) is not type(theirs):
@@ -983,7 +984,8 @@ class Expr(Atom):
     def __rich_repr__(self):
         """rich.pretty expands an expression by its children, so a deep
         term prints as an indented tree instead of one long line. Only
-        rich consults this; plain repr() is unchanged."""
+        rich consults this; plain repr() is unchanged.
+        """
         yield from self.children
 
     def __str__(self) -> str:

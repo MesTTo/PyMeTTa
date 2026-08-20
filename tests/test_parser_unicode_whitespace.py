@@ -65,7 +65,8 @@ _runs = st.text(alphabet=sorted(chr(c) for c in WHITE_SPACE), min_size=0, max_si
 @settings(max_examples=25, deadline=None)
 def test_every_unicode_whitespace_separates_atoms(left, right, run):
     """Every character in the class, in every generated run of the class,
-    between any two names the tokeniser reads back whole."""
+    between any two names the tokeniser reads back whole.
+    """
     for code in sorted(WHITE_SPACE):
         source = f"({left}{chr(code)}{run}{right})"
         assert list(parse(source)) == [Sym(left), Sym(right)], f"U+{code:04X}"
@@ -73,7 +74,8 @@ def test_every_unicode_whitespace_separates_atoms(left, right, run):
 
 def test_the_reader_separates_on_the_property_and_nothing_else():
     """Closed in both directions: the class is the 25 code points PropList
-    counts, and a character outside it stays inside the token."""
+    counts, and a character outside it stays inside the token.
+    """
     assert len(WHITE_SPACE) == 25
     for code in sorted(NOT_WHITE_SPACE):
         assert list(parse(f"(a{chr(code)}b)")) == [Sym(f"a{chr(code)}b")], f"U+{code:04X}"
@@ -98,7 +100,8 @@ def test_every_unicode_whitespace_separates_top_level_forms(metta, tmp_path):
     The 50 equations land in a scratch space, which is what `load()` itself
     recommends for a load that should not accumulate. `&self` is process
     global, so every later test file the same xdist worker runs would
-    otherwise see them."""
+    otherwise see them.
+    """
     with metta.new_space() as scratch:
         for code in sorted(WHITE_SPACE):
             # Each file defines its own pair of names, so one space can hold
@@ -119,7 +122,8 @@ def test_the_class_does_not_move_with_the_locale(locale):
     locale and 6 under LC_ALL=C, so a leading IDEOGRAPHIC SPACE parsed under
     one and raised under the other [measured 2026-08-19, same source, same
     engine, two locales]. The suite runs in-process under one locale, so this
-    is the only place the other one is exercised."""
+    is the only place the other one is exercised.
+    """
     done = subprocess.run(
         ["swipl", "-g", "run_tests(parser_unicode_layout)", "-t", "halt", "parser.plt"],
         cwd=REPO_ROOT / "tests" / "prolog",
@@ -134,7 +138,8 @@ def test_the_class_does_not_move_with_the_locale(locale):
 
 def test_whitespace_inside_a_string_literal_stays_data():
     """A string literal ends at its closing quote, never at layout, so
-    widening what separates atoms must not reach inside one."""
+    widening what separates atoms must not reach inside one.
+    """
     for code in sorted(WHITE_SPACE):
         text = f"a{chr(code)}b"
         assert list(parse(f'(s "{text}")')) == [Sym("s"), text], f"U+{code:04X}"

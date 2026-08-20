@@ -262,7 +262,8 @@ def _refuse_raw_answer(value: Any) -> Any:
     """A raw operation is the opaque fast path and its results skip the wire,
     so an Answer here would cross as an inert handle and its bindings would
     silently never bind. Refusing is the honest reading; bindings need the
-    wire, so the operation drops raw=True."""
+    wire, so the operation drops raw=True.
+    """
     if isinstance(value, Answer):
         raise PettaError(
             "a raw operation answered petta.Answer; raw results skip the "
@@ -276,7 +277,8 @@ def type_names(obj: Any) -> list[str]:
     """Every type name an object carries, for the engine's typing bridge:
     its classes in resolution order short of object, then every satisfied
     protocol. Computed on the boxed value's contents, and returned as text,
-    which janus cannot damage."""
+    which janus cannot damage.
+    """
     value = obj.value if isinstance(obj, Box) else obj
     names = [c.__name__ for c in type(value).__mro__ if c.__name__ != "object"]
     names.extend(extra_types(value))

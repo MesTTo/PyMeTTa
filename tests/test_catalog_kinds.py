@@ -25,7 +25,8 @@ from petta.vocabularies import FIDELITY, SEMIRING
 class _Recording(SpaceProvider):
     """Answers (edge ...) rows and records the bound each match arrived
     with: None is the engine keeping the bound for re-unification, an
-    integer is the bound pushed down, which only an exact route licenses."""
+    integer is the bound pushed down, which only an exact route licenses.
+    """
 
     def __init__(self):
         self.asked = []
@@ -104,7 +105,8 @@ def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):
 def test_the_vocabulary_module_is_generated(repo_root):
     """The catalog presets and the binding's Literal types are one
     authority: the checked-in module has to equal what the engine's own
-    (vocabulary ...) rows produce."""
+    (vocabulary ...) rows produce.
+    """
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import vocabgen
@@ -115,7 +117,8 @@ def test_the_vocabulary_module_is_generated(repo_root):
 
 def test_the_binding_refuses_by_the_generated_vocabulary():
     """The runtime checks read the generated tuples, so the refusal names
-    exactly the values the engine's checker enforces."""
+    exactly the values the engine's checker enforces.
+    """
     m = MeTTa()
     with pytest.raises(ValueError, match=", ".join(FIDELITY)):
         m.declare_handles("&vg-rows", "(edge $a $b)", "Exactly")  # type: ignore[arg-type]

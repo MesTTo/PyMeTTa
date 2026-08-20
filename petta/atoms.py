@@ -125,7 +125,8 @@ def pretty(atom: Any, width: int = 78) -> str:
     the remaining width, and otherwise breaks after its head with each
     child on its own line two deeper, the classic s-expression
     convention. The engine's (pretty-atom $x) is the same layout on the
-    MeTTa side, so a dump reads identically from either tier."""
+    MeTTa side, so a dump reads identically from either tier.
+    """
 
     def render(a: Atom, indent: int) -> str:
         inline = str(a)
@@ -171,7 +172,8 @@ def _to_atom(value: Any) -> Atom:
 
 def variables(atom: Atom) -> list[str]:
     """Variable names in an atom, in first-appearance order. Iterative:
-    depth is data."""
+    depth is data.
+    """
     out: list[str] = []
     stack: list[Atom] = [atom]
     while stack:
@@ -309,7 +311,8 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     """The atom with every bound variable replaced, unify's companion:
     substitute(pattern, unify(pattern, atom)) is the matched instance.
     An unbound variable stays itself, so a partial substitution is a
-    narrower pattern rather than an error."""
+    narrower pattern rather than an error.
+    """
     term = encode(atom)
     if isinstance(term, Var):
         bound = bindings.get(term.name)

@@ -23,7 +23,8 @@ from petta import MeTTa
 @pytest.fixture()
 def declared():
     """One symbol of each kind a declaration can pin, so the rule can be
-    exercised on symbols and not only on literals."""
+    exercised on symbols and not only on literals.
+    """
     m = MeTTa()
     for form in ("(: xnum Number)", "(: ystr String)", "(: zbool Bool)"):
         m.run(form)
@@ -110,7 +111,8 @@ def test_alpha_equality_still_compares_across_kinds(declared):
     """The refusal needs an escape hatch and the language already has one:
     `=alpha` is declared `(-> Atom Atom Bool)`, so it takes anything and
     compares structurally. Both references answer False for
-    `!(=alpha 1 "S")`, measured 2026-08-19."""
+    `!(=alpha 1 "S")`, measured 2026-08-19.
+    """
     assert _answer(declared, '(=alpha 1 "S")') == ["False"]
     assert _answer(declared, "(=alpha True 1)") == ["False"]
     assert _answer(declared, "(=alpha 1 1)") == ["True"]

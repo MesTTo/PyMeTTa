@@ -527,7 +527,8 @@ def test_a_take_withholds_its_bound_from_a_provider_that_claimed_nothing(metta):
 
 def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
     """A claim that is neither word is a mistake, not a value to fall back
-    from: falling back would silently discard a real exact."""
+    from: falling back would silently discard a real exact.
+    """
 
     class _Nonsense(_Countable):
         def match(self, pattern):
@@ -577,7 +578,8 @@ def test_a_python_providers_capabilities_reach_the_engine(metta):
 
 def test_an_absent_capability_still_carries_the_providers_own_words(metta):
     """The projection made the ENGINE refuse first, which would have lost the
-    message. The refusal is a seam now, so it is raised where the words are."""
+    message. The refusal is a seam now, so it is raised where the words are.
+    """
 
     class Curated(SpaceProvider):
         def atoms(self):
@@ -625,7 +627,8 @@ def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
 def test_a_bound_is_not_pushed_past_a_join(metta):
     """Across a join the bound belongs to the joined rows. An outer match
     truncated at N would lose the rows its later candidates would join to,
-    which is under-answering, the one thing the contract forbids."""
+    which is under-answering, the one thing the contract forbids.
+    """
     provider = _Bounded(20)
     metta.register_space(provider, "&join-bound-test")
     try:
@@ -651,7 +654,8 @@ def test_an_unbounded_query_asks_for_nothing_in_particular(metta):
 
 def test_a_provider_ignoring_the_bound_is_still_bounded_by_the_engine(metta):
     """Honouring the bound is the provider's decision, so the engine may not
-    depend on it. This one is told 2 and answers everything anyway."""
+    depend on it. This one is told 2 and answers everything anyway.
+    """
 
     class Defiant(_Countable):
         def match(self, pattern, *, limit=None):
@@ -746,7 +750,8 @@ def test_a_claimed_join_answers_what_the_engines_split_answers(metta):
     """A conjunction reaches the provider whole. The oracle is the engine's own
     split over a native space holding the same atoms, because a claim is the one
     place in this seam where a provider may not over-approximate: there is no
-    cheap re-check for a join, so the differential stands in for one."""
+    cheap re-check for a join, so the differential stands in for one.
+    """
     provider = JoiningSpace()
     claimed, split = _both_ways(
         metta, provider, "&py_join", S.edge(V.x, V.y), S.tag(V.y, V.t)
@@ -757,7 +762,8 @@ def test_a_claimed_join_answers_what_the_engines_split_answers(metta):
 
 def test_declining_a_conjunction_falls_back_to_the_split(metta):
     """Returning None is what a provider without a join does, and it must leave
-    behaviour exactly as it was: asked, declined, and answered correctly."""
+    behaviour exactly as it was: asked, declined, and answered correctly.
+    """
     provider = DecliningPlanner()
     claimed, split = _both_ways(
         metta, provider, "&py_nojoin", S.edge(V.x, V.y), S.tag(V.y, V.t)

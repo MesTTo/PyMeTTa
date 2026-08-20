@@ -24,7 +24,8 @@ def m(metta):
 def test_control_signals_pass_through_recovery_catches(m):
     """A swallowed limit signal DISARMED the budget before the fix,
     measured as six million inferences spent under a thousand-step bound
-    when the raise landed inside a recovery catch mid-translation."""
+    when the raise landed inside a recovery catch mid-translation.
+    """
     m.run("(= (deep-spin $n) (if (== $n 0) done (deep-spin (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.eval("(== (deep-spin 3000000) done)", inferences=1_000)

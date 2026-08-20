@@ -95,7 +95,8 @@ def test_a_foreign_predicate_does_not_break_tracing(m):
     the trace walks every registered arity looking for tracked clauses. One C
     extension registered anywhere in the process used to make every trace in
     it raise, this one included, which is why the registration and the trace
-    are in one test."""
+    are in one test.
+    """
     m.register_foreign_library(
         _C_EXTENSION / "cbump.so", entry="install_cbump", names=["c-bump"]
     )

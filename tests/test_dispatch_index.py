@@ -15,7 +15,8 @@ from petta.atoms import unify
 
 def _scan(registered, space, atom, action="add"):
     """The strategy this replaces, written out: every registration on this
-    space, in the order it was made, one unify each, deliver the matches."""
+    space, in the order it was made, one unify each, deliver the matches.
+    """
     return [
         name
         for name, subscription, pattern, on, watched in registered

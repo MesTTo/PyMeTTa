@@ -49,7 +49,8 @@ _VOCABULARY = ("load", "attach", "bridge", "serve")
 def _read_forms(source: str) -> list[Atom]:
     """Every form in the source, read without evaluating anything. The
     engine door answers each form's own text, so variable names in bridge
-    shapes survive into the recorded topology."""
+    shapes survive into the recorded topology.
+    """
     row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
     forms = []
     for kind, text in row["Forms"]:
@@ -241,7 +242,8 @@ def boot(
 
 def _declarations(directives: list[tuple[Expr, Expr]]) -> dict[str, list[Expr]]:
     """Every bridged name's (bridge <shape> <row>) declarations, gathered
-    across the whole manifest in source order."""
+    across the whole manifest in source order.
+    """
     gathered: dict[str, list[Expr]] = {}
     for _form, directive in directives:
         if _is_bridge(directive):
@@ -287,7 +289,8 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
 
 class _Assembler:
     """One boot run's state: the engine, the manifest's directory, the
-    connections, the serve policy, and everything started so far."""
+    connections, the serve policy, and everything started so far.
+    """
 
     def __init__(
         self,
@@ -331,7 +334,8 @@ class _Assembler:
 
     def _bridge(self, name: str) -> None:
         """Materialize a bridged name once, at its first form, carrying
-        every declaration the manifest holds for it."""
+        every declaration the manifest holds for it.
+        """
         if name in self._materialized:
             return
         self._materialized.add(name)

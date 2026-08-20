@@ -203,43 +203,50 @@ def default_engine() -> MeTTa:
     use: escape hatch and inspection point in one. Construct MeTTa()
     yourself for isolation; there is one engine per process either way,
     so this is about who holds the handle, not about capacity.
-    functools.cache carries the once-and-locked semantics."""
+    functools.cache carries the once-and-locked semantics.
+    """
     return MeTTa()
 
 
 def run(source: str, **kwargs):
     """Run MeTTa source. Sugar for MeTTa().run(...); construct your own
-    engine for isolation."""
+    engine for isolation.
+    """
     return default_engine().run(source, **kwargs)
 
 
 def query(*patterns, **kwargs):
     """Query patterns as one conjunction. Sugar for MeTTa().query(...);
-    construct your own engine for isolation."""
+    construct your own engine for isolation.
+    """
     return default_engine().query(*patterns, **kwargs)
 
 
 def add(*atoms):
     """Add atoms. Sugar for MeTTa().add(...); construct your own engine
-    for isolation."""
+    for isolation.
+    """
     return default_engine().add(*atoms)
 
 
 def remove(atom):
     """Remove one copy of an atom. Sugar for MeTTa().remove(...);
-    construct your own engine for isolation."""
+    construct your own engine for isolation.
+    """
     return default_engine().remove(atom)
 
 
 def eval(target, **kwargs):
     """Evaluate a term, every answer. Sugar for MeTTa().eval(...);
-    construct your own engine for isolation."""
+    construct your own engine for isolation.
+    """
     return default_engine().eval(target, **kwargs)
 
 
 def fn(name: str):
     """An engine function as a Python callable. Sugar for
-    MeTTa().fn(...); construct your own engine for isolation."""
+    MeTTa().fn(...); construct your own engine for isolation.
+    """
     return default_engine().fn(name)
 
 

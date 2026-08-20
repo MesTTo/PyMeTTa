@@ -261,7 +261,7 @@ def test_encode_python_values():
 
 
 def test_the_type_fast_path_precedes_encode_and_survives_a_register():
-    """encode answers common types from a table keyed on the exact class,
+    """Encode answers common types from a table keyed on the exact class,
     and every registration rebuilds that table.
 
     Measured 2026-08-19 over 800,000 calls, minimum of three instructions:u
@@ -537,7 +537,8 @@ def test_unify():
 def test_ground_equality_is_the_engines():
     """Python-side == must never disagree with an equation's ==: booleans
     are not integers, integers are not floats, IEEE identity for floats
-    with -0.0 apart from 0.0 and NaN equal to itself, objects by identity."""
+    with -0.0 apart from 0.0 and NaN equal to itself, objects by identity.
+    """
     assert Gnd(1) != Gnd(1.0)
     assert Gnd(1.0) == Gnd(1.0)
     assert Gnd(0.0) != Gnd(-0.0)
@@ -551,7 +552,8 @@ def test_ground_equality_is_the_engines():
 
 def test_boxes_intern_per_object_identity():
     """One live object always crosses as one box, so stored and queried
-    meet in the same reference; a dead object costs nothing after."""
+    meet in the same reference; a dead object costs nothing after.
+    """
     thing = object()
     assert boxed(thing) is boxed(thing)
     assert boxed(thing).value is thing
@@ -588,7 +590,8 @@ def test_namespace_completion_surfaces_engine_errors(monkeypatch):
 
 def test_deep_terms_cross_and_print():
     """Depth is data: the codec and the printer take 5000 levels without
-    meeting Python's recursion ceiling."""
+    meeting Python's recursion ceiling.
+    """
     atom = Gnd(1)
     for _ in range(5000):
         atom = expr(S.wrap, atom)
@@ -650,7 +653,8 @@ def test_atoms_sort_in_prologs_standard_order():
 
 def test_the_sort_key_is_total_over_mixed_atoms():
     """Every key must be comparable with every other, which a tuple key only
-    is when the rank leads and the payloads at one rank share a type."""
+    is when the rank leads and the payloads at one rank share a type.
+    """
     atoms = [
         S.a, parse("1"), parse("2.5"), parse('"s"'), V.x, S.f(S.a),
         S.f(S.a, S.b), parse("()"), parse("True"), Gnd(object()),

@@ -25,7 +25,8 @@ __all__ = ["TraceEvent", "trace"]
 class TraceEvent:
     """One step: depth is the nesting level, kind is call or exit, term
     is what reduced, answer carries the exit's result and stays None on
-    a call."""
+    a call.
+    """
 
     depth: int
     kind: str
@@ -44,7 +45,8 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
 
     max_events bounds the recording: past it the trace raises instead
     of accumulating without limit, the same shape as the timeout and
-    inference bounds elsewhere."""
+    inference bounds elsewhere.
+    """
     if max_events <= 0:
         raise ValueError(
             f"max_events must be positive, got {max_events!r}"

@@ -82,7 +82,8 @@ def raise_error_answers(
     The check every single-value door runs before decoding: an error
     among the answers is the evaluation reporting failure, and failure
     outranks a count. The target rides as a note, so the traceback names
-    the call without the message growing."""
+    the call without the message growing.
+    """
     for answer in answers:
         error = error_answer(answer, space=space)
         if error is not None:
@@ -298,13 +299,15 @@ class Rows(UserList[Row]):
 
     def first(self) -> Row | None:
         """The first row, or None when there are no answers: the tolerant
-        accessor, SQLAlchemy's own naming."""
+        accessor, SQLAlchemy's own naming.
+        """
         return self[0] if self else None
 
     def one(self) -> Row:
         """THE row, when the query is asserted to have exactly one answer;
         none or several raise naming the count, so a lookup that silently
-        picked an arbitrary row cannot hide."""
+        picked an arbitrary row cannot hide.
+        """
         if len(self) != 1:
             raise EngineError(
                 f"one() expected exactly one row, got {len(self)}; "
@@ -322,7 +325,8 @@ class Rows(UserList[Row]):
         error record stays data through every Rows door, one() and
         first() included; this is the explicit bridge for callers who
         want the raise_for_status reading. One error raises it plainly,
-        several raise one ExceptionGroup carrying each."""
+        several raise one ExceptionGroup carrying each.
+        """
         errors = [
             error
             for row in self
@@ -372,7 +376,8 @@ class Rows(UserList[Row]):
 
     def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
         """One column's atoms rebuilt as instances of cls, through the
-        two-way translator: typed rows, one call."""
+        two-way translator: typed rows, one call.
+        """
         return [convert.build(value, cls) for value in self._column(column)]
 
     def to_dicts(self) -> list[dict[str, Any]]:
@@ -389,7 +394,8 @@ class Rows(UserList[Row]):
         """The columns as a dict of plain values, the one shape every
         DataFrame constructor takes: pl.DataFrame(rows.table()),
         pd.DataFrame(rows.table()). Grounded values unwrap to Python;
-        symbols and structure become their text."""
+        symbols and structure become their text.
+        """
         if self and not self.columns:
             raise ValueError(
                 "table() cannot represent nonempty zero-column Rows as a column mapping"
@@ -403,7 +409,8 @@ class Rows(UserList[Row]):
     def to_df(self):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.
         pandas is the caller's dependency; its absence raises naming the
-        need, and table() stays the constructor-agnostic shape."""
+        need, and table() stays the constructor-agnostic shape.
+        """
         pandas = require_module(
             "pandas",
             "to_df() builds a pandas DataFrame and pandas is not installed; "
@@ -434,7 +441,8 @@ class Rows(UserList[Row]):
 
     def __rich__(self):
         """A real table in rich-using terminals. Only rich itself calls
-        this, so the import cannot miss; plain terminals never pay it."""
+        this, so the import cannot miss; plain terminals never pay it.
+        """
         from rich.table import Table  # noqa: PLC0415  rich's own protocol call
 
         if not self.columns:
@@ -453,7 +461,8 @@ class Rows(UserList[Row]):
     def _repr_html_(self) -> str:
         """Notebook display: the columns as a header, one row per answer,
         every cell escaped. Past config.display_rows the tail is an explicit
-        count, never a silent cut."""
+        count, never a silent cut.
+        """
         shown = config.display_rows
         head = "".join(f"<th>{html.escape(str(c))}</th>" for c in self.columns)
         body = "".join(
@@ -493,7 +502,8 @@ class Rows(UserList[Row]):
 
 def _into_fields(cls: type) -> dict[str, Any]:
     """Field name to resolved annotation for a dataclass, NamedTuple, or
-    TypedDict; anything else is refused naming the three."""
+    TypedDict; anything else is refused naming the three.
+    """
     if dataclasses.is_dataclass(cls):
         hints = typing.get_type_hints(cls)
         return {field.name: hints.get(field.name) for field in dataclasses.fields(cls)}
@@ -515,7 +525,8 @@ def rows_into(rows: Rows, cls: type) -> list:
     annotated with a registered class builds through the two-way
     translator; a primitive annotation decodes and is CHECKED, so a
     symbol landing in an int field is an error at the door rather than
-    a surprise downstream; an unannotated field decodes plainly."""
+    a surprise downstream; an unannotated field decodes plainly.
+    """
     fields = _into_fields(cls)
     missing = [name for name in fields if name not in rows.columns]
     if missing:

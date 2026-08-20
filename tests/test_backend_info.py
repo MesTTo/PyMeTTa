@@ -51,7 +51,8 @@ def test_backend_info_reports_versions_and_consulted_tree():
 
 def test_backend_info_never_starts_the_runtime():
     """The no-start guarantee, pinned where it is deterministic: a fresh
-    interpreter answers every version and still has no runtime."""
+    interpreter answers every version and still has no runtime.
+    """
     program = (
         "import petta\n"
         "from petta import _engine\n"

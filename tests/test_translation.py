@@ -35,7 +35,8 @@ def test_let_star_with_an_unarrived_bindings_list_does_not_drop_them(m):
     """`(= (mylet $bs $b) (let* $bs $b))` used to compile to
     `mylet([], A, A)`: the bindings argument unified with the empty list
     under the rewrite's own cut, so every binding a caller wrote was
-    dropped and the body answered with nothing bound."""
+    dropped and the body answered with nothing bound.
+    """
     m.run("(: mylet (-> Atom Atom %Undefined%))")
     m.run("(= (mylet $bs $b) (let* $bs $b))")
     assert [str(a) for a in m.eval("(mylet (($x 1) ($y 2)) (+ $x $y))")] == ["3"]
@@ -59,7 +60,8 @@ def test_an_equation_head_is_matched_not_called(m):
     """`(= (eqh (top 1 (src 5))) matched)` used to compile to
     `eqh([top, 1, A], matched) :- src(5, A)`, running `src` backwards over
     a position the program wrote as a pattern, so the head and the `match`
-    that reads the same shape back disagreed."""
+    that reads the same shape back disagreed.
+    """
     m.run("(= (src 5) 7)")
     m.run("(top 1 (src 5))")
     structural = [str(a) for a in m.eval("(match &self (top $k (src $n)) ($k $n))")]
@@ -126,7 +128,8 @@ DERIVED_FORM_SITES = [
 
 def _tokens(text):
     """MeTTa source as a flat token list, comments dropped and strings kept
-    whole. Enough to re-print a file that only has to run."""
+    whole. Enough to re-print a file that only has to run.
+    """
     out, i = [], 0
     while i < len(text):
         c = text[i]
@@ -202,7 +205,8 @@ def _expand(node):
 def _expand_source(text):
     """The file re-printed with every derived form expanded. `!` is its own
     token and binds to the form after it, so it is re-joined here: printed on
-    a line of its own it is a bare symbol and the runnable is gone."""
+    a line of its own it is a bare symbol and the runnable is gone.
+    """
     tree, _ = _parse(_tokens(text))
     expanded, count = _expand(tree)
     lines, bang = [], False
@@ -219,7 +223,8 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
     """Each derived form is an equation in the prelude where it used to be a
     clause of the compiler. Running a corpus file as written and running it
     with every such call replaced by the expansion the deleted clause built
-    must answer the same thing, group for group."""
+    must answer the same thing, group for group.
+    """
     import sys
 
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))

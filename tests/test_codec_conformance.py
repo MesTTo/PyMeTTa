@@ -245,7 +245,8 @@ class _Broken(JsonWireCodec):
 
 def test_a_driver_that_refuses_everything_is_caught(metta):
     """Refusing correctly and refusing everything are the same thing to a
-    kit that only checks refusals, which is how one passes vacuously."""
+    kit that only checks refusals, which is how one passes vacuously.
+    """
     broken = _Broken(metta)
     complaints = check_codec(broken)
     plan = codec_plan(broken)
@@ -265,7 +266,8 @@ def test_a_driver_declaring_less_than_the_core_profile_is_refused(metta):
 
 def test_alpha_comparison_refuses_a_collapsed_variable():
     """The renaming is a bijection, so it accepts the two shipped naming
-    schemes and still separates (f $x $x) from (f $x $y)."""
+    schemes and still separates (f $x $x) from (f $x $y).
+    """
     from petta._codec_kit import alpha_equal
 
     repeated = ["e", [["s", "f"], ["v", "x"], ["v", "x"]]]
@@ -294,7 +296,8 @@ def test_a_wrong_expected_value_is_caught(metta):
 
 def test_the_corpus_is_json_a_binding_in_any_language_can_read(repo_root):
     """No comments, no trailing commas, one object: the file a Julia or Rust
-    binding parses with its own standard library."""
+    binding parses with its own standard library.
+    """
     raw = (repo_root / "tests" / "codec" / "corpus.json").read_text(encoding="utf-8")
     corpus = json.loads(raw)
     assert set(corpus) >= {"version", "grammar", "profiles", "cases", "refusals"}
@@ -331,7 +334,8 @@ def test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use(codecs):
 
 def test_the_grammar_document_is_generated(repo_root):
     """CODEC.md's tables and the corpus are one authority, so the checked-in
-    document has to equal what the corpus produces."""
+    document has to equal what the corpus produces.
+    """
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc
@@ -342,7 +346,8 @@ def test_the_grammar_document_is_generated(repo_root):
 
 def test_an_unknown_fence_is_refused(repo_root):
     """A table that grows a fence nobody builds, or loses the fence it had,
-    would show as an empty section rather than as a failure."""
+    would show as an empty section rather than as a failure.
+    """
     sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc

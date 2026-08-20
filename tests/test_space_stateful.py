@@ -58,7 +58,8 @@ class SpaceStateMachine(RuleBasedStateMachine):
         """Multiset subtraction: one copy leaves and the answer says whether
         one did. The model used to pop the whole count, which is what the
         engine used to do; hypothesis found the disagreement on the first
-        add_duplicate-then-remove history it generated."""
+        add_duplicate-then-remove history it generated.
+        """
         expected = atom in self.model
         assert self.space.remove(atom) is expected
         self.model -= Counter({atom: 1})

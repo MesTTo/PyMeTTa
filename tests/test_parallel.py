@@ -81,7 +81,7 @@ def test_parallel_runs_branches_concurrently(metta):
 
 
 def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
-    """timeout bounds the call; inferences is deliberately not a parameter."""
+    """Timeout bounds the call; inferences is deliberately not a parameter."""
     from petta.errors import TimeLimitError
 
     with metta.new_space() as space:
@@ -99,7 +99,8 @@ def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
 def test_parallel_reports_a_failing_branch(metta):
     """A branch that raises is not swallowed by the concurrency. A wrongly
     typed operand answers `(Error ...)` rather than raising now, so the branch
-    that has to raise is a HOST error, division by zero."""
+    that has to raise is a HOST error, division by zero.
+    """
     from petta.errors import EngineError
 
     with metta.new_space() as space:

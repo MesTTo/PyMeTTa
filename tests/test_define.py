@@ -160,7 +160,8 @@ def test_lambda_is_first_class(m):
 
 def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
     """No implicit rewriting. The identifier in the source is the name in
-    the space, and the hyphenated spelling MeTTa prefers is asked for."""
+    the space, and the hyphenated spelling MeTTa prefers is asked for.
+    """
 
     @m.define
     def add_one(value):
@@ -287,8 +288,9 @@ def test_modulo_matches_python_on_signs(metta):
 
 
 def test_literal_defaults_are_head_patterns_and_clauses_stack(m):
-    """def fib(n=0) is the equation matching 0; definition order is clause
-    order; the engine dispatches between the stacked clauses."""
+    """Def fib(n=0) is the equation matching 0; definition order is clause
+    order; the engine dispatches between the stacked clauses.
+    """
 
     @m.define
     def dfib(n=0):
@@ -421,7 +423,8 @@ def test_nested_defs_lift_with_their_closure(m):
 def test_loops_run_in_constant_stack(m):
     """Two million rounds through the compiled helper: last-call optimized,
     so the loop runs in constant stack, the mark of a real loop rather than
-    recursion wearing one's clothes."""
+    recursion wearing one's clothes.
+    """
 
     @m.define
     def dcountdown(n):
@@ -465,7 +468,8 @@ def test_engine_functions_feel_like_python(m):
 
 def test_boolean_operators_answer_the_operand(m):
     """3 or 7 is 3, 0 or 7 is 7, 3 and 7 is 7: Python's own reading,
-    truthiness deciding and the operand answering."""
+    truthiness deciding and the operand answering.
+    """
 
     @m.define
     def dpick(a, b):
@@ -484,7 +488,8 @@ def test_boolean_operators_answer_the_operand(m):
 
 def test_truthiness_decides_tests(m):
     """A bare value as the test reads by bool(), zero and empty the only
-    falsehoods, exactly Python."""
+    falsehoods, exactly Python.
+    """
 
     @m.define
     def dclassify(n):

@@ -262,7 +262,8 @@ def test_a_positional_read_of_a_tabled_functions_answers(m):
     header measures a (collapse (pick a)) flipping from (one two) to
     (two one) when three facts nothing calls were added to another file. A
     program that reads such a collapse by position works until something
-    unrelated moves."""
+    unrelated moves.
+    """
     m.run("!(import! &self (library lib_tabling))")
     m.run("(= (tbl-pick a) one)\n(= (tbl-pick a) two)")
     m.run("(= (tbl-first) (car-atom (collapse (tbl-pick a))))")

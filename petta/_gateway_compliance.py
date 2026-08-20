@@ -62,7 +62,8 @@ _SCRATCH = "&gateway-compliance-scratch"
 
 def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
     """One POST against the gateway, refusal statuses answered rather than
-    raised, because reading them is half of what this suite is for."""
+    raised, because reading them is half of what this suite is for.
+    """
     endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=PettaError)
     status, _, raw = endpoint.request(
         "POST",
@@ -76,7 +77,8 @@ def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
 
 def _raw(url: str, request_text: str) -> int:
     """One hand-written HTTP request, for the refusals a client library
-    will not let us send; answers the status code."""
+    will not let us send; answers the status code.
+    """
     parts = urlparse(url)
     with socket.create_connection((parts.hostname, parts.port), timeout=10) as sock:
         sock.sendall(request_text.encode("utf-8"))
@@ -86,11 +88,13 @@ def _raw(url: str, request_text: str) -> int:
 
 class GatewayComplianceSuite:
     """Subclass with a `gateway_url` fixture answering the base URL of a
-    running gateway; every test below then certifies it."""
+    running gateway; every test below then certifies it.
+    """
 
     def __init_subclass__(cls, **kwargs) -> None:
         """The same class-definition-time refusal SpaceComplianceSuite
-        makes: a collectible subclass must bring its gateway_url."""
+        makes: a collectible subclass must bring its gateway_url.
+        """
         super().__init_subclass__(**kwargs)
         if cls.__name__.startswith("Test") and not any(
             "gateway_url" in ancestor.__dict__
@@ -139,7 +143,8 @@ class GatewayComplianceSuite:
     def test_a_bound_is_honored_or_ignored_soundly(self, gateway_url, scratch):
         """bound=1 answers at most one atom on an honoring server and
         every unifying atom on an ignoring one; anything between is the
-        under-approximation the protocol forbids."""
+        under-approximation the protocol forbids.
+        """
         endpoint = HTTPEndpoint(
             gateway_url, subject="gateway under test", error_type=PettaError
         )
@@ -221,7 +226,8 @@ class GatewayComplianceSuite:
         """PeTTa's numbers are exact at any width, so the one forbidden
         outcome is rounding: a server either refuses the literal (a JSON
         parser that would round past 2^53 must) or stores it exactly and
-        answers it back exactly."""
+        answers it back exactly.
+        """
         wide = 123456789012345678901
         parts = urlparse(gateway_url)
         host = f"{parts.hostname}:{parts.port}"
@@ -289,7 +295,8 @@ class GatewayComplianceSuite:
         because answering nothing would say the enumeration ended, and
         under-answering is the one thing this protocol forbids. On /stop
         it is the honest no, since a client calls stop from a
-        finally-block where the stream may have ended already."""
+        finally-block where the stream may have ended already.
+        """
         scratch.add_many([parse(f"(gc-refuse {n})") for n in range(3)])
         pattern = parse("(gc-refuse $n)").to_wire()
         _, opened = _post(
@@ -312,7 +319,8 @@ class GatewayComplianceSuite:
     def test_a_client_cursor_takes_two_answers_and_stops(self, scratch):
         """The lifecycle through the shipped client, which is how a PeTTa
         program reaches it: two answers taken, the rest never asked for,
-        and the server's cursor released on the way out."""
+        and the server's cursor released on the way out.
+        """
         scratch.add_many([parse(f"(gc-take {n})") for n in range(6)])
         pattern = parse("(gc-take $n)")
         with scratch.stream(pattern, batch=1) as answers:

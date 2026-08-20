@@ -57,7 +57,8 @@ def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
 def canonical_aux(equation: Expr, name: str) -> Expr:
     """The equation with its auxiliary names serial-independent, for
     comparing a re-defined clause against the recorded one: every symbol
-    `name--kind-N` becomes `name--kind` numbered by first appearance."""
+    `name--kind-N` becomes `name--kind` numbered by first appearance.
+    """
     return canonical_aux_set((equation,), name)[0]
 
 
@@ -429,7 +430,8 @@ class _Compiler(
 
     def _inner(self, extra: list[str]) -> _Compiler:
         """A compiler for a nested binder (lambda, comprehension): the outer
-        scope plus the binder's own parameters, shadowing by name."""
+        scope plus the binder's own parameters, shadowing by name.
+        """
         scope = self.scope.copy()
         scope.update({p: p for p in extra})
         inner = _Compiler(
@@ -451,7 +453,8 @@ class _Compiler(
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
-        fresh variable namespace, shared aux and lifted registries."""
+        fresh variable namespace, shared aux and lifted registries.
+        """
         return _Compiler(
             self.name,
             params,
@@ -485,7 +488,8 @@ class _Compiler(
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
         """`yield from e`: a nondeterministic call answers directly, one
-        yield per answer; any other iterable superposes its elements."""
+        yield per answer; any other iterable superposes its elements.
+        """
         value = node.value
         if (
             isinstance(value, ast.Call)
@@ -510,12 +514,14 @@ class _Compiler(
 
     def _python_resolvable(self, identifier: str) -> bool:
         """Whether the twin could resolve this callee: a host binding or a
-        Python builtin. An engine-only name makes the twin unrunnable."""
+        Python builtin. An engine-only name makes the twin unrunnable.
+        """
         return self.host(identifier) or identifier in self._builtins
 
     def _temp(self, base: str) -> str:
         """A fresh variable for the compiler's own use, outside any Python
-        name's scope; the hyphen in the spelling keeps it unreachable."""
+        name's scope; the hyphen in the spelling keeps it unreachable.
+        """
         n = 2
         while f"{base}-{n}" in self.used:
             n += 1

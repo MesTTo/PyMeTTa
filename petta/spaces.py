@@ -35,7 +35,8 @@ class _Member:
     """One underlying space read (and optionally written) uniformly: a
     MeTTa handle uses its indexed query for candidates, a provider its
     own match or enumeration. Combinators compose members, so nothing
-    below cares which kind it holds."""
+    below cares which kind it holds.
+    """
 
     def __init__(self, target: Any) -> None:
         if isinstance(target, str):
@@ -86,7 +87,8 @@ class _Union(SpaceProvider):
     sound by the seam's own law), atoms chains, and no write operation
     exists, so the engine's capability refusal answers writes. The MeTTa
     reading: overlapping shapes answer as a nondeterministic union the
-    way overlapping equations do; a union space is that, one level up."""
+    way overlapping equations do; a union space is that, one level up.
+    """
 
     def __init__(self, members: list[_Member]) -> None:
         self._members = members
@@ -111,7 +113,8 @@ def union(*spaces: Any) -> _Union:
         m.run("!(match &all (edge $a $b) $b)")
 
     Every member's candidates answer; duplicates across members are
-    answers twice, the multiset reading a union of multisets has."""
+    answers twice, the multiset reading a union of multisets has.
+    """
     if not spaces:
         raise PettaError("union needs at least one space")
     return _Union([_Member(space) for space in spaces])
@@ -122,7 +125,8 @@ class _ReadOnly(SpaceProvider):
     forward, and the absence of write methods makes the engine refuse
     add-atom with its standing capability error. declare_writes carries
     the policy vocabulary; this is the one-line spelling for handing a
-    space to code that must not mutate it."""
+    space to code that must not mutate it.
+    """
 
     def __init__(self, member: _Member) -> None:
         self._member = member
@@ -147,7 +151,8 @@ class _Mapped(SpaceProvider):
     petta.tables' derivation with unification where tables emits WHERE.
     The outer shape is what this space presents; the inner shape is how
     the same fact is spelled underneath; the shared variables carry the
-    values both ways."""
+    values both ways.
+    """
 
     def __init__(self, member: _Member, outer: Expr, inner: Expr) -> None:
         self._member = member
@@ -219,7 +224,8 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
     and legacy-shape adapters stop being custom providers and become
     this one line. Adds map right-to-left; removal maps the pattern
     through; atoms the declaration does not map are invisible here and
-    untouched there."""
+    untouched there.
+    """
     parsed = _to_atom(declaration)
     if (
         not isinstance(parsed, Expr)
@@ -242,7 +248,8 @@ class _Overlay(SpaceProvider):
     multisets silent routing would invent placement decisions. The back
     layer is never written, so removing an atom the back holds leaves
     it answering, exactly as deleting a ChainMap key from the first map
-    leaves the second map's value visible."""
+    leaves the second map's value visible.
+    """
 
     def __init__(self, front: _Member, back: _Member) -> None:
         self._front = front
@@ -272,14 +279,16 @@ class _Overlay(SpaceProvider):
 def overlay(front: Any, back: Any) -> _Overlay:
     """Both layers read as one; every write lands on front. The
     explicitly chosen form union() refuses to be: ChainMap semantics
-    for spaces, deletes not forwarded to back."""
+    for spaces, deletes not forwarded to back.
+    """
     return _Overlay(_Member(front), _Member(back))
 
 
 def _diff_key(atom: Atom) -> str:
     """The multiset key: the alpha-canonical PRINTED form, digest()'s own
     equivalence, so (f $x) and (f $y) count as one atom and a stored
-    unhashable ground value still keys."""
+    unhashable ground value still keys.
+    """
     return str(_canonical(atom))
 
 

@@ -29,7 +29,8 @@ def test_no_ungated_prolog_performance_oracle_returns():
     """P0.8 asked that the eight Prolog performance oracles be gated
     against a committed baseline OR deleted, and the delete branch is what
     happened. Nothing stopped them coming back, and an oracle that runs
-    against no baseline is a file that passes by existing."""
+    against no baseline is a file that passes by existing.
+    """
     oracles = sorted(p.relative_to(REPO) for p in (REPO / "tests" / "performance").rglob("*.pl"))
     assert not oracles, (
         f"{len(oracles)} Prolog performance oracle(s) are back and nothing "
@@ -41,7 +42,8 @@ def test_the_runner_prints_every_assertion_it_collects():
     """P0.10. `test.sh` collected the `is ... should ...` lines into a
     variable and, at the time of the audit, never printed it. A verdict
     computed and dropped is worse than one never computed, because the run
-    looks like it reported."""
+    looks like it reported.
+    """
     text = (REPO / "test.sh").read_text(encoding="utf-8")
     assigned = [n for n, line in enumerate(text.splitlines(), 1) if "assertions=" in line]
     assert assigned, "test.sh no longer collects assertions; this test guards the wrong thing now"

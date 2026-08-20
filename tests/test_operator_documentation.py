@@ -37,7 +37,8 @@ def test_every_operator_is_documented_including_the_non_symbolic_one():
     """Build each operator's term live and require its MeTTa symbol in the
     doc's table, so the table cannot drift from the class: an operator
     added tomorrow is in Python's fixed dunder universe, builds a term
-    here, and fails this test until the table names it."""
+    here, and fails this test until the table names it.
+    """
     text = DOC.read_text(encoding="utf-8")
     built: dict[str, str] = {}
     for dunder in BINARY_DUNDERS:

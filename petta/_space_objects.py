@@ -74,7 +74,8 @@ _SCOPED_LIMITS: ContextVar[tuple[float | None, int | None]] = ContextVar(
 
 class ScopedLimits:
     """The with-block m.limits() answers: sets the scoped defaults on
-    entry, restores the previous scope on exit, exceptions included."""
+    entry, restores the previous scope on exit, exceptions included.
+    """
 
     def __init__(self, timeout: float | None, inferences: int | None) -> None:
         _require_bound(timeout, "timeout", (int, float), "seconds as a number")
@@ -94,7 +95,8 @@ def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] 
     """Validate the per-call bounds into the shim's (-1 = none) pair.
     A bound the call did not name falls back to the scoped default
     m.limits() set, which is how one with-block replaces a parameter
-    forest while every per-call kwarg still overrides."""
+    forest while every per-call kwarg still overrides.
+    """
     if timeout is None or inferences is None:
         scoped_timeout, scoped_inferences = _SCOPED_LIMITS.get()
         if timeout is None:
@@ -315,7 +317,8 @@ def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
     """The seam's own decisions for one conjunction, rendered. Pure
     reflection through petta_py_explain: nothing runs, no row is pulled,
     and the engine answers claimed/rest as indexes so the caller's own
-    atoms, variable names included, do the rendering."""
+    atoms, variable names included, do the rendering.
+    """
     kind, detail, claimed, rest = rt.apply_must(
         "petta_py_explain", space_name, [p.to_wire() for p in patterns]
     )
@@ -440,7 +443,8 @@ class Cursor:
         """The query's plan, reflected rather than run: which provider
         decisions the seam already made for this conjunction. See
         Prepared.explain for the whole story; a cursor explains the same
-        way, and explaining does not pull a row."""
+        way, and explaining does not pull a row.
+        """
         return _explain_text(self._rt, self._space_name, self._atoms, self._where_atom)
 
     def __getitem__(self, index: int | slice):
@@ -530,7 +534,8 @@ class Cursor:
 class EngineProfile:
     """MeTTa.profile()'s second answer: the sampler's counters and one
     row per predicate, self-ticks-descending. Each node is (predicate,
-    calls, redos, ticks_self, ticks_siblings)."""
+    calls, redos, ticks_self, ticks_siblings).
+    """
 
     __slots__ = ("nodes", "samples", "ticks")
 
@@ -649,7 +654,8 @@ class Prepared:
     ) -> Rows:
         """Answers now, with `given` facts present for this call alone.
         `timeout` and `inferences` bound this solve exactly as they bound
-        MeTTa.query()."""
+        MeTTa.query().
+        """
         if not given:
             return self._run(limit, timeout, inferences)
         with self._space.assuming(*given):
@@ -687,7 +693,8 @@ class Prepared:
         answer the one true line: engine unification. No row is pulled
         and no provider match is called; the provider's plan hook is
         consulted exactly as a real query would consult it, since the
-        claim is the provider's to make."""
+        claim is the provider's to make.
+        """
         return _explain_text(self._space.runtime, self._space.space_name, self._patterns, self._where)
 
     def __repr__(self) -> str:
@@ -700,7 +707,8 @@ _UNDEFINED_TYPE = Sym("%Undefined%")
 
 def _doc_text(atom: object) -> str:
     """The prose inside a doc part: a string value decodes, anything
-    else renders as written."""
+    else renders as written.
+    """
     if isinstance(atom, Gnd):
         value = decode(atom)
         if isinstance(value, str):
@@ -710,7 +718,8 @@ def _doc_text(atom: object) -> str:
 
 def _format_doc_atom(doc: Expr) -> str:
     """`(@doc name (@desc ...) (@params (...)) (@return ...))` as help()
-    text: one summary line, then the parameters, then the return."""
+    text: one summary line, then the parameters, then the return.
+    """
     name = doc.children[1] if len(doc.children) > 1 else ""
     lines: list[str] = []
     parameters: list[str] = []
@@ -796,14 +805,16 @@ class _EngineFunction:
 
     def all(self, *args: Any) -> list:
         """Every answer as data, `(Error ...)` atoms included: the
-        aggregation reading, where the multiset is the return shape."""
+        aggregation reading, where the multiset is the return shape.
+        """
         return self._space.eval(self._term(args))
 
     def first(self, *args: Any) -> Any:
         """The first answer decoded, or None for no answers: the same
         tolerant member one()'s family has. An `(Error ...)` first
         answer raises as one() raises; tolerance covers absence, not
-        errors."""
+        errors.
+        """
         from ._space_execution import value_one  # noqa: PLC0415  cycle
 
         term = self._term(args)
@@ -822,7 +833,8 @@ class _EngineFunction:
         get-type's own answer through this space's context, so a named
         space's declarations count; %Undefined% reads as None because
         the function protocol spells absence that way. MeTTa allows
-        several declarations for one name; this answers the first."""
+        several declarations for one name; this answers the first.
+        """
         answers = self._space.eval(Expr([Sym("get-type"), Sym(self._name)]))
         for answer in answers:
             if isinstance(answer, Atom) and answer != _UNDEFINED_TYPE:
@@ -840,14 +852,16 @@ class _EngineFunction:
     @property
     def compiled(self) -> str:
         """The Prolog clauses this name compiled to: dis for the
-        translator, m.disassemble(name) as a property."""
+        translator, m.disassemble(name) as a property.
+        """
         return self._space.disassemble(self._name)
 
     @property
     def __signature__(self) -> inspect.Signature:
         """Built from the arrow type when one is declared, so
         inspect.signature() and completion show the arity with the
-        parameter types as annotations; no arrow means (*args)."""
+        parameter types as annotations; no arrow means (*args).
+        """
         arrow = self.type
         if (
             not isinstance(arrow, Expr)
@@ -875,7 +889,8 @@ class _EngineFunction:
         """MeTTa's own documentation, formatted for help(): the space's
         `(@doc name ...)` atom when one exists (the engine's register
         documents every prelude form, so builtins answer too), else the
-        declaration and equations, else None as Python spells absence."""
+        declaration and equations, else None as Python spells absence.
+        """
         answers = self._space.eval(Expr([Sym("get-doc"), Sym(self._name)]))
         if answers and isinstance(answers[0], Expr):
             return _format_doc_atom(answers[0])
@@ -917,7 +932,8 @@ def _refuse_in_batch(space_name: str, operation: str) -> None:
 class _Batch:
     """The write collector m.batch() answers; see its docstring for the
     stated edges (reads see the pre-batch space, remove and clear
-    refuse, an exception discards)."""
+    refuse, an exception discards).
+    """
 
     __slots__ = ("_pending", "_space", "_token")
 

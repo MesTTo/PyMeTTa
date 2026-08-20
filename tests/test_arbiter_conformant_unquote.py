@@ -27,7 +27,8 @@ import example_parity as parity  # noqa: E402
 
 def test_unquote_evaluates_as_the_arbiter_records():
     """`(unquote (quote (+ 1 2)))` answers 3. Removing the eval would make
-    this answer `(+ 1 2)` and the assertion here would name the change."""
+    this answer `(+ 1 2)` and the assertion here would name the change.
+    """
     source = REPO / "bindings" / "python" / "tests" / "data" / "unquote_conformance.metta"
     source.write_text(
         "!(import! &self (library lib_he))\n"

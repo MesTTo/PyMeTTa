@@ -195,7 +195,8 @@ def test_delitem_drains_every_unifying_occurrence(m):
 
 def subtracts_one(space_name, m):
     """Three copies in, one removal, two left. The multiset law, asked of
-    whichever space `space_name` refers to."""
+    whichever space `space_name` refers to.
+    """
     for _ in range(3):
         m.run(f"!(add-atom {space_name} (law 1))")
     before = m.run(f"!(collapse (match {space_name} (law $x) $x))")[0][0]
@@ -243,7 +244,8 @@ def test_a_python_provider_subtracts_one(metta):
 
 def test_a_persistent_space_subtracts_one_fact_like_a_native_one(metta, tmp_path):
     """The journal-backed provider, which used to retractall and now
-    retracts, so its journal records one removal rather than a sweep."""
+    retracts, so its journal records one removal rather than a sweep.
+    """
     from petta.persistent import PersistentFactSpace
 
     provider = PersistentFactSpace(tmp_path / "law.db", {"law": 1})

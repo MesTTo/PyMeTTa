@@ -219,7 +219,8 @@ def test_aio_covers_the_whole_synchronous_surface():
     """Parity is computed, not hand-listed: every public MeTTa method is
     on AsyncMeTTa except the ledger below, each exclusion with its
     reason, so a new synchronous method fails here until it gains its
-    async twin or a stated reason not to."""
+    async twin or a stated reason not to.
+    """
     from petta.space import MeTTa
 
     excluded = {
@@ -473,7 +474,8 @@ def test_aio_logs_worker_attachment_and_shutdown(m, caplog):
 def test_aio_structural_surface_behaves():
     """The non-mechanical parity pieces end to end: transaction rollback,
     stats, assuming, prepared, the async cursor, the async subscription
-    stream, and the async function object."""
+    stream, and the async function object.
+    """
 
     async def go():
         async with aio.AsyncMeTTa() as am:

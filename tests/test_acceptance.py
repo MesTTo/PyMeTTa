@@ -24,7 +24,8 @@ from petta.testing import check_space_provider
 
 class SqlEdges(SpaceProvider):
     """One table edge(a, b); WHERE from bound positions, LIMIT from the
-    licensed bound, INSERT under the engine's transaction."""
+    licensed bound, INSERT under the engine's transaction.
+    """
 
     def __init__(self):
         self.connection = sqlite3.connect(":memory:")
@@ -137,7 +138,8 @@ def test_sql_context_permits_negation_over_its_closed_world(metta, sql):
 
 class CosineIndex(SpaceProvider):
     """(near <key> $hit) over stored vectors, best first, honouring the
-    licensed bound; pure python cosine, no array dependency."""
+    licensed bound; pure python cosine, no array dependency.
+    """
 
     def __init__(self, emit_in_order=True):
         self.vectors = {

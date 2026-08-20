@@ -112,7 +112,8 @@ def names():
     something else at the front, and never the boolean spellings (the
     engine holds its booleans as those very atoms, so True and true are
     one term there and a round trip canonicalizes) or the anonymous `_`
-    (fresh at every occurrence by contract, so it never shares)."""
+    (fresh at every occurrence by contract, so it never shares).
+    """
     st = _st()
     return st.text(
         alphabet=st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_?<>=+*"),
@@ -138,7 +139,8 @@ def variables():
 def numbers():
     """Numbers the engine's printer round-trips: integers within the
     tagged-integer range, floats without NaN (never compares equal) or
-    infinity (prints as a symbol), both printer limits, not carried bugs."""
+    infinity (prints as a symbol), both printer limits, not carried bugs.
+    """
     st = _st()
     return st.one_of(
         st.integers(min_value=-(2**62), max_value=2**62),
@@ -215,14 +217,16 @@ def expressions(max_leaves: int = 8, *, ground: bool = False):
 
 def ground_atoms(max_leaves: int = 8):
     """Atoms carrying no variables: what a store holds after matching.
-    atoms(ground=True) under the name provider fuzzing reaches for."""
+    atoms(ground=True) under the name provider fuzzing reaches for.
+    """
     return atoms(max_leaves, ground=True)
 
 
 def patterns(max_leaves: int = 8):
     """Expression-rooted atoms guaranteed to carry at least one variable:
     the query side of match, built rather than filtered so hypothesis
-    never discards an example."""
+    never discards an example.
+    """
     st = _st()
 
     def weave(parts):
@@ -331,7 +335,8 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
     enumerate is identity on the stored atom, up to variable renaming,
     because stored data keeps its literal atoms. A store that normalizes
     or mangles fails here naming the atom, instead of answering a
-    different atom in production."""
+    different atom in production.
+    """
     if atoms_to_store is None:
         return []
     for atom in atoms_to_store:
@@ -402,7 +407,8 @@ def _claim_patterns(atom):
 
 def _unifiable(left, right) -> bool:
     """Two-way syntactic unifiability, the question the engine's own
-    re-unification answers."""
+    re-unification answers.
+    """
     return _joined(left, right) is not None
 
 
@@ -456,7 +462,8 @@ def _anonymous(term) -> bool:
 def _occurs(name, term, bindings) -> bool:
     """Whether the variable occurs in the walked term: the engine's own
     occurs check, which is what keeps every join acyclic and therefore
-    resolvable to a finite atom."""
+    resolvable to a finite atom.
+    """
     stack = [term]
     while stack:
         walked = _walk(stack.pop(), bindings)
@@ -597,7 +604,8 @@ class _Recording:
 class _Replayer(SpaceProvider):
     """Serves exactly what the log recorded, reparsed from its text, so a
     log written in one process replays in another; an unseen query is
-    loud."""
+    loud.
+    """
 
     def __init__(self, log):
         self._log = list(log)

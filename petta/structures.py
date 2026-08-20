@@ -63,7 +63,8 @@ __all__ = [
 
 def _as_atom(value: Any) -> Atom:
     """Encode without parsing: engine-freedom is this module's contract,
-    so source text must be parsed by the caller."""
+    so source text must be parsed by the caller.
+    """
     if isinstance(value, Atom):
         return value
     if isinstance(value, str):
@@ -78,7 +79,8 @@ def _as_atom(value: Any) -> Atom:
 def _canonical(atom: Atom) -> Atom:
     """The atom with variables renamed to their first-appearance index,
     so two alpha-equivalent atoms canonicalize identically and ordinary
-    hashing becomes alpha-invariant hashing."""
+    hashing becomes alpha-invariant hashing.
+    """
     names = variables(atom)
     if not names:
         return atom
@@ -170,7 +172,8 @@ class PatternMap(MutableMapping):
         dispatch question. A ground probe costs one dict hit plus the
         buckets its head and arity could touch; a probe carrying
         variables consults every pattern entry, since a variable probe
-        can reach any bucket, and ground entries it unifies with."""
+        can reach any bucket, and ground entries it unifies with.
+        """
         probe = _as_atom(atom)
         if is_ground(probe):
             value = self._ground.get(probe, _MISSING)
@@ -214,7 +217,8 @@ def _mutually_unifiable(left: Atom, right: Atom) -> bool:
     """Whether two patterns can meet: one-way in both directions is a
     sound over-approximation of two-way unifiability for the entries a
     matching() probe with variables should answer, and the caller's own
-    unify against the answered key settles the rest."""
+    unify against the answered key settles the rest.
+    """
     return unify(left, right) is not None or unify(right, left) is not None
 
 
@@ -254,7 +258,8 @@ class MatchIndex:
     @staticmethod
     def _tokens(atom: Atom) -> list:
         """Preorder tokens; a variable is one skip token whatever it
-        would bind."""
+        would bind.
+        """
         out: list = []
         stack = [atom]
         while stack:
@@ -300,7 +305,8 @@ class MatchIndex:
 
     def remove(self, pattern: Any, value: Any = None) -> bool:
         """Remove one registration matching (pattern, value) exactly;
-        answers whether one existed."""
+        answers whether one existed.
+        """
         atom = _as_atom(pattern)
         node = self._root
         for token in self._tokens(atom):
@@ -321,7 +327,8 @@ class MatchIndex:
         """Every registered (pattern, value) whose pattern matches the
         ground atom, in REGISTRATION order, whatever order the tree walk
         reached them in. The tree answers candidates; unify confirms, so
-        nonlinearity is exact."""
+        nonlinearity is exact.
+        """
         probe = _as_atom(atom)
         if not is_ground(probe):
             # The tree's walk reads probe tokens literally, so a probe
@@ -357,7 +364,8 @@ class MatchIndex:
     @staticmethod
     def _skip_table(tokens: list) -> list[int]:
         """For each position, the position just past that whole subterm,
-        which is where a variable edge lands."""
+        which is where a variable edge lands.
+        """
         skips = [0] * len(tokens)
         for position in range(len(tokens) - 1, -1, -1):
             token = tokens[position]
@@ -424,7 +432,8 @@ class AlphaSet(MutableSet):
 
 def _tabling_ready(space: MeTTa) -> None:
     """lib_tabling, imported idempotently: the structure's dependency is
-    the structure's setup."""
+    the structure's setup.
+    """
     space.run("!(import! &self (library lib_tabling))")
 
 
@@ -452,7 +461,8 @@ class TabledMap:
     tables) the entry, which is what membership means for a computed
     map. A nondeterministic function does not fit a map; a key whose
     call answers several values raises, and one answering none is a
-    KeyError."""
+    KeyError.
+    """
 
     def __init__(self, space: MeTTa, name: str, *, arity: int | None = None) -> None:
         self._space = space
@@ -501,7 +511,8 @@ class TabledMap:
         """The engine's own counters for this function's tables: tables,
         answers, complete-call, invalidated, reevaluated. invalidated
         above reevaluated is SWI deciding a table was not worth
-        rebuilding yet; both moving is the freshness machinery working."""
+        rebuilding yet; both moving is the freshness machinery working.
+        """
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
         if not isinstance(answer, Expr):
             raise PettaError(f"table-stats answered {answer!r}, not an expression")
@@ -535,7 +546,8 @@ class LiveView:
     exactly consistent and every later matching write arrives as an
     event. A space is a multiset and so is the view: len counts copies,
     iteration yields them, count(atom) answers multiplicity. close()
-    cancels the subscription; a closed view keeps its last state."""
+    cancels the subscription; a closed view keeps its last state.
+    """
 
     def __init__(self, space: MeTTa, pattern: Any) -> None:
         self._space = space
@@ -555,7 +567,8 @@ class LiveView:
     def _seed(self) -> None:
         """Read the whole multiset from the space. The first read and the
         answer to a removal the event cannot resolve are the same
-        computation, so they are one."""
+        computation, so they are one.
+        """
         rows = self._space.query(self._pattern)
         names = rows.columns
         held: Counter[Atom] = Counter()
@@ -647,7 +660,8 @@ class ClosureView:
     symmetric=True adds the reversed base case, the undirected reading;
     without tabling that spelling never terminates, which is why the
     class always tables. Defines `<relation>-closure` (and its `-step`)
-    in the space, named so a MeTTa program can call the same closure."""
+    in the space, named so a MeTTa program can call the same closure.
+    """
 
     def __init__(self, space: MeTTa, relation: str, *, symmetric: bool = False) -> None:
         self._space = space
@@ -674,7 +688,8 @@ class ClosureView:
 
     def reachable(self, start: Any) -> set[Atom]:
         """Every node reachable from start, as a set: the closure is a
-        relation, so duplicates are answer multiplicity, not data."""
+        relation, so duplicates are answer multiplicity, not data.
+        """
         answers = self._space.eval(_call_expr(self._fn, (start, Var("_reach"))))
         return {answer for answer in answers if isinstance(answer, Atom)}
 

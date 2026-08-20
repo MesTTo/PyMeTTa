@@ -52,7 +52,8 @@ def test_a_name_parameter_takes_a_plain_string():
     an error in five separate example programs before this: register_space
     (name="&cetta"), unregister_space("&crm"), MeTTa(space="&bounds-demo"),
     register_op(name="fuzmatch") and is_function("<lambda>")
-    [measured 2026-08-17]."""
+    [measured 2026-08-17].
+    """
     assert get_type_hints(MeTTa.__init__)["space"] is str
     assert get_type_hints(MeTTa.space)["name"] is str
     assert get_type_hints(MeTTa.register_op)["name"] == str | None
@@ -65,7 +66,8 @@ def test_a_name_parameter_takes_a_plain_string():
 def test_the_newtypes_survive_where_they_say_something():
     """Widening the parameters is the boundary, not a deletion: the record a
     registration becomes and the name a space answers for itself both keep
-    the type that distinguishes them."""
+    the type that distinguishes them.
+    """
     assert get_type_hints(Operation)["name"] is MettaName
     assert get_type_hints(Operation)["space"] == SpaceName | None
     assert get_type_hints(MeTTa.space_name.fget)["return"] is SpaceName

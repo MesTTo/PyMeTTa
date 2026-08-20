@@ -38,7 +38,8 @@ def _tabled_property(m, name, compiled_arity):
 def test_hyphenated_and_uppercase_names_genuinely_table(m):
     """P01d and P02d: the old helper interpolated names into source text,
     so an uppercase name parsed as a variable and a hyphenated name was a
-    domain error, both silently answering True while tabling nothing."""
+    domain error, both silently answering True while tabling nothing.
+    """
     m.run("(= (spin-down $n) (if (== $n 0) done (spin-down (- $n 1))))")
     m.run("(= (Upper_case $n) (+ $n 1))")
     assert m.run("!(tabled (spin-down $n))") == [[True]]
@@ -56,7 +57,8 @@ def test_hyphenated_and_uppercase_names_genuinely_table(m):
 
 def test_repeated_declarations_are_cumulative(m):
     """P12: the old helper reconsulted a synthetic source file, so the
-    second declaration REMOVED the first predicate's tabling."""
+    second declaration REMOVED the first predicate's tabling.
+    """
     m.run("(= (first-fn $n) (+ $n 1)) (= (second-fn $n) (+ $n 2))")
     assert m.run("!(tabled (first-fn $n))") == [[True]]
     assert m.run("!(tabled (second-fn $n))") == [[True]]
@@ -69,7 +71,8 @@ def test_repeated_declarations_are_cumulative(m):
 
 def test_named_space_functions_instrument_their_own_module(m):
     """P10 and P10b: the old helper always targeted the module user, so a
-    function living in a named space's module was never instrumented."""
+    function living in a named space's module was never instrumented.
+    """
     m.run("(= (scoped-fn $n) (* $n 2))")
     assert m.run("!(tabled (scoped-fn $n))") == [[True]]
     assert _tabled_property(m, "scoped-fn", 2)
@@ -77,7 +80,8 @@ def test_named_space_functions_instrument_their_own_module(m):
 
 def test_clear_preserves_unrelated_tables_and_untable_removes(m):
     """P09's per-predicate abolish contract, now a named operation, and
-    untable/1 surfaced beside it."""
+    untable/1 surfaced beside it.
+    """
     m.run(
         "(= (kept-fn $n) (+ $n 1)) (= (cleared-fn $n) (+ $n 2))\n"
         "!(tabled (kept-fn $n)) !(tabled (cleared-fn $n))\n"
@@ -102,7 +106,8 @@ def test_clear_preserves_unrelated_tables_and_untable_removes(m):
 
 def test_declaring_an_undefined_function_is_loud(m):
     """Tabling a name that does not exist yet tables nothing, so the
-    repaired plane refuses it by name and arity instead of succeeding."""
+    repaired plane refuses it by name and arity instead of succeeding.
+    """
     with pytest.raises(EngineError, match="never-defined"):
         m.run("!(tabled (never-defined $x $y))")
 
@@ -110,7 +115,8 @@ def test_declaring_an_undefined_function_is_loud(m):
 def test_declarations_reflect_into_petta(m):
     """A live declaration is a (tabled space name arity) fact in &petta,
     input arity; repetition never duplicates it, and undeclaring removes
-    it."""
+    it.
+    """
     reflection = MeTTa(REFLECTION_SPACE)
     m.run("(= (reflected-fn $n) (+ $n 1))")
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
@@ -135,7 +141,8 @@ def test_pool_reuse_starts_tabling_clean(metta):
     tabled property and the answer tables standing, so a reused pooled
     module answered its NEW definition from the dead life's cache with no
     tabling declared in the new life (probe p14_pool_table_leak). The
-    clear now resets the module's tabling state whole."""
+    clear now resets the module's tabling state whole.
+    """
     free = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
@@ -163,7 +170,8 @@ def test_pool_reuse_starts_tabling_clean(metta):
 
 def test_dropped_space_leaves_shared_tabling_alone(metta):
     """A pooled space dying resets ITS module only: a function tabled in
-    user through &self keeps its instrumentation and its &petta record."""
+    user through &self keeps its instrumentation and its &petta record.
+    """
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (shared-keeper $n) (+ $n 3))")
     assert metta.run("!(tabled (shared-keeper $n))") == [[True]]

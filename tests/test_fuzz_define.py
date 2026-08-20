@@ -42,7 +42,8 @@ _COUNTER = itertools.count()
 
 def _tuple_literal(draw, lowest: int, highest: int) -> str:
     """A Python tuple literal of small ints; the one-element spelling needs
-    its trailing comma, or (5) is just 5."""
+    its trailing comma, or (5) is just 5.
+    """
     values = [
         str(draw(st.integers(-5, 5)))
         for _ in range(draw(st.integers(lowest, highest)))
@@ -54,7 +55,8 @@ def _tuple_literal(draw, lowest: int, highest: int) -> str:
 
 def _load(tmp_path_factory, source: str, name: str):
     """A real function object whose source inspect.getsource can read: the
-    compiler reads syntax from the file, so each program becomes one."""
+    compiler reads syntax from the file, so each program becomes one.
+    """
     path = tmp_path_factory.mktemp("fuzz") / f"{name}.py"
     path.write_text(source)
     namespace: dict = {}
@@ -160,10 +162,11 @@ def bool_expr(draw, names: tuple, depth: int = 0):
 
 @st.composite
 def assignments(draw, scope: list, indent: str, count: int, protected: tuple = ()):
-    """count assignment lines over (and into) scope; rebinding weighted up
+    """Count assignment lines over (and into) scope; rebinding weighted up
     because it is the bug class this suite exists for. protected names stay
     readable but never assigned: clobbering a loop counter would generate a
-    genuinely nonterminating program, in Python exactly as compiled."""
+    genuinely nonterminating program, in Python exactly as compiled.
+    """
     lines: list[str] = []
     assignable = [n for n in scope if n not in protected]
     for _ in range(count):
@@ -313,7 +316,8 @@ def nested_loop_programs(draw):
 
 def _nested_loop_kinds(source: str) -> set[str]:
     """The kinds of every loop whose body holds another loop, so the empty
-    set means the program has no loop inside a loop at all."""
+    set means the program has no loop inside a loop at all.
+    """
     kinds = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.For, ast.While)) and any(
@@ -329,7 +333,8 @@ def _nested_loop_kinds(source: str) -> set[str]:
 def generator_programs(draw):
     """Generator bodies: yields, if-guarded yields, for over a literal tuple,
     and yield from a literal tuple; answers are ordered, so order is part of
-    the property."""
+    the property.
+    """
     name = f"fz{next(_COUNTER)}"
     names = ("a", "b")
     lines: list[str] = []
@@ -375,7 +380,8 @@ def collection_programs(draw):
 def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
     """The differential itself: one two-parameter program, its equations on
     the engine and its Python twin on the same ground inputs, `rounds` fresh
-    pairs of them, and the two answer lists required identical."""
+    pairs of them, and the two answer lists required identical.
+    """
     name, source = program
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
@@ -401,7 +407,8 @@ def test_nested_loops_agree(metta, tmp_path_factory, program, data):
     over in the inner loop's namespace; anything it holds as a fixed
     variable instead of resolving through the scope means the outer loop
     resumes on the inner loop's state. Two rounds rather than three: a
-    nested program costs more to run and the shape is what matters here."""
+    nested program costs more to run and the shape is what matters here.
+    """
     _answers_agree(metta, tmp_path_factory, program, data, rounds=2)
 
 
@@ -409,7 +416,8 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
     """The shape this suite exists to reach, asserted rather than hoped for.
     loop_block once took no depth and never recursed, so no generated
     program held a loop inside a loop and the differential above proved
-    nothing about that class."""
+    nothing about that class.
+    """
     # Generate only: find would otherwise shrink each witness to its minimal
     # form, which answers a question nobody asked and cost 13.12s of the
     # suite's 14.55s [measured 2026-08-18].

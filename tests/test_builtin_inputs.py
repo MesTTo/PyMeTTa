@@ -110,7 +110,8 @@ def test_every_builtin_refuses_an_unbound_input_by_name(report):
     both ends open; and 7 raised naming a host predicate.
 
     A table that emptied itself would pass every assertion below, so its size
-    is asserted first."""
+    is asserted first.
+    """
     assert report["probed"] >= 80, report["probed"]
     assert report["answered"] == [], report["answered"]
     assert report["raised"] == [], report["raised"]
@@ -121,13 +122,15 @@ def test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate(repo
     said atom_codes/2, naming Prolog predicates the MeTTa program never wrote
     and cannot act on. Every refusal names its own operation now, which is the
     same assertion from the other side: a message naming a host predicate
-    would not contain the MeTTa name."""
+    would not contain the MeTTa name.
+    """
     assert report["unnamed"] == [], report["unnamed"]
 
 
 def test_the_measured_examples_read_as_MeTTa():
     """The four the specification measured, spelled out, because a generated
-    probe proves the property and a written-out case proves it reads."""
+    probe proves the property and a written-out case proves it reads.
+    """
     engine = MeTTa()
     for source, position in (
         ("!(car-atom $u)", 1),
@@ -153,7 +156,8 @@ def test_a_relational_position_still_enumerates():
     rather than leaving them to be discovered: (index-atom (a b) $i)
     enumerates, and enumerates the truth table, cons builds a pattern with an
     open tail, which the engine's own prelude writes as (cons Error $_), and
-    union-atom splits a list from the right, which a shipped library does."""
+    union-atom splits a list from the right, which a shipped library does.
+    """
     engine = MeTTa()
     answers = lambda query: [  # noqa: E731 - one shape, read three times
         str(a) for g in engine.run(query) for a in g
@@ -170,7 +174,8 @@ def test_a_surface_match_on_an_unbound_space_answers_the_error(metta):
     result into one variable, so the Error atom failed to unify with the
     already-bound body and the clause died silently, zero answers where a
     direct call answered the refusal [measured 2026-08-19 on the wave-7
-    merged tree]. The template and the result are distinct variables now."""
+    merged tree]. The template and the result are distinct variables now.
+    """
     with metta.new_space() as space:
         groups = space.run("!(match $u (f 1) matched)")
     assert len(groups) == 1 and len(groups[0]) == 1

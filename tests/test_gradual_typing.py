@@ -36,7 +36,8 @@ def typed():
 
 def _answers(m, query):
     """Every answer of `query`, as strings. Collapsed so a refusal reads as
-    an empty list rather than as a missing group."""
+    an empty list rather than as a missing group.
+    """
     [[collapsed]] = m.run("!(collapse " + query + ")")
     return [str(a) for a in collapsed]
 

@@ -126,7 +126,8 @@ def install(runtime) -> None:
     registry's explicit type images reflected there: one
     (image TypeName registry-image) atom per register_type, retired on
     unregister. The registry stays engine-free; this listener is the whole
-    coupling, and it hears the past (the snapshot) before the future."""
+    coupling, and it hears the past (the snapshot) before the future.
+    """
     if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:

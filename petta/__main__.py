@@ -45,7 +45,8 @@ _OPAQUE = re.compile(r'"(?:\\.|[^"\\])*"|;[^\n]*')
 def _complete_form(text: str) -> bool:
     """Whether the buffered input closes every paren it opens, reading
     strings and comments the way the engine does. An over-closed buffer
-    counts as complete so the stray paren errors instead of hanging."""
+    counts as complete so the stray paren errors instead of hanging.
+    """
     remaining = _OPAQUE.sub("", text)
     if '"' in remaining:
         return False  # an unterminated string never completes

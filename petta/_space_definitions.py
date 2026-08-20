@@ -106,7 +106,8 @@ def _refuse_mismatched_twin_arity(
 ) -> None:
     """A twin of a different shape is not a twin, and would only ever be
     found by a caller. The predicate takes one argument per parameter plus
-    the output, which is the convention every registered predicate follows."""
+    the output, which is the convention every registered predicate follows.
+    """
     expected = len(params) + 1
     _, _, shapes, _ = space.runtime.apply_must("petta_py_function_shape", name)
     arities = [int(arity) for arity, _speedup, _indexed in shapes]
@@ -418,7 +419,8 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
     """Every method the class itself defines, as a MeTTa function
     named {Type}-{method}: the instance argument accepts a
     constructor term (rebuilt through the translator) or a live
-    handle, and results the translator knows project back to terms."""
+    handle, and results the translator knows project back to terms.
+    """
 
     def projectable(value: Any) -> Any:
         try:

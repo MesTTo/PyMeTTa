@@ -543,7 +543,8 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
 
 def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
     """Chunking is a CHUNK and not a cut: every answer still crosses,
-    whatever batch carries it."""
+    whatever batch carries it.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_chunk {n})") for n in range(7)])
     server = remote.serve(metta)
@@ -580,7 +581,8 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
     """The eager door is bounded by the HTTP body cap at both ends, so an
     answer set past it cannot cross that way at all, and chunks are how it
     crosses. The cap is lowered here rather than the answer set raised,
-    which measures the same thing without moving 16 MiB."""
+    which measures the same thing without moving 16 MiB.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_big {n})") for n in range(200)])
     server = remote.serve(metta)
@@ -599,7 +601,8 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
 
 def test_a_gateway_is_a_drop_in_transport(metta):
     """The two halves of the wire carry one signature, so a Gateway goes
-    wherever a connected transport goes, health reflection included."""
+    wherever a connected transport goes, health reflection included.
+    """
     scratch = metta.new_space()
     scratch.add(petta.parse("(re_drop a)"))
     gateway = remote.Gateway(metta)
@@ -622,7 +625,8 @@ def test_a_gateway_is_a_drop_in_transport(metta):
 
 def test_a_finished_stream_needs_no_stop(metta):
     """Exhaustion releases the server's cursor, so the reply that ends a
-    stream carries a null continuation and a later stop finds nothing."""
+    stream carries a null continuation and a later stop finds nothing.
+    """
     scratch = metta.new_space()
     scratch.add(petta.parse("(re_short a)"))
     gateway = remote.Gateway(metta)
@@ -644,7 +648,8 @@ def test_a_finished_stream_needs_no_stop(metta):
 
 def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(metta):
     """Answering nothing would say the enumeration ended, and
-    under-answering is the one thing this protocol forbids."""
+    under-answering is the one thing this protocol forbids.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_gone {n})") for n in range(4)])
     gateway = remote.Gateway(metta)
@@ -690,7 +695,8 @@ def test_a_malformed_batch_is_refused(metta, batch):
 def test_an_idle_cursor_is_released(metta):
     """A client that walks away mid-stream leaves an engine behind, so a
     cursor nobody pulls from is released after its idle deadline; the
-    engine count is the oracle."""
+    engine count is the oracle.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_idle {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_idle=0.05)
@@ -717,7 +723,8 @@ def test_an_idle_cursor_is_released(metta):
 def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
     """The ceiling is refused rather than grown: an open cursor owns an
     engine, so an unbounded table of them is an unbounded resource on an
-    open port."""
+    open port.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_many {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_limit=2)
@@ -741,7 +748,8 @@ def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
 def test_closing_the_server_releases_open_cursors(metta):
     """A gateway OWNS its cursors, so closing one releases every engine
     behind them rather than waiting on an idle deadline that no longer
-    has a server to fire on."""
+    has a server to fire on.
+    """
     scratch = metta.new_space()
     scratch.add(*[petta.parse(f"(re_owned {n})") for n in range(4)])
     before = _live_engines(metta)
@@ -760,7 +768,8 @@ def test_closing_the_server_releases_open_cursors(metta):
 def test_authorize_sees_the_cursors_own_space(metta):
     """/next and /stop carry a cursor and no space, so a per-space policy
     is handed the space the ANSWERS come from; reading the absent field's
-    default would have judged the wrong one."""
+    default would have judged the wrong one.
+    """
     served = metta.new_space()
     served.add(*[petta.parse(f"(re_auth {n})") for n in range(4)])
     name = served.space_name
@@ -819,7 +828,8 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
 
 def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):
     """A chunk carrying nothing ends the stream, so a live cursor beside
-    an empty chunk is a server that would spin a client forever."""
+    an empty chunk is a server that would spin a client forever.
+    """
 
     def looping(operation, payload):
         return {"atoms": [], "cursor": "forever"}
@@ -876,7 +886,8 @@ class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
     """Our own serve() certified by the same suite that certifies the
     TypeScript references: the page made executable, pointed inward.
     This is what caught add_many missing, /health missing, and 501
-    where the contract says 405."""
+    where the contract says 405.
+    """
 
     @pytest.fixture()
     def gateway_url(self, metta):

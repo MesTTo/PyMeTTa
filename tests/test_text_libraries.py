@@ -73,7 +73,8 @@ def test_slice_never_raises_and_never_exceeds_the_input(text_space, text, start,
 @given(st.lists(TEXT, min_size=1, max_size=6), SEPARATOR)
 def test_split_and_join_invert_each_other(text_space, parts, separator):
     """Join then split returns the parts, provided no part contains the
-    separator: that is the precondition, not a defect."""
+    separator: that is the precondition, not a defect.
+    """
     assume(all(separator not in part for part in parts))
     joined = call(text_space, "string-join", separator, expr(*parts))
     back = call(text_space, "string-split", separator, joined)

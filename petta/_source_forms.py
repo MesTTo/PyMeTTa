@@ -28,7 +28,8 @@ from .errors import PettaError
 
 class SourceForm(NamedTuple):
     """One top-level form: the parser's kind, its verbatim text, and the
-    1-based line and column its first character sits at."""
+    1-based line and column its first character sits at.
+    """
 
     kind: str
     text: str
@@ -38,7 +39,8 @@ class SourceForm(NamedTuple):
 
 def _skip_between(source: str, cursor: int) -> int:
     """Advance past what the grammar allows between forms: whitespace and
-    ;-comments to end of line."""
+    ;-comments to end of line.
+    """
     length = len(source)
     while cursor < length:
         ch = source[cursor]

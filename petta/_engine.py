@@ -193,7 +193,8 @@ def active_runtime() -> Runtime | None:
 
 def booted() -> bool:
     """Whether the engine and its shim are consulted in this process,
-    without booting anything: the probe deferred work wants."""
+    without booting anything: the probe deferred work wants.
+    """
     return _SHIM_LOADED.is_set()
 
 
@@ -506,7 +507,8 @@ class Runtime:
         Failure answers None, the semidet reading; errors classify exactly
         as once(). Off the consulting thread the same call routes through
         the relational form, since the functional one is main-thread-only
-        in janus (a foreign-thread call aborts the process)."""
+        in janus (a foreign-thread call aborts the process).
+        """
         lock = self._thread_lock()
         if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
@@ -522,7 +524,8 @@ class Runtime:
 
     def apply_must(self, predicate: str, *inputs: Any) -> Any:
         """apply() for entry points REQUIRED to succeed, as must() is to
-        once(): failure means refused inputs and raises."""
+        once(): failure means refused inputs and raises.
+        """
         value = self.apply(predicate, *inputs)
         if value is None:
             raise EngineError(
@@ -537,7 +540,8 @@ class Runtime:
         janus.cmd, the fastest crossing: True on success, False on
         failure, errors classified exactly as once(). Off the consulting
         thread the call routes through the relational form, as apply()
-        does and for the same reason."""
+        does and for the same reason.
+        """
         lock = self._thread_lock()
         if lock is None:
             names = [f"A{i}" for i in range(len(inputs))]
@@ -667,7 +671,8 @@ class Runtime:
         term still carries the object reference and the object is a
         `base`. _raise keeps the default, the library's own exceptions;
         transaction() widens it, because a transaction body is the
-        caller's own code and its ValueError should arrive as itself."""
+        caller's own code and its ValueError should arrive as itself.
+        """
         try:
             row = self._janus.query_once(
                 "petta_py_original_exception(Error, Obj)", {"Error": term}

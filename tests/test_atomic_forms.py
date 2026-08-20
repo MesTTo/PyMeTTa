@@ -35,7 +35,8 @@ def three(metta):
     special-case. The space is per-test because the `metta` fixture is
     session-scoped, so equations written into the base tier would accumulate
     across tests and a three-answer body would quietly become a nine-answer
-    one."""
+    one.
+    """
     space = metta.new_space()
     for answer in (1, 2, 3):
         space.run(f"(= (petta-three) {answer})")
@@ -71,7 +72,8 @@ def test_a_transaction_preserves_every_answer_of_its_body(three):
 def test_a_transaction_rolls_back_every_answers_writes_together(three):
     """Preserving the answers must not cost the atomicity that is the form's
     reason to exist, so each half is checked with a body that answers more
-    than once."""
+    than once.
+    """
     # Every answer writes, and every write lands.
     assert _answers(
         three,
@@ -111,7 +113,8 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
 def test_a_nested_transaction_preserves_answers_too(three):
     """The nested branch runs inside the outer transaction's registry rather
     than opening its own, and it collects and replays for the same reason the
-    outer one does: SWI's transaction/1 is once-like at every depth."""
+    outer one does: SWI's transaction/1 is once-like at every depth.
+    """
     assert _answers(
         three, "!(collapse (transaction (transaction (superpose (7 8)))))"
     ) == ["7", "8"]
@@ -126,7 +129,8 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
     """Reproduced 2026-08-19: `atomically` did not exist, so
     `!(atomically (+ 1 1))` answered `(atomically 2)`, the unknown head
     applied to its evaluated argument, rather than running anything
-    atomically."""
+    atomically.
+    """
     assert [str(a) for a in three.run("!(atomically (+ 1 1))")[0]] == ["2"]
     assert _answers(three, "!(collapse (atomically (petta-three)))") == ["1", "2", "3"]
 

@@ -79,7 +79,8 @@ __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 @dataclass(frozen=True)
 class Event:
     """One delivery: what happened, where, to which atom, with which
-    bindings the pattern took."""
+    bindings the pattern took.
+    """
 
     action: str  # "add" | "remove"
     space: str
@@ -98,7 +99,8 @@ SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
 @dataclass(eq=False)
 class Subscription:
     """One standing query; cancel() ends it. With no callback, events
-    queue and drain() empties the queue."""
+    queue and drain() empties the queue.
+    """
 
     space: str
     pattern: Atom
@@ -122,7 +124,8 @@ class Subscription:
         seconds pass with nothing arriving. A callback subscription
         delivers through its callback and has no queue, so it refuses.
         Bare `iter(sub)` is deliberately absent: iteration that blocks
-        should say so by name."""
+        should say so by name.
+        """
         if self.callback is not None:
             raise PettaError(
                 "events() consumes the no-callback queue; this subscription "
@@ -285,7 +288,8 @@ class _SubscriptionRegistry:
         """Queued events, blocking until something arrives, the
         subscription cancels, or the timeout elapses; empty means the
         stream is over. The condition is shared, so a wake for another
-        subscription re-checks against the remaining deadline."""
+        subscription re-checks against the remaining deadline.
+        """
         deadline = None if timeout is None else time.monotonic() + timeout
         with self._lock:
             while subscription._active and not subscription._queue:
@@ -551,7 +555,8 @@ def bridge(source, pattern, target, template=None, on: str = "add") -> Subscript
     template defaults to the pattern itself. The rule is a standing
     query, delivered inside the write that triggered it; target needs
     only add and remove, so a remote.attach()ed space bridges across
-    engines identically."""
+    engines identically.
+    """
     shape = _to_atom(pattern)
     built = shape if template is None else _to_atom(template)
 

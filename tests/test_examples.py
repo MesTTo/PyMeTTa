@@ -88,7 +88,8 @@ WRONG = [
 def test_a_wrong_value_fails_under_O_too(tmp_path, flags, claim, message):
     """`python -O` removes assert statements outright while the print beside
     one still runs, so the harness's check had to stop asserting: a wrong
-    value used to print as a successful check under that flag."""
+    value used to print as a successful check under that flag.
+    """
     result = _run_example_source(
         tmp_path,
         f"from _common import check, done\n{claim}\ndone('throwaway')\n",
@@ -102,7 +103,8 @@ def test_a_wrong_value_fails_under_O_too(tmp_path, flags, claim, message):
 @pytest.mark.parametrize("flags", [(), ("-O",)], ids=["plain", "optimized"])
 def test_a_right_value_still_passes_under_O_too(tmp_path, flags):
     """The other half of the claim: refusing a wrong value is only worth
-    something if the right one is still accepted, under either interpreter."""
+    something if the right one is still accepted, under either interpreter.
+    """
     result = _run_example_source(
         tmp_path,
         "from _common import check, done\ncheck('two', 1 + 1, 2)\ndone('throwaway')\n",
@@ -114,7 +116,8 @@ def test_a_right_value_still_passes_under_O_too(tmp_path, flags):
 
 def test_an_example_that_checks_nothing_is_not_OK(tmp_path):
     """The runner above reads `OK name` as proof the example verified itself,
-    so a file that verified nothing must not be able to print it."""
+    so a file that verified nothing must not be able to print it.
+    """
     result = _run_example_source(
         tmp_path, "from _common import done\ndone('throwaway')\n"
     )

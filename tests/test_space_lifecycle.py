@@ -41,7 +41,8 @@ def drained(metta):
 
 def test_a_dropped_name_comes_back(drained):
     """The premise. Without name reuse there is nothing to inherit, and a
-    test that never recycled would pass while proving nothing."""
+    test that never recycled would pass while proving nothing.
+    """
     first = drained.new_space()
     name = first.space_name
     first.drop()
@@ -91,7 +92,8 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):
 
 def test_a_recycled_name_can_reimport_what_its_past_life_imported(tmp_path, drained):
     """Import bookkeeping is per space, so a recycled name must not remember
-    a file the previous life loaded and skip it as already imported."""
+    a file the previous life loaded and skip it as already imported.
+    """
     source = tmp_path / "life.metta"
     source.write_text("(imported-fact payload)\n")
 
@@ -137,7 +139,8 @@ def test_a_recycled_name_still_sees_process_wide_registrations(drained):
 
 def test_a_dropped_handle_refuses_rather_than_writing_into_the_next_life(metta):
     """The other half of name reuse: the dead handle must not reach the
-    engine, because its name may already belong to somebody else."""
+    engine, because its name may already belong to somebody else.
+    """
     first = metta.new_space()
     first.drop()
     with pytest.raises(Exception, match="dropped"):

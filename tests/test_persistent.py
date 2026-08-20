@@ -214,7 +214,8 @@ def _crash_writer(journal, sync_mode, checkpoint):
 def test_facts_survive_a_killed_process(tmp_path):
     """The safety ladder, proven with a real SIGKILL: per-write flush
     survives with no cooperation, and the fast default survives exactly
-    when flush() checkpointed before the crash."""
+    when flush() checkpointed before the crash.
+    """
     flushed_mode = tmp_path / "flushed-mode.db"
     _crash_writer(flushed_mode, "flush", checkpoint=False)
     replayed = PersistentFactSpace(flushed_mode, {"survivor": 1})

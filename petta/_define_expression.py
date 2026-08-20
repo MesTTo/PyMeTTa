@@ -206,7 +206,8 @@ class ExpressionCompilerMixin(CompilerContext):
     def _truthy(self, node: ast.expr) -> Atom:
         """A test position: Python decides by truthiness, so anything not
         already boolean-valued by its syntax wraps in py-truthy, whose
-        answer IS bool() of the value. A comparison or a `not` stays bare."""
+        answer IS bool() of the value. A comparison or a `not` stays bare.
+        """
         if isinstance(node, ast.Compare):
             return self.expression(node)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
@@ -219,7 +220,8 @@ class ExpressionCompilerMixin(CompilerContext):
     def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
         """One comparison: order through the engine's numeric functions,
         equality and membership through the prelude, so mixed numeric types
-        and containers answer exactly what Python answers."""
+        and containers answer exactly what Python answers.
+        """
         if isinstance(op_node, ast.Eq):
             self.runtime_ops.add("py-eq")
             return Expr([Sym("py-eq"), left, right])
@@ -288,7 +290,8 @@ class ExpressionCompilerMixin(CompilerContext):
         if-filter composing through filter-atom first. Several `for`
         clauses nest the maps, each outer level flattening its nested
         answers with a left union-atom fold, so the elements arrive in
-        Python's own order."""
+        Python's own order.
+        """
         for gen in node.generators:
             if gen.is_async:
                 raise CompileError(
@@ -502,7 +505,8 @@ class ExpressionCompilerMixin(CompilerContext):
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
         match("&name", pattern, template) names one. Pattern variables are
-        the names not otherwise bound, exactly as in source MeTTa."""
+        the names not otherwise bound, exactly as in source MeTTa.
+        """
         args = node.args
         if len(args) == 3:
             space_node, pattern_node, template_node = args
@@ -558,7 +562,8 @@ class ExpressionCompilerMixin(CompilerContext):
         """An f-string joins its parts through the prelude: literal text as
         itself, {v} as py-str, {v!r} as py-repr, {v:spec} as py-format with
         a literal spec. Exactly Python's building, so the twin agrees to
-        the character."""
+        the character.
+        """
         self.runtime_ops.add("py-str-join")
         parts = [self._fstring_piece(piece, node.lineno) for piece in node.values]
         return Expr([Sym("py-str-join"), Expr(parts)])

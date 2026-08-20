@@ -109,7 +109,8 @@ def _comparable(wire: list) -> list:
 
 def _number_from_text(text: str) -> int | float:
     """The corpus writes a number as canonical Prolog text; this is Python's
-    half of reading it, the mirror of numberFromText in index.mjs."""
+    half of reading it, the mirror of numberFromText in index.mjs.
+    """
     if text.lstrip("-").isdigit():
         return int(text)
     if text.endswith("Inf"):
@@ -143,7 +144,8 @@ def _comparable_transport(transport: list) -> list:
     compare as the number. The engine writes 1.0e+20 and JavaScript writes
     100000000000000000000.0 for the same double, and the reader takes both:
     the transport carries a value, and only the engine's own writer is
-    canonical about how it spells."""
+    canonical about how it spells.
+    """
     return _comparable(_wire_from_transport(transport))
 
 
@@ -224,7 +226,8 @@ class NodeBinding:
 
     def close(self) -> None:
         """Closing the request stream ends the driver's read loop, so it exits
-        on its own rather than being signalled."""
+        on its own rather than being signalled.
+        """
         self._stdin.close()
         self._process.wait(timeout=30)
 

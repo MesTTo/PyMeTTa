@@ -265,7 +265,8 @@ class TransportFailure(PettaError):
     closed stream. The seam's error trichotomy treats these differently
     from application errors: a declared keep or empty mode never applies,
     transport always aborts, because retrying or giving up is the caller's
-    decision and an absent backend has said nothing about the data."""
+    decision and an absent backend has said nothing about the data.
+    """
 
 
 def is_transport_failure(error: BaseException) -> bool:

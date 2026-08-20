@@ -35,7 +35,8 @@ _REPO = Path(__file__).resolve().parents[3]
 def _load_reference():
     """The generator is a tool, not a package member, so it is loaded by path
     rather than imported: putting it under petta/ would ship a build-time
-    script in the wheel."""
+    script in the wheel.
+    """
     spec = importlib.util.spec_from_file_location(
         "petta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
     )
@@ -102,7 +103,8 @@ def test_the_reference_pages_are_up_to_date():
 
 def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
     """ast.unparse writes any signature on one line, and one method's came out
-    at 300 columns."""
+    at 300 columns.
+    """
     node = ast.parse(
         "def a_method_with_a_long_name(self, a: dict[str, int] = {}, *, "
         "keyword_one: str | None = None, keyword_two: int = 1, "
@@ -116,7 +118,8 @@ def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
 
 def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave MeTTa.run
-    four identical reference entries."""
+    four identical reference entries.
+    """
     page = _reference.page_for("bindings/python/petta/space.py", "petta.space")
     assert page.count("### `MeTTa.run`") == 1
 

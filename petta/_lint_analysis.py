@@ -445,7 +445,8 @@ def _equation_findings(
 def _is_truth(atom: Atom, value: bool) -> bool:
     """Whether the atom is the boolean literal, under either spelling the
     engine stores: True and true are one term there, arriving here as a
-    ground bool or as the symbol."""
+    ground bool or as the symbol.
+    """
     if isinstance(atom, Gnd):
         return atom.value is value
     return atom in (Sym(str(value)), Sym(str(value).lower()))
@@ -502,7 +503,8 @@ _SIMPLIFIERS = {"if": _if_simplified, "superpose": _superpose_simplified, "let*"
 
 def _simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
     """One nested expression's simplification, or None: (kind, detail,
-    replacement), replacement None when the finding has no rewrite."""
+    replacement), replacement None when the finding has no rewrite.
+    """
     simplifier = _SIMPLIFIERS.get(_symbol_head(inner) or "")
     return None if simplifier is None else simplifier(inner)
 
@@ -554,7 +556,8 @@ def _inconsistent_arity_findings(
     Multi-arity dispatch is legal and sometimes meant, which is why this is
     information rather than an error, and why an arrow declaration silences
     it: the arrow states the intent, and disagreement with an arrow is
-    already arrow-arity-mismatch."""
+    already arrow-arity-mismatch.
+    """
     arrowed = _arrowed_names(declarations)
     by_name = _arities_by_name(equations)
     return [
@@ -600,7 +603,8 @@ def _slot_mismatch(
     """(declared, actual) when the engine type contradicts one declared
     slot, else None. A parametric slot, a metatype slot, a non-ground
     argument, and an argument answering %Undefined% all pass, keeping the
-    check conservative; a nested call is the engine's own hoisted check's."""
+    check conservative; a nested call is the engine's own hoisted check's.
+    """
     if not isinstance(slot, Sym) or slot.name in _METATYPES:
         return None
     if isinstance(argument, (Var, Expr)):
@@ -618,7 +622,8 @@ def _type_findings(
 
     get-type/2 is total here, so the check is one cached engine question
     per distinct argument, and only concrete Sym-against-Sym
-    disagreements report."""
+    disagreements report.
+    """
     arrows = _declared_arrows(declarations)
     findings: list[Finding] = []
     for equation in equations:

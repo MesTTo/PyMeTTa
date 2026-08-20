@@ -167,7 +167,8 @@ class SpaceComplianceSuite:
         DEFINITION time, where the import traceback points at the class,
         instead of at pytest collection where it points at the suite. A
         non-Test-named intermediate base may leave the fixture to its
-        leaves, pytest's own collection contract."""
+        leaves, pytest's own collection contract.
+        """
         super().__init_subclass__(**kwargs)
         if cls.__name__.startswith("Test") and not any(
             "provider" in ancestor.__dict__
@@ -192,7 +193,8 @@ class SpaceComplianceSuite:
     @pytest.fixture()
     def stored(self, provider) -> list:
         """What the provider holds. Enumeration by default; override it for a
-        provider that does not enumerate."""
+        provider that does not enumerate.
+        """
         if not isinstance(provider, Enumerable):
             pytest.skip(
                 "the provider does not enumerate, so override the `stored` "
@@ -205,7 +207,8 @@ class SpaceComplianceSuite:
     def exercised(request):
         """What ran and what did not, reported the way SQLAlchemy reports its
         requirements, and asserted: a provider declaring nothing would
-        otherwise pass by skipping everything."""
+        otherwise pass by skipping everything.
+        """
         record: dict[str, set[str]] = {"ran": set(), "skipped": set()}
         yield record
         reporter = request.config.pluginmanager.get_plugin("terminalreporter")
@@ -263,7 +266,8 @@ class SpaceComplianceSuite:
 
     def restore_or_skip(self, provider, exercised, other: str) -> None:
         """A round trip needs both directions, and a provider with only one of
-        them is skipped on the other rather than failed for not having it."""
+        them is skipped on the other rather than failed for not having it.
+        """
         if not provider.can_run(other):
             exercised["skipped"].add(other)
             pytest.skip(f"a round trip needs {other} as well")
@@ -288,7 +292,8 @@ class SpaceComplianceSuite:
     def test_a_stored_atom_matches_itself(self, provider, exercised, space, stored):
         """Driven through the ENGINE rather than by calling match directly,
         which is the difference between this suite and check_space_provider:
-        an atom the provider holds has to be reachable from MeTTa."""
+        an atom the provider holds has to be reachable from MeTTa.
+        """
         if not stored:
             pytest.skip("the provider holds no atoms to match")
         self.requires(provider, exercised, "match")
@@ -378,7 +383,8 @@ class SpaceComplianceSuite:
         self, provider, exercised, space, stored
     ):
         """A self-join on one shape, which any provider holding that shape can
-        answer. The engine routes each conjunct through the provider."""
+        answer. The engine routes each conjunct through the provider.
+        """
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
@@ -510,7 +516,8 @@ class SpaceComplianceSuite:
 
     def test_clear_empties_the_space(self, provider, exercised, space):
         """Skipped unless a subclass sets destructive, because the provider
-        under test is usually pointed at data somebody wants to keep."""
+        under test is usually pointed at data somebody wants to keep.
+        """
         if not self.destructive:
             pytest.skip("set destructive = True to exercise clear")
         self.requires(provider, exercised, "clear")
@@ -522,7 +529,8 @@ class SpaceComplianceSuite:
     ):
         """An operation a space does not provide has to raise with the space
         and the operation named. Failing into "there is nothing there" is the
-        shape that sends an author looking at their data."""
+        shape that sends an author looking at their data.
+        """
         absent = [
             capability
             for capability in ("add", "remove", "clear")
@@ -569,7 +577,8 @@ class SpaceComplianceSuite:
         self, provider, exercised, space, stored
     ):
         """The engine bounds the answers whatever the provider does with the
-        number, so this holds of a provider that ignores it entirely."""
+        number, so this holds of a provider that ignores it entirely.
+        """
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         assert len(space.query(open_pattern(atom), limit=1)) <= 1

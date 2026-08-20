@@ -32,7 +32,8 @@ def lint(space) -> list[Finding]:
 
     One of nine observability doors, the one for the silently-wrong
     class; rows.why() explains one empty answer, and the guide's
-    observability page maps the family."""
+    observability page maps the family.
+    """
     require_capability(space.space_name, "enumerate", "lint")
     return analyze(space, space.atoms(), EngineRegistry(space.runtime))
 

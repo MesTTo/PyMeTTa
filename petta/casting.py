@@ -54,7 +54,8 @@ class CastError(PettaError, TypeError):
 
 def _type_atom(type_: Any) -> Atom:
     """The target type as an atom: an Atom stands, source text parses,
-    and a Python type spells the name get-type answers for its values."""
+    and a Python type spells the name get-type answers for its values.
+    """
     if isinstance(type_, Atom):
         return type_
     if isinstance(type_, str):
@@ -72,7 +73,8 @@ def _type_atom(type_: Any) -> Atom:
 
 def _narrow(value: Any) -> Any:
     """The Python-most spelling of an admitted value: a ground atom
-    unwraps to its Python value, everything else answers itself."""
+    unwraps to its Python value, everything else answers itself.
+    """
     if isinstance(value, Gnd):
         return value.value
     return value

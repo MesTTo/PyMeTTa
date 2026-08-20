@@ -34,7 +34,8 @@ _EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
 def _duckdb_space_module():
     """The example, imported by path: it lives under examples/ rather than in
-    the package, and its _common import needs examples/ on the path."""
+    the package, and its _common import needs examples/ on the path.
+    """
     sys.path.insert(0, str(_EXAMPLES))
     try:
         spec = importlib.util.spec_from_file_location(

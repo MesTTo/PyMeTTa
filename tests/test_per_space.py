@@ -65,7 +65,8 @@ def test_identical_equation_removal_keeps_the_twin(metta):
     """Two spaces holding the SAME equation, the shape every shared
     library import produces. The compiled-clause erasure is term-keyed,
     so without the module filter removing one twin erased the other
-    space's clause and its bookkeeping record with it."""
+    space's clause and its bookkeeping record with it.
+    """
     a, b = metta.new_space(), metta.new_space()
     a.run("(= (psp-twin $n) (+ $n 1))")
     b.run("(= (psp-twin $n) (+ $n 1))")
@@ -114,7 +115,8 @@ def test_a_lambda_reaches_the_space_local_function_it_names(metta):
     land in the space where the lambda was written. Asserted into `user` it
     could not see the space at all, because a module inherits from `user` and
     not the reverse, so every lambda form raised Unknown procedure on a
-    space-local function while the same call written directly answered."""
+    space-local function while the same call written directly answered.
+    """
     a = metta.new_space()
     a.run("(= (psp-lam $x) (* $x 2))")
     assert a.run("!(psp-lam 21)") == [[42]]

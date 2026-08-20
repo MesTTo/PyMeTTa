@@ -162,7 +162,8 @@ def test_a_second_implementation_passes_the_same_corpus(typescript_store):
 
 def test_the_store_runs_the_wire_legs_and_says_which_it_does_not(typescript_store):
     """A store has no reader and no printer, and the plan says so rather
-    than the kit quietly checking two legs instead of four."""
+    than the kit quietly checking two legs instead of four.
+    """
     plan = codec_plan(typescript_store)
     assert plan["legs"] == ["roundtrip", "transport"]
     left_out = dict(plan["out_of_profile"])

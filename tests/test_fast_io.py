@@ -300,7 +300,8 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):
 
 def test_flipped_payload_byte_refuses_before_reading(metta, tmp_path):
     """The header's sha256 gates the payload: a single flipped byte, size
-    unchanged, refuses on integrity before fast_read sees any byte."""
+    unchanged, refuses on integrity before fast_read sees any byte.
+    """
     path = tmp_path / "flipped.fast"
     with metta.new_space() as source, metta.new_space() as target:
         source.add(*(S.payload(i, S.value) for i in range(20)))

@@ -107,7 +107,8 @@ Transport = Callable[[str, dict], dict]
 class _HTTPTransport:
     """connect()'s transport: one call per operation, and it knows its
     server's GET /health, which is how server_capabilities() can ask. A
-    hand-built transport that wants the same offers its own `health`."""
+    hand-built transport that wants the same offers its own `health`.
+    """
 
     def __init__(
         self,
@@ -191,7 +192,8 @@ def _request_length(headers: Any) -> int:
 class Request:
     """What an authorize hook decides about: who is asking, what they ask
     for, and which space they name. A hook given the headers alone could
-    not tell a read from a write, so read-only was inexpressible."""
+    not tell a read from a write, so read-only was inexpressible.
+    """
 
     operation: str
     space: str
@@ -306,7 +308,8 @@ class RemoteCursor:
 
     def close(self) -> None:
         """Release the server's cursor; idempotent, and distinct from
-        exhaustion, which released it already."""
+        exhaustion, which released it already.
+        """
         if self._closed:
             return
         self._closed = True
@@ -322,7 +325,8 @@ class RemoteCursor:
         """Stop the server's cursor without letting the stop displace the
         diagnosis: a transport that broke mid-stream breaks the /stop too,
         and the failure a caller needs to read is the first one. Both are
-        raised together, the same shape serve()'s own startup path uses."""
+        raised together, the same shape serve()'s own startup path uses.
+        """
         if exc is None:
             self.close()
             return
@@ -439,7 +443,8 @@ class RemoteSpace(SpaceProvider):
         One crossing carries the whole answer set unless this space was
         built with a `batch`, in which case the ask/next/stop lifecycle
         carries it a chunk at a time and an engine that stops pulling
-        stops the server."""
+        stops the server.
+        """
         if self._batch is not None:
             with self.stream(pattern, batch=self._batch, limit=limit) as answers:
                 yield from answers
@@ -474,7 +479,8 @@ class RemoteSpace(SpaceProvider):
         rather than answers, and cutting an over-approximated stream at
         the count is the under-approximation the protocol forbids. The
         first ask crosses when the cursor is built, as the in-process
-        cursor opens its engine when it is built."""
+        cursor opens its engine when it is built.
+        """
         return RemoteCursor(
             self._transport, self._space, pattern, batch=batch, limit=limit
         )
@@ -485,7 +491,8 @@ class RemoteSpace(SpaceProvider):
         writing, and `bound` says whether /match honors the bound field
         exactly. A transport built by connect() knows its URL; a
         hand-built transport must carry its own `health` callable, or
-        this refuses rather than guessing."""
+        this refuses rather than guessing.
+        """
         health = getattr(self._transport, "health", None)
         if health is None:
             raise PettaError(
@@ -515,7 +522,8 @@ class RemoteSpace(SpaceProvider):
     def add_many(self, atoms: list[Atom]) -> None:
         """One request carries the batch, the engine's own bulk-door law on
         the wire: a batch is a transport optimisation and never a semantic
-        one, and the engine already routes only plain stores through it."""
+        one, and the engine already routes only plain stores through it.
+        """
         self._transport(
             "add_many",
             {"space": self._space, "atoms": [atom.to_wire() for atom in atoms]},
@@ -542,7 +550,8 @@ def connect(
     Python's own ssl.SSLContext for https urls, certificate pinning
     included, so the transport composes with whatever security the
     serving side asks for. Only absolute http and https URLs are accepted.
-    Credentials require https."""
+    Credentials require https.
+    """
     endpoint = HTTPEndpoint(
         url,
         subject="remote engine",
@@ -604,7 +613,8 @@ def connect(
 
     def health() -> dict:
         """GET /health, the server describing itself: revision, atom
-        count, capabilities, and whether /match honors bound."""
+        count, capabilities, and whether /match honors bound.
+        """
         try:
             status, reason, raw = endpoint.request(
                 "GET", "health", headers=sent, timeout=timeout
@@ -866,13 +876,15 @@ class Gateway:
     def health(self) -> dict:
         """The transport-side spelling of GET /health, so a Gateway is a
         drop-in Transport and RemoteSpace.server_capabilities() can ask
-        one the same question it asks a connected server."""
+        one the same question it asks a connected server.
+        """
         return self._health()
 
     def cursor_space(self, token: object) -> str | None:
         """Which space an open cursor's answers come from, so a transport
         can hand its authorization hook the space /next and /stop are
-        really about; None once the cursor is gone."""
+        really about; None once the cursor is gone.
+        """
         return self._cursors.space_of(token)
 
     def close(self) -> None:
@@ -985,7 +997,8 @@ class Gateway:
     def _stop(self, payload: dict) -> dict:
         """Release a cursor early. Answering whether there was one to
         release is the honest reply to a call a client makes from a
-        finally-block, where the stream may already have ended."""
+        finally-block, where the stream may already have ended.
+        """
         return {"stopped": self._cursors.release(payload.get("cursor"))}
 
     def _remove(self, payload: dict) -> dict:
@@ -1196,7 +1209,8 @@ class Server:
         The cursors go LAST, once nothing can pull from them: each holds an
         engine, and a client that walked away from a stream would otherwise
         leave one behind until the idle deadline that no longer has a server
-        to fire on."""
+        to fire on.
+        """
         timeout = _server_timeout(timeout)
         with self._close_lock:
             if self._closed:
@@ -1273,7 +1287,8 @@ def serve(
     deployment this exists for; in-process, spaces already share the
     engine and need no wire. Gateway is the same protocol with no
     transport under it, for a test or a framework that wants the
-    operations without a socket."""
+    operations without a socket.
+    """
     gateway = Gateway(m, spaces, cursor_idle=cursor_idle, cursor_limit=cursor_limit)
 
     # Every engine call runs on one persistent attached-engine worker.
@@ -1331,7 +1346,8 @@ def serve(
             from wherever the /ask that opened the cursor pointed. So the
             gateway is asked which space the cursor belongs to, and a
             cursor it no longer holds falls back to the default, where the
-            operation refuses itself anyway."""
+            operation refuses itself anyway.
+            """
             if operation in ("next", "stop"):
                 held = gateway.cursor_space(payload.get("cursor"))
                 if held is not None:

@@ -177,7 +177,8 @@ def test_a_raw_op_refuses_answers(metta):
 def test_a_residue_condition_filters_answers(metta):
     """The residue is the part of the query the provider did not discharge,
     written over the pattern's own variables and closed by the engine: a
-    condition reducing to false drops that answer and nothing else."""
+    condition reducing to false drops that answer and nothing else.
+    """
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
@@ -193,7 +194,8 @@ def test_a_residue_condition_filters_answers(metta):
 
 def test_a_residue_match_form_composes_across_contexts(metta):
     """A residue may itself be a match, so one provider's answer closes
-    against another context's atoms, composing bindings by sharing."""
+    against another context's atoms, composing bindings by sharing.
+    """
     metta.run("!(add-atom &ap-kb (allowed b))")
 
     def answer(pattern):
@@ -210,7 +212,8 @@ def test_a_residue_match_form_composes_across_contexts(metta):
 
 def test_a_nonreducing_residue_holds(metta):
     """A residue with no equation answers itself, exactly as !(edge q w)
-    does at the top level, so it holds; the language's own rule."""
+    does at the top level, so it holds; the language's own rule.
+    """
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
@@ -253,7 +256,8 @@ def test_an_op_residue_closes_through_the_engine(metta):
 
 def test_planner_rows_may_be_bindings(metta):
     """SEAM-P-10: a plan row may bind the claimed patterns' variables
-    directly instead of re-unifying atom rows, and the two mix."""
+    directly instead of re-unifying atom rows, and the two mix.
+    """
 
     class _JoinProvider(SpaceProvider):
         def __init__(self):
@@ -412,7 +416,8 @@ def test_the_residue_honesty_differential_over_the_pattern_family(metta):
     """The F-phase lane: evaluating R under theta must equal brute force,
     over the same pattern family the conformance kit generates (ground,
     opened positions, repeated-variable folds). The provider answers every
-    atom conditionally; brute force applies the same condition by hand."""
+    atom conditionally; brute force applies the same condition by hand.
+    """
     from petta.testing import _claim_patterns, _unifiable
 
     stored = [parse(f"(edge {x} {n})") for x, n in [("a", 1), ("b", 5), ("c", 9)]]

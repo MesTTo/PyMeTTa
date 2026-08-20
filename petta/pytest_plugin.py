@@ -33,6 +33,7 @@ def metta() -> MeTTa:
 def scratch_space(metta: MeTTa):  # pylint: disable=redefined-outer-name
     """A fresh anonymous space per test, dropped afterwards: stored
     state is isolated; registrations stay process-wide, exactly as
-    new_space documents."""
+    new_space documents.
+    """
     with metta.new_space() as space:
         yield space

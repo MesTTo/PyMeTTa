@@ -293,7 +293,8 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     Constructor arrows carry the field annotations' own types, mapped the
     way registration maps signatures, so a dataclass field typed float
     declares Number rather than %Undefined%; a Union field superposes one
-    arrow per member, the checker's own reading of alternatives."""
+    arrow per member, the checker's own reading of alternatives.
+    """
     if issubclass(cls, Enum):
         return _enum_declarations(cls)
     found = _registration_for(cls)

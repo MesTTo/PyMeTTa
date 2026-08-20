@@ -511,7 +511,8 @@ def test_a_sql_backed_space_under_declared_handles(metta):
     Exact with (edge $x $x) Sound. SQL can express bound positions and a
     LIMIT, and cannot express a repeated variable, so the general entry
     licenses the bound and the narrower one withholds it exactly where the
-    WHERE clause goes blind."""
+    WHERE clause goes blind.
+    """
     import sqlite3
 
     connection = sqlite3.connect(":memory:")

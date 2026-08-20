@@ -86,7 +86,8 @@ def test_comparison_terms_refuse_truthiness():
 def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
     """PEP 8 says write `if greeting:` rather than `greeting == True`, and
     without this the conformant spelling reads a MeTTa False as true: a user
-    who tidies away the `# noqa: E712` gets a silent wrong answer."""
+    who tidies away the `# noqa: E712` gets a silent wrong answer.
+    """
     m.run("(= (adult $a) (> $a 18))")
     answers = m.eval("(adult 5)")
     assert answers == [False]
@@ -312,7 +313,8 @@ def test_reflection_facts_follow_a_dropped_space(metta):
 
 def test_metta_programs_steer_through_the_reflection_space(m):
     """Deeper control without forking: a Python subscription on &petta
-    reacts to control atoms a MeTTa program writes there."""
+    reacts to control atoms a MeTTa program writes there.
+    """
     reflection = MeTTa(REFLECTION_SPACE)
     seen = []
     sub = reflection.subscribe(S.control(V.knob, V.value), lambda e: seen.append(e))

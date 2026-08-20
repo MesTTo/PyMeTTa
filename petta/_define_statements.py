@@ -39,7 +39,8 @@ class StatementCompilerMixin(CompilerContext):
         bindings around what follows, if/return close the branch, and a loop
         becomes its own tail-recursive equation whose parameters are the
         loop state, with everything after the loop living in the equation's
-        exit branch, Appel's blocks-as-functions."""
+        exit branch, Appel's blocks-as-functions.
+        """
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
             if self.closer is not None:
@@ -181,7 +182,8 @@ class StatementCompilerMixin(CompilerContext):
         """A nested def, lambda-lifted (Johnsson): its free outer names
         become leading parameters, the equation joins the definition's own,
         and every call site prepends the lifted names' current variables,
-        which is Python's late binding resolved per call."""
+        which is Python's late binding resolved per call.
+        """
         _validate_nested_signature(node)
         params = [arg.arg for arg in node.args.args]
         lifted = _lifted_names(node, self.scope, params)
@@ -296,7 +298,8 @@ class StatementCompilerMixin(CompilerContext):
 def _superpose(answers: list[Atom]) -> Expr:
     """The answers as one superposition, flattened where a member already is
     one over literal alternatives; (superpose $x) over a bound value stays
-    whole, since only an expression of alternatives can splice."""
+    whole, since only an expression of alternatives can splice.
+    """
     flat: list[Atom] = []
     for a in answers:
         if (

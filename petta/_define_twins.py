@@ -29,7 +29,8 @@ class TwinDispatcher:
     definition order, first whose head admits the arguments answers, the
     engine's own first-match reading that the guards compile. Twins of other
     definitions resolve to dispatchers too, so twins compose: a twin calling
-    another defined name runs that name's Python, not a term builder."""
+    another defined name runs that name's Python, not a term builder.
+    """
 
     __slots__ = ("_clauses", "name")
 
@@ -114,7 +115,8 @@ def select_clause_twin(
 
 def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
     """The dispatcher for fn's name in fn's module, created on first use and
-    pushed into every twin-globals view of that module."""
+    pushed into every twin-globals view of that module.
+    """
     mid, name = id(fn.__globals__), fn.__name__
     with _TWIN_LOCK:
         dispatcher = _TWIN_DISPATCHERS.get((mid, name))

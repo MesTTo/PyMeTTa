@@ -394,7 +394,8 @@ class MeTTa:
         '&petta' from boot, every native space that has been written to,
         and every foreign space currently bound. Naming a space never
         registers it, only writing or binding does, so a bind! token's
-        target appears here once something is stored under it."""
+        target appears here once something is stored under it.
+        """
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
@@ -427,7 +428,8 @@ class MeTTa:
         pooled name reused later must not deliver to the old life's
         watchers. The handle itself dies here: every later call through it
         refuses, because its name may already belong to another space.
-        Dropping twice is a no-op, as closing twice is."""
+        Dropping twice is a no-op, as closing twice is.
+        """
         if self._dropped:
             return
         for subscription in _subscriptions_for(self._space):
@@ -687,7 +689,8 @@ class MeTTa:
         under the same name. The completed sibling file is synced and then
         atomically replaces the target, so a failed save leaves the old file
         intact. Atoms carrying live host objects cannot survive either file
-        and are refused."""
+        and are refused.
+        """
         return save_space(self._rt, self._space, self.atoms(), path, format)
 
     def load(
@@ -744,7 +747,8 @@ class MeTTa:
         A variable's NAME is not stored. `(rule $x $y)` reads back as
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
         spelling. That is the right property for a logic engine and it is the
-        one thing about storage that surprises everybody once."""
+        one thing about storage that surprises everybody once.
+        """
         pending = _ACTIVE_BATCHES.get().get(self._space)
         if pending is not None:
             pending.extend(atoms)
@@ -811,7 +815,8 @@ class MeTTa:
         bulk spelling that drains every occurrence. A bare variable is
         the remove-everything reading a multiset space gives it, each
         atom leaving through its own proper path, equations and their
-        compiled clauses included."""
+        compiled clauses included.
+        """
         _refuse_in_batch(self._space, "remove")
         pattern = _to_atom(atom)
         if not isinstance(pattern, Var):
@@ -844,7 +849,8 @@ class MeTTa:
         a typed call compiles, ':' declarations in this space and &self
         in scope, protocol types included. A refused cast raises
         petta.CastError naming the value's actual types, the loud
-        spelling of what a typed call does silently."""
+        spelling of what a typed call does silently.
+        """
         return _cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
@@ -854,7 +860,8 @@ class MeTTa:
         The source executes for real, writes included, like run(); the
         wrap exists only while tracing, so untraced calls pay nothing.
         max_events bounds the recording, raising past it rather than
-        accumulating a long run's trace without limit."""
+        accumulating a long run's trace without limit.
+        """
         return _trace(self, source, max_events=max_events)
 
     def lint(self):
@@ -862,7 +869,8 @@ class MeTTa:
         types nothing defines, arity mismatches, unbound body variables,
         duplicate equations, and references no function or fact carries.
         Answers petta.lint.Finding records, empty when nothing looks
-        wrong."""
+        wrong.
+        """
         return _lint(self)
 
     def copy(self) -> MeTTa:
@@ -874,7 +882,8 @@ class MeTTa:
         through the copy protocol. There is deliberately no __deepcopy__:
         stored Python objects keep their identity across the clone, the
         shallow reading, and a deep clone of a live engine handle has no
-        meaning to promise."""
+        meaning to promise.
+        """
         require_capability(self._space, "enumerate", "copy")
         clone = self.new_space()
         atoms = list(self.atoms())
@@ -896,7 +905,8 @@ class MeTTa:
         sorted) so the same atoms answer the same digest in any insertion
         order and in any process. Two spaces agree on digest() exactly
         when save() would write the same content. Live host objects have
-        no cross-process identity and are refused, like save()."""
+        no cross-process identity and are refused, like save().
+        """
         require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
@@ -923,7 +933,8 @@ class MeTTa:
         dwindles. Without this, bool() falls through to __len__ and an
         empty space is falsy, so `if space:` skips a perfectly good empty
         space, the bug class that made datetime stop treating midnight as
-        false in 3.5."""
+        false in 3.5.
+        """
         return True
 
     def __contains__(self, atom: Any) -> bool:
@@ -938,7 +949,8 @@ class MeTTa:
         """add()'s operator spelling, one atom per use: `m += [1, 2]`
         LIFTS the list into one expression atom, exactly as m.add([1, 2])
         does, so the two spellings never read one operand two ways. The
-        bulk spelling is |=, whose operand has no lifted reading."""
+        bulk spelling is |=, whose operand has no lifted reading.
+        """
         self.add(atom)
         return self
 
@@ -959,7 +971,8 @@ class MeTTa:
         doubles every atom. A Mapping is refused because add(d) reads the
         same dict as ONE grounded atom and its values would silently
         vanish here; spell the reading you mean. Strings name spaces, so
-        an unregistered name is a KeyError rather than a parse."""
+        an unregistered name is a KeyError rather than a parse.
+        """
         if isinstance(other, MeTTa):
             merged: list[Any] = other.atoms()
         elif isinstance(other, str):
@@ -1001,7 +1014,8 @@ class MeTTa:
         A str key parses first, matching query()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
         readings have their own doors, query(limit=) for a bounded answer
-        set and stream() for rows pulled until you have seen enough."""
+        set and stream() for rows pulled until you have seen enough.
+        """
         if isinstance(pattern, slice):
             raise TypeError(
                 "a space cannot be sliced; query(limit=n) bounds the "
@@ -1012,7 +1026,7 @@ class MeTTa:
         return self.query(pattern)
 
     def __delitem__(self, pattern: Any) -> None:
-        """del m[pattern] removes every unifying occurrence, the bulk
+        """Del m[pattern] removes every unifying occurrence, the bulk
         spelling of remove()'s multiset subtraction: m[pattern] is a
         query answering many rows, so deleting it deletes them all, the
         way DELETE WHERE does. Nothing unifying raises KeyError, as
@@ -1020,7 +1034,8 @@ class MeTTa:
         reports absence as False instead.
 
         It drains by repeating remove(), so it costs one engine crossing
-        per removed atom rather than one for the whole pattern."""
+        per removed atom rather than one for the whole pattern.
+        """
         if not self.remove(pattern):
             raise KeyError(pattern)
         while self.remove(pattern):
@@ -1144,7 +1159,8 @@ class MeTTa:
         transaction/1 takes a closed goal; there is no open begin/commit
         to hold across a block, and pretending otherwise would lie about
         the isolation actually provided. transactional() is the
-        decorator twin."""
+        decorator twin.
+        """
         try:
             row = self._rt.once("petta_py_transaction(F, R)", F=callable_)
         except PettaError as error:
@@ -1179,7 +1195,8 @@ class MeTTa:
         scope is async-correct and per-task. A per-call timeout= or
         inferences= still overrides, which is the whole ladder: one
         block replaces the parameter forest, and the forest remains
-        for whoever wants per-call control."""
+        for whoever wants per-call control.
+        """
         return ScopedLimits(timeout, inferences)
 
     def batch(self) -> _Batch:
@@ -1200,7 +1217,8 @@ class MeTTa:
         program already made; and an exception discards the pending
         batch rather than landing writes the code after the raise never
         saw. Compose with transaction() for atomicity: batch for
-        economy, transaction for all-or-nothing, or both."""
+        economy, transaction for all-or-nothing, or both.
+        """
         return _Batch(self)
 
     def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
@@ -1485,7 +1503,8 @@ class MeTTa:
         An `(Error ...)` answer raises MettaResultError carrying the
         atom: an error among the answers is the evaluation reporting
         failure, and failure outranks the count. eval() is the door
-        that keeps errors as data."""
+        that keeps errors as data.
+        """
         answers = self.eval(
             target, using=using, timeout=timeout, inferences=inferences
         )
@@ -1534,7 +1553,8 @@ class MeTTa:
         per process, so a block that runs other threads' engine work counts
         that work too; the honest reading is "what the engine did while
         this block ran". The z3py Solver.statistics() reading, on the
-        engine this library actually has."""
+        engine this library actually has.
+        """
         return _StatsBlock(self._rt)
 
     # -------------------------------------------------------------- operations
@@ -1711,7 +1731,8 @@ class MeTTa:
     def is_function_here(self, name: str) -> bool:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
-        Another space's equations are invisible here and do not count."""
+        Another space's equations are invisible here and do not count.
+        """
         _require_name(name, "is_function_here")
         return bool(
             self._rt.once(
@@ -1730,7 +1751,8 @@ class MeTTa:
         space's module. What the engine RUNS for a call, which is the
         debuggability bytecode has and homoiconicity alone does not
         give, since (= ...) atoms are the source, not the compilation.
-        Also reachable as m.fn(name).compiled."""
+        Also reachable as m.fn(name).compiled.
+        """
         _require_name(name, "disassemble")
         row = self._rt.once(
             "petta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
@@ -2128,7 +2150,8 @@ class MeTTa:
         "call any Prolog goal" method: the supported way to reach your own
         Prolog from Python is to register it and call it as a MeTTa function,
         which keeps one set of conversion rules, one error taxonomy and one
-        lock. A raw goal is janus's job and janus is importable directly."""
+        lock. A raw goal is janus's job and janus is importable directly.
+        """
         self._rt._janus.prolog()
 
     # ------------------------------------------------------------- diagnostics

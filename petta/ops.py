@@ -67,7 +67,8 @@ def _op_facts(op: Operation) -> list[Expr]:
     """The operation's reflected surface: one (op name arity kind) per arity,
     and (effect name immutable) when it declared itself pure. One list, so
     the transaction, rollback, re-registration diff and unregister all treat
-    the effect atom exactly as they treat the op atoms."""
+    the effect atom exactly as they treat the op atoms.
+    """
     facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
     if op.pure:
         facts.append(expr(S.effect, S[op.name], S.immutable))
@@ -132,7 +133,8 @@ def record(cls: type) -> type:
     one is already booted, or on the first MeTTa construction otherwise,
     which is what lets the decorator run at import time without booting
     anything. Every underlying registration call stays public for the
-    classes that need custom shapes."""
+    classes that need custom shapes.
+    """
     convert.ensure_registered(cls)
     with _RECORDED_LOCK:
         _RECORDED.append(cls)
@@ -144,7 +146,8 @@ def record(cls: type) -> type:
 def declare_recorded() -> None:
     """Land every pending recorded class's declarations in &self; a
     no-op when nothing is pending, called by MeTTa construction so a
-    decorator that ran before any engine existed still declares."""
+    decorator that ran before any engine existed still declares.
+    """
     with _RECORDED_LOCK:
         if not _RECORDED:
             return
@@ -167,7 +170,8 @@ def class_declarations(cls: type) -> list[Expr]:
     arrows and member typings, derived from the class itself. A plain
     class needs NO declaration: its instances already answer the class
     name to get-type through the engine's MRO typing bridge, so emitting
-    one would only restate what the engine figures out on its own."""
+    one would only restate what the engine figures out on its own.
+    """
     return list(convert.declarations(cls))
 
 
@@ -176,7 +180,8 @@ def _metta_name(fn: Callable, name: str | None) -> MettaName:
 
     Nothing is rewritten. A hyphenated MeTTa name is one Python cannot
     spell, so it is asked for with name=, where it is visible at the
-    registration rather than inferred from the identifier."""
+    registration rather than inferred from the identifier.
+    """
     return MettaName(name if name is not None else _callable_name(fn))
 
 
@@ -220,7 +225,8 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     declared type rather than a dangling name. Annotations resolve through
     typing, so postponed (string) annotations declare the types they name
     rather than %Undefined%, and TypeVars declare type variables, the
-    parametric reading."""
+    parametric reading.
+    """
     hints = resolved_annotations(fn)
     annotations = [hints.get(p.name, inspect.Parameter.empty) for p in params]
     ret = hints.get("return", Any)
@@ -348,7 +354,8 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
     never counts toward MeTTa arities or the declared arrow. Detection uses
     resolved annotations only when they resolve: an unresolvable signature
     injects nothing here and keeps failing exactly where it fails today,
-    in the typed declaration pass."""
+    in the typed declaration pass.
+    """
     from .space import MeTTa  # noqa: PLC0415  space imports ops at top; the cycle breaks here
 
     try:
@@ -364,7 +371,8 @@ def _with_engine(fn: Callable, positions: list[int]) -> Callable:
     program running in &kb queries &kb, the &self reading, so the op
     composes across spaces without the space being an argument. Only an
     operation that asked pays the wrapper; every other registration calls
-    its function untouched."""
+    its function untouched.
+    """
 
     @functools.wraps(fn)
     def woven(*args):
@@ -469,7 +477,8 @@ def register(
 def unregister(runtime, name: str) -> None:
     """Remove every arity of a registered operation, and every declaration
     registration added, so nothing keeps describing a function that no
-    longer exists."""
+    longer exists.
+    """
     op = REGISTRY.get(name)
     arities = list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name))
     # The registry walk above already knows whether anything is there, so the

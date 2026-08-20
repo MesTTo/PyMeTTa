@@ -326,7 +326,8 @@ def test_subscription_cancel_is_thread_safe(m):
 
 def test_subscription_fires_for_engine_side_writes(m):
     """add-atom from RUNNING MeTTa reaches the standing query too: the
-    write funnel is the engine's own."""
+    write funnel is the engine's own.
+    """
     seen = []
     sub = m.subscribe(S.log(V.x), lambda e: seen.append(e.bindings["x"]))
     try:
@@ -582,7 +583,8 @@ def test_bridge_rules_connect_spaces(metta):
 def test_remote_spaces_serve_attach_and_join(metta, tmp_path):
     """The other engine is a PROCESS, as deployment means it: a subprocess
     serves one space, this engine attaches it, and one local match joins
-    remote rows with local facts across the wire."""
+    remote rows with local facts across the wire.
+    """
     script = Path(__file__).parent / "data" / "remote_server.py"
     child = subprocess.Popen(
         [sys.executable, str(script)],
@@ -840,7 +842,8 @@ def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
     """A counter is a delta, so there is nothing to read before the block
     that measures it has closed. Raising there rather than answering None
     or 0 is what lets the counters be typed as the int and float they are,
-    which is what a caller writing `s.inferences > 100` needs."""
+    which is what a caller writing `s.inferences > 100` needs.
+    """
     with m.stats() as s:
         assert repr(s) == "<stats: pending>"
         with pytest.raises(RuntimeError, match="after the with-block"):
@@ -908,7 +911,8 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):
 
 def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
     """Each refusal is the design, not a gap: every one of these needs every
-    row, which is exactly what a cursor exists to avoid."""
+    row, which is exactly what a cursor exists to avoid.
+    """
     space = m.new_space()
     space.add(*[S.fact(i, i) for i in range(10)])
     with space.stream(S.fact(V.k, V.n)) as cursor:

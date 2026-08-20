@@ -27,7 +27,8 @@ from .errors import PettaError
 
 class _PendingExpr:
     """A wire expression mid-build; its items become an Expr once every
-    nested expression below it has become one."""
+    nested expression below it has become one.
+    """
 
     __slots__ = ("built", "items")
     built: Expr
@@ -38,7 +39,8 @@ class _PendingExpr:
 
 def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
-    payload is a boundary bug and must say so, never coerce."""
+    payload is a boundary bug and must say so, never coerce.
+    """
     if tag == "s":
         return _symbol_from_wire(payload)
     if tag == "g":

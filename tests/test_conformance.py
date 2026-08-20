@@ -55,7 +55,8 @@ class UnderApproximating(SpaceProvider):
 class FalselyExact(SpaceProvider):
     """Claims exact and over-approximates, which is the combination that loses
     answers: the engine hands it the caller's bound, it truncates at N, and
-    fewer than N of those N candidates were answers."""
+    fewer than N of those N candidates were answers.
+    """
 
     def atoms(self):
         return iter(ROWS)
@@ -81,7 +82,8 @@ class TrulyExact(SpaceProvider):
     That is the honest shape of an equality-filtered source: the earlier
     version of this fixture claimed exact for everything while filtering
     by equality, which under-answers every open pattern, exactly the
-    docstring-only claim the kit exists to refuse."""
+    docstring-only claim the kit exists to refuse.
+    """
 
     def atoms(self):
         return iter(ROWS)
@@ -99,7 +101,8 @@ class RepeatedVariableLiar(SpaceProvider):
     """Filters each position independently, the classic wrong filter: exact
     on every ground pattern, and it answers (edge a b) to (edge $x $x)
     because neither position alone disagrees. Ground self-match cannot
-    catch it, which is why the kit checks the folded variants."""
+    catch it, which is why the kit checks the folded variants.
+    """
 
     def atoms(self):
         return iter(ROWS)
@@ -123,7 +126,8 @@ class RepeatedVariableLiar(SpaceProvider):
 
 class GroundOnlyMatcher(SpaceProvider):
     """Handles ground patterns and answers nothing for one with a variable,
-    which under-answers every real query."""
+    which under-answers every real query.
+    """
 
     def atoms(self):
         return iter(ROWS)
@@ -170,7 +174,8 @@ def test_a_conforming_provider_passes():
 
 def test_an_enumeration_only_provider_passes():
     """The Python seam has always said enumeration is enough, and the Prolog
-    seam now agrees, so the kit must not demand a Matcher."""
+    seam now agrees, so the kit must not demand a Matcher.
+    """
     checks = testing.check_space_provider(Enumerating())
     assert any("enumeration is the candidate set" in line for line in checks)
 
@@ -203,7 +208,8 @@ def test_a_true_exact_claim_passes_and_is_reported():
 def test_a_repeated_variable_liar_is_caught_by_the_folded_pattern():
     """The regression the family exists for: a positional filter is exact
     on all ground data, so the pre-family kit passed it, and it loses
-    answers in production the first time a pattern repeats a variable."""
+    answers in production the first time a pattern repeats a variable.
+    """
     with pytest.raises(AssertionError, match="claims exact and"):
         testing.check_space_provider(RepeatedVariableLiar())
 

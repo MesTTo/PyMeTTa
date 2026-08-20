@@ -401,7 +401,8 @@ def test_a_malformed_wire_target_is_refused(m):
     """A wire term is exactly two elements, and anything else reaching the
     engine as a list is our own encoder's bug rather than a query that
     answered nothing. Before this it failed, and findall turned that into an
-    empty answer list no caller could tell from a real one."""
+    empty answer list no caller could tell from a real one.
+    """
     with pytest.raises(EngineError, match="petta_py_wire_term"):
         m._rt.apply_must("petta_py_eval_all", m.space_name, ["n", 1, "extra"])
 
@@ -465,7 +466,8 @@ def test_load_runs_a_file(metta, tmp_path):
 def test_load_adds_to_existing_space(m, tmp_path):
     """A load adds the file's atoms to whatever the space already holds; it
     replaces only what that same file put there. Loading the same file twice
-    is test_reload.py's job."""
+    is test_reload.py's job.
+    """
     first = tmp_path / "first.metta"
     second = tmp_path / "second.metta"
     first.write_text("(loaded-copy value)\n")
@@ -492,7 +494,8 @@ def test_why(m):
 
 def test_match_patterns_are_structural(m):
     """The engine's own rule: match evaluates its space and its body, never
-    the pattern. A function call written inside a pattern is data there."""
+    the pattern. A function call written inside a pattern is data there.
+    """
     m.add(S.pair(S.small, S.yes))
     m.run("(= (sz-here) small)")
     # The evaluated idiom: compute first, then match the value.
@@ -504,7 +507,8 @@ def test_match_patterns_are_structural(m):
 
 def test_bare_atoms_are_refused_loudly(m):
     """A stored atom is a non-empty expression; anything else must error,
-    never vanish: the silent write was a real bug this pins."""
+    never vanish: the silent write was a real bug this pins.
+    """
     with pytest.raises(TypeError):
         m.add(S.bare)
     with pytest.raises(TypeError):
@@ -590,7 +594,8 @@ def test_anonymous_variables_do_not_join(m):
 
 def test_new_spaces_drop_and_names_recycle(metta):
     """A dropped space's name returns to the pool, so churn does not grow
-    the engine's module table; the with-block is the drop."""
+    the engine's module table; the with-block is the drop.
+    """
     with metta.new_space() as scratch:
         first = scratch.space_name
         scratch.add(S.noted(S.here))
@@ -605,7 +610,8 @@ def test_new_spaces_drop_and_names_recycle(metta):
 
 def test_load_restores_the_working_directory(metta, tmp_path):
     """One load resolves its imports from its own directory and puts the
-    process's directory back afterwards, so later runs are untouched."""
+    process's directory back afterwards, so later runs are untouched.
+    """
     inner = tmp_path / "prog.metta"
     inner.write_text("!(+ 1 1)\n")
     before = petta.janus.query_once("working_dir(D)")
@@ -836,7 +842,8 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
 
 def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):
     """using= rewrites the parsed forms before they run, so the pass reads
-    what will actually run rather than the text it was read from."""
+    what will actually run rather than the text it was read from.
+    """
     metta.run("!(import! &self (library lib_reflect))")
     groups = metta.run(
         "!(engine-knows p111-scaled)\n(= (p111-scaled $x) (* $x factor))\n",
@@ -867,7 +874,8 @@ def test_run_status_registers_signatures_before_any_form_runs(metta):
 def test_a_declaration_that_cannot_type_what_the_source_defines_is_refused(metta):
     """The other half the shared pre-pass brings: the engine refuses a
     non-arrow type on a function the same source defines, before any of that
-    source's forms run, and run() went straight past it."""
+    source's forms run, and run() went straight past it.
+    """
     with pytest.raises(EngineError, match="is not an arrow"):
         metta.run("(: p111-decl Number)\n(= (p111-decl $x) $x)\n")
 
@@ -875,7 +883,8 @@ def test_a_declaration_that_cannot_type_what_the_source_defines_is_refused(metta
 def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_path):
     """The shape the seven shipped examples are written in: `!(memoize f)`
     reads fun/1, and under load() nothing had asserted it yet
-    [source: lib/lib_memo.pl:888]."""
+    [source: lib/lib_memo.pl:888].
+    """
     source = tmp_path / "p111_memo.metta"
     source.write_text(
         "!(import! &self (library lib_memo))\n"
@@ -889,7 +898,8 @@ def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_pa
 def _atom_multiset(space):
     """A space's atoms as a comparable multiset. Each read hands back fresh
     variables, so the printed names differ between two reads of one atom and
-    comparing the raw strings compares nothing."""
+    comparing the raw strings compares nothing.
+    """
     return sorted(re.sub(r"\$_\d+", "$V", str(atom)) for atom in space)
 
 

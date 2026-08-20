@@ -117,7 +117,8 @@ else:
     @given(expressions(max_leaves=6, ground=True))
     def test_generated_atoms_cast_to_atom_and_refuse_the_absurd(metta, atom):
         """Atom admits everything unchecked; a type name nothing
-        declares refuses everything, loudly and precisely."""
+        declares refuses everything, loudly and precisely.
+        """
         with metta.new_space() as space:
             assert space.cast(atom, "Atom") is not None
             with pytest.raises(CastError) as caught:

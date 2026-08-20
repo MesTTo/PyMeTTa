@@ -97,7 +97,8 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
 def test_a_conjunction_carries_each_rows_annotation(metta):
     """The rows are collected through a findall, and an answer's annotation
     rides a backtrackable global that a findall undoes. Reading it per row is
-    what proves the snapshot did not drop the channel on the floor."""
+    what proves the snapshot did not drop the channel on the floor.
+    """
     space = metta.new_space()
     try:
         space.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
@@ -113,7 +114,8 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
 
 def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
     """The law is the space's, not the store's, so a provider-backed
-    conjunction gets the same guarantee through the same door."""
+    conjunction gets the same guarantee through the same door.
+    """
     from petta.foreign import SpaceProvider
 
     class ListSpace(SpaceProvider):
@@ -154,7 +156,8 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
 
 def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):
     """It is a snapshot of ONE match, not a transaction: the writes a
-    template makes are visible to everything that runs after it."""
+    template makes are visible to everything that runs after it.
+    """
     m.run("!(add-atom &self (seen 1))\n!(add-atom &self (seen 2))")
     m.run("!(collapse (match &self (, (seen $a) (seen $b)) (add-atom &self (pair $a $b))))")
     (pairs,) = m.run("!(collapse (match &self (pair $a $b) ($a $b)))")

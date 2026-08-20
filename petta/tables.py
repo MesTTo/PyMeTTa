@@ -84,7 +84,8 @@ def _declaration_error(declaration: Any) -> ValueError:
 
 class _Shape:
     """One declaration's derivation: shape atom, table, columns, and the
-    constraint reading of any pattern against them."""
+    constraint reading of any pattern against them.
+    """
 
     def __init__(self, declaration: Atom) -> None:
         if not isinstance(declaration, Expr) or len(declaration.children) != 3:
@@ -184,7 +185,8 @@ class _Shape:
 
 class TableBridge(SpaceProvider):
     """Every provider operation derived from the declarations; nothing in
-    here is specific to any table."""
+    here is specific to any table.
+    """
 
     def __init__(
         self,
@@ -213,7 +215,8 @@ class TableBridge(SpaceProvider):
     ) -> TableBridge:
         """The provider for every `(bridge <name> <shape> <row>)` atom in
         &petta, so a schema declared from MeTTa source, or by declare()
-        below, becomes a provider in one line."""
+        below, becomes a provider in one line.
+        """
         (group,) = m.run(
             f"!(collapse (match &petta (bridge {name} $shape $row)"
             f" (bridge $shape $row)))"
@@ -340,7 +343,8 @@ class TableBridge(SpaceProvider):
 
 def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     """Write one ctx-scoped bridge declaration into &petta, where explain
-    and any program can read the schema, and from_context will."""
+    and any program can read the schema, and from_context will.
+    """
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
     if not isinstance(parsed, Expr):
         raise _declaration_error(parsed)

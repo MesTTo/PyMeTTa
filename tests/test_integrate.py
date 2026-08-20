@@ -257,7 +257,8 @@ def test_facts_bulk_load(metta):
 
 def test_networkx_integrates_in_a_page(metta):
     """The acid test the interface exists for: a real library, deeply usable,
-    with only public toolkit calls."""
+    with only public toolkit calls.
+    """
     nx = pytest.importorskip("networkx")
 
     graph = nx.Graph()
@@ -284,7 +285,8 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     """The express() frame, run rather than argued: an app is a space, every
     route is an equation, a request reduces through whichever route matches,
     and the catch-all equation is the 404. Clause order plus once is the
-    dispatcher; nothing was built to make this work, which is the point."""
+    dispatcher; nothing was built to make this work, which is the point.
+    """
     app = metta.new_space()
     app.run(
         '(= (route home) (Page 200 "Welcome"))\n'

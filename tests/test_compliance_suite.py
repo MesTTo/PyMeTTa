@@ -37,7 +37,8 @@ ROWS = [S.edge(S.a, S.b), S.edge(S.b, S.c), S.other(S.a)]
 
 class ReadOnlySpace(SpaceProvider):
     """Enumeration and nothing else, which the seam has always allowed: the
-    engine filters the enumeration for a bound pattern."""
+    engine filters the enumeration for a bound pattern.
+    """
 
     def atoms(self):
         return iter(ROWS)

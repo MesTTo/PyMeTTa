@@ -21,7 +21,8 @@ from petta import AssertionFailure, EngineError, MeTTa, PettaError
 def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
     """A program that asserts something false and an engine that breaks are
     different events. Before this they were the same Python type, so a
-    harness could only tell them apart by parsing the message."""
+    harness could only tell them apart by parsing the message.
+    """
     m = MeTTa()
 
     with pytest.raises(AssertionFailure) as failed_test:
@@ -48,7 +49,8 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
 
 def test_an_assertion_failure_carries_its_parts():
     """The parts arrive as data, so a harness reports them without parsing
-    the sentence: which form failed, what it got, what it wanted."""
+    the sentence: which form failed, what it got, what it wanted.
+    """
     m = MeTTa()
 
     with pytest.raises(AssertionFailure) as caught:

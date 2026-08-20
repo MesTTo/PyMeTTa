@@ -136,7 +136,8 @@ def ensure_registered(cls: type) -> _Registration:
     """The registration this class projects through, defaults memoized: an
     Enum, dataclass or NamedTuple gets its default image recorded exactly
     as a first projection would record it; anything else must have been
-    registered and says so."""
+    registered and says so.
+    """
     registration = _lookup(cls)
     if registration is None:
         registration = _default_registration(cls)
@@ -218,7 +219,8 @@ def subscribe_registrations(
 ) -> list[tuple[type, _Registration]]:
     """Subscribe to explicit registration changes; answers the current
     explicit entries so the subscriber can reflect the past before it hears
-    the future."""
+    the future.
+    """
     with _REGISTRY_LOCK:
         snapshot = [
             (cls, reg) for cls, reg in _REGISTRY.items() if reg.explicit
@@ -228,7 +230,9 @@ def subscribe_registrations(
 
 
 def _notify(cls: type, old: _Registration | None, new: _Registration | None) -> None:
-    for callback in list(_LISTENERS):
+    # Take a snapshot so a callback that subscribes another listener cannot
+    # extend the notification currently in flight.
+    for callback in tuple(_LISTENERS):
         callback(cls, old, new)
 
 
@@ -372,6 +376,7 @@ def _field_types(cls: type, names: tuple[str, ...]) -> tuple:
     need their class: an Enum member above all, but also an Enum inside
     list[Colour] or Optional[Colour], which a bare-class filter would
     erase and leave as an unreconstructed symbol. Annotations that do not
-    resolve are a hard error naming the class."""
+    resolve are a hard error naming the class.
+    """
     hints = resolved_hints(cls)
     return tuple(hints.get(n) for n in names)

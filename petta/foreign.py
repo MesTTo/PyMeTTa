@@ -713,7 +713,8 @@ def foreign_plan(space: str, pattern_wires: list):
     """The claim, as the shim asks for it: a decline is `None`, a claim is
     [claimed, rest, rows] on the wire. The rows are materialised here rather
     than streamed, because a claim is answered as a whole and the engine has no
-    use for a half-planned join."""
+    use for a half-planned join.
+    """
     provider = _provider(space)
     patterns = [atom_from_wire(wire) for wire in pattern_wires]
     if not isinstance(provider, Planner) or not provider.should_run(
