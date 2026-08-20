@@ -4,11 +4,11 @@ lexical free variables, and whether every call is in the declared pure set.
 Guarantees:
   - derivation reads syntax and symbol tables without executing user code
     [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - Python 3.14 annotation scopes cannot be mistaken for the function scope
     whose free variables are reported [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
 Open Obligations:
   To Do: None
   Hacks: None

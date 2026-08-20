@@ -20,7 +20,7 @@ Guarantees:
   - type_names removes every __petta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=WORKTREE]
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:

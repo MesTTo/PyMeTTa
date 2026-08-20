@@ -7,11 +7,11 @@ Guarantees:
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
-     commit=WORKTREE]
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - source spans, AST documentation, free variables, and derived purity
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;

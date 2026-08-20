@@ -5,7 +5,7 @@ Guarantees:
   - capture never changes an answer shape, and atomic, speculative, and
     strict execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no

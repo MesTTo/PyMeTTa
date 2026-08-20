@@ -38,7 +38,7 @@ Guarantees:
   - __metta__ is discovered on the class, so instance fallback and properties
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=WORKTREE]
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - Box publishes its transport value through the reserved
     __petta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
