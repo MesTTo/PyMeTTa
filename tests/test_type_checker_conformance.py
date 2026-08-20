@@ -6,6 +6,10 @@ Guarantees:
   - a type variable bound by an earlier application constrains later arguments
     before those arguments are evaluated.
   - quote remains a value while let can evaluate before constructing that value.
+  - corpus output is captured without changing the evaluated group shape
+    [tested:
+    test_a_type_variable_bound_through_an_application_constrains_the_next_argument;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -34,8 +38,9 @@ needs_arbiter = pytest.mark.skipif(
 def _run_file(metta, name: str) -> tuple[list[list[str]], str]:
     source = (_TYPES_META / name).read_text()
     with metta.new_space() as isolated:
-        groups, captured = isolated.run(source, capture=True)
-    return [[str(atom) for atom in group] for group in groups], captured
+        with isolated.capture() as output:
+            groups = isolated.run(source)
+    return [[str(atom) for atom in group] for group in groups], output.text
 
 
 @needs_arbiter

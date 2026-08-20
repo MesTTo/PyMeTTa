@@ -33,6 +33,10 @@ Guarantees:
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+  - execution-policy scopes cross the worker hop and never change awaited
+    return shapes [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -60,7 +64,7 @@ import queue
 import threading
 import warnings
 import weakref
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
@@ -571,10 +575,7 @@ class AsyncMeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
-        capture: bool = False,
-        atomic: bool = False,
-        speculative: bool = False,
-    ) -> Any:
+    ) -> list[list[Atom]]:
         """Run MeTTa source on the worker and return its result groups."""
         return await self.call(
             lambda m: m.run(
@@ -582,9 +583,6 @@ class AsyncMeTTa:
                 using,
                 timeout=timeout,
                 inferences=inferences,
-                capture=capture,
-                atomic=atomic,
-                speculative=speculative,
             )
         )
 
@@ -657,8 +655,7 @@ class AsyncMeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
-        capture: bool = False,
-    ) -> Any:
+    ) -> list[Atom]:
         """Evaluate a term and return every answer."""
         return await self.call(
             lambda m: m.eval(
@@ -666,7 +663,6 @@ class AsyncMeTTa:
                 using=using,
                 timeout=timeout,
                 inferences=inferences,
-                capture=capture,
             )
         )
 
@@ -951,12 +947,10 @@ class AsyncMeTTa:
         /,
         *,
         name: str | None = None,
-        typed: bool = True,
-        raw: bool = False,
-        pass_atoms: bool = False,
+        transport: Literal["encoded", "raw"] = "encoded",
+        declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
         inverse: Callable | None = None,
-        pure: bool = False,
     ) -> Callable:
         """Register a Python callable as a MeTTa function. The engine
         calls it synchronously on the worker thread, exactly as the
@@ -966,12 +960,10 @@ class AsyncMeTTa:
             lambda m: m.register_op(
                 fn,
                 name=name,
-                typed=typed,
-                raw=raw,
-                pass_atoms=pass_atoms,
+                transport=transport,
+                declarations=declarations,
                 arities=arities,
                 inverse=inverse,
-                pure=pure,
             )
         )
 
@@ -981,24 +973,20 @@ class AsyncMeTTa:
         /,
         *,
         name: str | None = None,
-        typed: bool = True,
-        raw: bool = False,
-        pass_atoms: bool = False,
+        transport: Literal["encoded", "raw"] = "encoded",
+        declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
         inverse: Callable | None = None,
-        pure: bool = False,
     ) -> Callable:
         """register_op under its short name."""
         return await self.call(
             lambda m: m.op(
                 fn,
                 name=name,
-                typed=typed,
-                raw=raw,
-                pass_atoms=pass_atoms,
+                transport=transport,
+                declarations=declarations,
                 arities=arities,
                 inverse=inverse,
-                pure=pure,
             )
         )
 
@@ -1083,6 +1071,22 @@ class AsyncMeTTa:
         `with` inside async code, and every awaited call in the scope
         carries it to the worker."""
         return self._m.limits(timeout=timeout, inferences=inferences)
+
+    def capture(self):
+        """Collect awaited run/eval output in an ordinary task-local scope."""
+        return self._m.capture()
+
+    def atomic(self):
+        """Make each awaited run in the block one engine transaction."""
+        return self._m.atomic()
+
+    def speculative(self):
+        """Answer awaited runs while discarding their engine writes."""
+        return self._m.speculative()
+
+    def strict(self):
+        """Refuse unreduced directives in awaited runs within the block."""
+        return self._m.strict()
 
     def batch(self) -> _AsyncBatch:
         """Collect this space's add() calls and cross once at exit,

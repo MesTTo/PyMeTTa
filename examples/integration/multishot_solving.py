@@ -7,6 +7,9 @@ toggled between solves and ended by release, clingo's #external, which on
 an engine with no grounding step is exactly a togglable fact. The two
 classes below are the whole translation; the solve side is the query
 surface the space already has.
+Guarantees:
+  - grounding scopes each template run atomically without a call-shape flag
+    [tested: test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -67,11 +70,12 @@ class Part:
     def ground(self, *args) -> None:
         if args in self.grounded:
             raise RuntimeError(f"part {self.name!r} already grounded for {args!r}")
-        # atomic=True, so a template that writes and then raises leaves
+        # The atomic scope means a template that writes and then raises leaves
         # nothing behind. Without it the writes it managed stayed while
         # `grounded` stayed empty, and the retry the caller was invited to
         # make duplicated them.
-        self._m.run(self._template(*args), atomic=True)
+        with self._m.atomic():
+            self._m.run(self._template(*args))
         self.grounded.add(args)
 
 

@@ -6,6 +6,11 @@ differential fuzz.
 Guarantees:
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set]
+  - capture, atomic, and speculative execution compose as scopes without
+    per-call shape or mode flags [tested: test_run_capture_collects_printed_output,
+    test_atomic_run_commits_or_rolls_back_whole,
+    test_speculative_run_answers_and_discards;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -803,23 +808,27 @@ def test_limit_validation_refuses_nonsense(m):
 
 
 def test_run_capture_collects_printed_output(m):
-    groups, text = m.run("!(println! (hello world)) !(+ 1 2)", capture=True)
-    assert "(hello world)" in text
+    with m.capture() as output:
+        groups = m.run("!(println! (hello world)) !(+ 1 2)")
+    assert "(hello world)" in output.text
     assert groups[1] == [3]
     assert m.run("!(+ 1 2)") == [[3]]  # capture off: the shape is unchanged
 
 
 def test_capture_composes_with_limits(m):
-    groups, text = m.run("!(println! bounded)", capture=True, timeout=5.0)
-    assert "bounded" in text and len(groups) == 1
+    with m.capture() as output:
+        groups = m.run("!(println! bounded)", timeout=5.0)
+    assert "bounded" in output.text and len(groups) == 1
     m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
     with pytest.raises(TimeLimitError):
-        m.run("!(spin-e 100000000)", capture=True, timeout=0.05)
+        with m.capture():
+            m.run("!(spin-e 100000000)", timeout=0.05)
 
 
 def test_eval_capture(m):
-    answers, text = m.eval("(println! from-eval)", capture=True)
-    assert "from-eval" in text
+    with m.capture() as output:
+        answers = m.eval("(println! from-eval)")
+    assert "from-eval" in output.text
     # println! answers the UNIT value, `()`, which is what the specification
     # types it with: "(-> %Undefined% (->))". It used to answer True.
     assert answers == [expr()]
@@ -960,23 +969,26 @@ def test_stream_guard_and_per_pull_bounds(m):
 
 def test_atomic_run_commits_or_rolls_back_whole(m):
     with pytest.raises(EngineError):
-        m.run("(kept fact) !(/ 1 0)", atomic=True)
+        with m.atomic():
+            m.run("(kept fact) !(/ 1 0)")
     assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
-    m.run("(kept fact) !(+ 1 1)", atomic=True)
+    with m.atomic():
+        m.run("(kept fact) !(+ 1 1)")
     assert expr(S.kept, S.fact) in m  # and commits whole on success
 
 
 def test_speculative_run_answers_and_discards(m):
-    groups = m.run("(ghost fact) !(+ 2 2)", speculative=True)
+    with m.speculative():
+        groups = m.run("(ghost fact) !(+ 2 2)")
     assert groups[-1] == [4]
     assert expr(S.ghost, S.fact) not in m
-    groups, text = m.run(
-        "(ghost2 x) !(println! spec-out)", speculative=True, capture=True
-    )
-    assert "spec-out" in text
+    with m.speculative(), m.capture() as output:
+        groups = m.run("(ghost2 x) !(println! spec-out)")
+    assert "spec-out" in output.text
     assert expr(S.ghost2, S.x) not in m
     with pytest.raises(ValueError):
-        m.run("!(+ 1 1)", atomic=True, speculative=True)
+        with m.atomic(), m.speculative():
+            pass
 
 
 def test_profile_counts_samples_on_real_work(m):

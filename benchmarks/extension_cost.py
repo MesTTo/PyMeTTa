@@ -22,6 +22,9 @@ Guarantees:
     in extension-baseline.json, so a change that moves one is a gate failure
     rather than a number a reader has to notice [tested 2026-08-16:
     test_a_moved_tier_fails_the_gate]
+  - raw operation measurements select the reflected transport kind without a
+    boolean registration pair [tested: test_extension_cost_rows_are_marginal;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -156,7 +159,7 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     def _encoded(x):
         return x + 1
 
-    @space.register_op(name="ec-op-raw", raw=True)
+    @space.register_op(name="ec-op-raw", transport="raw")
     def _raw(x):
         return x + 1
 
@@ -184,7 +187,7 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
         "defined": "@m.define, annotated",
         "macro": "translator rule (a macro)",
         "prolog": "Prolog grounded predicate",
-        "opraw": "Python operation, raw=True",
+        "opraw": 'Python operation, transport="raw"',
         "opencoded": "Python operation, encoded",
     }
     if has_c:
@@ -321,7 +324,7 @@ def encoding_rows(calls: int = ENCODING_CALLS, rounds: int = ROUNDS) -> list[tup
     def _encoded(x):
         return 1
 
-    @space.register_op(name="ec-size-raw", raw=True)
+    @space.register_op(name="ec-size-raw", transport="raw")
     def _raw(x):
         return 1
 
@@ -416,7 +419,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     doors = space_door_rows()
     print(_render_doors(doors))
     print()
-    print("| argument | encoded | raw=True | ratio |")
+    print('| argument | encoded | transport="raw" | ratio |')
     print("|---|---|---|---|")
     for label, encoded, raw in encoding_rows():
         ratio = encoded / raw if raw else 0.0

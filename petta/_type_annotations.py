@@ -2,8 +2,9 @@
 Guarantees:
   - postponed annotations resolve before declaration generation [tested
     test_postponed_annotations_generate_declarations]
-  - union expansion is bounded by the configured declaration limit [tested
-    test_union_expansion_is_bounded]
+  - union expansion is bounded by the configured declaration limit and its
+    refusal points to unannotated wrappers plus explicit declaration atoms
+    [tested: test_union_expansion_is_bounded; commit=WORKTREE]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
      commit=4224c26819d90b9e03efdaef78cb573b91729295]
@@ -291,7 +292,8 @@ def _bounded_product(alternative_lists: list[list[Atom]], described: str):
         if total > limit:
             raise TypeError(
                 f"{described} expands to over {limit} superposed combinations; "
-                "simplify the Unions, or register with typed=False and declare by hand"
+                "simplify the Unions, or wrap the callable with an unannotated "
+                "signature and supply declaration atoms explicitly"
             )
     return itertools.product(*alternative_lists)
 

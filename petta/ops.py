@@ -21,7 +21,7 @@ Guarantees:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
     commit=9b1b808f6b8d8aa6a8080c13092fa73ce7893aaa]
   - every documented operation owns its portable @doc atom in the
-    declaration space, independent of typed=, under the same transactional
+    declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
     commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
@@ -33,6 +33,10 @@ Guarantees:
     injection [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
     commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+  - transport, evaluation order, typing, and purity are expressed by op,
+    type, and effect atoms rather than boolean decorator flags [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -46,8 +50,8 @@ import functools
 import inspect
 import threading
 import typing
-from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar
+from collections.abc import Callable, Iterable
+from typing import Any, Literal, ParamSpec, TypeVar
 
 from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
@@ -66,7 +70,7 @@ from ._type_annotations import (
 from ._type_annotations import (
     callable_name as _callable_name,
 )
-from .atoms import Expr, S, expr
+from .atoms import Atom, Expr, S, Sym, _to_atom, expr
 
 __all__ = [
     "REFLECTION_SPACE",
@@ -103,8 +107,7 @@ def _op_facts(op: Operation) -> list[Expr]:
     the transaction, rollback, re-registration diff and unregister all treat
     the effect atom exactly as they treat the op atoms."""
     facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
-    if op.pure:
-        facts.append(expr(S.effect, S[op.name], S.immutable))
+    facts.extend(fact for fact in op.catalog if fact not in facts)
     if op.inverse is not None:
         facts.append(expr(S.inverse, S[op.name]))
     return facts
@@ -338,7 +341,11 @@ def _callable_code(fn: Callable) -> Any:
     return None
 
 
-def _operation_kind(fn: Callable, raw: bool) -> str:
+def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
+    if transport not in ("encoded", "raw"):
+        raise ValueError(
+            f"transport must be 'encoded' or 'raw', got {transport!r}"
+        )
     code = _callable_code(fn)
     flags = code.co_flags if code is not None else 0
     name = _callable_name(fn)
@@ -363,7 +370,86 @@ def _operation_kind(fn: Callable, raw: bool) -> str:
         (False, True): "many",
         (True, False): "raw_det",
         (True, True): "raw_many",
-    }[(raw, many)]
+    }[(transport == "raw", many)]
+
+
+def _partition_declarations(
+    name: str, declarations: Iterable[Atom]
+) -> tuple[list[Expr], tuple[Expr, ...]]:
+    """Split operation-local declarations from &petta policy facts.
+
+    Type and documentation atoms govern compilation in the operation's own
+    declaration space. Every other atom is catalog policy and therefore lives
+    in &petta. The registration owns both sets for rollback, replacement, and
+    unregistration. `(op ...)` is reserved because arity and transport derive
+    that fact from the callable and cannot safely disagree with it.
+    """
+    local: list[Expr] = []
+    catalog: list[Expr] = []
+    for declaration in declarations:
+        atom = _to_atom(declaration)
+        if not isinstance(atom, Expr) or not atom.children:
+            raise TypeError(
+                "operation declarations must be expression atoms, "
+                f"got {atom!s}"
+            )
+        head = atom.children[0]
+        if head == Sym("op"):
+            raise ValueError(
+                "(op ...) is derived from transport=, arities=, and the "
+                "callable's generator shape; do not supply it twice"
+            )
+        if head == Sym("effect"):
+            if len(atom.children) != 3 or atom.children[1] != Sym(name):
+                raise ValueError(
+                    f"an effect declaration for {name!r} must be "
+                    f"(effect {name} immutable|stable|volatile)"
+                )
+            if atom.children[2] not in (S.immutable, S.stable, S.volatile):
+                raise ValueError(
+                    f"an effect declaration for {name!r} must name "
+                    "immutable, stable, or volatile"
+                )
+            existing = [fact for fact in catalog if fact.head == S.effect]
+            if existing and atom not in existing:
+                raise ValueError(
+                    f"{name!r} has conflicting effect declarations: "
+                    f"{existing[0]} and {atom}"
+                )
+            if atom not in catalog:
+                catalog.append(atom)
+            continue
+        if head == Sym("arguments"):
+            if (
+                len(atom.children) != 3
+                or atom.children[1] != Sym(name)
+                or atom.children[2] not in (S.atoms, S.values)
+            ):
+                raise ValueError(
+                    f"an argument declaration for {name!r} must be "
+                    f"(arguments {name} atoms|values)"
+                )
+            existing = [fact for fact in catalog if fact.head == S.arguments]
+            if existing and atom not in existing:
+                raise ValueError(
+                    f"{name!r} has conflicting argument declarations: "
+                    f"{existing[0]} and {atom}"
+                )
+            if atom not in catalog:
+                catalog.append(atom)
+            continue
+        target = local if head in (Sym(":"), Sym("@doc")) else catalog
+        if atom not in target:
+            target.append(atom)
+    return local, tuple(catalog)
+
+
+def _is_immutable(name: str, catalog: tuple[Expr, ...]) -> bool:
+    return expr(S.effect, S[name], S.immutable) in catalog
+
+
+def _passes_atoms(name: str, catalog: tuple[Expr, ...]) -> bool:
+    return expr(S.arguments, S[name], S.atoms) in catalog
 
 
 def _operation_declarations(
@@ -373,11 +459,17 @@ def _operation_declarations(
     variadic: inspect.Parameter | None,
     arities: list[int],
     fn: Callable,
-    typed: bool,
+    supplied: list[Expr],
 ) -> tuple[Expr, ...]:
+    has_annotations = bool(resolved_annotations(fn) or typing.get_overloads(fn))
     declarations = (
-        _type_declarations(name, params, variadic, arities, fn) if typed else []
+        _type_declarations(name, params, variadic, arities, fn)
+        if has_annotations
+        else []
     )
+    for declaration in supplied:
+        if declaration not in declarations:
+            declarations.append(declaration)
     documentation = documentation_atom(name, fn)
     if documentation is not None:
         declarations.append(documentation)
@@ -522,13 +614,11 @@ def register(
     fn: Callable[_P, _R],
     *,
     name: str | None = None,
-    typed: bool = True,
-    raw: bool = False,
-    pass_atoms: bool = False,
+    transport: Literal["encoded", "raw"] = "encoded",
+    declarations: Iterable[Atom] = (),
     space: str = _DEFAULT_SPACE,
     arities: list[int] | None = None,
     inverse: Callable | None = None,
-    pure: bool = False,
 ) -> Callable[_P, _R]:
     """Make fn callable from MeTTa. Returns fn unchanged.
 
@@ -546,13 +636,17 @@ def register(
     is, so a forward call never reaches it and an operation without one
     compiles exactly what it compiled before.
 
-    pure declares that the operation has no effect a cache could hide, which
-    is what lets it appear in a `(tabled ...)` or memoized body. It is an
-    allow-list on purpose: an operation that does not say so is refused there
-    by name, loudly, rather than cached and quietly wrong.
+    Python annotations derive type atoms and Atom parameters receive syntax
+    before evaluation. `transport="raw"` derives raw_det/raw_many in the
+    operation's `(op ...)` fact. Additional declaration atoms are owned for
+    the operation's complete lifecycle: type atoms live in its declaration
+    space, while `(effect name immutable)` and other policy atoms live in
+    &petta and can be matched there. An immutable effect atom is the explicit
+    allow-list for tabled or memoized bodies.
     """
     metta_name = _metta_name(fn, name)
-    kind = _operation_kind(fn, raw)
+    kind = _operation_kind(fn, transport)
+    supplied, catalog = _partition_declarations(metta_name, declarations)
     explicit_arities = arities
     arities, params, variadic = _arities(fn, arities)
     injected = _engine_positions(params, fn)
@@ -572,6 +666,13 @@ def register(
     # registry commits last.
     if inverse is not None and not callable(inverse):
         raise TypeError(f"the inverse of {metta_name} is not callable: {inverse!r}")
+    pure = _is_immutable(metta_name, catalog)
+    pass_atoms = _passes_atoms(metta_name, catalog)
+    if pass_atoms and kind.startswith("raw_"):
+        raise ValueError(
+            f"{metta_name} cannot declare atom arguments with raw transport: "
+            "raw calls do not cross the atom codec"
+        )
     if pure and kind == "raw_many":
         # A raw generator is the one shape whose answers the engine never
         # sees whole, so "no effect a cache could hide" is not checkable even
@@ -586,9 +687,9 @@ def register(
         variadic=variadic,
         arities=arities,
         fn=fn,
-        typed=typed,
+        supplied=supplied,
     )
-    conversion_hints = resolved_annotations(fn) if typed else {}
+    conversion_hints = resolved_annotations(fn)
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
@@ -598,6 +699,7 @@ def register(
         pass_atoms=pass_atoms,
         space=SpaceName(space),
         declarations=declarations,
+        catalog=catalog,
         arities=tuple(arities),
         inverse=inverse,
         pure=pure,

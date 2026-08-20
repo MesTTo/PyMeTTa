@@ -6,6 +6,10 @@ Guarantees:
     no residuals parameter [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+  - capture and execution-policy scopes cross the worker hop without changing
+    awaited return shapes [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -93,8 +97,10 @@ def test_aio_carries_bounds_and_errors_across_threads(m):
                 await am.run("!(aio-spin-b 100000000)", timeout=0.05)
             with pytest.raises(MettaSyntaxError):
                 await am.run("!(unclosed")
-            groups, text = await am.run("!(println! crossed)", capture=True)
-            return text
+            with am.capture() as output:
+                groups = await am.run("!(println! crossed)")
+            assert groups == [[petta.expr()]]
+            return output.text
 
     assert "crossed" in asyncio.run(go())
 
@@ -260,9 +266,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         "using",
         "timeout",
         "inferences",
-        "capture",
-        "atomic",
-        "speculative",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.query).parameters) == [
         "self",
@@ -279,7 +282,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         "using",
         "timeout",
         "inferences",
-        "capture",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",
@@ -322,7 +324,6 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
                 lambda sync: sync.register_op(
                     lambda value: value,
                     name="aio-unregister-target",
-                    typed=False,
                 )
             )
             assert await am.is_function("aio-unregister-target")

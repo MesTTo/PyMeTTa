@@ -4,6 +4,12 @@ text building, membership, banker's rounding, range and slicing. Each one
 is the Python behavior itself, so the compiled equations and the Python
 twin cannot disagree; a Defined lists the ones it leans on as runtime_ops,
 so the dependency on this runtime is visible rather than ambient.
+Guarantees:
+  - runtime operations receive evaluated Atom wrappers through matchable
+    `(arguments name atoms)` policies instead of a boolean registration flag
+    [tested: test_fstrings_str_round_range_slices,
+    test_mixed_numeric_equality_and_membership;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,7 +23,7 @@ from typing import Any
 
 from . import ops as _ops_module
 from ._api_types import MettaName
-from .atoms import Expr, Gnd, Sym
+from .atoms import Expr, Gnd, S, Sym, expr
 
 __all__ = ["NAMES", "install", "pythonic"]
 
@@ -150,7 +156,6 @@ def install(runtime) -> None:
             runtime,
             fn,
             name=MettaName(name),
-            typed=False,
-            pass_atoms=True,
+            declarations=[expr(S.arguments, S[name], S.atoms)],
             arities=arities,
         )

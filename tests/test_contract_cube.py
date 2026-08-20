@@ -1,8 +1,12 @@
-"""Purpose: the dogfood gate. register_op's whole parameter space, enumerated
-exhaustively, and for every point the clause compiled FROM the contract atoms
-must be a variant of the clause the builders produce from the point's
-parameters directly. If a parameter cannot be expressed as atoms, this is
-where it fails, naming the point.
+"""Purpose: the dogfood gate. register_op's whole declaration space,
+enumerated exhaustively, and for every point the clause compiled FROM the
+contract atoms must be a variant of the clause builder's expected body. If a
+callable policy cannot be expressed as atoms, this fails and names the point.
+Guarantees:
+  - every valid callable declaration combination compiles the expected clause
+    and invalid raw-Atom and immutable-raw-generator combinations are absent
+    [tested: test_every_cube_point_compiles_the_expected_clause;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -12,6 +16,8 @@ Open Obligations:
 import itertools
 
 import pytest
+
+from petta import parse
 
 CHECKER = """
 cube_check(Name0, Arity, Kind0, Verdict) :-
@@ -65,14 +71,11 @@ def _inverse(result):
 def _points():
     """Every valid point of the parameter cube, exhaustively.
 
-    Axes: generator-or-plain (kind many/det), raw, typed, pass_atoms, pure,
-    inverse, and the arity shape. Invalid combinations are excluded by the
-    registration surface itself and listed here so the exclusion is visible
-    rather than silent: typed=True needs annotations (the untyped functions
-    pair with typed=False), and pass_atoms with raw=True is meaningless
-    because the raw path never decodes, and pure with a raw generator is
-    refused by the surface itself ("a raw generator's answers cross one at
-    a time and are never seen whole").
+    Axes: generator-or-plain, raw-or-encoded op kind, annotated-or-unannotated
+    signature, atom-or-value argument declaration, immutable-or-undeclared
+    effect, inverse, and the arity shape. Invalid combinations are excluded by
+    the registration surface itself: a raw transport never decodes atoms, and
+    an immutable raw generator cannot have all its answers observed whole.
     """
     for many, raw, typed, pass_atoms, pure, inverse in itertools.product(
         (False, True), repeat=6
@@ -93,20 +96,24 @@ def _points():
             (False, True): "raw_det",
             (True, True): "raw_many",
         }[(many, raw)]
-        yield fn, kind, {
-            "typed": typed,
-            "raw": raw,
-            "pass_atoms": pass_atoms,
-            "pure": pure,
-            "inverse": _inverse if inverse else None,
-        }
+        yield fn, kind, raw, pass_atoms, pure, inverse
 
 
 def test_every_cube_point_compiles_the_expected_clause(cube):
     points = list(_points())
     assert len(points) == 44  # 2^6 minus 16 raw+pass_atoms minus 4 pure raw generators
-    for index, (fn, kind, kwargs) in enumerate(points):
+    for index, (fn, kind, raw, pass_atoms, pure, inverse) in enumerate(points):
         name = f"cube-{index}"
+        declarations = []
+        if pass_atoms:
+            declarations.append(parse(f"(arguments {name} atoms)"))
+        if pure:
+            declarations.append(parse(f"(effect {name} immutable)"))
+        kwargs = {
+            "transport": "raw" if raw else "encoded",
+            "declarations": declarations,
+            "inverse": _inverse if inverse else None,
+        }
         cube.register_op(fn, name=name, **kwargs)
         try:
             verdict = cube.one(f'(cube_check "{name}" 1 "{kind}")')
@@ -119,7 +126,7 @@ def test_multi_arity_compiles_every_declared_clause(cube):
     def spread(*args):
         return len(args)
 
-    cube.register_op(spread, name="cube-multi", typed=False, arities=[1, 2, 3])
+    cube.register_op(spread, name="cube-multi", arities=[1, 2, 3])
     try:
         for arity in (1, 2, 3):
             verdict = cube.one(f'(cube_check "cube-multi" {arity} "det")')
@@ -132,7 +139,7 @@ def test_the_lane_can_fail(cube):
     # CalDar's law: a lane that cannot fail is a defect. The planted
     # mismatch compares a det registration against the many builder and
     # must NOT answer match.
-    cube.register_op(_plain_untyped, name="cube-planted", typed=False)
+    cube.register_op(_plain_untyped, name="cube-planted")
     try:
         verdict = cube.one('(cube_check "cube-planted" 1 "many")')
         assert str(verdict) != "match"

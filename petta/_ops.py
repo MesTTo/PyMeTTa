@@ -21,6 +21,11 @@ Guarantees:
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
+  - Atom annotations select syntax-level delivery, while an `(arguments ...
+    atoms)` seam declaration selects Atom wrappers after ordinary evaluation
+    without a pass_atoms boolean [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -44,6 +49,8 @@ from __future__ import annotations
 
 import inspect
 import threading
+import types
+import typing
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
@@ -80,9 +87,10 @@ class Operation:
     fn: Callable[..., Any]
     kind: str  # det | many | raw_det | raw_many
     arity: int
-    pass_atoms: bool  # give the callable atoms rather than decoded values
+    pass_atoms: bool = False  # derived from (arguments name atoms)
     space: SpaceName | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
+    catalog: tuple = ()  # policy atoms owned in &petta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     pure: bool = False  # no effect a cache could hide
@@ -95,15 +103,24 @@ REGISTRY: dict[str, Operation] = {}
 
 def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:
     atom = atom_from_wire(wire)
-    if pass_atoms:
-        return atom
-    if isinstance(annotation, type) and issubclass(annotation, Atom):
+    if pass_atoms or _receives_atom(annotation):
         return atom
     if annotation is not Any and annotation is not inspect.Parameter.empty:
         return build(atom, annotation)
     # Grounded values unwrap to Python; symbols, variables and expressions
     # stay atoms, which is the structure an operation may want to inspect.
     return decode(atom) if isinstance(atom, Gnd) else atom
+
+
+def _receives_atom(annotation: Any) -> bool:
+    """Whether an annotation asks for syntax rather than an evaluated value."""
+    while typing.get_origin(annotation) is typing.Annotated:
+        annotation = typing.get_args(annotation)[0]
+    origin = typing.get_origin(annotation)
+    if origin in (typing.Union, types.UnionType):
+        members = [member for member in typing.get_args(annotation) if member is not type(None)]
+        return bool(members) and all(_receives_atom(member) for member in members)
+    return isinstance(annotation, type) and issubclass(annotation, Atom)
 
 
 def _encode_result(value: Any, annotation: Any = Any) -> list:
@@ -246,7 +263,13 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             raise
         if mode == "keep":
             call = Expr(
-                [Sym(name), *(encode(_decode_arg(a, True)) for a in tagged_args)]
+                [
+                    Sym(name),
+                    *(
+                        encode(_decode_arg(a, True, Atom))
+                        for a in tagged_args
+                    ),
+                ]
             )
             reason = f"{type(error).__name__}: {error}"
             yield Expr([Sym("Error"), call, Gnd(reason)]).to_wire()
@@ -297,12 +320,12 @@ def _refuse_raw_answer(value: Any) -> Any:
     """A raw operation is the opaque fast path and its results skip the wire,
     so an Answer here would cross as an inert handle and its bindings would
     silently never bind. Refusing is the honest reading; bindings need the
-    wire, so the operation drops raw=True."""
+    wire, so the operation selects transport="encoded"."""
     if isinstance(value, Answer):
         raise PettaError(
             "a raw operation answered petta.Answer; raw results skip the "
-            "wire the bindings cross on, so register the operation without "
-            "raw=True to answer bindings"
+            "wire the bindings cross on, so register the operation with "
+            'transport="encoded" to answer bindings'
         )
     return value
 

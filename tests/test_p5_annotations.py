@@ -3,7 +3,7 @@ Guarantees:
   - Annotated values of one base type retain distinct matchable metadata
     claims without changing their arrow slots [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+    commit=WORKTREE]
   - container annotation acceptance selects its own callable's declarations
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
@@ -226,7 +226,7 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
     def current_space(engine: Annotated[MeTTa, "engine"]):
         return engine
 
-    metta.register_op(current_space, name="annotated-engine", typed=False)
+    metta.register_op(current_space, name="annotated-engine")
     ((answer,),) = metta.run("!(annotated-engine)")
     assert isinstance(answer, Gnd)
     assert isinstance(answer.value, MeTTa)

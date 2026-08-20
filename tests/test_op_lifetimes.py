@@ -3,6 +3,10 @@ A nondeterministic operation answers through a generator, and a generator is
 a one-shot stream that can hold a file, a database cursor or a lock open
 between yields. This file pins who closes it and what happens when closing
 fails.
+Guarantees:
+  - unannotated generator operations need no typed declaration switch
+    [tested: test_a_nondeterministic_ops_generator_releases_what_it_holds;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -45,7 +49,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
     released = []
     reading = unique("rows")
 
-    @metta.register_op(name=reading, typed=False)
+    @metta.register_op(name=reading)
     def rows():
         handle = source.open(encoding="utf-8")
         try:
@@ -65,7 +69,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
 
     failing = unique("leaky")
 
-    @metta.register_op(name=failing, typed=False)
+    @metta.register_op(name=failing)
     def leaky():
         try:
             yield from range(10**6)

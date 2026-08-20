@@ -20,6 +20,9 @@ Guarantees:
   - eval returns a non-reducible term directly and exposes no residual flag
     [tested: test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+  - strict and raw execution choices use scopes and named transport rather
+    than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
+    test_eval_using_carries_identity; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -197,7 +200,8 @@ def test_run_status_reports_each_directive(m):
 def test_strict_refuses_only_what_did_not_reduce(m):
     m.run("(= (d $x) (* $x 2))")
     with pytest.raises(StrictError) as failure:
-        m.run("!(d 4)\n!(fct 5)", strict=True)
+        with m.strict():
+            m.run("!(d 4)\n!(fct 5)")
     assert failure.value.directive == 2
     assert str(failure.value.term) == "(fct 5)"
     assert "not reducible" in str(failure.value)
@@ -215,7 +219,8 @@ def test_strict_refuses_only_what_did_not_reduce(m):
 def test_strict_accepts_a_pruned_branch_and_every_reduction(m, source):
     # Each of these once raised, because an empty answer and an unevaluated
     # term were read as the same thing.
-    m.run(source, strict=True)
+    with m.strict():
+        m.run(source)
 
 
 def test_strict_is_opt_in(m):
@@ -801,7 +806,7 @@ def test_eval_using_carries_identity(m):
             self.n = n
 
     blob = Blob(7)
-    m.register_op(lambda o: o.n, name="blob-n", raw=True, typed=False)
+    m.register_op(lambda o: o.n, name="blob-n", transport="raw")
     m.run("(= (describe $o) (Seen (blob-n $o)))")
     try:
         assert str(m.one("(describe o)", using={"o": blob})) == "(Seen 7)"

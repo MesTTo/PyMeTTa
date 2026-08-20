@@ -4,6 +4,9 @@ its matching inside (unify ...) with no registration; a scored matcher is
 an ordinary operation answering candidates with the degree as each
 answer's annotation. Fuzzy, regex, semantic: all outside the library,
 a few lines each, composing with structural match through evaluation.
+Guarantees:
+  - the unannotated ranked operation makes no synthetic type claim [tested:
+    test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -69,7 +72,7 @@ def fuzzy(query, candidate=None):
         degree = difflib.SequenceMatcher(None, str(query), word).ratio()
         yield Answer(value=word, k=round(degree, 6))
 
-m.register_op(fuzzy, name="fuzmatch", typed=False)
+m.register_op(fuzzy, name="fuzmatch")
 m.declare_annotations("fuzmatch", "ranked")
 (best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
 check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')

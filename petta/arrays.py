@@ -19,7 +19,11 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=b81a5a5eba27c16f3cdd9d264db442dcf8024db9]
+     commit=WORKTREE]
+  - array transport and Atom-delivery choices use the same declaration
+    surface as every registered operation [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -35,8 +39,7 @@ import importlib
 import itertools
 import operator
 import threading
-from collections.abc import Iterator
-from typing import Any, Final, NewType
+from typing import Any, Final, Literal, NewType
 
 from . import integrate as _integrate
 from ._ops import REGISTRY
@@ -246,7 +249,13 @@ def install(m, default: Any = None) -> list[str]:
 
     m.register_prolog(_BROADCAST_SHAPE_SOURCE)
 
-    def op(fn, *, name: str, raw: bool = True, **kw):
+    def op(
+        fn,
+        *,
+        name: str,
+        transport: Literal["encoded", "raw"] = "raw",
+        **kw,
+    ):
         if (
             m.is_function(name)
             and name not in _known_ops()
@@ -256,7 +265,7 @@ def install(m, default: Any = None) -> list[str]:
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
             )
-        m.register_op(fn, name=name, raw=raw, typed=True, **kw)
+        m.register_op(fn, name=name, transport=transport, **kw)
         registered.append(name)
         return fn
 
@@ -265,7 +274,7 @@ def install(m, default: Any = None) -> list[str]:
         *,
         name: str,
         arities: list[int] | None = None,
-        raw: bool = True,
+        transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):
         """A constructor registers per backend as name--library, and THIS
@@ -273,7 +282,24 @@ def install(m, default: Any = None) -> list[str]:
         the default is the space's, never the process's. Installing the
         space again with another default replaces its aliases."""
         namespaced = f"{name}--{library}"
-        op(fn, name=namespaced, raw=raw, arities=arities, **kw)
+        declarations = [
+            expr(declaration.head, S[namespaced], *declaration.args[1:])
+            if (
+                isinstance(declaration, Expr)
+                and declaration.args
+                and declaration.args[0] == S[name]
+            )
+            else declaration
+            for declaration in kw.pop("declarations", ())
+        ]
+        op(
+            fn,
+            name=namespaced,
+            transport=transport,
+            arities=arities,
+            declarations=declarations,
+            **kw,
+        )
         key = (m.space_name, name)
         previous = _SPACE_CONSTRUCTORS.get(key)
         if previous is not None:
@@ -320,8 +346,8 @@ def install(m, default: Any = None) -> list[str]:
     constructor(
         make_tensor,
         name="tensor",
-        raw=False,
-        pass_atoms=True,
+        transport="encoded",
+        declarations=[expr(S.arguments, S.tensor, S.atoms)],
     )
 
     dims = [1, 2, 3, 4]
@@ -421,8 +447,8 @@ def install(m, default: Any = None) -> list[str]:
             val(namespace_of(parts[0]).stack(parts, axis=int(dimension)))
         )
 
-    op(cat_op, name="cat", raw=False, pass_atoms=True)
-    op(stack_op, name="stack", raw=False, pass_atoms=True)
+    op(cat_op, name="cat", transport="encoded")
+    op(stack_op, name="stack", transport="encoded")
 
     # ------------------------------------------------------------- reductions
 
@@ -491,13 +517,13 @@ def install(m, default: Any = None) -> list[str]:
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
         return expr(*listed) if isinstance(listed, list) else listed
 
-    op(tolist, name="t-tolist", raw=False)
+    op(tolist, name="t-tolist", transport="encoded")
 
     def shape(a: DLTensor) -> Expr:
         data = decode(a) if isinstance(a, Atom) else a
         return expr(*[int(dimension) for dimension in data.shape])
 
-    op(shape, name="t-shape", raw=False)
+    op(shape, name="t-shape", transport="encoded")
 
     def dtype(a: DLTensor) -> str:
         return str(a.dtype)
@@ -581,7 +607,7 @@ class EmbeddingStore:
         self._index = None
         self._width: int | None = None
 
-        def knn(query, k) -> Iterator[Any]:
+        def knn(query, k):
             yield from self._search(decode(query), decode(k))
 
         def embed(key):
@@ -594,9 +620,15 @@ class EmbeddingStore:
         serial = next(_STORE_SERIAL)
         internal_knn = f"{name}--store-{serial}-knn"
         internal_embed = f"{name}--store-{serial}-embed"
-        m.register_op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
         m.register_op(
-            embed, name=internal_embed, raw=False, typed=False, pass_atoms=True
+            knn,
+            name=internal_knn,
+            declarations=[expr(S.arguments, S[internal_knn], S.atoms)],
+        )
+        m.register_op(
+            embed,
+            name=internal_embed,
+            declarations=[expr(S.arguments, S[internal_embed], S.atoms)],
         )
 
         key = (m.space_name, name)

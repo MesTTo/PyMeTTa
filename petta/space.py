@@ -38,7 +38,7 @@ Guarantees:
   - dropping a space releases its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
   - eval_status and run_status separate a pruned branch from an unevaluated
-    term, and strict= refuses only the latter [tested
+    term, and a strict scope refuses only the latter [tested
     test_eval_status_reports_the_four_outcomes,
     test_strict_accepts_a_pruned_branch_and_every_reduction]
   - eval has one answer shape: a non-reducible result is its unreduced term,
@@ -49,6 +49,10 @@ Guarantees:
     one variable, while cast remains type admission [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
     commit=2bf66c123858feaeaf9909729db3e8700aaca546]
+  - execution policies live in with-blocks and capture never changes run or
+    eval return shapes [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:
@@ -83,7 +87,7 @@ import functools
 import hashlib
 import os
 from collections import abc as _abc
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -113,12 +117,17 @@ from ._space_definitions import (
 )
 from ._space_diagnostics import derivations, explain_no_match
 from ._space_execution import (
+    CapturedOutput,
+    ScopedExecution,
+    capture_output,
     evaluate,
     evaluate_status,
+    execution_scope,
     profile_extension,
     profile_source,
     run_source,
     run_status,
+    strict_enabled,
     value_one,
 )
 from ._space_objects import (
@@ -470,7 +479,6 @@ class MeTTa:
 
     # ----------------------------------------------------------------- running
 
-    @overload
     def run(
         self,
         source: str,
@@ -478,49 +486,7 @@ class MeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
-        capture: Literal[False] = False,
-        atomic: bool = False,
-        speculative: bool = False,
-    ) -> list[list[Atom]]: ...
-
-    @overload
-    def run(
-        self,
-        source: str,
-        using: dict[str, Any] | None = None,
-        *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: Literal[True],
-        atomic: bool = False,
-        speculative: bool = False,
-    ) -> tuple[list[list[Atom]], str]: ...
-
-    @overload
-    def run(
-        self,
-        source: str,
-        using: dict[str, Any] | None = None,
-        *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: bool,
-        atomic: bool = False,
-        speculative: bool = False,
-    ) -> list[list[Atom]] | tuple[list[list[Atom]], str]: ...
-
-    def run(
-        self,
-        source: str,
-        using: dict[str, Any] | None = None,
-        *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: bool = False,
-        atomic: bool = False,
-        speculative: bool = False,
-        strict: bool = False,
-    ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
+    ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
 
         The pipeline is the engine's own reader, compiler and evaluator, so
@@ -539,20 +505,17 @@ class MeTTa:
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
         or InferenceLimitError when the bound is hit, and whatever the
-        source completed before the stop, writes included, stands. With
-        `capture=True` the return value is (groups, text), text being
-        everything the source printed, println! included.
+        source completed before the stop, writes included, stands.
 
-        `atomic=True` runs the whole source inside the engine's own
-        transaction/1: every write, facts and equations alike, commits
-        whole, or rolls back whole when a directive throws; the inline
-        (transaction ...) form does the same for a scope inside a
-        program. `speculative=True` is the what-if twin through
-        snapshot/1: the answers return and every write is discarded.
-        Both cover engine state; a Python operation's side effects, and
-        subscription callbacks already fired, stay where they happened.
+        `with m.capture() as output` collects printed text in `output.text`
+        without changing this method's return shape. `with m.atomic()`,
+        `with m.speculative()`, and `with m.strict()` scope execution policy
+        without boolean combinations on each call. Atomic commits or rolls
+        back each complete source; speculative answers and discards its
+        writes. Both cover engine state; Python side effects and subscription
+        callbacks already fired stay where they happened.
 
-        `strict=True` requires every directive to reduce, raising
+        A strict scope requires every directive to reduce, raising
         StrictError on one the engine hands back unevaluated. It is opt-in,
         because an unreduced term is an ordinary MeTTa value: a bare data
         constructor is refused under strict for the same reason a bare
@@ -561,7 +524,7 @@ class MeTTa:
         eval_status() reports the same paths without refusing anything.
         """
         _require_source(source, "run")
-        if strict:
+        if strict_enabled():
             self._refuse_unreduced(
                 run_status(self._rt, self._space, source, timeout, inferences)
             )
@@ -572,9 +535,6 @@ class MeTTa:
             using,
             timeout=timeout,
             inferences=inferences,
-            capture=capture,
-            atomic=atomic,
-            speculative=speculative,
         )
 
     def _refuse_unreduced(
@@ -1196,6 +1156,28 @@ class MeTTa:
         for whoever wants per-call control."""
         return ScopedLimits(timeout, inferences)
 
+    def capture(self) -> CapturedOutput:
+        """Collect printed engine text without changing answer shapes.
+
+            with m.capture() as output:
+                groups = m.run("!(println! hello) !(+ 1 2)")
+            assert groups == [[3]]
+            assert output.text == "hello\\n"
+        """
+        return capture_output()
+
+    def atomic(self) -> ScopedExecution:
+        """Make each run in the block one committing engine transaction."""
+        return execution_scope("atomic")
+
+    def speculative(self) -> ScopedExecution:
+        """Run each source against a snapshot and discard its writes."""
+        return execution_scope("speculative")
+
+    def strict(self) -> ScopedExecution:
+        """Refuse any run directive the engine returns unreduced."""
+        return execution_scope("strict")
+
     def batch(self) -> _Batch:
         """Collect this space's add() calls and cross once at exit:
 
@@ -1255,7 +1237,6 @@ class MeTTa:
 
     # -------------------------------------------------------------- evaluation
 
-    @overload
     def eval(
         self,
         target: Any,
@@ -1263,40 +1244,7 @@ class MeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
-        capture: Literal[False] = False,
-    ) -> list[Atom | Undefined]: ...
-
-    @overload
-    def eval(
-        self,
-        target: Any,
-        *,
-        using: dict[str, Any] | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: Literal[True],
-    ) -> tuple[list[Atom | Undefined], str]: ...
-
-    @overload
-    def eval(
-        self,
-        target: Any,
-        *,
-        using: dict[str, Any] | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: bool,
-    ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]: ...
-
-    def eval(
-        self,
-        target: Any,
-        *,
-        using: dict[str, Any] | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        capture: bool = False,
-    ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
+    ) -> list[Atom | Undefined]:
         """Evaluate a term, returning every answer.
 
         This is what !(...) runs, minus the printing: the engine's
@@ -1320,9 +1268,8 @@ class MeTTa:
         of source text costs no change of spelling.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
-        raising TimeLimitError or InferenceLimitError when hit. With
-        `capture=True` the return value is (answers, text), text being
-        everything the evaluation printed.
+        raising TimeLimitError or InferenceLimitError when hit. A surrounding
+        `capture()` scope collects printed text without changing the list.
         """
         return evaluate(
             self._rt,
@@ -1330,7 +1277,6 @@ class MeTTa:
             target,
             timeout,
             inferences,
-            capture=capture,
             using=using,
         )
 
@@ -1377,18 +1323,12 @@ class MeTTa:
         if not targets:
             return []
         branches = Expr([_to_atom(target) for target in targets])
-        # capture=False, so evaluate answers the answer list rather than the
-        # (answers, text) pair its capturing overload returns.
-        return cast(
-            "list[Atom | Undefined]",
-            evaluate(
-                self._rt,
-                self._space,
-                Expr([Sym("hyperpose"), branches]),
-                timeout,
-                None,
-                capture=False,
-            ),
+        return evaluate(
+            self._rt,
+            self._space,
+            Expr([Sym("hyperpose"), branches]),
+            timeout,
+            None,
         )
 
     def hyperpose(
@@ -1560,12 +1500,10 @@ class MeTTa:
         /,
         *,
         name: str | None = ...,
-        typed: bool = ...,
-        raw: bool = ...,
-        pass_atoms: bool = ...,
+        transport: Literal["encoded", "raw"] = ...,
+        declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
         inverse: Callable | None = ...,
-        pure: bool = ...,
     ) -> Callable[_P, _R]: ...
 
     @overload
@@ -1573,12 +1511,10 @@ class MeTTa:
         self,
         *,
         name: str | None = ...,
-        typed: bool = ...,
-        raw: bool = ...,
-        pass_atoms: bool = ...,
+        transport: Literal["encoded", "raw"] = ...,
+        declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
         inverse: Callable | None = ...,
-        pure: bool = ...,
     ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
     def register_op(
@@ -1586,12 +1522,10 @@ class MeTTa:
         fn: Callable | None = None,
         *,
         name: str | None = None,
-        typed: bool = True,
-        raw: bool = False,
-        pass_atoms: bool = False,
+        transport: Literal["encoded", "raw"] = "encoded",
+        declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
         inverse: Callable | None = None,
-        pure: bool = False,
     ) -> Any:
         """Register a Python callable as a MeTTa function, decorator-style.
 
@@ -1604,25 +1538,12 @@ class MeTTa:
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
 
-        Annotations become a (: ...) declaration unless typed=False, and the
-        three combinations answer differently, which is worth knowing because
-        the middle one reads like nothing happened:
-
-            def op(x: int) -> int    typed=True   (: op (-> Number Number))
-            def op(x)                typed=True   (: op (-> %Undefined% %Undefined%))
-            def op(x)                typed=False  no declaration at all
-
-        The unannotated typed=True case is not a no-op. It declares the ARROW
-        SHAPE, so get-type answers that op is a one-argument function while
-        constraining neither slot, and typed=False leaves get-type answering
-        %Undefined%. It also costs nothing per call: a %Undefined% slot emits
-        no check.
-
-        A raw operation skips the wire encoding both ways, which suits tensor
-        and number work; symbols reach it as plain strings, so keep raw off
-        when the symbol-string distinction matters. pass_atoms hands the
-        callable Atom objects instead of decoded Python values.
-        unregister_op(name) removes every registered arity.
+        Annotations become ordinary `(: ...)` declarations. An unannotated
+        callable makes no type claim. `transport="raw"` skips wire encoding
+        both ways and is reflected as raw_det or raw_many in `(op ...)`;
+        symbols then reach Python as strings, so encoded transport is the
+        fidelity-preserving default. unregister_op(name) removes every
+        registered arity and every declaration the registration owns.
 
         An `Atom` parameter changes evaluation order. The declaration tells
         the compiler to pass the argument as written, before it reduces:
@@ -1638,13 +1559,26 @@ class MeTTa:
         Use `Atom` only when the operation deliberately implements syntax or
         a control form; it is not just a static hint.
 
+        When evaluation order stays ordinary but the callable needs the
+        resulting Atom wrappers, declare that policy as data:
+
+            m.register_op(
+                inspect_atom,
+                name="inspect-atom",
+                declarations=[parse("(arguments inspect-atom atoms)")],
+            )
+
+        The declaration is matchable in &petta and is retired with the
+        operation. Raw transport refuses this declaration because it bypasses
+        the atom codec entirely.
+
         The cost ladder, measured on the maintained box in inferences per
-        call, is why the flags exist and which one to reach for:
+        call, explains the transport choice:
 
             native MeTTa function            9.11   the floor
-            raw=True                        10.11   opaque handles, near-native
-            typed=False                     17.11   encoded values
-            typed=True, literal argument    17.11   the check hoists to compile
+            transport="raw"                10.11   opaque handles, near-native
+            encoded                        17.11   encoded values
+            encoded, typed literal         17.11   the check hoists to compile
             py-call, dotted                 22.11   the ad-hoc escape hatch
 
         The ergonomic default (encoded, typed) costs about 1.7x raw on the
@@ -1678,10 +1612,15 @@ class MeTTa:
                 for row in engine.query(expr(S.link, term, V.x)):
                     yield row[0]
 
-        pure=True says the operation has no effect a cache could hide, which
-        is what lets it appear in a `(tabled ...)` or memoized body:
+        Purity is a seam declaration rather than a Python boolean. Supply the
+        ordinary effect atom to let the operation appear in a `(tabled ...)`
+        or memoized body:
 
-            m.register_op(len, name="size", pure=True)
+            m.register_op(
+                len,
+                name="size",
+                declarations=[parse("(effect size immutable)")],
+            )
             # (= (count-of $x) (size $x))  is cacheable
 
         It is an allow-list on purpose. An operation that does not say so is
@@ -1694,13 +1633,11 @@ class MeTTa:
                 self._rt,
                 f,
                 name=name,
-                typed=typed,
-                raw=raw,
-                pass_atoms=pass_atoms,
+                transport=transport,
+                declarations=declarations,
                 space=self._space,
                 arities=arities,
                 inverse=inverse,
-                pure=pure,
             )
 
         return apply(fn) if fn is not None else apply

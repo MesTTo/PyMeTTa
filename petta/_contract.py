@@ -19,6 +19,10 @@ Guarantees:
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - callable argument delivery is a typed `(arguments name atoms|values)`
+    policy in &petta [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -62,6 +66,9 @@ _FREE_VARIABLE_TYPE = Expr(
     ]
 )
 _EFFECT_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Effect"), Sym("EffectDecl")])
+_ARGUMENTS_TYPE = Expr(
+    [Sym("->"), Sym("Symbol"), Sym("ArgumentDelivery"), Sym("ArgumentsDecl")]
+)
 
 ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "Declaration", "Type"),
@@ -80,6 +87,12 @@ ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "free-variable", _FREE_VARIABLE_TYPE),
     (_COLON, "EffectDecl", "Type"),
     (_SUB, "EffectDecl", "Declaration"),
+    (_COLON, "ArgumentsDecl", "Type"),
+    (_SUB, "ArgumentsDecl", "Declaration"),
+    (_COLON, "ArgumentDelivery", "Type"),
+    (_COLON, "atoms", "ArgumentDelivery"),
+    (_COLON, "values", "ArgumentDelivery"),
+    (_COLON, "arguments", _ARGUMENTS_TYPE),
     (_COLON, "ImageDecl", "Type"),
     (_SUB, "ImageDecl", "Declaration"),
     (_COLON, "HandlesDecl", "Type"),

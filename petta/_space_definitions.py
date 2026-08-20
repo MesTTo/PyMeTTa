@@ -12,6 +12,10 @@ Guarantees:
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - generated class-method operations declare their Atom delivery policy in
+    &petta rather than passing a boolean registration flag [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -42,7 +46,7 @@ from ._define_twins import (
 )
 from ._documentation import documentation_atom
 from ._ops import REGISTRY
-from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
+from .atoms import Atom, Expr, Gnd, S, Sym, Var, alpha_eq, encode, expr
 from .define import (
     Compiled,
     Defined,
@@ -605,11 +609,13 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         parameters = list(_inspect.signature(fn).parameters.values())[1:]
         required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
         arities = list(range(1 + required, len(parameters) + 2))
+        operation_name = f"{type_name}-{method_name}"
         space.register_op(
             wrapper_for(fn),
-            name=f"{type_name}-{method_name}",
-            typed=False,
-            pass_atoms=True,
+            name=operation_name,
+            declarations=[
+                expr(S.arguments, S[operation_name], S.atoms)
+            ],
             arities=arities,
         )
 

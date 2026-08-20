@@ -22,6 +22,10 @@ Guarantees:
     dependency cycles, and installs acyclic entries in topological order
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+  - module and reflection helpers express transport and Atom delivery without
+    boolean registration pairs [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=WORKTREE]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -46,7 +50,7 @@ import threading
 from collections.abc import Callable, Iterable
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from . import convert
 from ._object_fields import field_names as _field_names
@@ -326,19 +330,17 @@ def _register_module_callable(
     target: Callable,
     name: str,
     *,
-    raw: bool,
-    typed: bool,
+    transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
         m.register_op(
             _spread(target),
             name=name,
-            raw=raw,
-            typed=False,
+            transport=transport,
             arities=[0, 1, 2, 3, 4],
         )
         return
-    m.register_op(target, name=name, raw=raw, typed=typed)
+    m.register_op(target, name=name, transport=transport)
 
 
 def module_ops(
@@ -348,8 +350,7 @@ def module_ops(
     *,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
-    raw: bool = True,
-    typed: bool = False,
+    transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.
 
@@ -366,7 +367,7 @@ def module_ops(
     for pyname in names:
         target = _require_callable(module, pyname)
         metta_name = _operation_name(pyname, prefix, rename)
-        _register_module_callable(m, target, metta_name, raw=raw, typed=typed)
+        _register_module_callable(m, target, metta_name, transport=transport)
         registered.append(metta_name)
     return registered
 
@@ -427,7 +428,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     def call(*xs):
         return target(*xs)
 
-    m.register_op(call, name=name, raw=True, typed=False, arities=arities)
+    m.register_op(call, name=name, transport="raw", arities=arities)
     return target
 
 
@@ -579,6 +580,14 @@ def install_reflection_ops(m) -> list[str]:
         for attr in _field_names(target):
             yield expr(Sym(attr), val(getattr(target, attr)))
 
-    m.register_op(py_attr, name="py-attr", raw=False, typed=False, pass_atoms=True)
-    m.register_op(py_field, name="py-field", raw=False, typed=False, pass_atoms=True)
+    m.register_op(
+        py_attr,
+        name="py-attr",
+        declarations=[expr(S.arguments, S["py-attr"], S.atoms)],
+    )
+    m.register_op(
+        py_field,
+        name="py-field",
+        declarations=[expr(S.arguments, S["py-field"], S.atoms)],
+    )
     return ["py-attr", "py-field"]
