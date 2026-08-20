@@ -110,7 +110,7 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
     if isinstance(mine, bool) or isinstance(theirs, bool):
-        return type(mine) is bool and type(theirs) is bool and mine == theirs
+        return type(mine) is type(theirs) is bool and mine == theirs
     if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
         return mine == theirs
     if type(mine) is not type(theirs):
