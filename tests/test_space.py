@@ -15,6 +15,8 @@ Guarantees:
   - copy() answers a space that holds what its source holds and answers what
     its source answers, generated specializations included [tested
     test_a_copy_reproduces_the_space_it_copied]
+  - run() preserves a runnable variable's source spelling through collection
+    and the public wire [tested test_variable_names_survive_to_the_printer]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -530,6 +532,24 @@ def test_a_bare_runnable_atom_answers_a_group(m):
     variable_groups = m.run("! $free")
     assert len(variable_groups) == 1 and len(variable_groups[0]) == 1
     assert isinstance(variable_groups[0][0], Var)
+
+
+def test_variable_names_survive_to_the_printer(m):
+    free, repeated, first_epoch, second_epoch = m.run(
+        "! $free\n"
+        "! (pair $left $left)\n"
+        "! (sealed () (pair $x $x))\n"
+        "! (sealed ($x) (triple $x $y $y))"
+    )
+
+    assert free == [Var("free")]
+    assert repeated == [expr(S.pair, Var("left"), Var("left"))]
+    assert first_epoch == [expr(S.pair, Var("x#0"), Var("x#0"))]
+    assert second_epoch == [
+        expr(S.triple, Var("x"), Var("y#1"), Var("y#1"))
+    ]
+    assert str(free[0]) == "$free"
+    assert str(repeated[0]) == "(pair $left $left)"
 
 
 def test_remove_reports_presence_and_subtracts_one_duplicate(m):

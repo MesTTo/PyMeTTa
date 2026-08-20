@@ -4746,7 +4746,8 @@ metta_export(Source) :-
 declaring_file(File) :-
     ( prolog_load_context(source, Source) -> File = Source ; File = 'petta_inline' ).
 
-record_metta_export(File, parsed(_, Text, Term)) :-
+record_metta_export(File, Parsed) :-
+    parsed_form_parts(Parsed, _, Text, Term),
     (   Term = [':', Name, Type], atom(Name), is_list(Type), Type = [->|_]
     ->  assertz(pending_metta_export(File, Name, Type))
     ;   Term = [export, Name, Arity], atom(Name), integer(Arity)
@@ -5130,7 +5131,8 @@ declaration_of(_, []).
 %The two forms that CLAIM a name. volatility and determinism state a property
 %of a name claimed elsewhere, so they are not a claim to refuse.
 claimed_export_name(Forms, Name) :-
-    member(parsed(_, _, Term), Forms),
+    member(Parsed, Forms),
+    parsed_form_parts(Parsed, _, _, Term),
     ( Term = [':', Name, [->|_]] ; Term = [export, Name, Arity], integer(Arity) ),
     atom(Name).
 
@@ -5334,7 +5336,8 @@ include(Module, Answer) :-
         resolve_metta_import_path(Module, Path),
         load_metta_source_groups(Path, Space, Groups),
         last(Groups, Last),
-        member(Answer, Last)
+        member(Carried, Last),
+        metta_answer_term(Carried, Answer)
     ).
 
 metta_include_refusal(Module, "include: the running context is not a module") :-
@@ -6230,7 +6233,8 @@ load_engine_prelude_forms :-
              length(W, N),
              Arity is N + 1,
              register_arity(FAtom, Arity) )),
-    forall(member(parsed(Kind, Src, Term), Forms),
+    forall(( member(Form, Forms),
+             parsed_form_parts(Form, Kind, Src, Term) ),
            (   Term = [=, [Skip|_], _],
                memberchk(Skip, OwnedBefore)
            ->  true

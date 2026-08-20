@@ -575,6 +575,10 @@ ext_point_kind(metta_host_run_source_status/3, host_service).
 ext_point_kind(metta_host_load_file/3, host_service).
 ext_point_kind(metta_host_read_forms/2, host_service).
 ext_point_kind(metta_reducible_head/2, host_service).
+%Grouped answers carry a reader-name state. Host codecs flatten that state for
+%their variable tag and use the same engine writer for host text.
+ext_point_kind(petta_name_pairs/2, host_service).
+ext_point_kind(swrite_with_names/3, host_service).
 %The persistence surface moved engine-side the same day: the fast cache's
 %save and integrity-checked load, the space digest, and the host-value
 %substitution walk the using-runs share. metta_add_atom/3 and import_when/4

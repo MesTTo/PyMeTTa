@@ -50,6 +50,10 @@
 %     ordinary symbol character everywhere else, so `bind!`, `!=`, `!42`
 %     and `!$x` are names [tested 2026-08-19: filereader_form_splitter,
 %     filereader_bare_top_level_atoms].
+%   - Runnable answer groups carry each reader Name-Var map inside the
+%     collection template, preserving source variable identity through
+%     findall without attributed variables [tested:
+%     test_variable_names_survive_to_the_printer; commit=WORKTREE].
 %   - A file that loads again REPLACES what it put in that space rather than
 %     adding to it, reaches any other space its change has made stale, and
 %     says what it withdrew [tested 2026-08-19:
@@ -239,17 +243,23 @@ load_metta_source_groups(Filename, Space, Groups) :-
 read_metta_source_groups(Filename, Space, Groups) :-
     read_metta_source(Filename, Source),
     prepare_metta_source(Source, Forms),
-    maplist(process_loader_form(Space), Forms, PerForm),
-    !,
-    runnable_groups(Forms, PerForm, Groups).
+    with_runnable_variable_epochs(
+        ( maplist(process_loader_form(Space), Forms, PerForm),
+          !,
+          runnable_groups(Forms, PerForm, Groups) )).
 
 runnable_groups([], [], []).
 runnable_groups([Form|Forms], [Group|Rest], Groups) :-
-    (   Form = parsed(runnable, _, _)
+    (   Form = parsed(runnable, _, _, _)
     ->  Groups = [Group|More]
     ;   Groups = More
     ),
     runnable_groups(Forms, Rest, More).
+
+%The carrier is internal to grouped execution. Consumers that need the MeTTa
+%term itself use this seam rather than depending on the carrier functor.
+metta_answer_term('$petta_answer'(Term, _), Term) :- !.
+metta_answer_term(Term, Term).
 
 %%%% The host run and load surface %%%%
 %
@@ -301,7 +311,8 @@ metta_host_run_source(Source0, Space, Bindings, Groups) :-
     ;   maplist(metta_host_substitute_form(Bindings), Parsed0, Parsed)
     ),
     prepare_parsed_forms(Parsed),
-    metta_host_process_groups(Parsed, Space, Groups),
+    with_runnable_variable_epochs(
+        metta_host_process_groups(Parsed, Space, Groups)),
     !.
 
 %One walk, processing and grouping together: process_form/3, not /4's
@@ -312,7 +323,7 @@ metta_host_run_source(Source0, Space, Bindings, Groups) :-
 metta_host_process_groups([], _, []).
 metta_host_process_groups([Form|Forms], Space, Groups) :-
     process_form(Space, Form, Results),
-    (   Form = parsed(runnable, _, _)
+    (   Form = parsed(runnable, _, _, _)
     ->  Groups = [Results|More]
     ;   Groups = More
     ),
@@ -320,6 +331,9 @@ metta_host_process_groups([Form|Forms], Space, Groups) :-
 
 metta_host_substitute_form(Bindings, parsed(Kind, N, Term0),
                            parsed(Kind, N, Term)) :- !,
+    metta_host_substitute(Bindings, Term0, Term).
+metta_host_substitute_form(Bindings, parsed(runnable, N, Term0, Names),
+                           parsed(runnable, N, Term, Names)) :- !,
     metta_host_substitute(Bindings, Term0, Term).
 metta_host_substitute_form(Bindings, Term0, Term) :-
     metta_host_substitute(Bindings, Term0, Term).
@@ -350,7 +364,7 @@ metta_host_run_source_status(Source0, Space, Groups) :-
 metta_host_status_groups([], _, _, []).
 metta_host_status_groups([Form|Forms], Space, Module, Groups) :-
     process_form(Space, Form, Answers),
-    (   Form = parsed(runnable, _, Term)
+    (   Form = parsed(runnable, _, Term, _)
     ->  (   metta_reducible_head(Module, Term)
         ->  Status = value
         ;   Status = 'not-reducible'
@@ -398,6 +412,7 @@ metta_host_read_forms(Source0, Pairs) :-
     maplist(metta_host_form_pair, Parsed, Pairs).
 
 metta_host_form_pair(parsed(Kind, Text, _), [Kind, Text]).
+metta_host_form_pair(parsed(Kind, Text, _, _), [Kind, Text]).
 
 %%%% The fast cache and the content digest %%%%
 %
@@ -929,12 +944,16 @@ process_metta_string(S, Results, Space) :-
                process_direct_metta_string(S, Results, Space)).
 process_direct_metta_string(S, Results, Space) :-
     prepare_metta_source(S, ParsedForms),
-    maplist(process_form(Space), ParsedForms, ResultsList), !,
-    append(ResultsList, Results).
+    with_runnable_variable_epochs(
+        ( maplist(process_form(Space), ParsedForms, ResultsList), !,
+          append(ResultsList, Carried),
+          maplist(metta_answer_term, Carried, Results) )).
 process_loader_string(S, Results, Space) :-
     prepare_metta_source(S, ParsedForms),
-    maplist(process_loader_form(Space), ParsedForms, ResultsList), !,
-    append(ResultsList, Results).
+    with_runnable_variable_epochs(
+        ( maplist(process_loader_form(Space), ParsedForms, ResultsList), !,
+          append(ResultsList, Carried),
+          maplist(metta_answer_term, Carried, Results) )).
 
 prepare_metta_source(S, ParsedForms) :-
     parse_metta_source(S, ParsedForms),
@@ -1218,7 +1237,11 @@ uses_as_data_args(F, Args) :- nonvar(Args),
 parse_form(form(S), parsed(T, S, Term)) :- sread(S, Term),
                                            ( Term = [=, [F|_], _], atom(F) -> T=function
                                                                            ; T=expression ).
-parse_form(runnable(S), parsed(runnable, S, Term)) :- sread(S, Term).
+parse_form(runnable(S), parsed(runnable, S, Term, Names)) :-
+    sread_with_names(S, Term, Names).
+
+parsed_form_parts(parsed(Kind, Source, Term), Kind, Source, Term).
+parsed_form_parts(parsed(Kind, Source, Term, _), Kind, Source, Term).
 
 % process_form/3 is the direct-string path used by named Python spaces. File
 % loads use process_form/4 so source clauses compile once while their atoms are
@@ -1236,11 +1259,11 @@ process_form(Space, parsed(expression, _, Term0), []) :-
     %[measured 2026-08-17].
     metta_add_atom(Space, Term, _),
     print_expression_form(Term).
-process_form(Space, parsed(runnable, FormStr, Term), Result) :-
+process_form(Space, parsed(runnable, FormStr, Term, Names), Result) :-
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     space_module(Space, Module),
     with_metta_module(Module,
-                      translate_runnable_expr([collapse, BoundTerm], Goals, Result)),
+                      translate_runnable_expr(BoundTerm, Names, Goals, Result)),
     print_runnable_form(FormStr, Goals),
     call_goals_in(Module, Goals).
 process_form(Space, parsed(function, FormStr, Term), []) :-
@@ -1284,11 +1307,11 @@ process_loader_form(Space, parsed(expression, _, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     print_expression_form(Term).
-process_loader_form(Space, parsed(runnable, FormStr, Term), Result) :-
+process_loader_form(Space, parsed(runnable, FormStr, Term, Names), Result) :-
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     space_module(Space, Module),
     with_metta_module(Module,
-                      translate_runnable_expr([collapse, BoundTerm], Goals, Result)),
+                      translate_runnable_expr(BoundTerm, Names, Goals, Result)),
     print_runnable_form(FormStr, Goals),
     call_goals_in(Module, Goals).
 process_loader_form(Space, parsed(function, FormStr, Term), []) :-
