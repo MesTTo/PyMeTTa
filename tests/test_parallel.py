@@ -23,6 +23,7 @@ import pytest
 
 from petta import S
 from petta.atoms import expr
+from petta.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
 SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
@@ -77,8 +78,6 @@ def test_parallel_runs_branches_concurrently(metta):
 
 def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
     """Timeout bounds the call; inferences is deliberately not a parameter."""
-    from petta.errors import TimeLimitError
-
     with metta.new_space() as space:
         space.run(SPIN)
         forever = expr(S["par-spin"], 200_000_000)
@@ -93,15 +92,13 @@ def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
 
 def test_parallel_reports_a_failing_branch(metta):
     """A branch that raises is not swallowed by the concurrency. A wrongly
-    typed operand answers `(Error ...)` rather than raising now, so the branch
-    that has to raise is a HOST error, division by zero.
+    typed operand and integer division by zero answer `(Error ...)` rather
+    than raising now, so the branch uses a HOST instantiation error.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta.errors import EngineError
-
     with metta.new_space() as space:
         space.run(SQUARE)
         with pytest.raises(EngineError):
-            space.parallel(expr(S["par-sq"], 2), "(/ 1 0)")
+            space.parallel(expr(S["par-sq"], 2), "(+ $left $right)")
 
 
 def test_a_dual_is_built_once_under_concurrency(metta):

@@ -5,6 +5,9 @@ the arbiter's way (inf, -inf, NaN), and a finite float prints the
 arbiter's LAYOUT over the shortest-round-trip digits: 1e16, 0.00001 and
 1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300. Gnd's own
 renderer implements the same law, so one atom has one text in both hosts.
+Computed string operands are refused at every numeric math position before the
+host can reinterpret one character as its code [tested:
+test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,7 +19,48 @@ import subprocess
 
 import pytest
 
-from petta import MettaOperationError, val
+from petta import val
+
+
+def test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code(metta):
+    """Every math position rejects a computed one-character string.
+
+    A literal is already caught by translated-call type filtering. The helper
+    equation makes the String arrive only after evaluation and therefore pins
+    the operation's own door, where SWI otherwise treats ``"s"`` as 115.
+    """
+    metta.run('(= (p1-string) "s")')
+    operations = {
+        "pow-math": 2,
+        "sqrt-math": 1,
+        "abs-math": 1,
+        "log-math": 2,
+        "exp-math": 1,
+        "trunc-math": 1,
+        "ceil-math": 1,
+        "floor-math": 1,
+        "round-math": 1,
+        "sin-math": 1,
+        "cos-math": 1,
+        "tan-math": 1,
+        "asin-math": 1,
+        "acos-math": 1,
+        "atan-math": 1,
+        "isnan-math": 1,
+        "isinf-math": 1,
+        "exp": 1,
+    }
+    for operation, arity in operations.items():
+        for position in range(1, arity + 1):
+            arguments = ["2"] * arity
+            arguments[position - 1] = "(p1-string)"
+            answer = str(metta.run(f'!({operation} {" ".join(arguments)})')[0][0])
+            assert answer == (
+                f'(Error ({operation} '
+                + " ".join('"s"' if index == position else "2"
+                           for index in range(1, arity + 1))
+                + f") (BadArgType {position} Number String))"
+            ), (operation, position, answer)
 
 
 def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
@@ -38,13 +82,62 @@ def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
     assert metta.run("!(exp-math 1000)")[0] == [math.inf]
 
 
-def test_integer_division_past_binary64_saturates_instead_of_escaping(metta):
-    """An all-integer division can still overflow, in the float conversion.
+def test_real_valued_math_treats_integer_and_float_operands_alike(metta):
+    """Real-valued math promotes integers before applying binary64 math.
 
-    (/ (pow-math 10 400) 3) is exact unbounded-integer work until the
-    non-divisible pair converts to float, and that conversion overflowed on
-    the CATCHLESS integer fast path, so the raw is/2 error escaped without
-    even the operation context the float arms attach.
+    LeaTTa's ``toFloat?``-based ``floatUn`` and ``floatBin`` paths govern
+    sqrt, log, trig, and pow. Its ``powMath`` additionally limits an integer
+    exponent to signed i32 while permitting an unbounded Float exponent and
+    always returning Float. ``exp-math`` is covered separately by PeTTa's
+    existing real-valued doctrine because LeaTTa's floatUn table excludes it.
+    """
+    unary_pairs = {
+        "sqrt-math": (4, 2.0),
+        "sin-math": (0, 0.0),
+        "cos-math": (0, 1.0),
+        "tan-math": (0, 0.0),
+        "asin-math": (0, 0.0),
+        "acos-math": (1, 0.0),
+        "atan-math": (0, 0.0),
+    }
+    for operation, (integer, expected) in unary_pairs.items():
+        integer_answer = metta.run(f"!({operation} {integer})")[0][0].value
+        float_answer = metta.run(f"!({operation} {float(integer)})")[0][0].value
+        assert isinstance(integer_answer, float), operation
+        assert isinstance(float_answer, float), operation
+        assert integer_answer == float_answer == expected, operation
+
+    assert metta.run("!(log-math 10 100)")[0] == [2.0]
+    assert metta.run("!(log-math 10.0 100.0)")[0] == [2.0]
+    for integer_form, float_form in (
+        ("!(sqrt-math -1)", "!(sqrt-math -1.0)"),
+        ("!(log-math 10 -5)", "!(log-math 10.0 -5.0)"),
+        ("!(asin-math 2)", "!(asin-math 2.0)"),
+        ("!(acos-math 2)", "!(acos-math 2.0)"),
+    ):
+        integer_answer = metta.run(integer_form)[0][0].value
+        float_answer = metta.run(float_form)[0][0].value
+        assert math.isnan(integer_answer), integer_form
+        assert math.isnan(float_answer), float_form
+
+    assert metta.run("!(pow-math 2 3)")[0] == [8.0]
+    assert metta.run("!(pow-math 1 -2147483648)")[0] == [1.0]
+    assert metta.run("!(pow-math 1 2147483647)")[0] == [1.0]
+    assert metta.run("!(pow-math 0 -1)")[0] == [math.inf]
+    assert metta.run("!(pow-math 1 2147483648.0)")[0] == [1.0]
+    reason = "power argument is too big, try using float value"
+    for exponent in (2147483648, -2147483649):
+        answer = str(metta.run(f"!(pow-math 2 {exponent})")[0][0])
+        assert answer == f'(Error (pow-math 2 {exponent}) "{reason}")'
+
+    assert metta.run("!(exp-math 1)")[0] == metta.run("!(exp-math 1.0)")[0]
+
+
+def test_integer_division_past_binary64_saturates_instead_of_escaping(metta):
+    """A promoted power can still overflow before an integer division.
+
+    ``pow-math`` promotes its base to Float and saturates the result before
+    division sees it. Dividing that infinity by an integer remains infinity.
     """
     assert metta.run("!(/ (pow-math 10 400) 3)")[0] == [math.inf]
 
@@ -64,8 +157,8 @@ def test_non_finite_floats_print_the_arbiters_spellings(repo_root, tmp_path):
         "!(py-atom \"float('nan')\")\n",
         encoding="utf-8",
     )
-    done = subprocess.run(
-        ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),
+    done = subprocess.run(  # noqa: S603  -- the argv is a literal swipl invocation over repo paths, no untrusted input
+        ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),  # noqa: S607  -- swipl resolves through PATH deliberately, as the CLI does
          "--", "silent", str(program)],
         capture_output=True,
         text=True,
@@ -101,7 +194,8 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
     isnan-math and isinf-math to observe them. Integer division by zero
     stays an error here: the arbiter's answer THERE is the Error atom, a
     different shape owned by the error-answer story, and this pins that an
-    integer zero keeps raising rather than leaking an infinity.
+    integer zero answers the contained DivisionByZero atom rather than
+    leaking an infinity.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert metta.run("!(/ 1.0 0.0)")[0] == [math.inf]
     assert metta.run("!(/ -1.0 0.0)")[0] == [-math.inf]
@@ -116,8 +210,20 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
         assert len(answers) == 1 and math.isnan(answers[0]), form
     assert metta.run("!(isnan-math (- 1e400 1e400))")[0] == [True]
     assert metta.run("!(isinf-math (/ 1.0 0.0))")[0] == [True]
-    with pytest.raises(MettaOperationError):
-        metta.run("!(/ 1 0)")
+
+
+def test_integer_division_by_zero_answers_what_d1_decides(metta):
+    """Integer zero division is an operation answer, not a host exception.
+
+    LeaTTa's regression/division_convention.metta pins the direct Error atom;
+    collapse then contains that one answer as its one-element expression.
+    """
+    direct = metta.run("!(/ 7 0)")
+    assert str(direct[0][0]) == "(Error (/ 7 0) DivisionByZero)"
+    collapsed = metta.run("!(collapse (/ 7 0))")
+    assert str(collapsed[0][0]) == "((Error (/ 7 0) DivisionByZero))"
+    remainder = metta.run("!(% 7 0)")
+    assert str(remainder[0][0]) == "(Error (% 7 0) DivisionByZero)"
 
 
 def test_finite_floats_print_the_arbiters_layout(metta):

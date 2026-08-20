@@ -19,13 +19,19 @@ m = MeTTa("&bounds-demo")
 m.run("(= (spin $n) (if (== $n 0) done (spin (- $n 1))))")
 
 try:
-    m.run("!(spin 100000000)", timeout=0.05)
+    m.run(
+        "!(with-pragma! ((max-stack-depth 1000000000)) (spin 100000000))",
+        timeout=0.05,
+    )
     raise AssertionError("the time bound did not fire")
 except petta.TimeLimitError:
     check("a 50ms bound stops a spin that would run for minutes", True)
 
 try:
-    m.eval("(spin 100000000)", inferences=10_000)
+    m.eval(
+        "(with-pragma! ((max-stack-depth 1000000000)) (spin 100000000))",
+        inferences=10_000,
+    )
     raise AssertionError("the inference bound did not fire")
 except petta.InferenceLimitError:
     check("an inference bound is the deterministic twin", True)

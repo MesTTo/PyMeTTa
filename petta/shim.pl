@@ -2034,8 +2034,8 @@ petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status, _) :- !,
 %lookup is module-qualified: a named space's equations live in its module, and
 %clause/3 falls back to user through module inheritance for the rest. Only the
 %clause INSPECTION is guarded (an uninspectable goal is an opaque leaf); a
-%body or builtin that ERRS propagates, because (/ 1 0) failing into "no
-%proof" would be a lie about why:
+%body or builtin that ERRS propagates, because (+ $x $y) failing into "no
+%proof" would be a lie about why (integer zero division is Error data):
 %One barrier serves every clause of the goal, because a cut in the body of
 %one clause discards the clauses after it as well as its own alternatives.
 petta_py_solve_(M, Goal, D, Tree, Status, _) :-

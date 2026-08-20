@@ -9,6 +9,9 @@ Guarantees:
   - `=alpha` stays the comparison that accepts anything, so the refusal has
     an escape hatch that is already in the language [tested
     test_alpha_equality_still_compares_across_kinds]
+  - integer and float operands compare by numeric value, matching the
+    arbiter's Ground.equiv promotion rule [tested
+    test_mixed_numeric_equality_answers_what_the_arbiter_answers]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -81,6 +84,19 @@ def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
         '(Error (!= 1 "S") (BadArgType 2 Number String))'
     ]
     assert _answer(declared, "(!= 1 2)") == ["True"]
+
+
+def test_mixed_numeric_equality_answers_what_the_arbiter_answers(declared):
+    """LeaTTa's `Ground.equiv` promotes the integer with `Float.ofInt` in
+    both mixed numeric cases (`MettaHyperonFull/Core/Atom.lean:47-62`), and
+    `Atom.equiv` uses that relation for grounded atoms (lines 110-116).
+    """
+    assert _answer(declared, "(== 1 1.0)") == ["True"]
+    assert _answer(declared, "(== 1.0 1)") == ["True"]
+    assert _answer(declared, "(!= 1 1.0)") == ["False"]
+    assert _answer(declared, "(!= 1.0 1)") == ["False"]
+    assert _answer(declared, "(== 1 1.5)") == ["False"]
+    assert _answer(declared, "(!= 1.0 2)") == ["True"]
 
 
 def test_an_expression_operand_is_left_alone(declared):

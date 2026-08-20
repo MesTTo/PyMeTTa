@@ -9,9 +9,11 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import copy
+import inspect
 import json
 import multiprocessing
 import pickle
+import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from decimal import Decimal
 from fractions import Fraction
@@ -47,6 +49,7 @@ from petta.atoms import (
     from_wire,
     is_ground,
     order_key,
+    pretty,
     register_object_repr,
     register_object_repr_protocol,
     unregister_object_repr,
@@ -225,7 +228,7 @@ def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or inj
     [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
 )
 def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    restored = pickle.loads(pickle.dumps(atom))
+    restored = pickle.loads(pickle.dumps(atom))  # noqa: S301  -- the bytes come from pickle.dumps in the same expression, never untrusted input
     assert restored == atom
     assert type(restored) is type(atom)
 
@@ -438,8 +441,6 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
     that bounds the cache holds exactly the cache's keys. Two structures
     can drift, so their agreement is asserted rather than assumed.
     """
-    import time
-
     churn = 30_000
 
     def nanoseconds_per_miss(bound, tag):
@@ -537,18 +538,19 @@ def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; i
 
 def test_ground_equality_is_the_engines():
     """Python-side == must never disagree with an equation's ==: booleans
-    are not integers, integers are not floats, IEEE identity for floats
-    with -0.0 apart from 0.0 and NaN equal to itself, objects by identity.
+    are not numbers, integers and floats compare by numeric value, IEEE
+    arithmetic equates signed zeros and leaves NaN unequal, objects by identity.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    assert Gnd(1) != Gnd(1.0)
+    assert Gnd(1) == Gnd(1.0)
     assert Gnd(1.0) == Gnd(1.0)
-    assert Gnd(0.0) != Gnd(-0.0)
+    assert Gnd(0.0) == Gnd(-0.0)
     nan = float("nan")
-    assert Gnd(nan) == Gnd(nan)
+    assert Gnd(nan) != Gnd(nan)
     assert Gnd(True) != Gnd(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert Gnd(1) == 1 and Gnd(1) != 1.0
-    assert unify(Gnd(1), Gnd(1.0)) is None
-    assert unify(Gnd(nan), Gnd(nan)) == {}
+    assert Gnd(1) == 1 and Gnd(1) == 1.0
+    assert hash(Gnd(1)) == hash(Gnd(1.0))
+    assert unify(Gnd(1), Gnd(1.0)) == {}
+    assert unify(Gnd(nan), Gnd(nan)) is None
 
 
 def test_boxes_intern_per_object_identity():
@@ -678,8 +680,6 @@ def test_an_atom_round_trips_through_json():  # noqa: D103  -- pytest discovers 
 
 
 def test_slot_docstrings_reach_help():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    import inspect
-
     # dict-form __slots__, data model 3.3.2.4: help() and inspect.getdoc
     # document the attribute in place (the descriptor's own __doc__ stays
     # None by CPython design).
@@ -692,8 +692,6 @@ def test_slot_docstrings_reach_help():  # noqa: D103  -- pytest discovers or inj
 
 
 def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.atoms import pretty
-
     source = (
         "(alpha (beta (gamma delta epsilon) (zeta eta theta)) "
         "(iota (kappa lambda mu) (nu xi omicron)) "

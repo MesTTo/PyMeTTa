@@ -226,7 +226,10 @@ def _countdown_space():
 
 def test_loop_million(benchmark, inference_baseline):
     def operation(space):
-        assert space.run("!(benchmark-countdown 1000000)") == [[S.done]]
+        assert space.run(
+            "!(with-pragma! ((max-stack-depth 4000000)) "
+            "(benchmark-countdown 1000000))"
+        ) == [[S.done]]
         return 1_000_000
 
     benchmark_case(

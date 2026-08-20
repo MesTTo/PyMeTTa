@@ -212,7 +212,7 @@ def test_identical_subscriptions_share_one_reflection_fact(m):  # noqa: D103  --
 
 def test_subscription_callback_fires_inside_the_write(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     seen = []
-    sub = m.subscribe(S.order(V.id), lambda e: seen.append(e))
+    sub = m.subscribe(S.order(V.id), seen.append)
     try:
         m.add(S.order(1), S.other(9), S.order(2))
         assert [e.bindings["id"] for e in seen] == [1, 2]
@@ -310,7 +310,7 @@ def test_subscription_cancel_is_thread_safe(m):  # noqa: D103  -- pytest discove
     def cancel():
         try:
             subscription.cancel()
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001  -- the race harvest must record whatever a losing cancel raises
             failures.append(error)
 
     threads = [threading.Thread(target=cancel) for _ in range(20)]
@@ -587,7 +587,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
     remote rows with local facts across the wire.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     script = Path(__file__).parent / "data" / "remote_server.py"
-    child = subprocess.Popen(
+    child = subprocess.Popen(  # noqa: S603  -- the argv is sys.executable plus a repo-tracked script path, no untrusted input
         [sys.executable, str(script)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -674,12 +674,12 @@ def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytes
     server = remote.serve(
         metta,
         spaces=[served.space_name],
-        token="s3cret",
+        token="s3cret",  # noqa: S106  -- a fixture credential for the refusal scenario, not a real secret
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
     )
     try:
         with pytest.raises(PettaError, match="credentials require an https URL"):
-            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
+            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})  # noqa: S106  -- a fixture credential for the refusal scenario, not a real secret
     finally:
         server.close()
         served.drop()
@@ -689,8 +689,8 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     if shutil.which("openssl") is None:
         pytest.skip("openssl is not installed")
     key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
-    subprocess.run(
-        [
+    subprocess.run(  # noqa: S603  -- the argv is a literal openssl invocation over tmp_path outputs, no untrusted input
+        [  # noqa: S607  -- openssl resolves through PATH deliberately; the test skips when it is absent
             "openssl",
             "req",
             "-x509",
@@ -719,7 +719,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     server = remote.serve(
         metta,
         spaces=[served.space_name],
-        token="s3cret",
+        token="s3cret",  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
         ssl_context=server_context,
     )
@@ -727,7 +727,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
         assert server.url.startswith("https://")
         transport = remote.connect(
             server.url,
-            token="s3cret",
+            token="s3cret",  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
             headers={"x-tenant": "acme"},
             ssl_context=client_context,
         )
@@ -736,13 +736,13 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
         with pytest.raises(PettaError, match="not authorized"):
             bad_token = remote.connect(
                 server.url,
-                token="wrong",
+                token="wrong",  # noqa: S106  -- a deliberately invalid fixture credential, not a real secret
                 headers={"x-tenant": "acme"},
                 ssl_context=client_context,
             )
             list(remote.RemoteSpace(bad_token, served.space_name).atoms())
         with pytest.raises(PettaError, match="not authorized"):
-            no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)
+            no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
             list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
     finally:
         server.close()
@@ -756,7 +756,10 @@ def test_run_time_limit_raises_and_is_prompt(m):  # noqa: D103  -- pytest discov
     m.run("(= (spin-a $n) (if (== $n 0) done (spin-a (- $n 1))))")
     started = time.perf_counter()
     with pytest.raises(TimeLimitError):
-        m.run("!(spin-a 100000000)", timeout=0.05)
+        m.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-a 100000000))",
+            timeout=0.05,
+        )
     assert time.perf_counter() - started < 5.0  # the guard stopped it, not completion
 
 
@@ -771,7 +774,11 @@ def test_inference_limit_raises_under_the_shared_parent(m):  # noqa: D103  -- py
 def test_limits_leave_finished_work_standing(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (spin-c $n) (if (== $n 0) done (spin-c (- $n 1))))")
     with pytest.raises(TimeLimitError):
-        m.run("(landed first) !(spin-c 100000000)", timeout=0.05)
+        m.run(
+            "(landed first) "
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-c 100000000))",
+            timeout=0.05,
+        )
     assert expr(S.landed, S.first) in m  # the fact before the stop stands
 
 
@@ -811,7 +818,11 @@ def test_capture_composes_with_limits(m):  # noqa: D103  -- pytest discovers or 
     assert "bounded" in text and len(groups) == 1
     m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
     with pytest.raises(TimeLimitError):
-        m.run("!(spin-e 100000000)", capture=True, timeout=0.05)
+        m.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-e 100000000))",
+            capture=True,
+            timeout=0.05,
+        )
 
 
 def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -910,26 +921,35 @@ def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = m.new_space()
     space.add(*[S.fact(i, i) for i in range(10)])
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(TypeError, match="no len"):
-            len(cursor)
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(IndexError, match="indexed from the end"):
-            cursor[-1]
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(ValueError, match="takes no step"):
-            cursor[::2]
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(ValueError, match="counts from the start"):
-            cursor[-3:]
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(TypeError, match="int or a slice"):
-            cursor["a"]
+    with space.stream(S.fact(V.k, V.n)) as cursor, pytest.raises(TypeError, match="no len"):
+        len(cursor)
+    with (
+        space.stream(S.fact(V.k, V.n)) as cursor,
+        pytest.raises(IndexError, match="indexed from the end"),
+    ):
+        cursor[-1]
+    with (
+        space.stream(S.fact(V.k, V.n)) as cursor,
+        pytest.raises(ValueError, match="takes no step"),
+    ):
+        cursor[::2]
+    with (
+        space.stream(S.fact(V.k, V.n)) as cursor,
+        pytest.raises(ValueError, match="counts from the start"),
+    ):
+        cursor[-3:]
+    with (
+        space.stream(S.fact(V.k, V.n)) as cursor,
+        pytest.raises(TypeError, match="int or a slice"),
+    ):
+        cursor["a"]
     # Running off the end is an IndexError naming how many it answered, and an
     # empty window is an empty list rather than an error.
-    with space.stream(S.fact(V.k, V.n)) as cursor:
-        with pytest.raises(IndexError, match="fewer than 100"):
-            cursor[99]
+    with (
+        space.stream(S.fact(V.k, V.n)) as cursor,
+        pytest.raises(IndexError, match="fewer than 100"),
+    ):
+        cursor[99]
     with space.stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[3:1] == []
 
@@ -959,7 +979,7 @@ def test_stream_guard_and_per_pull_bounds(m):  # noqa: D103  -- pytest discovers
 
 def test_atomic_run_commits_or_rolls_back_whole(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError):
-        m.run("(kept fact) !(/ 1 0)", atomic=True)
+        m.run("(kept fact) !(+ $left $right)", atomic=True)
     assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
     m.run("(kept fact) !(+ 1 1)", atomic=True)
     assert expr(S.kept, S.fact) in m  # and commits whole on success
@@ -978,11 +998,13 @@ def test_speculative_run_answers_and_discards(m):  # noqa: D103  -- pytest disco
 
 def test_profile_counts_samples_on_real_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (prof-spin $n) (if (== $n 0) done (prof-spin (- $n 1))))")
-    groups, prof = m.profile("!(prof-spin 10000000)")
+    groups, prof = m.profile(
+        "!(with-pragma! ((max-stack-depth 30000000)) (prof-spin 10000000))"
+    )
     assert groups == [[S.done]]
     assert prof.samples > 0 and prof.ticks > 0
     assert len(prof.nodes) >= 1
-    predicate, calls, redos, ticks_self, siblings = prof.nodes[0]
+    predicate, _calls, _redos, ticks_self, _siblings = prof.nodes[0]
     assert isinstance(predicate, str) and ticks_self >= 0
     assert prof.top(1) == prof.nodes[:1]
     assert "samples" in repr(prof)
@@ -1097,9 +1119,11 @@ def test_events_times_out_quiet_and_refuses_callback_mode(m):  # noqa: D103  -- 
         assert time.monotonic() - started < 2
     finally:
         quiet.cancel()
-    with m.subscribe(S.dnothing(V.x), lambda _event: None) as with_callback:
-        with pytest.raises(PettaError, match="delivers through its callback"):
-            next(iter(with_callback.events()))
+    with (
+        m.subscribe(S.dnothing(V.x), lambda _event: None) as with_callback,
+        pytest.raises(PettaError, match="delivers through its callback"),
+    ):
+        next(iter(with_callback.events()))
 
 
 def test_events_delivers_leftovers_queued_before_cancel(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -1145,6 +1169,31 @@ def test_in_language_bounds_and_scoped_pragmas(m):  # noqa: D103  -- pytest disc
         m.run("!(with-pragma! ((max-inferences 300)) (bnd-spin 1000000))")
     # the scope restored: the same spin runs free afterwards
     assert m.run("!(bnd-spin 2000)") == [[S.done]]
+
+
+def test_a_stack_depth_pragma_bounds_evaluation_instead_of_overflowing(m):
+    """`max-stack-depth` enforces its bound as an Error answer, per pragma law.
+
+    A recursion past the declared depth answers `(Error -3 StackOverflow)`
+    beside the answers already produced, a negative bound refuses with the
+    upstream `UnsignedIntegerIsExpected` wording, and an unknown pragma key
+    keeps raising `metta_pragma_key`.
+    """
+    m.run("!(pragma! max-stack-depth 20)")
+    m.run("(= (p122-fact 0) 1)")
+    m.run("(= (p122-fact $n) (* $n (p122-fact (- $n 1))))")
+    try:
+        assert [str(atom) for atom in m.run("!(p122-fact 5)")[0]] == [
+            "120",
+            "(Error -3 StackOverflow)",
+        ]
+        assert [str(atom) for atom in m.run("!(pragma! max-stack-depth -1)")[0]] == [
+            "(Error (pragma! max-stack-depth -1) UnsignedIntegerIsExpected)"
+        ]
+        with pytest.raises(EngineError, match="metta_pragma_key"):
+            m.run("!(pragma! no-such-setting 1)")
+    finally:
+        m.run("!(pragma! max-stack-depth none)")
 
 
 def test_wrapper_forms_reach_a_named_spaces_own_functions(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

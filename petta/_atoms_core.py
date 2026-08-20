@@ -2,6 +2,9 @@
 Guarantees:
   - Gnd normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
+  - Gnd equality uses the engine's numeric-value relation across integer and
+    float values [tested: test_python_equality_is_engine_equality;
+    commit=e8ca6683f151c0dff369fec7d070c52b68458e30]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expr is a complete immutable Sequence with iterative equality and hashing
@@ -104,28 +107,21 @@ def _is_primitive(value: Any) -> bool:
 def _ground_equal(mine: Any, theirs: Any) -> bool:
     """Equality exactly as the engine's == reads it, so a comparison made in
     Python and one made in an equation never disagree: booleans are not
-    integers, an integer is not a float ((== 1 1.0) is false), floats
-    compare by IEEE identity (-0.0 is not 0.0, and a NaN IS itself), and an
-    opaque object is itself alone.
+    numbers, integer and float values share the numeric tower, floats use
+    arithmetic equality (-0.0 equals 0.0, and NaN is unequal to itself), and
+    an opaque object is itself alone.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
+    if isinstance(mine, bool) or isinstance(theirs, bool):
+        return type(mine) is type(theirs) is bool and mine == theirs
+    if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
+        return mine == theirs
     if type(mine) is not type(theirs):
         return False
-    if isinstance(mine, float):
-        return _float_equal(mine, theirs)
     if _is_primitive(mine):
         return mine == theirs
     return mine is theirs
-
-
-def _float_equal(mine: float, theirs: float) -> bool:
-    """Engine equality for same-type floats, including NaN and signed zero."""
-    if math.isnan(mine) or math.isnan(theirs):
-        return math.isnan(mine) and math.isnan(theirs)
-    if mine == theirs == 0.0:
-        return math.copysign(1.0, mine) == math.copysign(1.0, theirs)
-    return mine == theirs
 
 
 _STATE_LOCK = threading.RLock()

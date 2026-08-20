@@ -3,9 +3,12 @@ space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
   - run(), run_status() and load() register a source's whole signature set
     before processing any of its forms, as the engine's file reader does, so a
-    `!` may name a function the same source defines lower down [tested
+    metadata operation may name a function the same source defines lower down
+    while a call still observes the equation prefix at its own source position
+    [tested
     test_a_source_registers_every_signature_before_any_form_runs,
-    test_run_status_registers_signatures_before_any_form_runs]
+    test_run_status_registers_signatures_before_any_form_runs,
+    test_a_bang_before_the_definition_answers_unreduced_not_a_host_error]
   - an equation for a name SWI imports into the engine shadows it inside the
     space that wrote it and leaves the engine's own predicate answering, so
     the engine survives what used to brick it [tested
@@ -17,12 +20,16 @@ Guarantees:
     test_a_copy_reproduces_the_space_it_copied]
   - run() preserves a runnable variable's source spelling through collection
     and the public wire [tested test_variable_names_survive_to_the_printer]
+  - removing an equation from a named space removes its compiled answer as
+    well as its stored atom [tested
+    test_removing_an_equation_from_a_named_space_stops_its_answers]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import copy
 import re
 
 import pytest
@@ -135,8 +142,8 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D1
         m.run("!(change-state! (a $x) 6)")
     assert failure.value.culprit == ["a", "$_0"]
     with pytest.raises(MettaOperationError) as absent:
-        m.run("!(/ 1 0)")
-    assert absent.value.kind == "evaluation_error"
+        m.run("!(+ $left $right)")
+    assert absent.value.kind == "instantiation_error"
     assert absent.value.expected is None
     assert absent.value.culprit is None
 
@@ -310,6 +317,23 @@ def test_ior_merges_a_space_equations_included(metta, m):  # noqa: D103  -- pyte
     # The equation crossed as an atom AND compiled on arrival.
     assert parse("(= (ior-double $x) (* 2 $x))") in m
     assert m.run("!(ior-double 21)") == [[42]]
+
+
+def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
+    """`metta_remove_atom/3` removes both halves of a named-space equation.
+
+    The stored atom and compiled clause can live in different private modules;
+    the public removal funnel must retract both, leaving the call as data.
+    """
+    equation = parse("(= (p1-named-gone $x) (+ $x 1))")
+    with metta.new_space() as named:
+        named.add(equation)
+        assert named.run("!(p1-named-gone 41)") == [[42]]
+        assert named.remove(equation) is True
+        assert equation not in named
+        assert named.run("!(p1-named-gone 41)") == [
+            [expr(S["p1-named-gone"], 41)]
+        ]
 
 
 def test_ior_merges_an_iterable_and_a_registered_name(metta, m):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
@@ -603,9 +627,8 @@ def test_new_spaces_drop_and_names_recycle(metta):
     with metta.new_space() as again:
         assert again.space_name == first
         assert len(again) == 0
-    with pytest.raises(TypeError):
-        with metta:
-            pass
+    with pytest.raises(TypeError), metta:
+        pass
 
 
 def test_load_restores_the_working_directory(metta, tmp_path):
@@ -687,7 +710,10 @@ def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discov
 def test_a_reserved_limit_does_not_leak_janus_framing(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (spin $n) (spin (+ $n 1)))")
     with pytest.raises(TimeLimitError) as failure:
-        metta.run("!(spin 0)", timeout=0.05)
+        metta.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin 0))",
+            timeout=0.05,
+        )
     assert "0.05 second time limit" in str(failure.value)
     assert "Unknown error term" not in str(failure.value)
     assert "metta_control_signal" not in str(failure.value)
@@ -772,8 +798,6 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: 
 
 
 def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    import copy as copy_module
-
     with metta.new_space() as original:
         original.run("(= (cp-double $x) (* $x 2))")
         original.add(parse("(cp-fact one)"))
@@ -788,7 +812,7 @@ def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest disc
             assert clone.count() == original.count() + 1
         finally:
             clone.drop()
-        protocol = copy_module.copy(original)
+        protocol = copy.copy(original)
         try:
             assert protocol.digest() == original.digest()
         finally:
@@ -839,6 +863,23 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
         "(= (p111-later $x) (+ $x 1))\n"
     )
     assert groups == [[True], [2]]
+
+
+def test_a_bang_before_the_definition_answers_unreduced_not_a_host_error(metta):
+    """A source executes in program order even though its signature metadata
+    is registered in one pass. LeaTTa's evalSequentialRun evaluates each bang
+    against the current knowledge-base prefix and extends that prefix only
+    after a non-bang form, so the first call is data and the second reduces.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    groups = metta.run(
+        "!(p121-respond me)\n"
+        "(= (p121-respond me) hello)\n"
+        "!(p121-respond me)\n"
+    )
+    assert [[str(answer) for answer in group] for group in groups] == [
+        ["(p121-respond me)"],
+        ["hello"],
+    ]
 
 
 def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):

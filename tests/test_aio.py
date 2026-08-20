@@ -85,7 +85,11 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
             with pytest.raises(TimeLimitError):
                 # The guard fires on the attached worker thread, so the
                 # alarm mechanism is proven off the main thread too.
-                await am.run("!(aio-spin-b 100000000)", timeout=0.05)
+                await am.run(
+                    "!(with-pragma! ((max-stack-depth 1000000000)) "
+                    "(aio-spin-b 100000000))",
+                    timeout=0.05,
+                )
             with pytest.raises(MettaSyntaxError):
                 await am.run("!(unclosed")
             groups, text = await am.run("!(println! crossed)", capture=True)

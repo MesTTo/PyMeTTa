@@ -12,10 +12,9 @@ Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]
   - MatchIndex.matches agrees with brute-force unification over every
-    registered pattern, including two distinct NaN values, which the kernel
-    calls equal and dict lookup does not [measured 2026-08-19: the tree
-    answered nothing where unify answered a match] [tested
-    test_matchindex_agrees_with_brute_force]
+    registered pattern, including mixed integer/float values and NaNs
+    [tested test_matchindex_agrees_with_brute_force,
+    test_matchindex_uses_grounded_numeric_equality]
   - MatchIndex.matches answers in REGISTRATION order whatever order the
     tree walk reached the entries in, and a remove does not disturb it
     [measured 2026-08-19: register a, b; remove a; register c; the answer
@@ -38,7 +37,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import math
 import threading
 from collections import Counter
 from collections.abc import Iterator, MutableMapping, MutableSet
@@ -276,15 +274,13 @@ class MatchIndex:
                 out.append(("sym", node.name))
             else:
                 value = node.value if isinstance(node, Gnd) else node
-                if isinstance(value, float) and math.isnan(value):
-                    # A token is looked up as a dict key, and a NaN is not
-                    # equal to a DIFFERENT NaN, so two atoms the kernel
-                    # calls equal would take different edges and one would
-                    # never be retrieved. The kernel's rule is that a NaN
-                    # IS itself, so every NaN is one token [measured
-                    # 2026-08-19: two distinct float("nan") objects, the
-                    # tree answered nothing where unify answered a match].
-                    out.append(("val", "float", "nan"))
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    # Numeric atoms share one token kind because the kernel's
+                    # equality is by numeric value: 0 and 0.0 must reach the
+                    # same edge. Python gives equal int/float values equal
+                    # hashes, while NaN remains unequal and is rejected by
+                    # the final unify check just like the brute-force path.
+                    out.append(("val", "number", value))
                     continue
                 try:
                     hash(value)

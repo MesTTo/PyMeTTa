@@ -35,8 +35,9 @@ def test_control_signals_pass_through_recovery_catches(m):
         # A program's own (catch ...) cannot eat the signal either, the
         # KeyboardInterrupt-outside-Exception design.
         m.eval("(catch (deep-spin 3000000))", inferences=1_000)
-    # Real errors still take the recovery: catch answers its Error term.
-    (answer,) = m.eval("(catch (/ 1 0))")
+    # Real host errors still take the recovery: catch answers its Error term.
+    # Integer division by zero is already an Error answer and needs no catch.
+    (answer,) = m.eval("(catch (+ $left $right))")
     assert str(answer).startswith("(Error ")
 
 

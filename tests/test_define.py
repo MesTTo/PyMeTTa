@@ -432,7 +432,9 @@ def test_loops_run_in_constant_stack(m):
             n -= 1
         return n
 
-    assert m.run("!(dcountdown 2000000)") == [[0]]
+    assert m.run(
+        "!(with-pragma! ((max-stack-depth 10000000)) (dcountdown 2000000))"
+    ) == [[0]]
 
 
 def test_loop_variable_read_after_for_is_refused(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -89,7 +89,11 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
 
     # ---------------------------------------------------------------- load
     forever = tmp_path / "forever.metta"
-    forever.write_text("(= (spin $n) (spin (+ $n 1)))\n!(spin 0)\n", encoding="utf-8")
+    forever.write_text(
+        "(= (spin $n) (spin (+ $n 1)))\n"
+        "!(with-pragma! ((max-stack-depth 300000000)) (spin 0))\n",
+        encoding="utf-8",
+    )
     with pytest.raises(InferenceLimitError):
         metta.load(forever, inferences=20_000)
     with pytest.raises(TimeLimitError):
