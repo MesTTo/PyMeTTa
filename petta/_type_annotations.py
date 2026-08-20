@@ -6,11 +6,11 @@ Guarantees:
     test_union_expansion_is_bounded]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
-     commit=WORKTREE]
+     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
   - full container parameters survive as matchable annotation atoms while
     the runtime type stays MeTTa's Expression
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -3,7 +3,7 @@ Python annotations, project matching values, and rebuild those values.
 Guarantees:
   - tuple, list, dict, and set hooks receive the full parameterized type on
     every route [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=WORKTREE]
+     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
