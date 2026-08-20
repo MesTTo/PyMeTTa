@@ -26,6 +26,10 @@ Guarantees:
     and close the event stream before returning [tested
     test_query_and_count_require_completed_terminal_event,
     test_completed_query_closes_its_event_stream]
+  - the MeTTa-text dialect refuses a symbol beginning with DAS's variable
+    sigil before making a request, so a symbol can never be routed as a
+    variable [tested: test_a_symbol_never_renders_as_a_variable_to_the_router;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -87,6 +91,12 @@ def _render(value: Any) -> str:
     if isinstance(value, Var):
         return "%" + value.name
     if isinstance(value, Sym):
+        if value.name.startswith("%"):
+            msg = (
+                f"DAS cannot render symbol {value.name!r} as MeTTa query text: "
+                f"the command router reads a leading % as a variable"
+            )
+            raise DASError(msg)
         return value.name
     if isinstance(value, Gnd):
         plain = value.value

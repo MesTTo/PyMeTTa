@@ -10,6 +10,8 @@ Guarantees:
     test_query_and_count_require_completed_terminal_event]
   - a terminal event closes its event iterator before query returns [tested
     test_completed_query_closes_its_event_stream]
+  - a symbol cannot be emitted with the router's variable sigil [tested:
+    test_a_symbol_never_renders_as_a_variable_to_the_router; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,7 +25,7 @@ import os
 import pytest
 
 from petta import PettaError, S, V, expr
-from petta.atoms import Gnd, parse
+from petta.atoms import Gnd, Sym, parse
 from petta.das import (
     DAS,
     DASError,
@@ -114,6 +116,18 @@ def test_two_patterns_compose_as_a_server_side_and():  # noqa: D103  -- pytest d
     das.query(S.f(V.x), S.g(V.x))
     token = das.posted[-1][2]["params"]["query"]["tokens"][0]
     assert token == "(and (f %x) (g %x))"
+
+
+def test_a_symbol_never_renders_as_a_variable_to_the_router():
+    """The same text must not denote both a symbol and a DAS variable."""
+    symbol_query = ScriptedDAS([_COMPLETED])
+    with pytest.raises(DASError, match=r"symbol '%x'.*leading %.*variable"):
+        symbol_query.query(Sym("%x"))
+    assert symbol_query.posted == []
+
+    variable_query = ScriptedDAS([_COMPLETED])
+    variable_query.query(V.x)
+    assert variable_query.posted[-1][2]["params"]["query"]["tokens"] == ["%x"]
 
 
 def test_error_status_raises_with_the_servers_message():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
