@@ -154,6 +154,16 @@ def test_an_argument_type_fault_is_a_value_a_program_can_catch():
     metta.run("(: p32-f (-> Number Number))")
     metta.run("(= (p32-f $x) $x)")
 
+    assert _answers(metta, '!(p32-f "wrong")') == [
+        '(Error (p32-f "wrong") (BadArgType 1 Number String))'
+    ]
+    assert _answers(metta, "!(p32-f 1 2)") == [
+        "(Error (p32-f 1 2) IncorrectNumberOfArguments)"
+    ]
+    assert _answers(metta, '!(type-cast "wrong" Number &self)') == [
+        '(Error "wrong" BadType)'
+    ]
+
     assert _answers(metta, '!(if-error (p32-f "wrong") caught missed)') == [
         "caught"
     ]
