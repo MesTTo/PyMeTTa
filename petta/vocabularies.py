@@ -29,6 +29,7 @@ __all__ = [
     "ROUTE_KEY",
     "SEMIRING",
     "SOURCE_KIND",
+    "SPACE_CAPABILITY",
     "SUBSCRIPTION_EDGE",
     "VOLATILITY",
     "WORLD",
@@ -44,6 +45,7 @@ __all__ = [
     "RouteKey",
     "Semiring",
     "SourceKind",
+    "SpaceCapability",
     "SubscriptionEdge",
     "Volatility",
     "World",
@@ -96,6 +98,10 @@ Semiring = Literal["bool", "bag", "set", "ranked", "prob", "prov"]
 #: (vocabulary source-kind linear repeated peek)
 SOURCE_KIND = ("linear", "repeated", "peek")
 SourceKind = Literal["linear", "repeated", "peek"]
+
+#: (vocabulary space-capability file process network)
+SPACE_CAPABILITY = ("file", "process", "network")
+SpaceCapability = Literal["file", "process", "network"]
 
 #: (vocabulary subscription-edge add remove both)
 SUBSCRIPTION_EDGE = ("add", "remove", "both")

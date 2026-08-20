@@ -704,7 +704,11 @@ class Runtime:
         space = row.get("Space")
         operation = row.get("Operation")
         capability = row.get("Capability")
-        if not all(isinstance(part, str) for part in (space, operation, capability)):
+        if (
+            not isinstance(space, str)
+            or not isinstance(operation, str)
+            or not isinstance(capability, str)
+        ):
             return
         raise SpaceCapabilityError(
             message,

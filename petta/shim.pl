@@ -2110,10 +2110,7 @@ petta_py_next_depth(D, D1) :- D1 is D - 1.
 %A match over a space names the atom it found; anything else names its goal:
 petta_py_leaf(_, match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
 petta_py_leaf(Module, Goal, [fact(Space, Fact)]) :-
-    native_storage_module_cache(Space, Module),
-    native_storage_functor(Space, Functor),
-    functor(Goal, Functor, _), !,
-    Goal =.. [_|Fact].
+    metta_host_native_fact(Module, Goal, Space, Fact), !.
 petta_py_leaf(_, Goal, [fact('&self', Fact)]) :-
     functor(Goal, Space, _),
     atom_concat('&', _, Space), !,
