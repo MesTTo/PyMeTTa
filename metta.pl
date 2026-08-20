@@ -2335,7 +2335,9 @@ metta_grounded_token('change-state!').
 metta_grounded_token('collapse-extract').
 metta_grounded_token('cos-math').
 metta_grounded_token('declare-pre-add!').
+metta_grounded_token('declare-post-add!').
 metta_grounded_token('undeclare-pre-add!').
+metta_grounded_token('undeclare-post-add!').
 metta_grounded_token('div-euclid').
 metta_grounded_token('div-floor').
 metta_grounded_token('div-trunc').
@@ -3155,19 +3157,33 @@ petta_admission_idle(Space) :-
 %write path [tested: a_pre_add_hook_can_refuse_with_its_own_words,
 %a_second_claimant_for_one_name_is_refused_with_both_named,
 %an_unclaimed_request_is_a_stuck_state_that_says_so].
+%The post-add slot mirrors the pre-add slot with the verdicts read
+%against a LANDED atom: (accept) keeps it, (accept <atom'>) replaces it
+%through the same write path with the replacement granted, (refuse
+%<words>) undoes the write and throws, (drop) removes it silently. A
+%post handler that errs or sticks also undoes the write first, so an
+%errored hook leaves no atom behind. The event pair stays pure
+%observation beside it: an observer's answer is discarded and the store
+%does not move, which is the difference P12.2 names
+%[tested: a_post_add_hook_may_transform_while_the_event_pair_only_observes].
 :- dynamic petta_hook_claim/4.
 :- dynamic petta_space_hooks_installed/0.
 
 hook_slot_surface(pre_add, 'pre-add').
+hook_slot_surface(post_add, 'post-add').
+
+hook_slot_declare_form(pre_add, 'declare-pre-add!').
+hook_slot_declare_form(post_add, 'declare-post-add!').
 
 metta_declare_hook(Slot, Space, Handler) :-
+    hook_slot_declare_form(Slot, Form),
     (   'is-space'(Space, true)
     ->  true
-    ;   throw_metta_type_error('declare-pre-add!', 'SpaceType', Space)
+    ;   throw_metta_type_error(Form, 'SpaceType', Space)
     ),
     (   atom(Handler)
     ->  true
-    ;   throw_metta_type_error('declare-pre-add!', 'Symbol', Handler)
+    ;   throw_metta_type_error(Form, 'Symbol', Handler)
     ),
     current_metta_module(Module),
     hook_slot_surface(Slot, SlotAtom),
@@ -3210,21 +3226,78 @@ petta_install_space_hooks :-
     ).
 
 petta_space_hooked_add(Space, Term, R, Wrapped) :-
+    (   petta_hook_granted_form(Space, Term)
+    ->  %The handler's own transformed output arriving through the
+        %inner add below: decided on BOTH slots, not re-asked. The
+        %marker names the space AND the term, so a bridge or event
+        %firing a DIFFERENT hooked space mid-write still consults that
+        %space's own handlers.
+        call(Wrapped)
+    ;   petta_hook_pre_phase(Space, Term, R, Wrapped),
+        petta_hook_post_phase(Space, Term)
+    ).
+
+petta_hook_pre_phase(Space, Term, R, Wrapped) :-
     (   petta_hook_claim(Space, pre_add, Handler, Module)
-    ->  (   petta_hook_granted_form(Space, Term)
-        ->  %The handler's own transformed output arriving through the
-            %inner add below: decided, not re-asked. The marker names
-            %the space AND the term, so a bridge or event firing a
-            %DIFFERENT hooked space mid-write still consults that
-            %space's own handler.
-            call(Wrapped)
-        ;   eval_metta_in_module(Module, [Handler, Term], Verdict)
+    ->  (   eval_metta_in_module(Module, [Handler, Term], Verdict)
         ->  petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
         ;   throw(error(petta_hook_stuck(Space, 'pre-add', Handler, Term),
                         none))
         )
     ;   call(Wrapped)
     ).
+
+%The post phase runs only when the pre phase actually wrote Term as
+%offered: a pre transform re-entered the wrapper under the granted
+%marker (its inner add skipped both phases), a refusal threw, and a
+%drop wrote nothing, so in each of those cases there is no landed Term
+%to revise. A post error or stuck state undoes the write before it
+%propagates, so a failed hook leaves no atom behind.
+petta_hook_post_phase(Space, Term) :-
+    (   petta_hook_claim(Space, post_add, Handler, Module),
+        petta_hook_wrote_as_offered(Space, Term)
+    ->  catch(( (   eval_metta_in_module(Module, [Handler, Term], Verdict)
+                ->  petta_hook_post_apply(Verdict, Space, Handler, Term)
+                ;   throw(error(petta_hook_stuck(Space, 'post-add', Handler,
+                                                 Term),
+                                none))
+                ) ),
+              Ball,
+              %The undo must not mask the error: a removal that finds
+              %nothing (a concurrent taker, a transform that already
+              %moved it) still rethrows the hook's own ball.
+              ( ( metta_remove_atom(Space, Term, _) -> true ; true ),
+                throw(Ball) ))
+    ;   true
+    ).
+
+%Whether the pre phase left Term itself in the space: a claimed pre
+%hook may have transformed or dropped it, and then the post phase has
+%nothing to revise. Asked only on the doubly-hooked path, one membership
+%probe against the store.
+petta_hook_wrote_as_offered(Space, Term) :-
+    (   petta_hook_claim(Space, pre_add, _, _)
+    ->  \+ \+ 'get-atoms'(Space, Term)
+    ;   true
+    ).
+
+petta_hook_post_apply([accept], _, _, _) :- !.
+petta_hook_post_apply([accept, Term1], Space, _, Term) :- !,
+    (   Term1 == Term
+    ->  true
+    ;   metta_remove_atom(Space, Term, _),
+        setup_call_cleanup(
+            b_setval('$petta_hook_granted', granted(Space, Term1)),
+            metta_add_atom(Space, Term1, _),
+            b_setval('$petta_hook_granted', []))
+    ).
+%The refusal's undo is the catch handler's, once for every error path.
+petta_hook_post_apply([refuse, Words], Space, _, Term) :- !,
+    throw(error(petta_add_refused(Space, Term, Words), none)).
+petta_hook_post_apply([drop], Space, _, Term) :- !,
+    metta_remove_atom(Space, Term, _).
+petta_hook_post_apply(Got, Space, Handler, Term) :-
+    throw(error(petta_hook_bad_verdict(Space, Handler, Term, Got), none)).
 
 petta_hook_granted_form(Space, Term) :-
     catch(b_getval('$petta_hook_granted', granted(GSpace, GTerm)), _, fail),
@@ -3247,11 +3320,11 @@ petta_hook_apply(Got, Space, Handler, Term, _, _) :-
     throw(error(petta_hook_bad_verdict(Space, Handler, Term, Got), none)).
 
 %The bulk door's question, beside petta_admission_idle/1 above: a space
-%with a claimed pre-add hook routes its batches through the per-atom
-%door, where the wrapper consults the handler for every atom
+%with a claimed hook on either slot routes its batches through the
+%per-atom door, where the wrapper consults the handler for every atom
 %[tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom].
 petta_hook_claim_idle(Space) :-
-    \+ petta_hook_claim(Space, pre_add, _, _).
+    \+ petta_hook_claim(Space, _, _, _).
 
 %The MeTTa surface. Undeclaring is explicit and idempotent: the
 %one-claimant rule would otherwise leave no way to change a handler,
@@ -3261,6 +3334,10 @@ petta_hook_claim_idle(Space) :-
     metta_declare_hook(pre_add, Space, Handler).
 'undeclare-pre-add!'(Space, []) :-
     metta_undeclare_hook(pre_add, Space).
+'declare-post-add!'(Space, Handler, []) :-
+    metta_declare_hook(post_add, Space, Handler).
+'undeclare-post-add!'(Space, []) :-
+    metta_undeclare_hook(post_add, Space).
 
 :- multifile prolog:error_message//1.
 prolog:error_message(petta_bridge_cascade(Op)) -->
@@ -6179,7 +6256,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
