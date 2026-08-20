@@ -10,6 +10,10 @@ Guarantees:
     broadcast-shape works forwards and backwards as a CLP(FD) relation
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
      commit=b81a5a5eba27c16f3cdd9d264db442dcf8024db9]
+  - the module fixture retires its process-global operation registrations, so
+    later suites do not inherit array callables [tested: python -m pytest
+    bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,6 +33,7 @@ from petta import (
     expr,
     val,
 )
+from petta.ops import registered
 
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
@@ -36,8 +41,15 @@ pytest.importorskip("array_api_compat")
 
 @pytest.fixture(scope="module")
 def am(metta):
+    before = set(registered())
     arrays.install(metta, default=numpy)
-    return metta
+    installed = set(registered()) - before
+    try:
+        yield metta
+    finally:
+        for name in sorted(installed, reverse=True):
+            if name in registered():
+                metta.unregister_op(name)
 
 
 def test_numpy_flows_through_the_same_ops(am):
