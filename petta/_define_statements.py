@@ -6,7 +6,7 @@ Guarantees:
     [tested test_generator_with_branches]
   - an annotated assignment lowers its target as an in-place type claim in
     ordinary and generator blocks [tested:
-    test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
+    test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -14,7 +14,7 @@ Guarantees:
     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
   - local annotated assignments resolve through a syntax-limited namespace
     reader and compile to enforceable in-place type claims [tested:
-    test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
+    test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -6,7 +6,7 @@ Guarantees:
     auxiliary-equation collection [tested test_nested_loops_carry_the_outer_state]
   - statement lowering can resolve a local annotation into an in-place MeTTa
     type claim [tested: test_an_annotated_binding_emits_its_claim;
-    commit=WORKTREE]
+    commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
