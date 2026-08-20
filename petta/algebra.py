@@ -22,7 +22,7 @@ Guarantees:
   - grounded tensor tags retain their live derivative graph through generic
     rule matching and declared operations [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=WORKTREE]
+    commit=4b2f8ea2c72fed6974470f34b3557c86574cc18d]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
