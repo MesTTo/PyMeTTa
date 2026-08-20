@@ -6,7 +6,7 @@
 % Guarantees:
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
-%     [tested: sh check.sh plunit pytest; commit=WORKTREE]
+%     [tested: sh check.sh plunit pytest; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]
 %   - petta_py_declare_handles/3 writes the declaration and checks the
 %     context's critical pairs in one transaction, so a conflicting entry
 %     rolls back and never becomes queryable

@@ -25,7 +25,7 @@
 %   - Runnable translations are cached as fresh templates by execution module
 %     and a copy_term/2 plus numbervars/4 variant key; changing or removing a
 %     mentioned function evicts every dependent template
-%     [tested: sh check.sh plunit; commit=WORKTREE].
+%     [tested: sh check.sh plunit; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873].
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
 %   - Branch-return merging preserves shared and pre-bound variables while
