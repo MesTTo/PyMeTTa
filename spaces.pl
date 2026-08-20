@@ -32,7 +32,7 @@
 %     [tested: the_capacity_counter_tracks_direct_adds_batches_removals_and_clears,
 %     capacity_counter_changes_roll_back_with_the_atoms,
 %     capacity_redeclaration_recounts_writes_made_while_unbounded;
-%     commit=WORKTREE].
+%     commit=20a21a31c3508371ed1873de32f309224bb8deb2].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -2994,7 +2994,7 @@ clear_foreign_atoms(Space) :-
 %rare shape recounts after the write instead of assuming one landed
 %[tested: capacity_counter_changes_roll_back_with_the_atoms,
 %capacity_redeclaration_recounts_writes_made_while_unbounded;
-%commit=WORKTREE].
+%commit=20a21a31c3508371ed1873de32f309224bb8deb2].
 :- dynamic petta_capacity_count/2.
 
 petta_capacity_contract_added(Pool) :-
