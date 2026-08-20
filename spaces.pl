@@ -32,7 +32,7 @@
 %     [tested: the_capacity_counter_tracks_direct_adds_batches_removals_and_clears,
 %     capacity_counter_changes_roll_back_with_the_atoms,
 %     capacity_redeclaration_recounts_writes_made_while_unbounded;
-%     commit=20a21a31c3508371ed1873de32f309224bb8deb2].
+%     commit=WORKTREE].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -821,6 +821,7 @@ native_atom_clause(_, Atom, '$petta_native_scalar'(Atom)).
 
 %Remove ONE atom that unifies with the requested value. Expressions and
 %scalars live in different predicates, so neither erases the other.
+:- dynamic remove_sexp/3.
 remove_sexp(Space, Atom) :- remove_sexp(Space, Atom, _).
 
 %The same removal, answering whether anything WAS there.
@@ -883,21 +884,18 @@ remove_sexp('&petta', [Rel|Args], Removed) :- !,
         ;   true
         )
     ;   Removed = false
-    ),
-    petta_capacity_count_removed('&petta', Removed).
+    ).
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],
         native_retract_one(Module:Term, Removed)
     ;   Removed = false
-    ),
-    petta_capacity_count_removed(Space, Removed).
+    ).
 remove_sexp(Space, Atom, Removed) :-
     (   native_storage_module_ready(Space, Module)
     ->  native_retract_one(Module:'$petta_native_scalar'(Atom), Removed)
     ;   Removed = false
-    ),
-    petta_capacity_count_removed(Space, Removed).
+    ).
 
 native_retract_one(Head, Removed) :-
     ( \+ \+ retract(Head) -> Removed = true ; Removed = false ).
@@ -2988,14 +2986,15 @@ clear_foreign_atoms(Space) :-
 %a counter. Its dynamic fact participates in an enclosing transaction exactly
 %like the stored atom clauses do, so a rollback restores both. The regular
 %write door never probes it: successful claimed writes update it from the hook
-%path, while removals and clears repair it at their own doors. Removing the
-%capacity row drops it; adding the row back recounts once before the next
-%decision. An equation can be a derived duplicate that stores nothing, so that
-%rare shape recounts after the write instead of assuming one landed
+%path, while an indexed removal clause exists only for counted spaces. Removing
+%the capacity row drops both facts; adding the row back recounts once before
+%the next decision. An equation can be a derived duplicate that stores nothing,
+%so that rare shape recounts after the write instead of assuming one landed
 %[tested: capacity_counter_changes_roll_back_with_the_atoms,
 %capacity_redeclaration_recounts_writes_made_while_unbounded;
-%commit=20a21a31c3508371ed1873de32f309224bb8deb2].
+%commit=WORKTREE].
 :- dynamic petta_capacity_count/2.
+:- dynamic petta_capacity_remove_hook/2.
 
 petta_capacity_contract_added(Pool) :-
     (   petta_capacity_admission_claim(Pool)
@@ -3016,19 +3015,63 @@ petta_capacity_count_claim(Pool) :-
 petta_capacity_count_install(Space) :-
     (   metta_foreign_space(Space)
     ->  true
-    ;   petta_capacity_count(Space, _)
-    ->  true
     ;   with_mutex('$petta_capacity_count',
-                   (   petta_capacity_count(Space, _)
-                   ->  true
-                   ;   space_atom_count_uncached(Space, Count),
-                       assertz(petta_capacity_count(Space, Count))
-                   ))
+                   transaction(( (   petta_capacity_count(Space, _)
+                                 ->  true
+                                 ;   space_atom_count_uncached(Space, Count),
+                                     assertz(petta_capacity_count(Space, Count))
+                                 ),
+                                 petta_capacity_remove_hook_install(Space) )))
     ).
 
 petta_capacity_count_uninstall(Space) :-
     with_mutex('$petta_capacity_count',
-               retractall(petta_capacity_count(Space, _))).
+               transaction(( retractall(petta_capacity_count(Space, _)),
+                             forall(retract(petta_capacity_remove_hook(Space,
+                                                                       Ref)),
+                                    catch(erase(Ref), _, true)) ))).
+
+%A claim-time clause specializes remove_sexp/3 on the ground pool name.
+%First-argument indexing skips it for every unclaimed space, so ordinary
+%removals retain their old inference count instead of paying a failed counter
+%probe [measured: register-op 44334 inferences on 2026-08-21, min of 3;
+%command=cd python && python bench.py --counter-only --keep-going;
+%fixture=python/benchmarks/test_benchmarks.py::test_register_operation;
+%commit=WORKTREE]. The clause and its reference are dynamic database state,
+%hence an enclosing transaction rolls their installation back with the claim.
+petta_capacity_remove_hook_install(Space) :-
+    (   petta_capacity_remove_hook(Space, _)
+    ->  true
+    ;   asserta((remove_sexp(Space, Term, Removed) :-
+                    !,
+                    petta_capacity_remove_sexp(Space, Term, Removed)), Ref),
+        assertz(petta_capacity_remove_hook(Space, Ref))
+    ).
+
+petta_capacity_remove_sexp('&petta', [Rel|Args], Removed) :- !,
+    (   native_storage_module_ready('&petta', Module)
+    ->  Term =.. ['&petta', Rel|Args],
+        native_retract_one(Module:Term, Removed),
+        (   Removed == true
+        ->  petta_catalog_note_removed([Rel|Args])
+        ;   true
+        )
+    ;   Removed = false
+    ),
+    petta_capacity_count_removed_known('&petta', Removed).
+petta_capacity_remove_sexp(Space, [Rel|Args], Removed) :- !,
+    (   native_storage_module_ready(Space, Module)
+    ->  Term =.. [Space, Rel|Args],
+        native_retract_one(Module:Term, Removed)
+    ;   Removed = false
+    ),
+    petta_capacity_count_removed_known(Space, Removed).
+petta_capacity_remove_sexp(Space, Atom, Removed) :-
+    (   native_storage_module_ready(Space, Module)
+    ->  native_retract_one(Module:'$petta_native_scalar'(Atom), Removed)
+    ;   Removed = false
+    ),
+    petta_capacity_count_removed_known(Space, Removed).
 
 petta_capacity_counts_prune :-
     findall(Pool, petta_capacity_count(Pool, _), Pools0),
@@ -3053,9 +3096,9 @@ petta_capacity_count_added_known(Space, [=, [F|_], _]) :-
 petta_capacity_count_added_known(Space, _) :-
     petta_capacity_count_delta_known(Space, 1).
 
-petta_capacity_count_removed(_, false) :- !.
-petta_capacity_count_removed(Space, true) :-
-    petta_capacity_count_delta(Space, -1).
+petta_capacity_count_removed_known(_, false) :- !.
+petta_capacity_count_removed_known(Space, true) :-
+    petta_capacity_count_delta_known(Space, -1).
 
 petta_capacity_count_delta(Space, Delta) :-
     (   petta_capacity_count(Space, _)
@@ -3087,7 +3130,9 @@ petta_capacity_count_recount(Space) :-
 petta_capacity_count_cleared('&petta') :-
     !,
     with_mutex('$petta_capacity_count',
-               retractall(petta_capacity_count(_, _))).
+               transaction(( retractall(petta_capacity_count(_, _)),
+                             forall(retract(petta_capacity_remove_hook(_, Ref)),
+                                    catch(erase(Ref), _, true)) ))).
 petta_capacity_count_cleared(Space) :-
     (   petta_capacity_count(Space, _)
     ->  with_mutex('$petta_capacity_count',
