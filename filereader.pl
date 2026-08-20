@@ -103,6 +103,8 @@
 %ugraphs.pl and clpb.pl (lib/lib_constraints.pl has both), same fix.
 :- pcre:use_module(library(option), [option/2]).
 :- use_module(library(zlib)). % gzopen/3, .gz program files
+:- use_module(library(fastrw), [fast_read/2, fast_write/2]). % the fast cache
+:- use_module(library(memfile)). % the fast save's hashed payload buffer
 :- use_module(library(ordsets)). % ord_memberchk/2
 :- use_module(library(pairs)). % group_pairs_by_key/2
 %Every compiled clause's source equation; asserted here and by
@@ -172,10 +174,15 @@ prolog:message(petta_source_replaced(CanonPath, Spaces, Atoms)) -->
 :- if(exists_source(library(crypto))).
 :- use_module(library(crypto), [crypto_data_hash/3]).
 metta_text_digest(Text, Digest) :- crypto_data_hash(Text, Digest, [algorithm(sha256)]).
+metta_octets_digest(Payload, Digest) :-
+    crypto_data_hash(Payload, Digest, [algorithm(sha256), encoding(octet)]).
 :- else.
 :- use_module(library(sha), [sha_hash/3, hash_atom/2]).
 metta_text_digest(Text, Digest) :- sha_hash(Text, Bytes, [algorithm(sha256)]),
                                    hash_atom(Bytes, Digest).
+metta_octets_digest(Payload, Digest) :-
+    sha_hash(Payload, Bytes, [algorithm(sha256), encoding(octet)]),
+    hash_atom(Bytes, Digest).
 :- endif.
 
 %The first digest of a process pays a one-off initialisation, and without this
@@ -240,6 +247,366 @@ runnable_groups([Form|Forms], [Group|Rest], Groups) :-
     ;   Groups = More
     ),
     runnable_groups(Forms, Rest, More).
+
+%%%% The host run and load surface %%%%
+%
+%One neutral entry per thing a language binding does with source, so the
+%grouping walk, the using-substitution, the load lifecycle and the status
+%vocabulary live here ONCE instead of once per binding: the Python shim
+%and the Node bridge each carried a copy of the parse-prepare-process walk
+%and the six-deep load nest, and the next binding would have paid it
+%again. Answers cross as raw terms; the codec stays each host's own.
+%
+%A reader failure crosses as the engine's reserved control envelope,
+%error(metta_control_signal(syntax, M), context(petta, syntax)), the same
+%shape the limit guards throw, so a binding classifies the thrown term
+%rather than hunting rendered text.
+metta_host_tagged_parse(Source, Parsed) :-
+    catch(parse_metta_source(Source, Parsed), Caught,
+          (   (   Caught = error(syntax_error(M), _)
+              ;   Caught = syntax_error(M)
+              )
+          ->  throw(error(metta_control_signal(syntax, M),
+                          context(petta, syntax)))
+          ;   throw(Caught)
+          )).
+
+%The CLI asserts working_dir/1 from the file it loads and import! reads it
+%unconditionally, so a string run needs one too; the process's own
+%directory is the honest analogue of "the file's directory" for source
+%with no file.
+metta_host_default_working_dir :-
+    (   working_dir(_)
+    ->  true
+    ;   working_directory(Dir, Dir),
+        assertz(working_dir(Dir))
+    ).
+
+%Run source with one answer group per runnable form, in source order.
+%Bindings are Name-Value pairs substituting the bare symbol Name
+%throughout the parsed forms BEFORE the prepare pass registers
+%signatures: a name bound to a host value is gone from the forms that
+%run, and registering a signature for a head that no longer exists would
+%leave a fun/1 nothing can ever define. An empty Bindings list walks
+%nothing.
+metta_host_run_source(Source0, Space, Bindings, Groups) :-
+    metta_host_default_working_dir,
+    ( string(Source0) -> Source = Source0 ; atom_string(Source0, Source) ),
+    metta_host_tagged_parse(Source, Parsed0),
+    (   Bindings == []
+    ->  Parsed = Parsed0
+    ;   maplist(metta_host_substitute_form(Bindings), Parsed0, Parsed)
+    ),
+    prepare_parsed_forms(Parsed),
+    metta_host_process_groups(Parsed, Space, Groups),
+    !.
+
+%One walk, processing and grouping together: process_form/3, not /4's
+%compile mode, because a host-run source compiles its equations into the
+%TARGET space's module (the tracer's own guarantee,
+%function_defined_in_named_trace_stays_in_that_space), where compile mode
+%deliberately targets the base tier for the CLI's entry load.
+metta_host_process_groups([], _, []).
+metta_host_process_groups([Form|Forms], Space, Groups) :-
+    process_form(Space, Form, Results),
+    (   Form = parsed(runnable, _, _)
+    ->  Groups = [Results|More]
+    ;   Groups = More
+    ),
+    metta_host_process_groups(Forms, Space, More).
+
+metta_host_substitute_form(Bindings, parsed(Kind, N, Term0),
+                           parsed(Kind, N, Term)) :- !,
+    metta_host_substitute(Bindings, Term0, Term).
+metta_host_substitute_form(Bindings, Term0, Term) :-
+    metta_host_substitute(Bindings, Term0, Term).
+
+metta_host_substitute(_, T, T) :- var(T), !.
+metta_host_substitute(Bindings, T, V) :- atom(T), memberchk(T-V, Bindings), !.
+metta_host_substitute(Bindings, T, Out) :-
+    is_list(T), !,
+    maplist(metta_host_substitute(Bindings), T, Out).
+metta_host_substitute(_, T, T).
+
+%The status vocabulary a binding shows per answer: value for a head the
+%engine will try to reduce, not-reducible otherwise (the translator's own
+%test, published as metta_reducible_head/2), and one [empty, none] row
+%for a runnable form that answered nothing.
+metta_host_run_source_status(Source0, Space, Groups) :-
+    metta_host_default_working_dir,
+    ( string(Source0) -> Source = Source0 ; atom_string(Source0, Source) ),
+    metta_host_tagged_parse(Source, Parsed),
+    prepare_parsed_forms(Parsed),
+    (   space_module(Space, Module)
+    ->  true
+    ;   Module = user
+    ),
+    metta_host_status_groups(Parsed, Space, Module, Groups),
+    !.
+
+metta_host_status_groups([], _, _, []).
+metta_host_status_groups([Form|Forms], Space, Module, Groups) :-
+    process_form(Space, Form, Answers),
+    (   Form = parsed(runnable, _, Term)
+    ->  (   metta_reducible_head(Module, Term)
+        ->  Status = value
+        ;   Status = 'not-reducible'
+        ),
+        (   Answers == []
+        ->  Group = [[empty, none]]
+        ;   findall([Status, Answer], member(Answer, Answers), Group)
+        ),
+        Groups = [Group|More]
+    ;   Groups = More
+    ),
+    metta_host_status_groups(Forms, Space, Module, More).
+
+%Load a file the way the CLI does, the grouping kept and the caller's
+%working_dir restored whatever happens. A host-initiated load REPLACES
+%the process working_dir for its duration rather than stacking on it, so
+%a later string run resolves relative imports from where the process
+%stood; the path is canonical because that is the key the engine's own
+%loader records a file under, which is what lets the two doors replace
+%each other's loads and not only their own
+%[tested: test_both_doors_replace_a_files_definitions].
+metta_host_load_file(File, Space, Groups) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    absolute_file_name(FA, CanonPath, [access(read)]),
+    file_directory_name(CanonPath, Dir),
+    findall(W, working_dir(W), Saved),
+    setup_call_cleanup(
+        ( retractall(working_dir(_)),
+          assertz(working_dir(Dir)) ),
+        import_when(true, Space, CanonPath,
+            replacing_previous_load(CanonPath, Space,
+                load_imported_metta_file_impl(CanonPath, _),
+                with_source_load(CanonPath, Space,
+                    ( read_metta_source(CanonPath, S),
+                      metta_host_run_source(S, Space, [], Groups) )))),
+        ( retractall(working_dir(_)),
+          forall(member(W, Saved), assertz(working_dir(W))) )).
+
+%Every form as a [Kind, Text] pair, none compiled, stored, or run: the
+%boot-manifest door. Text is the form's own source, which keeps the
+%variable names a wire encoding would renumber.
+metta_host_read_forms(Source0, Pairs) :-
+    ( string(Source0) -> Source = Source0 ; atom_string(Source0, Source) ),
+    metta_host_tagged_parse(Source, Parsed),
+    maplist(metta_host_form_pair, Parsed, Pairs).
+
+metta_host_form_pair(parsed(Kind, Text, _), [Kind, Text]).
+
+%%%% The fast cache and the content digest %%%%
+%
+%The binary save format, its integrity-checked loader, and the space
+%digest are engine machinery: SWI streams, fastrw, zlib and the crypto
+%hash, with exactly one host question in them, whether a term holds a
+%live host object, which is the published metta_host_object/1 ownership
+%seam each bridge answers for its own kind of object. They lived in the
+%Python shim and the walk that found a live object asked py_is_object
+%directly, which is how a second binding would have re-paid the whole
+%section.
+%
+%Results cross as terms, the codec staying each host's own: a save or
+%digest that refuses answers object(Atom) or symbol(Atom) naming the
+%offender, a save that lands answers saved(Count), a digest answers
+%digest(Hash).
+
+%The version prefix of the header; the file appends a tab, the sha256 of
+%the payload bytes, and a newline, so integrity refuses before fast_read
+%sees a single payload byte.
+metta_host_fast_header(Header) :-
+    current_prolog_flag(version_data, swi(Major, Minor, Patch, _)),
+    format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t2\t~d.~d.~d',
+           [Major, Minor, Patch]).
+
+%A cache whose path ends .gz reads and writes through zlib's stream;
+%Python's gzip module accepts the same files and vice versa.
+metta_host_fast_open(File, Mode, Stream) :-
+    (   file_name_extension(_, gz, File)
+    ->  gzopen(File, Mode, Stream, [type(binary)])
+    ;   open(File, Mode, Stream, [type(binary)])
+    ).
+
+%Whether any subterm is a live host object, the one question only a host
+%can answer, asked through its published seam. The seam is consulted only
+%behind blob/2, because every host's live object crosses as a non-text
+%blob (janus wraps Python objects so, and swipl-wasm renders its objects
+%as opaque blobs), and asking the multifile seam at every subterm instead
+%cost the fast save +320,062 inferences over its corpus
+%[measured 2026-08-20: 2,322,901 against 2,002,839 on save-load-fast].
+metta_host_atom_carries_object(Term) :-
+    compound(Term),
+    !,
+    compound_name_arguments(Term, _, Args),
+    member(Arg, Args),
+    metta_host_atom_carries_object(Arg),
+    !.
+metta_host_atom_carries_object(Term) :-
+    blob(Term, Type),
+    Type \== text,
+    metta_host_object(Term).
+
+%A fast save is a binary file, so it refuses before it writes rather than
+%after: an object has no spelling at all, and a symbol whose name splits a
+%token or carries a quote has one that reads back as something else.
+%metta_unwritable_symbol/2 is the grammar's own answer to the second, so
+%asking it is what keeps this from holding a second copy of the delimiter
+%rules; the copy it replaced missed three classes.
+metta_host_save_fast(File, Space, Result) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    (   member(ObjectAtom, Atoms),
+        metta_host_atom_carries_object(ObjectAtom)
+    ->  Result = object(ObjectAtom)
+    ;   member(SymbolAtom, Atoms),
+        metta_unwritable_symbol(SymbolAtom, BadSymbol)
+    ->  Result = symbol(BadSymbol)
+    ;   setup_call_cleanup(
+            new_memory_file(MF),
+            ( setup_call_cleanup(
+                  open_memory_file(MF, write, PW, [encoding(octet)]),
+                  fast_write(PW, Atoms),
+                  close(PW)),
+              metta_host_hash_memory_file(MF, Hash),
+              metta_host_fast_header(Prefix),
+              format(string(Header), '~w\t~w\n', [Prefix, Hash]),
+              string_codes(Header, HeaderCodes),
+              setup_call_cleanup(
+                  metta_host_fast_open(FA, write, Out),
+                  ( maplist(put_byte(Out), HeaderCodes),
+                    setup_call_cleanup(
+                        open_memory_file(MF, read, PR, [encoding(octet)]),
+                        copy_stream_data(PR, Out),
+                        close(PR)) ),
+                  close(Out)) ),
+            free_memory_file(MF)),
+        length(Atoms, Count),
+        Result = saved(Count)
+    ).
+
+%One compact octet string, one C hash. Measured against the crypto
+%filter-stream route (copy through the filter into a null sink), which
+%charged ~9ms per 700KB pass; this stays ~1ms.
+metta_host_hash_memory_file(MF, Hash) :-
+    memory_file_to_string(MF, Payload, octet),
+    metta_octets_digest(Payload, Hash).
+
+metta_host_hash_stream(In, Hash) :-
+    read_string(In, _, Payload),
+    metta_octets_digest(Payload, Hash).
+
+metta_host_fast_expect_header([], _).
+metta_host_fast_expect_header([Expected|Rest], In) :-
+    get_byte(In, Actual),
+    (   Actual =:= Expected
+    ->  metta_host_fast_expect_header(Rest, In)
+    ;   throw(error(petta_fast_header_mismatch(Expected, Actual), none))
+    ).
+
+metta_host_fast_read(In, File, Atoms) :-
+    catch(fast_read(In, Read), Caught,
+          throw(error(petta_fast_read_failed(File, Caught), none))),
+    (   is_list(Read)
+    ->  Atoms = Read
+    ;   throw(error(petta_fast_payload_not_atom_list(File), none))
+    ).
+
+%After the version prefix: one tab, sixty-four hex digits, one newline.
+metta_host_fast_expect_hash(In, File, Hash) :-
+    read_string(In, "\n", "", _, Line),
+    (   string_concat("\t", Hash, Line),
+        string_length(Hash, 64),
+        forall(string_code(_, Hash, C),
+               ( C >= 0'0, C =< 0'9 ; C >= 0'a, C =< 0'f ))
+    ->  true
+    ;   throw(error(petta_fast_integrity_header(File), none))
+    ).
+
+%A cache is a file this door loaded, so it is replaced on a second load
+%the same way a text program is. It needs neither a reader nor a digest of
+%its own for that: the format already carries the sha256 of its payload,
+%the same question metta_source_digest/2 asks of a source's text
+%[tested test_loading_a_fast_cache_twice_leaves_one_copy].
+metta_host_load_fast(File, Space) :-
+    ( atom(File) -> FA = File ; atom_string(FA, File) ),
+    absolute_file_name(FA, CanonPath, [access(read)]),
+    import_when(true, Space, CanonPath,
+                replacing_previous_load(CanonPath, Space,
+                                        metta_host_fast_load_into(CanonPath),
+                                        metta_host_fast_load_into(CanonPath,
+                                                                  Space))).
+
+metta_host_fast_load_into(CanonPath, Space) :-
+    with_source_load(CanonPath, Space,
+                     metta_host_fast_add_atoms(CanonPath, Space)).
+
+%Two passes: the first proves the payload hash, the second lets fast_read
+%consume the now-proven bytes straight off the file. fastrw is unsafe on
+%untrusted bytes, so no payload byte reaches it before the digest agrees.
+metta_host_fast_add_atoms(FA, Space) :-
+    metta_host_fast_header(Prefix),
+    string_codes(Prefix, PrefixCodes),
+    setup_call_cleanup(
+        metta_host_fast_open(FA, read, HIn),
+        ( metta_host_fast_expect_header(PrefixCodes, HIn),
+          metta_host_fast_expect_hash(HIn, FA, ExpectedHash),
+          metta_host_hash_stream(HIn, ActualHash) ),
+        close(HIn)),
+    atom_string(ActualHash, ActualHashText),
+    (   ActualHashText == ExpectedHash
+    ->  true
+    ;   throw(error(petta_fast_integrity_mismatch(FA), none))
+    ),
+    %Unconditional, because the only caller wraps this in a load context. A
+    %fast load that reached here without one would be recorded under
+    %nothing and so could never be replaced, and failing outright is the
+    %right way to find that out.
+    active_source_load(LoadId),
+    assertz(source_load_digest(LoadId, FA, ActualHash)),
+    setup_call_cleanup(
+        metta_host_fast_open(FA, read, In),
+        ( metta_host_fast_expect_header(PrefixCodes, In),
+          metta_host_fast_expect_hash(In, FA, _),
+          metta_host_fast_read(In, FA, Atoms),
+          %metta_add_atom/3 rather than the public `add-atom`: the space was
+          %resolved before the file was opened, so the space-argument check
+          %the public one owes a PROGRAM is pure cost on every atom in the
+          %file. metta_add_atoms/2 was tried here and is SLOWER, because a
+          %fast-format file is not store-only and its batch test scans every
+          %atom before falling back to this same loop [measured 2026-08-17:
+          %4737359333 against 4707855603].
+          forall(member(Atom, Atoms), metta_add_atom(Space, Atom, _)) ),
+        close(In)).
+
+%A space's content as one sha256: each atom canonicalized (fresh copy,
+%numbered variables, quoted write) so alpha-equivalent equations print
+%identically in every process, the lines multiset-sorted so insertion
+%order cannot matter, then hashed as one utf8 document. Live objects
+%print by address and are refused, the save contract.
+metta_host_digest(Space, Result) :-
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    (   member(ObjectAtom, Atoms),
+        metta_host_atom_carries_object(ObjectAtom)
+    ->  Result = object(ObjectAtom)
+    ;   member(SymbolAtom, Atoms),
+        metta_unwritable_symbol(SymbolAtom, BadSymbol)
+    ->  Result = symbol(BadSymbol)
+    ;   findall(Line,
+                ( member(Atom, Atoms),
+                  metta_host_digest_line(Atom, Line) ),
+                Lines),
+        msort(Lines, Sorted),
+        atomic_list_concat(Sorted, '\n', Joined),
+        metta_text_digest(Joined, Hash),
+        Result = digest(Hash)
+    ).
+
+metta_host_digest_line(Atom, Line) :-
+    copy_term(Atom, Copy),
+    numbervars(Copy, 0, _),
+    with_output_to(string(Line),
+                   write_term(Copy, [quoted(true), numbervars(true)])).
 
 load_metta_file_impl(Filename, Results, Space, CompileMode) :-
     setup_call_cleanup(push_working_dir(Filename),

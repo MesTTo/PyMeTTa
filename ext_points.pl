@@ -563,18 +563,36 @@ ext_point_kind(claim_function_name/3, host_service).
 ext_point_kind(clear_foreign_atoms/1, host_service).
 ext_point_kind(clear_native_atoms/1, host_service).
 ext_point_kind(foreign_provides/2, host_service).
-ext_point_kind(fun_here/1, host_service).
-ext_point_kind(load_imported_metta_file_impl/3, host_service).
-ext_point_kind(parse_metta_source/2, host_service).
-ext_point_kind(read_metta_source/2, host_service).
-ext_point_kind(replacing_previous_load/4, host_service).
 ext_point_kind(translate_expr/3, host_service).
+%The host run and load surface: the grouped runner (with the
+%using-substitution folded in as Bindings), the status runner, the load
+%lifecycle and the manifest read, plus the reducible-head test the status
+%vocabularies report. These replaced the parse-prepare-process walk and
+%the six-deep load nest every binding used to carry: prepare_parsed_forms,
+%process_form, read_metta_source, load_imported_metta_file_impl,
+%replacing_previous_load, with_source_load, fun_here and
+%translate_special_dl left this list with them (2026-08-20), and
+%parse_metta_source moved to the extension service list below, the import
+%libraries being its remaining callers.
+ext_point_kind(metta_host_run_source/4, host_service).
+ext_point_kind(metta_host_run_source_status/3, host_service).
+ext_point_kind(metta_host_load_file/3, host_service).
+ext_point_kind(metta_host_read_forms/2, host_service).
+ext_point_kind(metta_reducible_head/2, host_service).
+%The persistence surface moved engine-side the same day: the fast cache's
+%save and integrity-checked load, the space digest, and the host-value
+%substitution walk the using-runs share. metta_add_atom/3 and import_when/4
+%left the list with them, the fast loader having been their last transport
+%caller.
+ext_point_kind(metta_host_save_fast/3, host_service).
+ext_point_kind(metta_host_load_fast/2, host_service).
+ext_point_kind(metta_host_fast_header/1, host_service).
+ext_point_kind(metta_host_digest/2, host_service).
+ext_point_kind(metta_host_substitute/3, host_service).
 ext_point_kind(foreign_pushdown_class/3, host_service).
 ext_point_kind(function_changed/2, host_service).
 ext_point_kind(get_native_atom/2, host_service).
-ext_point_kind(import_when/4, host_service).
 ext_point_kind(match_foreign/5, host_service).
-ext_point_kind(metta_add_atom/3, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
 ext_point_kind(metta_atom_hook_clause/2, host_service).
 ext_point_kind(metta_remove_atom/3, host_service).
@@ -594,22 +612,23 @@ ext_point_kind(petta_refuse_guard/2, host_service).
 ext_point_kind(petta_source_reset/1, host_service).
 ext_point_kind(petta_transaction/1, host_service).
 ext_point_kind(petta_transport_failure/1, host_service).
-ext_point_kind(prepare_parsed_forms/1, host_service).
-ext_point_kind(process_form/3, host_service).
 ext_point_kind(recompile_definitions_mentioning/1, host_service).
 ext_point_kind(refuse_lossy_plan/4, host_service).
 ext_point_kind(refuse_other_tiers_name/2, host_service).
 ext_point_kind(register_fun_in/2, host_service).
 ext_point_kind(release_function_name/1, host_service).
 ext_point_kind(sread_with_names/3, host_service).
-ext_point_kind(translate_special_dl/5, host_service).
 ext_point_kind(unregister_fun_everywhere/1, host_service).
 ext_point_kind(unregister_metta_extension/1, host_service).
 ext_point_kind(with_metta_module/2, host_service).
-ext_point_kind(with_source_load/3, host_service).
 
 ext_point_kind(swrite/2, service).
 ext_point_kind(sread/2, service).
+%Moved from the host_service list on 2026-08-20: the host bindings read
+%source through metta_host_run_source/4 and its siblings now, and the
+%remaining callers are extension libraries (lib_gitimport, lib_import),
+%which is exactly what this kind means.
+ext_point_kind(parse_metta_source/2, service).
 ext_point_kind(metta_symbol_writable/1, service).
 ext_point_kind(metta_unwritable_symbol/2, service).
 

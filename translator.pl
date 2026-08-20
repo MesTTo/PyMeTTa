@@ -1069,6 +1069,22 @@ metta_special_form(Name) :-
 metta_translated_head(Name) :- metta_special_form(Name), !.
 metta_translated_head(Name) :- translator_rule(Name), !.
 
+%A head the engine will try to REDUCE from Module's view: meaning through
+%the translator, or a function the module can see. A variable or compound
+%head is decided at runtime by reduce/3, which reports its own outcome, so
+%it counts as reducible here. Published for hosts: the run- and
+%eval-status vocabularies report the branch the engine actually takes
+%rather than guessing from the answer, and every binding used to carry its
+%own copy of this test.
+metta_reducible_head(Module, [F|_]) :-
+    (   atom(F)
+    ->  (   metta_translated_head(F)
+        ->  true
+        ;   with_metta_module(Module, fun_here(F))
+        )
+    ;   true
+    ).
+
 %First-argument indexing keeps each special form independent of the number of
 %other forms. A clause fails on an unsupported arity so ordinary function or
 %data dispatch can still handle that expression.

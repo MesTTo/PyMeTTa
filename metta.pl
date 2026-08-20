@@ -5224,6 +5224,14 @@ control_exception('$aborted').
 %disarm the counter.
 control_exception(error(metta_control_signal(time_limit, _), _)).
 control_exception(error(metta_control_signal(inference_limit, _), _)).
+
+%The reserved envelope renders its payload: a reader failure used to cross
+%as a bare syntax_error and take SWI's own message with it, and wrapping
+%it in the envelope must not trade "missing ')' ..." for an unknown-term
+%dump on a host that shows message text.
+:- multifile prolog:error_message//1.
+prolog:error_message(metta_control_signal(syntax, Detail)) -->
+    [ 'MeTTa syntax error: ~w'-[Detail] ].
 control_exception(error(resource_error(_), _)).
 
 %A result past binary64 SATURATES to the IEEE value instead of raising,

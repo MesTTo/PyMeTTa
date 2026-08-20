@@ -232,7 +232,7 @@ def _validate_fast_header(path: str, actual: list[bytes], expected: list[bytes])
 
 
 def _load_fast(rt: Runtime, space: str, path: str, bounds: tuple[float, int]) -> list[list[Atom]]:
-    expected = str(rt.apply_must("petta_py_fast_header")).encode("ascii").split(b"\t")
+    expected = str(rt.apply_must("metta_host_fast_header")).encode("ascii").split(b"\t")
     _validate_fast_header(path, _fast_header(path), expected)
     seconds, steps = bounds
     try:

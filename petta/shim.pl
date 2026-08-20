@@ -520,155 +520,59 @@ control_exception(error(metta_control_signal(_, _), context(petta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
-% The engine's own pipeline is prepare_metta_source/2 then process_form/3, and
-% process_metta_string/3 flattens every directive's answers into one list at
-% the end. These entry points run the identical pipeline and keep the grouping
-% instead: one answer list per ! directive, in source order.
-%
-% The prepare half is prepare_parsed_forms/1 in src/filereader.pl: a source
-% registers every signature it defines BEFORE any of its own forms run, so a !
-% may name a function the same source defines lower down. Parsing without it is
-% what made seven shipped examples pass in the engine and fail here, each an
-% `!(memoize f)` above its own `(= (f ...) ...)` [measured 2026-08-18]. These
-% call the two halves apart rather than prepare_metta_source/2, because
-% petta_py_tag_reader/1 has to wrap the PARSE alone: it exists to turn a reader
-% failure into the reserved envelope, and the prepare passes raise their own
-% errors, which the Python side classifies by shape.
-
-%Reader failures use the reserved metta_control_signal/2 envelope, so the
-%Python side classifies the thrown term rather than hunting arbitrary text.
-petta_py_tag_reader(Goal) :-
-    catch(Goal, Caught,
-          ( ( Caught = error(syntax_error(M), _) ; Caught = syntax_error(M) )
-            -> petta_py_raise(syntax, M)
-          ; throw(Caught) )).
+% The grouping walk, the using-substitution, the load lifecycle and the
+% status vocabulary live ENGINE-SIDE now, in src/filereader.pl's host run
+% and load surface, where every binding shares one copy; this side decodes
+% the host values in, maps the codec over the term groups coming out, and
+% nothing else. Reader failures arrive as the engine's reserved
+% metta_control_signal envelope, which the Python side already classifies
+% by shape. The grouping is one answer list per ! directive, in source
+% order [tested test_run_status_reports_each_directive,
+% test_both_doors_replace_a_files_definitions].
 
 petta_py_run(Source, Space, Groups) :-
-    petta_py_ensure_working_dir,
-    ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    petta_py_tag_reader(parse_metta_source(S, Parsed)),
-    prepare_parsed_forms(Parsed),
-    petta_py_process_forms(Parsed, Space, Groups), !.
+    metta_host_run_source(Source, Space, [], TermGroups),
+    maplist(petta_py_encode_group, TermGroups, Groups).
 
-%The CLI asserts working_dir/1 from the file it loads, and import! reads it
-%unconditionally, so a string run needs one too; the process's own directory
-%is the honest analogue of "the file's directory" for source with no file:
-petta_py_ensure_working_dir :-
-    ( catch_recover(working_dir(_), fail) -> true
-    ; working_directory(Dir, Dir),
-      assertz(working_dir(Dir)) ).
+petta_py_encode_group(Terms, Encoded) :-
+    maplist(petta_py_encode, Terms, Encoded).
 
 %Run with named host values: each Name-Value pair substitutes the bare
 %symbol Name throughout the parsed forms before anything runs, the local-
 %variable reading a dataframe gets in embedded SQL. Values arrive on the
-%wire, objects boxed, so identity crosses whole.
+%wire, objects boxed, so identity crosses whole; the decode is this side's
+%half, the substitution walk is the engine's.
 petta_py_run_using(Source, Space, Pairs, Groups) :-
-    petta_py_ensure_working_dir,
-    ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    petta_py_tag_reader(parse_metta_source(S, Parsed0)),
     maplist(petta_py_using_pair, Pairs, Bindings),
-    maplist(petta_py_substitute_form(Bindings), Parsed0, Parsed),
-    %After the substitution, not before it: the pass has to read the forms
-    %that will RUN. A name bound to a host value is gone from them, and
-    %registering a signature for a head that no longer exists would leave a
-    %fun/1 nothing can ever define.
-    prepare_parsed_forms(Parsed),
-    petta_py_process_forms(Parsed, Space, Groups), !.
+    metta_host_run_source(Source, Space, Bindings, TermGroups),
+    maplist(petta_py_encode_group, TermGroups, Groups).
 
 petta_py_using_pair([Name0, Wire], Name-Value) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     petta_py_decode_shared(Wire, Value, _).
 
-petta_py_substitute_form(Bindings, parsed(Kind, N, Term0), parsed(Kind, N, Term)) :- !,
-    petta_py_substitute(Bindings, Term0, Term).
-petta_py_substitute_form(Bindings, Term0, Term) :-
-    petta_py_substitute(Bindings, Term0, Term).
-
-petta_py_substitute(_, T, T) :- var(T), !.
-petta_py_substitute(Bindings, T, V) :- atom(T), memberchk(T-V, Bindings), !.
-petta_py_substitute(Bindings, T, Out) :- is_list(T), !,
-    maplist(petta_py_substitute(Bindings), T, Out).
-petta_py_substitute(_, T, T).
-
-petta_py_process_forms([], _, []).
-petta_py_process_forms([P|Ps], Space, Out) :-
-    process_form(Space, P, Results),
-    ( P = parsed(runnable, _, _)
-      -> maplist(petta_py_encode, Results, Encoded),
-         Out = [Encoded|Rest]
-    ; Out = Rest ),
-    petta_py_process_forms(Ps, Space, Rest).
-
-%run, with each directive's group carrying the path that produced it. The
-%grouping and the answers are exactly petta_py_run's; only the pairing is new
-%[tested test_run_status_reports_each_directive].
 petta_py_run_status(Source, Space, Groups) :-
-    petta_py_ensure_working_dir,
-    ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    petta_py_tag_reader(parse_metta_source(S, Parsed)),
-    prepare_parsed_forms(Parsed),
-    petta_py_process_forms_status(Parsed, Space, Groups), !.
+    metta_host_run_source_status(Source, Space, TermGroups),
+    maplist(petta_py_status_group, TermGroups, Groups).
 
-petta_py_process_forms_status([], _, []).
-petta_py_process_forms_status([P|Ps], Space, Out) :-
-    process_form(Space, P, Results),
-    ( P = parsed(runnable, _, Term)
-      -> petta_py_module(Space, Module),
-         ( petta_py_reducible_head(Module, Term) -> Status = value
-                                                  ; Status = 'not-reducible' ),
-         ( Results == []
-           -> Group = [[empty, none]]
-            ; maplist(petta_py_status_answer(Status), Results, Group) ),
-         Out = [Group|Rest]
-    ; Out = Rest ),
-    petta_py_process_forms_status(Ps, Space, Rest).
+petta_py_status_group(Rows, Encoded) :-
+    maplist(petta_py_status_row, Rows, Encoded).
 
-petta_py_status_answer(Status, Result, [Status, Encoded]) :-
-    petta_py_encode(Result, Encoded).
+petta_py_status_row([empty, none], [empty, none]) :- !.
+petta_py_status_row([Status, Term], [Status, Encoded]) :-
+    petta_py_encode(Term, Encoded).
 
-%Load a file the way the CLI does, working_dir included, keeping the
-%grouping. The directory holds only for THIS load: whatever working_dir the
-%process had comes back afterwards, exceptions included, so one load never
-%changes where every later run resolves its relative imports from.
-%
-%It is a CONSULT, SWI's if(true): it always loads, and what it loads replaces
-%what this file put in this space before rather than being added on top of it
-%[source: SWI-Prolog 10.1 Reference Manual, section 4.3, "Reconsulting is
-%implied automatically by the fact that a file is consulted which is already
-%loaded"]. Before this the door had no file identity at all, so loading an
-%edited file left both definitions live and `(answer)` answered 1 and 2
-%[measured 2026-08-19]. The path is canonical for that reason: it is the key
-%the engine's own loader records a file under, so the two doors replace each
-%other's loads and not only their own
-%[tested: test_both_doors_replace_a_files_definitions].
 petta_py_load(File, Space, Groups) :-
-    ( atom(File) -> FA = File ; atom_string(FA, File) ),
-    absolute_file_name(FA, CanonPath, [access(read)]),
-    file_directory_name(CanonPath, Dir),
-    catch_recover(findall(W, working_dir(W), Saved), Saved = []),
-    setup_call_cleanup(
-        ( retractall(working_dir(_)), assertz(working_dir(Dir)) ),
-        import_when(true, Space, CanonPath,
-            replacing_previous_load(CanonPath, Space,
-                load_imported_metta_file_impl(CanonPath, _),
-                with_source_load(CanonPath, Space,
-                    ( read_metta_source(CanonPath, S), %the gz-aware reader
-                      petta_py_run(S, Space, Groups) )))),
-        ( retractall(working_dir(_)),
-          forall(member(W, Saved), assertz(working_dir(W))) )).
+    metta_host_load_file(File, Space, TermGroups),
+    maplist(petta_py_encode_group, TermGroups, Groups).
 
-%Read every form in Source without processing any, the boot-manifest door:
-%one [Kind, Text] pair per form in source order, Kind the parser's own
-%classification (expression, function, runnable) and Text the form's own
-%source, which keeps variable names the wire encoding would renumber.
-%Nothing is compiled, stored, or run, and no space hosts the read, so
-%&self stays as written [tested test_a_manifest_neither_runs_nor_defines].
+%Read every form in Source without processing any, the boot-manifest door
+%[tested test_a_manifest_neither_runs_nor_defines].
 petta_py_read_forms(Source, Forms) :-
-    ( string(Source) -> S = Source ; atom_string(Source, S) ),
-    petta_py_tag_reader(parse_metta_source(S, Parsed)),
-    maplist(petta_py_form_pair, Parsed, Forms).
+    metta_host_read_forms(Source, Pairs),
+    maplist(petta_py_form_pair, Pairs, Forms).
 
-petta_py_form_pair(parsed(Kind, Text, _), [KindStr, TextStr]) :-
+petta_py_form_pair([Kind, Text], [KindStr, TextStr]) :-
     atom_string(Kind, KindStr),
     ( string(Text) -> TextStr = Text ; atom_string(Text, TextStr) ).
 
@@ -1588,7 +1492,7 @@ petta_py_eval_all(Space, Tagged, Encoded) :-
 petta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
     petta_py_target_term(Space, Target, Term0),
     maplist(petta_py_using_pair, Pairs, Bindings),
-    petta_py_substitute(Bindings, Term0, Term),
+    metta_host_substitute(Bindings, Term0, Term),
     %The substituted TERM evaluates directly. Re-encoding it to a wire and
     %handing that back to the ordinary entry point looks tidier and is
     %wrong: a substituted host value is a boxed reference, and a round
@@ -1631,26 +1535,10 @@ petta_py_eval_term(Space, Term, Encoded) :-
 petta_py_eval_status_all(Space, Tagged, Results) :-
     petta_py_decode_shared(Tagged, Term, _),
     petta_py_module(Space, Module),
-    ( petta_py_reducible_head(Module, Term) -> Status = value
-                                             ; Status = 'not-reducible' ),
+    ( metta_reducible_head(Module, Term) -> Status = value
+                                          ; Status = 'not-reducible' ),
     findall([Status, E], petta_py_eval(Space, Tagged, E), Answers),
     ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
-
-%A head the engine will try to reduce: a function this space can see. A
-%variable or compound head is decided at runtime by reduce/3, which reports
-%its own outcome, so it counts as reducible here.
-petta_py_reducible_head(Module, [F|_]) :-
-    ( atom(F) -> ( petta_py_special_head(F) -> true
-                 ; translator_rule(F) -> true
-                 ; petta_py_in_module(Module, fun_here(F)) )
-               ; true ).
-
-%A special form reduces without being a fun/1: quote is
-%translate_special_dl(quote, [Expr], Goals, Goals, Expr), which applies and
-%hands back its argument, so (quote (a b)) is a value and not a term nothing
-%could reduce. The arity is unknown here, so any clause for the head counts.
-petta_py_special_head(F) :-
-    clause(translate_special_dl(F, _, _, _, _), _), !.
 
 %The residual variant additionally derives, per undefined answer, the
 %residual program from its delays (the loop through tnot responsible),
@@ -2880,31 +2768,12 @@ petta_py_set_silent(Silent) :-
 %the payload. Python validates it before calling the reader, and this section
 %checks it again on the same stream before fast_read can see any payload byte.
 
-:- use_module(library(fastrw), [fast_read/2, fast_write/2]).
-:- use_module(library(zlib), [gzopen/4]).
-:- use_module(library(memfile)).
-
-%The version prefix of the header; the file appends a tab, the sha256 of
-%the payload bytes, and a newline, so integrity refuses before fast_read
-%sees a single payload byte.
-petta_py_fast_header(Header) :-
-    current_prolog_flag(version_data, swi(Major, Minor, Patch, _)),
-    format(string(Header), 'PETTA-CACHE\tPETTA-FAST\t2\t~d.~d.~d',
-           [Major, Minor, Patch]).
-
-%A cache whose path ends .gz reads and writes through zlib's stream;
-%Python's gzip module accepts the same files and vice versa.
-petta_py_fast_open(File, Mode, Stream) :-
-    ( file_name_extension(_, gz, File)
-      -> gzopen(File, Mode, Stream, [type(binary)])
-    ; open(File, Mode, Stream, [type(binary)]) ).
-
-petta_py_fast_has_object(Term) :- py_is_object(Term), !.
-petta_py_fast_has_object(Term) :-
-    compound(Term),
-    compound_name_arguments(Term, _, Args),
-    member(Arg, Args),
-    petta_py_fast_has_object(Arg), !.
+%The fast cache and the digest are engine machinery now, the host run and
+%load surface in src/filereader.pl: this side maps the term outcomes to
+%the wire and answers the ONE host question the engine asks through the
+%metta_host_object/1 seam, whether a term is a live Python object (the
+%bridge contributes that clause). Results: object(Atom) and symbol(Atom)
+%name a refusing offender, saved(Count) and digest(Hash) land.
 
 %The first atom in a space with no round-trip text spelling, so a host
 %validating a save asks the grammar instead of keeping a second copy of its
@@ -2923,132 +2792,19 @@ petta_py_unwritable_atom(Space, Bad) :-
     metta_unwritable_symbol(Atom, Unwritable), !,
     petta_py_encode(Unwritable, Bad).
 
-%A fast save is a text file, so it refuses before it writes rather than after:
-%an object has no spelling at all, and a symbol whose name splits a token or
-%carries a quote has one that reads back as something else. metta_unwritable_
-%symbol/2 is the grammar's own answer to the second, one of the four text
-%services in src/ext_points.pl, and asking it is what keeps this from holding a
-%second copy of the delimiter rules; the copy it replaced missed three classes.
 petta_py_fast_save(File, Space, Result) :-
-    ( atom(File) -> FA = File ; atom_string(FA, File) ),
-    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
-    ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
-      -> petta_py_encode(ObjectAtom, Encoded),
-         Result = ["object", Encoded]
-    ; member(SymbolAtom, Atoms),
-      metta_unwritable_symbol(SymbolAtom, BadSymbol)
-      -> petta_py_encode(BadSymbol, Encoded),
-         Result = ["symbol", Encoded]
-    ; setup_call_cleanup(
-          new_memory_file(MF),
-          ( setup_call_cleanup(
-                open_memory_file(MF, write, PW, [encoding(octet)]),
-                fast_write(PW, Atoms),
-                close(PW)),
-            petta_py_hash_memory_file(MF, Hash),
-            petta_py_fast_header(Prefix),
-            format(string(Header), '~w\t~w\n', [Prefix, Hash]),
-            string_codes(Header, HeaderCodes),
-            setup_call_cleanup(
-                petta_py_fast_open(FA, write, Out),
-                ( maplist(put_byte(Out), HeaderCodes),
-                  setup_call_cleanup(
-                      open_memory_file(MF, read, PR, [encoding(octet)]),
-                      copy_stream_data(PR, Out),
-                      close(PR)) ),
-                close(Out)) ),
-          free_memory_file(MF)),
-      length(Atoms, Count),
-      Result = ["saved", Count] ).
+    metta_host_save_fast(File, Space, Outcome),
+    petta_py_persist_result(Outcome, Result).
 
-%One compact octet string, one C hash. Measured against the crypto
-%filter-stream route (copy through the filter into a null sink), which
-%charged ~9ms per 700KB pass; this stays ~1ms.
-petta_py_hash_memory_file(MF, Hash) :-
-    memory_file_to_string(MF, Payload, octet),
-    crypto_data_hash(Payload, Hash, [algorithm(sha256), encoding(octet)]).
-
-petta_py_hash_stream(In, Hash) :-
-    read_string(In, _, Payload),
-    crypto_data_hash(Payload, Hash, [algorithm(sha256), encoding(octet)]).
-
-petta_py_fast_expect_header([], _).
-petta_py_fast_expect_header([Expected|Rest], In) :-
-    get_byte(In, Actual),
-    ( Actual =:= Expected
-      -> petta_py_fast_expect_header(Rest, In)
-    ; throw(error(petta_fast_header_mismatch(Expected, Actual), none)) ).
-
-petta_py_fast_read(In, File, Atoms) :-
-    catch(fast_read(In, Read), Caught,
-          throw(error(petta_fast_read_failed(File, Caught), none))),
-    ( is_list(Read)
-      -> Atoms = Read
-    ; throw(error(petta_fast_payload_not_atom_list(File), none)) ).
-
-%After the version prefix: one tab, sixty-four hex digits, one newline.
-petta_py_fast_expect_hash(In, File, Hash) :-
-    read_string(In, "\n", "", _, Line),
-    ( string_concat("\t", Hash, Line),
-      string_length(Hash, 64),
-      forall(string_code(_, Hash, C),
-             ( C >= 0'0, C =< 0'9 ; C >= 0'a, C =< 0'f ))
-      -> true
-    ; throw(error(petta_fast_integrity_header(File), none)) ).
-
-%A cache is a file this door loaded, so it is replaced on a second load the
-%same way a text program is. It needs neither a reader nor a digest of its own
-%for that: the format already carries the sha256 of its payload, which is the
-%same question metta_source_digest/2 asks of a source's text
-%[tested test_loading_a_fast_cache_twice_leaves_one_copy].
 petta_py_fast_load(File, Space) :-
-    ( atom(File) -> FA = File ; atom_string(FA, File) ),
-    absolute_file_name(FA, CanonPath, [access(read)]),
-    import_when(true, Space, CanonPath,
-                replacing_previous_load(CanonPath, Space,
-                                        petta_py_fast_load_into(CanonPath),
-                                        petta_py_fast_load_into(CanonPath, Space))).
+    metta_host_load_fast(File, Space).
 
-petta_py_fast_load_into(CanonPath, Space) :-
-    with_source_load(CanonPath, Space,
-                     petta_py_fast_add_atoms(CanonPath, Space)).
-
-%Two passes: the first proves the payload hash through the crypto filter
-%stream, the second lets fast_read consume the now-proven bytes straight
-%off the file. fastrw is unsafe on untrusted bytes, so no payload byte
-%reaches it before the digest agrees.
-petta_py_fast_add_atoms(FA, Space) :-
-    petta_py_fast_header(Prefix),
-    string_codes(Prefix, PrefixCodes),
-    setup_call_cleanup(
-        petta_py_fast_open(FA, read, HIn),
-        ( petta_py_fast_expect_header(PrefixCodes, HIn),
-          petta_py_fast_expect_hash(HIn, FA, ExpectedHash),
-          petta_py_hash_stream(HIn, ActualHash) ),
-        close(HIn)),
-    atom_string(ActualHash, ActualHashText),
-    ( ActualHashText == ExpectedHash -> true
-    ; throw(error(petta_fast_integrity_mismatch(FA), none)) ),
-    %Unconditional, because the only caller wraps this in a load context. A
-    %fast load that reached here without one would be recorded under nothing
-    %and so could never be replaced, and failing outright is the right way to
-    %find that out.
-    active_source_load(LoadId),
-    assertz(source_load_digest(LoadId, FA, ActualHash)),
-    setup_call_cleanup(
-        petta_py_fast_open(FA, read, In),
-        ( petta_py_fast_expect_header(PrefixCodes, In),
-          petta_py_fast_expect_hash(In, FA, _),
-          petta_py_fast_read(In, FA, Atoms),
-          %metta_add_atom/3 rather than the public `add-atom`: the space was
-          %resolved before the file was opened, so the space-argument check the
-          %public one owes a PROGRAM is pure cost on every atom in the file.
-          %metta_add_atoms/2 was tried here and is SLOWER, because a fast-format
-          %file is not store-only and its batch test scans every atom before
-          %falling back to this same loop [measured 2026-08-17: 4737359333
-          %against 4707855603].
-          forall(member(Atom, Atoms), metta_add_atom(Space, Atom, _)) ),
-        close(In)).
+petta_py_persist_result(object(Atom), ["object", Encoded]) :- !,
+    petta_py_encode(Atom, Encoded).
+petta_py_persist_result(symbol(Atom), ["symbol", Encoded]) :- !,
+    petta_py_encode(Atom, Encoded).
+petta_py_persist_result(saved(Count), ["saved", Count]) :- !.
+petta_py_persist_result(digest(Hash), ["digest", Hash]).
 
 %%%%%%%%%% Content digest %%%%%%%%%%
 %
@@ -3058,29 +2814,6 @@ petta_py_fast_add_atoms(FA, Space) :-
 %order cannot matter, then hashed as one utf8 document. Live objects
 %print by address and are refused, the save contract.
 
-:- use_module(library(crypto), [crypto_data_hash/3,
-                                crypto_open_hash_stream/3,
-                                crypto_stream_hash/2]).
-
 petta_py_digest(Space, Result) :-
-    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
-    ( member(ObjectAtom, Atoms), petta_py_fast_has_object(ObjectAtom)
-      -> petta_py_encode(ObjectAtom, Encoded),
-         Result = ["object", Encoded]
-    ; member(SymbolAtom, Atoms),
-      metta_unwritable_symbol(SymbolAtom, BadSymbol)
-      -> petta_py_encode(BadSymbol, Encoded),
-         Result = ["symbol", Encoded]
-    ; findall(Line, ( member(Atom, Atoms),
-                      petta_py_digest_line(Atom, Line) ),
-              Lines),
-      msort(Lines, Sorted),
-      atomic_list_concat(Sorted, '\n', Joined),
-      crypto_data_hash(Joined, Hex, [algorithm(sha256)]),
-      Result = ["digest", Hex] ).
-
-petta_py_digest_line(Atom, Line) :-
-    copy_term(Atom, Copy),
-    numbervars(Copy, 0, _),
-    with_output_to(string(Line),
-                   write_term(Copy, [quoted(true), numbervars(true)])).
+    metta_host_digest(Space, Outcome),
+    petta_py_persist_result(Outcome, Result).
