@@ -4,7 +4,8 @@ unit, and guarded Python twins agree with equations on ground inputs.
 Guarantees:
   - one source docstring reaches Defined.doc, help(), and the definition
     space's @doc atom [tested:
-    test_one_docstring_reaches_help_dot_doc_and_get_doc; commit=WORKTREE]
+    test_one_docstring_reaches_help_dot_doc_and_get_doc;
+    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

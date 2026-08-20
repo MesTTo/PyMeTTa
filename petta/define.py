@@ -10,7 +10,8 @@ body is pure atoms that any evaluator can take whole.
 Guarantees:
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
-    test_one_docstring_reaches_help_dot_doc_and_get_doc; commit=WORKTREE]
+    test_one_docstring_reaches_help_dot_doc_and_get_doc;
+    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -7,7 +7,7 @@ Guarantees:
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
-     commit=WORKTREE]
+     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
