@@ -12,7 +12,7 @@ Guarantees:
   - scalar Enum subclasses and composite Flags retain the member and type
     declarations that distinguish them from their scalar payloads
     [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
-     commit=WORKTREE]
+     commit=49d2fc7b551ad057dfa018c350874bdee0e07cba]
 Open Obligations:
   To Do: None
   Hacks: None
