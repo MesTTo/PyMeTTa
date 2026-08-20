@@ -9,6 +9,10 @@ Guarantees:
   - AssertionFailure is a PettaError and NOT an EngineError, so a harness
     separates a false claim from a broken engine by type [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
+  - SpaceCapabilityError carries the refused space, operation, and capability
+    as fields [tested:
+    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,6 +35,7 @@ __all__ = [
     "PettaError",
     "ResourceLimitError",
     "SourceNotFound",
+    "SpaceCapabilityError",
     "StrictError",
     "SubscriberError",
     "TimeLimitError",
@@ -87,6 +92,25 @@ class EngineError(PettaError):
     The original janus exception rides along as __cause__, so nothing is
     hidden; the message here is the engine's, trimmed of janus framing.
     """
+
+
+class SpaceCapabilityError(EngineError):
+    """A restricted space tried an operation its creation grants omit."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        space: str,
+        operation: str,
+        capability: str,
+    ):
+        super().__init__(
+            message,
+            space=space,
+            operation=operation,
+            capability=capability,
+        )
 
 
 class MettaOperationError(EngineError):

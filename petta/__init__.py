@@ -11,6 +11,9 @@ Guarantees:
     [tested test_public_context_types_are_distinct]
   - atom formatter registrations have public removal counterparts [tested
     test_object_repr_registrations_can_be_removed_exactly]
+  - SpaceCapabilityError is available at package level [tested:
+    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -170,6 +173,7 @@ from .errors import (  # noqa: E402
     PettaError,
     ResourceLimitError,
     SourceNotFound,
+    SpaceCapabilityError,
     StrictError,
     SubscriberError,
     TimeLimitError,
@@ -311,6 +315,7 @@ __all__ = [
     "S",
     "SaveFormat",
     "SourceNotFound",
+    "SpaceCapabilityError",
     "SpaceName",
     "SpaceProvider",
     "Step",

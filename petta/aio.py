@@ -29,6 +29,9 @@ Guarantees:
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
     test_cast_target_is_positional_only]
+  - async new_space forwards inheritance, restriction, and grants on the
+    owning worker [tested test_async_new_space_forwards_restriction_and_grants;
+    commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -686,9 +689,25 @@ class AsyncMeTTa:
             )
         )
 
-    async def new_space(self) -> AsyncMeTTa:
+    async def new_space(
+        self,
+        *,
+        inherits: AsyncMeTTa | None = None,
+        restricted: bool = False,
+        grants: Sequence[str] = (),
+    ) -> AsyncMeTTa:
         """Return an isolated space that borrows this connection's worker."""
-        fresh = await self.call(lambda m: m.new_space())
+        if inherits is not None and inherits._worker is not self._worker:
+            raise ValueError("an inherited async space must share this engine worker")
+        parent = None if inherits is None else inherits._m
+        requested_grants = tuple(grants)
+        fresh = await self.call(
+            lambda m: m.new_space(
+                inherits=parent,
+                restricted=restricted,
+                grants=requested_grants,
+            )
+        )
         return AsyncMeTTa._sharing(fresh, self._worker)
 
     async def copy(self) -> AsyncMeTTa:

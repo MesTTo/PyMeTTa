@@ -24,6 +24,9 @@
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
+%     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
+%     commit=WORKTREE]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
@@ -486,6 +489,10 @@ petta_py_operation_error(Error, Operation, Kind, Expected, Culprit) :-
 
 petta_py_operation_part(Part, @none) :- var(Part), !.
 petta_py_operation_part(Part, Part).
+
+petta_py_space_capability_error(
+    error(petta_space_capability_required(Space, Operation, Capability), _),
+    Space, Operation, Capability).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a petta_py_control_exception/1 here holding a SECOND copy of the list,
@@ -1079,6 +1086,16 @@ petta_py_new_space(Parent0, Name) :-
     petta_py_new_space(Name),
     catch(metta_declare_space_parent(Name, Parent), Error,
           ( petta_py_pool_space(Name), throw(Error) )).
+
+petta_py_new_restricted_space(Grants0, Name) :-
+    maplist(petta_py_space_capability, Grants0, Grants),
+    petta_py_new_space(Name),
+    catch(metta_declare_restricted_space(Name, Grants), Error,
+          ( petta_py_pool_space(Name), throw(Error) )).
+
+petta_py_space_capability(Capability, Capability) :- atom(Capability), !.
+petta_py_space_capability(Capability0, Capability) :-
+    atom_string(Capability, Capability0).
 
 petta_py_next_space(Name) :-
     retract(petta_py_space_counter(N)),
