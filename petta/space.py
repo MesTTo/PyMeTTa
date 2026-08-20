@@ -59,6 +59,10 @@ Guarantees:
     form, sorted without duplicates [tested:
     test_builtins_equals_the_union_of_functions_and_special_forms;
     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
+  - register_op refuses a name the engine reader cannot recover as one symbol,
+    before changing either the engine or Python registries [tested:
+    test_register_op_refuses_a_name_metta_cannot_read;
+    commit=WORKTREE]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -1668,6 +1672,11 @@ class MeTTa:
             def neighbours(n: int):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
+
+        A name must read back as one MeTTa symbol. A space, parenthesis,
+        quote, comment opener, variable spelling, number, boolean, or another
+        registered reader token is refused before any registry changes, with
+        the name and the conflicting character in the error.
 
         Annotations become a (: ...) declaration unless typed=False, and the
         three combinations answer differently, which is worth knowing because

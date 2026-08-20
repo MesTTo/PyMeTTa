@@ -64,6 +64,11 @@
 %     decision to Python consumers without reproducing delimiters there
 %     [tested: test_every_delimiter_check_derives_from_one_grammar_rule;
 %     commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
+%   - petta_py_symbol_refusal/2 derives both its refusal and its character
+%     witness from metta_symbol_writable/1, so register_op rejects unreadable
+%     names before any registry state changes [tested:
+%     test_register_op_refuses_a_name_metta_cannot_read;
+%     commit=WORKTREE]
 %   - petta_py_builtins/1 answers the sorted union of every fun/1 name and
 %     every translate_special_dl/5 head, so host tooling sees the language
 %     rather than only its callable registry [tested:
@@ -2543,6 +2548,26 @@ petta_py_unwritable_atom(Space, Bad) :-
 %classes registered after startup.
 petta_py_symbol_writable(Name, '@'(true)) :- metta_symbol_writable(Name), !.
 petta_py_symbol_writable(_, '@'(false)).
+
+%A refusal witness for a host error. Testing each one-character spelling
+%against the grammar finds a delimiter or reserved literal opener without a
+%second delimiter table; when only the whole token is reserved (True or a
+%registered token class), its first character locates the competing token.
+petta_py_symbol_refusal(Name0, Refusal) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    \+ metta_symbol_writable(Name),
+    petta_py_symbol_refusal_detail(Name, Refusal).
+
+petta_py_symbol_refusal_detail('', [empty]) :- !.
+petta_py_symbol_refusal_detail(Name, [character, Character]) :-
+    atom_codes(Name, Codes),
+    member(Code, Codes),
+    atom_codes(Character, [Code]),
+    \+ metta_symbol_writable(Character),
+    !.
+petta_py_symbol_refusal_detail(Name, [token, Character]) :-
+    atom_codes(Name, [First|_]),
+    atom_codes(Character, [First]).
 
 petta_py_fast_save(File, Space, Result) :-
     metta_host_save_fast(File, Space, Outcome),
