@@ -13,6 +13,10 @@
 %     [tested test_declare_handles_rejects_a_conflict_eagerly]
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - petta_py_add_strict_declaration/2 refuses a declaration already owned by
+%     source code before Python publishes an operation
+%     [tested: test_a_duplicate_declaration_names_the_first_one;
+%     commit=WORKTREE]
 %   - petta_py_load/3 loads under the engine's own source-load lifecycle, so
 %     the library's door and import! replace each other's loads of a file and
 %     not only their own [tested 2026-08-19:
@@ -958,6 +962,18 @@ petta_py_swrite(Tagged, String) :-
 petta_py_add(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Term, _),
     'add-atom'(Space, Term, _).
+
+%Python operation registration owns the declaration it retains. Ordinary
+%source loading deliberately treats an identical declaration as an idempotent
+%warning, but adopting somebody else's row here would let unregister remove
+%that source-owned declaration. Probe and add through this shim's public doors
+%so the ownership distinction does not leak into the engine's general add API.
+petta_py_add_strict_declaration(Space, Tagged) :-
+    (   petta_py_contains(Space, Tagged)
+    ->  petta_py_decode_shared(Tagged, Term, _),
+        throw(error(petta_duplicate_declaration(Space, Term, Term), none))
+    ;   petta_py_add(Space, Tagged)
+    ).
 
 petta_py_decode_for_add(Tagged, Term) :-
     petta_py_decode_shared(Tagged, Term, _).

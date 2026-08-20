@@ -5,6 +5,10 @@ annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - registration distinguishes a MeTTa function name from its declaration
     space [tested test_public_context_types_are_distinct]
+  - the first Python owner refuses to adopt a source-owned declaration, while
+    later Python owners share the declaration reference count
+    [tested: test_a_duplicate_declaration_names_the_first_one;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -96,7 +100,11 @@ def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
     if count == 0:
-        runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
+        runtime.must(
+            "petta_py_add_strict_declaration(Space, W)",
+            Space=space,
+            W=declaration.to_wire(),
+        )
     _DECLARATION_REFS[key] = count + 1
 
 

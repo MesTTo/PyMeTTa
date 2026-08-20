@@ -6,8 +6,8 @@ Guarantees:
   [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=WORKTREE]
   - DontEvalType declarations mask evaluation without relying on a type name.
   [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=WORKTREE]
-  - a duplicate declaration is refused with the existing row in the message,
-    and a duplicate public batch is rejected before either copy is stored.
+  - a source duplicate is idempotent, operation registration refuses to adopt
+    its existing row, and a duplicate public batch is rejected atomically.
   [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
   - pragma! accepts only keys and values whose setting changes an engine
     mechanism, while none explicitly disables execution bounds.
@@ -228,6 +228,10 @@ def test_a_duplicate_declaration_names_the_first_one():
     metta = MeTTa(verbose=False)
     first = "(: duplicate-op (-> Number Number))"
     metta.run(first)
+    metta.run(first)
+    assert _answers(metta, "!(match &self (: duplicate-op $type) $type)") == [
+        "(-> Number Number)"
+    ]
 
     def duplicate_op(value: int) -> int:
         return value
