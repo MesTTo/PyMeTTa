@@ -49,21 +49,21 @@ NAMED_FAILURES = frozenset(
     }
 )
 
-OVERLAPPING_RULES = """(= (m2 a) (quote one))
-(= (m2 $x) (quote two))
+OVERLAPPING_RULES = """(= (m2 a) (noeval one))
+(= (m2 $x) (noeval two))
 !(add-translator-rule! m2)
 (= (usem2) (m2 a))
 !(usem2)
 """
 
-REVERSED_RULES = """(= (m2 $x) (quote two))
-(= (m2 a) (quote one))
+REVERSED_RULES = """(= (m2 $x) (noeval two))
+(= (m2 a) (noeval one))
 !(add-translator-rule! m2)
 (= (usem2) (m2 a))
 !(usem2)
 """
 
-CLEAN_RULES = """(= (m5 $x) (quote (cons 5 $x)))
+CLEAN_RULES = """(= (m5 $x) (noeval (cons 5 $x)))
 !(add-translator-rule! m5)
 (= (usem5) (m5 (6)))
 !(usem5)
@@ -234,8 +234,8 @@ def test_overlapping_translator_rules_are_reported_with_the_overlap_named(
     # Named: which two rules, where they overlap, and what each of them gives.
     assert "OVERLAP counterexample: rule 1 (m2 a) and rule 2 (m2 $" in report
     assert "at position []" in report
-    assert "rule 1 gives (quote one)" in report
-    assert "rule 2 gives (quote two)" in report
+    assert "rule 1 gives (noeval one)" in report
+    assert "rule 2 gives (noeval two)" in report
     assert "conclusion: NOT LOCALLY CONFLUENT." in report
 
     # The decidable fragment, and which side of it this rule set is on.

@@ -5,6 +5,7 @@ Assumes:
 Guarantees:
   - a type variable bound by an earlier application constrains later arguments
     before those arguments are evaluated.
+  - quote remains a value while let can evaluate before constructing that value.
 """
 
 from __future__ import annotations
@@ -54,3 +55,22 @@ def test_a_type_variable_bound_through_an_application_constrains_the_next_argume
     assert "PROBE-RAN" not in captured.splitlines(), (
         "type applicability ran the rejected probe"
     )
+
+
+@needs_arbiter
+def test_quote_survives_as_a_value():
+    groups, _ = _run_file(
+        MeTTa(verbose=False), "30_evaluation_control.metta"
+    )
+    assert groups == [
+        ["(-> Atom Atom)"],
+        ["(+ 1 2)"],
+        ["Symbol"],
+        ["(-> Atom Atom)"],
+        ["(quote (+ 1 2))"],
+        ["(quote 3)"],
+        ["Symbol"],
+        ["(-> Atom Atom ErrorType)"],
+        ["ErrorType"],
+        ["(Error (+ 2 3) (+ 4 5))"],
+    ]

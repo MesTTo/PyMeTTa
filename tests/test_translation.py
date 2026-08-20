@@ -47,11 +47,11 @@ def test_let_star_with_an_unarrived_bindings_list_does_not_drop_them(m):
     # rewrite used to unify [Pattern, Value] into it and change the head the
     # program wrote.
     m.run("(= (letpair $b) (let* ($b) 99))")
-    assert [str(a) for a in m.eval("(letpair (quote ($x 7)))")] == ["99"]
+    assert [str(a) for a in m.eval("(letpair (noeval ($x 7)))")] == ["99"]
 
     # A value arriving there that is not bindings is refused naming the form.
     with pytest.raises(EngineError) as refusal:
-        m.eval("(mylet (quote ((1 2 3))) done)")
+        m.eval("(mylet (noeval ((1 2 3))) done)")
     assert "let*: a list of (pattern value) bindings expected" in str(refusal.value)
 
 

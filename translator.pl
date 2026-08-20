@@ -1676,7 +1676,10 @@ translate_special_dl(super, [Call], AfterHead, Goals, Out) :-
     resolve_dispatch(Fun, ArgValues, Out, Goal),
     AfterArgs = [Parent:Goal|Goals].
 
-translate_special_dl(quote, [Expr], Goals, Goals, Expr).
+%Quote is a value headed by the ordinary symbol `quote`. Its Atom argument is
+%held and the wrapper survives; a consumer that wants the payload must match
+%or evaluate that value explicitly.
+translate_special_dl(quote, [Expr], Goals, Goals, [quote, Expr]).
 %not-provable keeps its head literal and evaluates its arguments, exactly as
 %an ordinary call does. Which function is being negated has to be known
 %without running it, because the answer comes from that function's dual rather
@@ -1717,11 +1720,9 @@ refuse_uncompilable_seam(Form, Args) :-
 
 %The same mistake reaches the translator by a second route that the clauses
 %above cannot see. A rule whose expansion is built in Prolog returns the form
-%itself, so a quote around it is not consumed by the rule body the way it is
-%when the rule is written in MeTTa source; it survives into the expansion, and
-%quote hands back the seam it wraps as data. Nothing downstream can compile
-%that, and before this the rule answered an unbound variable
-%[tested translator.plt:quoted_seam_expansion_is_refused].
+%itself. A malformed bare seam can therefore survive translation as data and
+%is refused here. A quote around it is a valid inert quote value instead
+%[tested translator.plt:quoted_seam_expansion_stays_inert].
 refuse_seam_expanded_to_data(Rule, Out) :-
     (   nonvar(Out), Out = [Seam|_],
         ( Seam == translatePredicate ; Seam == call )

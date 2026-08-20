@@ -147,7 +147,7 @@
 (: unquote (-> Atom %Undefined%))
 (= (unquote (quote $A))
    (let $cut (cut) (eval $A)))
-(= (unquote $A) (quote (unquote $A)))
+(= (unquote $A) (noeval (unquote $A)))
 
 (: noreduce-eq (-> Atom Atom Bool))
 (= (noreduce-eq $A $B)
@@ -382,8 +382,8 @@
 ; the compiler: the expansion goes back through the ordinary translator, so
 ; one definition decides what the form means and the kernel carries one form
 ; fewer. The Atom parameters are what make an argument arrive as syntax; the
-; %Undefined% RESULT type is what makes the (quote ...) body translate, since
-; an Atom result would leave the body untranslated and hand the quote itself
+; %Undefined% RESULT type is what makes the (noeval ...) body translate, since
+; an Atom result would leave the body untranslated and hand the noeval itself
 ; back as the expansion.
 ;
 ; Every form here was A/B'd against the compiler clause it replaced, on the
@@ -397,28 +397,28 @@
 ;and drops the empty conjunct the hand-written pair kept [measured 2026-08-19:
 ;the same conditional, minus one `true` conjunct].
 (: and-then (-> Atom Atom %Undefined%))
-(= (and-then $a $b) (quote (if $a $b False)))
+(= (and-then $a $b) (noeval (if $a $b False)))
 !(add-translator-rule! and-then)
 
 (: or-else (-> Atom Atom %Undefined%))
-(= (or-else $a $b) (quote (if $a True $b)))
+(= (or-else $a $b) (noeval (if $a True $b)))
 !(add-translator-rule! or-else)
 
 ;The stream operations. Each was a rewrite rule in the compiler that produced
 ;exactly the MeTTa term below, so moving them changes nothing but where they
 ;live [measured 2026-08-19: byte-identical compiled goals].
 (: trace! (-> Atom Atom %Undefined%))
-(= (trace! $message $value) (quote (progn (println! $message) $value)))
+(= (trace! $message $value) (noeval (progn (println! $message) $value)))
 !(add-translator-rule! trace!)
 
 (: unique (-> Atom %Undefined%))
 (= (unique $stream)
-   (quote (call (superpose (unique-atom (collapse $stream))))))
+   (noeval (call (superpose (unique-atom (collapse $stream))))))
 !(add-translator-rule! unique)
 
 (: alpha-unique (-> Atom %Undefined%))
 (= (alpha-unique $stream)
-   (quote (call (superpose (alpha-unique-atom (collapse $stream))))))
+   (noeval (call (superpose (alpha-unique-atom (collapse $stream))))))
 !(add-translator-rule! alpha-unique)
 
 ;The set operations name the shape they rewrite, `(superpose ...)` on both
@@ -428,21 +428,21 @@
 ;rather than letting the expansion recurse [tested: translator_derived_forms].
 (: union (-> Atom Atom %Undefined%))
 (= (union (superpose $a) (superpose $b))
-   (quote (call (superpose (union-atom (collapse (superpose $a))
-                                       (collapse (superpose $b)))))))
-(= (union $a $b) (quote (noeval (union $a $b))))
+   (noeval (call (superpose (union-atom (collapse (superpose $a))
+                                        (collapse (superpose $b)))))))
+(= (union $a $b) (noeval (noeval (union $a $b))))
 !(add-translator-rule! union)
 
 (: intersection (-> Atom Atom %Undefined%))
 (= (intersection (superpose $a) (superpose $b))
-   (quote (call (superpose (intersection-atom (collapse (superpose $a))
-                                              (collapse (superpose $b)))))))
-(= (intersection $a $b) (quote (noeval (intersection $a $b))))
+   (noeval (call (superpose (intersection-atom (collapse (superpose $a))
+                                               (collapse (superpose $b)))))))
+(= (intersection $a $b) (noeval (noeval (intersection $a $b))))
 !(add-translator-rule! intersection)
 
 (: subtraction (-> Atom Atom %Undefined%))
 (= (subtraction (superpose $a) (superpose $b))
-   (quote (call (superpose (subtraction-atom (collapse (superpose $a))
-                                             (collapse (superpose $b)))))))
-(= (subtraction $a $b) (quote (noeval (subtraction $a $b))))
+   (noeval (call (superpose (subtraction-atom (collapse (superpose $a))
+                                              (collapse (superpose $b)))))))
+(= (subtraction $a $b) (noeval (noeval (subtraction $a $b))))
 !(add-translator-rule! subtraction)
