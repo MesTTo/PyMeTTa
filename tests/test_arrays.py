@@ -13,7 +13,7 @@ Guarantees:
   - the module fixture retires its process-global operation registrations, so
     later suites do not inherit array callables [tested: python -m pytest
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
-    commit=WORKTREE]
+    commit=f6b5a40f74e386e7cd779c3925da7e4c02000fdb]
 Open Obligations:
   To Do: None
   Hacks: None
