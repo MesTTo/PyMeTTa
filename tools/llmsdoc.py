@@ -8,7 +8,7 @@ worst possible failure for a file whose whole purpose is to be believed
 without being verified.
 
 Assumes:
-  - petta imports here, unlike python/tools/reference.py, which reads the AST
+  - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running engine
     and there is no way to read them statically [assumed 2026-08-18]
   - a backticked token containing a slash and ending in a known extension is
@@ -36,7 +36,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 DOC = ROOT / "llms.txt"
 
 BACKTICK = re.compile(r"`([^`\n]+)`")
@@ -81,17 +81,17 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     """Builtins from the running engine; the two translated sets from source.
 
     The special forms are the heads of translate_special_dl/5, read the way
-    src/translator.pl says to read them: from the clauses themselves, so a
+    engine/translator.pl says to read them: from the clauses themselves, so a
     form added there is covered the day it is added. The derived forms are the
-    names src/prelude.metta registers with add-translator-rule!, read the same
+    names engine/prelude.metta registers with add-translator-rule!, read the same
     way, which is where a form goes when it leaves the compiler.
     """
-    sys.path.insert(0, str(ROOT / "python"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python"))
     from petta import MeTTa
 
     builtins = set(MeTTa().builtins())
     special = set()
-    for source in sorted((ROOT / "src").glob("*.pl")):
+    for source in sorted((ROOT / "engine").glob("*.pl")):
         body = source.read_text()
         special |= {
             head.strip("'")
@@ -100,7 +100,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     derived = set(
         re.findall(
             r"^!\(add-translator-rule!\s+([^\s)]+)\)",
-            (ROOT / "src" / "prelude.metta").read_text(),
+            (ROOT / "engine" / "prelude.metta").read_text(),
             re.MULTILINE,
         )
     )
@@ -110,9 +110,9 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 def counts() -> list[tuple[str, int]]:
     """Each dated count in llms.txt, with what the tree says it is now."""
     src_lines = sum(
-        len(p.read_text().splitlines()) for p in sorted((ROOT / "src").glob("*.pl"))
+        len(p.read_text().splitlines()) for p in sorted((ROOT / "engine").glob("*.pl"))
     )
-    main = (ROOT / "python" / "petta" / "__main__.py").read_text()
+    main = (ROOT / "bindings" / "python" / "petta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
     # aliases for files already in the list and 12 fixtures that are inputs
@@ -120,18 +120,18 @@ def counts() -> list[tuple[str, int]]:
     # [measured 2026-08-18: 242 paths, 218 regular files, 206 discovered,
     # 200 run]. examples/README.md and this file disagreed with each other
     # and with the runner, each by a different amount.
-    sys.path.insert(0, str(ROOT / "python" / "tools"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python" / "tools"))
     from example_parity import corpus
 
     return [
         (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/petta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/*.plt")))),
-        (r"(\d+) files, blackbox", len(list(ROOT.glob("python/tests/*.py")))),
+        (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*.py")))),
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
-        (r"(\d+) runnable Python programs", len(list(ROOT.glob("python/examples/*/*.py")))),
-        (r"([\d,]+) lines: `src/metta.pl`", src_lines),
+        (r"(\d+) runnable Python programs", len(list(ROOT.glob("bindings/python/examples/*/*.py")))),
+        (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
         (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*.metta")))),
         (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*.metta")))),
         (r"(\d+) builtins are registered", -1),
@@ -154,13 +154,18 @@ def _absent_artefact_diagnosis(stated: int, actual: int, root: pathlib.Path = RO
     """
     absent: list[tuple[str, list[str]]] = []
     fact = re.compile(r"^metta_backend_builtin\('?([^')]+)'?\)\.", re.MULTILINE)
-    for backend in sorted(root.glob("mork_ffi/morkspaces.pl")):
-        artefact = backend.parent / "target" / "release" / "libmork_ffi.so"
-        if artefact.exists():
-            continue
+    # Per-integration discovery: any fact-bearing implementation under a
+    # backend's folder, its artefact the crate build beside it, so a new
+    # backend is a new folder and this diagnosis needs no edit.
+    for backend in sorted(root.glob("backends/*/**/*.pl")):
         names = fact.findall(backend.read_text())
-        if names:
-            absent.append((str(artefact.relative_to(root)), names))
+        if not names:
+            continue
+        release = backend.parent / "target" / "release"
+        if release.is_dir() and any(release.glob("*.so")):
+            continue
+        artefact = release / f"lib{backend.parent.name}.so"
+        absent.append((str(artefact.relative_to(root)), names))
     missing = sum(len(names) for _, names in absent)
     if missing and stated == actual + missing:
         parts = "; ".join(
@@ -183,7 +188,7 @@ def check() -> list[str]:
     parts = sections(text)
     bad: list[str] = []
 
-    sys.path.insert(0, str(ROOT / "python"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python"))
     import petta
     from petta import MeTTa
 
@@ -212,7 +217,7 @@ def check() -> list[str]:
     # have covered for a later paragraph using it as though it were live.
     denial = paragraph(parts["The MeTTa language surface"], r"\d+ libraries load with")
     for module in sorted(gone):
-        if (ROOT / "python" / "petta" / f"{module}.py").exists():
+        if (ROOT / "bindings" / "python" / "petta" / f"{module}.py").exists():
             bad.append(f"llms.txt says petta.{module} is gone, but the module is back")
         elif text.count(f"petta.{module}") != denial.count(f"petta.{module}"):
             bad.append(f"petta.{module} is deleted but llms.txt names it outside the sentence saying so")
@@ -229,7 +234,7 @@ def check() -> list[str]:
     written_in_metta = paragraph(language, r"\w+ more are written in MeTTa")
     for name in BACKTICK.findall(written_in_metta):
         if name not in derived:
-            bad.append(f"{name} is listed as a derived form but src/prelude.metta registers no rule for it")
+            bad.append(f"{name} is listed as a derived form but engine/prelude.metta registers no rule for it")
     registered = paragraph(language, r"\d+ builtins are registered")
     for name in BACKTICK.findall(registered):
         if name.startswith("m.") or name.endswith(")") or "*" in name or name == "#":
@@ -284,7 +289,7 @@ def check() -> list[str]:
         listed = set(BACKTICK.findall(services.group(1)))
         real = set(
             re.findall(
-                r"^ext_point_kind\(([\w/]+), service\)", (ROOT / "src" / "ext_points.pl").read_text(), re.MULTILINE
+                r"^ext_point_kind\(([\w/]+), service\)", (ROOT / "engine" / "ext_points.pl").read_text(), re.MULTILINE
             )
         )
         if listed != real:

@@ -70,7 +70,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):
     assert MAGIC_SETUP in sources
     assert MAGIC_CELL in sources
 
-    python_path = str(repo_root / "python")
+    python_path = str(repo_root / "bindings" / "python")
     env = {
         **os.environ,
         "PETTA_PATH": str(repo_root),

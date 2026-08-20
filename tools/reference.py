@@ -29,7 +29,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 PAGES = ROOT / "website" / "reference"
 SOURCE = re.compile(r"^Source: `([^`]+)`\.$", re.MULTILINE)
 PREAMBLE = "The entries below reproduce the source signatures and docstrings."
@@ -214,7 +214,7 @@ def main(argv: list[str]) -> int:
     print(
         f"{len(stale)} reference page(s) no longer match their source: "
         f"{', '.join(stale)}\n"
-        f"run `python python/tools/reference.py --write` to regenerate"
+        f"run `python bindings/python/tools/reference.py --write` to regenerate"
     )
     return 1
 

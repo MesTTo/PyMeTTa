@@ -222,7 +222,7 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
     must answer the same thing, group for group."""
     import sys
 
-    sys.path.insert(0, str(repo_root / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     import example_parity
 
     compared = 0

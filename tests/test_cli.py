@@ -39,7 +39,7 @@ def test_package_import_does_not_require_janus():
 
 def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):
     runtime = tmp_path / "runtime with spaces"
-    main_file = runtime / "src" / "main.pl"
+    main_file = runtime / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
     main_file.touch()
     call = Mock(return_value=23)
@@ -89,7 +89,7 @@ def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
 
 def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):
     runtime = tmp_path / "runtime"
-    main_file = runtime / "src" / "main.pl"
+    main_file = runtime / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
     main_file.touch()
     monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))

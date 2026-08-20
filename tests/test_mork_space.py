@@ -18,7 +18,9 @@ import pytest
 from petta import EngineError, S, V, parse, val
 
 _MORKLIB = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[3]
+    / "backends"
+    / "mork"
     / "mork_ffi"
     / "target"
     / "release"

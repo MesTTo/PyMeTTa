@@ -65,7 +65,7 @@ def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):
     assert space.one("(rp-negate 5)") == -5
 
 
-# The failure this guards is the one src/metta.pl documents: registering a name
+# The failure this guards is the one engine/metta.pl documents: registering a name
 # whose predicate is absent records no arity, and then every call to it
 # compiles to a partial application rather than erroring, which is a silent
 # wrong answer.
@@ -568,7 +568,7 @@ def test_an_unknown_determinism_is_refused(space, tmp_path):
 # D5.1: the C tier is the cheapest row on EXTENDING.md's table and reaching it
 # meant hand-writing two Prolog directives with an absolute path computed from
 # __file__. The path trap is the reason this exists rather than the typing.
-_C_EXTENSION = Path(__file__).resolve().parents[2] / "examples" / "integration" / "c_extension"
+_C_EXTENSION = Path(__file__).resolve().parents[3] / "examples" / "integration" / "c_extension"
 
 
 @pytest.mark.skipif(

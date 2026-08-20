@@ -22,7 +22,7 @@ from pathlib import Path
 def _find_repo(start: Path) -> Path:
     """Find the repository by its Python project and engine library markers."""
     for candidate in start.resolve().parents:
-        if (candidate / "python" / "pyproject.toml").is_file() and (
+        if (candidate / "bindings" / "python" / "pyproject.toml").is_file() and (
             candidate / "lib"
         ).is_dir():
             return candidate
@@ -30,7 +30,7 @@ def _find_repo(start: Path) -> Path:
 
 
 REPO = _find_repo(Path(__file__))
-sys.path.insert(0, str(REPO / "python"))
+sys.path.insert(0, str(REPO / "bindings" / "python"))
 os.environ.setdefault("PETTA_PATH", str(REPO))
 
 

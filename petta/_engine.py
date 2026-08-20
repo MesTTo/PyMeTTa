@@ -231,12 +231,12 @@ def _resolve_petta_path() -> str:
     bundled = _bundled_runtime()
     if bundled is not None:
         return bundled
-    # petta/_engine.py -> petta -> python -> the checkout root.
-    return str(Path(__file__).resolve().parents[2])
+    # petta/_engine.py -> petta -> python -> bindings -> the checkout root.
+    return str(Path(__file__).resolve().parents[3])
 
 
 def _bundled_runtime() -> str | None:
-    """The wheel's own copy of src/ and lib/, if this is an installed wheel."""
+    """The wheel's own copy of engine/ and lib/, if this is an installed wheel."""
     package = __package__ or "petta"
     try:
         root = resources.files(package) / "_runtime"
@@ -244,7 +244,7 @@ def _bundled_runtime() -> str | None:
         return None
     try:
         with resources.as_file(root) as path:
-            if (path / "src" / "main.pl").is_file():
+            if (path / "engine" / "main.pl").is_file():
                 return str(path)
     except (FileNotFoundError, NotADirectoryError, OSError):
         return None
@@ -385,8 +385,8 @@ class Runtime:
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['backends'])")
-        main_file = root / "src" / "main.pl"
-        helper_file = root / "python" / "helper.pl"
+        main_file = root / "engine" / "main.pl"
+        helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
             raise FileNotFoundError(
                 f"PeTTa runtime not found under {petta_path!r} (expected "

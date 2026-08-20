@@ -332,7 +332,7 @@ def test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use(codecs):
 def test_the_grammar_document_is_generated(repo_root):
     """CODEC.md's tables and the corpus are one authority, so the checked-in
     document has to equal what the corpus produces."""
-    sys.path.insert(0, str(repo_root / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc
     finally:
@@ -343,7 +343,7 @@ def test_the_grammar_document_is_generated(repo_root):
 def test_an_unknown_fence_is_refused(repo_root):
     """A table that grows a fence nobody builds, or loses the fence it had,
     would show as an empty section rather than as a failure."""
-    sys.path.insert(0, str(repo_root / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import codecdoc
     finally:

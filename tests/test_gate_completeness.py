@@ -8,7 +8,7 @@ Assumes:
     - the repository root is two directories above this file, the same way
       test_example_parity.py derives it
     - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
-      to [source: python/petta/space.py:1645]
+      to [source: bindings/python/petta/space.py:1645]
 Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
       evidence rather than decoration
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 
 
 def test_no_ungated_prolog_performance_oracle_returns():

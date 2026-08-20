@@ -55,7 +55,7 @@ WHITE_SPACE = frozenset(
 # Unicode 6.3.0 and is a format character now; the last two have zero width.
 NOT_WHITE_SPACE = frozenset({0x1C, 0x1D, 0x1E, 0x1F, 0x180E, 0x200B, 0xFEFF})
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _names = pt.names()
 _runs = st.text(alphabet=sorted(chr(c) for c in WHITE_SPACE), min_size=0, max_size=3)

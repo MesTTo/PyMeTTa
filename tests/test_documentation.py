@@ -10,7 +10,7 @@ metta_grounded_type_names/2, which are how a host value gets a type; and
 prolog:error_message//1, which is how a library gives its own error term a
 rendering. Nothing would have said so.
 Guarantees:
-  - every multifile seam declared in src/ext_points.pl is named in
+  - every multifile seam declared in engine/ext_points.pl is named in
     EXTENDING.md [tested test_every_declared_seam_is_documented]
   - the governance documents carry the policy rather than only existing: the
     private security address and its window, the gate command, the alpha
@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-_REPO = Path(__file__).resolve().parents[2]
+_REPO = Path(__file__).resolve().parents[3]
 
 
 def _load_reference():
@@ -37,7 +37,7 @@ def _load_reference():
     rather than imported: putting it under petta/ would ship a build-time
     script in the wheel."""
     spec = importlib.util.spec_from_file_location(
-        "petta_reference_tool", _REPO / "python" / "tools" / "reference.py"
+        "petta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -46,7 +46,7 @@ def _load_reference():
 
 _reference = _load_reference()
 _ROOT = _REPO
-_SEAMS = _REPO / "src" / "ext_points.pl"
+_SEAMS = _REPO / "engine" / "ext_points.pl"
 _PAGE = _REPO / "EXTENDING.md"
 
 # `:- multifile name/2.` and `:- multifile prolog:error_message//1.`
@@ -69,7 +69,7 @@ def test_every_declared_seam_is_documented(seam):
     # qualifier, so the bare name is what has to appear.
     name = seam.split(":")[-1]
     assert name in page, (
-        f"{seam} is declared in src/ext_points.pl and not mentioned in "
+        f"{seam} is declared in engine/ext_points.pl and not mentioned in "
         f"EXTENDING.md, so a library author reading the page cannot find it"
     )
 
@@ -96,7 +96,7 @@ def test_the_reference_pages_are_up_to_date():
     ]
     assert not stale, (
         f"{stale} no longer match their source; run "
-        f"`python python/tools/reference.py --write`"
+        f"`python bindings/python/tools/reference.py --write`"
     )
 
 
@@ -117,7 +117,7 @@ def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
 def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave MeTTa.run
     four identical reference entries."""
-    page = _reference.page_for("python/petta/space.py", "petta.space")
+    page = _reference.page_for("bindings/python/petta/space.py", "petta.space")
     assert page.count("### `MeTTa.run`") == 1
 
 
@@ -145,7 +145,7 @@ def _load_libdoc():
     import importlib.util as _importlib_util
 
     specification = _importlib_util.spec_from_file_location(
-        "petta_libdoc_tool", _REPO / "python" / "tools" / "libdoc.py"
+        "petta_libdoc_tool", _REPO / "bindings" / "python" / "tools" / "libdoc.py"
     )
     module = _importlib_util.module_from_spec(specification)
     specification.loader.exec_module(module)
@@ -157,7 +157,7 @@ def test_the_metta_library_page_is_up_to_date():
     current = libdoc._PAGE.read_text(encoding="utf-8")
     assert current == libdoc.page(), (
         "metta-libraries.md no longer matches the libraries' @doc atoms; "
-        "run `python python/tools/libdoc.py --write`"
+        "run `python bindings/python/tools/libdoc.py --write`"
     )
 
 
@@ -169,7 +169,7 @@ def _lint_kinds() -> set[str]:
     argument and through a simplifier's (kind, detail, replacement) triple,
     and both shapes are matched here.
     """
-    tree = ast.parse((_REPO / "python" / "petta" / "_lint_analysis.py").read_text())
+    tree = ast.parse((_REPO / "bindings" / "python" / "petta" / "_lint_analysis.py").read_text())
     kinds: set[str] = set()
     for node in ast.walk(tree):
         first = None
@@ -230,7 +230,7 @@ _CONTRIBUTING_CLAUSES = (
     "obligation header",
     "evidence tag",
     "a tag on a gate-green tree",
-    "python -m pytest python/tests/ -q --rootdir=python -c python/pyproject.toml",
+    "python -m pytest bindings/python/tests/ -q --rootdir=python -c bindings/python/pyproject.toml",
     "cd tests/prolog",
 )
 _FORM_TYPES = {"markdown", "textarea", "input", "dropdown", "checkboxes"}

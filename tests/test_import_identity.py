@@ -31,7 +31,7 @@ def test_legacy_package_path_aliases_canonical_modules():
 
 
 def test_legacy_path_can_be_imported_first():
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     source = """
 import importlib
 legacy = importlib.import_module('python.petta')
@@ -42,7 +42,7 @@ assert importlib.import_module('python.petta.aio') is canonical.aio
 assert importlib.import_module('python.petta.subscribe') is canonical.subscribe
 """
     environment = os.environ | {
-        "PYTHONPATH": os.pathsep.join((str(root / "python"), str(root)))
+        "PYTHONPATH": os.pathsep.join((str(root / "bindings" / "python"), str(root)))
     }
     subprocess.run(
         [sys.executable, "-c", source],
@@ -53,7 +53,7 @@ assert importlib.import_module('python.petta.subscribe') is canonical.subscribe
 
 
 def test_optional_surfaces_load_only_when_requested():
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     source = """
 import importlib
 import sys
@@ -72,7 +72,7 @@ for name in lazy:
     assert exposed is importlib.import_module(f'petta.{name}')
 assert lazy <= set(dir(petta))
 """
-    environment = os.environ | {"PYTHONPATH": str(root / "python")}
+    environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
     subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,

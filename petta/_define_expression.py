@@ -21,7 +21,7 @@ from .atoms import Atom, Expr, Gnd, Sym, Var
 from .errors import CompileError
 
 # Python operator to the MeTTa function the engine registers for it. Every
-# entry is a name src/metta.pl puts through register_fun/1, and every mapping
+# entry is a name engine/metta.pl puts through register_fun/1, and every mapping
 # was run on this engine: % follows the divisor's sign exactly as Python's
 # does, and / is true division except that an exact quotient of two integers
 # stays an integer ((/ 6 2) is 3 where Python says 3.0), so the lowering

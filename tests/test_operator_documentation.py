@@ -19,7 +19,7 @@ from pathlib import Path
 
 from petta import S, V
 
-DOC = Path(__file__).resolve().parents[2] / "website" / "guide" / "atoms-terms.md"
+DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 
 BINARY_DUNDERS = [
     "__add__", "__sub__", "__mul__", "__truediv__", "__mod__", "__pow__",

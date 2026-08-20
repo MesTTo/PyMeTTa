@@ -75,7 +75,7 @@ def test_a_non_symbol_first_argument_is_refused_by_the_read_path(m):
 # The refusal is an answer rather than a throw, which is what makes it
 # collectable: a raise would have emptied the collapse instead
 # [source: LeaTTa tests/semantics/spaces/add_atom.metta, quoted at
-# src/spaces.pl's petta_space_name/1].
+# engine/spaces.pl's petta_space_name/1].
 def test_the_read_refusal_is_data_a_collapse_can_hold(m):
     (collapsed,) = m.run("!(collapse (get-atoms $u))")
     assert len(collapsed[0]) == 1
@@ -124,7 +124,7 @@ def test_a_fresh_engine_refuses_an_unbound_read_the_same_way():
 # that leans on one answers BESIDE the rows a real space gave. That grew a
 # second answer for every match and `(anc $x $y)` recursed on it until the
 # process hung, which is why each clause guards itself
-# [reproduced 2026-08-20 through python/tests/test_derivation.py].
+# [reproduced 2026-08-20 through bindings/python/tests/test_derivation.py].
 def test_a_proof_over_a_match_does_not_carry_the_refusal(m):
     m.run("(par-p Tom Bob)\n(= (anc-p $x $y) (match &self (par-p $x $y) $y))")
     proofs = m.derivation(S["anc-p"](S.Tom, S.Bob))

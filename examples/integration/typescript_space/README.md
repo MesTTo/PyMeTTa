@@ -45,7 +45,7 @@ thousand. `website/live/remote-protocol.md` is the full contract.
 
 A wire atom is a tagged array, and `CODEC.md` in the repository root is
 the grammar for it. This server is run against that page's golden
-corpus by `python/tests/test_codec_typescript.py`, which also pins the
+corpus by `bindings/python/tests/test_codec_typescript.py`, which also pins the
 places it diverges: it does not check the `g` payload, and JavaScript's
 single number type turns an integral float back into an integer. Errors are
 `{"error": "..."}` with a 4xx status. Refusals mirror `serve()` exactly:
@@ -99,7 +99,7 @@ esbuild space_server.test.ts --bundle --platform=node --format=esm \
         --outfile=space_server.test.js && node --test space_server.test.js
 ```
 
-`python/tests/test_typescript_space.py` drives the whole story from
+`bindings/python/tests/test_typescript_space.py` drives the whole story from
 PeTTa: MeTTa-driven queries, the conformance kit over the attached
 provider, a thread pool, the async surface, one-request batches, and
 the MeTTaScript backend when `PETTA_METTASCRIPT_CORE` names its core

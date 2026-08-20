@@ -24,7 +24,7 @@ import pytest
 import petta.atoms
 from petta import __version__
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def _manifest() -> dict:
@@ -32,7 +32,7 @@ def _manifest() -> dict:
 
 
 def test_package_and_tools_share_one_manifest():
-    assert (ROOT / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
+    assert (ROOT / "bindings" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
     assert project["name"] == "petta"
     assert project["dynamic"] == ["version"]

@@ -15,7 +15,7 @@ import pytest
 
 import petta
 
-README = Path(__file__).resolve().parents[2] / "README.md"
+README = Path(__file__).resolve().parents[3] / "README.md"
 
 _BLOCKS = re.findall(r"```python\n(.*?)```", README.read_text(), re.DOTALL)
 assert _BLOCKS, "the README lost its python blocks"

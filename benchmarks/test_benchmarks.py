@@ -912,7 +912,7 @@ def _handle_space():
     import pytest
 
     library = (
-        Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[3]
         / "examples"
         / "integration"
         / "c_extension"

@@ -30,7 +30,7 @@ import pytest
 
 from petta import MeTTa, PettaError
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 
 # The probe, run on a fresh engine. The TABLE is the engine's own, so this
 # cannot go stale by hand: declaring a type for a new builtin adds a row to it
@@ -91,7 +91,7 @@ print(json.dumps(report))
 def report():
     """Run the generated probe on a freshly booted engine and read it back."""
     finished = subprocess.run(
-        [sys.executable, "-c", _PROBE, str(REPO / "python")],
+        [sys.executable, "-c", _PROBE, str(REPO / "bindings" / "python")],
         capture_output=True,
         text=True,
         timeout=300,

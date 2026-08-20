@@ -156,7 +156,7 @@ def _controlled(operation) -> int:
 # once or twice depended on where the process heap happened to start. The
 # result was an instruction count with two modes 10.7% apart, deterministic per
 # program image and selected by nothing in the tree: adding TEN INERT CLAUSES
-# to src/python.pl moved it from 4176751912 to 3772644013 and removing them
+# to engine/python.pl moved it from 4176751912 to 3772644013 and removing them
 # moved it back, alternating, three rounds [measured 2026-08-16]. Its inference
 # count is identical across both modes, so no logical work ever changed.
 #

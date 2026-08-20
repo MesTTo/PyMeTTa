@@ -1,10 +1,10 @@
 # Examples by topic
 
-Every example asserts its own outputs. `python/tests/test_examples.py`
+Every example asserts its own outputs. `bindings/python/tests/test_examples.py`
 discovers them recursively and excludes only the shared `_common.py`, so a
 stopped example fails the build. Run any example from the repository root:
 
-    PYTHONPATH=python/examples python python/examples/basics/first_steps.py
+    PYTHONPATH=bindings/python/examples python bindings/python/examples/basics/first_steps.py
 
 The examples keep `from _common import ...` uniform. The test runner and the
 command above add the examples root to Python's module search path; `_common.py`

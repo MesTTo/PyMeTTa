@@ -16,7 +16,7 @@ import pytest
 import petta
 
 _PROVIDER = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[3]
     / "examples"
     / "integration"
     / "c_space"

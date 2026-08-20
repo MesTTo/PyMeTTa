@@ -7,7 +7,7 @@
 %   - janus is present. Every predicate here calls Python on its first use and
 %     none of them runs at load time, so a program that never touches Python
 %     pays only this file's load [tested: a_name_resolves_to_an_object].
-%   - src/petta_py.py sits beside this file and imports nothing from the
+%   - petta_py.py sits beside this file and imports nothing from the
 %     `petta` package, because the engine runs with janus alone.
 % Guarantees:
 %   - values crossing this surface stay OBJECTS. Nothing is flattened, drained
@@ -94,7 +94,7 @@ petta_py(Call, Goal, Result) :-
 %A control signal is NOT converted. An interrupt, a time limit and an inference
 %limit stay uncatchable, which is a guarantee the engine makes and tests: "A
 %program's own (catch ...) cannot eat the signal either"
-%[source: python/tests/test_control_signals.py]. KeyboardInterrupt arrives from
+%[source: bindings/python/tests/test_control_signals.py]. KeyboardInterrupt arrives from
 %Python as an ordinary python_error and would have been converted into a
 %catchable one, which is the same hole by another door.
 petta_py_guard(Call, Goal) :-
@@ -213,7 +213,7 @@ petta_py_result(Value, Value).
 %
 %That reading is what makes `(car-atom (py-atom "(1, 2)"))` answer 1 while the
 %same value still passes into Python as a tuple. Neither reading is a separate
-%answer; see metta_grounded_structure/2 in src/ext_points.pl.
+%answer; see metta_grounded_structure/2 in engine/ext_points.pl.
 %
 %Elements are normalized because the VIEW is MeTTa's reading of the value: a
 %None inside a tuple reads as `()` here. The carrier itself is left exactly as
@@ -224,7 +224,7 @@ metta_grounded_structure(Tuple, Elements) :-
 
 %And a Python object that IS a sequence, which costs a crossing because the
 %elements live on the other side. PEP 634's rule decides which objects qualify;
-%src/petta_py.py carries it.
+%engine/petta_py.py carries it.
 %
 %The length is asked first and separately. A pattern of fixed shape is rejected
 %by its length without pulling a single element, so matching `($x $y)` against
@@ -251,7 +251,7 @@ metta_grounded_structure(Obj, Elements) :-
 %An earlier version of this comment put a number on that, 402 million
 %instructions on alpha-unique. The number was wrong and is withdrawn: that
 %benchmark was bimodal at the time and the measurement was cluster assignment
-%rather than cause [see python/benchmarks/baseline.json, alpha-unique's
+%rather than cause [see bindings/python/benchmarks/baseline.json, alpha-unique's
 %instruction_noise_comment]. Doing less work before failing is still right; it
 %is just not worth 10%.
 petta_py_tuple_arguments(Tuple, Arguments) :-
@@ -526,7 +526,7 @@ petta_py_kwarg(Other, _) :-
 
 %%%% The Python surface the engine used to carry %%%%
 %
-%Everything below moved here from src/metta.pl: the boolean codec at the
+%Everything below moved here from engine/metta.pl: the boolean codec at the
 %janus boundary, the py-call operator, the import-as alias table and its
 %form rewriter, and the .py import machinery. The engine reaches all of it
 %through declared seams (metta_host_import/1, metta_form_rewriter/1,
@@ -611,7 +611,7 @@ bind_python_call_spec(Spec, Spec).
 %`(== "abc" (py-call (str "abc")))` is False and a (-> String Number)
 %parameter rejects it.
 %
-%Every one of those is fixed in hosts/python/bridge.pl, which is the language's own
+%Every one of those is fixed in bindings/python/bridge.pl, which is the language's own
 %surface rather than this one: `py-atom` RESOLVES where this APPLIES, and that
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what
@@ -622,7 +622,7 @@ bind_python_call_spec(Spec, Spec).
 %benchmark, 2 over that counter's own 4-inference allowance, to name an
 %operation in a spelling the type surface does not declare. So
 %(py-call $u opts) still raises a context-less instantiation_error
-%[measured 2026-08-19], the same residue src/parser.pl's sread carries.
+%[measured 2026-08-19], the same residue engine/parser.pl's sread carries.
 'py-call'(SpecList, _) :- var(SpecList), !, refuse_unbound_input('py-call', 1).
 'py-call'(SpecList, Result) :- 'py-call'(SpecList, Result, []).
 'py-call'([Spec|Args0], Result, Opts) :- ( string(Spec) -> atom_string(A, Spec) ; A = Spec ),

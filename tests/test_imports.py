@@ -314,7 +314,7 @@ def test_minimal_metta_lib_install_is_idempotent(metta):
     import sys
     from pathlib import Path
 
-    lib = Path(__file__).resolve().parents[2] / "lib"
+    lib = Path(__file__).resolve().parents[3] / "lib"
     sys.path.insert(0, str(lib))
     try:
         import minimal_metta_lib

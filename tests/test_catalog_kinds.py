@@ -105,7 +105,7 @@ def test_the_vocabulary_module_is_generated(repo_root):
     """The catalog presets and the binding's Literal types are one
     authority: the checked-in module has to equal what the engine's own
     (vocabulary ...) rows produce."""
-    sys.path.insert(0, str(repo_root / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
     try:
         import vocabgen
     finally:

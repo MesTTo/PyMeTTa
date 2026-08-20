@@ -30,7 +30,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 CORPUS = ROOT / "tests" / "codec" / "corpus.json"
 DOCUMENT = ROOT / "CODEC.md"
 FENCE = re.compile(
@@ -160,7 +160,7 @@ def main(argv: list[str]) -> int:
         return 0
     print(
         f"{DOCUMENT.name}'s tables no longer match tests/codec/corpus.json: "
-        f"run `python python/tools/codecdoc.py --write`"
+        f"run `python bindings/python/tools/codecdoc.py --write`"
     )
     return 1
 

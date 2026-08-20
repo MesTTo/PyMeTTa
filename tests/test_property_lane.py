@@ -78,7 +78,7 @@ def test_the_planted_violation_is_the_same_violation_every_run(repo_root):
 
 def test_the_generator_is_seeded_and_the_seed_can_be_widened(repo_root):
     show = (
-        "consult('../../src/metta.pl'), "
+        "consult('../../engine/metta.pl'), "
         "property_seed(S), set_random(seed(S)), "
         "forall(between(1, 20, _), (property_term(full, T), print(T), nl))"
     )

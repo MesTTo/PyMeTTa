@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-README = Path(__file__).resolve().parents[2] / "README.md"
+README = Path(__file__).resolve().parents[3] / "README.md"
 
 
 def test_the_readme_records_the_fork_relationship():

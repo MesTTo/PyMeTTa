@@ -65,7 +65,7 @@ def test_non_finite_floats_print_the_arbiters_spellings(repo_root, tmp_path):
         encoding="utf-8",
     )
     done = subprocess.run(
-        ["swipl", "-q", "-s", str(repo_root / "src" / "main.pl"),
+        ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),
          "--", "silent", str(program)],
         capture_output=True,
         text=True,
