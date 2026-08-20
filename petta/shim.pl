@@ -71,7 +71,7 @@
 %   - a modifier-free query decides that case before its nondeterministic match,
 %     so path support adds 22 fixed inferences per one-pattern query instead of
 %     one call per answer [measured: query-2k-rows minimum of 561469, 561467,
-%     561467, 440 over 20 queries; command=python bench.py query-2k-rows
+%     561467, 440 over 20 queries on 2026-08-21; command=python bench.py query-2k-rows
 %     --counter-only; fixture=2000-row native space;
 %     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
 %   - evaluation emits one undefined-truth frame and never a flag-selected

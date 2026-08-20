@@ -50,7 +50,8 @@ Guarantees:
     commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
-    915593600 baseline [measured: minimum of 660489757, 660489704, 660489697;
+    915593600 baseline [measured: minimum of 660489757, 660489704,
+    660489697 on 2026-08-21;
     command=python -m benchmarks.check_instructions term-operators;
     fixture=CPython 3.14 controlled perf lane;
     commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
