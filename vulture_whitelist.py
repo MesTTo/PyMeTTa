@@ -1,0 +1,120 @@
+"""Purpose: tell Vulture about APIs reached by protocols, plugins, dynamic
+dispatch, generated tests, or external callers rather than Python name loads.
+Assumes:
+  - this file is scanned by Vulture and is never imported or executed.
+Guarantees:
+  - each expression names one intentional dynamic use, so the 60 percent
+    confidence floor remains actionable instead of globally suppressing a
+    name pattern [tested: the GATE vulture lane; commit=WORKTREE].
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
+"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+
+# Vulture's whitelist format is intentionally a sequence of otherwise undefined
+# expression references. Ruff must leave those references intact for Vulture.
+# ruff: noqa: B018, F821
+
+# Public compatibility and plugin entry points.
+_.load_metta_file
+_.process_metta_string
+__dir__
+_._ipython_key_completions_
+_.ne
+_wire_intern_clear
+_.interrupt
+_.observe_instructions
+_.finish
+_.importance
+_.strength
+_.ping
+_.rules
+_.complete
+_._repr_html_
+_.supports
+load_ipython_extension
+_.starmap
+_.closed
+imap_unordered
+_.compact
+scratch_space
+_is_authorized
+_.server_capabilities
+_.asdict
+_.raise_for_errors
+_.to_dicts
+_.to_df
+_.to_pl
+_.transactional
+_.matching
+_.reachable
+
+# Protocol fields and methods read by getattr, a framework, or the wire.
+exact_integers
+non_finite
+resolves_anonymous
+_.cell_contents
+severity
+docs_link
+gc_time
+_.gc_time
+_.top
+_.__signature__
+_.__wrapped__
+_.begin
+_.do_GET
+do_PUT
+do_DELETE
+do_PATCH
+_.do_POST
+_.log_message
+_.daemon_threads
+_.maxlevel
+_.maxstring
+_.maxother
+_._parse
+
+# singledispatch and AST visitor methods are selected by registered type or
+# syntax-node name rather than a direct call.
+_
+_._x_UnaryOp
+_._x_Compare
+_._x_BoolOp
+_._x_IfExp
+_._x_Lambda
+_._x_ListComp
+_._x_GeneratorExp
+_._x_Call
+_._x_Subscript
+_._x_Tuple
+_._x_List
+_._x_Dict
+_._x_JoinedStr
+
+# These methods ship as pytest compliance suites and are collected after a
+# provider or gateway supplies the fixture class.
+_.test_enumeration_answers_what_the_provider_holds
+_.test_a_stored_atom_matches_itself
+_.test_an_open_pattern_answers_every_stored_atom_of_its_shape
+_.test_a_bound_position_selects_whatever_the_provider_yielded
+_.test_a_repeated_variable_selects_equal_positions
+_.test_a_conjunction_over_the_provider_joins
+_.test_a_claimed_join_answers_what_the_split_answers
+_.test_a_write_round_trip_leaves_the_provider_as_it_was
+_.test_a_batch_add_stores_every_atom
+_.test_a_declared_rule_space_holds_a_program
+_.test_clear_empties_the_space
+_.test_an_undeclared_write_refuses_rather_than_answering_nothing
+_.test_the_provider_joins_with_a_native_space
+_.test_a_bounded_query_answers_no_more_than_the_bound
+_.test_health_names_the_protocol
+_.test_a_bound_is_honored_or_ignored_soundly
+_.test_the_operations_keep_space_semantics
+_.test_add_many_lands_the_batch
+_.test_refusals_carry_json_errors
+_.test_wide_integers_are_exact_or_refused
+_.test_the_lifecycle_streams_the_same_answers_the_eager_door_gives
+_.test_the_lifecycle_refuses_what_it_cannot_answer
+_.test_a_client_cursor_takes_two_answers_and_stops
+_.test_the_kit_certifies_the_attached_space

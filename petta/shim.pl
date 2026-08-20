@@ -60,6 +60,10 @@
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
 %     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
+%   - petta_py_symbol_writable/2 exposes the engine grammar's single symbol
+%     decision to Python consumers without reproducing delimiters there
+%     [tested: test_every_delimiter_check_derives_from_one_grammar_rule;
+%     commit=WORKTREE]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -2514,6 +2518,12 @@ petta_py_unwritable_atom(Space, Bad) :-
     'get-atoms'(Space, Atom),
     metta_unwritable_symbol(Atom, Unwritable), !,
     petta_py_encode(Unwritable, Bad).
+
+%One boolean crossing for consumers that must validate a name before they
+%mutate host state. The parser remains the authority, including reader token
+%classes registered after startup.
+petta_py_symbol_writable(Name, '@'(true)) :- metta_symbol_writable(Name), !.
+petta_py_symbol_writable(_, '@'(false)).
 
 petta_py_fast_save(File, Space, Result) :-
     metta_host_save_fast(File, Space, Outcome),
