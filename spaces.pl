@@ -2918,6 +2918,36 @@ clear_foreign_atoms(Space) :-
 %nothing here to find and no removal is announced twice
 %[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
 %test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
+%How many atoms a native space holds, read from the store's own clause
+%bookkeeping rather than by walking it: every stored shape is a clause in
+%the storage module, and number_of_clauses/1 is the count SWI already
+%maintains per predicate, the manual's own count-asserted-facts idiom
+%[source: https://www.swi-prolog.org/pldoc/man?predicate=predicate_property%2F2].
+%One property read per stored arity plus the scalar shelf, so the check a
+%capacity contract runs per add costs the same over a million atoms as over
+%ten [tested: spaces_atom_count, and the extcost capacity row]. A space
+%that has never been written has no storage module and holds nothing. A
+%foreign space's atoms live with its provider, where the only general
+%count is an enumeration; at this predicate's contract that would be a lie
+%of a different complexity class, so a foreign space is refused by name
+%and a provider that keeps a count exposes it itself
+%[tested: spaces_atom_count:a_foreign_space_has_no_native_count].
+space_atom_count(Space, Count) :-
+    (   metta_foreign_space(Space)
+    ->  throw(error(petta_foreign_space_count(Space), none))
+    ;   native_storage_module_ready(Space, Module)
+    ->  findall(N,
+                ( current_predicate(Module:Name/Arity),
+                  functor(Head, Name, Arity),
+                  (   predicate_property(Module:Head, number_of_clauses(N))
+                  ->  true
+                  ;   N = 0
+                  ) ),
+                Counts),
+        sum_list(Counts, Count)
+    ;   Count = 0
+    ).
+
 clear_native_atoms(Space) :-
     (   native_storage_module_ready(Space, Module)
     ->  findall(Atom, compiled_half_atom(Space, Module, Atom), Compiled),

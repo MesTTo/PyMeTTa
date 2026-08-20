@@ -1426,6 +1426,22 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
 'size-atom'(List, Size) :- non_list(List), !,
                            ( grounded_list_view(List, View) -> length(View, Size) ; Size = [] ).
 'size-atom'(List, Size) :- length(List, Size).
+%(space-atom-count <space>) answers how many atoms the space holds, from
+%the store's own per-predicate clause counts (src/spaces.pl,
+%space_atom_count/2), so a capacity policy reads a million-atom pool at
+%the same cost as a ten-atom one. It observes the space, so the effect
+%walk reports it as a read; the pattern 'count' is deliberately not a
+%list, which makes a tabled caller land on the unresolved-read refusal:
+%no fixed set of storage predicates can invalidate a count that every
+%write to any arity moves.
+'space-atom-count'(Space, _) :- var(Space), !,
+                                refuse_unbound_input('space-atom-count', 1).
+'space-atom-count'(Space, Count) :-
+    (   'is-space'(Space, true)
+    ->  true
+    ;   throw_metta_type_error('space-atom-count', 'SpaceType', Space)
+    ),
+    space_atom_count(Space, Count).
 'car-atom'(Term, _) :- var(Term), !, refuse_unbound_input('car-atom', 1).
 'car-atom'([H|_], H) :- !.
 'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
@@ -2389,6 +2405,7 @@ metta_grounded_token('size-atom').
 metta_grounded_token('skel-swap-pair-native').
 metta_grounded_token('sort-atom').
 metta_grounded_token('sort-strings').
+metta_grounded_token('space-atom-count').
 metta_grounded_token('sqrt-math').
 metta_grounded_token('subtraction-atom').
 metta_grounded_token('superpose').
@@ -2595,6 +2612,12 @@ metta_effect_classify(_, match(Space, Pattern, _, _), Queue-Reads0,
                       Queue-[read(match, Space, Pattern)|Reads0]) :- !.
 metta_effect_classify(_, 'get-atoms'(Space, Pattern), Queue-Reads0,
                       Queue-[read('get-atoms', Space, Pattern)|Reads0]) :- !.
+%A count observes the whole space: every write to any arity moves it. The
+%'count' pattern is deliberately not a list, so a resolver that maps reads
+%to fixed storage predicates lands on its unresolved-read refusal instead
+%of tabling a number every write stales.
+metta_effect_classify(_, 'space-atom-count'(Space, _), Queue-Reads0,
+                      Queue-[read('space-atom-count', Space, count)|Reads0]) :- !.
 %A bridge's dispatch goal is classified under the OPERATION's name, not the
 %dispatcher's. Ahead of the generic compound clause because that clause would
 %read the functor and refuse petta_py_dispatch_det/3, naming an internal the
@@ -3366,6 +3389,10 @@ prolog:error_message(petta_hook_stuck(Space, Slot, Handler, Term)) -->
        catch-all'-[Slot, Space, Handler, Term] ].
 prolog:error_message(petta_add_refused(Space, Term, Words)) -->
     [ '~w refused ~q: ~w'-[Space, Term, Words] ].
+prolog:error_message(petta_foreign_space_count(Space)) -->
+    [ '~w is a foreign space, so its atoms live with its provider and \c
+       counting them is an enumeration there, not a native property read; \c
+       ask the provider, or count what a match answers'-[Space] ].
 prolog:error_message(petta_hook_bad_verdict(Space, Handler, Term, Got)) -->
     [ '~w answered ~q for ~q into ~w, which is none of (accept), \c
        (accept <atom>), (refuse <words>) or (drop)'-[Handler, Got,
@@ -6256,7 +6283,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
