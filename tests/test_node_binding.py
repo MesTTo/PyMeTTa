@@ -53,9 +53,9 @@ _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-
 # it. Restated here so the two have to agree: a refusal that appears in one
 # and not the other is a capability that moved without anyone saying so.
 _EXPECTED_REFUSALS = [
-    ("src/metta.pl", "library(thread)"),
-    ("src/metta.pl", "library(time)"),
-    ("src/metta.pl", "library(process)"),
+    ("engine/metta.pl", "library(thread)"),
+    ("engine/metta.pl", "library(time)"),
+    ("engine/metta.pl", "library(process)"),
     ("lib/lib_gitimport.pl", "library(process)"),
 ]
 

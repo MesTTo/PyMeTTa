@@ -231,7 +231,7 @@ def _tabling_findings(equations: list[Expr], registry: EngineRegistry) -> list[F
     function answers in clause order and a tabled one answers from its trie,
     so which order comes out moves when something unrelated moves. Measured in
     lib_tabling.pl's own header: adding three facts nothing calls to
-    src/translator.pl flipped (collapse (pick a)) from (one two) to (two one).
+    engine/translator.pl flipped (collapse (pick a)) from (one two) to (two one).
 
     A finding rather than a refusal, because a positional read is right
     whenever the function is deterministic, and the linter cannot know that.

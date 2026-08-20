@@ -46,7 +46,7 @@ def test_backend_info_reports_versions_and_consulted_tree():
     assert isinstance(petta_path, str)
     runtime_tree = Path(petta_path)
     assert runtime_tree.is_dir()
-    assert (runtime_tree / "src" / "main.pl").is_file()
+    assert (runtime_tree / "engine" / "main.pl").is_file()
 
 
 def test_backend_info_never_starts_the_runtime():

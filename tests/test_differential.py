@@ -83,7 +83,7 @@ for group in groups:
 
 def _cli_output(example: Path) -> str:
     result = subprocess.run(
-        ["swipl", "--stack_limit=8g", "-q", "-s", str(REPO / "src" / "main.pl"),
+        ["swipl", "--stack_limit=8g", "-q", "-s", str(REPO / "engine" / "main.pl"),
          "--", str(example), "silent"],
         capture_output=True,
         text=True,

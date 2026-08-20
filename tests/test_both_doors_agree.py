@@ -57,7 +57,7 @@ def test_load_pre_registers_signatures_so_a_later_definition_resolves(door_fixtu
     engine, because `fun/1` was not asserted yet and memoize refused the
     name. Seven shipped examples shared that one root and the fix was to
     collect every equation head BEFORE processing any form
-    [source: src/filereader.pl, prepare_parsed_forms/1].
+    [source: engine/filereader.pl, prepare_parsed_forms/1].
 
     The pre-pass is what this names, not the corpus: a file whose only
     content is the failing shape.

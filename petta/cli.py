@@ -21,7 +21,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     runtime_root = Path(_resolve_petta_path())
-    main_file = runtime_root / "src" / "main.pl"
+    main_file = runtime_root / "engine" / "main.pl"
     command = [
         "swipl",
         f"--stack_limit={config.stack_limit}",

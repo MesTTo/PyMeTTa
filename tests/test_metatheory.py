@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-# Every reason src/narrowing.pl can give for not establishing termination. A
+# Every reason engine/narrowing.pl can give for not establishing termination. A
 # reason outside this set would mean the analysis grew an answer nobody wrote
 # down, which is the third state this item exists to forbid.
 NAMED_FAILURES = frozenset(
@@ -126,7 +126,7 @@ def _termination_line(report: str) -> str:
 def test_the_confluence_checker_records_its_provenance_and_its_termination_caveat(
     repo_root,
 ):
-    checker = _unwrapped(repo_root / "src" / "trs.pl")
+    checker = _unwrapped(repo_root / "engine" / "trs.pl")
 
     # An adaptation says whose work it adapts, under what terms, and what the
     # port changed. Without the last one the header is a courtesy rather than
@@ -149,7 +149,7 @@ def test_the_confluence_checker_records_its_provenance_and_its_termination_cavea
             "swipl",
             "-q",
             "-g",
-            "use_module('../../src/trs.pl'), "
+            "use_module('../../engine/trs.pl'), "
             "call_with_inference_limit("
             "  normal_form([a ==> a, f(_) ==> b], f(a), _), 100000, Limit), "
             "format('LOOP ~w~n', [Limit]), "

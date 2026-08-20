@@ -81,9 +81,9 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     """Builtins from the running engine; the two translated sets from source.
 
     The special forms are the heads of translate_special_dl/5, read the way
-    src/translator.pl says to read them: from the clauses themselves, so a
+    engine/translator.pl says to read them: from the clauses themselves, so a
     form added there is covered the day it is added. The derived forms are the
-    names src/prelude.metta registers with add-translator-rule!, read the same
+    names engine/prelude.metta registers with add-translator-rule!, read the same
     way, which is where a form goes when it leaves the compiler.
     """
     sys.path.insert(0, str(ROOT / "python"))
@@ -91,7 +91,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 
     builtins = set(MeTTa().builtins())
     special = set()
-    for source in sorted((ROOT / "src").glob("*.pl")):
+    for source in sorted((ROOT / "engine").glob("*.pl")):
         body = source.read_text()
         special |= {
             head.strip("'")
@@ -100,7 +100,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     derived = set(
         re.findall(
             r"^!\(add-translator-rule!\s+([^\s)]+)\)",
-            (ROOT / "src" / "prelude.metta").read_text(),
+            (ROOT / "engine" / "prelude.metta").read_text(),
             re.MULTILINE,
         )
     )
@@ -110,7 +110,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 def counts() -> list[tuple[str, int]]:
     """Each dated count in llms.txt, with what the tree says it is now."""
     src_lines = sum(
-        len(p.read_text().splitlines()) for p in sorted((ROOT / "src").glob("*.pl"))
+        len(p.read_text().splitlines()) for p in sorted((ROOT / "engine").glob("*.pl"))
     )
     main = (ROOT / "python" / "petta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
@@ -131,7 +131,7 @@ def counts() -> list[tuple[str, int]]:
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
         (r"(\d+) runnable Python programs", len(list(ROOT.glob("python/examples/*/*.py")))),
-        (r"([\d,]+) lines: `src/metta.pl`", src_lines),
+        (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
         (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*.metta")))),
         (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*.metta")))),
         (r"(\d+) builtins are registered", -1),
@@ -229,7 +229,7 @@ def check() -> list[str]:
     written_in_metta = paragraph(language, r"\w+ more are written in MeTTa")
     for name in BACKTICK.findall(written_in_metta):
         if name not in derived:
-            bad.append(f"{name} is listed as a derived form but src/prelude.metta registers no rule for it")
+            bad.append(f"{name} is listed as a derived form but engine/prelude.metta registers no rule for it")
     registered = paragraph(language, r"\d+ builtins are registered")
     for name in BACKTICK.findall(registered):
         if name.startswith("m.") or name.endswith(")") or "*" in name or name == "#":
@@ -284,7 +284,7 @@ def check() -> list[str]:
         listed = set(BACKTICK.findall(services.group(1)))
         real = set(
             re.findall(
-                r"^ext_point_kind\(([\w/]+), service\)", (ROOT / "src" / "ext_points.pl").read_text(), re.MULTILINE
+                r"^ext_point_kind\(([\w/]+), service\)", (ROOT / "engine" / "ext_points.pl").read_text(), re.MULTILINE
             )
         )
         if listed != real:

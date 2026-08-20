@@ -99,9 +99,9 @@ def test_no_shipped_prolog_source_depends_on_the_development_build(repo_root):
     mavis inserts through a GLOBAL user:term_expansion, so the whole opt-in is
     the dev loader importing it before the engine is consulted. A production
     run loads neither, and a `:- use_module(library(mavis))` anywhere under
-    src/, lib/, backends/ or python/petta/ would make that false.
+    engine/, lib/, backends/ or python/petta/ would make that false.
     """
-    roots = [repo_root / name for name in ("src", "lib", "backends")]
+    roots = [repo_root / name for name in ("engine", "lib", "backends")]
     roots.append(repo_root / "python" / "petta")
     sources = [path for root in roots if root.is_dir() for path in root.rglob("*.pl")]
     assert sources, "no Prolog source found to check"

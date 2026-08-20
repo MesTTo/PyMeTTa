@@ -2,7 +2,7 @@
 Assumes:
   - translator.pl's metta_translated_head/1 answers true for every head the
     translator compiles instead of a function defining it, across both of
-    its routes [source src/translator.pl:895]
+    its routes [source engine/translator.pl:895]
 Guarantees:
   - each function, special-form and arity query crosses the engine once per
     distinct name in a lint pass [tested

@@ -1,5 +1,5 @@
 """Purpose: this repository's critical-pair enumerator is checked against a
-    kernel-checked one. src/trs.pl's overlaps/2 and confluence_check/3 mirror
+    kernel-checked one. engine/trs.pl's overlaps/2 and confluence_check/3 mirror
     MeTTaILProofs/CPExecutable.lean's criticalPairs, oneSteps, boundedJoin? and
     checkConfluence, definition for definition, and this runs both over one
     corpus and requires the same family of pairs and the same verdict on each.

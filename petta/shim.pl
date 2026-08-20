@@ -2,7 +2,7 @@
 %   per-directive structured runs, space operations, Python-backed MeTTa
 %   functions (deterministic and nondeterministic), evaluation, and proof-tree
 %   derivations on top of an unmodified PeTTa engine. Consulted after
-%   src/main.pl; only adds predicates, never redefines engine ones.
+%   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
@@ -494,7 +494,7 @@ control_exception(error(metta_control_signal(_, _), context(petta, _))).
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
 % The grouping walk, the using-substitution, the load lifecycle and the
-% status vocabulary live ENGINE-SIDE now, in src/filereader.pl's host run
+% status vocabulary live ENGINE-SIDE now, in engine/filereader.pl's host run
 % and load surface, where every binding shares one copy; this side decodes
 % the host values in, maps the codec over the term groups coming out, and
 % nothing else. Reader failures arrive as the engine's reserved
@@ -2143,7 +2143,7 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 %Each clause guards on the python registry: the foreign hooks are
 %multifile, and an engine-side foreign space (a Redis space, say) must
 %fall through to its own contribution instead of being claimed here.
-%metta_foreign_clear/1 is declared with the other five in src/ext_points.pl
+%metta_foreign_clear/1 is declared with the other five in engine/ext_points.pl
 %now, so it is part of the seam a library author reads rather than something
 %only this file knew about.
 
@@ -2456,7 +2456,7 @@ metta_grounded_type_names(X, Names) :-
     py_is_object(X),
     py_call(petta_ops:type_names(X), Names).
 
-%(context-space) lives in the engine now (src/metta.pl); the shim keeps
+%(context-space) lives in the engine now (engine/metta.pl); the shim keeps
 %nothing to add for it.
 
 %%%%%%%%%% Retranslation on late definitions %%%%%%%%%%
@@ -2468,7 +2468,7 @@ metta_grounded_type_names(X, Names) :-
 % The dependent-recompile that used to ride here as clauses of the
 % metta_on_function_changed/1 and metta_on_function_removed/1 EVENTS is the
 % engine's own now (function_changed/2 and function_removed/1 in
-% src/spaces.pl): an event observer must be optional, and an engine without
+% engine/spaces.pl): an event observer must be optional, and an engine without
 % this host in the process has to repair its own compiled code. The
 % invalidation was already the engine's, threaded with the module each write
 % goes to, which is the only place that knows it
@@ -2492,7 +2492,7 @@ petta_py_set_silent(Silent) :-
 %checks it again on the same stream before fast_read can see any payload byte.
 
 %The fast cache and the digest are engine machinery now, the host run and
-%load surface in src/filereader.pl: this side maps the term outcomes to
+%load surface in engine/filereader.pl: this side maps the term outcomes to
 %the wire and answers the ONE host question the engine asks through the
 %metta_host_object/1 seam, whether a term is a live Python object (the
 %bridge contributes that clause). Results: object(Atom) and symbol(Atom)
@@ -2508,7 +2508,7 @@ petta_py_set_silent(Silent) :-
 %to a .metta file and loaded back came back holding the SYMBOL of that
 %spelling, silently [measured 2026-08-19]. metta_unwritable_symbol/2 is the
 %grammar's own answer about a whole atom, one of the four text services in
-%src/ext_points.pl, and it is the same question petta_py_fast_save/3 and
+%engine/ext_points.pl, and it is the same question petta_py_fast_save/3 and
 %petta_py_digest/2 below already ask.
 petta_py_unwritable_atom(Space, Bad) :-
     'get-atoms'(Space, Atom),

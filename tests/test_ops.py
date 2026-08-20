@@ -310,7 +310,7 @@ def test_an_operation_failure_names_the_metta_call(metta):
 
     Without it janus's own error term reached MeTTa carrying the live
     exception object and a live traceback object, naming a Python file and
-    line and no MeTTa call. That is the defect src/python.pl fixed for py-call
+    line and no MeTTa call. That is the defect engine/python.pl fixed for py-call
     and py-atom, and an operation did not get it, so a caught error could not
     be compared or printed after the failure.
     """
@@ -709,7 +709,7 @@ def test_a_declared_type_survives_the_library_being_loaded(metta):
 
     The declaration is published through metta_grounded_extra_type/2, a
     DECLARATION seam, whose every clause is meant to stay reachable
-    [source: src/ext_points.pl, ext_point_every_clause_runs/1]. It hung off
+    [source: engine/ext_points.pl, ext_point_every_clause_runs/1]. It hung off
     the ELSE branch of the ownership seam metta_grounded_type_names/2, and the
     shim answers that one for every Python object, so the whole branch was
     dead here and the declaration was accepted and dropped
@@ -719,7 +719,7 @@ def test_a_declared_type_survives_the_library_being_loaded(metta):
 
     This test lives at the LIBRARY door for that reason. The engine-door
     pin, python_surface.plt's a_declared_type_is_reported_beside_the_objects_own,
-    was green throughout: plunit loads src/metta.pl without the shim, so it
+    was green throughout: plunit loads engine/metta.pl without the shim, so it
     exercises the configuration where the branch is alive. Only the two
     doors together see the defect.
     """

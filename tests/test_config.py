@@ -92,7 +92,7 @@ def test_live_limits_control_declarations_and_rows():
 
 def test_backend_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):
     runtime_root = tmp_path / "runtime"
-    main_file = runtime_root / "src" / "main.pl"
+    main_file = runtime_root / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
     main_file.touch()
 

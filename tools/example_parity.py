@@ -1,9 +1,9 @@
 """Purpose: run every example through BOTH configurations, the engine alone
 and the shipped Python library, and require identical verdicts. The example
 corpus is the executable semantics documentation, and until this existed it
-was only ever executed by the engine: check.sh ran `swipl -s src/main.pl`,
+was only ever executed by the engine: check.sh ran `swipl -s engine/main.pl`,
 test.sh and test_metta_examples.py shelled to run.sh, and the plunit suites
-loaded src/metta.pl without python/petta/shim.pl. So the configuration most
+loaded engine/metta.pl without python/petta/shim.pl. So the configuration most
 users come through was gated by unit tests alone, and two defects lived
 there with green lanes above them [source: ai-audit-md-review.md section 4].
 
@@ -151,7 +151,7 @@ def run_engine(path: Path, root: Path = REPO) -> Outcome:
     return _run(
         [
             "swipl", "--stack_limit=8g", "-q",
-            "-g", 'consult("src/metta.pl")',
+            "-g", 'consult("engine/metta.pl")',
             "-s", "tests/conformance/leatta_run.pl",
             "--", "--file", str(path.relative_to(root)), "backends",
         ],

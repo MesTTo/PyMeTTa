@@ -819,7 +819,7 @@ def test_eval_using_refuses_to_pretend_it_composes_with_residuals(m):
 def test_a_source_registers_every_signature_before_any_form_runs(metta):
     """The engine's file reader registers a source's WHOLE signature set
     before processing any of its forms, so a `!` may name a function the same
-    source defines lower down [source: src/filereader.pl
+    source defines lower down [source: engine/filereader.pl
     register_parsed_signatures/1]. run() and load() reach the engine through
     python/petta/shim.pl rather than through that reader, and until this they
     skipped the pass: seven shipped examples passed in the engine and failed

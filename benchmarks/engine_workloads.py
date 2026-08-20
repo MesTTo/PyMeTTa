@@ -6,13 +6,13 @@ Guarantees:
   - let-heavy performs bignum arithmetic through one let per iteration
     [tested test_let_workload_checks_its_bignum_result]
   - let-heavy reaches occurs checking and arithmetic
-    [source: src/translator.pl, unify_with_occurs_check in translate_let_dl/6]
+    [source: engine/translator.pl, unify_with_occurs_check in translate_let_dl/6]
   - alpha-unique and sort-atom reach copying, term hashing, and msort
-    [source: src/metta.pl:152-168]
+    [source: engine/metta.pl:152-168]
   - digest reaches findall, copying, and msort [source: python/petta/shim.pl:1304]
-  - source loading reaches sort and findall [source: src/filereader.pl:136]
-  - method dispatch reaches sub_atom and term construction [source: src/metta.pl:428]
-  - space-name recognition reaches atom_concat [source: src/metta.pl:327]
+  - source loading reaches sort and findall [source: engine/filereader.pl:136]
+  - method dispatch reaches sub_atom and term construction [source: engine/metta.pl:428]
+  - space-name recognition reaches atom_concat [source: engine/metta.pl:327]
 Decides:
   - default sizes keep each measured engine operation above 0.1 seconds on
     the gate workstation [measured 2026-08-15: 0.101-0.254 seconds]
@@ -259,7 +259,7 @@ def typed_call(space: MeTTa, calls: int = TYPED_CALLS) -> int:
     Read that ceiling's noise allowance before attributing anything to a change
     here. It is 5.0 rather than the 1.0 every other bench carries, because this
     workload's instruction count moves 3.13% with code LAYOUT alone: ten
-    clauses nothing calls, appended to src/python.pl, move it 200 million
+    clauses nothing calls, appended to engine/python.pl, move it 200 million
     instructions and removing them move it back, with the inference count
     identical throughout. baseline.json's instruction_noise_comment carries the
     sweep. A change here of a few percent is layout until proven otherwise, and

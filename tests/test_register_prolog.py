@@ -65,7 +65,7 @@ def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):
     assert space.one("(rp-negate 5)") == -5
 
 
-# The failure this guards is the one src/metta.pl documents: registering a name
+# The failure this guards is the one engine/metta.pl documents: registering a name
 # whose predicate is absent records no arity, and then every call to it
 # compiles to a partial application rather than erroring, which is a silent
 # wrong answer.

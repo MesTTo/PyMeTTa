@@ -10,7 +10,7 @@ metta_grounded_type_names/2, which are how a host value gets a type; and
 prolog:error_message//1, which is how a library gives its own error term a
 rendering. Nothing would have said so.
 Guarantees:
-  - every multifile seam declared in src/ext_points.pl is named in
+  - every multifile seam declared in engine/ext_points.pl is named in
     EXTENDING.md [tested test_every_declared_seam_is_documented]
   - the governance documents carry the policy rather than only existing: the
     private security address and its window, the gate command, the alpha
@@ -46,7 +46,7 @@ def _load_reference():
 
 _reference = _load_reference()
 _ROOT = _REPO
-_SEAMS = _REPO / "src" / "ext_points.pl"
+_SEAMS = _REPO / "engine" / "ext_points.pl"
 _PAGE = _REPO / "EXTENDING.md"
 
 # `:- multifile name/2.` and `:- multifile prolog:error_message//1.`
@@ -69,7 +69,7 @@ def test_every_declared_seam_is_documented(seam):
     # qualifier, so the bare name is what has to appear.
     name = seam.split(":")[-1]
     assert name in page, (
-        f"{seam} is declared in src/ext_points.pl and not mentioned in "
+        f"{seam} is declared in engine/ext_points.pl and not mentioned in "
         f"EXTENDING.md, so a library author reading the page cannot find it"
     )
 

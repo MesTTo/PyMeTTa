@@ -75,7 +75,7 @@ def test_a_non_symbol_first_argument_is_refused_by_the_read_path(m):
 # The refusal is an answer rather than a throw, which is what makes it
 # collectable: a raise would have emptied the collapse instead
 # [source: LeaTTa tests/semantics/spaces/add_atom.metta, quoted at
-# src/spaces.pl's petta_space_name/1].
+# engine/spaces.pl's petta_space_name/1].
 def test_the_read_refusal_is_data_a_collapse_can_hold(m):
     (collapsed,) = m.run("!(collapse (get-atoms $u))")
     assert len(collapsed[0]) == 1

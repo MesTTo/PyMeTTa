@@ -8,7 +8,7 @@ reason, and a deleted row fails until it leaves the manifest, so the
 scoreboard never drifts from the tree.
 
 Assumes:
-  - ext_point_kind rows in src/ext_points.pl are the one authority for a
+  - ext_point_kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: every_seam_declares_one_kind in static_checks]
 Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
@@ -84,7 +84,7 @@ _ROW = re.compile(r"^ext_point_kind\(([a-zA-Z_'/0-9-]+/\d+),\s*host_service\)\."
 
 def test_the_host_service_scoreboard_matches_the_tree(repo_root):
     declared = set(
-        _ROW.findall((repo_root / "src" / "ext_points.pl").read_text())
+        _ROW.findall((repo_root / "engine" / "ext_points.pl").read_text())
     )
     grew = sorted(declared - HOST_SERVICES)
     shrank_untracked = sorted(HOST_SERVICES - declared)
