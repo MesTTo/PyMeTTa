@@ -536,17 +536,18 @@ def test_unify():
 
 def test_ground_equality_is_the_engines():
     """Python-side == must never disagree with an equation's ==: booleans
-    are not integers, integers are not floats, IEEE identity for floats
-    with -0.0 apart from 0.0 and NaN equal to itself, objects by identity."""
-    assert Gnd(1) != Gnd(1.0)
+    are not numbers, integers and floats compare by numeric value, IEEE
+    arithmetic equates signed zeros and leaves NaN unequal, objects by identity."""
+    assert Gnd(1) == Gnd(1.0)
     assert Gnd(1.0) == Gnd(1.0)
-    assert Gnd(0.0) != Gnd(-0.0)
+    assert Gnd(0.0) == Gnd(-0.0)
     nan = float("nan")
-    assert Gnd(nan) == Gnd(nan)
+    assert Gnd(nan) != Gnd(nan)
     assert Gnd(True) != Gnd(1)
-    assert Gnd(1) == 1 and Gnd(1) != 1.0
-    assert unify(Gnd(1), Gnd(1.0)) is None
-    assert unify(Gnd(nan), Gnd(nan)) == {}
+    assert Gnd(1) == 1 and Gnd(1) == 1.0
+    assert hash(Gnd(1)) == hash(Gnd(1.0))
+    assert unify(Gnd(1), Gnd(1.0)) == {}
+    assert unify(Gnd(nan), Gnd(nan)) is None
 
 
 def test_boxes_intern_per_object_identity():
