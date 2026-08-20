@@ -20,7 +20,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import re
@@ -703,7 +703,8 @@ def test_build_never_hands_back_its_private_sentinel(m):
 def test_a_provider_error_is_not_a_system_error(metta):
     class Exploding(SpaceProvider):
         def atoms(self):
-            raise RuntimeError("provider exploded")
+            msg = "provider exploded"
+            raise RuntimeError(msg)
 
     register_provider(_engine.runtime(), "&exploding_probe", Exploding())
     try:

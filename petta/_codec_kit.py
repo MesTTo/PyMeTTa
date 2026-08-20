@@ -110,10 +110,13 @@ def _corpus_path() -> Path:
 
     path = Path(_engine._resolve_petta_path()) / "tests" / "codec" / "corpus.json"
     if not path.is_file():
-        raise FileNotFoundError(
+        msg = (
             f"the codec corpus is not at {path}; a checkout carries it at "
             f"tests/codec/corpus.json and a wheel carries it beside the "
             f"engine tree"
+        )
+        raise FileNotFoundError(
+            msg
         )
     return path
 
@@ -194,7 +197,8 @@ def _materialise(value: Any, driver: CodecDriver) -> Any:
 def _generated(spec: dict) -> Any:
     """A wire term too large to write out, built from its description."""
     if spec["kind"] != "nest":
-        raise ValueError(f"the corpus asks for an unknown generator {spec['kind']!r}")
+        msg = f"the corpus asks for an unknown generator {spec['kind']!r}"
+        raise ValueError(msg)
     wire = spec["leaf"]
     for _ in range(spec["depth"]):
         wire = ["e", [["s", "down"], wire]]
@@ -382,11 +386,14 @@ def check_codec(driver: CodecDriver, *, corpus: dict | None = None) -> list[str]
     core = set(corpus["profiles"]["core"]["tags"])
     missing = core - set(driver.tags)
     if missing:
-        raise ValueError(
+        msg = (
             f"{driver.name} declares {sorted(driver.tags)}, which is short of "
             f"the core profile by {sorted(missing)}. Every codec carries the "
             f"core five; an encoding that cannot is not a codec for this "
             f"grammar."
+        )
+        raise ValueError(
+            msg
         )
     plan = set(codec_plan(driver, corpus=corpus)["run"])
     complaints: list[str] = []

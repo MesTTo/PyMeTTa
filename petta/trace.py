@@ -8,7 +8,7 @@ included, exactly like a run.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -48,8 +48,9 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
     inference bounds elsewhere.
     """
     if max_events <= 0:
+        msg = f"max_events must be positive, got {max_events!r}"
         raise ValueError(
-            f"max_events must be positive, got {max_events!r}"
+            msg
         )
     row = space.runtime.once(
         "petta_py_trace(Src, Space, Max, Events)",

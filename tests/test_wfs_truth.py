@@ -8,7 +8,7 @@ ai-tabling-review.md section 3 pinned.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest

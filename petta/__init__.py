@@ -14,7 +14,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 
     from petta import MeTTa, S, V
 
@@ -104,7 +104,8 @@ def __getattr__(name: str):
         value = getattr(module, name)
         globals()[name] = value
         return value
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 def __dir__() -> list[str]:
@@ -259,7 +260,8 @@ def backend_info() -> dict[str, str | None]:
     janus_bridge = _engine.bridge()
     version_row = janus_bridge.query_once("current_prolog_flag(version, SwiVersion)")
     if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
-        raise EngineError("janus did not report the running SWI-Prolog version")
+        msg = "janus did not report the running SWI-Prolog version"
+        raise EngineError(msg)
     swi_version_num = version_row["SwiVersion"]
     active = _engine.active_runtime()
     return {

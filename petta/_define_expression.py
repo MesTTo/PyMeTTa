@@ -8,7 +8,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -67,8 +67,9 @@ class ExpressionCompilerMixin(CompilerContext):
     def expression(self, node: ast.expr) -> Atom:
         method = getattr(self, f"_x_{type(node).__name__}", None)
         if method is None:
+            msg = f"{type(node).__name__} has no MeTTa equivalent in the compiled subset"
             raise CompileError(
-                f"{type(node).__name__} has no MeTTa equivalent in the compiled subset",
+                msg,
                 construct=type(node).__name__,
                 line=getattr(node, "lineno", None),
             )
@@ -78,14 +79,18 @@ class ExpressionCompilerMixin(CompilerContext):
         if isinstance(node.value, (bool, int, float, str)):
             return Gnd(node.value)
         if node.value is None:
-            raise CompileError(
+            msg = (
                 "None has no MeTTa value; answer nothing by yielding nothing, "
-                "or return a symbol such as Nil and match on it",
+                "or return a symbol such as Nil and match on it"
+            )
+            raise CompileError(
+                msg,
                 construct="None",
                 line=node.lineno,
             )
+        msg = f"the constant {node.value!r} has no grounded MeTTa form"
         raise CompileError(
-            f"the constant {node.value!r} has no grounded MeTTa form",
+            msg,
             construct="constant",
             line=node.lineno,
         )
@@ -104,7 +109,7 @@ class ExpressionCompilerMixin(CompilerContext):
             return known
         if node.id[:1].isupper():
             return self._constructor_symbol(node)
-        raise CompileError(
+        msg = (
             f"{node.id!r} is not a parameter of {self.name}, not a function "
             f"the engine knows, and not a capitalized data constructor. "
             f"A compiled body is pure atoms; closing over a host value would "
@@ -112,7 +117,10 @@ class ExpressionCompilerMixin(CompilerContext):
             f"argument, or capitalize it if it is data. Names are matched "
             f"exactly and nothing is rewritten, so a function registered "
             f"under a hyphenated name is reached by an alias a body can "
-            f"spell: (= ({node.id} $x) (the-hyphenated-name $x)).",
+            f"spell: (= ({node.id} $x) (the-hyphenated-name $x))."
+        )
+        raise CompileError(
+            msg,
             construct="free identifier",
             line=node.lineno,
         )
@@ -131,11 +139,14 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _constructor_symbol(self, node: ast.Name) -> Sym:
         if self.host(node.id):
-            raise CompileError(
+            msg = (
                 f"{node.id!r} is a module binding, not a data "
                 f"constructor: compiling it as a symbol would drop its "
                 f"value silently. Pass it as an argument, or inline the "
-                f"literal.",
+                f"literal."
+            )
+            raise CompileError(
+                msg,
                 construct="host binding",
                 line=node.lineno,
             )
@@ -153,9 +164,12 @@ class ExpressionCompilerMixin(CompilerContext):
             return Expr([Sym("/"), left, self.expression(node.right)])
         op = _BINOPS.get(type(node.op))
         if op is None:
-            raise CompileError(
+            msg = (
                 f"the operator {type(node.op).__name__} has no MeTTa function. "
-                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.register_op for it')}",
+                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.register_op for it')}"
+            )
+            raise CompileError(
+                msg,
                 construct=type(node.op).__name__,
                 line=node.lineno,
             )
@@ -172,9 +186,12 @@ class ExpressionCompilerMixin(CompilerContext):
             return Expr([Sym("not"), self._truthy(node.operand)])
         if isinstance(node.op, ast.UAdd):
             return self.expression(node.operand)
-        raise CompileError(
+        msg = (
             f"the unary operator {type(node.op).__name__} has no MeTTa "
-            f"function. {_INSTEAD.get(type(node.op), '')}",
+            f"function. {_INSTEAD.get(type(node.op), '')}"
+        )
+        raise CompileError(
+            msg,
             construct=type(node.op).__name__,
             line=node.lineno,
         )
@@ -236,8 +253,9 @@ class ExpressionCompilerMixin(CompilerContext):
             return Expr([Sym("not"), Expr([Sym("py-in"), left, right])])
         op = _COMPARE.get(type(op_node))
         if op is None:
+            msg = f"the comparison {type(op_node).__name__} has no MeTTa function"
             raise CompileError(
-                f"the comparison {type(op_node).__name__} has no MeTTa function",
+                msg,
                 construct=type(op_node).__name__,
                 line=line,
             )
@@ -274,8 +292,9 @@ class ExpressionCompilerMixin(CompilerContext):
         """A lambda is the engine's own first-class |->."""
         a = node.args
         if a.vararg or a.kwarg or a.kwonlyargs or a.defaults or a.posonlyargs:
+            msg = "a compiled lambda takes plain positional parameters"
             raise CompileError(
-                "a compiled lambda takes plain positional parameters",
+                msg,
                 construct="lambda",
                 line=node.lineno,
             )
@@ -294,8 +313,9 @@ class ExpressionCompilerMixin(CompilerContext):
         """
         for gen in node.generators:
             if gen.is_async:
+                msg = "an async comprehension has no equation"
                 raise CompileError(
-                    "an async comprehension has no equation",
+                    msg,
                     construct="comprehension",
                     line=node.lineno,
                 )
@@ -326,10 +346,13 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:
-        raise CompileError(
+        msg = (
             "a generator expression is lazy Python; write a list "
             "comprehension for map-atom, or a generator function for "
-            "nondeterminism",
+            "nondeterminism"
+        )
+        raise CompileError(
+            msg,
             construct="generator expression",
             line=node.lineno,
         )
@@ -353,17 +376,23 @@ class ExpressionCompilerMixin(CompilerContext):
     @staticmethod
     def _plain_call_name(node: ast.Call) -> ast.Name:
         if node.keywords:
-            raise CompileError(
+            msg = (
                 "a call in a compiled body passes positional arguments; MeTTa "
-                "application has no keywords",
+                "application has no keywords"
+            )
+            raise CompileError(
+                msg,
                 construct="keyword argument",
                 line=node.lineno,
             )
         if not isinstance(node.func, ast.Name):
-            raise CompileError(
+            msg = (
                 "a compiled body calls a plain name; attribute and computed "
                 "calls have no equation. Register the object's method as an "
-                "operation and call it by name.",
+                "operation and call it by name."
+            )
+            raise CompileError(
+                msg,
                 construct="call",
                 line=node.lineno,
             )
@@ -375,8 +404,9 @@ class ExpressionCompilerMixin(CompilerContext):
         mangled, lifted_names, _ = self.lifted[name]
         missing = [identifier for identifier in lifted_names if identifier not in self.scope]
         if missing:
+            msg = f"{name!r} closes over {missing} which are not in scope here"
             raise CompileError(
-                f"{name!r} closes over {missing} which are not in scope here",
+                msg,
                 construct="nested def",
                 line=node.lineno,
             )
@@ -390,8 +420,9 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _args(self, node: ast.Call, count: int | None, name: str) -> list[Atom]:
         if count is not None and len(node.args) != count:
+            msg = f"{name}() compiles with exactly {count} argument(s) here"
             raise CompileError(
-                f"{name}() compiles with exactly {count} argument(s) here",
+                msg,
                 construct=name,
                 line=node.lineno,
             )
@@ -419,7 +450,8 @@ class ExpressionCompilerMixin(CompilerContext):
         # the engine's two-place min over the arguments, Python's own split.
         args = self._args(node, None, which)
         if not args:
-            raise CompileError(f"{which}() needs arguments", construct=which, line=node.lineno)
+            msg = f"{which}() needs arguments"
+            raise CompileError(msg, construct=which, line=node.lineno)
         if len(args) == 1:
             return Expr([Sym(f"{which}-atom"), args[0]])
         folded = args[-1]
@@ -430,8 +462,9 @@ class ExpressionCompilerMixin(CompilerContext):
     def _py_sum(self, node: ast.Call) -> Atom:
         args = self._args(node, None, "sum")
         if len(args) not in (1, 2):
+            msg = "sum() takes an iterable and an optional start"
             raise CompileError(
-                "sum() takes an iterable and an optional start",
+                msg,
                 construct="sum",
                 line=node.lineno,
             )
@@ -459,8 +492,9 @@ class ExpressionCompilerMixin(CompilerContext):
     def _py_round(self, node: ast.Call) -> Atom:
         args = self._args(node, None, "round")
         if len(args) not in (1, 2):
+            msg = "round() takes a value and an optional digit count"
             raise CompileError(
-                "round() takes a value and an optional digit count",
+                msg,
                 construct="round",
                 line=node.lineno,
             )
@@ -472,8 +506,9 @@ class ExpressionCompilerMixin(CompilerContext):
     def _py_range(self, node: ast.Call) -> Atom:
         args = self._args(node, None, "range")
         if len(args) not in (1, 2, 3):
+            msg = "range() takes start, stop and an optional step"
             raise CompileError(
-                "range() takes start, stop and an optional step",
+                msg,
                 construct="range",
                 line=node.lineno,
             )
@@ -484,9 +519,12 @@ class ExpressionCompilerMixin(CompilerContext):
         source = self.expression(node.value)
         if isinstance(node.slice, ast.Slice):
             if node.slice.step is not None:
-                raise CompileError(
+                msg = (
                     "a stepped slice has no lowering; take a plain slice "
-                    "and a comprehension, or an operation",
+                    "and a comprehension, or an operation"
+                )
+                raise CompileError(
+                    msg,
                     construct="slice",
                     line=node.lineno,
                 )
@@ -515,9 +553,12 @@ class ExpressionCompilerMixin(CompilerContext):
                 and isinstance(space_node.value, str)
                 and space_node.value.startswith("&")
             ):
-                raise CompileError(
+                msg = (
                     "match with three arguments names its space first, as a "
-                    'string: match("&kb", pattern, template)',
+                    'string: match("&kb", pattern, template)'
+                )
+                raise CompileError(
+                    msg,
                     construct="match",
                     line=node.lineno,
                 )
@@ -526,8 +567,9 @@ class ExpressionCompilerMixin(CompilerContext):
             pattern_node, template_node = args
             space = Expr([Sym("context-space")])
         else:
+            msg = "match takes (pattern, template) or (space, pattern, template)"
             raise CompileError(
-                "match takes (pattern, template) or (space, pattern, template)",
+                msg,
                 construct="match",
                 line=node.lineno,
             )
@@ -550,10 +592,13 @@ class ExpressionCompilerMixin(CompilerContext):
         return Expr([self.expression(e) for e in node.elts])
 
     def _x_Dict(self, node: ast.Dict) -> Atom:
-        raise CompileError(
+        msg = (
             "a dict literal has no MeTTa form; carry one whole with "
             "petta.val(...) through an operation, or spell the pairs as an "
-            "expression of (key value) pairs",
+            "expression of (key value) pairs"
+        )
+        raise CompileError(
+            msg,
             construct="dict",
             line=node.lineno,
         )
@@ -572,8 +617,9 @@ class ExpressionCompilerMixin(CompilerContext):
         if isinstance(piece, ast.Constant) and isinstance(piece.value, str):
             return Gnd(piece.value)
         if not isinstance(piece, ast.FormattedValue):
+            msg = "this f-string part has no lowering"
             raise CompileError(
-                "this f-string part has no lowering",
+                msg,
                 construct="f-string",
                 line=line,
             )
@@ -621,9 +667,12 @@ class _PatternScope:
             return Expr([self.expression(e) for e in node.elts])
         if isinstance(node, ast.Constant):
             return self.outer._x_Constant(node)
-        raise CompileError(
+        msg = (
             f"{type(node).__name__} has no place in a match pattern, which is "
-            f"structural: names, constructors, tuples and constants",
+            f"structural: names, constructors, tuples and constants"
+        )
+        raise CompileError(
+            msg,
             construct="pattern",
             line=getattr(node, "lineno", None),
         )
@@ -639,8 +688,9 @@ class _PatternScope:
 
     def _call(self, node: ast.Call) -> Expr:
         if not isinstance(node.func, ast.Name):
+            msg = "a pattern applies a plain constructor name"
             raise CompileError(
-                "a pattern applies a plain constructor name",
+                msg,
                 construct="pattern",
                 line=node.lineno,
             )
@@ -674,9 +724,12 @@ _PYBUILTIN_CALLS: dict[str, Callable] = {
 def _name_of(target: ast.expr, line: int | None) -> str:
     if isinstance(target, ast.Name):
         return target.id
-    raise CompileError(
+    msg = (
         "a compiled body binds plain names; destructuring and attribute "
-        "assignment have no let* form",
+        "assignment have no let* form"
+    )
+    raise CompileError(
+        msg,
         construct="assignment target",
         line=line,
     )

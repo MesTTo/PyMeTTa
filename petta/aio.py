@@ -40,7 +40,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -139,7 +139,8 @@ class _EngineThread:
             if self._state == "starting":
                 started = self._startup
                 if started is None:
-                    raise RuntimeError("starting AsyncMeTTa has no startup future")
+                    msg = "starting AsyncMeTTa has no startup future"
+                    raise RuntimeError(msg)
                 launch = False
             elif self._state in ("failed", "closing", "closed"):
                 self._raise_state_locked()
@@ -150,7 +151,8 @@ class _EngineThread:
                 launch = True
 
         if started is None:
-            raise RuntimeError("AsyncMeTTa startup did not create a future")
+            msg = "AsyncMeTTa startup did not create a future"
+            raise RuntimeError(msg)
         if not launch:
             await started
             return
@@ -284,8 +286,10 @@ class _EngineThread:
         if self._state == "failed":
             cause = self._failure
             detail = f": {type(cause).__name__}: {cause}" if cause is not None else ""
-            raise PettaError(f"AsyncMeTTa worker failed{detail}") from cause
-        raise PettaError(f"AsyncMeTTa worker is {self._state}")
+            msg = f"AsyncMeTTa worker failed{detail}"
+            raise PettaError(msg) from cause
+        msg = f"AsyncMeTTa worker is {self._state}"
+        raise PettaError(msg)
 
     def _fail_worker(self, cause: BaseException) -> None:
         pending: list[_Request] = []
@@ -342,8 +346,9 @@ class _EngineThread:
             if current is None or (request is not None and current is not request):
                 return False
             if swi_thread is None:
+                msg = "the async worker has a request but no published Prolog engine"
                 raise RuntimeError(
-                    "the async worker has a request but no published Prolog engine"
+                    msg
                 )
             # query_once is safe from a bare foreign thread (the loop's),
             # and this bypasses the runtime lock on purpose: the running
@@ -396,14 +401,16 @@ class _EngineThread:
         if thread is None or not thread.is_alive():
             return
         if thread is threading.current_thread():
-            raise PettaError("an AsyncMeTTa worker cannot stop itself")
+            msg = "an AsyncMeTTa worker cannot stop itself"
+            raise PettaError(msg)
         self.interrupt_if_running(None)
         thread.join(timeout)
         if thread.is_alive():
             self.interrupt_if_running(None)
             logger.error("AsyncMeTTa worker exceeded its stop timeout")
+            msg = f"AsyncMeTTa worker did not stop within {timeout:g} seconds"
             raise TimeoutError(
-                f"AsyncMeTTa worker did not stop within {timeout:g} seconds"
+                msg
             )
 
     @property
@@ -421,7 +428,8 @@ class _EngineThread:
 def _close_timeout(timeout: float) -> float:
     value = float(timeout)
     if not math.isfinite(value) or value <= 0:
-        raise ValueError(f"close timeout must be finite and positive, got {timeout!r}")
+        msg = f"close timeout must be finite and positive, got {timeout!r}"
+        raise ValueError(msg)
     return value
 
 
@@ -454,8 +462,9 @@ def _shutdown_workers() -> None:
         except shutdown_errors as exc:
             failures.append(exc)
     if failures:
+        msg = f"failed to stop {len(failures)} AsyncMeTTa worker(s) at exit"
         raise ExceptionGroup(
-            f"failed to stop {len(failures)} AsyncMeTTa worker(s) at exit",
+            msg,
             failures,
         )
 
@@ -528,7 +537,8 @@ class AsyncMeTTa:
     async def start(self) -> Self:
         """Start the engine thread; connect() and `async with` call this."""
         if self._closed:
-            raise PettaError("this AsyncMeTTa is closed")
+            msg = "this AsyncMeTTa is closed"
+            raise PettaError(msg)
         await self._worker.start()
         return self
 
@@ -538,7 +548,8 @@ class AsyncMeTTa:
         derivations, stats blocks and all.
         """
         if self._closed:
-            raise PettaError("this AsyncMeTTa is closed")
+            msg = "this AsyncMeTTa is closed"
+            raise PettaError(msg)
         await self._worker.start()
         loop = asyncio.get_running_loop()
         request = _Request(fn, self._m, loop, loop.create_future())
@@ -1021,7 +1032,8 @@ class AsyncMeTTa:
         if fn is not None:
             return await self.call(lambda m: m.define(fn))
         if prolog is None:
-            raise TypeError("define takes a function or prolog= source")
+            msg = "define takes a function or prolog= source"
+            raise TypeError(msg)
         source = prolog
         return await self.call(lambda m: m.define(prolog=source))
 
@@ -1196,8 +1208,9 @@ class AsyncMeTTa:
             await asyncio.to_thread(thread.join, timeout)
             if thread.is_alive():
                 self._worker.interrupt_if_running(None)
+                msg = f"AsyncMeTTa worker did not stop within {timeout:g} seconds"
                 raise TimeoutError(
-                    f"AsyncMeTTa worker did not stop within {timeout:g} seconds"
+                    msg
                 )
 
     def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
@@ -1449,12 +1462,15 @@ class _AsyncSubscription:
         if self._dropped and events.empty():
             # Everything that fit has been delivered; now say what did not.
             dropped, self._dropped = self._dropped, 0
-            raise PettaError(
+            msg = (
                 f"this subscription stream fell {dropped} event(s) behind "
                 f"its queue_max of {self._queue_max} and they are gone. "
                 f"Consume faster, raise queue_max=, or take the events on "
                 f"the synchronous surface, where a full queue refuses the "
                 f"write instead of outrunning the reader."
+            )
+            raise PettaError(
+                msg
             )
         event = await events.get()
         if event is _STREAM_CLOSED:

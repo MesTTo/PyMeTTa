@@ -8,7 +8,7 @@ suite installs torch over it, each self-consistent.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import inspect

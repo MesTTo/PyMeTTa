@@ -15,7 +15,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -36,9 +36,12 @@ def _binding_name(key: Any) -> str:
         name = key.removeprefix("$")
         if name:
             return name
-    raise TypeError(
+    msg = (
         f"a theta key names a query variable, as 'x', '$x' or a Var, "
         f"not {key!r}"
+    )
+    raise TypeError(
+        msg
     )
 
 
@@ -77,23 +80,32 @@ class Answer:
         if theta is None:
             theta = {}
         if not isinstance(theta, Mapping):
-            raise TypeError(
+            msg = (
                 f"theta is a mapping from variable names to values, "
                 f"not {type(theta).__name__}"
+            )
+            raise TypeError(
+                msg
             )
         self.theta = {_binding_name(key): value_ for key, value_ in theta.items()}
         self.value = value
         if residue is not None and not isinstance(residue, Atom):
-            raise TypeError(
+            msg = (
                 f"residue is an Atom, the part of the query this answer "
                 f"did not discharge, not {type(residue).__name__}"
             )
+            raise TypeError(
+                msg
+            )
         self.residue = residue
         if k is not None and not isinstance(k, (*_SCALAR, Atom)):
-            raise TypeError(
+            msg = (
                 f"k is an annotation in the declared semiring, a scalar "
                 f"or an Atom (the prov semiring's values are source "
                 f"terms), not {type(k).__name__}"
+            )
+            raise TypeError(
+                msg
             )
         self.k = k
 

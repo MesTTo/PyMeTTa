@@ -11,7 +11,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -48,7 +48,8 @@ def derivations(
 
 def _validate_depth(depth: int | None) -> None:
     if depth is not None and (isinstance(depth, bool) or not isinstance(depth, int) or depth <= 0):
-        raise ValueError(f"derivation depth must be a positive integer or None, got {depth!r}")
+        msg = f"derivation depth must be a positive integer or None, got {depth!r}"
+        raise ValueError(msg)
 
 
 def _stored_with_head(space: Any, name: str) -> list[Expr]:

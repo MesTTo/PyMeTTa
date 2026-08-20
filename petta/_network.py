@@ -14,7 +14,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -33,9 +33,11 @@ def validated_timeout(timeout: Any, *, subject: str) -> float:
     try:
         value = float(timeout)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"{subject} must be a number, got {timeout!r}") from exc
+        msg = f"{subject} must be a number, got {timeout!r}"
+        raise ValueError(msg) from exc
     if not math.isfinite(value) or value <= 0:
-        raise ValueError(f"{subject} must be finite and positive, got {timeout!r}")
+        msg = f"{subject} must be finite and positive, got {timeout!r}"
+        raise ValueError(msg)
     return value
 
 
@@ -43,10 +45,12 @@ def _bounded_response_body(response: HTTPResponse) -> bytes:
     declared = response.getheader("Content-Length")
     if declared is not None:
         if not declared.isascii() or not declared.isdigit():
-            raise HTTPException(f"response content-length is invalid: {declared!r}")
+            msg = f"response content-length is invalid: {declared!r}"
+            raise HTTPException(msg)
         if int(declared) > MAX_HTTP_RESPONSE_BYTES:
+            msg = f"response body exceeds the {MAX_HTTP_RESPONSE_BYTES}-byte limit"
             raise HTTPException(
-                f"response body exceeds the {MAX_HTTP_RESPONSE_BYTES}-byte limit"
+                msg
             )
     chunks: list[bytes] = []
     remaining = MAX_HTTP_RESPONSE_BYTES + 1
@@ -58,8 +62,9 @@ def _bounded_response_body(response: HTTPResponse) -> bytes:
         remaining -= len(chunk)
     raw = b"".join(chunks)
     if len(raw) > MAX_HTTP_RESPONSE_BYTES:
+        msg = f"response body exceeds the {MAX_HTTP_RESPONSE_BYTES}-byte limit"
         raise HTTPException(
-            f"response body exceeds the {MAX_HTTP_RESPONSE_BYTES}-byte limit"
+            msg
         )
     return raw
 
@@ -68,7 +73,8 @@ def _split_url(url: str, subject: str, error_type: type[Exception]) -> SplitResu
     try:
         return urlsplit(url)
     except (TypeError, ValueError) as exc:
-        raise error_type(f"{subject} URL {url!r} is invalid: {exc}") from exc
+        msg = f"{subject} URL {url!r} is invalid: {exc}"
+        raise error_type(msg) from exc
 
 
 def _validate_credentials_and_port(
@@ -78,18 +84,21 @@ def _validate_credentials_and_port(
     error_type: type[Exception],
 ) -> None:
     if parsed.username is not None or parsed.password is not None:
-        raise error_type(f"{subject} URL must not contain embedded credentials")
+        msg = f"{subject} URL must not contain embedded credentials"
+        raise error_type(msg)
     try:
         _ = parsed.port
     except ValueError as exc:
-        raise error_type(f"{subject} URL {url!r} is invalid: {exc}") from exc
+        msg = f"{subject} URL {url!r} is invalid: {exc}"
+        raise error_type(msg) from exc
 
 
 def _validate_host(
     parsed: SplitResult, url: str, subject: str, error_type: type[Exception]
 ) -> None:
     if parsed.hostname is None:
-        raise error_type(f"{subject} URL {url!r} has no host")
+        msg = f"{subject} URL {url!r} has no host"
+        raise error_type(msg)
 
 
 def _validated_scheme(
@@ -98,15 +107,17 @@ def _validated_scheme(
     scheme = parsed.scheme.lower()
     if scheme not in {"http", "https"}:
         shown = scheme or "<missing>"
+        msg = f"{subject} URL scheme {shown!r} is not allowed; use http or https"
         raise error_type(
-            f"{subject} URL scheme {shown!r} is not allowed; use http or https"
+            msg
         )
     return scheme
 
 
 def _validate_suffix(parsed: SplitResult, url: str, subject: str, error_type: type[Exception]) -> None:
     if parsed.query or parsed.fragment:
-        raise error_type(f"{subject} URL {url!r} must not contain a query or fragment")
+        msg = f"{subject} URL {url!r} must not contain a query or fragment"
+        raise error_type(msg)
 
 
 def validated_http_base(
@@ -144,7 +155,8 @@ class HTTPEndpoint:
         parsed = urlsplit(self.url)
         hostname = parsed.hostname
         if hostname is None:
-            raise AssertionError("validated HTTP URL lost its host")
+            msg = "validated HTTP URL lost its host"
+            raise AssertionError(msg)
         self._host = hostname
         self._port = parsed.port
         self._path = parsed.path.rstrip("/")

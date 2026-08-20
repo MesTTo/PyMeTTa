@@ -1,11 +1,11 @@
-"""Purpose: lib_regex from Python: the engine's PCRE2 surface answers
+r"""Purpose: lib_regex from Python: the engine's PCRE2 surface answers
 through eval, composes as a query guard, and carries typed named
 captures. A MeTTa string reads a doubled backslash as one, so a raw
 Python string spelling "\\d" reaches PCRE as the digit class.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest

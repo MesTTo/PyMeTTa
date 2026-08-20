@@ -13,7 +13,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import contextlib
@@ -306,9 +306,12 @@ class LegacyScriptedDAS(DAS):
         self.posted.append((method, path, body))
         if path == "/command-router/executions":
             if "command_type" not in (body or {}):
-                raise DASError(
+                msg = (
                     "DAS POST /command-router/executions answered 400: "
                     '{"error":"Missing fields: command_type, command_text"}'
+                )
+                raise DASError(
+                    msg
                 )
             return {"execution_id": "exec-legacy", "status": "pending"}
         return {}

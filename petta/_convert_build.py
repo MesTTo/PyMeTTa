@@ -11,7 +11,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -136,10 +136,13 @@ def _resolve_default_constructor(head: Sym, cls: type | None) -> tuple[type, _Re
 def _require_requested_owner(head: Sym, requested: type | None, owner: type) -> None:
     if requested is None or owner is requested:
         return
-    raise TypeError(
+    msg = (
         f"({head.name} ...) belongs to {_class_label(owner)}, "
         f"not {_class_label(requested)}; build() will not substitute a different "
         f"class with the same type name"
+    )
+    raise TypeError(
+        msg
     )
 
 
@@ -152,10 +155,13 @@ def _rebuild_registered(atom: Expr, target_cls: type, registration: _Registratio
 
 def _require_complete_parts(atom: Expr, target_cls: type, registration: _Registration) -> None:
     if registration.fields and len(atom.args) != len(registration.fields):
-        raise TypeError(
+        msg = (
             f"({registration.type_name} ...) carries {len(atom.args)} part(s); "
             f"{target_cls.__name__} has {len(registration.fields)} field(s). "
             f"Rebuilding would drop or invent values."
+        )
+        raise TypeError(
+            msg
         )
 
 
@@ -164,9 +170,12 @@ def _call_reverse(target_cls: type, registration: _Registration, parts: list[Any
         return registration.from_atom(*parts)
     hook = getattr(target_cls, "__from_metta__", None)
     if hook is None:
-        raise TypeError(
+        msg = (
             f"{target_cls.__name__} has no from_atom and no __from_metta__; "
             f"register the reverse to rebuild it"
+        )
+        raise TypeError(
+            msg
         )
     return hook(*parts)
 

@@ -101,17 +101,23 @@ class GatewayComplianceSuite:
             for ancestor in cls.__mro__
             if ancestor not in (GatewayComplianceSuite, object)
         ):
-            raise TypeError(
+            msg = (
                 f"{cls.__name__} subclasses GatewayComplianceSuite without a "
                 f"`gateway_url` fixture; define one answering the base URL "
                 f"of a running gateway"
             )
+            raise TypeError(
+                msg
+            )
 
     @pytest.fixture()
     def gateway_url(self) -> str:
-        raise NotImplementedError(
+        msg = (
             "subclass GatewayComplianceSuite with a gateway_url fixture "
             "answering the base URL of a running gateway"
+        )
+        raise NotImplementedError(
+            msg
         )
 
     @pytest.fixture()

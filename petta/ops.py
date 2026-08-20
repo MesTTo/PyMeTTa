@@ -202,17 +202,23 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
             variadic = True
             continue
         if p.kind is inspect.Parameter.KEYWORD_ONLY:
-            raise TypeError(
+            msg = (
                 f"cannot register {_callable_name(fn)}: keyword-only parameter "
                 f"{p.name!r} is unreachable from a positional MeTTa call site"
+            )
+            raise TypeError(
+                msg
             )
         params.append(p)
     if explicit is not None:
         return sorted(set(explicit)), params
     if variadic:
-        raise TypeError(
+        msg = (
             f"cannot register {_callable_name(fn)}: *args has no single MeTTa call "
             f"form; pass arities=[...] naming the argument counts to serve"
+        )
+        raise TypeError(
+            msg
         )
     required = sum(1 for p in params if p.default is inspect.Parameter.empty)
     return list(range(required, len(params) + 1)), params
@@ -441,14 +447,18 @@ def register(
     # that restores the previous registration whole, and the Python
     # registry commits last.
     if inverse is not None and not callable(inverse):
-        raise TypeError(f"the inverse of {metta_name} is not callable: {inverse!r}")
+        msg = f"the inverse of {metta_name} is not callable: {inverse!r}"
+        raise TypeError(msg)
     if pure and raw and inspect.isgeneratorfunction(fn):
         # A raw generator is the one shape whose answers the engine never
         # sees whole, so "no effect a cache could hide" is not checkable even
         # in principle. Refusing here beats a caller finding out later.
-        raise ValueError(
+        msg = (
             f"{metta_name} cannot be declared pure: a raw generator's answers "
             f"cross one at a time and are never seen whole"
+        )
+        raise ValueError(
+            msg
         )
     declarations = _operation_declarations(metta_name, params, fn, typed)
     previous = REGISTRY.get(metta_name)
@@ -485,7 +495,8 @@ def unregister(runtime, name: str) -> None:
     # existence check costs nothing extra. Asking builtins() instead listed
     # every registered function per call, +69.6% on the register-op counter.
     if not arities and op is None:
-        raise KeyError(f"no operation named {name!r} is registered")
+        msg = f"no operation named {name!r} is registered"
+        raise KeyError(msg)
     for arity_row in arities:
         runtime.must("petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:

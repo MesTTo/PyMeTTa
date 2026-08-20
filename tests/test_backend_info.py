@@ -5,7 +5,7 @@ fresh interpreter where it is deterministic.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os
@@ -89,7 +89,8 @@ def test_engine_thread_owns_only_its_attachment(metta):
         observed["after"] = petta.janus.engine()
         try:
             with petta.engine_thread():
-                raise LookupError("exceptional context exit")
+                msg = "exceptional context exit"
+                raise LookupError(msg)
         except LookupError:
             pass
         observed["after_exception"] = petta.janus.engine()

@@ -7,7 +7,7 @@ the &petta reflection space the library describes itself into.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import dataclasses
@@ -222,7 +222,8 @@ def test_assuming_scopes_facts(m):
     # The exception path removes too.
     try:
         with m.assuming(S.road(S.b, S.c)):
-            raise RuntimeError("boom")
+            msg = "boom"
+            raise RuntimeError(msg)
     except RuntimeError:
         pass
     assert len(m.query(S.road(V.x, V.y))) == 1

@@ -21,7 +21,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -65,9 +65,12 @@ def _type_atom(type_: Any) -> Atom:
             if type_ is spelled:
                 return Sym(name)
         return Sym(type_.__name__)
-    raise TypeError(
+    msg = (
         "a cast target must be an Atom, MeTTa source text, or a Python "
         f"type, got {type_!r}"
+    )
+    raise TypeError(
+        msg
     )
 
 
@@ -106,7 +109,10 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)
     candidates = ", ".join(str(atom_from_wire(t)) for t in answered[1])
-    raise CastError(
+    msg = (
         f"{atom} does not admit type {target} in {space._space}: "
         f"its types are {candidates}"
+    )
+    raise CastError(
+        msg
     )

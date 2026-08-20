@@ -21,7 +21,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -113,7 +113,8 @@ class _Namespace:
         return self.__getattr__(name)
 
     def __setattr__(self, *_: Any) -> None:
-        raise AttributeError("namespaces are read-only")
+        msg = "namespaces are read-only"
+        raise AttributeError(msg)
 
     def _known(self) -> list[str]:
         lock = object.__getattribute__(self, "_lock")

@@ -10,7 +10,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -42,7 +42,8 @@ def test_a_raise_rolls_back_everything_and_arrives_as_itself(m):
     def failing():
         m.add(S.tx(2))
         m.run("(= (tx-f $x) $x)")
-        raise ValueError("undo everything")
+        msg = "undo everything"
+        raise ValueError(msg)
 
     with pytest.raises(ValueError, match="undo everything") as failure:
         m.transaction(failing)
@@ -71,7 +72,8 @@ def test_the_librarys_own_errors_pass_through_unchanged(m):
 def test_nested_commit_dies_with_the_outer_rollback(m):
     def outer():
         m.transaction(lambda: m.add(S.tx(3)))
-        raise RuntimeError("outer dies")
+        msg = "outer dies"
+        raise RuntimeError(msg)
 
     with pytest.raises(RuntimeError):
         m.transaction(outer)
@@ -86,7 +88,8 @@ def test_transactional_is_the_decorator_twin(m):
     def migrate(n):
         m.add(S.tx(n))
         if n < 0:
-            raise ValueError("negative")
+            msg = "negative"
+            raise ValueError(msg)
         return n * 2
 
     # Decorating ran nothing; calling runs one transaction per call.

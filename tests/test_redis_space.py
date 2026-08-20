@@ -8,7 +8,7 @@ Skips whole when docker cannot serve an ephemeral Redis.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

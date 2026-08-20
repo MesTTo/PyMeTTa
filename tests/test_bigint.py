@@ -13,7 +13,7 @@ Guarantees:
 Open Obligations:
   To Do: Re-verify these rules when LeaTTa adds its announced BigInt type.
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from typing import get_args

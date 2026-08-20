@@ -94,7 +94,8 @@ def __getattr__(name: str):
         from ._gateway_compliance import GatewayComplianceSuite  # noqa: PLC0415
 
         return GatewayComplianceSuite
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 def _st():
@@ -286,13 +287,17 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     the operation and the atom.
     """
     if source not in ("linear", "repeated", "peek"):
-        raise ValueError(f"source is linear, repeated or peek, not {source!r}")
+        msg = f"source is linear, repeated or peek, not {source!r}"
+        raise ValueError(msg)
     name = type(provider).__name__
     if not isinstance(provider, SpaceProvider):
-        raise AssertionError(
+        msg = (
             f"{name} is not a SpaceProvider: register_provider checks this too, "
             f"and without the base class every operation dies inside an engine "
             f"callback on a missing can_run"
+        )
+        raise AssertionError(
+            msg
         )
     ran = _check_declared_capabilities(provider, name)
     if not isinstance(provider, Enumerable):
@@ -305,21 +310,27 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     if atoms_to_store is not None:
         adder = getattr(provider, "add", None)
         if adder is None or not provider.can_run("add"):
-            raise AssertionError(
+            msg = (
                 f"{name} cannot add, so atoms_to_store has nothing to store "
                 f"through; pre-load the provider yourself and omit it"
+            )
+            raise AssertionError(
+                msg
             )
         for atom in atoms_to_store:
             adder(atom)
     stored = list(provider.atoms())
     again = sorted(str(atom) for atom in provider.atoms())
     if again != sorted(str(atom) for atom in stored):
-        raise AssertionError(
+        msg = (
             f"{name} declared a {source} source and its second enumeration "
             f"disagrees with the first: a {source} source re-enumerates "
             f"identically, so this object is linear and should be declared "
             f"(source ... linear), where a second consumption is a loud "
             f"error instead of a silently different answer"
+        )
+        raise AssertionError(
+            msg
         )
     return [
         *ran,
@@ -341,12 +352,15 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
         return []
     for atom in atoms_to_store:
         if not any(alpha_eq(atom, held) for held in stored):
-            raise AssertionError(
+            msg = (
                 f"{name} stored {atom} and its enumeration does not answer "
                 f"it back: add then enumerate must be identity on the "
                 f"stored atom, up to variable renaming, because stored "
                 f"data keeps its literal atoms. The store answered "
                 f"{[str(held) for held in stored]}"
+            )
+            raise AssertionError(
+                msg
             )
     return [f"round-trip: {len(list(atoms_to_store))} stored atoms recovered intact"]
 
@@ -357,9 +371,12 @@ def _check_declared_capabilities(provider, name: str) -> list[str]:
     for capability in ("match", "enumerate", "add", "remove", "clear", "subscribe"):
         if provider.can_run(capability):
             if not SpaceProvider.can_run(provider, capability):
-                raise AssertionError(
+                msg = (
                     f"{name}.can_run says yes to {capability} and the method is "
                     f"not there; implement it or let can_run answer for it"
+                )
+                raise AssertionError(
+                    msg
                 )
             ran.append(f"{capability}: declared")
             continue
@@ -526,13 +543,16 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
             exact += 1
             for found in provider.match(pattern):
                 if not _unifiable(pattern, found):
-                    raise AssertionError(
+                    msg = (
                         f"{name}.pushdown({pattern!r}) claims exact and "
                         f"match({pattern!r}) yielded {found!r}, which does not "
                         f"unify with it. exact means every candidate you yield "
                         f"for this pattern unifies with it, so the caller may "
                         f"stop at its bound; a claim that is wrong loses "
                         f"answers"
+                    )
+                    raise AssertionError(
+                        msg
                     )
     return [f"pushdown: {exact} of {checked} patterns claimed exact, and are"]
 
@@ -568,7 +588,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                     _same_atom(found, entry) or alpha_eq(found, joined)
                     for found in answered
                 ):
-                    raise AssertionError(
+                    msg = (
                         f"{name}.match({pattern!r}) answered neither "
                         f"{entry!r}, which the space holds and the pattern "
                         f"matches, nor its unification result {joined!r}. A "
@@ -576,6 +596,9 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                         f"under-approximate: yielding every atom is always "
                         f"correct, yielding fewer than unify is never allowed "
                         f"to be"
+                    )
+                    raise AssertionError(
+                        msg
                     )
     return [f"match: over-approximation holds over {checked} patterns"]
 
@@ -614,10 +637,13 @@ class _Replayer(SpaceProvider):
         for entry_kind, entry_key, answers in self._log:
             if entry_kind == kind and entry_key == key:
                 return answers
-        raise AssertionError(
+        msg = (
             f"the replay log holds no {kind} entry for {key!r}: the "
             f"recorded run never asked this, so replaying it would "
             f"invent an answer"
+        )
+        raise AssertionError(
+            msg
         )
 
     def atoms(self):
@@ -660,11 +686,14 @@ def check_replay(provider, patterns) -> list[str]:  # pylint: disable=redefined-
         live = [str(a) for a in recording.match(pattern)]
         replayed = [str(a) for a in replay().match(pattern)]
         if replayed != live:
-            raise AssertionError(
+            msg = (
                 f"replaying {pattern!r} answered {replayed!r} where the "
                 f"log holds {live!r}; the log is append-only and the "
                 f"replayer serves it verbatim, so this divergence is the "
                 f"harness's own bug"
+            )
+            raise AssertionError(
+                msg
             )
         ran.append(f"replay: {pattern!s} serves {len(live)} answer(s) verbatim")
     return ran
@@ -686,12 +715,15 @@ def check_minted_handles(provider, registered=()) -> list[str]:
             if symbol not in known:
                 minted.append(f"{symbol} in {atom}")
     if minted:
-        raise AssertionError(
+        msg = (
             f"{type(provider).__name__} answers mention space identities "
             f"the engine never minted: {', '.join(sorted(set(minted)))}. "
             f"A backend answers into spaces; the engine mints their "
             f"identities. Pass registered= if these are real registered "
             f"spaces"
+        )
+        raise AssertionError(
+            msg
         )
     return ["minted-handles: every space identity in the answers is the engine's"]
 
@@ -776,18 +808,24 @@ def check_twin(defined, cases) -> list[str]:
             twin = _twin_answers(defined, arguments)
         except Exception as refused:
             if engine:
-                raise AssertionError(
+                msg = (
                     f"{defined.name}{arguments!r}: the Python twin raised "
                     f"{type(refused).__name__}: {refused}, so the reference has no "
                     f"answer, but the engine answered {engine!r}"
+                )
+                raise AssertionError(
+                    msg
                 ) from refused
             ran.append(f"{defined.name}{arguments!r}: neither answers")
             continue
         if engine != twin:
-            raise AssertionError(
+            msg = (
                 f"{defined.name}{arguments!r}: the engine answered {engine!r} and "
                 f"the Python twin answered {twin!r}. One of the two is wrong, and "
                 f"the twin is the readable one."
+            )
+            raise AssertionError(
+                msg
             )
         ran.append(f"{defined.name}{arguments!r}: {engine!r}")
     return ran

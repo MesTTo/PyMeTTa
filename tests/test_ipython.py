@@ -3,7 +3,7 @@ interactive shell machinery; skipped without IPython.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest

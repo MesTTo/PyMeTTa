@@ -99,14 +99,17 @@ class _Shape:
         self.columns: dict[str, str] = {}
         for pair in columns:
             if not isinstance(pair, Expr) or len(pair.children) != 2:
-                raise ValueError(f"a row column is (name $var), got {pair}")
+                msg = f"a row column is (name $var), got {pair}"
+                raise ValueError(msg)
             column, variable = pair.children
             if not isinstance(variable, Var):
-                raise ValueError(f"a row column binds a variable, got {pair}")
+                msg = f"a row column binds a variable, got {pair}"
+                raise ValueError(msg)
             self.columns[str(variable)] = str(column)
         for child in atom_shape.children:
             if isinstance(child, Var) and str(child) not in self.columns:
-                raise ValueError(f"the atom shape's {child} has no column in {row_shape}")
+                msg = f"the atom shape's {child} has no column in {row_shape}"
+                raise ValueError(msg)
 
     def constraints(self, pattern: Atom) -> tuple[list[str], list[str], bool] | None:
         """WHERE fragments from matching the pattern against this shape.
@@ -204,7 +207,8 @@ class TableBridge(SpaceProvider):
             for declared in declarations
         ]
         if not self._shapes:
-            raise ValueError("a table bridge needs at least one declaration")
+            msg = "a table bridge needs at least one declaration"
+            raise ValueError(msg)
 
     @classmethod
     def from_context(
@@ -223,7 +227,8 @@ class TableBridge(SpaceProvider):
         )
         declarations = list(group[0])
         if not declarations:
-            raise ValueError(f"&petta declares no (bridge {name} ...) schema")
+            msg = f"&petta declares no (bridge {name} ...) schema"
+            raise ValueError(msg)
         return cls(m.parse, connection, declarations)
 
     # -- the provider surface, all of it derived -----------------------------
@@ -256,15 +261,21 @@ class TableBridge(SpaceProvider):
             if is_ground(atom)
         ]
         if not fitting:
-            raise ValueError(
+            msg = (
                 f"no declared shape admits {atom} as a ground row; the schema is "
                 f"{[str(shape.shape) for shape in self._shapes]}"
             )
-        if len(fitting) > 1:
             raise ValueError(
+                msg
+            )
+        if len(fitting) > 1:
+            msg = (
                 f"{atom} is ambiguous: shapes "
                 f"{[str(shape.shape) for shape in fitting]} all admit it, and "
                 f"storing one atom twice would invent an occurrence"
+            )
+            raise ValueError(
+                msg
             )
         shape = fitting[0]
         holes = ", ".join("?" for _ in shape.columns)

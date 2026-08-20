@@ -77,7 +77,8 @@ def _split_answers(line: str) -> list[str]:
     """
     stripped = line.strip()
     if not (stripped.startswith("[") and stripped.endswith("]")):
-        raise ValueError(f"not an answer line: {line!r}")
+        msg = f"not an answer line: {line!r}"
+        raise ValueError(msg)
     inner = stripped[1:-1]
     parts: list[str] = []
     depth = 0
@@ -107,7 +108,8 @@ def _oracle_answers(program: str) -> list[str]:
     )
     lines = [line for line in finished.stdout.splitlines() if line.strip()]
     if len(lines) != 1:
-        raise ValueError(f"expected one answer line, got {finished.stdout!r}")
+        msg = f"expected one answer line, got {finished.stdout!r}"
+        raise ValueError(msg)
     return _split_answers(lines[0])
 
 
@@ -120,7 +122,8 @@ def minimal(metta):
 def _engine_answers(minimal, program: str) -> list[str]:
     groups = minimal.run(program)
     if len(groups) != 1:
-        raise ValueError(f"expected one answer group, got {groups!r}")
+        msg = f"expected one answer group, got {groups!r}"
+        raise ValueError(msg)
     return sorted(str(atom) for atom in groups[0])
 
 

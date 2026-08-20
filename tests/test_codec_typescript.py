@@ -113,13 +113,15 @@ class TypeScriptStore:
         self._post("add", {"space": space, "atom": wire})
         held = self._post("atoms", {"space": space})["atoms"]
         if len(held) != 1:
-            raise ValueError(f"{space} holds {len(held)} atoms after one add")
+            msg = f"{space} holds {len(held)} atoms after one add"
+            raise ValueError(msg)
         return held[0]
 
     transport = roundtrip
 
     def host_value(self):
-        raise AssertionError("a core-profile store declares no o tag")
+        msg = "a core-profile store declares no o tag"
+        raise AssertionError(msg)
 
 
 @pytest.fixture

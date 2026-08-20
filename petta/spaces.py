@@ -14,7 +14,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -40,9 +40,12 @@ class _Member:
 
     def __init__(self, target: Any) -> None:
         if isinstance(target, str):
-            raise PettaError(
+            msg = (
                 f"a combinator takes a MeTTa handle or a SpaceProvider, not "
                 f"the name {target!r}; a name alone carries no engine"
+            )
+            raise PettaError(
+                msg
             )
         self.target = target
         self._is_space = hasattr(target, "space_name") and hasattr(target, "query")
@@ -116,7 +119,8 @@ def union(*spaces: Any) -> _Union:
     answers twice, the multiset reading a union of multisets has.
     """
     if not spaces:
-        raise PettaError("union needs at least one space")
+        msg = "union needs at least one space"
+        raise PettaError(msg)
     return _Union([_Member(space) for space in spaces])
 
 
@@ -197,9 +201,12 @@ class _Mapped(SpaceProvider):
     def add(self, atom: Atom) -> None:
         inward = self._inward(atom)
         if inward is None:
-            raise PettaError(
+            msg = (
                 f"{atom} does not fit this view's shape {self._outer}; the "
                 f"view admits only atoms the declaration maps"
+            )
+            raise PettaError(
+                msg
             )
         self._member.add(inward)
 
@@ -234,9 +241,12 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
         or not isinstance(parsed.children[1], Expr)
         or not isinstance(parsed.children[2], Expr)
     ):
-        raise PettaError(
+        msg = (
             f"a mapped declaration is (bridge <outer-shape> <inner-shape>), "
             f"got {parsed}"
+        )
+        raise PettaError(
+            msg
         )
     outer, inner_shape = parsed.children[1], parsed.children[2]
     return _Mapped(_Member(inner), outer, inner_shape)

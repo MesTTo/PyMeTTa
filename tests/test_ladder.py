@@ -8,7 +8,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import subprocess
@@ -110,7 +110,8 @@ def test_batch_edges_are_enforced(metta):
     with pytest.raises(RuntimeError):
         with m.batch():
             m.add(S.bt(1))
-            raise RuntimeError("boom")
+            msg = "boom"
+            raise RuntimeError(msg)
     assert len(m.query(S.bt(V.n))) == 0
     # Same-space batches do not nest; different spaces batch independently.
     other = metta.new_space()
@@ -129,7 +130,8 @@ def test_batch_composes_with_transaction(metta):
     def work():
         with m.batch():
             m.add(S.tx(1), S.tx(2))
-        raise ValueError("roll it back")
+        msg = "roll it back"
+        raise ValueError(msg)
 
     with pytest.raises(ValueError):
         m.transaction(work)

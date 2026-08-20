@@ -6,7 +6,7 @@ fails.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import gc
@@ -70,7 +70,8 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
         try:
             yield from range(10**6)
         finally:
-            raise OSError("releasing the cursor failed")
+            msg = "releasing the cursor failed"
+            raise OSError(msg)
 
     stream = dispatch_many(failing, [])
     assert next(stream) == ["n", 0]

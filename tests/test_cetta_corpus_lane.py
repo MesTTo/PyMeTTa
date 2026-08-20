@@ -7,7 +7,7 @@ replay is the check.sh cetta-corpus lane's job.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import json

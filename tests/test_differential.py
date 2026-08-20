@@ -7,7 +7,7 @@ the CLI computes, per real program rather than per hand-picked case.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

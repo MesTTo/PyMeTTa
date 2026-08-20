@@ -7,7 +7,7 @@ so the dependency on this runtime is visible rather than ambient.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -63,13 +63,17 @@ def install(runtime) -> None:
         try:
             return value[key]
         except TypeError as exc:
-            raise TypeError(
+            msg = (
                 f"a {type(value).__name__} cannot be {what}ed by "
                 f"{type(key).__name__}"
+            )
+            raise TypeError(
+                msg
             ) from exc
         except (KeyError, IndexError) as exc:
+            msg = f"{key!r} is not in this {type(value).__name__}"
             raise type(exc)(
-                f"{key!r} is not in this {type(value).__name__}"
+                msg
             ) from exc
 
     def py_truthy(value) -> bool:

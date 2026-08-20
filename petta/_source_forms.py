@@ -15,7 +15,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -69,15 +69,21 @@ def positioned_forms(source: str) -> list[SourceForm]:
         cursor = _skip_between(source, cursor)
         if kind == "runnable":
             if cursor >= len(source) or source[cursor] != "!":
-                raise PettaError(
+                msg = (
                     f"the position walk expected ! before a runnable form at "
                     f"offset {cursor}; the reader and the locator disagree"
                 )
+                raise PettaError(
+                    msg
+                )
             cursor = _skip_between(source, cursor + 1)
         if not source.startswith(text, cursor):
-            raise PettaError(
+            msg = (
                 f"the position walk expected the form {text[:40]!r} at offset "
                 f"{cursor}; the reader and the locator disagree"
+            )
+            raise PettaError(
+                msg
             )
         line = 1 + source.count("\n", 0, cursor)
         column = cursor - source.rfind("\n", 0, cursor)

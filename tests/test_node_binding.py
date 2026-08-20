@@ -219,7 +219,8 @@ class NodeBinding:
 
     def __init__(self, process: subprocess.Popen[str]) -> None:
         if process.stdin is None or process.stdout is None:
-            raise RuntimeError("the Node driver was started without its pipes")
+            msg = "the Node driver was started without its pipes"
+            raise RuntimeError(msg)
         self._process = process
         self._stdin = process.stdin
         self._stdout = process.stdout
@@ -236,7 +237,8 @@ class NodeBinding:
         self._stdin.flush()
         line = self._stdout.readline()
         if line == "":
-            raise RuntimeError(f"the Node driver ended before answering {op}")
+            msg = f"the Node driver ended before answering {op}"
+            raise RuntimeError(msg)
         answer = json.loads(line)
         if "error" in answer:
             raise ValueError(answer["error"])
@@ -259,10 +261,12 @@ class NodeBinding:
         return [[_wire_from_transport(answer) for answer in group] for group in groups]
 
     def host_value(self) -> Any:
-        raise AssertionError("the Node binding declares no o tag")
+        msg = "the Node binding declares no o tag"
+        raise AssertionError(msg)
 
     def frame(self, wire: Any) -> dict:
-        raise AssertionError("the Node binding declares no frames")
+        msg = "the Node binding declares no frames"
+        raise AssertionError(msg)
 
 
 @pytest.fixture(scope="module")

@@ -5,7 +5,7 @@ core module is named.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -43,8 +43,9 @@ def _start(script: str, *extra: str):
         port = ready["listening"]["port"]
     except (ValueError, KeyError, TypeError) as error:
         process.kill()
+        msg = f"space server did not report readiness: {line!r}"
         raise RuntimeError(
-            f"space server did not report readiness: {line!r}"
+            msg
         ) from error
     return process, f"http://127.0.0.1:{port}"
 

@@ -7,7 +7,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -355,7 +355,8 @@ def test_union_build_selects_by_shape_and_surfaces_reverse_errors():
         pass
 
     def reject(_value):
-        raise TypeError("selected reverse failed")
+        msg = "selected reverse failed"
+        raise TypeError(msg)
 
     register_type(
         BrokenReverse,

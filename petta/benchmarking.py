@@ -19,7 +19,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -52,7 +52,8 @@ _COUNTER_TOLERANCE = 4
 def count_atoms(atom: Any) -> int:
     """Count every atom node in a term without recursing."""
     if not isinstance(atom, Atom):
-        raise TypeError(f"count_atoms expects an Atom, got {type(atom).__name__}")
+        msg = f"count_atoms expects an Atom, got {type(atom).__name__}"
+        raise TypeError(msg)
     count = 0
     stack = [atom]
     while stack:
@@ -71,12 +72,14 @@ def _counter_observation(
     if sample_values is None:
         return None, None
     if len(sample_values) < _COUNTER_SAMPLES:
-        raise ValueError(f"benchmark counter needs at least {_COUNTER_SAMPLES} samples")
+        msg = f"benchmark counter needs at least {_COUNTER_SAMPLES} samples"
+        raise ValueError(msg)
     if any(
         not isinstance(value, int) or isinstance(value, bool) or value < 0
         for value in sample_values
     ):
-        raise ValueError(f"invalid inference samples for {name}: {sample_values!r}")
+        msg = f"invalid inference samples for {name}: {sample_values!r}"
+        raise ValueError(msg)
     return sample_values, min(sample_values)
 
 
@@ -89,17 +92,22 @@ def _compare_counter(
     baseline = expected.get("inferences")
     if observed is None:
         if baseline is not None:
+            msg = f"{name} is engine-free but its baseline has inferences {baseline!r}"
             raise AssertionError(
-                f"{name} is engine-free but its baseline has inferences {baseline!r}"
+                msg
             )
         return None
     if isinstance(baseline, bool) or not isinstance(baseline, int):
-        raise AssertionError(f"{name} baseline has invalid inferences {baseline!r}")
+        msg = f"{name} baseline has invalid inferences {baseline!r}"
+        raise AssertionError(msg)
     if observed > baseline + _COUNTER_TOLERANCE:
-        raise AssertionError(
+        msg = (
             f"{name} inference regression: minimum of {sample_values!r} is "
             f"{observed}, baseline {baseline} plus the {_COUNTER_TOLERANCE} "
             f"inference allowance"
+        )
+        raise AssertionError(
+            msg
         )
     return observed
 
@@ -119,8 +127,9 @@ def _counter_samples(
             with engine(state).stats() as stats:
                 completed = operation(state)
             if completed != operations:
+                msg = f"counter sample completed {completed} operations, expected {operations}"
                 raise AssertionError(
-                    f"counter sample completed {completed} operations, expected {operations}"
+                    msg
                 )
             samples.append(stats.inferences)
         finally:
@@ -131,7 +140,8 @@ def _counter_samples(
 def _required_counter_observation(name: str, samples: Sequence[int]) -> tuple[list[int], int]:
     values, observed = _counter_observation(name, samples)
     if values is None or observed is None:
-        raise RuntimeError(f"{name} lost its required inference samples")
+        msg = f"{name} lost its required inference samples"
+        raise RuntimeError(msg)
     return values, observed
 
 
@@ -143,13 +153,15 @@ def _counter_slope_observation(
     large_samples: Sequence[int],
 ) -> tuple[list[int], list[int], int]:
     if small_operations <= 0 or large_operations <= small_operations:
-        raise ValueError("counter slope needs positive operation counts in increasing order")
+        msg = "counter slope needs positive operation counts in increasing order"
+        raise ValueError(msg)
     small_values, small = _required_counter_observation(f"{name} small", small_samples)
     large_values, large = _required_counter_observation(f"{name} large", large_samples)
     observed = large - small
     if observed < 0:
+        msg = f"{name} inference count fell from {small} to {large} as the workload grew"
         raise ValueError(
-            f"{name} inference count fell from {small} to {large} as the workload grew"
+            msg
         )
     return small_values, large_values, observed
 
@@ -159,9 +171,11 @@ def _counter_slope_case(
 ) -> dict[str, Any]:
     case = document["benchmarks"].get(name)
     if case is None:
-        raise KeyError(f"benchmark {name!r} has no counter observation")
+        msg = f"benchmark {name!r} has no counter observation"
+        raise KeyError(msg)
     if case.get("unit") != unit:
-        raise AssertionError(f"{name} unit changed from {case.get('unit')!r} to {unit!r}")
+        msg = f"{name} unit changed from {case.get('unit')!r} to {unit!r}"
+        raise AssertionError(msg)
     return case
 
 
@@ -176,25 +190,36 @@ def _compare_counter_slope(
     observed: int,
 ) -> int:
     if not isinstance(expected, dict):
-        raise AssertionError(f"{name} has no valid inference slope baseline")
+        msg = f"{name} has no valid inference slope baseline"
+        raise AssertionError(msg)
     if expected.get("small_operations") != small_operations:
-        raise AssertionError(
+        msg = (
             f"{name} slope small operation count changed from "
             f"{expected.get('small_operations')!r} to {small_operations}"
         )
-    if expected.get("large_operations") != large_operations:
         raise AssertionError(
+            msg
+        )
+    if expected.get("large_operations") != large_operations:
+        msg = (
             f"{name} slope large operation count changed from "
             f"{expected.get('large_operations')!r} to {large_operations}"
         )
+        raise AssertionError(
+            msg
+        )
     baseline = expected.get("delta_inferences")
     if isinstance(baseline, bool) or not isinstance(baseline, int) or baseline < 0:
-        raise AssertionError(f"{name} has an invalid inference slope baseline")
+        msg = f"{name} has an invalid inference slope baseline"
+        raise AssertionError(msg)
     if observed > baseline + _COUNTER_TOLERANCE:
-        raise AssertionError(
+        msg = (
             f"{name} inference slope regression: {large_values!r} minus "
             f"{small_values!r} has minimum growth {observed}, baseline {baseline} "
             f"plus the {_COUNTER_TOLERANCE} inference allowance"
+        )
+        raise AssertionError(
+            msg
         )
     return observed
 
@@ -214,7 +239,8 @@ def _instruction_observation(
         or noise_percent < 0
     )
     if invalid_samples or invalid_noise:
-        raise ValueError(f"invalid instruction samples for {name}: {samples!r}")
+        msg = f"invalid instruction samples for {name}: {samples!r}"
+        raise ValueError(msg)
     return min(samples)
 
 
@@ -227,15 +253,20 @@ def _compare_instructions(
     baseline = case.get("instructions")
     allowance = case.get("instruction_noise_percent")
     if not isinstance(baseline, int) or baseline <= 0:
-        raise AssertionError(f"{name} has no valid instruction baseline")
+        msg = f"{name} has no valid instruction baseline"
+        raise AssertionError(msg)
     if not isinstance(allowance, (int, float)) or allowance < 0:
-        raise AssertionError(f"{name} has no valid instruction noise allowance")
+        msg = f"{name} has no valid instruction noise allowance"
+        raise AssertionError(msg)
     ceiling = baseline * (1.0 + allowance / 100.0)
     if observed > ceiling:
-        raise AssertionError(
+        msg = (
             f"{name} instruction regression: minimum of {list(samples)!r} is "
             f"{observed}, baseline {baseline} plus {allowance:g}% is "
             f"{ceiling:.0f}"
+        )
+        raise AssertionError(
+            msg
         )
     return observed
 
@@ -255,7 +286,8 @@ class BenchmarkBaseline:
         self.compare_counters = compare_counters or update
         if not self.path.is_file():
             if not update:
-                raise FileNotFoundError(f"benchmark baseline does not exist: {self.path}")
+                msg = f"benchmark baseline does not exist: {self.path}"
+                raise FileNotFoundError(msg)
             self._document: dict[str, Any] = {
                 "schema": _SCHEMA,
                 "counter_policy": (
@@ -271,11 +303,13 @@ class BenchmarkBaseline:
         with self.path.open(encoding="utf-8") as handle:
             document = json.load(handle)
         if document.get("schema") != _SCHEMA:
+            msg = f"benchmark baseline schema must be {_SCHEMA}, got {document.get('schema')!r}"
             raise ValueError(
-                f"benchmark baseline schema must be {_SCHEMA}, got {document.get('schema')!r}"
+                msg
             )
         if not isinstance(document.get("benchmarks"), dict):
-            raise ValueError("benchmark baseline benchmarks must be an object")
+            msg = "benchmark baseline benchmarks must be an object"
+            raise ValueError(msg)
         self._document = document
 
     @property
@@ -292,7 +326,8 @@ class BenchmarkBaseline:
     ) -> int | None:
         """Record or compare one deterministic engine counter."""
         if operations <= 0:
-            raise ValueError(f"benchmark operations must be positive, got {operations}")
+            msg = f"benchmark operations must be positive, got {operations}"
+            raise ValueError(msg)
         sample_values, observed = _counter_observation(name, samples)
 
         if self.update:
@@ -347,16 +382,19 @@ class BenchmarkBaseline:
     def validate_case(self, name: str, *, unit: str, operations: int) -> None:
         """Check metadata when a wall-only run deliberately skips counters."""
         if operations <= 0:
-            raise ValueError(f"benchmark operations must be positive, got {operations}")
+            msg = f"benchmark operations must be positive, got {operations}"
+            raise ValueError(msg)
         self._case(name, unit=unit, operations=operations)
 
     def observe_wall(self, name: str, seconds_per_operation: float) -> None:
         """Record wall time or retain it as advisory comparison metadata."""
         if seconds_per_operation <= 0:
-            raise ValueError("benchmark wall time must be positive")
+            msg = "benchmark wall time must be positive"
+            raise ValueError(msg)
         case = self._document["benchmarks"].get(name)
         if case is None:
-            raise KeyError(f"benchmark {name!r} has no counter observation")
+            msg = f"benchmark {name!r} has no counter observation"
+            raise KeyError(msg)
         if self.update:
             case["wall_seconds_per_operation"] = seconds_per_operation
 
@@ -372,14 +410,16 @@ class BenchmarkBaseline:
         if self.update:
             case = self._document["benchmarks"].get(name)
             if case is None:
-                raise KeyError(f"benchmark {name!r} has no wall/counter baseline")
+                msg = f"benchmark {name!r} has no wall/counter baseline"
+                raise KeyError(msg)
             case["instructions"] = observed
             case["instruction_noise_percent"] = noise_percent
             return observed
 
         case = self._document["benchmarks"].get(name)
         if case is None:
-            raise AssertionError(f"benchmark baseline has no case named {name!r}")
+            msg = f"benchmark baseline has no case named {name!r}"
+            raise AssertionError(msg)
         return _compare_instructions(name, case, samples, observed)
 
     def finish(self) -> None:
@@ -410,14 +450,17 @@ class BenchmarkBaseline:
     def _case(self, name: str, *, unit: str, operations: int) -> Mapping[str, Any]:
         case = self._document["benchmarks"].get(name)
         if case is None:
+            msg = f"benchmark baseline has no case named {name!r}; regenerate it explicitly"
             raise AssertionError(
-                f"benchmark baseline has no case named {name!r}; regenerate it explicitly"
+                msg
             )
         if case.get("unit") != unit:
-            raise AssertionError(f"{name} unit changed from {case.get('unit')!r} to {unit!r}")
+            msg = f"{name} unit changed from {case.get('unit')!r} to {unit!r}"
+            raise AssertionError(msg)
         if case.get("operations") != operations:
+            msg = f"{name} operation count changed from {case.get('operations')!r} to {operations}"
             raise AssertionError(
-                f"{name} operation count changed from {case.get('operations')!r} to {operations}"
+                msg
             )
         return case
 
@@ -441,7 +484,8 @@ def benchmark_case(
     def checked(state: Any) -> int:
         completed = operation(state)
         if completed != operations:
-            raise AssertionError(f"{name} completed {completed} {unit}, expected {operations}")
+            msg = f"{name} completed {completed} {unit}, expected {operations}"
+            raise AssertionError(msg)
         return completed
 
     samples: list[int] | None = None
@@ -532,17 +576,22 @@ def _instruction_request(
     timeout: float,
 ) -> tuple[str, float]:
     if rounds < _COUNTER_SAMPLES:
-        raise ValueError(f"instruction measurement needs at least {_COUNTER_SAMPLES} rounds")
+        msg = f"instruction measurement needs at least {_COUNTER_SAMPLES} rounds"
+        raise ValueError(msg)
     if not command:
-        raise ValueError("instruction measurement command cannot be empty")
+        msg = "instruction measurement command cannot be empty"
+        raise ValueError(msg)
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
-        raise ValueError(f"instruction measurement timeout must be positive, got {timeout!r}")
+        msg = f"instruction measurement timeout must be positive, got {timeout!r}"
+        raise ValueError(msg)
     perf = shutil.which("perf")
     if perf is None:
-        raise FileNotFoundError("perf is required to measure instructions:u")
+        msg = "perf is required to measure instructions:u"
+        raise FileNotFoundError(msg)
     if not os.access("/usr/bin/setarch", os.X_OK):
+        msg = "setarch is required to measure instructions:u reproducibly"
         raise FileNotFoundError(
-            "setarch is required to measure instructions:u reproducibly"
+            msg
         )
     return perf, float(timeout)
 
@@ -550,13 +599,15 @@ def _instruction_request(
 def _parse_instruction_sample(returncode: int, stdout: str, stderr: str) -> int:
     if returncode != 0:
         detail = stderr.strip() or stdout.strip()
-        raise RuntimeError(f"perf stat failed with exit {returncode}: {detail}")
+        msg = f"perf stat failed with exit {returncode}: {detail}"
+        raise RuntimeError(msg)
     fields = [
         line.split(",", 1)[0] for line in stderr.splitlines() if ",instructions:u," in line
     ]
     if len(fields) != 1 or not fields[0].isdigit():
+        msg = f"perf stat did not return one numeric instructions:u counter: {stderr.strip()}"
         raise RuntimeError(
-            f"perf stat did not return one numeric instructions:u counter: {stderr.strip()}"
+            msg
         )
     return int(fields[0])
 
@@ -683,7 +734,8 @@ def _run_perf(
                     break
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise TimeoutError(f"perf stat exceeded its {timeout:g} second limit")
+                    msg = f"perf stat exceeded its {timeout:g} second limit"
+                    raise TimeoutError(msg)
                 time.sleep(min(0.01, remaining))
         except BaseException:
             with suppress(ProcessLookupError):

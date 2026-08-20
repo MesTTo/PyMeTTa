@@ -12,7 +12,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -258,7 +258,8 @@ def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
     again.
     """
     if not isinstance(atom, Atom):
-        raise TypeError(f"map_atoms expects an Atom, got {type(atom).__name__}")
+        msg = f"map_atoms expects an Atom, got {type(atom).__name__}"
+        raise TypeError(msg)
 
     stack: list[tuple[Atom, bool]] = [(atom, False)]
     results: list[Atom] = []
@@ -271,7 +272,8 @@ def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
 
         mapped = transform(_mapped_candidate(node, results))
         if not isinstance(mapped, Atom):
-            raise TypeError(f"map_atoms transform must return an Atom, got {type(mapped).__name__}")
+            msg = f"map_atoms transform must return an Atom, got {type(mapped).__name__}"
+            raise TypeError(msg)
         results.append(mapped)
 
     return results[0]

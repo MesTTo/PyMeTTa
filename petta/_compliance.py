@@ -175,19 +175,25 @@ class SpaceComplianceSuite:
             for ancestor in cls.__mro__
             if ancestor not in (SpaceComplianceSuite, object)
         ):
-            raise TypeError(
+            msg = (
                 f"{cls.__name__} subclasses SpaceComplianceSuite without a "
                 f"`provider` fixture; define one answering the provider "
                 f"under test"
+            )
+            raise TypeError(
+                msg
             )
 
     # ------------------------------------------------------------ fixtures
 
     @pytest.fixture()
     def provider(self):
-        raise NotImplementedError(
+        msg = (
             "a SpaceComplianceSuite subclass supplies a `provider` fixture "
             "answering the provider under test"
+        )
+        raise NotImplementedError(
+            msg
         )
 
     @pytest.fixture()
@@ -221,10 +227,13 @@ class SpaceComplianceSuite:
                 elif capability in record["skipped"]:
                     reporter.write_line(f"  {capability}: not declared, skipped")
         if not record["ran"]:
-            raise AssertionError(
+            msg = (
                 "the compliance suite exercised no capability at all. A "
                 "provider that declares nothing cannot pass this suite by "
                 "skipping every test in it"
+            )
+            raise AssertionError(
+                msg
             )
 
     @pytest.fixture()

@@ -73,7 +73,8 @@ def is_transport_failure(error: BaseException) -> bool:
 def _websocket():
     module = optional_module("websocket")
     if module is None:
-        raise DASError("streaming DAS answers needs websocket-client; install petta[das]")
+        msg = "streaming DAS answers needs websocket-client; install petta[das]"
+        raise DASError(msg)
     return module
 
 
@@ -93,13 +94,17 @@ def _render(value: Any) -> str:
             return json.dumps(plain)
         if isinstance(plain, (int, float)) and not isinstance(plain, bool):
             return str(plain)
-        raise DASError(
+        msg = (
             f"{value!r} has no DAS query spelling; use symbols, strings, "
             f"numbers, variables, and expressions"
         )
+        raise DASError(
+            msg
+        )
     if isinstance(value, Expr):
         return "(" + " ".join(_render(item) for item in value) + ")"
-    raise DASError(f"{value!r} is not a DAS query pattern; pass atoms or MeTTa text")
+    msg = f"{value!r} is not a DAS query pattern; pass atoms or MeTTa text"
+    raise DASError(msg)
 
 
 def _has_var(value: Any) -> bool:
@@ -116,9 +121,12 @@ def _render_token_grounded(value: Gnd) -> str:
         return f'NODE Symbol "{plain}"'
     if isinstance(plain, (int, float)) and not isinstance(plain, bool):
         return f"NODE Symbol {plain}"
-    raise DASError(
+    msg = (
         f"{value!r} has no DAS token spelling; use symbols, strings, "
         f"numbers, variables, and expressions"
+    )
+    raise DASError(
+        msg
     )
 
 
@@ -142,7 +150,8 @@ def _render_tokens(value: Any) -> str:
         head = "LINK_TEMPLATE" if _has_var(value) else "LINK"
         parts = [_render_tokens(item) for item in value]
         return f"{head} Expression {len(parts)} " + " ".join(parts)
-    raise DASError(f"{value!r} is not a DAS query pattern; pass atoms or MeTTa text")
+    msg = f"{value!r} is not a DAS query pattern; pass atoms or MeTTa text"
+    raise DASError(msg)
 
 
 class DASAnswer:
@@ -205,11 +214,13 @@ class DAS:
             )
         except (HTTPException, OSError) as exc:
             logger.warning("DAS %s %s failed during transport", method, path, exc_info=True)
-            raise DASError(f"no DAS command router at {self._base}: {exc}") from exc
+            msg = f"no DAS command router at {self._base}: {exc}"
+            raise DASError(msg) from exc
         logger.debug("DAS %s %s answered with HTTP %d", method, path, status)
         if status >= 400:
             text = raw.decode("utf8", "replace")
-            raise DASError(f"DAS {method} {path} answered {status}: {text}")
+            msg = f"DAS {method} {path} answered {status}: {text}"
+            raise DASError(msg)
         if not raw:
             return None
         try:
@@ -241,7 +252,8 @@ class DAS:
                 execution_id,
                 exc_info=True,
             )
-            raise DASError(f"the DAS event stream broke mid-query: {exc}") from exc
+            msg = f"the DAS event stream broke mid-query: {exc}"
+            raise DASError(msg) from exc
         finally:
             connection.close()
             logger.debug("closed DAS event stream for execution %s", execution_id)
@@ -288,9 +300,12 @@ class DAS:
                 else:
                     raise
         if unique:
-            raise DASError(
+            msg = (
                 "unique= needs a current router; the connected one speaks "
                 "the legacy dialect without unique_assignment_flag"
+            )
+            raise DASError(
+                msg
             )
         tokens = [_render_tokens(pattern) for pattern in patterns]
         text = tokens[0] if len(tokens) == 1 else (f"AND {len(tokens)} " + " ".join(tokens))
@@ -331,7 +346,8 @@ class DAS:
         self, patterns: tuple, count: bool, unique: bool, max_answers: int | None, extra: dict
     ) -> dict:
         if not patterns:
-            raise DASError("a DAS query needs at least one pattern")
+            msg = "a DAS query needs at least one pattern"
+            raise DASError(msg)
         tokens = [_render(pattern) for pattern in patterns]
         token = tokens[0] if len(tokens) == 1 else "(and " + " ".join(tokens) + ")"
         params: dict = {
@@ -365,7 +381,8 @@ class DAS:
                     continue
                 if _completed("query", body):
                     return answers
-        raise DASError("the DAS query stream closed before completing")
+        msg = "the DAS query stream closed before completing"
+        raise DASError(msg)
 
     def count(self, *patterns: Any, **extra: Any) -> int:
         """The router's count mode: the server's own total, no answers
@@ -380,7 +397,8 @@ class DAS:
                     continue
                 if _completed("count", body):
                     return int(body.get("total_items", counted))
-        raise DASError("the DAS answer stream closed before completing")
+        msg = "the DAS answer stream closed before completing"
+        raise DASError(msg)
 
 
 class DASSpace(SpaceProvider):
@@ -454,16 +472,20 @@ def _substitute(pattern: Atom, bindings: dict[str, Atom]) -> Atom:
 
 def _answer_items(body: Any, operation: str) -> list[dict]:
     if not isinstance(body, list) or not all(isinstance(item, dict) for item in body):
-        raise DASError(f"DAS {operation} answer event must contain a list of objects")
+        msg = f"DAS {operation} answer event must contain a list of objects"
+        raise DASError(msg)
     return body
 
 
 def _completed(operation: str, body: Any) -> bool:
     if not isinstance(body, dict):
-        raise DASError(f"DAS {operation} status event must be an object")
+        msg = f"DAS {operation} status event must be an object"
+        raise DASError(msg)
     status = body.get("status")
     if status == "error":
-        raise DASError(f"DAS {operation} failed: {body.get('message', 'no detail')}")
+        msg = f"DAS {operation} failed: {body.get('message', 'no detail')}"
+        raise DASError(msg)
     if status == "aborted":
-        raise DASError(f"DAS {operation} was aborted: {body.get('message', 'no detail')}")
+        msg = f"DAS {operation} was aborted: {body.get('message', 'no detail')}"
+        raise DASError(msg)
     return status == "completed"

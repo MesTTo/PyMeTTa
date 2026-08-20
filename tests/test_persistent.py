@@ -4,7 +4,7 @@ compaction, and isolation between independent journals.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -516,7 +516,8 @@ def test_constructor_failure_releases_path_and_unattached_module(tmp_path, monke
     def fail_once(space):
         attempted_modules.append(space._module)
         if len(attempted_modules) == 1:
-            raise RuntimeError("validation probe failed")
+            msg = "validation probe failed"
+            raise RuntimeError(msg)
         return original(space)
 
     monkeypatch.setattr(PersistentFactSpace, "_validate_or_repair_tail", fail_once)

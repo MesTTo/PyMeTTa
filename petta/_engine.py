@@ -33,7 +33,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -264,7 +264,8 @@ def engine_thread() -> Iterator[None]:
     try:
         already_attached = janus.engine() >= 0
     except Exception as exc:
-        raise EngineError("could not inspect this thread's Prolog engine") from exc
+        msg = "could not inspect this thread's Prolog engine"
+        raise EngineError(msg) from exc
     if already_attached:
         yield
         return
@@ -274,11 +275,13 @@ def engine_thread() -> Iterator[None]:
         janus.attach_engine()
         attached = True
         if janus.engine() < 0:
-            raise RuntimeError("janus did not attach a Prolog engine")
+            msg = "janus did not attach a Prolog engine"
+            raise RuntimeError(msg)
     except Exception as exc:
         if attached:
             janus.detach_engine()
-        raise EngineError("could not attach a Prolog engine to this thread") from exc
+        msg = "could not attach a Prolog engine to this thread"
+        raise EngineError(msg) from exc
     # This thread now owns an engine nobody else can reach, so its calls need
     # no process lock. Decided here, once, rather than on every call.
     previous_lock = _CALL_LOCKS.lock
@@ -290,7 +293,8 @@ def engine_thread() -> Iterator[None]:
         try:
             janus.detach_engine()
         except Exception as exc:
-            raise EngineError("could not detach this thread's Prolog engine") from exc
+            msg = "could not detach this thread's Prolog engine"
+            raise EngineError(msg) from exc
 
 
 def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
@@ -312,11 +316,14 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:
                 and active is not None
                 and Path(petta_path).resolve() != Path(active).resolve()
             ):
-                raise ValueError(
+                msg = (
                     f"the engine was consulted from {active!r} and cannot "
                     f"be reconsulted from {petta_path!r}: PeTTa keeps one "
                     f"engine per process. Start a new process for a "
                     f"different tree."
+                )
+                raise ValueError(
+                    msg
                 )
             if verbose != _STATE.runtime.verbose:
                 _STATE.runtime.verbose = verbose
@@ -389,9 +396,12 @@ class Runtime:
         main_file = root / "engine" / "main.pl"
         helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
-            raise FileNotFoundError(
+            msg = (
                 f"PeTTa runtime not found under {petta_path!r} (expected "
                 f"{main_file!r}). Set PETTA_PATH or pass petta_path."
+            )
+            raise FileNotFoundError(
+                msg
             )
         janus.consult(str(main_file))
         if helper_file.is_file():
@@ -448,10 +458,13 @@ class Runtime:
         """
         row = self.once(goal, **inputs)
         if not row:
-            raise EngineError(
+            msg = (
                 f"the engine refused {goal.split('(', maxsplit=1)[0]}: the goal failed "
                 f"rather than erring, which for this entry point means the "
                 f"inputs were not accepted"
+            )
+            raise EngineError(
+                msg
             )
         return row
 
@@ -528,10 +541,13 @@ class Runtime:
         """
         value = self.apply(predicate, *inputs)
         if value is None:
-            raise EngineError(
+            msg = (
                 f"the engine refused {predicate}: the goal failed rather "
                 f"than erring, which for this entry point means the inputs "
                 f"were not accepted"
+            )
+            raise EngineError(
+                msg
             )
         return value
 
@@ -557,10 +573,13 @@ class Runtime:
     def do_must(self, predicate: str, *inputs: Any) -> None:
         """do() for entry points REQUIRED to succeed; failure raises."""
         if not self.do(predicate, *inputs):
-            raise EngineError(
+            msg = (
                 f"the engine refused {predicate}: the goal failed rather "
                 f"than erring, which for this entry point means the inputs "
                 f"were not accepted"
+            )
+            raise EngineError(
+                msg
             )
 
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
@@ -613,9 +632,12 @@ class Runtime:
                     "metta_control_signal_info(Error, Kind, Detail)", {"Error": term}
                 )
             except self._janus.PrologError as classifier_error:
-                raise EngineError(
+                msg = (
                     f"{message}; the exception classifier failed: "
                     f"{_clean_message(classifier_error)}"
+                )
+                raise EngineError(
+                    msg
                 ) from exc
             if row is not None and row.get("truth") is not False:
                 kind = row.get("Kind")
@@ -648,9 +670,12 @@ class Runtime:
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
-            raise EngineError(
+            msg = (
                 f"{message}; the assertion classifier failed: "
                 f"{_clean_message(classifier_error)}"
+            )
+            raise EngineError(
+                msg
             ) from exc
         if row is None or row.get("truth") is False:
             return
@@ -692,9 +717,12 @@ class Runtime:
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
-            raise EngineError(
+            msg = (
                 f"{message}; the operation classifier failed: "
                 f"{_clean_message(classifier_error)}"
+            )
+            raise EngineError(
+                msg
             ) from exc
         if row is None or row.get("truth") is False:
             return

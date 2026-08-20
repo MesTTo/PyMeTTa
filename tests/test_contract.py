@@ -5,7 +5,7 @@ bound, refuse loudly, and stay coherent, down to a SQL backend example.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest

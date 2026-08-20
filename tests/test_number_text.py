@@ -8,7 +8,7 @@ renderer implements the same law, so one atom has one text in both hosts.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import math

@@ -4,7 +4,7 @@ thread, and spaces borrow the owner's engine thread.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import asyncio
@@ -105,7 +105,8 @@ def test_aio_spaces_borrow_the_owners_thread(m):
         await am.aclose()
         try:
             await am.count()
-            raise AssertionError("a closed connection accepted work")
+            msg = "a closed connection accepted work"
+            raise AssertionError(msg)
         except PettaError:
             pass
         return got, still
@@ -148,7 +149,8 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):
             if "unexpected_drain" in error:
                 unexpected_waiting.set()
                 if not release_unexpected.wait(2.0):
-                    raise RuntimeError("the drain test did not release its worker")
+                    msg = "the drain test did not release its worker"
+                    raise RuntimeError(msg)
             return original(f"throw({error})")
         return original(goal, inputs)
 
@@ -342,7 +344,8 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):
 
 def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
     def fail_attach():
-        raise RuntimeError("round2 attach failed")
+        msg = "round2 attach failed"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
 
@@ -427,7 +430,8 @@ def test_aio_shutdown_handler_stops_forgotten_workers(m):
 
 def test_aio_empty_shutdown_does_not_import_janus(monkeypatch):
     def fail_bridge():
-        raise ModuleNotFoundError("No module named 'janus_swi'")
+        msg = "No module named 'janus_swi'"
+        raise ModuleNotFoundError(msg)
 
     monkeypatch.setattr(aio, "_LIVE_WORKERS", [])
     monkeypatch.setattr(aio, "bridge", fail_bridge)
@@ -444,7 +448,8 @@ def test_aio_shutdown_handler_attempts_every_worker(monkeypatch):
 
         def stop(self):
             stopped.append(self.name)
-            raise RuntimeError(f"cannot stop {self.name}")
+            msg = f"cannot stop {self.name}"
+            raise RuntimeError(msg)
 
     workers = [BrokenWorker("first"), BrokenWorker("second")]
     monkeypatch.setattr(aio, "_LIVE_WORKERS", workers)
@@ -484,7 +489,8 @@ def test_aio_structural_surface_behaves():
 
             def failing(sync_m):
                 sync_m.add(S.tx(1))
-                raise ValueError("undo")
+                msg = "undo"
+                raise ValueError(msg)
 
             with pytest.raises(ValueError, match="undo"):
                 await m.transaction(failing)

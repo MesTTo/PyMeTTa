@@ -146,7 +146,8 @@ class JsonWireCodec:
         }
 
     def host_value(self):
-        raise AssertionError("the JSON wire declares no o tag, so no case asks for one")
+        msg = "the JSON wire declares no o tag, so no case asks for one"
+        raise AssertionError(msg)
 
     def transcript(self, program):
         with self._metta.new_space() as scratch:
@@ -231,16 +232,20 @@ class _Broken(JsonWireCodec):
     name = "broken"
 
     def read(self, text):
-        raise RuntimeError("no")
+        msg = "no"
+        raise RuntimeError(msg)
 
     def roundtrip(self, wire):
-        raise RuntimeError("no")
+        msg = "no"
+        raise RuntimeError(msg)
 
     def render(self, wire):
-        raise RuntimeError("no")
+        msg = "no"
+        raise RuntimeError(msg)
 
     def transport(self, wire):
-        raise RuntimeError("no")
+        msg = "no"
+        raise RuntimeError(msg)
 
 
 def test_a_driver_that_refuses_everything_is_caught(metta):

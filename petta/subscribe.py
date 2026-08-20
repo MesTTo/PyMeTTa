@@ -127,9 +127,12 @@ class Subscription:
         should say so by name.
         """
         if self.callback is not None:
-            raise PettaError(
+            msg = (
                 "events() consumes the no-callback queue; this subscription "
                 "delivers through its callback"
+            )
+            raise PettaError(
+                msg
             )
         while True:
             arrived = _REGISTRY.take(self, timeout)
@@ -161,8 +164,9 @@ class Subscription:
                     except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                         rollback_errors.append(rollback_error)
                     if rollback_errors:
+                        msg = "subscription cancellation and rollback both failed"
                         raise BaseExceptionGroup(
-                            "subscription cancellation and rollback both failed",
+                            msg,
                             [removal_error, *rollback_errors],
                         ) from None
                     raise
@@ -202,11 +206,13 @@ class _SubscriptionRegistry:
     def add(self, runtime, subscription: Subscription) -> None:
         with self._lock:
             if self.runtime is not None and self.runtime is not runtime:
+                msg = "subscriptions cannot span distinct engine runtimes in one process"
                 raise RuntimeError(
-                    "subscriptions cannot span distinct engine runtimes in one process"
+                    msg
                 )
             if any(current is subscription for current in self._subscriptions):
-                raise RuntimeError("the subscription is already registered")
+                msg = "the subscription is already registered"
+                raise RuntimeError(msg)
             candidate = [*self._subscriptions, subscription]
             self._publish_locked(runtime, candidate)
             self.runtime = runtime
@@ -228,9 +234,11 @@ class _SubscriptionRegistry:
                 None,
             )
             if index is None:
-                raise RuntimeError("an active subscription is missing from the registry")
+                msg = "an active subscription is missing from the registry"
+                raise RuntimeError(msg)
             if self.runtime is None:
-                raise RuntimeError("the subscription registry has no engine runtime")
+                msg = "the subscription registry has no engine runtime"
+                raise RuntimeError(msg)
             order = tuple(self._subscriptions)
             candidate = self._subscriptions.copy()
             candidate.pop(index)
@@ -248,9 +256,11 @@ class _SubscriptionRegistry:
             if subscription._active or any(
                 current is subscription for current in self._subscriptions
             ):
-                raise RuntimeError("cannot restore an active subscription")
+                msg = "cannot restore an active subscription"
+                raise RuntimeError(msg)
             if self.runtime is not cancellation.runtime:
-                raise RuntimeError("cannot restore a subscription on another runtime")
+                msg = "cannot restore a subscription on another runtime"
+                raise RuntimeError(msg)
             candidate = self._subscriptions.copy()
             candidate.insert(self._restoration_index(cancellation), subscription)
             self._publish_locked(cancellation.runtime, candidate)
@@ -271,13 +281,16 @@ class _SubscriptionRegistry:
     def queue(self, subscription: Subscription, event: Event) -> None:
         with self._lock:
             if len(subscription._queue) >= subscription.queue_max:
-                raise PettaError(
+                msg = (
                     f"the queue holds its limit of {subscription.queue_max} "
                     f"undrained events and this one has nowhere to go. Call "
                     f"drain() or consume events(), give the subscription a "
                     f"callback so delivery never queues, or raise "
                     f"queue_max=. Dropping the oldest silently is the one "
-                    f"thing it will not do.",
+                    f"thing it will not do."
+                )
+                raise PettaError(
+                    msg,
                     atom=event.atom,
                     space=subscription.space,
                 )
@@ -314,7 +327,8 @@ class _SubscriptionRegistry:
             thread_id = threading.get_ident()
             counts = self._deliveries.get(subscription)
             if counts is None or counts.get(thread_id, 0) == 0:
-                raise RuntimeError("subscription delivery accounting is unbalanced")
+                msg = "subscription delivery accounting is unbalanced"
+                raise RuntimeError(msg)
             if counts[thread_id] == 1:
                 del counts[thread_id]
             else:
@@ -398,8 +412,9 @@ class _SubscriptionRegistry:
             try:
                 runtime.must("petta_py_subscriptions(Spaces)", Spaces=current_spaces)
             except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+                msg = "subscription guard publication and rollback both failed"
                 raise BaseExceptionGroup(
-                    "subscription guard publication and rollback both failed",
+                    msg,
                     [publication_error, rollback_error],
                 ) from None
             raise
@@ -432,14 +447,16 @@ def _ensure_reflection_present(runtime: Any, fact: Expr) -> None:
     if not _reflection_contains(runtime, fact):
         _reflect_add(runtime, fact)
     if not _reflection_contains(runtime, fact):
-        raise EngineError(f"the engine did not retain reflection fact {fact}")
+        msg = f"the engine did not retain reflection fact {fact}"
+        raise EngineError(msg)
 
 
 def _ensure_reflection_absent(runtime: Any, fact: Expr) -> None:
     if _reflection_contains(runtime, fact):
         _reflect_remove(runtime, fact)
     if _reflection_contains(runtime, fact):
-        raise EngineError(f"the engine did not remove reflection fact {fact}")
+        msg = f"the engine did not remove reflection fact {fact}"
+        raise EngineError(msg)
 
 
 def _subscriptions_for(space: str) -> tuple[Subscription, ...]:
@@ -456,11 +473,13 @@ def subscribe(
     queue_max: int = SUBSCRIPTION_QUEUE_MAX,
 ) -> Subscription:
     if on not in SUBSCRIPTION_EDGE:
+        msg = f"on must be one of {', '.join(SUBSCRIPTION_EDGE)}, not {on!r}"
         raise ValueError(
-            f"on must be one of {', '.join(SUBSCRIPTION_EDGE)}, not {on!r}"
+            msg
         )
     if queue_max < 1:
-        raise ValueError(f"queue_max must be at least 1, not {queue_max!r}")
+        msg = f"queue_max must be at least 1, not {queue_max!r}"
+        raise ValueError(msg)
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
     subscription = Subscription(space, pattern, callback, on, queue_max)
     # The standing query reflects into the library's own space, removed on
@@ -483,8 +502,9 @@ def subscribe(
             except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                 rollback_errors.append(rollback_error)
             if rollback_errors:
+                msg = "subscription publication and rollback both failed"
                 raise BaseExceptionGroup(
-                    "subscription publication and rollback both failed",
+                    msg,
                     [publication_error, *rollback_errors],
                 ) from None
             raise
@@ -507,14 +527,17 @@ def _dispatch(action: str, space: str, wire: list) -> bool:
         # A control signal is BaseException and passes through untouched:
         # KeyboardInterrupt is not a watcher saying no.
         except Exception as failure:
-            raise SubscriberError(
+            msg = (
                 f"{space} applied the {action} of {atom} and then a watcher "
                 f"failed. This is not a failed write: retrying it stores a "
                 f"second copy, because a space is a multiset, and an "
                 f"enclosing atomic run or a (transaction ...) scope is the "
                 f"one thing that undoes it, as this error leaves the scope. "
                 f"Delivering to the subscription on {subscription.pattern} "
-                f"raised {type(failure).__name__}: {failure}",
+                f"raised {type(failure).__name__}: {failure}"
+            )
+            raise SubscriberError(
+                msg,
                 subscription=subscription,
                 action=action,
                 atom=atom,

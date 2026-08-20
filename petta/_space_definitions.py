@@ -10,7 +10,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -85,15 +85,19 @@ def install_prolog_define(
     clause the first would keep answering ahead of.
     """
     if not isinstance(fn, types.FunctionType):
-        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
+        msg = f"define expects a Python function, got {type(fn).__name__}"
+        raise TypeError(msg)
     name = name or fn.__name__
     origin = os.fspath(prolog)
     registered = space.register_prolog(path=origin)
     if name not in registered:
-        raise CompileError(
+        msg = (
             f"{origin} does not register {name!r}, which is the MeTTa name of "
             f"{fn.__name__}; it registered {', '.join(sorted(registered)) or 'nothing'}. "
-            f"A twin has to name the predicate it is the reference for.",
+            f"A twin has to name the predicate it is the reference for."
+        )
+        raise CompileError(
+            msg,
             construct="prolog twin",
         )
     params = list(_inspect.signature(fn).parameters)
@@ -112,10 +116,13 @@ def _refuse_mismatched_twin_arity(
     _, _, shapes, _ = space.runtime.apply_must("petta_py_function_shape", name)
     arities = [int(arity) for arity, _speedup, _indexed in shapes]
     if arities and expected not in arities:
-        raise CompileError(
+        msg = (
             f"{name} in {origin} takes {' or '.join(str(a) for a in sorted(arities))} "
             f"argument(s), but its Python twin takes {len(params)}, so the "
-            f"predicate would need arity {expected}: inputs then one output.",
+            f"predicate would need arity {expected}: inputs then one output."
+        )
+        raise CompileError(
+            msg,
             construct="prolog twin",
         )
 
@@ -136,19 +143,25 @@ def _validate_clause_order(
 ) -> None:
     """Refuse collisions and clauses hidden by an earlier Python head."""
     if not earlier and space.is_function_here(name):
-        raise CompileError(
+        msg = (
             f"{name!r} is already a function this space answers (an "
             f"engine builtin, an operation, or an equation): defining it "
             f"would stack a clause onto it and the existing definition "
             f"would keep answering first. Pick another name, or add the "
-            f"equation deliberately with m.run.",
+            f"equation deliberately with m.run."
+        )
+        raise CompileError(
+            msg,
             construct="name collision",
         )
     if patterns and any(not clause["patterns"] for clause in earlier):
-        raise CompileError(
+        msg = (
             f"a clause of {name} with a literal head comes after the "
             f"general clause, which already matches everything; define "
-            f"the general clause last",
+            f"the general clause last"
+        )
+        raise CompileError(
+            msg,
             construct="clause order",
         )
     for clause in earlier:
@@ -156,11 +169,14 @@ def _validate_clause_order(
         if len(earlier_patterns) < len(patterns) and all(
             patterns.get(param) == value for param, value in earlier_patterns.items()
         ):
-            raise CompileError(
+            msg = (
                 f"a clause of {name} fixes every literal from an earlier "
                 f"head and adds more literals, so the earlier clause "
                 f"already answers every input this clause could match; "
-                f"put the more specific clause first",
+                f"put the more specific clause first"
+            )
+            raise CompileError(
+                msg,
                 construct="clause order",
             )
 
@@ -293,7 +309,8 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     variables.
     """
     if not isinstance(fn, types.FunctionType):
-        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
+        msg = f"define expects a Python function, got {type(fn).__name__}"
+        raise TypeError(msg)
 
     # The equation's name is the Python name, verbatim, or the one asked
     # for: one policy across both decorators, and neither rewrites what the

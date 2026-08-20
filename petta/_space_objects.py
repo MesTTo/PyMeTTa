@@ -11,7 +11,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -57,11 +57,13 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
     if value is None:
         return
     if isinstance(value, bool) or not isinstance(value, kinds):
-        raise TypeError(f"{called} must be {reads} or None, got {value!r}")
+        msg = f"{called} must be {reads} or None, got {value!r}"
+        raise TypeError(msg)
     # isinstance against a variable tuple narrows value to object, so the
     # comparison needs the type the check just established.
     if not cast(float, value) > 0:
-        raise ValueError(f"{called} must be positive, got {value!r}")
+        msg = f"{called} must be positive, got {value!r}"
+        raise ValueError(msg)
 
 
 #: The scoped defaults `with m.limits(...)` sets: a contextvar, so the
@@ -131,9 +133,12 @@ def guard_atom(where: Any | None) -> Atom | None:
         return guard
     if isinstance(guard, Gnd) and isinstance(guard.value, bool):
         return guard
-    raise TypeError(
+    msg = (
         f"a where= guard is a term the engine evaluates per row, as in "
         f"(V.age >= 18); {where!r} can never answer true"
+    )
+    raise TypeError(
+        msg
     )
 
 
@@ -150,11 +155,13 @@ def _stats_snapshot(
     """Read and validate the six counters supplied by the engine shim."""
     raw = rt.apply_must("petta_py_stats")
     if not isinstance(raw, (list, tuple)) or len(raw) != 6:
-        raise EngineError(f"engine statistics returned an invalid snapshot: {raw!r}")
+        msg = f"engine statistics returned an invalid snapshot: {raw!r}"
+        raise EngineError(msg)
     values: list[int | float] = []
     for value in raw:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise EngineError(f"engine statistics returned a non-numeric counter: {value!r}")
+            msg = f"engine statistics returned a non-numeric counter: {value!r}"
+            raise EngineError(msg)
         values.append(value)
     return values[0], values[1], values[2], values[3], values[4], values[5]
 
@@ -250,11 +257,15 @@ class _StatsBlock:
         # counter means the block has not closed. Any other name is an
         # ordinary attribute error.
         if name in _COUNTERS:
-            raise RuntimeError(
+            msg = (
                 f"a stats block's {name} is the delta it measured, so it is "
                 f"readable after the with-block rather than inside it"
             )
-        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+            raise RuntimeError(
+                msg
+            )
+        msg = f"{type(self).__name__!r} object has no attribute {name!r}"
+        raise AttributeError(msg)
 
     def __enter__(self) -> Self:
         self._before = _stats_snapshot(self._rt)
@@ -265,7 +276,8 @@ class _StatsBlock:
         before = self._before
         started_at = self._wall
         if before is None or started_at is None:
-            raise RuntimeError("a stats block cannot exit before it enters")
+            msg = "a stats block cannot exit before it enters"
+            raise RuntimeError(msg)
         wall = time.perf_counter() - started_at
         after = _stats_snapshot(self._rt)
         inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
@@ -300,15 +312,21 @@ def _forward_window(window: slice) -> tuple[int, int | None]:
     looks cheapest.
     """
     if window.step is not None and window.step != 1:
-        raise ValueError(
+        msg = (
             "a cursor slice takes no step: skipping rows still pulls them, "
             "so [::2] costs what taking them all costs"
         )
+        raise ValueError(
+            msg
+        )
     start = 0 if window.start is None else window.start
     if start < 0 or (window.stop is not None and window.stop < 0):
-        raise ValueError(
+        msg = (
             "a cursor slice counts from the start only: a negative bound "
             "needs the whole stream, which is what the cursor exists to avoid"
+        )
+        raise ValueError(
+            msg
         )
     return start, window.stop
 
@@ -422,7 +440,8 @@ class Cursor:
         if self._exhausted:
             raise StopIteration
         if self._closed:
-            raise PettaError("this cursor is closed")
+            msg = "this cursor is closed"
+            raise PettaError(msg)
         if self._timeout is None:
             answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
         else:
@@ -464,20 +483,27 @@ class Cursor:
         if isinstance(index, slice):
             return self._take_slice(index)
         if not isinstance(index, int):
-            raise TypeError(
+            msg = (
                 f"a cursor is indexed by an int or a slice, not "
                 f"{type(index).__name__}"
             )
+            raise TypeError(
+                msg
+            )
         if index < 0:
-            raise IndexError(
+            msg = (
                 "a cursor cannot be indexed from the end: it does not know "
                 "where the end is without pulling every row, which is what "
                 "the cursor exists to avoid. Use query() if you want them all"
             )
+            raise IndexError(
+                msg
+            )
         for position, row in enumerate(self):
             if position == index:
                 return row
-        raise IndexError(f"the cursor answered fewer than {index + 1} rows")
+        msg = f"the cursor answered fewer than {index + 1} rows"
+        raise IndexError(msg)
 
     def _take_slice(self, window: slice) -> list:
         start, stop = _forward_window(window)
@@ -498,10 +524,13 @@ class Cursor:
         one would silently materialise the very thing the cursor exists to
         avoid.
         """
-        raise TypeError(
+        msg = (
             "a cursor has no len(): counting its rows means pulling all of "
             "them, which is what it exists to avoid. Use space.count(pattern) "
             "for the count, or query() if you want the rows"
+        )
+        raise TypeError(
+            msg
         )
 
     def close(self) -> None:
@@ -922,10 +951,13 @@ _ACTIVE_BATCHES: ContextVar[dict[str, list]] = ContextVar(
 def _refuse_in_batch(space_name: str, operation: str) -> None:
     """Refuse an operation that would order around pending batched adds."""
     if space_name in _ACTIVE_BATCHES.get():
-        raise PettaError(
+        msg = (
             f"{operation}() on {space_name} inside its own batch block "
             f"would silently order around the adds the block is holding; "
             f"leave the `with m.batch():` block first"
+        )
+        raise PettaError(
+            msg
         )
 
 
@@ -946,9 +978,12 @@ class _Batch:
         current = _ACTIVE_BATCHES.get()
         name = self._space.space_name
         if name in current:
-            raise PettaError(
+            msg = (
                 f"a batch is already collecting for {name} in this "
                 f"context; batches do not nest per space"
+            )
+            raise PettaError(
+                msg
             )
         self._pending = []
         self._token = _ACTIVE_BATCHES.set(current | {name: self._pending})

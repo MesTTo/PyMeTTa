@@ -5,7 +5,7 @@ refuse loudly instead of dropping silently.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -512,7 +512,8 @@ def test_a_transport_failure_always_aborts(metta):
 def test_an_op_keeps_its_failure_as_the_error_atom(metta):
     def half(x):
         if x % 2:
-            raise ValueError(f"{x} is odd")
+            msg = f"{x} is odd"
+            raise ValueError(msg)
         return x // 2
 
     metta.register_op(half, name="oe-half", typed=False)
@@ -527,7 +528,8 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):
 
 def test_an_op_empty_answers_nothing(metta):
     def quarter(x):
-        raise RuntimeError("always broken")
+        msg = "always broken"
+        raise RuntimeError(msg)
 
     metta.register_op(quarter, name="oe-quarter", typed=False)
     metta.declare_on_error("oe-quarter", "(oe-quarter $x)", "empty")
@@ -544,7 +546,8 @@ def test_a_generator_op_keeps_its_mid_stream_failure(metta):
     def counting(x):
         yield 1
         yield 2
-        raise ValueError("stream died")
+        msg = "stream died"
+        raise ValueError(msg)
 
     metta.register_op(counting, name="oe-gen", typed=False)
     metta.declare_on_error("oe-gen", "(oe-gen $x)", "keep")

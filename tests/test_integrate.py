@@ -8,7 +8,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import math
@@ -33,7 +33,8 @@ def test_uninspectable_callable_errors_are_classified(metta):
     class Uninspectable:
         @property
         def __signature__(self):
-            raise TypeError("unsupported callable type")
+            msg = "unsupported callable type"
+            raise TypeError(msg)
 
         def __call__(self, value):
             return value

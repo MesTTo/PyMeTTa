@@ -4,7 +4,7 @@ and the py-atom surface where the shim's presence changes the answer.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import uuid
@@ -96,7 +96,8 @@ def test_python_exception_is_a_hard_error(metta):
 
     @metta.register_op(name=name)
     def boom(x: int) -> int:
-        raise ValueError("exploded on purpose")
+        msg = "exploded on purpose"
+        raise ValueError(msg)
 
     with pytest.raises(EngineError) as excinfo:
         metta.run(f"!({name} 1)")

@@ -6,7 +6,7 @@ divergence, which is the trap the wave-9 burn-down measured.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import subprocess

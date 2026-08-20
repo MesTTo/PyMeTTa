@@ -3,7 +3,7 @@ and restores the previous setting on success and failure.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import uuid

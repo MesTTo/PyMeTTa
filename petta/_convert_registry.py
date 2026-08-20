@@ -16,7 +16,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -100,7 +100,8 @@ def register_type(
     so it composes as a decorator.
     """
     if image not in IMAGES:
-        raise ValueError(f"image must be one of {IMAGES}, not {image!r}")
+        msg = f"image must be one of {IMAGES}, not {image!r}"
+        raise ValueError(msg)
     type_name = name or cls.__name__
     registration = _Registration(
         image=image,
@@ -123,7 +124,8 @@ def unregister_type(cls: type) -> None:
     with _REGISTRY_LOCK:
         registration = _REGISTRY.get(cls)
         if registration is None:
-            raise KeyError(f"{_class_label(cls)} is not registered")
+            msg = f"{_class_label(cls)} is not registered"
+            raise KeyError(msg)
         _discard_old_constructor(cls, registration)
         if _TYPE_OWNERS.get(registration.type_name) is cls:
             del _TYPE_OWNERS[registration.type_name]
@@ -142,10 +144,13 @@ def ensure_registered(cls: type) -> _Registration:
     if registration is None:
         registration = _default_registration(cls)
         if registration is None:
-            raise TypeError(
+            msg = (
                 f"{cls.__name__} has no default image (not an Enum, "
                 f"dataclass or NamedTuple); teach the translator with "
                 f"register_type(...)"
+            )
+            raise TypeError(
+                msg
             )
         _record_registration(cls, registration)
     return registration
@@ -169,21 +174,27 @@ def _require_stable_type_name(
     current: _Registration | None,
 ) -> None:
     if current is not None and current.type_name != registration.type_name:
-        raise ValueError(
+        msg = (
             f"{cls.__name__} is already registered as {current.type_name!r}; "
             f"changing its type name would leave existing atoms with the old "
             f"owner. Keep that name or register a distinct class."
+        )
+        raise ValueError(
+            msg
         )
 
 
 def _claim_type_name(cls: type, type_name: str) -> None:
     holder = _TYPE_OWNERS.get(type_name)
     if holder is not None and holder is not cls:
-        raise ValueError(
+        msg = (
             f"the type name {type_name!r} already has a registered class "
             f"({_class_label(holder)}); register {_class_label(cls)} with "
             f"name=... to pick a distinct spelling. Replacing the owner "
             f"would make build() return the wrong class."
+        )
+        raise ValueError(
+            msg
         )
     _TYPE_OWNERS[type_name] = cls
 
@@ -288,10 +299,13 @@ def _pydantic_registration(cls: type) -> _Registration:
         extras = getattr(obj, "__pydantic_extra__", None)
         if extras:
             extra_names = ", ".join(sorted(map(str, extras)))
-            raise TypeError(
+            msg = (
                 f"cannot project {cls.__name__}: its Pydantic extra fields "
                 f"would be lost ({extra_names}). Declare those fields on "
                 f"the model or register an explicit conversion."
+            )
+            raise TypeError(
+                msg
             )
         return tuple(getattr(obj, name) for name in names)
 
@@ -316,10 +330,13 @@ def _dataclass_registration(cls: type) -> _Registration:
     non_init = tuple(field.name for field in data_fields if not field.init)
     if non_init:
         listed = ", ".join(non_init)
-        raise TypeError(
+        msg = (
             f"{cls.__name__} has init=False state that the default expression "
             f"image cannot rebuild ({listed}). Register the type explicitly "
             f"with to_atom and from_atom."
+        )
+        raise TypeError(
+            msg
         )
     names = tuple(field.name for field in data_fields)
     return _Registration(
@@ -339,8 +356,9 @@ def _named_tuple_registration(cls: type) -> _Registration:
         isinstance(raw_names, tuple)
         and all(isinstance(name, str) for name in raw_names)
     ):
+        msg = f"{cls.__name__} declares invalid NamedTuple fields: {raw_names!r}"
         raise TypeError(
-            f"{cls.__name__} declares invalid NamedTuple fields: {raw_names!r}"
+            msg
         )
     names = typing.cast(tuple[str, ...], raw_names)
     return _Registration(
@@ -365,9 +383,12 @@ def resolved_hints(cls: type) -> dict:
     try:
         return typing.get_type_hints(cls)
     except Exception as exc:
-        raise TypeError(
+        msg = (
             f"the field annotations of {cls.__name__} do not resolve "
             f"({exc}); a declared field type must name something importable"
+        )
+        raise TypeError(
+            msg
         ) from exc
 
 

@@ -7,7 +7,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -45,7 +45,8 @@ class StatementCompilerMixin(CompilerContext):
         if not statements:
             if self.closer is not None:
                 return self.closer(self)
-            raise CompileError(f"{self.name} has no body to compile", construct="body")
+            msg = f"{self.name} has no body to compile"
+            raise CompileError(msg, construct="body")
         head, rest = statements[0], statements[1:]
 
         if isinstance(head, ast.Return):
@@ -58,31 +59,39 @@ class StatementCompilerMixin(CompilerContext):
             return self._compound_statement(head, rest)
 
         if isinstance(head, (ast.Break, ast.Continue)):
-            raise CompileError(
+            msg = (
                 f"`{type(head).__name__.lower()}` has no equation here; fold "
-                f"the exit condition into the loop's test, or return",
+                f"the exit condition into the loop's test, or return"
+            )
+            raise CompileError(
+                msg,
                 construct=type(head).__name__.lower(),
                 line=head.lineno,
             )
 
-        raise CompileError(
+        msg = (
             f"{type(head).__name__} has no MeTTa equivalent in the compiled "
             f"subset, which covers expressions, assignment, if/else, return, "
-            f"yield, lambda and comprehensions",
+            f"yield, lambda and comprehensions"
+        )
+        raise CompileError(
+            msg,
             construct=type(head).__name__,
             line=head.lineno,
         )
 
     def _return_statement(self, head: ast.Return, rest: list[ast.stmt]) -> Atom:
         if rest:
+            msg = "statements after `return` are unreachable and have no equation"
             raise CompileError(
-                "statements after `return` are unreachable and have no equation",
+                msg,
                 construct="return",
                 line=rest[0].lineno,
             )
         if head.value is None:
+            msg = "a compiled function returns a value; a bare `return` has nothing to rewrite to"
             raise CompileError(
-                "a compiled function returns a value; a bare `return` has nothing to rewrite to",
+                msg,
                 construct="return",
                 line=head.lineno,
             )
@@ -129,16 +138,18 @@ class StatementCompilerMixin(CompilerContext):
                 )
             )
             if target_name not in self.scope:
+                msg = f"{target_name!r} is augmented before it is bound"
                 raise CompileError(
-                    f"{target_name!r} is augmented before it is bound",
+                    msg,
                     construct="augmented assignment",
                     line=head.lineno,
                 )
             target = target_name
         elif isinstance(head, ast.AnnAssign):
             if head.value is None:
+                msg = "an annotation without a value binds nothing"
                 raise CompileError(
-                    "an annotation without a value binds nothing",
+                    msg,
                     construct="annotation",
                     line=head.lineno,
                 )
@@ -157,8 +168,9 @@ class StatementCompilerMixin(CompilerContext):
         if node.orelse:
             otherwise = continue_with(self._fork(), node.orelse)
             if rest:
+                msg = "statements after an if/else where both branches close are unreachable"
                 raise CompileError(
-                    "statements after an if/else where both branches close are unreachable",
+                    msg,
                     construct="if",
                     line=rest[0].lineno,
                 )
@@ -170,9 +182,12 @@ class StatementCompilerMixin(CompilerContext):
             # Inside a loop body, falling past the `if` continues the loop.
             otherwise = self.closer(self._fork())
         else:
-            raise CompileError(
+            msg = (
                 "an `if` with no `else` and nothing after it leaves one branch "
-                "without a value; MeTTa's two-armed `if` needs both",
+                "without a value; MeTTa's two-armed `if` needs both"
+            )
+            raise CompileError(
+                msg,
                 construct="if",
                 line=node.lineno,
             )
@@ -208,7 +223,8 @@ class StatementCompilerMixin(CompilerContext):
         """
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
-            raise CompileError(f"{self.name} yields nothing", construct="body")
+            msg = f"{self.name} yields nothing"
+            raise CompileError(msg, construct="body")
         head, rest = statements[0], statements[1:]
 
         if isinstance(head, ast.Expr):
@@ -224,15 +240,19 @@ class StatementCompilerMixin(CompilerContext):
             return self._yield_for(head, rest)
 
         if isinstance(head, ast.Return):
+            msg = "a generator answers through yield; `return` inside one has no equation"
             raise CompileError(
-                "a generator answers through yield; `return` inside one has no equation",
+                msg,
                 construct="return",
                 line=head.lineno,
             )
 
-        raise CompileError(
+        msg = (
             f"{type(head).__name__} has no place in a compiled generator, "
-            f"which covers yield, assignment and if/else",
+            f"which covers yield, assignment and if/else"
+        )
+        raise CompileError(
+            msg,
             construct=type(head).__name__,
             line=head.lineno,
         )
@@ -240,17 +260,21 @@ class StatementCompilerMixin(CompilerContext):
     def _yield_expression(self, head: ast.Expr, rest: list[ast.stmt]) -> list[Atom]:
         if isinstance(head.value, ast.Yield):
             if head.value.value is None:
+                msg = "a bare `yield` has no value to answer"
                 raise CompileError(
-                    "a bare `yield` has no value to answer",
+                    msg,
                     construct="yield",
                     line=head.lineno,
                 )
             return [self.expression(head.value.value), *self._yield_tail(rest)]
         if isinstance(head.value, ast.YieldFrom):
             return [self._yield_from(head.value), *self._yield_tail(rest)]
-        raise CompileError(
+        msg = (
             f"{type(head).__name__} has no place in a compiled generator, "
-            "which covers yield, assignment and if/else",
+            "which covers yield, assignment and if/else"
+        )
+        raise CompileError(
+            msg,
             construct=type(head).__name__,
             line=head.lineno,
         )
@@ -279,9 +303,12 @@ class StatementCompilerMixin(CompilerContext):
         # each element of e through superpose, answer the body for each. The
         # loop never closes the block, exactly as in Python.
         if head.orelse:
-            raise CompileError(
+            msg = (
                 "`for ... else` has no equation; the else arm runs on "
-                "non-break exit and this subset has no break",
+                "non-break exit and this subset has no break"
+            )
+            raise CompileError(
+                msg,
                 construct="for-else",
                 line=head.lineno,
             )
@@ -324,8 +351,9 @@ def _is_docstring(node: ast.stmt) -> bool:
 
 def _single_target(node: ast.Assign) -> str:
     if len(node.targets) != 1:
+        msg = "a chained assignment binds several names at once and has no let* form"
         raise CompileError(
-            "a chained assignment binds several names at once and has no let* form",
+            msg,
             construct="assignment",
             line=node.lineno,
         )
@@ -334,9 +362,12 @@ def _single_target(node: ast.Assign) -> str:
 
 def _validate_nested_signature(node: ast.FunctionDef) -> None:
     if node.args.defaults or node.args.vararg or node.args.kwarg or node.args.kwonlyargs:
-        raise CompileError(
+        msg = (
             "a nested def takes plain positional parameters; defaults "
-            "belong on top-level clauses, where they are head patterns",
+            "belong on top-level clauses, where they are head patterns"
+        )
+        raise CompileError(
+            msg,
             construct="nested def",
             line=node.lineno,
         )

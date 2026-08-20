@@ -10,7 +10,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -88,9 +88,12 @@ def run_source(
 ) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
     """Execute source through the direct or controlled engine entry."""
     if atomic and speculative:
-        raise ValueError(
+        msg = (
             "atomic= and speculative= are exclusive: one commits the run's "
             "writes whole, the other discards them whole"
+        )
+        raise ValueError(
+            msg
         )
     predicate, inputs = _run_target(space, source, using)
     limits = _limits(timeout, inferences)
@@ -236,10 +239,13 @@ def evaluate(
     inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
     if using:
         if residuals:
-            raise PettaError(
+            msg = (
                 "using= and residuals= do not compose yet: the residual door "
                 "reports which path produced each answer, and substitution "
                 "happens before any path is chosen"
+            )
+            raise PettaError(
+                msg
             )
         predicate = "petta_py_eval_using_all"
         inputs = [
@@ -263,16 +269,22 @@ def evaluate(
 
 def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:
     if len(answers) != 1:
-        raise EngineError(
+        msg = (
             f"value({_to_atom(target)}) expected exactly one answer, "
             f"got {len(answers)}; use eval() for any number"
         )
+        raise EngineError(
+            msg
+        )
     answer = answers[0]
     if isinstance(answer, Undefined):
-        raise EngineError(
+        msg = (
             f"value({_to_atom(target)}) answered with undefined truth "
             f"({answer.why}); a caller asking for THE value has asserted a "
             f"definite one exists. eval() carries the third truth value."
+        )
+        raise EngineError(
+            msg
         )
     return decode(answer) if isinstance(answer, Gnd) else answer
 

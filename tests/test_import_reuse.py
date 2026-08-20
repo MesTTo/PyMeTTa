@@ -3,7 +3,7 @@ pooled-space reuse, including loud errors from imported source files.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest

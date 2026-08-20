@@ -22,7 +22,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -85,7 +85,8 @@ def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
         threshold = min(float(scores[int(index)]) for index in partition)
         nonzero = getattr(xp, "nonzero", None)
         if nonzero is None:
-            raise RuntimeError("an argpartition namespace must also provide nonzero")
+            msg = "an argpartition namespace must also provide nonzero"
+            raise RuntimeError(msg)
         better = [int(index) for index in nonzero(scores > threshold)[0]]
         needed = count - len(better)
         tied = [int(index) for index in nonzero(scores == threshold)[0][:needed]]
@@ -184,7 +185,8 @@ def data_of(a: Any) -> Any:
     if isinstance(a, Gnd):
         return decode(a)
     if isinstance(a, Atom):
-        raise TypeError(f"tensor data may not contain {a.metatype}: {a}")
+        msg = f"tensor data may not contain {a.metatype}: {a}"
+        raise TypeError(msg)
     return a
 
 
@@ -208,9 +210,12 @@ def install(m, default: Any = None) -> list[str]:
             and name not in _known_ops()
             and name not in _CONSTRUCTOR_NAMES
         ):
-            raise PettaError(
+            msg = (
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
+            )
+            raise PettaError(
+                msg
             )
         m.register_op(fn, name=name, raw=raw, typed=False, **kw)
         if types:
@@ -430,7 +435,8 @@ def _randn(xp_default):
             return xp_default.asarray(
                 native.random.standard_normal(dims), dtype=xp_default.float32
             )
-        raise PettaError(f"{module} offers no normal sampler for randn")
+        msg = f"{module} offers no normal sampler for randn"
+        raise PettaError(msg)
 
     return randn
 
@@ -466,7 +472,8 @@ class EmbeddingStore:
         self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"
     ) -> None:
         if backend not in ("auto", "argsort", "faiss"):
-            raise PettaError(f"backend is auto, argsort or faiss, not {backend!r}")
+            msg = f"backend is auto, argsort or faiss, not {backend!r}"
+            raise PettaError(msg)
         if backend == "faiss":
             _faiss()
         self._m = m
@@ -531,21 +538,25 @@ class EmbeddingStore:
             numpy = _numpy()
             vector = numpy.asarray(vector, dtype=numpy.float32)
         if vector.ndim != 1:
+            msg = f"embedding vectors must be one-dimensional, got shape {tuple(vector.shape)}"
             raise ValueError(
-                f"embedding vectors must be one-dimensional, got shape {tuple(vector.shape)}"
+                msg
             )
         width = int(vector.shape[0])
         if self._width is not None and width != self._width:
+            msg = f"embedding vector width must be {self._width}, got {width}"
             raise ValueError(
-                f"embedding vector width must be {self._width}, got {width}"
+                msg
             )
         xp = namespace_of(vector)
         if not bool(xp.all(xp.isfinite(vector))):
-            raise ValueError("embedding vectors must contain only finite values")
+            msg = "embedding vectors must contain only finite values"
+            raise ValueError(msg)
         as_float = xp.astype(vector, xp.float32)
         norm = float(xp.linalg.vector_norm(as_float))
         if norm == 0.0:
-            raise ValueError("embedding vectors must have a nonzero norm")
+            msg = "embedding vectors must have a nonzero norm"
+            raise ValueError(msg)
         if self._width is None:
             self._width = width
         return xp.asarray(vector, copy=True) if copy else vector
@@ -561,7 +572,8 @@ class EmbeddingStore:
         for stored, vector in zip(self._keys, self._vectors, strict=True):
             if stored == atom:
                 return vector
-        raise KeyError(f"no embedding stored for {atom}")
+        msg = f"no embedding stored for {atom}"
+        raise KeyError(msg)
 
     def _normalized_query(self, query: Any):
         xp = namespace_of(self._vectors[0])
@@ -595,13 +607,16 @@ class EmbeddingStore:
         namespaces exposing only the Array API use argsort.
         """
         if isinstance(k, bool):
-            raise TypeError(f"k must be a positive integer, got {k!r}")
+            msg = f"k must be a positive integer, got {k!r}"
+            raise TypeError(msg)
         try:
             k = operator.index(k)
         except TypeError:
-            raise TypeError(f"k must be a positive integer, got {k!r}") from None
+            msg = f"k must be a positive integer, got {k!r}"
+            raise TypeError(msg) from None
         if k <= 0:
-            raise ValueError(f"k must be a positive integer, got {k}")
+            msg = f"k must be a positive integer, got {k}"
+            raise ValueError(msg)
         if not self._keys:
             return
         xp, q = self._normalized_query(self._resolve(query))
@@ -618,7 +633,8 @@ class EmbeddingStore:
                 self._index = built_index
             index = self._index
             if index is None:
-                raise RuntimeError("FAISS index construction produced no index")
+                msg = "FAISS index construction produced no index"
+                raise RuntimeError(msg)
             probe = numpy.ascontiguousarray(
                 numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
             )

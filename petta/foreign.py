@@ -38,7 +38,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -273,9 +273,12 @@ class SpaceProvider:
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if "capabilities" in cls.__dict__:
-            raise TypeError(
+            msg = (
                 f"{cls.__name__}.capabilities is a stale static declaration; "
                 "implement the operation or override can_run() for request-specific policy"
+            )
+            raise TypeError(
+                msg
             )
 
     #: The narrow protocol each capability needs, in the engine's vocabulary.
@@ -365,15 +368,19 @@ def _require_provider(
     name = type(provider).__name__
     stated = _stated_refusal(provider, capability, request)
     if stated is not None:
+        msg = f"{operation} cannot use {space}, whose {name} provider says: {stated}"
         raise PettaError(
-            f"{operation} cannot use {space}, whose {name} provider says: {stated}",
+            msg,
             space=space,
             operation=operation,
             capability=capability,
         )
-    raise PettaError(
+    msg = (
         f"{operation} cannot use {space}: its {name} provider "
-        f"{_refusal_detail(provider, capability, request)}",
+        f"{_refusal_detail(provider, capability, request)}"
+    )
+    raise PettaError(
+        msg,
         space=space,
         operation=operation,
         capability=capability,
@@ -427,7 +434,8 @@ def require_capability(
 
 def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
     if not isinstance(name, str) or not name.startswith("&"):
-        raise ValueError(f"a space name starts with &; got {name!r}")
+        msg = f"a space name starts with &; got {name!r}"
+        raise ValueError(msg)
     # Registration is the only place this is cheap to see. Without it an
     # object carrying the narrow protocols but not the base class registers
     # happily, and every later operation dies inside the engine callback on
@@ -436,19 +444,25 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:
         method for method in ("can_run", "should_run") if not callable(getattr(provider, method, None))
     ]
     if missing:
-        raise TypeError(
+        msg = (
             f"a provider answers {' and '.join(missing)}; "
             f"{type(provider).__name__} does not. Subclass petta.foreign."
             f"SpaceProvider, which implements both from the narrow protocols "
             f"the class does provide."
         )
+        raise TypeError(
+            msg
+        )
     with _PROVIDER_LOCK:
         holder = _PROVIDERS.get(name)
         if holder is not None and holder is not provider:
-            raise ValueError(
+            msg = (
                 f"{name} already has a provider ({type(holder).__name__}); "
                 f"unregister it first, or pick another name. Replacing silently "
                 f"would leave the old owner holding a dead registration."
+            )
+            raise ValueError(
+                msg
             )
         # The engine's own vocabulary, computed here because this is where
         # it already was. Without it foreign_provides/2 reported that every
@@ -470,7 +484,8 @@ def unregister_provider(runtime, name: str) -> None:
     """
     with _PROVIDER_LOCK:
         if name not in _PROVIDERS:
-            raise KeyError(f"no provider is registered for {name!r}")
+            msg = f"no provider is registered for {name!r}"
+            raise KeyError(msg)
         runtime.must("petta_py_unregister_foreign(Space)", Space=name)
         _PROVIDERS.pop(name, None)
 
@@ -501,9 +516,12 @@ def _wire_stream(candidates: Iterable[Any], *, answers: bool = True):
             raise
         if isinstance(candidate, Answer):
             if not answers:
-                raise PettaError(
+                msg = (
                     "atoms() yielded an Answer; an enumeration has no query "
                     "to bind, so it yields atoms only"
+                )
+                raise PettaError(
+                    msg
                 )
             yield candidate.to_wire()
         else:
@@ -563,10 +581,13 @@ def pushdown_class(provider: Any, pattern: Atom) -> str:
         return "inexact"
     claimed = provider.pushdown(pattern)
     if claimed not in ("exact", "inexact"):
-        raise PettaError(
+        msg = (
             f"{type(provider).__name__}.pushdown({pattern!r}) answered "
             f"{claimed!r}; it is 'exact' when every candidate you yield for "
             f"this pattern unifies with it, and 'inexact' otherwise"
+        )
+        raise PettaError(
+            msg
         )
     return claimed
 
@@ -587,9 +608,12 @@ def foreign_refuse(space: str, capability: str) -> None:
     """
     provider = _provider(space)
     _require_provider(provider, space, capability, capability)
-    raise PettaError(
+    msg = (
         f"{space} refused {capability} to the engine and allows it here; the "
-        f"engine's capability record and this provider disagree",
+        f"engine's capability record and this provider disagree"
+    )
+    raise PettaError(
+        msg,
         space=space,
         capability=capability,
     )
@@ -653,7 +677,8 @@ def foreign_match(
         _require_provider(provider, space, "enumerate", "match", pattern=pattern)
         candidates = provider.atoms()
     else:
-        raise RuntimeError("validated match provider has no candidate source")
+        msg = "validated match provider has no candidate source"
+        raise RuntimeError(msg)
     stream = _wire_stream(iter(candidates))
     if mode == "abort":
         return stream
@@ -691,11 +716,14 @@ def foreign_transaction(space: str, step: str) -> bool:
     """One transactional step on a declared-transactional provider."""
     provider = _provider(space)
     if not isinstance(provider, Transactional):
-        raise PettaError(
+        msg = (
             f"{space} is declared (writes {space} transactional) and its "
             f"provider {type(provider).__name__} does not implement "
             f"begin/commit/rollback; implement petta.foreign.Transactional "
             f"or declare best-effort"
+        )
+        raise PettaError(
+            msg
         )
     getattr(provider, step)()
     return True

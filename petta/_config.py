@@ -11,7 +11,7 @@ Guarded by: Config._lock protects settings and the startup freeze.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -42,9 +42,11 @@ _STARTUP_SETTINGS = frozenset({"stack_limit", "heartbeat_interval"})
 
 def _positive_integer(name: str, value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(f"{name} must be a positive integer, got {value!r}")
+        msg = f"{name} must be a positive integer, got {value!r}"
+        raise TypeError(msg)
     if value <= 0:
-        raise ValueError(f"{name} must be positive, got {value!r}")
+        msg = f"{name} must be positive, got {value!r}"
+        raise ValueError(msg)
     return value
 
 
@@ -56,7 +58,8 @@ def _environment_value(environment: Mapping[str, str], setting: str) -> int:
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ValueError(f"{variable} must be a positive integer, got {raw!r}") from exc
+        msg = f"{variable} must be a positive integer, got {raw!r}"
+        raise ValueError(msg) from exc
     try:
         return _positive_integer(variable, value)
     except (TypeError, ValueError) as exc:
@@ -107,7 +110,8 @@ class Config:
             ]
             if frozen:
                 names = ", ".join(sorted(frozen))
-                raise RuntimeError(f"cannot change {names} after the PeTTa runtime has started")
+                msg = f"cannot change {names} after the PeTTa runtime has started"
+                raise RuntimeError(msg)
             self._values.update(updates)
 
     def as_dict(self) -> dict[str, int]:

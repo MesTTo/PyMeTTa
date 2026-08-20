@@ -7,7 +7,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -101,10 +101,13 @@ class LoopCompilerMixin(CompilerContext):
         target = _name_of(node.target, node.lineno)
         rest = node.orelse.copy() + rest
         if target in self._free_reads(rest) or target in self.closer_names:
-            raise CompileError(
+            msg = (
                 f"{target!r} is read after the loop, where Python would hold "
                 f"the last element; bind that value to its own name inside "
-                f"the loop instead",
+                f"the loop instead"
+            )
+            raise CompileError(
+                msg,
                 construct="for",
                 line=node.lineno,
             )

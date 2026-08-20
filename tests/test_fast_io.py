@@ -3,7 +3,7 @@ equation recompilation, live-object refusal, and corrupt-cache failures.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import gzip
@@ -124,7 +124,8 @@ def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, 
         assert Path(source).parent == target.parent
         assert Path(source) != target
         assert Path(destination) == target
-        raise OSError("injected replacement failure")
+        msg = "injected replacement failure"
+        raise OSError(msg)
 
     monkeypatch.setattr(persistence_module.os, "replace", fail_replace)
     with pytest.raises(OSError, match="injected replacement failure"):
@@ -164,7 +165,8 @@ def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatc
                     nonlocal writes
                     writes += 1
                     if writes == 2:
-                        raise OSError("injected write failure")
+                        msg = "injected write failure"
+                        raise OSError(msg)
                     return handle.write(text)
 
             yield FailingHandle()

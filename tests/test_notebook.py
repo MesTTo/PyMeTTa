@@ -3,7 +3,7 @@ require its rich Rows output to survive headless execution.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import json

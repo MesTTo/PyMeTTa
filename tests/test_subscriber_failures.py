@@ -3,7 +3,7 @@ write succeeded, which a caller deciding whether to retry has to do.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -21,7 +21,8 @@ class _ReadOnly(SpaceProvider, Adder, Enumerable):
         self.store: list = []
 
     def add(self, atom) -> None:
-        raise RuntimeError("the store is read-only today")
+        msg = "the store is read-only today"
+        raise RuntimeError(msg)
 
     def atoms(self):
         return iter(self.store)
@@ -61,7 +62,8 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
     try:
 
         def angry(event):
-            raise ValueError("the watcher is broken")
+            msg = "the watcher is broken"
+            raise ValueError(msg)
 
         watcher = space.subscribe(S.fact(V.x), angry)
         try:

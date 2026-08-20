@@ -8,7 +8,7 @@ unify_branch_evaluation.metta, measured 2026-08-11].
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -127,7 +127,8 @@ def test_a_matchable_with_no_answers_selects_else(m):
 def test_a_matchable_error_aborts(m):
     class Loud:
         def match_(self, other):
-            raise ValueError("my matcher broke")
+            msg = "my matcher broke"
+            raise ValueError(msg)
 
     with pytest.raises(EngineError):
         m.eval(expr(S.unify, Gnd(Loud()), S.a, S.t, S.e))

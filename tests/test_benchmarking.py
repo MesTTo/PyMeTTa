@@ -2,7 +2,7 @@
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import json
@@ -343,7 +343,8 @@ def test_perf_workload_teardown_runs_after_failure(monkeypatch):
     def factory():
         def operation():
             events.append("operation")
-            raise LookupError("workload failed")
+            msg = "workload failed"
+            raise LookupError(msg)
 
         return operation, lambda: events.append("teardown")
 

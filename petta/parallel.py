@@ -93,9 +93,11 @@ class EnginePool:
         if workers is None:
             workers = os.cpu_count() or 1
         if not isinstance(workers, int) or isinstance(workers, bool):
-            raise TypeError(f"workers must be an int, not {type(workers).__name__}")
+            msg = f"workers must be an int, not {type(workers).__name__}"
+            raise TypeError(msg)
         if workers < 1:
-            raise ValueError(f"a pool needs at least one worker, not {workers}")
+            msg = f"a pool needs at least one worker, not {workers}"
+            raise ValueError(msg)
 
         # Start the runtime HERE rather than in a worker: consulting is
         # serialised behind CONSULT_LOCK anyway, and doing it on the caller's
@@ -127,13 +129,15 @@ class EnginePool:
             self._ready.wait()
         except threading.BrokenBarrierError as exc:
             self.close()
+            msg = "a pool worker could not attach its Prolog engine"
             raise PettaError(
-                "a pool worker could not attach its Prolog engine"
+                msg
             ) from self._start_error or exc
         if self._start_error is not None:
             failure = self._start_error
             self.close()
-            raise PettaError("a pool worker could not attach its Prolog engine") from failure
+            msg = "a pool worker could not attach its Prolog engine"
+            raise PettaError(msg) from failure
 
     def _worker(self) -> None:
         """Attach one engine, then serve the queue until the stop sentinel.
@@ -180,9 +184,12 @@ class EnginePool:
         """Queue one call on a worker and answer its Future."""
         with self._state_lock:
             if self._closed:
-                raise PettaError(
+                msg = (
                     "this pool is closed and cannot take new work; "
                     "build another with petta.parallel.pool()"
+                )
+                raise PettaError(
+                    msg
                 )
         future: Future[R] = Future()
         self._work.put((future, fn, args, kwargs))
@@ -230,8 +237,9 @@ class EnginePool:
         if len(failures) == 1:
             raise failures[0]
         if failures:
+            msg = f"{len(failures)} of {len(futures)} pool tasks failed"
             raise BaseExceptionGroup(
-                f"{len(failures)} of {len(futures)} pool tasks failed", failures
+                msg, failures
             )
         return results
 
@@ -251,8 +259,9 @@ class EnginePool:
             thread.join(timeout=30)
         still_running = [t.name for t in self._started if t.is_alive()]
         if still_running:
+            msg = f"pool workers did not stop within 30s: {', '.join(still_running)}"
             raise PettaError(
-                f"pool workers did not stop within 30s: {', '.join(still_running)}"
+                msg
             )
 
     @property

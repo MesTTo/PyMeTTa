@@ -5,7 +5,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import copy
@@ -178,7 +178,8 @@ def test_expr_is_a_sequence():
         case [h, *rest]:
             assert h == S.a and len(rest) == 2
         case _:
-            raise AssertionError("sequence pattern did not match")
+            msg = "sequence pattern did not match"
+            raise AssertionError(msg)
 
 
 def test_expr_sequence_index_and_count():
@@ -581,7 +582,8 @@ def test_namespace_completion_surfaces_engine_errors(monkeypatch):
     monkeypatch.setattr(_engine, "started", lambda: True)
 
     def fail_runtime():
-        raise RuntimeError("completion engine failed")
+        msg = "completion engine failed"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr(_engine, "runtime", fail_runtime)
     with pytest.raises(RuntimeError, match="completion engine failed"):

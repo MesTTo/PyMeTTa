@@ -241,7 +241,8 @@ def test_provider_registration_is_transactional():
 
         def must(self, _goal, **_inputs):
             if self.fail:
-                raise RuntimeError("injected provider boundary failure")
+                msg = "injected provider boundary failure"
+                raise RuntimeError(msg)
             return {"truth": True}
 
     provider = Empty()
@@ -275,7 +276,8 @@ def test_a_provider_states_its_own_refusal(metta):
             return iter(())
 
         def add(self, atom):
-            raise AssertionError("declined before this runs")
+            msg = "declined before this runs"
+            raise AssertionError(msg)
 
         def can_run(self, capability, /, **request):
             if capability == "add":
@@ -305,7 +307,8 @@ def test_declining_and_not_implementing_read_differently(metta):
             return iter(())
 
         def add(self, atom):
-            raise AssertionError("declined before this runs")
+            msg = "declined before this runs"
+            raise AssertionError(msg)
 
         def can_run(self, capability, /, **request):
             return False if capability == "add" else super().can_run(capability, **request)

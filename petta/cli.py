@@ -2,7 +2,7 @@
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 # A launcher runs a program, which is the job rather than a risk; the call
@@ -48,6 +48,7 @@ def main(argv=None):
         # every launcher resolves the interpreter it wraps.
         return subprocess.call(command)  # noqa: S603  # nosec B603
     except FileNotFoundError as exc:
+        msg = "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
         raise FileNotFoundError(
-            "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
+            msg
         ) from exc

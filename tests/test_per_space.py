@@ -4,7 +4,7 @@ space's module, and &self behaving exactly as before.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from petta import S, V, expr

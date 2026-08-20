@@ -26,7 +26,7 @@ Decides: a manifest that fails mid-way keeps the writes its performed
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -55,11 +55,15 @@ def _read_forms(source: str) -> list[Atom]:
     forms = []
     for kind, text in row["Forms"]:
         if kind == "runnable":
-            raise PettaError(f"a manifest declares, it does not run: {text} (drop the !)")
+            msg = f"a manifest declares, it does not run: {text} (drop the !)"
+            raise PettaError(msg)
         if kind != "expression":
-            raise PettaError(
+            msg = (
                 f"a manifest declares, it does not define: {text} "
                 f"(definitions belong in a loaded file)"
+            )
+            raise PettaError(
+                msg
             )
         forms.append(parse(text))
     return forms
@@ -232,10 +236,13 @@ def boot(
         assembler.abandon()
         if not isinstance(exc, Exception):
             raise
-        raise PettaError(
+        msg = (
             f"boot form {len(assembler.performed) + 1} failed: {form}. The "
             f"{len(assembler.performed)} forms before it performed and their "
             f"writes stand; every started server is closed."
+        )
+        raise PettaError(
+            msg
         ) from exc
     return Boot(assembler.m, tuple(assembler.servers), tuple(assembler.performed))
 
@@ -256,7 +263,8 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
     """Every (form, directive) pair, or one refusal listing every problem."""
     forms = _read_forms(path.read_text(encoding="utf-8"))
     if not forms:
-        raise PettaError(f"the manifest {str(path)!r} declares nothing")
+        msg = f"the manifest {str(path)!r} declares nothing"
+        raise PettaError(msg)
     directives = []
     problems = []
     for position, form in enumerate(forms, start=1):
@@ -283,7 +291,8 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
     )
     if problems:
         detail = "\n  ".join(problems)
-        raise PettaError(f"the manifest {str(path)!r} does not boot:\n  {detail}")
+        msg = f"the manifest {str(path)!r} does not boot:\n  {detail}"
+        raise PettaError(msg)
     return directives
 
 

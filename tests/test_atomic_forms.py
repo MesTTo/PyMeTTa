@@ -14,7 +14,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -97,7 +97,8 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
     # Two answers write and then the body raises: both writes go, and the
     # rollback does not swallow the exception.
     def blow():
-        raise RuntimeError("the host operation failed")
+        msg = "the host operation failed"
+        raise RuntimeError(msg)
 
     three.register_op(blow, name="petta-blow")
     three.run(
@@ -156,7 +157,8 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
 
     # A raise rolls back and is not swallowed.
     def blow():
-        raise RuntimeError("the host operation failed")
+        msg = "the host operation failed"
+        raise RuntimeError(msg)
 
     three.register_op(blow, name="petta-a-blow")
     three.run(

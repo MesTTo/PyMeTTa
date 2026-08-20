@@ -5,7 +5,7 @@ enumeration holds under concurrent writers.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from concurrent.futures import ThreadPoolExecutor

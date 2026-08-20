@@ -5,7 +5,7 @@ reader, alpha-equivalence being an equivalence, and unification soundness.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import sys

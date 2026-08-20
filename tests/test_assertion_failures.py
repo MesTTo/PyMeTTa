@@ -10,7 +10,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -33,7 +33,8 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
     # An engine fault: a host exception crossing back out of an operation.
     # Whatever else it is, it must not be an assertion failure.
     def boom():
-        raise RuntimeError("the op broke")
+        msg = "the op broke"
+        raise RuntimeError(msg)
 
     m.register_op(boom, name="petta-broken-op")
     with pytest.raises(EngineError) as fault:

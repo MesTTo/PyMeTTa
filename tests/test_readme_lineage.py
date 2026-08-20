@@ -4,7 +4,7 @@ this is, where the canonical home is, and what this branch adds.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations

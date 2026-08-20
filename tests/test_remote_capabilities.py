@@ -3,7 +3,7 @@ speaks can actually carry them.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ def _store_transport(store: list):
             return {"removed": True}
         if operation in ("match", "atoms"):
             return {"atoms": [atom.to_wire() for atom in store]}
-        raise AssertionError(f"the wire has no {operation} operation")
+        msg = f"the wire has no {operation} operation"
+        raise AssertionError(msg)
 
     return transport
 

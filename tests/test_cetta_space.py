@@ -4,7 +4,7 @@ conformance kit and driven from MeTTa source.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

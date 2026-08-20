@@ -29,7 +29,7 @@ Decides:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -165,7 +165,8 @@ def _preimages(name: str, result: Any):
     if op.inverse is None:
         # Only an operation whose clause carries the mode test can reach here,
         # so the two registries disagreeing is a bug rather than a user error.
-        raise PettaError(f"{name} was called backwards and declares no inverse")
+        msg = f"{name} was called backwards and declares no inverse"
+        raise PettaError(msg)
     try:
         answers = op.inverse(result)
     except Decline:
@@ -265,10 +266,13 @@ def _refuse_raw_answer(value: Any) -> Any:
     wire, so the operation drops raw=True.
     """
     if isinstance(value, Answer):
-        raise PettaError(
+        msg = (
             "a raw operation answered petta.Answer; raw results skip the "
             "wire the bindings cross on, so register the operation without "
             "raw=True to answer bindings"
+        )
+        raise PettaError(
+            msg
         )
     return value
 
@@ -309,7 +313,8 @@ def unregister_protocol_type(predicate: Callable[[Any], bool], name: str) -> Non
             if registered_predicate is predicate and registered_name == name:
                 PROTOCOL_TYPES.pop(index)
                 return
-    raise KeyError(f"no object type protocol {name!r} uses that predicate")
+    msg = f"no object type protocol {name!r} uses that predicate"
+    raise KeyError(msg)
 
 
 def extra_types(obj) -> list[str]:
@@ -323,7 +328,8 @@ def extra_types(obj) -> list[str]:
         except Exception as exc:
             # A broken probe is the registrant's bug: surface it with the
             # protocol's name attached, never as a type quietly missing.
+            msg = f"the type predicate for protocol {name!r} raised on {type(obj).__name__}: {exc}"
             raise RuntimeError(
-                f"the type predicate for protocol {name!r} raised on {type(obj).__name__}: {exc}"
+                msg
             ) from exc
     return names

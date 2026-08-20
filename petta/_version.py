@@ -2,7 +2,7 @@
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 __version__ = "0.2.0"

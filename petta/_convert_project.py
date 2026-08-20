@@ -8,7 +8,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -110,7 +110,8 @@ def _project_unregistered(value: Any, cls: type) -> Projected:
         return Projected(val(value), ())
     atom = hook()
     if not isinstance(atom, Atom):
-        raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
+        msg = f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom"
+        raise TypeError(msg)
     return Projected(atom, ())
 
 
@@ -176,7 +177,8 @@ def explicit_projection(value: Any) -> Atom | None:
         return None
     atom = hook()
     if not isinstance(atom, Atom):
-        raise TypeError(f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom")
+        msg = f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom"
+        raise TypeError(msg)
     return atom
 
 
@@ -186,11 +188,14 @@ def _project_registered(value: Any, cls: type, registration: _Registration) -> P
     if registration.image == "handle":
         return Projected(val(value), ())
     if registration.image == "operations":
-        raise TypeError(
+        msg = (
             f"{cls.__name__} is registered with the operations image: its "
             f"behaviour crosses as registered operations, not as data. Use "
             f"petta.integrate.wrap_object to register its methods, and carry "
             f"the instance with petta.val."
+        )
+        raise TypeError(
+            msg
         )
     return _project_expression(value, cls, registration)
 
@@ -226,9 +231,12 @@ def _project_symbol(value: Any, cls: type, registration: _Registration) -> Proje
 def _project_expression(value: Any, cls: type, registration: _Registration) -> Projected:
     to_atom = registration.to_atom
     if to_atom is None:
-        raise TypeError(
+        msg = (
             f"{cls.__name__} is registered as an expression but has no "
             f"to_atom; register one, or give the class __metta__"
+        )
+        raise TypeError(
+            msg
         )
     children = to_atom(value)
     if not isinstance(children, (list, tuple)):

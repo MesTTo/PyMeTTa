@@ -14,7 +14,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -53,32 +53,38 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
         return _variable_from_wire(payload)
     if tag == "o":
         return _object_from_wire(payload)
-    raise ValueError(f"unknown wire tag {tag!r}")
+    msg = f"unknown wire tag {tag!r}"
+    raise ValueError(msg)
 
 
 def _handle_from_wire(ident: Any, text: Any) -> Atom:
     if isinstance(ident, bool) or not isinstance(ident, int):
-        raise ValueError(f"wire handle id must be an integer, got {ident!r}")
+        msg = f"wire handle id must be an integer, got {ident!r}"
+        raise ValueError(msg)
     if not isinstance(text, str):
-        raise ValueError(f"wire handle text must be a string, got {text!r}")
+        msg = f"wire handle text must be a string, got {text!r}"
+        raise ValueError(msg)
     return Handle(ident, text)
 
 
 def _symbol_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
-        raise ValueError(f"wire symbol payload must be text, got {payload!r}")
+        msg = f"wire symbol payload must be text, got {payload!r}"
+        raise ValueError(msg)
     return _wire_sym(payload)
 
 
 def _string_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
-        raise ValueError(f"wire string payload must be text, got {payload!r}")
+        msg = f"wire string payload must be text, got {payload!r}"
+        raise ValueError(msg)
     return Gnd(payload)
 
 
 def _number_from_wire(payload: Any) -> Atom:
     if type(payload) not in (int, float):
-        raise ValueError(f"wire number payload must be numeric, got {payload!r}")
+        msg = f"wire number payload must be numeric, got {payload!r}"
+        raise ValueError(msg)
     return Gnd(payload)
 
 
@@ -87,12 +93,14 @@ def _boolean_from_wire(payload: Any) -> Atom:
         return Gnd(payload)
     if payload in ("true", "false"):
         return Gnd(payload == "true")
-    raise ValueError(f"wire boolean payload must be true or false, got {payload!r}")
+    msg = f"wire boolean payload must be true or false, got {payload!r}"
+    raise ValueError(msg)
 
 
 def _variable_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
-        raise ValueError(f"wire variable payload must be text, got {payload!r}")
+        msg = f"wire variable payload must be text, got {payload!r}"
+        raise ValueError(msg)
     return _wire_var(payload)
 
 
@@ -121,10 +129,13 @@ class Undefined:
         self.residual = residual
 
     def __bool__(self) -> bool:
-        raise PettaError(
+        msg = (
             f"this answer's truth is undefined ({self.why}); branch on "
             f".value and .why explicitly instead of treating it as a "
             f"boolean"
+        )
+        raise PettaError(
+            msg
         )
 
     def __eq__(self, other: object) -> bool:
@@ -144,7 +155,8 @@ class Undefined:
 
 def _expression_children(payload: Any) -> list | tuple:
     if not isinstance(payload, (list, tuple)):
-        raise ValueError(f"wire expression payload must be a list, got {payload!r}")
+        msg = f"wire expression payload must be a list, got {payload!r}"
+        raise ValueError(msg)
     return payload
 
 
@@ -190,21 +202,25 @@ def _expression_from_wire(payload: Any) -> Expr:
         items = pending.items
         for child in children:
             if not isinstance(child, seq):
-                raise ValueError(f"malformed wire term: {child!r}")
+                msg = f"malformed wire term: {child!r}"
+                raise ValueError(msg)
             if len(child) != 2:
                 # The one three-element wire is a native handle reference.
                 if len(child) == 3 and child[0] == "h":
                     items.append(_handle_from_wire(child[1], child[2]))
                     continue
-                raise ValueError(f"malformed wire term: {child!r}")
+                msg = f"malformed wire term: {child!r}"
+                raise ValueError(msg)
             tag, payload = child
             if tag == "s":
                 if not isinstance(payload, str):
-                    raise ValueError(f"wire symbol payload must be text, got {payload!r}")
+                    msg = f"wire symbol payload must be text, got {payload!r}"
+                    raise ValueError(msg)
                 items.append(wire_sym(payload))
             elif tag == "n":
                 if type(payload) not in (int, float):
-                    raise ValueError(f"wire number payload must be numeric, got {payload!r}")
+                    msg = f"wire number payload must be numeric, got {payload!r}"
+                    raise ValueError(msg)
                 items.append(gnd(payload))
             elif tag == "g":
                 items.append(string_from_wire(payload))
@@ -221,7 +237,8 @@ def from_wire(wire: Any) -> Atom | Undefined:
     bug that must surface rather than coerce.
     """
     if not isinstance(wire, (list, tuple)):
-        raise ValueError(f"malformed wire term: {wire!r}")
+        msg = f"malformed wire term: {wire!r}"
+        raise ValueError(msg)
     # The u tag wraps a whole answer whose truth is undefined; it never
     # nests inside expressions, so it is handled at the entry alone.
     match wire:
@@ -236,15 +253,19 @@ def from_wire(wire: Any) -> Atom | Undefined:
         case [tag, payload]:
             return _leaf_from_wire(tag, payload)
         case _:
-            raise ValueError(f"malformed wire term: {wire!r}")
+            msg = f"malformed wire term: {wire!r}"
+            raise ValueError(msg)
 
 
 def atom_from_wire(wire: Any) -> Atom:
     """Decode a wire value where the protocol requires a definite atom."""
     value = from_wire(wire)
     if isinstance(value, Undefined):
-        raise ValueError(
+        msg = (
             "undefined truth is valid only as a complete evaluation answer, "
             "not where the wire protocol requires an atom"
+        )
+        raise ValueError(
+            msg
         )
     return value

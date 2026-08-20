@@ -14,7 +14,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -150,8 +150,9 @@ class EngineRegistry:
         if not isinstance(raw, (list, tuple)) or any(
             isinstance(value, bool) or not isinstance(value, int) for value in raw
         ):
+            msg = f"engine arity registry returned an invalid list for {name!r}: {raw!r}"
             raise EngineError(
-                f"engine arity registry returned an invalid list for {name!r}: {raw!r}"
+                msg
             )
         result = frozenset(raw)
         self._arities[name] = result

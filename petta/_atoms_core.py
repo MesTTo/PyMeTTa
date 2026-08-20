@@ -41,7 +41,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -74,10 +74,13 @@ def _encodable(value: str) -> str:
     try:
         value.encode("utf-8")
     except UnicodeEncodeError as exc:
-        raise ValueError(
+        msg = (
             f"this string cannot cross to the engine: it contains an unpaired "
             f"surrogate at position {exc.start}, which has no UTF-8 encoding. "
             f"Repair the text, or carry it whole with petta.val(text)."
+        )
+        raise ValueError(
+            msg
         ) from None
     return value
 
@@ -166,10 +169,13 @@ class Box:
         return self
 
     def __reduce__(self):
-        raise TypeError(
+        msg = (
             "a petta Box carries process-local object identity and cannot be "
             "pickled; serialize the underlying value explicitly if identity "
             "is not part of its meaning"
+        )
+        raise TypeError(
+            msg
         )
 
 
@@ -224,7 +230,8 @@ def unregister_object_repr(kind: type) -> None:
     """
     with _STATE_LOCK:
         if kind not in _OBJECT_REPRS:
-            raise KeyError(f"no object repr is registered for {kind.__qualname__}")
+            msg = f"no object repr is registered for {kind.__qualname__}"
+            raise KeyError(msg)
         del _OBJECT_REPRS[kind]
 
 
@@ -246,7 +253,8 @@ def unregister_object_repr_protocol(
             if registered_predicate is predicate and registered_fn is fn:
                 _PROTOCOL_REPRS.pop(index)
                 return
-    raise KeyError("no protocol repr is registered for those exact callables")
+    msg = "no protocol repr is registered for those exact callables"
+    raise KeyError(msg)
 
 
 def _float_text(value: float) -> str:
@@ -304,8 +312,9 @@ def _object_str(value: Any) -> str:
             if predicate(value):
                 return protocol_formatter(value)
         except Exception as exc:
+            msg = f"a registered object repr raised on {type(value).__name__}: {exc}"
             raise RuntimeError(
-                f"a registered object repr raised on {type(value).__name__}: {exc}"
+                msg
             ) from exc
     return f"<{type(value).__name__}>"
 
@@ -328,10 +337,12 @@ class Atom:
     # so the runtime is unchanged and the static story stops being a lie.
     @property
     def children(self) -> tuple[Atom, ...]:
-        raise TypeError(f"{self!r} is a leaf atom and has no children")
+        msg = f"{self!r} is a leaf atom and has no children"
+        raise TypeError(msg)
 
     def __len__(self) -> int:
-        raise TypeError(f"{self!r} is a leaf atom and has no length")
+        msg = f"{self!r} is a leaf atom and has no length"
+        raise TypeError(msg)
 
     # Declaring __len__ above would otherwise route bool() through it and
     # make every leaf atom raise where it used to be truthy. Expr overrides
@@ -340,10 +351,12 @@ class Atom:
         return True
 
     def __iter__(self) -> Iterator[Atom]:
-        raise TypeError(f"{self!r} is a leaf atom and is not iterable")
+        msg = f"{self!r} is a leaf atom and is not iterable"
+        raise TypeError(msg)
 
     def __getitem__(self, i: int | slice) -> Any:
-        raise TypeError(f"{self!r} is a leaf atom and is not indexable")
+        msg = f"{self!r} is a leaf atom and is not indexable"
+        raise TypeError(msg)
 
     # Term-building operators, the query-builder lesson: arithmetic and
     # order comparisons on symbols, variables and expressions CONSTRUCT the
@@ -447,10 +460,12 @@ class Atom:
         return Expr([Sym("not"), self.eq(other)])
 
     def __setattr__(self, *_: Any) -> None:
-        raise AttributeError("atoms are immutable")
+        msg = "atoms are immutable"
+        raise AttributeError(msg)
 
     def __delattr__(self, *_: Any) -> None:
-        raise AttributeError("atoms are immutable")
+        msg = "atoms are immutable"
+        raise AttributeError(msg)
 
     def __copy__(self) -> Atom:
         return self
@@ -477,16 +492,20 @@ class Atom:
         )
 
     def __int__(self) -> int:
-        raise self._not_a("int")
+        msg = "int"
+        raise self._not_a(msg)
 
     def __float__(self) -> float:
-        raise self._not_a("float")
+        msg = "float"
+        raise self._not_a(msg)
 
     def __complex__(self) -> complex:
-        raise self._not_a("complex")
+        msg = "complex"
+        raise self._not_a(msg)
 
     def __index__(self) -> int:
-        raise self._not_a("int")
+        msg = "int"
+        raise self._not_a(msg)
 
     def __format__(self, spec: str) -> str:
         return str(self) if not spec else format(str(self), spec)
@@ -628,9 +647,12 @@ class Handle(Atom):
         return hash(("handle", self.ident))
 
     def __reduce__(self):
-        raise TypeError(
+        msg = (
             "a native handle has process-local identity and cannot be "
             "pickled; read it out through its extension's accessors instead"
+        )
+        raise TypeError(
+            msg
         )
 
     def to_wire(self) -> list:
@@ -721,9 +743,12 @@ class Gnd(Atom):
 
     def __reduce__(self):
         if not _is_primitive(self.value):
-            raise TypeError(
+            msg = (
                 "a grounded opaque object has process-local identity and "
                 "cannot be pickled; encode a stable value instead"
+            )
+            raise TypeError(
+                msg
             )
         return Gnd, (self.value,)
 
@@ -868,9 +893,12 @@ class Gnd(Atom):
     def _number(self, target: str) -> int | float:
         v = self.value
         if isinstance(v, bool) or not isinstance(v, (int, float)):
-            raise TypeError(
+            msg = (
                 f"cannot read {self} as a Python {target}: it is not a Number "
                 f"in MeTTa. int(atom.value) is how to say parse this text."
+            )
+            raise TypeError(
+                msg
             )
         return v
 
@@ -886,7 +914,8 @@ class Gnd(Atom):
     def __index__(self) -> int:
         v = self.value
         if isinstance(v, bool) or not isinstance(v, int):
-            raise self._not_a("int")
+            msg = "int"
+            raise self._not_a(msg)
         return v
 
     def __format__(self, spec: str) -> str:
@@ -1030,9 +1059,12 @@ class Expr(Atom):
             "not",
             "xor",
         ):
-            raise TypeError(
+            msg = (
                 f"{self} is a comparison TERM, not a truth value; evaluate "
                 f"it (space.eval) or use it as a guard (where=...)"
+            )
+            raise TypeError(
+                msg
             )
         return True
 
@@ -1116,8 +1148,9 @@ def _encode_value(value: Any) -> Atom:
     if hook is not None:
         result = hook()
         if not isinstance(result, Atom):
+            msg = f"__metta__ on {type(value).__name__} returned {type(result).__name__}, not an Atom"
             raise TypeError(
-                f"__metta__ on {type(value).__name__} returned {type(result).__name__}, not an Atom"
+                msg
             )
         return result
     return Gnd(value)

@@ -4,7 +4,7 @@ raises KeyboardInterrupt promptly instead of queueing until the goal ends.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

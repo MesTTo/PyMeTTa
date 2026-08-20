@@ -6,7 +6,7 @@ check.sh cetta lane's job; this proves the machinery discriminates.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

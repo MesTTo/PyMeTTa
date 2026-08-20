@@ -5,7 +5,7 @@ optional dependency (torch) skips exactly when the dependency is absent.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import re

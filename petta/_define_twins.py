@@ -10,7 +10,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -46,7 +46,8 @@ class TwinDispatcher:
                 return clause(*args)
             except _ClauseMiss:
                 continue
-        raise LookupError(f"{self.name}: no clause's head matches {args!r}")
+        msg = f"{self.name}: no clause's head matches {args!r}"
+        raise LookupError(msg)
 
     @property
     def __name__(self) -> str:
@@ -90,10 +91,13 @@ def hazard_twin(
 
     def unrunnable(*_args, **_kwargs):
         reasons = ", ".join(sorted(hazards))
-        raise RuntimeError(
+        msg = (
             f"{name}.py cannot run this clause in Python: its body uses "
             f"{reasons}, which exist only in the engine. Evaluate through "
             f"the space instead: m.eval({name}(...))."
+        )
+        raise RuntimeError(
+            msg
         )
 
     unrunnable.__name__ = name
@@ -181,8 +185,9 @@ def _guard_twin(
         for position, value in zip(order, args, strict=False):
             expected = patterns.get(position)
             if expected is not None and expected != value:
+                msg = f"{name}: this clause's head matches {position}={expected}, not {value!r}"
                 raise _ClauseMiss(
-                    f"{name}: this clause's head matches {position}={expected}, not {value!r}"
+                    msg
                 )
         return twin(*args)
 

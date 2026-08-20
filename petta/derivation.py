@@ -98,14 +98,18 @@ class Derivation:
             and _headed(tree, "derivation")
             and len(tree) >= 2
         ):
-            raise ValueError(
+            msg = (
                 f"malformed derivation node {tree}: expected "
                 f"(derivation (answer Call Out) Step...)"
             )
+            raise ValueError(
+                msg
+            )
         answer_expr = tree[1]
         if not (_headed(answer_expr, "answer") and len(answer_expr) == 3):
+            msg = f"malformed answer node {answer_expr}: expected (answer Call Out)"
             raise ValueError(
-                f"malformed answer node {answer_expr}: expected (answer Call Out)"
+                msg
             )
         call, out = answer_expr[1], answer_expr[2]
         children = tuple(_node(c) for c in tree.children[2:])
@@ -182,13 +186,17 @@ def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
 
 def _step_node(node: Expr) -> Step:
     if len(node) < 3:
-        raise ValueError(
+        msg = (
             f"malformed step node {node}: expected "
             f"(step (call Call Out) Equation Child...)"
         )
+        raise ValueError(
+            msg
+        )
     call_expr = node[1]
     if not (_headed(call_expr, "call") and len(call_expr) == 3):
-        raise ValueError(f"malformed call node {call_expr}: expected (call Call Out)")
+        msg = f"malformed call node {call_expr}: expected (call Call Out)"
+        raise ValueError(msg)
     call, out = call_expr[1], call_expr[2]
     children = tuple(_node(child) for child in node.children[3:])
     return Step(call=call, answer=out, equation=node[2], children=children)
@@ -196,7 +204,8 @@ def _step_node(node: Expr) -> Step:
 
 def _fact_node(node: Expr) -> Fact:
     if len(node) != 3:
-        raise ValueError(f"malformed fact node {node}: expected (fact Space Atom)")
+        msg = f"malformed fact node {node}: expected (fact Space Atom)"
+        raise ValueError(msg)
     space = node[1]
     name = space.name if isinstance(space, Sym) else str(space)
     return Fact(space=name, atom=node[2])
@@ -208,7 +217,8 @@ def _text_node(
     constructor: Callable[[str], Node],
 ) -> Node:
     if len(node) != 2:
-        raise ValueError(f"malformed {name} node {node}: expected ({name} Text)")
+        msg = f"malformed {name} node {node}: expected ({name} Text)"
+        raise ValueError(msg)
     payload = node[1]
     text = payload.value if isinstance(payload, Gnd) else str(payload)
     return constructor(str(text))
@@ -223,8 +233,9 @@ def _node(e: Atom) -> Node:
         return _text_node(e, "builtin", Builtin)
     if _headed(e, "truncated"):
         return _text_node(e, "truncated", Truncated)
+    msg = f"malformed derivation node {e}: expected step, fact, builtin, or truncated"
     raise ValueError(
-        f"malformed derivation node {e}: expected step, fact, builtin, or truncated"
+        msg
     )
 
 

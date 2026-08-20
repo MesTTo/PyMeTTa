@@ -29,7 +29,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -303,15 +303,18 @@ def _parse(text: str) -> dict[str, tuple[list[str], str]]:
             pairs = []
         elif line.startswith("### "):
             if name is None:
-                raise ValueError(f"verdict before any system: {line!r}")
+                msg = f"verdict before any system: {line!r}"
+                raise ValueError(msg)
             result[name] = (sorted(pairs), line[4:].strip())
             name = None
         elif line.strip():
             if name is None:
-                raise ValueError(f"pair outside a system: {line!r}")
+                msg = f"pair outside a system: {line!r}"
+                raise ValueError(msg)
             pairs.append(line)
     if name is not None:
-        raise ValueError(f"system {name} has no verdict line")
+        msg = f"system {name} has no verdict line"
+        raise ValueError(msg)
     return result
 
 

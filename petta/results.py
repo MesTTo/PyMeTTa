@@ -26,7 +26,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -126,8 +126,9 @@ class Row(tuple):
         try:
             return self[type(self)._columns.index(name)]
         except ValueError:
+            msg = f"no column {name!r}; columns are {list(type(self)._columns)}"
             raise AttributeError(
-                f"no column {name!r}; columns are {list(type(self)._columns)}"
+                msg
             ) from None
 
     def __getitem__(self, key):
@@ -139,8 +140,9 @@ class Row(tuple):
             try:
                 key = type(self)._columns.index(key)
             except ValueError:
+                msg = f"no column {key!r}; columns are {list(type(self)._columns)}"
                 raise KeyError(
-                    f"no column {key!r}; columns are {list(type(self)._columns)}"
+                    msg
                 ) from None
         return tuple.__getitem__(self, key)
 
@@ -194,8 +196,9 @@ class Rows(UserList[Row]):
         columns = tuple(columns)
         duplicates = [name for i, name in enumerate(columns) if name in columns[:i]]
         if duplicates:
+            msg = f"Rows column names must be unique; duplicate names: {duplicates}"
             raise ValueError(
-                f"Rows column names must be unique; duplicate names: {duplicates}"
+                msg
             )
         self.columns = columns
         self._query = _query
@@ -206,8 +209,9 @@ class Rows(UserList[Row]):
         values = tuple(row)
         if len(values) != len(self.columns):
             location = f" row {index}" if index is not None else " row"
+            msg = f"Rows{location} has {len(values)} values for {len(self.columns)} columns"
             raise ValueError(
-                f"Rows{location} has {len(values)} values for {len(self.columns)} columns"
+                msg
             )
         return _row_class(self.columns)(values)
 
@@ -261,8 +265,9 @@ class Rows(UserList[Row]):
 
     def _addition_rows(self, other: Iterable[Iterable[Any]]) -> Iterable[Iterable[Any]]:
         if isinstance(other, Rows) and other.columns != self.columns:
+            msg = f"cannot combine Rows with columns {self.columns!r} and {other.columns!r}"
             raise ValueError(
-                f"cannot combine Rows with columns {self.columns!r} and {other.columns!r}"
+                msg
             )
         return other
 
@@ -291,8 +296,9 @@ class Rows(UserList[Row]):
             # asked for nor the ones that exist.
             close = get_close_matches(str(name), self.columns, n=1, cutoff=0.6)
             suggestion = f"; did you mean {close[0]!r}?" if close else ""
+            msg = f"no column {name!r} in {self.columns}{suggestion}"
             raise KeyError(
-                f"no column {name!r} in {self.columns}{suggestion}"
+                msg
             )
         index = self.columns.index(name)
         return [row[index] for row in self]
@@ -309,9 +315,12 @@ class Rows(UserList[Row]):
         picked an arbitrary row cannot hide.
         """
         if len(self) != 1:
-            raise EngineError(
+            msg = (
                 f"one() expected exactly one row, got {len(self)}; "
                 f"use first() for row-or-None, or iterate for all"
+            )
+            raise EngineError(
+                msg
             )
         return self[0]
 
@@ -337,8 +346,9 @@ class Rows(UserList[Row]):
             return self
         if len(errors) == 1:
             raise errors[0]
+        msg = f"{len(errors)} error atoms across {len(self)} rows"
         raise ExceptionGroup(
-            f"{len(errors)} error atoms across {len(self)} rows", errors
+            msg, errors
         )
 
     def why(self) -> str:
@@ -354,13 +364,17 @@ class Rows(UserList[Row]):
         the family.
         """
         if self:
+            msg = f"why() explains an empty query; this one returned {len(self)} row(s)"
             raise ValueError(
-                f"why() explains an empty query; this one returned {len(self)} row(s)"
+                msg
             )
         if self._query is None:
-            raise TypeError(
+            msg = (
                 "why() needs the query() result that retained its patterns; "
                 "this Rows was constructed or transformed independently"
+            )
+            raise TypeError(
+                msg
             )
         # Import after package initialization to break results -> space ->
         # results while keeping the retained context serializable.
@@ -397,8 +411,9 @@ class Rows(UserList[Row]):
         symbols and structure become their text.
         """
         if self and not self.columns:
+            msg = "table() cannot represent nonempty zero-column Rows as a column mapping"
             raise ValueError(
-                "table() cannot represent nonempty zero-column Rows as a column mapping"
+                msg
             )
 
         return {
@@ -513,9 +528,12 @@ def _into_fields(cls: type) -> dict[str, Any]:
         return {name: hints.get(name) for name in named_fields}
     if hasattr(cls, "__annotations__") and hasattr(cls, "__total__"):
         return dict(typing.get_type_hints(cls))
-    raise TypeError(
+    msg = (
         f"into= takes a dataclass, NamedTuple, or TypedDict; "
         f"{getattr(cls, '__name__', cls)!r} is none of those"
+    )
+    raise TypeError(
+        msg
     )
 
 
@@ -530,9 +548,12 @@ def rows_into(rows: Rows, cls: type) -> list:
     fields = _into_fields(cls)
     missing = [name for name in fields if name not in rows.columns]
     if missing:
-        raise TypeError(
+        msg = (
             f"{cls.__name__} needs column(s) {missing}; the query answered "
             f"{list(rows.columns)}"
+        )
+        raise TypeError(
+            msg
         )
     indices = {name: rows.columns.index(name) for name in fields}
     primitives = (str, int, float, bool)
@@ -548,12 +569,14 @@ def rows_into(rows: Rows, cls: type) -> list:
                 if annotation is float and isinstance(value, int) and not isinstance(value, bool):
                     value = float(value)
                 if isinstance(value, bool) and annotation is not bool:
+                    msg = f"column {name!r} answered {value!r}, not {annotation.__name__}"
                     raise TypeError(
-                        f"column {name!r} answered {value!r}, not {annotation.__name__}"
+                        msg
                     )
                 if not isinstance(value, annotation):
+                    msg = f"column {name!r} answered {value!r}, not {annotation.__name__}"
                     raise TypeError(
-                        f"column {name!r} answered {value!r}, not {annotation.__name__}"
+                        msg
                     )
                 kwargs[name] = value
             elif annotation is Atom or (

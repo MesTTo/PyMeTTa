@@ -7,7 +7,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from typing import Final, Literal, NewType, TypeAlias

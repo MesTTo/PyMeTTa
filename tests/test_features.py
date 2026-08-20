@@ -9,7 +9,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import dataclasses
@@ -75,7 +75,8 @@ class _SubscriptionRuntime:
         self.published.append(list(inputs["Spaces"]))
         if self.sync_failures:
             self.sync_failures -= 1
-            raise RuntimeError("injected subscription sync failure")
+            msg = "injected subscription sync failure"
+            raise RuntimeError(msg)
         return {"truth": True}
 
     def do(self, predicate, *inputs):
@@ -99,7 +100,8 @@ def _script_subscription_boundaries(monkeypatch):
         runtime.removed.set()
         if runtime.remove_failure:
             runtime.remove_failure = False
-            raise RuntimeError("injected reflection removal failure")
+            msg = "injected reflection removal failure"
+            raise RuntimeError(msg)
 
     monkeypatch.setattr(subscribe_module, "_REGISTRY", registry)
     monkeypatch.setattr(subscribe_module, "_reflect_add", reflect_add)

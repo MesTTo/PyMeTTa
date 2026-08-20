@@ -15,7 +15,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -130,16 +130,21 @@ def _arguments_for(
 def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
     documents = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     if not documents:
-        raise ValueError("cannot write an empty benchmark JSON document")
+        msg = "cannot write an empty benchmark JSON document"
+        raise ValueError(msg)
     for path, document in zip(paths, documents, strict=True):
         if not isinstance(document, dict) or not isinstance(document.get("benchmarks"), list):
-            raise ValueError(f"benchmark JSON has invalid structure: {path}")
+            msg = f"benchmark JSON has invalid structure: {path}"
+            raise ValueError(msg)
         if len(document["benchmarks"]) != 1:
-            raise ValueError(f"benchmark JSON must hold exactly one case: {path}")
+            msg = f"benchmark JSON must hold exactly one case: {path}"
+            raise ValueError(msg)
         if document.get("machine_info") != documents[0].get("machine_info"):
-            raise ValueError(f"benchmark JSON machine metadata changed: {path}")
+            msg = f"benchmark JSON machine metadata changed: {path}"
+            raise ValueError(msg)
         if document.get("commit_info") != documents[0].get("commit_info"):
-            raise ValueError(f"benchmark JSON commit metadata changed: {path}")
+            msg = f"benchmark JSON commit metadata changed: {path}"
+            raise ValueError(msg)
     merged: dict[str, Any] = documents[0]
     updated = {
         benchmark["name"]: benchmark
@@ -149,7 +154,8 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
     if target.exists():
         existing = json.loads(target.read_text(encoding="utf-8"))
         if not isinstance(existing, dict) or not isinstance(existing.get("benchmarks"), list):
-            raise ValueError(f"benchmark JSON has invalid structure: {target}")
+            msg = f"benchmark JSON has invalid structure: {target}"
+            raise ValueError(msg)
         for benchmark in existing["benchmarks"]:
             updated.setdefault(benchmark["name"], benchmark)
     merged["benchmarks"] = [updated[name] for name in sorted(updated)]

@@ -16,7 +16,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import threading
@@ -182,7 +182,8 @@ def test_imap_unordered_yields_every_result(p):
 def test_map_raises_every_failure_in_input_order(p):
     def boom(n):
         if n in (2, 5):
-            raise ValueError(f"item {n}")
+            msg = f"item {n}"
+            raise ValueError(msg)
         return n
 
     with pytest.raises(ExceptionGroup) as caught:
@@ -229,7 +230,8 @@ def test_closed_pool_refuses_work():
 def test_the_context_manager_closes_on_an_exception():
     with pytest.raises(RuntimeError), pool(workers=2) as engine_pool:
         saved = engine_pool
-        raise RuntimeError("boom")
+        msg = "boom"
+        raise RuntimeError(msg)
     assert saved.closed
 
 
@@ -242,7 +244,8 @@ def test_metta_pool_is_the_same_pool(m):
 def test_several_failures_raise_together_one_raises_plain(m):
     def half_broken(n):
         if n % 2 == 0:
-            raise ValueError(f"even {n}")
+            msg = f"even {n}"
+            raise ValueError(msg)
         return n
 
     with m.pool(workers=2) as pool:

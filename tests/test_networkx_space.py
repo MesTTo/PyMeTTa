@@ -4,7 +4,7 @@ an n-ary reading, and the whole example file runs green end to end.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import os

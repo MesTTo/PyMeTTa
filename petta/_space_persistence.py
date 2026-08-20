@@ -17,7 +17,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -107,10 +107,13 @@ def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
     and each of the four comes back a symbol of that spelling.
     """
     if not isinstance(value, Sym):
-        raise ValueError(
+        msg = (
             f"{operation} cannot write {value} as MeTTa text: its printed "
             f"form reads back as a symbol of that spelling rather than as "
             f"the value"
+        )
+        raise ValueError(
+            msg
         )
     reason = (
         "the empty symbol writes as nothing at all, so its term reads back one element shorter"
@@ -120,15 +123,19 @@ def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
             "variable, a boolean, a string, or more than one atom"
         )
     )
-    raise ValueError(f"{operation} cannot write symbol {value.name!r} as MeTTa text: {reason}")
+    msg = f"{operation} cannot write symbol {value.name!r} as MeTTa text: {reason}"
+    raise ValueError(msg)
 
 
 def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
     for atom in atoms:
         if not serializable(atom):
-            raise ValueError(
+            msg = (
                 f"{atom} carries a live Python object; a file cannot hold it. "
                 f"Remove it, or persist its data explicitly."
+            )
+            raise ValueError(
+                msg
             )
     # Which values survive a round trip is the grammar's question, so the
     # engine answers it. A blacklist kept here missed a leading $, which reads
@@ -145,18 +152,23 @@ def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
 def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
     result = rt.apply_must("petta_py_fast_save", str(temporary), space)
     if not isinstance(result, list) or len(result) != 2:
-        raise EngineError(f"petta_py_fast_save returned an invalid result: {result!r}")
+        msg = f"petta_py_fast_save returned an invalid result: {result!r}"
+        raise EngineError(msg)
     kind, value = result
     if kind == "object":
         atom = atom_from_wire(value)
-        raise ValueError(
+        msg = (
             f"{atom} carries a live Python object; a file cannot hold it. "
             f"Remove it, or persist its data explicitly."
+        )
+        raise ValueError(
+            msg
         )
     if kind == "symbol":
         raise_unsafe_text_atom(atom_from_wire(value), "save")
     if kind != "saved":
-        raise EngineError(f"petta_py_fast_save returned an unknown result: {result!r}")
+        msg = f"petta_py_fast_save returned an unknown result: {result!r}"
+        raise EngineError(msg)
     return int(value)
 
 
@@ -176,7 +188,8 @@ def save_space(
 ) -> int:
     """Validate and atomically persist one enumerated space."""
     if format not in ("metta", "fast"):
-        raise ValueError(f"save format must be 'metta' or 'fast', got {format!r}")
+        msg = f"save format must be 'metta' or 'fast', got {format!r}"
+        raise ValueError(msg)
     _validate_atoms(rt, space, atoms)
     target = Path(path)
     temporary = _temporary_sibling(target)
@@ -195,9 +208,12 @@ def _fast_header(path: str) -> list[bytes]:
         with _open_maybe_gz(path, "rb") as handle:
             actual = handle.readline(512)
     except OSError as exc:
-        raise EngineError(
+        msg = (
             f"cannot read the fast cache header from {path!r}: {exc}; "
             f"re-save the cache from its source data"
+        )
+        raise EngineError(
+            msg
         ) from exc
     if not actual.endswith(b"\n"):
         raise _cache_rejection(path, "the header is truncated or malformed")
@@ -249,10 +265,14 @@ def _load_fast(rt: Runtime, space: str, path: str, bounds: tuple[float, int]) ->
         raise
     except EngineError as exc:
         if not any(tag in str(exc) for tag in _FAST_ERRORS):
-            raise EngineError(f"fast load failed while adding atoms from {path!r}: {exc}") from exc
-        raise EngineError(
+            msg = f"fast load failed while adding atoms from {path!r}: {exc}"
+            raise EngineError(msg) from exc
+        msg = (
             f"fast load failed for {path!r}: {exc}. The cache is corrupt or "
             f"incomplete; re-save it from the source data."
+        )
+        raise EngineError(
+            msg
         ) from exc
     return []
 

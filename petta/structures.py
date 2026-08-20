@@ -33,7 +33,7 @@ Decides:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -68,10 +68,13 @@ def _as_atom(value: Any) -> Atom:
     if isinstance(value, Atom):
         return value
     if isinstance(value, str):
-        raise TypeError(
+        msg = (
             f"petta.structures never parses source text ({value!r}), because "
             f"parsing needs the engine and this module runs without one; "
             f"petta.parse() it first, or build the atom with S/V/expr"
+        )
+        raise TypeError(
+            msg
         )
     return encode(value)
 
@@ -471,9 +474,12 @@ class TabledMap:
         if arity is None:
             compiled = space.arities(name)
             if len(compiled) != 1:
-                raise PettaError(
+                msg = (
                     f"{name!r} has {len(compiled)} compiled arities; pass "
                     f"arity= to say which one this map views"
+                )
+                raise PettaError(
+                    msg
                 )
             arity = compiled[0] - 1
         self._arity = arity
@@ -482,13 +488,15 @@ class TabledMap:
         self._call_pattern = spelled
         declared = space.run(f"!(tabled {spelled})")
         if declared != [[True]]:
-            raise PettaError(f"tabling {spelled} was not accepted: {declared!r}")
+            msg = f"tabling {spelled} was not accepted: {declared!r}"
+            raise PettaError(msg)
 
     def _key(self, key: Any) -> tuple:
         parts = key if isinstance(key, tuple) else (key,)
         if len(parts) != self._arity:
+            msg = f"{self._name} takes {self._arity} argument(s), got {len(parts)}"
             raise PettaError(
-                f"{self._name} takes {self._arity} argument(s), got {len(parts)}"
+                msg
             )
         return parts
 
@@ -515,7 +523,8 @@ class TabledMap:
         """
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
         if not isinstance(answer, Expr):
-            raise PettaError(f"table-stats answered {answer!r}, not an expression")
+            msg = f"table-stats answered {answer!r}, not an expression"
+            raise PettaError(msg)
         report: dict[str, int] = {}
         for pair in answer.children:
             if isinstance(pair, Expr) and len(pair.children) == 2:
@@ -678,8 +687,9 @@ class ClosureView:
         for declared in (step, self._fn):
             accepted = space.run(f"!(tabled ({declared} $a $b))")
             if accepted != [[True]]:
+                msg = f"tabling ({declared} ...) was not accepted: {accepted!r}"
                 raise PettaError(
-                    f"tabling ({declared} ...) was not accepted: {accepted!r}"
+                    msg
                 )
 
     def __contains__(self, pair: tuple) -> bool:

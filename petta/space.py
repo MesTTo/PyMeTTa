@@ -61,7 +61,7 @@ Owns:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -209,10 +209,13 @@ def _row_values(row: Any, keys: list[Any]) -> Any:
     if not keys:
         keys.extend(row.keys())
     elif list(row.keys()) != keys:
-        raise ValueError(
+        msg = (
             f"every record must carry the same keys in the same order, "
             f"because their order fixes the fact positions; expected "
             f"{keys}, got {list(row.keys())}"
+        )
+        raise ValueError(
+            msg
         )
     return row.values()
 
@@ -220,7 +223,8 @@ def _row_values(row: Any, keys: list[Any]) -> Any:
 def _require_source(source: Any, called: str) -> None:
     """Refuse non-text source here rather than at the engine's reader."""
     if not isinstance(source, str):
-        raise TypeError(f"{called} takes MeTTa source as a string, got {source!r}")
+        msg = f"{called} takes MeTTa source as a string, got {source!r}"
+        raise TypeError(msg)
 
 
 def _require_name(name: Any, called: str) -> None:
@@ -230,7 +234,8 @@ def _require_name(name: Any, called: str) -> None:
     Prolog builtin and the tagged null `@none` instead of the argument.
     """
     if not isinstance(name, str):
-        raise TypeError(f"{called} takes a name as a string, got {name!r}")
+        msg = f"{called} takes a name as a string, got {name!r}"
+        raise TypeError(msg)
 
 
 def _source_identity(source: str | None, path: Any) -> str:
@@ -294,9 +299,12 @@ def _to_stored_atom(value: Any) -> Expr:
     atom = _to_atom(value)
     if not isinstance(atom, Expr) or not atom.children:
         detail = "the empty expression" if isinstance(atom, Expr) else atom.metatype
-        raise TypeError(
+        msg = (
             f"a stored atom is a non-empty expression; {atom!r} is {detail}. "
             f"Wrap a bare value in structure, as in (value {atom})."
+        )
+        raise TypeError(
+            msg
         )
     return atom
 
@@ -342,15 +350,21 @@ class MeTTa:
         petta_path: str | None = None,
     ) -> None:
         if not isinstance(space, str):
-            raise TypeError(
+            msg = (
                 f"a space name is a string starting with &, as in &self or "
                 f"&kb; got {space!r}"
             )
+            raise TypeError(
+                msg
+            )
         if not space.startswith("&"):
-            raise ValueError(
+            msg = (
                 f"a space name starts with &, as in &self or &kb; got {space!r}. "
                 f"The prefix is load-bearing: is-space recognises it, and a $ "
                 f"name would read back as a variable."
+            )
+            raise ValueError(
+                msg
             )
         self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
         # Recorded classes declared before any engine existed land now.
@@ -372,10 +386,13 @@ class MeTTa:
         land in the new space, silently.
         """
         if self._dropped:
-            raise PettaError(
+            msg = (
                 f"{self._name} was dropped; this handle is dead. Its name may "
                 f"already belong to another space, so writes through it would "
                 f"land there. Take a new handle from new_space() or space()."
+            )
+            raise PettaError(
+                msg
             )
         return self._name
 
@@ -444,10 +461,13 @@ class MeTTa:
 
     def __enter__(self) -> Self:
         if not self._ephemeral:
-            raise TypeError(
+            msg = (
                 f"{self._space} was not created by new_space(); only an "
                 f"anonymous space scopes to a with-block, since leaving the "
                 f"block drops it. Call drop() deliberately for a named one."
+            )
+            raise TypeError(
+                msg
             )
         return self
 
@@ -574,9 +594,12 @@ class MeTTa:
         for position, group in enumerate(groups, start=1):
             for status, answer in group:
                 if status == "not-reducible":
-                    raise StrictError(
+                    msg = (
                         f"{answer} is not reducible: no equation, builtin or "
-                        f"special form applies to it",
+                        f"special form applies to it"
+                    )
+                    raise StrictError(
+                        msg,
                         term=answer,
                         directive=position,
                     )
@@ -650,9 +673,12 @@ class MeTTa:
         profiling changes execution: this is a debugging surface.
         """
         if (extension is None) == (names is None):
-            raise ValueError(
+            msg = (
                 "profile_extension takes extension= (its registered members) "
                 "or names= (an explicit list), and needs exactly one of them"
+            )
+            raise ValueError(
+                msg
             )
         wanted = (
             [str(name) for name in names]
@@ -795,10 +821,13 @@ class MeTTa:
         elif isinstance(data, _abc.Iterable):
             rows = iter(data)
         else:
-            raise TypeError(
+            msg = (
                 f"add_table reads iter_rows(), itertuples(), a mapping of "
                 f"columns, or an iterable of rows; "
                 f"{type(data).__name__} offers none of those"
+            )
+            raise TypeError(
+                msg
             )
         facts = [
             Expr([head_atom, *(encode(value) for value in _row_values(row, keys))])
@@ -910,19 +939,24 @@ class MeTTa:
         require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
-            raise EngineError(f"petta_py_digest returned an invalid result: {result!r}")
+            msg = f"petta_py_digest returned an invalid result: {result!r}"
+            raise EngineError(msg)
         kind, value = result
         if kind == "object":
             atom = atom_from_wire(value)
-            raise ValueError(
+            msg = (
                 f"{atom} carries a live Python object; it has no "
                 f"cross-process identity to digest. Remove it, or digest "
                 f"its data explicitly."
             )
+            raise ValueError(
+                msg
+            )
         if kind == "symbol":
             raise_unsafe_text_atom(atom_from_wire(value), "digest")
         if kind != "digest":
-            raise EngineError(f"petta_py_digest returned an unknown result: {result!r}")
+            msg = f"petta_py_digest returned an unknown result: {result!r}"
+            raise EngineError(msg)
         return str(value)
 
     def __len__(self) -> int:
@@ -977,26 +1011,35 @@ class MeTTa:
             merged: list[Any] = other.atoms()
         elif isinstance(other, str):
             if other not in self.space_names():
-                raise KeyError(
+                msg = (
                     f"{other!r} is not a registered space name; "
                     f"space_names() lists them. To add atoms, pass an "
                     f"iterable: m |= [{other!r}]"
                 )
+                raise KeyError(
+                    msg
+                )
             merged = self.space(other).atoms()
         elif isinstance(other, (bytes, bytearray, _abc.Mapping)):
-            raise TypeError(
+            msg = (
                 f"|= does not read a {type(other).__name__}: add() would "
                 f"lift it into one atom, and iterating it here would read "
                 f"the same operand a second way. Use m.add(x) for one "
                 f"atom, or spell the elements: m |= list-of-atoms"
             )
+            raise TypeError(
+                msg
+            )
         elif isinstance(other, _abc.Iterable):
             merged = list(other)
         else:
-            raise TypeError(
+            msg = (
                 f"|= merges a space, a registered space name, or an "
                 f"iterable of atoms; {type(other).__name__} is none of "
                 f"those"
+            )
+            raise TypeError(
+                msg
             )
         self.add(*merged)
         return self
@@ -1017,9 +1060,12 @@ class MeTTa:
         set and stream() for rows pulled until you have seen enough.
         """
         if isinstance(pattern, slice):
-            raise TypeError(
+            msg = (
                 "a space cannot be sliced; query(limit=n) bounds the "
                 "answer set, stream() pulls rows until you stop"
+            )
+            raise TypeError(
+                msg
             )
         if isinstance(pattern, tuple):
             return self.query(*pattern)
@@ -1174,9 +1220,12 @@ class MeTTa:
                 raise original from error
             raise
         if not row:
-            raise EngineError(
+            msg = (
                 "the transaction goal failed without an exception, which "
                 "petta_py_transaction does not do on purpose"
+            )
+            raise EngineError(
+                msg
             )
         return cast("_R", row["R"])
 
@@ -1758,9 +1807,12 @@ class MeTTa:
             "petta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
         )
         if not row:
-            raise PettaError(
+            msg = (
                 f"{name!r} has no compiled clauses here; is_function() "
                 f"tells whether the engine knows the name at all"
+            )
+            raise PettaError(
+                msg
             )
         return str(row["Text"])
 
@@ -1846,8 +1898,9 @@ class MeTTa:
         after it lands.
         """
         if (source is None) == (path is None):
+            msg = "register_prolog takes exactly one of source or path"
             raise ValueError(
-                "register_prolog takes exactly one of source or path"
+                msg
             )
         if isinstance(names, _abc.Mapping):
             return self._register_renamed(path, names)
@@ -1907,7 +1960,7 @@ class MeTTa:
         )
         declares = str(self._rt.must(goal, **inputs)["Declares"])
         if declares == "nothing":
-            raise ValueError(
+            msg = (
                 "register_prolog needs one of three things: the names to "
                 'register, a :- metta_export("...") declaration for a '
                 "source that defines functions, or a "
@@ -1915,6 +1968,9 @@ class MeTTa:
                 "contributes clauses to a seam and exports nothing, such "
                 "as a space provider. Discovering the names would "
                 "silently register whatever else the source defines"
+            )
+            raise ValueError(
+                msg
             )
         return declares
 
@@ -1936,9 +1992,12 @@ class MeTTa:
         with the list of what it does export.
         """
         if path is None:
-            raise ValueError(
+            msg = (
                 "renaming imports a Prolog MODULE, which SWI's import list "
                 "names as a file, so it needs path= rather than source="
+            )
+            raise ValueError(
+                msg
             )
         pairs = []
         for exported, metta_name in renames.items():
@@ -1965,7 +2024,8 @@ class MeTTa:
         if path is not None:
             source_path = os.fspath(path)
             if not Path(source_path).is_file():
-                raise SourceNotFound(f"no Prolog source at {source_path!r}")
+                msg = f"no Prolog source at {source_path!r}"
+                raise SourceNotFound(msg)
             self._rt.consult(source_path)
             return source_path
         # The name the load runs under, not a constant. A declaration inside
@@ -1981,11 +2041,14 @@ class MeTTa:
         row = self._rt.must("petta_py_declared_exports(Source, Names)", Source=origin)
         declared = tuple(str(name) for name in row.get("Names", []))
         if not declared:
-            raise ValueError(
+            msg = (
                 "register_prolog needs the names to register, or a "
                 ':- metta_export("...") declaration in the source. '
                 "Discovering them would silently register whatever else "
                 "the source defines"
+            )
+            raise ValueError(
+                msg
             )
         return declared
 
@@ -2026,7 +2089,8 @@ class MeTTa:
         # loader wanted anyway.
         resolved = str(Path(os.fspath(path)).resolve())
         if not Path(resolved).is_file():
-            raise SourceNotFound(f"no compiled library at {resolved!r}")
+            msg = f"no compiled library at {resolved!r}"
+            raise SourceNotFound(msg)
         load = (
             f"use_foreign_library('{resolved}')"
             if entry is None
@@ -2267,15 +2331,19 @@ class MeTTa:
         """
         if prolog is not None:
             if fn is not None:
-                raise TypeError(
+                msg = (
                     "define(prolog=...) is applied as a decorator, so the "
                     "function comes from the definition below it"
+                )
+                raise TypeError(
+                    msg
                 )
             return lambda function: install_prolog_define(self, function, prolog, name)
         if fn is None:
             if name is None:
+                msg = "define takes a function, or name= or prolog= and then one"
                 raise TypeError(
-                    "define takes a function, or name= or prolog= and then one"
+                    msg
                 )
             return lambda function: install_define(self, function, name)
         # The annotation widened to Callable so the overloads can carry the
@@ -2382,17 +2450,23 @@ class MeTTa:
         from &petta withdraws the declaration.
         """
         if fidelity not in FIDELITY:
-            raise ValueError(
+            msg = (
                 f"fidelity is one of {', '.join(FIDELITY)}, "
                 f"not {fidelity!r}: it is the declared claim the router "
                 f"acts on, so an unknown word would silently declare "
                 f"nothing"
             )
-        if det is not None and det not in DETERMINISM:
             raise ValueError(
+                msg
+            )
+        if det is not None and det not in DETERMINISM:
+            msg = (
                 f"det is one of {', '.join(DETERMINISM)}, not {det!r}: the "
                 f"same vocabulary declare_function_determinism uses "
                 f"everywhere else"
+            )
+            raise ValueError(
+                msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         children = [Sym("handles"), Sym(str(name)), shape, Sym(fidelity)]
@@ -2421,10 +2495,13 @@ class MeTTa:
         never meets two disagreeing atoms.
         """
         if semiring not in SEMIRING:
-            raise ValueError(
+            msg = (
                 f"semiring is one of {', '.join(SEMIRING)}, "
                 f"not {semiring!r}: it decides how annotations combine and "
                 f"compare, so an unknown word would silently declare nothing"
+            )
+            raise ValueError(
+                msg
             )
         previous = Expr([Sym("annotations"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2454,8 +2531,9 @@ class MeTTa:
         kit checks by enumerating twice.
         """
         if kind not in SOURCE_KIND:
+            msg = f"kind is one of {', '.join(SOURCE_KIND)}, not {kind!r}"
             raise ValueError(
-                f"kind is one of {', '.join(SOURCE_KIND)}, not {kind!r}"
+                msg
             )
         previous = Expr([Sym("source"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2488,8 +2566,9 @@ class MeTTa:
         said nothing about the data.
         """
         if mode not in ON_ERROR_MODE:
+            msg = f"mode is one of {', '.join(ON_ERROR_MODE)}, not {mode!r}"
             raise ValueError(
-                f"mode is one of {', '.join(ON_ERROR_MODE)}, not {mode!r}"
+                msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expr([Sym("on-error"), Sym(str(name)), shape, Sym(mode)])
@@ -2514,8 +2593,9 @@ class MeTTa:
         without. Shapes route most-specific-first as everywhere.
         """
         if policy not in ANSWER_POLICY:
+            msg = f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
             raise ValueError(
-                f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
+                msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expr([Sym("merge"), shape, Sym(policy)])
@@ -2538,8 +2618,9 @@ class MeTTa:
         are the engine's own database and closed by construction.
         """
         if world not in WORLD:
+            msg = f"world is one of {', '.join(WORLD)}, not {world!r}"
             raise ValueError(
-                f"world is one of {', '.join(WORLD)}, not {world!r}"
+                msg
             )
         previous = Expr([Sym("context"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2613,7 +2694,8 @@ class MeTTa:
     def declare_capacity(self, name: str, limit: int) -> Atom:
         """Bound a pool: an add beyond LIMIT atoms is refused loudly."""
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
-            raise ValueError(f"capacity is a positive integer, not {limit!r}")
+            msg = f"capacity is a positive integer, not {limit!r}"
+            raise ValueError(msg)
         previous = Expr([Sym("capacity"), Sym(str(name)), Var("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
@@ -2647,9 +2729,12 @@ class MeTTa:
         the declaration exists to replace.
         """
         if atomicity not in ATOMICITY:
-            raise ValueError(
+            msg = (
                 f"atomicity is one of {', '.join(ATOMICITY)}, "
                 f"not {atomicity!r}"
+            )
+            raise ValueError(
+                msg
             )
         previous = Expr([Sym("writes"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2676,8 +2761,9 @@ class MeTTa:
         which is how the ENGINE merges answers across several contexts.
         """
         if policy not in ANSWER_POLICY:
+            msg = f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
             raise ValueError(
-                f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
+                msg
             )
         previous = Expr([Sym("emits"), Sym(str(name)), Var("old")])
         self._rt.once(

@@ -12,7 +12,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -173,7 +173,8 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):
 
 def test_an_op_authors_exception_stays_wrapped(metta):
     def moodyop(x):
-        raise ValueError("nope")
+        msg = "nope"
+        raise ValueError(msg)
 
     metta.register_op(moodyop)
     try:

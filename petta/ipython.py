@@ -8,7 +8,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 
     %load_ext petta.ipython
 

@@ -7,7 +7,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -152,9 +152,12 @@ def _bounded_product(alternative_lists: list[list[Atom]], described: str):
     for alternatives in alternative_lists:
         total *= max(1, len(alternatives))
         if total > limit:
-            raise TypeError(
+            msg = (
                 f"{described} expands to over {limit} superposed combinations; "
                 "simplify the Unions, or register with typed=False and declare by hand"
+            )
+            raise TypeError(
+                msg
             )
     return itertools.product(*alternative_lists)
 
@@ -228,7 +231,10 @@ def resolved_annotations(fn: Callable) -> dict[str, Any]:
     try:
         return typing.get_type_hints(fn)
     except Exception as exc:
-        raise TypeError(
+        msg = (
             f"the annotations of {callable_name(fn)} do not resolve "
             f"({exc}); a declared type must name something importable"
+        )
+        raise TypeError(
+            msg
         ) from exc

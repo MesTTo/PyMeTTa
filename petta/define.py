@@ -10,7 +10,7 @@ body is pure atoms that any evaluator can take whole.
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -134,8 +134,9 @@ class Defined(Generic[_P, _R]):
 
     def __call__(self, *args: Any) -> Expr:
         if len(args) != len(self.params):
+            msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(
-                f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
+                msg
             )
         return Expr([Sym(self.name), *(encode(a) for a in args)])
 
@@ -232,26 +233,32 @@ def compile_function(
     author wrote.
     """
     if not isinstance(fn, types.FunctionType):
-        raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
+        msg = f"define expects a Python function, got {type(fn).__name__}"
+        raise TypeError(msg)
     try:
         source = textwrap.dedent(inspect.getsource(fn))
     except (OSError, TypeError) as exc:
-        raise CompileError(
+        msg = (
             f"the source of {fn.__name__} is not available, so it cannot be "
             f"compiled. Define it in a file rather than a bare REPL, or write "
-            f"the equation as MeTTa source with m.run.",
+            f"the equation as MeTTa source with m.run."
+        )
+        raise CompileError(
+            msg,
             construct="source",
         ) from exc
 
     tree = ast.parse(source)
     definition = tree.body[0]
     if not isinstance(definition, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        msg = f"{fn.__name__} is not a function definition"
         raise CompileError(
-            f"{fn.__name__} is not a function definition", construct="def"
+            msg, construct="def"
         )
     if isinstance(definition, ast.AsyncFunctionDef):
+        msg = "an async function has no MeTTa equation; register it as an operation instead"
         raise CompileError(
-            "an async function has no MeTTa equation; register it as an operation instead",
+            msg,
             construct="async def",
             line=definition.lineno,
         )
@@ -310,9 +317,12 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
     """
     a = node.args
     if a.vararg or a.kwarg or a.kwonlyargs or a.posonlyargs:
-        raise CompileError(
+        msg = (
             "a compiled function takes plain positional parameters; *args, "
-            "**kwargs and keyword-only parameters have no MeTTa equivalent",
+            "**kwargs and keyword-only parameters have no MeTTa equivalent"
+        )
+        raise CompileError(
+            msg,
             construct="arguments",
             line=node.lineno,
         )
@@ -323,10 +333,13 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
             isinstance(default, ast.Constant)
             and isinstance(default.value, (bool, int, float, str))
         ):
-            raise CompileError(
+            msg = (
                 "a default here is a head pattern, so it must be a literal: "
                 "def fib(n=0) makes an equation matching 0. For an optional "
-                "argument, define two functions or register an operation.",
+                "argument, define two functions or register an operation."
+            )
+            raise CompileError(
+                msg,
                 construct="defaults",
                 line=node.lineno,
             )

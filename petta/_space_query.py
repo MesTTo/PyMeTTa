@@ -11,7 +11,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -81,9 +81,11 @@ def _validate_limit(limit: int | None) -> None:
     # "'<=' not supported between instances of 'str' and 'int'", which names
     # neither the argument nor the call.
     if isinstance(limit, bool) or not isinstance(limit, int):
-        raise TypeError(f"limit must be a positive int or None, got {limit!r}")
+        msg = f"limit must be a positive int or None, got {limit!r}"
+        raise TypeError(msg)
     if limit <= 0:
-        raise ValueError(f"limit must be positive, got {limit}")
+        msg = f"limit must be positive, got {limit}"
+        raise ValueError(msg)
 
 
 def _execute_query(

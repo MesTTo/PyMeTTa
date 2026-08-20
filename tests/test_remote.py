@@ -18,7 +18,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import logging
@@ -151,7 +151,8 @@ def test_remote_connect_refuses_embedded_credentials_without_echoing_them():
 
 def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):
     def fail_attach():
-        raise RuntimeError("injected remote attach failure")
+        msg = "injected remote attach failure"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
 
@@ -287,7 +288,8 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
 
         def read(self, amount):
             if read_fails:
-                raise OSError("injected read failure")
+                msg = "injected read failure"
+                raise OSError(msg)
             chunk = self._body[self._offset : self._offset + amount]
             self._offset += len(chunk)
             return chunk

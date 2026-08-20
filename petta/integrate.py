@@ -30,7 +30,7 @@ Guarded by:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 from __future__ import annotations
@@ -138,10 +138,13 @@ def integrate(m, target: Any) -> str:
         name = getattr(target, "__name__", type(target).__name__)
         installer = _prolog_installer(target)
     else:
-        raise PettaError(
+        msg = (
             f"{target!r} is not an integration: define install_petta(m), or "
             f"PETTA_PROLOG naming the .pl files your package ships, or "
             f"provide an object with .name and .install(m)"
+        )
+        raise PettaError(
+            msg
         )
     key = (m.space_name, name)
     with _INSTALLED_LOCK:
@@ -224,16 +227,20 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     advertised = entry_points(group)
     if name not in advertised:
         known = ", ".join(sorted(advertised)) or "none"
+        msg = f"no {group} entry point named {name!r}; installed: {known}"
         raise PettaError(
-            f"no {group} entry point named {name!r}; installed: {known}"
+            msg
         )
     target = advertised[name].load()
     if callable(target):
         return target(*args, **kwargs)
     if args or kwargs:
-        raise PettaError(
+        msg = (
             f"the {group} entry point {name!r} is not callable, "
             f"but arguments were given"
+        )
+        raise PettaError(
+            msg
         )
     return target
 
@@ -260,7 +267,8 @@ def _module_callable_names(module: Any) -> list[str]:
 def _require_callable(module: Any, pyname: str) -> Callable:
     target = getattr(module, pyname)
     if not callable(target):
-        raise PettaError(f"{module.__name__}.{pyname} is not callable")
+        msg = f"{module.__name__}.{pyname} is not callable"
+        raise PettaError(msg)
     return target
 
 
@@ -346,9 +354,12 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
     try:
         signature = inspect.signature(target)
     except (TypeError, ValueError) as exc:
-        raise PettaError(
+        msg = (
             f"{name}: the callable's signature is not inspectable, so "
             f"its call forms cannot be derived; pass arities=[...]"
+        )
+        raise PettaError(
+            msg
         ) from exc
     positional = []
     variadic = False
@@ -358,10 +369,13 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
         elif parameter.kind is inspect.Parameter.KEYWORD_ONLY and (
             parameter.default is inspect.Parameter.empty
         ):
-            raise PettaError(
+            msg = (
                 f"{name}: required keyword-only parameter "
                 f"{parameter.name!r} is unreachable from a positional "
                 f"MeTTa call site"
+            )
+            raise PettaError(
+                msg
             )
         elif parameter.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
@@ -483,7 +497,8 @@ def unregister_reflector(
             if registered_predicate is predicate and registered_fn is fn:
                 _REFLECTORS.pop(index)
                 return
-    raise KeyError("no reflector is registered for those exact callables")
+    msg = "no reflector is registered for those exact callables"
+    raise KeyError(msg)
 
 
 def reflect(m, name: str, obj: Any) -> int:
@@ -493,9 +508,12 @@ def reflect(m, name: str, obj: Any) -> int:
     for predicate, fn in registrations:
         if predicate(obj):
             return fn(m, name, obj)
-    raise PettaError(
+    msg = (
         f"no reflector claims {type(obj).__name__}; register one with "
         f"petta.integrate.register_reflector"
+    )
+    raise PettaError(
+        msg
     )
 
 

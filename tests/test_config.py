@@ -8,7 +8,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
+  Future Enhancements: None.
 """
 
 import pytest
@@ -68,7 +68,8 @@ def test_runtime_settings_freeze_after_startup():
 
     retryable = Config({})
     with pytest.raises(RuntimeError, match="injected consult failure"), retryable._startup():
-        raise RuntimeError("injected consult failure")
+        msg = "injected consult failure"
+        raise RuntimeError(msg)
     retryable.stack_limit = 64_000_000
     assert retryable.stack_limit == 64_000_000
 
@@ -111,7 +112,8 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
     monkeypatch.setattr(_engine.importlib, "import_module", lambda name: bridge)
 
     def refuse_chdir(path):
-        raise AssertionError(f"engine startup changed directory to {path}")
+        msg = f"engine startup changed directory to {path}"
+        raise AssertionError(msg)
 
     monkeypatch.setattr(_engine.os, "chdir", refuse_chdir)
     runtime = _engine.Runtime.__new__(_engine.Runtime)
