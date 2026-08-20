@@ -17,6 +17,9 @@ Guarantees:
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - type_names removes every __petta_wire_value__ carrier before reading the
+    MRO, so transport classes never become MeTTa types [tested:
+    test_a_python_tuple_answers_the_same_through_both_doors; commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -249,7 +252,10 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
 
 
 def _unbox(value: Any) -> Any:
-    return value.value if isinstance(value, Box) else value
+    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    if isinstance(wire_value, property):
+        return _unbox(wire_value.__get__(value, type(value)))
+    return value
 
 
 def _rebox(value: Any) -> Any:
@@ -305,7 +311,7 @@ def type_names(obj: Any) -> list[str]:
     its classes in resolution order short of object, then every satisfied
     protocol. Computed on the boxed value's contents, and returned as text,
     which janus cannot damage."""
-    value = obj.value if isinstance(obj, Box) else obj
+    value = _unbox(obj)
     names = [c.__name__ for c in type(value).__mro__ if c.__name__ != "object"]
     names.extend(extra_types(value))
     return names

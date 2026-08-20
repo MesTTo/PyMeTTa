@@ -13,7 +13,7 @@ Guarantees:
   - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
     behind a Python object reference, despite Janus translating base tuples
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=5e080da67c989c7065bcc3de985187ce1a1ef70e]
+    commit=WORKTREE]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; bindings/python/bridge.pl asks janus for py_object(true)
 Fails when:
@@ -50,13 +50,80 @@ class _GroundedTuple(tuple):
         grounded.original = value
         return grounded
 
+    @property
+    def __petta_wire_value__(self) -> tuple:
+        """The exact tuple represented by this Janus-safe carrier."""
+        return self.original
+
 
 def _grounded(value: Any) -> Any:
     return _GroundedTuple(value) if type(value) is tuple else value
 
 
-def _unwrap(value: Any) -> Any:
-    return value.original if isinstance(value, _GroundedTuple) else value
+def _wire_value(value: Any) -> tuple[bool, Any]:
+    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    if isinstance(wire_value, property):
+        return True, wire_value.__get__(value, type(value))
+    return False, value
+
+
+def _needs_unwrap(value: Any, seen: set[int]) -> bool:
+    wrapped, _ = _wire_value(value)
+    if wrapped:
+        return True
+    if type(value) not in (list, tuple, dict, set, frozenset):
+        return False
+    identity = id(value)
+    if identity in seen:
+        return False
+    seen.add(identity)
+    if type(value) is dict:
+        return any(
+            _needs_unwrap(key, seen) or _needs_unwrap(item, seen)
+            for key, item in value.items()
+        )
+    return any(_needs_unwrap(item, seen) for item in value)
+
+
+def _unwrap(value: Any, active: set[int] | None = None) -> Any:
+    if not _needs_unwrap(value, set()):
+        return value
+    wrapped, transported = _wire_value(value)
+    if wrapped:
+        return _unwrap(transported, active)
+
+    active = set() if active is None else active
+    identity = id(value)
+    if identity in active:
+        raise ValueError(
+            "a cyclic Python container containing a grounded transport value "
+            "cannot cross the Python call boundary"
+        )
+    active.add(identity)
+    try:
+        return _unwrap_container(value, active)
+    finally:
+        active.remove(identity)
+
+
+def _unwrap_container(value: Any, active: set[int]) -> Any:
+    if type(value) is list:
+        return [_unwrap(item, active) for item in value]
+    if type(value) is tuple:
+        return tuple(_unwrap(item, active) for item in value)
+    if type(value) is dict:
+        return {
+            _unwrap(key, active): _unwrap(item, active)
+            for key, item in value.items()
+        }
+    if type(value) is set:
+        return {_unwrap(item, active) for item in value}
+    return frozenset(_unwrap(item, active) for item in value)
+
+
+def class_names(obj: Any) -> list[str]:
+    """The visible MRO after removing transport and tuple carrier layers."""
+    return [kind.__name__ for kind in type(_unwrap(obj)).__mro__ if kind is not object]
 
 
 def resolve(path: str) -> Any:

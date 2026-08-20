@@ -39,6 +39,10 @@ Guarantees:
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
      commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
+  - Box publishes its transport value through the reserved
+    __petta_wire_value__ protocol, so host bridges can remove the wire layer
+    without importing the Python package [tested:
+    test_a_python_tuple_answers_the_same_through_both_doors; commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -162,6 +166,11 @@ class Box:
 
     def __repr__(self) -> str:
         return f"Box({self.value!r})"
+
+    @property
+    def __petta_wire_value__(self) -> Any:
+        """The host value hidden by this private transport envelope."""
+        return self.value
 
     def __copy__(self) -> Box:
         return self

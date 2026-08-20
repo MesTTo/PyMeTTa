@@ -24,7 +24,7 @@
 %   - a Python tuple has one default structural answer at both host doors,
 %     while an explicit Grounded reading is retained as a Python object
 %     reference [tested: test_a_python_tuple_answers_the_same_through_both_doors;
-%     commit=5e080da67c989c7065bcc3de985187ce1a1ef70e].
+%     commit=WORKTREE].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -382,21 +382,21 @@ assert_declared_python_type(Obj, Type) :-
 
 metta_grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
 
-%The class walk, this host's clause of the fallback seam: every class on the
-%value's MRO except object, each a type candidate, which is what lets a torch
-%Linear be a Linear and a Module at once. It lived in the engine and called
-%the host directly, which is exactly the line the seam exists to draw; the
-%engine asks metta_grounded_class_type/2 and this bridge answers for the
-%values it created [tested: metta_object_types].
+%The class walk, this host's clause of the fallback seam: every visible class
+%on the value's MRO except object, each a type candidate, which is what lets a
+%torch Linear be a Linear and a Module at once. The helper removes transport
+%Box and Grounded-tuple carrier layers before walking, because neither is a
+%type of the MeTTa value. It lived in the engine and called the host directly,
+%which is exactly the line the seam exists to draw; the engine asks
+%metta_grounded_class_type/2 and this bridge answers for the values it created
+%[tested: metta_object_types,
+%test_a_python_tuple_answers_the_same_through_both_doors].
 :- multifile metta_grounded_class_type/2.
 metta_grounded_class_type(X, T) :-
-    py_call(builtins:type(X), Class),
-    py_call(builtins:getattr(Class, '__mro__'), MRO),
-    py_call(builtins:list(MRO), Classes),
-    member(C, Classes),
-    py_call(builtins:getattr(C, '__name__'), Name),
-    ( atom(Name) -> T = Name ; atom_string(T, Name) ),
-    T \== object.
+    petta_py_bridge,
+    py_call(petta_py:class_names(X), Names, [py_string_as(string)]),
+    member(Name, Names),
+    ( atom(Name) -> T = Name ; atom_string(T, Name) ).
 
 petta_py_resolve(Spec, Result) :-
     (   string(Spec)

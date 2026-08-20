@@ -63,7 +63,7 @@
 %   - a converted Python tuple encodes as its structural MeTTa expression,
 %     while an explicitly Grounded tuple remains an object reference
 %     [tested: test_a_python_tuple_answers_the_same_through_both_doors;
-%     commit=5e080da67c989c7065bcc3de985187ce1a1ef70e]
+%     commit=WORKTREE]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None

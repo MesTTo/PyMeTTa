@@ -691,6 +691,17 @@ def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
     assert metta.run(
         '!(py-dot (py-dot (py-atom "(1, 2)" Grounded) __class__) __name__)'
     ) == [["tuple"]]
+    # A returned atom crosses back through Box on public reuse. The bridge
+    # removes that transport layer, including inside a container argument.
+    assert metta.run("!(car-atom held)", using={"held": grounded}) == [[1]]
+    assert metta.run(
+        '!((py-atom "lambda xs: type(xs[0]) is tuple") items)',
+        using={"items": expr(grounded)},
+    ) == [[True]]
+    assert metta.run(
+        '!((py-atom "lambda x: x is x[0]") '
+        '(py-atom "(lambda x: (x.append(x), x)[1])([])"))'
+    ) == [[True]], "checking nested transport must not copy a live cyclic list"
     # the shapes that already worked are untouched
     assert metta.run('!(py-atom "None")') == [[metta.parse("()")]]
     assert metta.run('!(py-atom "[1,2,3]" Expression)') == [[metta.parse("(1 2 3)")]]
