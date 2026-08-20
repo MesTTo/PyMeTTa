@@ -30,7 +30,7 @@
 %   - proof leaves recover a parametric space from its canonical storage
 %     module and reserved functor [tested:
 %     test_two_instances_of_a_parametric_space_answer_independently;
-%     commit=WORKTREE]
+%     commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
