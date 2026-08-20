@@ -3,7 +3,7 @@ Guarantees:
   - Annotated values of one base type retain distinct matchable metadata
     claims without changing their arrow slots [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
 """
 
 import types

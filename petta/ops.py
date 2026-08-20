@@ -32,7 +32,7 @@ Guarantees:
   - Annotated MeTTa parameters retain metadata without losing engine
     injection [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
 Open Obligations:
   To Do: None
   Hacks: None
