@@ -5,6 +5,11 @@ DLPack, and the embedding store running on NumPy alone.
 Runs before test_pettorch alphabetically; the constructor default is
 process-global, so this suite installs NumPy as the default and the torch
 suite installs torch over it, each self-consistent.
+Guarantees:
+  - each installed array operation has at least one arrow declaration and
+    broadcast-shape works forwards and backwards as a CLP(FD) relation
+    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,6 +48,24 @@ def test_numpy_flows_through_the_same_ops(am):
     assert r == [[expr(expr(58.0, 64.0), expr(139.0, 154.0))]]
     assert am.run("!(t-shape (zeros 2 3))") == [[expr(2, 3)]]
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
+
+
+def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
+    assert len(arrays.ARRAY_OPS) == len(set(arrays.ARRAY_OPS)) == 44
+    for name in arrays.ARRAY_OPS:
+        types = [atom for group in am.run(f"!(get-type {name})") for atom in group]
+        assert types, name
+        assert all(type_.head == S["->"] for type_ in types), (name, types)
+
+    assert am.run(
+        "!(let True (broadcast-shape (4 1) (3) $shape) $shape)"
+    ) == [[expr(4, 3)]]
+    assert am.run(
+        "!(let True (broadcast-shape ($d 1) (1 3) (4 3)) $d)"
+    ) == [[4]]
+    assert am.run("!(broadcast-shape (2 3) (4 3) (4 3))") == [[]]
+
+    assert am.run("!(t-shape (reshape (arange-t 4) 2 2))") == [[expr(2, 2)]]
 
 
 def test_the_constructor_builds_numpy_here(am):

@@ -25,6 +25,10 @@ Guarantees:
     lifecycle and reference count as type declarations [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
     commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+  - each registered arity owns the arrow for exactly the arguments that call
+    form accepts, including repeated variadic annotations [tested:
+    test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -206,7 +210,10 @@ def _metta_name(fn: Callable, name: str | None) -> MettaName:
     return MettaName(name if name is not None else _callable_name(fn))
 
 
-def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
+def _arities(
+    fn: Callable,
+    explicit: list[int] | None,
+) -> tuple[list[int], list[inspect.Parameter], inspect.Parameter | None]:
     """Every arity the defaults allow, smallest first, plus the parameters.
 
     An explicit arities list overrides the derivation, which is how a
@@ -215,7 +222,7 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
     """
     sig = inspect.signature(fn)
     params = []
-    variadic = False
+    variadic = None
     for p in sig.parameters.values():
         if p.kind is inspect.Parameter.VAR_KEYWORD:
             raise TypeError(
@@ -223,7 +230,7 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
                 "unreachable from a positional MeTTa call site"
             )
         if p.kind is inspect.Parameter.VAR_POSITIONAL:
-            variadic = True
+            variadic = p
             continue
         if p.kind is inspect.Parameter.KEYWORD_ONLY:
             raise TypeError(
@@ -232,17 +239,23 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
             )
         params.append(p)
     if explicit is not None:
-        return sorted(set(explicit)), params
-    if variadic:
+        return sorted(set(explicit)), params, variadic
+    if variadic is not None:
         raise TypeError(
             f"cannot register {_callable_name(fn)}: *args has no single MeTTa call "
             f"form; pass arities=[...] naming the argument counts to serve"
         )
     required = sum(1 for p in params if p.default is inspect.Parameter.empty)
-    return list(range(required, len(params) + 1)), params
+    return list(range(required, len(params) + 1)), params, None
 
 
-def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable) -> list[Expr]:
+def _type_declarations(
+    name: str,
+    params: list[inspect.Parameter],
+    variadic: inspect.Parameter | None,
+    arities: list[int],
+    fn: Callable,
+) -> list[Expr]:
     """Everything a signature declares: the (-> ...) arrows over the full
     arity, one per Union combination, plus the declarations of every class
     the annotations reference, so a signature naming Point makes Point a
@@ -261,18 +274,36 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
             else params
         )
         hints = resolved_annotations(signature)
-        annotations = [
-            hints.get(param.name, inspect.Parameter.empty)
-            for param in signature_params
-        ]
         ret = hints.get("return", Any)
-        all_annotations.extend((*annotations, ret))
-        for atom in (
-            *declaration_exprs(name, annotations, ret),
-            *annotation_exprs(name, annotations, ret),
-        ):
-            if atom not in declared:
-                declared.append(atom)
+        if overloads:
+            annotation_sets = [
+                [
+                    hints.get(param.name, inspect.Parameter.empty)
+                    for param in signature_params
+                ]
+            ]
+        else:
+            fixed = [
+                hints.get(param.name, inspect.Parameter.empty)
+                for param in signature_params
+            ]
+            repeated = (
+                hints.get(variadic.name, inspect.Parameter.empty)
+                if variadic is not None
+                else inspect.Parameter.empty
+            )
+            annotation_sets = [
+                [*fixed[:arity], *(repeated for _ in range(max(0, arity - len(fixed))))]
+                for arity in arities
+            ]
+        for argument_annotations in annotation_sets:
+            all_annotations.extend((*argument_annotations, ret))
+            for atom in (
+                *declaration_exprs(name, argument_annotations, ret),
+                *annotation_exprs(name, argument_annotations, ret),
+            ):
+                if atom not in declared:
+                    declared.append(atom)
     for cls in referenced_classes(all_annotations):
         for extra in class_declarations(cls):
             if extra not in declared:
@@ -334,10 +365,15 @@ def _operation_kind(fn: Callable, raw: bool) -> str:
 def _operation_declarations(
     name: str,
     params: list[inspect.Parameter],
+    *,
+    variadic: inspect.Parameter | None,
+    arities: list[int],
     fn: Callable,
     typed: bool,
 ) -> tuple[Expr, ...]:
-    declarations = _type_declarations(name, params, fn) if typed else []
+    declarations = (
+        _type_declarations(name, params, variadic, arities, fn) if typed else []
+    )
     documentation = documentation_atom(name, fn)
     if documentation is not None:
         declarations.append(documentation)
@@ -507,7 +543,7 @@ def register(
     metta_name = _metta_name(fn, name)
     kind = _operation_kind(fn, raw)
     explicit_arities = arities
-    arities, params = _arities(fn, arities)
+    arities, params, variadic = _arities(fn, arities)
     injected = _engine_positions(params, fn)
     if injected:
         params = [p for i, p in enumerate(params) if i not in injected]
@@ -533,7 +569,14 @@ def register(
             f"{metta_name} cannot be declared pure: a raw generator's answers "
             f"cross one at a time and are never seen whole"
         )
-    declarations = _operation_declarations(metta_name, params, fn, typed)
+    declarations = _operation_declarations(
+        metta_name,
+        params,
+        variadic=variadic,
+        arities=arities,
+        fn=fn,
+        typed=typed,
+    )
     conversion_hints = resolved_annotations(fn) if typed else {}
     previous = REGISTRY.get(metta_name)
     operation = Operation(
@@ -548,7 +591,15 @@ def register(
         inverse=inverse,
         pure=pure,
         parameter_annotations=tuple(
-            conversion_hints.get(param.name, Any) for param in params
+            [conversion_hints.get(param.name, Any) for param in params]
+            + (
+                [
+                    conversion_hints.get(variadic.name, Any)
+                    for _ in range(max(0, max(arities) - len(params)))
+                ]
+                if variadic is not None
+                else []
+            )
         ),
         return_annotation=conversion_hints.get("return", Any),
     )
