@@ -63,6 +63,11 @@ Guarantees:
     before changing either the engine or Python registries [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
     commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
+  - register_token installs a full-lexeme reader class and unregister_token
+    removes it; replacement affects future parses without changing atoms
+    already returned [tested:
+    test_a_registered_token_class_parses_like_a_shipped_one;
+    commit=WORKTREE]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -769,6 +774,33 @@ class MeTTa:
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
         return parse(source)
+
+    def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+        """Register a full-token regex and its Atom constructor.
+
+        The constructor receives the complete matched lexeme. It may return an
+        Atom or any value accepted by :func:`petta.encode`. A later registration
+        of the same pattern replaces the constructor. Only future parses read
+        the new mapping; atoms already returned are immutable values.
+        """
+        if not isinstance(pattern, str):
+            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
+            raise TypeError(msg)
+        if not callable(constructor):
+            msg = "a reader-token constructor must be callable"
+            raise TypeError(msg)
+        self._rt.must(
+            "petta_py_register_token(Pattern, Constructor)",
+            Pattern=pattern,
+            Constructor=constructor,
+        )
+
+    def unregister_token(self, pattern: str) -> None:
+        """Remove a reader-token class; an absent pattern is already removed."""
+        if not isinstance(pattern, str):
+            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
+            raise TypeError(msg)
+        self._rt.must("petta_py_unregister_token(Pattern)", Pattern=pattern)
 
     # ------------------------------------------------------------- space edits
 
