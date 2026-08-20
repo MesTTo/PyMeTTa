@@ -30,10 +30,16 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):
         in gate
     )
 
+    # The child's tiering is this test's to choose, not the caller's: a
+    # full battery run under GATE_ONLY=1 leaked that variable in here,
+    # the child skipped every REPORT lane including the one under test,
+    # and the assertion read an empty summary [measured 2026-08-21].
+    child_env = {k: v for k, v in os.environ.items() if k != "GATE_ONLY"}
+    child_env["CHECK_PY"] = sys.executable
     run = subprocess.run(
         ["sh", "check.sh", "snippets"],
         cwd=repo_root,
-        env=os.environ | {"CHECK_PY": sys.executable},
+        env=child_env,
         capture_output=True,
         text=True,
         timeout=30,
