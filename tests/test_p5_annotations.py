@@ -4,6 +4,10 @@ Guarantees:
     claims without changing their arrow slots [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
     commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+  - container annotation acceptance selects its own callable's declarations
+    from the session space instead of assuming no earlier registration exists
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+    commit=WORKTREE]
 """
 
 import types
@@ -75,7 +79,9 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
     claims = {
         str(atom)
         for atom in metta.atoms()
-        if isinstance(atom, Expr) and atom.head == Sym("annotation")
+        if isinstance(atom, Expr)
+        and atom.head == Sym("annotation")
+        and atom.args[0] == Sym("container_probe")
     }
     assert claims == {
         "(annotation container_probe (param 1 (tuple Number String)))",
