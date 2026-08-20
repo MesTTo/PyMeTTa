@@ -3518,7 +3518,12 @@ petta_transaction(Goal) :-
         nb_getval('$petta_tx_enlisted', Enlisted),
         nb_setval('$petta_tx_enlisted', []),
         (   Outcome == committed
-        ->  forall(member(Space, Enlisted), metta_foreign_commit(Space))
+        ->  forall(member(Space, Enlisted), metta_foreign_commit(Space)),
+            %The committed body may have emptied a function that shadows
+            %an inherited definition; remove_equation/6 deferred the
+            %predicate-level drop to the transaction's owner, which is
+            %here for the user's (transaction ...) form.
+            petta_repair_emptied_shadows
         ;   forall(member(Space, Enlisted),
                    catch(metta_foreign_rollback(Space), RollbackError,
                          print_message(error, RollbackError)))

@@ -1925,6 +1925,37 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     ->  erase(Ref), retractall(translated_from(Ref, _)), Erased = true
     ;   Erased = false
     ),
+    %A local predicate the erase just EMPTIED still shadows the same name
+    %inherited through the module chain, &self's builtins above all: after
+    %removing a car-atom shadow from &self, every &self-compiled caller of
+    %car-atom failed for the rest of the process because the empty local
+    %definition answered instead of the engine's. Dropping the emptied
+    %entry lets the chain answer again. The arity comes from the STORED
+    %equation the lookup unified into Probe, never from the caller's Args:
+    %a removal by open pattern, [Head|_], leaves Args a partial list, and
+    %length/2 on a partial list generates arities for ever
+    %[tested: removing_a_self_shadow_restores_the_builtin].
+    (   Erased == true,
+        Probe = [=, [_|StoredArgs], _],
+        is_list(StoredArgs),
+        length(StoredArgs, NArgs),
+        PredArity is NArgs + 1,
+        functor(EmptyHead, F, PredArity),
+        predicate_property(Module:EmptyHead, number_of_clauses(0))
+    ->  (   current_transaction(_)
+        ->  %abolish/1 is predicate-level, so a rollback cannot restore
+            %what it dropped: a failed reload lost the definitions it
+            %promised to keep when this abolished eagerly. The pending
+            %fact IS clause-level, so it vanishes with a rollback and
+            %survives a commit, and the owner of the outermost
+            %transaction sweeps it afterwards
+            %[tested: test_a_reload_that_fails_leaves_the_previous_definitions_standing].
+            assertz('$petta_shadow_repair_pending'(Module, F, PredArity))
+        ;   petta_repair_emptied_shadows,
+            catch(abolish(Module:F/PredArity), _, true)
+        )
+    ;   true
+    ),
     function_changed(Module, F),
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
@@ -1935,6 +1966,23 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
          function_removed(F)
       ; true ),
     ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
+
+:- dynamic '$petta_shadow_repair_pending'/3.
+
+%The deferred half of the emptied-shadow repair above: each pending row
+%names a function a committed transaction emptied. The recheck matters,
+%because a reload that REDEFINES a function empties it in withdrawal and
+%refills it in the load, and only a function still empty at the sweep is
+%a shadow to drop. abolish refusing (a tabled shadow) leaves the old
+%behaviour, an empty local predicate.
+petta_repair_emptied_shadows :-
+    forall(retract('$petta_shadow_repair_pending'(Module, F, PredArity)),
+           (   functor(Head, F, PredArity),
+               (   predicate_property(Module:Head, number_of_clauses(0))
+               ->  catch(abolish(Module:F/PredArity), _, true)
+               ;   true
+               )
+           )).
 
 %Where an atom comes out of, the counterpart of store_atom/2. Both answer
 %whether the store actually held it.

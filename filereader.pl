@@ -798,7 +798,12 @@ replacing_previous_load(CanonPath, Space, LoadInto, Goal) :-
         (   Replaced == []
         ->  call(Goal)
         ;   transaction(replace_source_load(CanonPath, Space, Replaced,
-                                            LoadInto, Goal))
+                                            LoadInto, Goal)),
+            %After the commit, because the repair drops predicate entries
+            %and abolish/1 is not clause-level: remove_equation/6 records
+            %what the withdrawal emptied, and only a function the load
+            %did not refill is still a shadow to drop.
+            petta_repair_emptied_shadows
         )
     ;   call(Goal)
     ).
