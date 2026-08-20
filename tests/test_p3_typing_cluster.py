@@ -312,6 +312,11 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():
     assert _answers(metta, "!(get-type ())") == ["(->)"]
     assert _answers(metta, "!(get-type-space &self ())") == ["(->)"]
 
+    for observer in ("get-type", "get-type-space &self"):
+        answer = _answers(metta, f"!({observer} $subject)")
+        assert len(answer) == 1
+        assert answer[0].startswith("$"), answer
+
     # These are the ruling case's five controls, in its recorded order.
     assert _answers(metta, "!(get-metatype ())") == ["Expression"]
     assert _answers(metta, "!(get-type (nop))") == ["(->)"]
