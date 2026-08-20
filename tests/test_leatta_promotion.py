@@ -41,6 +41,37 @@ STALE_CLAIM = """\
 !(+ 4 4)
 """
 
+OUTER_HEAD_MATCH = """\
+; PURPOSE: fixture for the literal Atom head-matching arbiter.
+; MEASURED: On the pinned arbiter,
+;   produced verbatim `[outer-held]`.
+;
+; STATUS: conforms.
+
+(: p020-inner-sum (-> Number Number Number))
+(= (p020-inner-sum $x $y) (+ $x $y))
+(: p020-outer-hold (-> Atom Symbol))
+(= (p020-outer-hold (p020-inner-sum $x $y)) outer-held)
+!(p020-outer-hold (p020-inner-sum 1 2))
+"""
+
+NESTED_HEAD_MATCH = """\
+; PURPOSE: fixture for the nested Atom head-matching arbiter.
+; MEASURED: On the pinned arbiter,
+;   produced verbatim `[nested-argument-evaluated]`.
+;
+; STATUS: conforms.
+
+(: P020-P3 (-> Type Type))
+(: p020-pa3 (P020-P3 Atom))
+(: p020-produce-pa3 (-> (P020-P3 Atom)))
+(= (p020-produce-pa3) p020-pa3)
+(: p020-nested-atom (-> (P020-P3 Atom) Symbol))
+(= (p020-nested-atom p020-pa3) nested-argument-evaluated)
+(= (p020-nested-atom (p020-produce-pa3)) nested-argument-held)
+!(p020-nested-atom (p020-produce-pa3))
+"""
+
 
 def _run_lane(repo_root, corpus, gate_file):
     return subprocess.run(
@@ -73,3 +104,24 @@ def test_a_recorded_divergence_does_not_block_area_promotion(repo_root, tmp_path
     blocked = _run_lane(repo_root, tmp_path, gate_file)
     assert blocked.returncode == 1, blocked.stdout
     assert "regressed: ['delta']" in blocked.stdout
+
+
+def test_the_two_head_matching_arbiter_files_are_counted(repo_root, tmp_path):
+    """The two P2.1 arbiters contribute answer groups instead of prose skips."""
+    area = tmp_path / "types-meta"
+    area.mkdir()
+    (area / "19_atom_parameter_outer_call.metta").write_text(
+        OUTER_HEAD_MATCH, encoding="utf-8"
+    )
+    (area / "15_atom_parameter_nested_parametric.metta").write_text(
+        NESTED_HEAD_MATCH, encoding="utf-8"
+    )
+    gate_file = tmp_path / "gate.txt"
+    gate_file.write_text("types-meta\n", encoding="utf-8")
+
+    counted = _run_lane(repo_root, tmp_path, gate_file)
+
+    assert counted.returncode == 0, counted.stdout + counted.stderr
+    assert "2/2 checkable files agree, 2 answer groups compared" in counted.stdout
+    assert "0 files state their MEASURED block as prose" in counted.stdout
+    assert "0 MEASURED lines are printed output rather than answers" in counted.stdout
