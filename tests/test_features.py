@@ -757,7 +757,10 @@ def test_run_time_limit_raises_and_is_prompt(m):
     m.run("(= (spin-a $n) (if (== $n 0) done (spin-a (- $n 1))))")
     started = time.perf_counter()
     with pytest.raises(TimeLimitError):
-        m.run("!(spin-a 100000000)", timeout=0.05)
+        m.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-a 100000000))",
+            timeout=0.05,
+        )
     assert time.perf_counter() - started < 5.0  # the guard stopped it, not completion
 
 
@@ -772,7 +775,11 @@ def test_inference_limit_raises_under_the_shared_parent(m):
 def test_limits_leave_finished_work_standing(m):
     m.run("(= (spin-c $n) (if (== $n 0) done (spin-c (- $n 1))))")
     with pytest.raises(TimeLimitError):
-        m.run("(landed first) !(spin-c 100000000)", timeout=0.05)
+        m.run(
+            "(landed first) "
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-c 100000000))",
+            timeout=0.05,
+        )
     assert expr(S.landed, S.first) in m  # the fact before the stop stands
 
 
@@ -814,7 +821,11 @@ def test_capture_composes_with_limits(m):
     assert "bounded" in text and len(groups) == 1
     m.run("(= (spin-e $n) (if (== $n 0) done (spin-e (- $n 1))))")
     with pytest.raises(TimeLimitError):
-        m.run("!(spin-e 100000000)", capture=True, timeout=0.05)
+        m.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin-e 100000000))",
+            capture=True,
+            timeout=0.05,
+        )
 
 
 def test_eval_capture(m):
@@ -981,7 +992,9 @@ def test_speculative_run_answers_and_discards(m):
 
 def test_profile_counts_samples_on_real_work(m):
     m.run("(= (prof-spin $n) (if (== $n 0) done (prof-spin (- $n 1))))")
-    groups, prof = m.profile("!(prof-spin 10000000)")
+    groups, prof = m.profile(
+        "!(with-pragma! ((max-stack-depth 30000000)) (prof-spin 10000000))"
+    )
     assert groups == [[S.done]]
     assert prof.samples > 0 and prof.ticks > 0
     assert len(prof.nodes) >= 1
@@ -1150,6 +1163,24 @@ def test_in_language_bounds_and_scoped_pragmas(m):
         m.run("!(with-pragma! ((max-inferences 300)) (bnd-spin 1000000))")
     # the scope restored: the same spin runs free afterwards
     assert m.run("!(bnd-spin 2000)") == [[S.done]]
+
+
+def test_a_stack_depth_pragma_bounds_evaluation_instead_of_overflowing(m):
+    m.run("!(pragma! max-stack-depth 20)")
+    m.run("(= (p122-fact 0) 1)")
+    m.run("(= (p122-fact $n) (* $n (p122-fact (- $n 1))))")
+    try:
+        assert [str(atom) for atom in m.run("!(p122-fact 5)")[0]] == [
+            "120",
+            "(Error -3 StackOverflow)",
+        ]
+        assert [str(atom) for atom in m.run("!(pragma! max-stack-depth -1)")[0]] == [
+            "(Error (pragma! max-stack-depth -1) UnsignedIntegerIsExpected)"
+        ]
+        with pytest.raises(EngineError, match="metta_pragma_key"):
+            m.run("!(pragma! no-such-setting 1)")
+    finally:
+        m.run("!(pragma! max-stack-depth none)")
 
 
 def test_wrapper_forms_reach_a_named_spaces_own_functions(metta):
