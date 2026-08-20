@@ -15,9 +15,10 @@ Assumes:
     which is how every gate lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested test_the_vocabulary_module_is_generated]
+    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
+    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -48,12 +49,12 @@ this file. The vocab-sync gate lane fails when the two drift.
 
 Guarantees:
   - every tuple and Literal here exactly matches its catalog vocabulary row
-    [tested test_the_vocabulary_module_is_generated]
+    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from typing import Literal
 
