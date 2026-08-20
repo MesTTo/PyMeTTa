@@ -27,6 +27,10 @@
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
+%   - proof leaves recover a parametric space from its canonical storage
+%     module and reserved functor [tested:
+%     test_two_instances_of_a_parametric_space_answer_independently;
+%     commit=WORKTREE]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
@@ -2090,7 +2094,7 @@ petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
          petta_py_solve_(M, Body, D1, Sub, Status, Barrier),
          Tree = [step(Goal, Source, Sub)]
     ; call(M:Body),
-      petta_py_leaf(Goal, Tree),
+      petta_py_leaf(M, Goal, Tree),
       Status = complete ).
 
 petta_py_findall_results([], [], [], complete).
@@ -2104,12 +2108,17 @@ petta_py_next_depth(D, D) :- D < 0, !.
 petta_py_next_depth(D, D1) :- D1 is D - 1.
 
 %A match over a space names the atom it found; anything else names its goal:
-petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
-petta_py_leaf(Goal, [fact('&self', Fact)]) :-
+petta_py_leaf(_, match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
+petta_py_leaf(Module, Goal, [fact(Space, Fact)]) :-
+    native_storage_module_cache(Space, Module),
+    native_storage_functor(Space, Functor),
+    functor(Goal, Functor, _), !,
+    Goal =.. [_|Fact].
+petta_py_leaf(_, Goal, [fact('&self', Fact)]) :-
     functor(Goal, Space, _),
     atom_concat('&', _, Space), !,
     Goal =.. [Space|Fact].
-petta_py_leaf(Goal, [builtin(Goal)]).
+petta_py_leaf(_, Goal, [builtin(Goal)]).
 
 %The tree crosses as nested tagged expressions:
 %  (derivation Conclusion Steps...) with each step
