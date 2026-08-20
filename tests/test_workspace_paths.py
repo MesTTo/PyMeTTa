@@ -1,7 +1,7 @@
 """Purpose: no tracked file cites an absolute workspace path. The repository
-may be published, and a reader's machine has no /home/user; a citation
-spells the arbiter repo-relative (LeaTTa tests/...) and machinery reaches
-the oracle through the LEATTA_PATH environment override, whose three
+may be published, and a reader's machine has no such user directory; a
+citation spells the arbiter repo-relative (LeaTTa tests/...) and machinery
+reaches the oracle through the LEATTA_PATH environment override, whose three
 carriers are the one documented exception.
 Open Obligations:
   To Do: None
@@ -10,13 +10,15 @@ Open Obligations:
 """
 
 import subprocess
-from pathlib import Path
 
 _FIXED_ORACLE_PATH_PATTERN = {
     "tests/conformance/leatta.py",
     "python/tests/test_presented_core_oracle.py",
     "python/tests/test_critical_pair_oracle.py",
 }
+
+# Built in two pieces so the tracked scanner never matches its own needle.
+_WORKSPACE_ROOT = "/" + "home/"
 
 
 def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):
@@ -34,7 +36,7 @@ def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):
         except (UnicodeDecodeError, OSError):
             continue
         for number, line in enumerate(text.splitlines(), 1):
-            if "/home/" in line:
+            if _WORKSPACE_ROOT in line:
                 offenders.append(f"{name}:{number}: {line.strip()[:80]}")
     assert not offenders, (
         "a tracked file cites an absolute workspace path; respell it "
