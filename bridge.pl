@@ -21,6 +21,10 @@
 %     [tested: a_resolved_callable_is_applicable], and a grounded value that is
 %     not an operation stays unreduced rather than raising
 %     [tested: a_grounded_value_that_is_not_callable_stays_unreduced].
+%   - a Python tuple has one default structural answer at both host doors,
+%     while an explicit Grounded reading is retained as a Python object
+%     reference [tested: test_a_python_tuple_answers_the_same_through_both_doors;
+%     commit=WORKTREE].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -205,11 +209,13 @@ petta_py_result(Value, Value).
 
 %%%% The structural view %%%%
 
-%A Python tuple crosses as the Prolog compound -/N, which is janus's encoding
-%and is faithful in BOTH directions: `(1, (2, 3))` is `1-(2-3)`, and handing
-%`1-2` back to Python yields a real tuple, class and all
-%[measured 2026-08-16]. So the tuple needs no handle and no rebuilding, and its
-%structural reading costs no crossing at all: the elements are already there.
+%A Python tuple crosses by default as the Prolog compound -/N, which is
+%janus's encoding and is faithful in BOTH directions: `(1, (2, 3))` is
+%`1-(2-3)`, and handing `1-2` back to Python yields a real tuple, class and all
+%[measured 2026-08-16]. Its default structural reading therefore costs no
+%crossing: the elements are already there. An explicit Grounded request takes
+%a separate path below, because Janus converts an exact tuple even when
+%py_object(true) asks for a reference.
 %
 %That reading is what makes `(car-atom (py-atom "(1, 2)"))` answer 1 while the
 %same value still passes into Python as a tuple. Neither reading is a separate
@@ -261,29 +267,20 @@ petta_py_tuple_arguments(Tuple, Arguments) :-
 
 %%%% Display %%%%
 
-%repr, so a Python value says what it is instead of naming an address. A tuple
-%is rendered here rather than crossing for it, because -/N already holds the
-%elements and Python would only spell them back.
+%repr, so a Python value says what it is instead of naming an address. The
+%converted -/N tuple is the exception: it is the ordinary MeTTa expression its
+%structural reading already supplies, so the engine and the library expose the
+%same value and both spell the empty tuple as one empty expression answer.
 metta_grounded_text(Tuple, Text) :-
     petta_py_tuple_arguments(Tuple, Raw),
     !,
-    maplist(petta_py_element_text, Raw, Parts),
-    atomic_list_concat(Parts, ', ', Inner),
-    (   Raw = [_]
-    ->  format(string(Text), "(~w,)", [Inner])   %Python's own 1-tuple spelling
-    ;   format(string(Text), "(~w)", [Inner])
-    ).
+    maplist(petta_py_result, Raw, Elements),
+    swrite(Elements, Text).
 metta_grounded_text(Obj, Text) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
     py_call(petta_py:render(Obj), Text).
-
-petta_py_element_text(Element, Text) :-
-    (   metta_grounded_text(Element, Text0)
-    ->  Text = Text0
-    ;   swrite(Element, Text)
-    ).
 
 %%%% Resolution %%%%
 
@@ -321,7 +318,10 @@ petta_py_element_text(Element, Text) :-
 %sequence, and `(collapse (py-iter x))` is its `collapse`. Nothing here is a new
 %way to say something MeTTa could not already say.
 'py-atom'(Spec, Type, Result) :-
-    petta_py_resolve(Spec, Resolved),
+    (   nonvar(Type), Type == 'Grounded'
+    ->  petta_py_resolve_grounded(Spec, Resolved)
+    ;   petta_py_resolve(Spec, Resolved)
+    ),
     (   var(Type)
     ->  Result = Resolved
     ;   Type == 'Expression'
@@ -405,6 +405,24 @@ petta_py_resolve(Spec, Result) :-
     ->  petta_py(['py-atom', Spec], resolve(Spec), Result)
     ;   throw(error(type_error(python_name, Spec),
                     context('py-atom'/2,
+                            'a symbol names a Python object and a string is a \c
+                             Python expression')))
+    ).
+
+%Janus deliberately converts instances of the exact tuple base class even
+%under py_object(true). The Python helper returns a tuple subclass holding the
+%exact value, which Janus therefore carries as a reference. Every bridge call
+%unwraps it before applying Python, so Grounded means a handle without changing
+%the value Python receives.
+petta_py_resolve_grounded(Spec, Result) :-
+    (   string(Spec)
+    ->  petta_py(['py-atom', Spec, 'Grounded'],
+                 evaluate_grounded(Spec), Result)
+    ;   atom(Spec)
+    ->  petta_py(['py-atom', Spec, 'Grounded'],
+                 resolve_grounded(Spec), Result)
+    ;   throw(error(type_error(python_name, Spec),
+                    context('py-atom'/3,
                             'a symbol names a Python object and a string is a \c
                              Python expression')))
     ).

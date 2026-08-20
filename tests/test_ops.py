@@ -676,29 +676,21 @@ def test_unregistering_a_name_a_system_predicate_shares_does_not_throw(metta):
     assert metta.run("!(print 1 2 3 4 5)") == [[metta.parse("(print 1 2 3 4 5)")]]
 
 
-def test_a_zero_arity_compound_crosses_without_raising(metta):
-    """An empty Python tuple reaches the shim as SWI's zero-arity compound.
+def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
+    """The default structural answer and explicit host reading are distinct."""
+    assert metta.run('!(py-atom "()")') == [[metta.parse("()")]]
+    assert metta.run('!((py-atom tuple))') == [[metta.parse("()")]]
+    assert metta.run('!(py-atom "(1, 2)")') == [[metta.parse("(1 2)")]]
 
-    janus renders a Python tuple as a `-` compound, so `(1, 2)` arrives as
-    `1-2` and `()` arrives as `-()` [measured 2026-08-18:
-    py_call(builtins:tuple(), X) binds X to -()]. The encoder used `=../2`,
-    which raises `Domain error: compound_non_zero_arity` on that term, so an
-    ordinary Python return value killed the run: `''.split()` of an empty
-    string, `np.shape` of a scalar, a zero-row fetch.
-
-    It reached only the LIBRARY. The engine has its own writer and never runs
-    the shim's encoder, so the example corpus was green above it for as long
-    as it existed; `bindings/python/tools/example_parity.py` is the lane that would
-    have caught it.
-
-    The answer this pins is the ENCODER's, uniform across arities. It is not
-    yet the engine's, which prints `()` for the empty tuple and `(1, 2)` for
-    the pair, and that disagreement is a boundary decision tracked on its
-    own rather than hidden here.
-    """
-    assert metta.run('!(py-atom "()")') == [[metta.parse("(-)")]]
-    assert metta.run('!((py-atom tuple))') == [[metta.parse("(-)")]]
-    assert metta.run('!(py-atom "(1, 2)")') == [[metta.parse("(- 1 2)")]]
+    ((grounded,),) = metta.run('!(py-atom "(1, 2)" Grounded)')
+    assert grounded.metatype == "Grounded"
+    assert isinstance(grounded.value, tuple)
+    assert grounded.value == (1, 2)
+    assert type(grounded.value) is not tuple, "Janus eagerly converted the tuple"
+    # Bridge application unwraps the retained exact tuple before Python sees it.
+    assert metta.run(
+        '!(py-dot (py-dot (py-atom "(1, 2)" Grounded) __class__) __name__)'
+    ) == [["tuple"]]
     # the shapes that already worked are untouched
     assert metta.run('!(py-atom "None")') == [[metta.parse("()")]]
     assert metta.run('!(py-atom "[1,2,3]" Expression)') == [[metta.parse("(1 2 3)")]]

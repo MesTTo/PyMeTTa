@@ -60,6 +60,10 @@
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
 %     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
+%   - a converted Python tuple encodes as its structural MeTTa expression,
+%     while an explicitly Grounded tuple remains an object reference
+%     [tested: test_a_python_tuple_answers_the_same_through_both_doors;
+%     commit=WORKTREE]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -120,6 +124,13 @@ petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es
 petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
     petta_py_encode(H, EH),
     petta_py_encode(T, ET).
+%Janus's default tuple translation is -/N. It is the carrier for a structural
+%MeTTa expression here, not a callable named `-`; a Grounded tuple never
+%reaches this clause because its Python reference is claimed above.
+petta_py_encode(T, ["e", Es]) :-
+    petta_py_tuple_arguments(T, Raw), !,
+    maplist(petta_py_result, Raw, Elements),
+    maplist(petta_py_encode, Elements, Es).
 %A non-list compound encodes as (f a b). compound_name_arguments/3 rather
 %than =../2, because =.. RAISES on a ZERO-ARITY compound and janus hands us
 %one for every empty Python tuple: py_call(builtins:tuple(), X) binds X to
@@ -129,15 +140,6 @@ petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
 %and only through the LIBRARY: the engine has its own writer and never ran
 %this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
 %
-%Known disagreement, deliberately left visible rather than papered over.
-%janus renders a Python tuple as a `-` compound (`(1,2)` is `1-2`), so this
-%clause encodes one as `(- 1 2)` while the engine's swrite prints `(1, 2)`,
-%Python's own syntax, which sread cannot read back: it answers the two-item
-%expression `('1,' 2)` [measured 2026-08-18]. Both configurations are
-%self-consistent and they do not agree with each other. What a Python tuple
-%IS at this seam is a boundary decision, not an encoder detail, and it is
-%tracked as its own item; encoding every arity the same way here is what
-%stops the empty one being a crash while the rest are silent.
 petta_py_encode(T, ["e", [["s", FS] | Es]]) :-
     compound(T),
     compound_name_arguments(T, F, Args),

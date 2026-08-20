@@ -10,6 +10,10 @@ Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested: B26 in
     tests/prolog/python_surface.plt]
+  - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
+    behind a Python object reference, despite Janus translating base tuples
+    eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
+    commit=WORKTREE]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; bindings/python/bridge.pl asks janus for py_object(true)
 Fails when:
@@ -26,7 +30,33 @@ from __future__ import annotations
 import builtins
 import importlib
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Self
+
+
+class _GroundedTuple(tuple):
+    """A tuple subclass Janus carries as an object reference.
+
+    Janus always translates an exact ``tuple`` to ``-/N``, even under
+    ``py_object(true)``, but applies that rule to no tuple subclass.  Keeping
+    the exact source tuple lets calls through this bridge receive that value,
+    while the subclass supplies ordinary tuple behaviour to any other host
+    path that receives the reference directly.
+    """
+
+    original: tuple
+
+    def __new__(cls, value: tuple) -> Self:
+        grounded = super().__new__(cls, value)
+        grounded.original = value
+        return grounded
+
+
+def _grounded(value: Any) -> Any:
+    return _GroundedTuple(value) if type(value) is tuple else value
+
+
+def _unwrap(value: Any) -> Any:
+    return value.original if isinstance(value, _GroundedTuple) else value
 
 
 def resolve(path: str) -> Any:
@@ -53,6 +83,11 @@ def resolve(path: str) -> Any:
     return _walk(builtins, parts, path)
 
 
+def resolve_grounded(path: str) -> Any:
+    """Resolve while retaining an exact tuple behind an object reference."""
+    return _grounded(resolve(path))
+
+
 def _walk(root: Any, attrs: list[str], path: str) -> Any:
     found = root
     for index, attr in enumerate(attrs):
@@ -76,22 +111,30 @@ def evaluate(source: str) -> Any:
     return eval(source, {"__builtins__": builtins})  # noqa: S307
 
 
+def evaluate_grounded(source: str) -> Any:
+    """Evaluate while retaining an exact tuple behind an object reference."""
+    return _grounded(evaluate(source))
+
+
 def dot(obj: Any, attr: str) -> Any:
     """An attribute, READ rather than called.
 
     `py-call`'s `.name` spelling always applies, so reading a property or
     getting a bound method as a value needed `getattr` by hand.
     """
-    return getattr(obj, attr)
+    return getattr(_unwrap(obj), attr)
 
 
 def apply(fn: Any, args: list, kwargs: dict | None = None) -> Any:
     """Call a resolved Python object. Kwargs arrive as a dict or not at all."""
-    return fn(*args, **(kwargs or {}))
+    return _unwrap(fn)(
+        *(_unwrap(arg) for arg in args),
+        **{name: _unwrap(value) for name, value in (kwargs or {}).items()},
+    )
 
 
 def is_callable(obj: Any) -> bool:
-    return callable(obj)
+    return callable(_unwrap(obj))
 
 
 def build_list(items: list) -> list:
@@ -123,7 +166,7 @@ def iterate(obj: Any) -> Any:
     Draining is what the engine must not do: a generator asked for its first
     element should run one step, and an infinite one should still work.
     """
-    return iter(obj)
+    return iter(_unwrap(obj))
 
 
 def render(obj: Any) -> str:
@@ -133,7 +176,7 @@ def render(obj: Any) -> str:
     "[1, 2, 3]"))` displays `array([1, 2, 3])`, and `(+ (abs -5) 10)` displays
     `np.int64(15)`. An address would say nothing about either.
     """
-    return repr(obj)
+    return repr(_unwrap(obj))
 
 
 def sequence_length(obj: Any) -> int:
@@ -149,6 +192,7 @@ def sequence_length(obj: Any) -> int:
     -1 rather than None because the answer crosses as a number either way, and
     a sequence of length 0 is a real answer that None would be confused with.
     """
+    obj = _unwrap(obj)
     if isinstance(obj, (str, bytes, bytearray)):
         return -1
     if isinstance(obj, Sequence):
