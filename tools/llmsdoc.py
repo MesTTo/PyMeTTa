@@ -142,6 +142,41 @@ def counts() -> list[tuple[str, int]]:
 WORDS = {"five": 5, "six": 6, "seven": 7}
 
 
+def _absent_artefact_diagnosis(stated: int, actual: int, root: pathlib.Path = ROOT) -> str | None:
+    """The missing-build-product reading of a builtin-count mismatch.
+
+    Each backend under backends/ loads only where its artefact exists and
+    declares what it would register as metta_backend_builtin/1 facts in its
+    implementation file. When the stated count exceeds the live one by
+    exactly the declarations of backends whose artefacts are absent here,
+    the mismatch is this checkout's configuration, not documentation drift,
+    and the answer is to name the artefact rather than fail the claim.
+    """
+    absent: list[tuple[str, list[str]]] = []
+    fact = re.compile(r"^metta_backend_builtin\('?([^')]+)'?\)\.", re.MULTILINE)
+    for backend in sorted(root.glob("mork_ffi/morkspaces.pl")):
+        artefact = backend.parent / "target" / "release" / "libmork_ffi.so"
+        if artefact.exists():
+            continue
+        names = fact.findall(backend.read_text())
+        if names:
+            absent.append((str(artefact.relative_to(root)), names))
+    missing = sum(len(names) for _, names in absent)
+    if missing and stated == actual + missing:
+        parts = "; ".join(
+            f"{artefact} would register {', '.join(names)}"
+            for artefact, names in absent
+        )
+        return (
+            f"the builtin count reads {actual} here where llms.txt says "
+            f"{stated}, and the whole difference is this checkout's missing "
+            f"build product, not doc drift: {parts}. Build it (sh build.sh "
+            f"in the backend's directory) or symlink the main checkout's "
+            f"target/ into this worktree."
+        )
+    return None
+
+
 def check() -> list[str]:
     """Every failed claim, in reading order."""
     text = DOC.read_text()
@@ -206,7 +241,8 @@ def check() -> list[str]:
             bad.append(f"library claim resolves to nothing: lib/{name}.metta")
 
     for pattern, actual in counts():
-        if actual == -1:
+        builtins_claim = actual == -1
+        if builtins_claim:
             actual = len(builtins)
         found = re.search(pattern, text)
         if not found:
@@ -215,7 +251,23 @@ def check() -> list[str]:
         stated = found.group(1)
         value = WORDS.get(stated, None) or int(stated.replace(",", ""))
         if value != actual:
-            bad.append(f"llms.txt says {stated} where the tree has {actual} (/{pattern}/)")
+            # The builtin count is the one claim that carries a CONFIGURATION:
+            # a backend registers builtins only where its artefact is built,
+            # so a worktree without the build product reads falsely red. The
+            # backends declare those registrations as metta_backend_builtin/1
+            # facts, so a mismatch that the absent artefact fully explains is
+            # diagnosed by name instead of reported as doc drift
+            # [tested:
+            # test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch].
+            diagnosis = _absent_artefact_diagnosis(value, actual) if builtins_claim else None
+            if diagnosis:
+                # The claim HOLDS under the stated configuration: the doc
+                # counts the full build and this checkout verifiably lacks
+                # exactly the named artefact's registrations, so the lane
+                # compares like with like and passes with the note.
+                print(diagnosis)
+            else:
+                bad.append(f"llms.txt says {stated} where the tree has {actual} (/{pattern}/)")
 
     declared = re.search(r"`match`, `enumerate`(.*?)refuses loudly", text, re.DOTALL)
     if declared is None:
