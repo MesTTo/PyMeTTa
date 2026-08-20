@@ -3,11 +3,11 @@ Guarantees:
   - Python keeps no delimiter regex and the shim delegates every symbol
     decision to metta_symbol_writable/1 [tested:
     test_every_delimiter_check_derives_from_one_grammar_rule;
-    commit=WORKTREE]
+    commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
   - Vulture runs at its 60 percent dead-definition confidence floor, with
     dynamic protocol uses named explicitly in the checked whitelist [tested:
     test_every_delimiter_check_derives_from_one_grammar_rule;
-    commit=WORKTREE]
+    commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
 Open Obligations:
   To Do: None
   Hacks: None

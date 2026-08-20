@@ -63,7 +63,7 @@
 %   - petta_py_symbol_writable/2 exposes the engine grammar's single symbol
 %     decision to Python consumers without reproducing delimiters there
 %     [tested: test_every_delimiter_check_derives_from_one_grammar_rule;
-%     commit=WORKTREE]
+%     commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
