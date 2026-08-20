@@ -24,7 +24,7 @@
 %   - a Python tuple has one default structural answer at both host doors,
 %     while an explicit Grounded reading is retained as a Python object
 %     reference [tested: test_a_python_tuple_answers_the_same_through_both_doors;
-%     commit=WORKTREE].
+%     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.

@@ -19,7 +19,8 @@ Guarantees:
     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
   - type_names removes every __petta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
-    test_a_python_tuple_answers_the_same_through_both_doors; commit=WORKTREE]
+    test_a_python_tuple_answers_the_same_through_both_doors;
+    commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

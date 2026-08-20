@@ -42,7 +42,8 @@ Guarantees:
   - Box publishes its transport value through the reserved
     __petta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
-    test_a_python_tuple_answers_the_same_through_both_doors; commit=WORKTREE]
+    test_a_python_tuple_answers_the_same_through_both_doors;
+    commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
