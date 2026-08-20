@@ -921,9 +921,69 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_admits(name, type_name))
 
     async def declare_annotations(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, semiring: Literal["bool", "bag", "set", "ranked", "prob", "prov"]
+        self,
+        name: str,
+        algebra: str,
+        *,
+        capabilities: Sequence[str] = (),
     ) -> Atom:
-        return await self.call(lambda m: m.declare_annotations(name, semiring))
+        return await self.call(
+            lambda m: m.declare_annotations(
+                name, algebra, capabilities=capabilities
+            )
+        )
+
+    async def declare_algebra(
+        self,
+        name: str,
+        *,
+        combine: str,
+        extend: str,
+        zero: Any,
+        one: Any,
+        laws: Sequence[str] = (),
+        carrier: Sequence[Any] = (),
+        requires: Sequence[str] = (),
+    ) -> Atom:
+        """Declare one checked value algebra on the owning engine thread."""
+        return await self.call(
+            lambda m: m.declare_algebra(
+                name,
+                combine=combine,
+                extend=extend,
+                zero=zero,
+                one=one,
+                laws=laws,
+                carrier=carrier,
+                requires=requires,
+            )
+        )
+
+    async def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
+        """Store one ordinary tagged fact on the owning engine thread."""
+        return await self.call(lambda m: m.add_tagged_fact(tag, proposition))
+
+    async def add_tagged_rule(
+        self, tag: Any, head: Any, *premises: Any
+    ) -> Atom:
+        """Store one algebra-threaded ordinary rule on the owning engine thread."""
+        return await self.call(
+            lambda m: m.add_tagged_rule(tag, head, *premises)
+        )
+
+    async def evaluate_algebra(
+        self,
+        query: str | Atom,
+        *,
+        algebra: str,
+        max_rounds: int = 64,
+    ) -> Any:
+        """Evaluate the general tagged-rule form on the owning engine thread."""
+        return await self.call(
+            lambda m: m.evaluate_algebra(
+                query, algebra=algebra, max_rounds=max_rounds
+            )
+        )
 
     async def declare_capacity(self, name: str, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.declare_capacity(name, limit))

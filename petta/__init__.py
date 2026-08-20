@@ -42,6 +42,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 _LAZY_MODULES = frozenset(
     {
+        "algebra",
         "aio",
         "arrays",
         "das",
@@ -118,6 +119,7 @@ def __dir__() -> list[str]:
     )
 
 
+from . import algebra as _algebra_api  # noqa: E402
 from . import (  # noqa: E402
     convert,
     foreign,
@@ -192,6 +194,18 @@ from .ops import REFLECTION_SPACE, record  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
+
+AlgebraDeclarationError = _algebra_api.AlgebraDeclarationError
+AlgebraEvaluation = _algebra_api.AlgebraEvaluation
+AlgebraEvaluationError = _algebra_api.AlgebraEvaluationError
+AlgebraLawError = _algebra_api.AlgebraLawError
+AlgebraOperationError = _algebra_api.AlgebraOperationError
+AlgebraRequirementError = _algebra_api.AlgebraRequirementError
+DeclaredAlgebra = _algebra_api.DeclaredAlgebra
+PlanDecision = _algebra_api.PlanDecision
+TaggedAnswer = _algebra_api.TaggedAnswer
+tagged_fact = _algebra_api.tagged_fact
+tagged_rule = _algebra_api.tagged_rule
 
 # ------------------------------------------------------ the module-level tier
 # Tier 1 of the ladder: one lazily created default engine behind module
@@ -283,6 +297,12 @@ __all__ = [
     "DECLINE",
     "REFLECTION_SPACE",
     "Adder",
+    "AlgebraDeclarationError",
+    "AlgebraEvaluation",
+    "AlgebraEvaluationError",
+    "AlgebraLawError",
+    "AlgebraOperationError",
+    "AlgebraRequirementError",
     "Answer",
     "AssertionFailure",
     "Atom",
@@ -295,6 +315,7 @@ __all__ = [
     "Config",
     "Cursor",
     "CustomMatch",
+    "DeclaredAlgebra",
     "Decline",
     "Defined",
     "Derivation",
@@ -316,6 +337,7 @@ __all__ = [
     "MettaSyntaxError",
     "PeTTa",
     "PettaError",
+    "PlanDecision",
     "Prepared",
     "Remover",
     "ResourceLimitError",
@@ -332,6 +354,7 @@ __all__ = [
     "SubscriberError",
     "Subscription",
     "Sym",
+    "TaggedAnswer",
     "TimeLimitError",
     "Truncated",
     "Undefined",
@@ -378,6 +401,8 @@ __all__ = [
     "run",
     "sym",
     "tables",
+    "tagged_fact",
+    "tagged_rule",
     "testing",
     "trace",
     "unify",
