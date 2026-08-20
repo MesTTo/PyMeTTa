@@ -22,6 +22,10 @@
 %     longer a variant of the same term without one, which changes what =@=/2
 %     answers about a term the engine stores.
 % Guarantees:
+%   - Runnable translations are cached as fresh templates by execution module
+%     and a copy_term/2 plus numbervars/4 variant key; changing or removing a
+%     mentioned function evicts every dependent template
+%     [tested: sh check.sh plunit; commit=WORKTREE].
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
 %   - Branch-return merging preserves shared and pre-bound variables while
@@ -165,6 +169,10 @@
 %   To Do: None
 %   Hacks: None
 %   Future Enhancements: None
+% Owns resources:
+%   - '$petta_translation_cache' serializes first publication and dependency
+%     eviction; translated_form_cache/6 and translated_form_mention/2 retain
+%     templates until a mentioned function changes or the process exits.
 
 :- use_module(library(assoc)).
 :- use_module(library(ansi_term)).
@@ -571,6 +579,126 @@ compiled_function_name(F, F).
 %The names an importer form in the runnable being compiled registers, so the
 %check after it runs knows whether the expression is worth walking at all.
 :- thread_local runnable_import/1.
+%A translated runnable is a TEMPLATE, not an answer. The source, goals and
+%output are stored together so their variables keep the same sharing, while a
+%dynamic-clause read gives every caller a fresh copy. This is the boundary
+%Python's non-direct eval paths cross this boundary. Language-level eval/2 and source
+%runners stay uncached because interpreter-style programs feed them many
+%one-shot terms; equations also stay uncached, so compile-once paths retain
+%their prior cost.
+%
+%The key is the specializer's operation: copy the term and number its
+%variables. The source-template variant check is still required because a
+%literal `$VAR(0)` collides with numbervars/4's representation of a source
+%variable. Module is the other half because the same written call can resolve
+%to a different predicate in each space. The measured ground-shape alternative
+%was rejected: rebuilding a typed shape on every hit consumed most of the
+%translation saving while the repeated eval workloads already repeat exact
+%variants.
+%
+%The dependency index contains every atom in the written form. It deliberately
+%over-approximates, as definition_mentions/2 does: evicting an unaffected
+%translation is safe, retaining one that compiled against an old function is
+%not. Both function change events use the same indexed first lookup.
+:- dynamic translated_form_cache/6.
+:- dynamic translated_form_mention/2.
+:- dynamic translation_cache_hook_ref/2.
+
+normalize_translation_key(Term, Normalized) :-
+    copy_term(Term, Normalized),
+    numbervars(Normalized, 0, _, [singletons(true)]).
+
+translation_template(Source, Template, Key) :-
+    copy_term(Source, Template),
+    normalize_translation_key(Template, Key).
+
+%A one-shot giant value is cheaper to translate than to copy, normalize and
+%retain. The bound is a node budget rather than a byte estimate, so it stops
+%after fixed work and does not walk a 100,000-element sort input merely to
+%decide not to cache it [measured 2026-08-20: sort-atom cache experiment].
+translation_cacheable(Term) :-
+    acyclic_term(Term),
+    cache_term_budget(Term, 256, _).
+
+cache_term_budget(_, 0, _) :- !, fail.
+cache_term_budget(Term, Budget0, Budget) :-
+    Budget1 is Budget0 - 1,
+    (   compound(Term)
+    ->  functor(Term, _, Arity),
+        cache_args_budget(1, Arity, Term, Budget1, Budget)
+    ;   Budget = Budget1
+    ).
+
+cache_args_budget(Index, Arity, _, Budget, Budget) :- Index > Arity, !.
+cache_args_budget(Index, Arity, Term, Budget0, Budget) :-
+    arg(Index, Term, Argument),
+    cache_term_budget(Argument, Budget0, Budget1),
+    Next is Index + 1,
+    cache_args_budget(Next, Arity, Term, Budget1, Budget).
+
+translated_form_hit(Module, Key, Source, Goals, Out) :-
+    translated_form_cache(Module, Key, _, StoredSource, Goals, Out),
+    Source =@= StoredSource,
+    Source = StoredSource,
+    !.
+
+cache_translated_form(Module, Key, Source, Goals, Out) :-
+    install_translation_cache_hooks,
+    gensym(translated_form_, Id),
+    assertz(translated_form_cache(Module, Key, Id, Source, Goals, Out), Ref),
+    record_source_assertion(Ref),
+    findall(Symbol, (sub_term(Symbol, Source), atom(Symbol)), Symbols0),
+    sort(Symbols0, Symbols),
+    forall(member(Symbol, Symbols),
+           ( assertz(translated_form_mention(Symbol, Id), MentionRef),
+             record_source_assertion(MentionRef) )).
+
+install_translation_cache_hooks :- translation_cache_hook_ref(_, _), !.
+install_translation_cache_hooks :-
+    assertz((metta_on_function_changed(Symbol) :-
+                invalidate_translated_forms(Symbol)), ChangedRef),
+    assertz(translation_cache_hook_ref(changed, ChangedRef)),
+    assertz((metta_on_function_removed(Symbol) :-
+                invalidate_translated_forms(Symbol)), RemovedRef),
+    assertz(translation_cache_hook_ref(removed, RemovedRef)).
+
+translate_runnable_expr_cached(Module, Key, Source, Template, Goals, Out) :-
+    (   translated_form_hit(Module, Key, Source, Goals, Out)
+    ->  true
+    ;   translate_runnable_expr(Template, TemplateGoals, TemplateOut),
+        cache_translated_form(Module, Key, Template, TemplateGoals,
+                              TemplateOut),
+        Source = Template,
+        Goals = TemplateGoals,
+        Out = TemplateOut
+    ).
+
+invalidate_translated_forms(Symbol) :-
+    (   translated_form_mention(Symbol, _)
+    ->  with_mutex('$petta_translation_cache',
+                   invalidate_translated_forms_locked(Symbol))
+    ;   true
+    ).
+
+invalidate_translated_forms_locked(Symbol) :-
+    findall(Id, retract(translated_form_mention(Symbol, Id)), Ids0),
+    sort(Ids0, Ids),
+    forall(member(Id, Ids),
+           ( retractall(translated_form_cache(_, _, Id, _, _, _)),
+             retractall(translated_form_mention(_, Id)) )),
+    uninstall_idle_translation_cache_hooks.
+
+uninstall_idle_translation_cache_hooks :-
+    (   translated_form_cache(_, _, _, _, _, _)
+    ->  true
+    ;   forall(retract(translation_cache_hook_ref(_, Ref)), erase(Ref))
+    ).
+
+clear_translation_cache :-
+    with_mutex('$petta_translation_cache',
+               ( retractall(translated_form_cache(_, _, _, _, _, _)),
+                 retractall(translated_form_mention(_, _)),
+                 uninstall_idle_translation_cache_hooks )).
 note_symbol_head(HV) :- atom(HV), !,
                         ( translating_runnable -> Ctx = runnable ; Ctx = clause ),
                         ( symbol_head(HV, Ctx) -> true
@@ -590,17 +718,37 @@ note_symbol_head(_).
 %is the cheapest cross-cutting signal Prolog has: one inference, against two
 %for flag/3 [measured 2026-08-15].
 
+%% translate_cached_expr(+Expression, -Goals, -Value) is det.
+% This cache stores translation templates, not evaluation answers. Any future
+% entry that covers evaluation results must store the complete canonical result
+% set, never only the first answer.
+translate_cached_expr(C, Goals, Out) :-
+    (   translation_cacheable(C)
+    ->  current_metta_module(Module),
+        translation_template(C, Template, Key),
+        (   translated_form_hit(Module, Key, C, Goals, Out)
+        ->  true
+        ;   with_mutex('$petta_translation_cache',
+                       translate_runnable_expr_cached(Module, Key, C,
+                                                      Template, Goals, Out))
+        )
+    ;   translate_runnable_expr(C, Goals, Out)
+    ).
+
 %% translate_runnable_expr(+Expression, -Goals, -Value) is det.
-translate_runnable_expr(C, Goals, Out) :- setup_call_cleanup(assertz(translating_runnable, Ref),
-                                                             once(translate_expr(C, Goals, Out)),
-                                                             erase(Ref)),
-                                          ( runnable_import(_)
-                                            -> refuse_call_to_own_import(C)
-                                             ; true ),
-                                          ( runnable_negation
-                                            -> retractall(runnable_negation),
-                                               quantify_negations(Out, Goals)
-                                             ; true ).
+translate_runnable_expr(C, Goals, Out) :-
+    setup_call_cleanup(assertz(translating_runnable, Ref),
+                       once(translate_expr(C, Goals, Out)),
+                       erase(Ref)),
+    (   runnable_import(_)
+    ->  refuse_call_to_own_import(C)
+    ;   true
+    ),
+    (   runnable_negation
+    ->  retractall(runnable_negation),
+        quantify_negations(Out, Goals)
+    ;   true
+    ).
 
 %A runnable is compiled WHOLE before any of it runs, so a registration inside
 %one cannot affect its own compilation. The call compiles while the name is
