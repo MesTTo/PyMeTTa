@@ -561,7 +561,6 @@ ext_point_kind(metta_backend_selftest/0, event).
 ext_point_kind(catch_recover/2, host_service).
 ext_point_kind(clear_foreign_atoms/1, host_service).
 ext_point_kind(clear_native_atoms/1, host_service).
-ext_point_kind(foreign_provides/2, host_service).
 ext_point_kind(translate_expr/3, host_service).
 %The host run and load surface: the grouped runner (with the
 %using-substitution folded in as Bindings), the status runner, the load
@@ -611,7 +610,14 @@ ext_point_kind(metta_host_forget_function/1, host_service).
 %existence probe is engine-internal now.
 ext_point_kind(metta_host_stored/2, host_service).
 ext_point_kind(metta_host_remove_reported/3, host_service).
-ext_point_kind(foreign_pushdown_class/3, host_service).
+%The explain mirror: one call answers what the seam already decided for a
+%query (per-pattern classes with term origins, the plan's claimed and rest
+%indexes, refusals preflighted), so a host renders prose instead of
+%re-deriving routing precedence. foreign_pushdown_class/3,
+%petta_refuse_guard/2, refuse_lossy_plan/4, petta_handles_route/5 and
+%foreign_provides/2 left this list with it (2026-08-20); the two that
+%extensions genuinely consult moved to the service list below.
+ext_point_kind(metta_host_explain_match/3, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
 ext_point_kind(metta_atom_hook_clause/2, host_service).
@@ -624,13 +630,10 @@ ext_point_kind(petta_annotations/2, host_service).
 ext_point_kind(petta_contract_fact/1, host_service).
 ext_point_kind(petta_error_answer/3, host_service).
 ext_point_kind(petta_handles_coherent/1, host_service).
-ext_point_kind(petta_handles_route/5, host_service).
 ext_point_kind(petta_on_error_mode/3, host_service).
-ext_point_kind(petta_refuse_guard/2, host_service).
 ext_point_kind(petta_source_reset/1, host_service).
 ext_point_kind(petta_transaction/1, host_service).
 ext_point_kind(petta_transport_failure/1, host_service).
-ext_point_kind(refuse_lossy_plan/4, host_service).
 ext_point_kind(sread_with_names/3, host_service).
 ext_point_kind(unregister_metta_extension/1, host_service).
 ext_point_kind(with_metta_module/2, host_service).
@@ -653,6 +656,11 @@ ext_point_kind(metta_unwritable_symbol/2, service).
 %host_service above; named here in prose so an extension author finds the
 %pair together).
 ext_point_kind(petta_shape_route/5, service).
+%The routing classifier and the capability probe, consulted by
+%lib/lib_conformance.pl: published for extensions, no longer part of the
+%host transport's own list.
+ext_point_kind(foreign_pushdown_class/3, service).
+ext_point_kind(foreign_provides/2, service).
 
 %ERRORS. An extension that throws reports in the vocabulary of whatever threw,
 %so `Y is X * 2` on a symbol names is/2 rather than the operation the program

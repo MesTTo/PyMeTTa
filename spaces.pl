@@ -2507,6 +2507,65 @@ prolog:error_message(petta_top_unordered(Ctx, Semiring)) -->
        context annotates its answers, or use (take k ...) for any \c
        k'-[Ctx, Semiring, Ctx] ].
 
+%What the seam already decided for a query, shown to a host without running
+%it: refusal preflighted through the same petta_refuse_guard that
+%match_foreign consults, per-pattern classes through foreign_pushdown_class
+%with each pattern asked standalone, and the conjunction claim through the
+%same guarded metta_foreign_plan call the execution commits to, the
+%lossy-partition check included. Claimed and Rest come back as indexes into
+%the pattern list, so a host renders its own atoms and its caller's variable
+%names survive. A stored space answers explain(stored, [], [], []): the
+%engine joins by unification and no provider is consulted. Origins are
+%TERMS, declared(Entry, Fidelity, Det), provider, unclaimed or
+%refused(Entry); prose is the host's own presentation.
+metta_host_explain_match(Space, Patterns, Report) :-
+    (   \+ metta_foreign_space(Space)
+    ->  Report = explain(stored, [], [], [])
+    ;   ( Patterns = [Whole] -> true ; Whole = [','|Patterns] ),
+        catch(
+            ( \+ \+ petta_refuse_guard(Space, Whole),
+              maplist(metta_host_explain_class(Space), Patterns, Classes),
+              metta_host_explain_plan(Space, Patterns, ClaimedIdx, RestIdx),
+              Report = explain(foreign, Classes, ClaimedIdx, RestIdx) ),
+            error(petta_refused_shape(_, _, Entry), _),
+            Report = explain(refused, [Entry], [], []))
+    ).
+
+metta_host_explain_class(Space, Pattern, class(Class, Origin)) :-
+    catch(
+        ( foreign_pushdown_class(Space, Pattern, Class),
+          metta_host_explain_origin(Space, Pattern, Origin) ),
+        error(petta_refused_shape(_, _, Refusing), _),
+        ( Class = refused,
+          Origin = refused(Refusing) )).
+
+%The origin consult mirrors foreign_pushdown_class's own precedence: a
+%declared (handles ...) entry outranks the provider's method, and silence
+%is the closed-world inexact.
+metta_host_explain_origin(Space, Pattern, Origin) :-
+    (   petta_handles_route(Space, Pattern, Entry, Fidelity, Det)
+    ->  Origin = declared(Entry, Fidelity, Det)
+    ;   metta_foreign_pushdown(Space, Pattern, _)
+    ->  Origin = provider
+    ;   Origin = unclaimed
+    ).
+
+metta_host_explain_plan(Space, Patterns, ClaimedIdx, RestIdx) :-
+    (   Patterns = [_, _|_],
+        foreign_provides(Space, plan),
+        once(metta_foreign_plan(Space, Patterns, Claimed, Rest, _Goal)),
+        Claimed \== []
+    ->  refuse_lossy_plan(Space, Patterns, Claimed, Rest),
+        maplist(metta_host_explain_index(Patterns), Claimed, ClaimedIdx),
+        maplist(metta_host_explain_index(Patterns), Rest, RestIdx)
+    ;   ClaimedIdx = [],
+        findall(I, nth0(I, Patterns, _), RestIdx)
+    ).
+
+metta_host_explain_index(Patterns, Term, Index) :-
+    nth0(Index, Patterns, Candidate),
+    Candidate == Term, !.
+
 %What a provider claims about its own filtering for THIS pattern. Silence is
 %inexact, which is Prolog's own closed-world reading of the question, "any
 %conclusion that cannot be proved to follow from the facts and rules in the
