@@ -2,7 +2,11 @@
 and version source that wheel builds publish.
 Guarantees:
   - release history and citation metadata exist and enter source archives
-    [tested test_release_and_citation_metadata_ship_in_source_archives]
+    [tested: test_release_and_citation_metadata_ship_in_source_archives;
+    commit=WORKTREE]
+  - the Python gate uses the fixed load-tested worker protocol
+    [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -12,6 +16,7 @@ Open Obligations:
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -69,9 +74,22 @@ def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pyte
     assert "pylint>=3.3,<4" in extras["checks"]
 
 
-def test_python_gate_groups_files_in_process_workers():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_pytest_lane_is_deterministic_under_load_protocol():
+    """Pin the exact worker policy exercised by the repeated load protocol."""
     gate = (ROOT / "check.sh").read_text(encoding="utf-8")
-    assert "-p no:benchmark -n auto --dist loadfile --max-worker-restart=0" in gate
+    lane = next(line for line in gate.splitlines() if line.startswith("run GATE pytest"))
+    protocol = re.search(
+        r"-p no:benchmark -n (?P<workers>\S+) --dist (?P<dist>\S+) "
+        r"--max-worker-restart=(?P<restarts>\d+)",
+        lane,
+    )
+    assert protocol is not None, lane
+    assert protocol.groupdict() == {
+        "workers": "4",
+        "dist": "loadfile",
+        "restarts": "0",
+    }
+    assert "--reruns" not in lane
 
 
 def _build_ext(destination: Path, environment: dict[str, str]) -> subprocess.CompletedProcess:
