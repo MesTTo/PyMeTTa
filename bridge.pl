@@ -23,7 +23,7 @@
 %     [tested: a_grounded_value_that_is_not_callable_stays_unreduced].
 %   - nested host values render through the explicit display service while
 %     the text writer remains free to refuse them [tested:
-%     a_python_value_keeps_its_explicit_display; commit=WORKTREE].
+%     a_python_value_keeps_its_explicit_display; commit=53686aed41e7ff02de69052198afdb537536cbdb].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.

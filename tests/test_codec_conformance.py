@@ -13,7 +13,7 @@ implementations in two languages, which is what the corpus is for.
 Guarantees:
   - a renderer refusal is licensed only where the corpus marks the spelling
     as non-invertible [tested:
-    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=WORKTREE]
+    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=53686aed41e7ff02de69052198afdb537536cbdb]
 
 Open Obligations:
   To Do: None

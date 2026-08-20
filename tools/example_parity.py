@@ -26,7 +26,7 @@ Guarantees:
     source SPELLING is not a difference in answer: `true` and `True` both
     parse to Gnd(True), while both shipped writers emit canonical `True`
     [tested: test_spelling_is_not_a_difference,
-    test_swrite_writes_mettas_own_boolean_literal; commit=WORKTREE]
+    test_swrite_writes_mettas_own_boolean_literal; commit=53686aed41e7ff02de69052198afdb537536cbdb]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the

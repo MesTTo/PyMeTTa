@@ -31,7 +31,7 @@ Guarantees:
   - a renderer may refuse exactly the corpus cases whose written spelling is
     declared not to read back, while a refusal for a readable case remains a
     complaint [tested: test_a_renderer_may_refuse_only_a_non_round_trip_text;
-    commit=WORKTREE]
+    commit=53686aed41e7ff02de69052198afdb537536cbdb]
 Open Obligations:
   To Do: None
   Hacks: None
