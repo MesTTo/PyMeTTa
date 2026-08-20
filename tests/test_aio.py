@@ -1,6 +1,11 @@
 """Purpose: the asyncio facade: the loop stays live while the engine
 works, results and errors cross threads intact, bounds fire on the worker
 thread, and spaces borrow the owner's engine thread.
+Guarantees:
+  - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
+    no residuals parameter [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -275,7 +280,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         "timeout",
         "inferences",
         "capture",
-        "residuals",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",

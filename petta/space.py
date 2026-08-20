@@ -41,6 +41,10 @@ Guarantees:
     term, and strict= refuses only the latter [tested
     test_eval_status_reports_the_four_outcomes,
     test_strict_accepts_a_pruned_branch_and_every_reduction]
+  - eval has one answer shape: a non-reducible result is its unreduced term,
+    and no residuals flag changes it [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:
@@ -1254,7 +1258,6 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: Literal[False] = False,
-        residuals: bool = False,
     ) -> list[Atom | Undefined]: ...
 
     @overload
@@ -1266,7 +1269,6 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: Literal[True],
-        residuals: bool = False,
     ) -> tuple[list[Atom | Undefined], str]: ...
 
     @overload
@@ -1278,7 +1280,6 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool,
-        residuals: bool = False,
     ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]: ...
 
     def eval(
@@ -1289,7 +1290,6 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
-        residuals: bool = False,
     ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
         """Evaluate a term, returning every answer.
 
@@ -1301,10 +1301,10 @@ class MeTTa:
         Well Founded Semantics (a tabled loop through tnot, reachable via
         translatePredicate or injected Prolog) arrives as an Undefined
         holding the answer and the delay condition that makes it
-        undefined, never as an ordinary-looking value. `residuals=True`
-        additionally fills each Undefined's .residual with the residual
-        program, the clauses of the loop itself. run() does not carry the
-        third truth value; evaluate through eval() when it matters.
+        undefined, never as an ordinary-looking value. A term to which no
+        rule applies is the ordinary answer itself; `eval_status()` names
+        that path `not-reducible`. run() does not carry the third truth
+        value; evaluate through eval() when it matters.
 
         `using` binds named host values into the term before it evaluates,
         exactly as it does for run(): `m.eval("(decide $x)", using={"x":
@@ -1325,7 +1325,6 @@ class MeTTa:
             timeout,
             inferences,
             capture=capture,
-            residuals=residuals,
             using=using,
         )
 
@@ -1383,7 +1382,6 @@ class MeTTa:
                 timeout,
                 None,
                 capture=False,
-                residuals=False,
             ),
         )
 

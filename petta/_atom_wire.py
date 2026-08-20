@@ -9,6 +9,10 @@ Guarantees:
     minimum of three instructions:u runs]
   - definite atom boundaries reject undefined truth wrappers [tested
     test_atom_from_wire_rejects_undefined_truth]
+  - undefined truth has one value-and-delay frame with no optional constraint
+    payload [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
@@ -103,20 +107,18 @@ class Undefined:
 
     eval() yields one of these instead of a plain atom when the answer's
     derivation hangs on unresolved tabled goals, a loop through tnot.
-    value holds the answer term; why holds the delay condition the engine
-    reported (call_delays); residual, filled when eval(residuals=True)
-    asked for it, holds the residual program, the clauses of the loop
-    itself. Truthiness is refused on purpose: undefined is neither True
+    value holds the answer term and why holds the delay condition the engine
+    reported (call_delays). Truthiness is refused on purpose: undefined is
+    neither True
     nor False, so branch on .value and .why explicitly, the reason
     KeyboardInterrupt lives outside Exception applied to truth.
     """
 
-    __slots__ = ("residual", "value", "why")
+    __slots__ = ("value", "why")
 
-    def __init__(self, value: Atom, why: str, residual: str | None = None) -> None:
+    def __init__(self, value: Atom, why: str) -> None:
         self.value = value
         self.why = why
-        self.residual = residual
 
     def __bool__(self) -> bool:
         raise PettaError(
@@ -130,11 +132,10 @@ class Undefined:
             isinstance(other, Undefined)
             and self.value == other.value
             and self.why == other.why
-            and self.residual == other.residual
         )
 
     def __hash__(self) -> int:
-        return hash((Undefined, self.value, self.why, self.residual))
+        return hash((Undefined, self.value, self.why))
 
     def __repr__(self) -> str:
         return f"Undefined({self.value!r}, why={self.why!r})"
@@ -225,8 +226,6 @@ def from_wire(wire: Any) -> Atom | Undefined:
     match wire:
         case ["u", value, why]:
             return Undefined(atom_from_wire(value), str(why))
-        case ["u", value, why, residual]:
-            return Undefined(atom_from_wire(value), str(why), residual)
         case ["e", payload]:
             return _expression_from_wire(payload)
         case ["h", ident, text]:

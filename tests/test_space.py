@@ -17,12 +17,16 @@ Guarantees:
     test_a_copy_reproduces_the_space_it_copied]
   - run() preserves a runnable variable's source spelling through collection
     and the public wire [tested test_variable_names_survive_to_the_printer]
+  - eval returns a non-reducible term directly and exposes no residual flag
+    [tested: test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import inspect
 import re
 
 import pytest
@@ -811,9 +815,20 @@ def test_eval_using_carries_identity(m):
         m.unregister_op("blob-n")
 
 
-def test_eval_using_refuses_to_pretend_it_composes_with_residuals(m):
-    with pytest.raises(petta.PettaError, match="do not compose"):
-        m.eval("(+ 1 2)", using={"x": 1}, residuals=True)
+def test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag(m):
+    class Blob:
+        pass
+
+    blob = Blob()
+    assert "residuals" not in inspect.signature(m.eval).parameters
+    assert "residuals" not in inspect.signature(petta.aio.AsyncMeTTa.eval).parameters
+    with pytest.raises(TypeError, match="residuals"):
+        m.eval("(Point item)", residuals=True)
+
+    assert m.eval_status("(Point item)")[0][0] == "not-reducible"
+    (answer,) = m.eval("(Point item)", using={"item": blob})
+    assert isinstance(answer, petta.Expr)
+    assert answer.args[0].value is blob
 
 
 def test_a_source_registers_every_signature_before_any_form_runs(metta):

@@ -7,6 +7,10 @@ Guarantees:
     test_speculative_run_answers_and_discards]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
+  - ordinary evaluation returns an unreduced term directly and has no
+    residual-shape flag [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +26,7 @@ from typing import Any
 from ._engine import Runtime
 from ._space_objects import EngineProfile, FunctionCost, _limits
 from .atoms import Atom, Gnd, Undefined, _to_atom, atom_from_wire, decode, encode, from_wire
-from .errors import EngineError, PettaError
+from .errors import EngineError
 
 
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
@@ -223,10 +227,9 @@ def evaluate(
     inferences: int | None,
     *,
     capture: bool,
-    residuals: bool,
     using: dict[str, Any] | None = None,
 ) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
-    predicate = "petta_py_eval_res_all" if residuals else "petta_py_eval_all"
+    predicate = "petta_py_eval_all"
     # Source text goes over as text. Parsing it here would cross to the engine's
     # reader, build an Atom from the wire form it answers, and walk that Atom
     # straight back to the same wire form for this call, so a string target cost
@@ -235,12 +238,6 @@ def evaluate(
     # parsed first against 449.00 read where it is evaluated].
     inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
     if using:
-        if residuals:
-            raise PettaError(
-                "using= and residuals= do not compose yet: the residual door "
-                "reports which path produced each answer, and substitution "
-                "happens before any path is chosen"
-            )
         predicate = "petta_py_eval_using_all"
         inputs = [
             *inputs,

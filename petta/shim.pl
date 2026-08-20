@@ -68,6 +68,10 @@
 %     resolves them only after the root handle has matched [tested:
 %     test_a_path_reaches_into_a_handle_without_converting_it;
 %     commit=a1b10566194f10c174101fdc05f956b33171613b]
+%   - evaluation emits one undefined-truth frame and never a flag-selected
+%     residual-program shape [tested:
+%     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+%     commit=WORKTREE]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -376,11 +380,9 @@ petta_py_answer_kappa(K0, Ctx) :-
 %reduces to a boolean and false drops the answer, a match form inside the
 %residue contributes one closure per solution, and a term with no
 %equation answers itself, exactly as !(edge a b) does at the top level.
-%This is one notion worn three ways already: 'residual-goals'/2 carries
-%dif/2 constraints an answer holds under, Undefined's residual carries
-%the delayed goals a WFS answer is conditional on, and a Planner's rest
-%is the part of a conjunction the provider left; the answer form carries
-%the same R across the wire.
+%This residue is only the part a provider did not discharge. Constraint goals
+%remain language-internal through residual-goals/2, and a WFS answer carries
+%its delay condition; neither creates a second Python return shape.
 petta_py_answer_close('@'(true), _) :- !.
 petta_py_answer_close(ResidueW, Table) :-
     petta_py_decode_shared_(ResidueW, Residue, Table, _),
@@ -582,7 +584,6 @@ petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_using_all).
-petta_py_wrappable(petta_py_eval_res_all).
 petta_py_wrappable(petta_py_eval_status_all).
 petta_py_wrappable(petta_py_run_status).
 petta_py_wrappable(petta_py_captured).
@@ -1317,28 +1318,21 @@ petta_py_cast(Space, ValueW, TypeW, Out) :-
 %a plain twin, 222-236k against 248-249k calls per second); real
 %evaluations amortize it below that.
 petta_py_eval(Space, Tagged, Encoded) :-
-    petta_py_eval_(Space, Tagged, plain, Encoded).
-
-petta_py_eval_(Space, Target, Residuals, Encoded) :-
-    petta_py_target_term(Space, Target, Term),
+    petta_py_target_term(Space, Tagged, Term),
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
     ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
-    petta_py_encode_truth(Out, Delays, Residuals, Encoded).
+    petta_py_encode_truth(Out, Delays, Encoded).
 
-petta_py_encode_truth(Out, Delays, Residuals, Encoded) :-
+petta_py_encode_truth(Out, Delays, Encoded) :-
     ( Delays == true
       -> petta_py_encode(Out, Encoded)
     ; petta_py_encode(Out, Inner),
       term_string(Delays, Why),
-      ( Residuals == residual
-        -> delays_residual_program(Delays, _:Clauses),
-           term_string(Clauses, ResidualText),
-           Encoded = ["u", Inner, Why, ResidualText]
-      ; Encoded = ["u", Inner, Why] ) ).
+      Encoded = ["u", Inner, Why] ).
 
 %The fast path: a flat call of a compiled function whose arguments are all
 %plain data needs no translation, just the call. translate_expr costs two
@@ -1424,7 +1418,7 @@ petta_py_eval_term(Space, Term, Encoded) :-
     ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
-    petta_py_encode_truth(Out, Delays, plain, Encoded).
+    petta_py_encode_truth(Out, Delays, Encoded).
 
 %Which of PeTTa's own evaluation paths produced each answer, reported without
 %changing what the ordinary entry points return:
@@ -1456,12 +1450,6 @@ petta_py_eval_status_all(Space, Tagged, Results) :-
                                           ; Status = 'not-reducible' ),
     findall([Status, E], petta_py_eval(Space, Tagged, E), Answers),
     ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
-
-%The residual variant additionally derives, per undefined answer, the
-%residual program from its delays (the loop through tnot responsible),
-%the explanation surface eval(residuals=True) opts into.
-petta_py_eval_res_all(Space, Tagged, Encoded) :-
-    findall(E, petta_py_eval_(Space, Tagged, residual, E), Encoded).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %

@@ -29,6 +29,10 @@ Guarantees:
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
     test_cast_target_is_positional_only]
+  - async eval mirrors the synchronous single answer shape without a
+    residuals flag [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -654,7 +658,6 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
         capture: bool = False,
-        residuals: bool = False,
     ) -> Any:
         """Evaluate a term and return every answer."""
         return await self.call(
@@ -664,7 +667,6 @@ class AsyncMeTTa:
                 timeout=timeout,
                 inferences=inferences,
                 capture=capture,
-                residuals=residuals,
             )
         )
 
