@@ -4,6 +4,9 @@ Guarantees:
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit [tested
     test_union_expansion_is_bounded]
+  - every host atom class keeps its engine metatype at the annotation seam
+    [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +25,7 @@ from typing import Any
 
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
-from .atoms import Atom, Expr, S, Sym, Var, expr
+from .atoms import Atom, Expr, Gnd, S, Sym, Var, expr
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
     (bool, "Bool"),
@@ -31,13 +34,21 @@ _TYPE_NAMES: tuple[tuple[type, str], ...] = (
     (str, "String"),
 )
 
+_METATYPE_NAMES: dict[type[Atom], str] = {
+    Atom: "Atom",
+    Sym: "Symbol",
+    Var: "Variable",
+    Expr: "Expression",
+    Gnd: "Grounded",
+}
+
 
 def metta_type_for(annotation: Any) -> str:
     """Return the scalar MeTTa type named by a Python annotation."""
     if annotation is inspect.Parameter.empty or annotation is Any:
         return "%Undefined%"
-    if annotation in (Atom, Expr, Sym, Var):
-        return "Atom"
+    if annotation in _METATYPE_NAMES:
+        return _METATYPE_NAMES[annotation]
     for python_type, name in _TYPE_NAMES:
         if annotation is python_type:
             return name
