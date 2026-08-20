@@ -1474,11 +1474,14 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
 %petta_add_refused like any handler's. The Atom mask on the atom
 %parameter lives in src/prelude.metta: the pool judges the offered atom
 %as itself [tested: the_sugar_judges_the_offered_atom_as_itself].
+%The two fixed contract heads read &petta's boot-created storage directly,
+%so an absent row still fails while the general =../catch wrapper is off
+%this per-add path.
 'space-admission-verdict'(Pool, Atom, Verdict) :-
-    (   petta_contract_fact([admits, Pool, Type]),
+    (   '$petta_atoms:&petta':'&petta'(admits, Pool, Type),
         \+ has_declared_type(Atom, Type)
     ->  Verdict = [refuse, ['does-not-carry', Type]]
-    ;   petta_contract_fact([capacity, Pool, Limit]),
+    ;   '$petta_atoms:&petta':'&petta'(capacity, Pool, Limit),
         %A foreign pool's atoms live with its provider, so its count is
         %the enumeration space-atom-count refuses to hide; a native one
         %is the store's own clause bookkeeping, O(1) in what it holds.
