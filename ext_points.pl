@@ -560,6 +560,7 @@ ext_point_kind(metta_backend_selftest/0, event).
 %the shim-thinning work's scoreboard.
 ext_point_kind(catch_recover/2, host_service).
 ext_point_kind(translate_expr/3, host_service).
+ext_point_kind(translate_cached_expr/3, host_service).
 %The host run and load surface: the grouped runner (with the
 %using-substitution folded in as Bindings), the status runner, the load
 %lifecycle and the manifest read, plus the reducible-head test the status

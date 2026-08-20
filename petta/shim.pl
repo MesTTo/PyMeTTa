@@ -4,6 +4,9 @@
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   src/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
+%     forms reuse the engine's invalidated translation templates
+%     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]
 %   - petta_py_declare_handles/3 writes the declaration and checks the
 %     context's critical pairs in one transaction, so a conflicting entry
 %     rolls back and never becomes queryable
@@ -1271,7 +1274,7 @@ petta_py_eval_(Space, Target, Residuals, Encoded) :-
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
-    ; petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
     petta_py_encode_truth(Out, Delays, Residuals, Encoded).
@@ -1368,7 +1371,7 @@ petta_py_eval_term(Space, Term, Encoded) :-
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
-    ; petta_py_in_module(Module, ( translate_expr(Term, Goals, Out),
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
     petta_py_encode_truth(Out, Delays, plain, Encoded).

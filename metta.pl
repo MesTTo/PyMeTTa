@@ -1,6 +1,11 @@
 % Purpose: provide PeTTa's Prolog runtime, builtins, type system, evaluator,
 %   imports, function registration, and named-space execution context.
 % Guarantees:
+%   - A built-in call covered by the effects cluster whose declared operand
+%     types already conflict is refused before operand evaluation; shallow
+%     compile-time checks inspect literals and declared return types without
+%     binding source variables
+%     [tested: operation_answers, test_a_repeated_eval_does_not_recompile_and_the_effects_cluster_conforms; commit=8d0027a3942000c799daccb45bf0abe1b46b10aa].
 %   - import! loads a MeTTa source that is new or that has been edited, and
 %     skips one that is neither, which is SWI's if(changed); a Python source
 %     keeps if(not_loaded) [tested 2026-08-19:
@@ -463,6 +468,38 @@ metta_call_accepted(Operation, Arguments) :-
     metta_arguments_match(ParameterTypes, Origins, Arguments),
     !.
 
+%A compile-time refusal may use only the immediate types the shallow reader
+%can prove. An unknown argument is compatible here: refusing it would turn a
+%missing proof into a type error, while its nested call site or the runtime
+%check can still decide it later. Shared formal variables remain shared across
+%the walk, so two known arguments must still make one consistent assignment.
+metta_arguments_match_shallow([], [], []).
+metta_arguments_match_shallow([Expected|Rest], [Origin|Origins],
+                              [Argument|Arguments]) :-
+    (   Origin == metatype,
+        satisfies_metatype(Argument, Expected)
+    ->  true
+    ;   shallow_argument_types(Argument, Types)
+    ->  member(Actual, Types),
+        metta_argument_type_matches(Actual, Expected, Origin)
+    ;   true
+    ),
+    metta_arguments_match_shallow(Rest, Origins, Arguments).
+
+metta_shallow_call_accepted(Operation, Arguments) :-
+    metta_shallow_operation_parameters(Operation, Arguments,
+                                       ParameterTypes, Origins),
+    metta_arguments_match_shallow(ParameterTypes, Origins, Arguments),
+    !.
+
+%A refusal is proven only when at least one declaration has this arity and no
+%such declaration accepts the immediate argument types. Double negation keeps
+%the compile-time question from binding the source term or a declaration's
+%type variables.
+metta_shallow_call_refused(Operation, Arguments) :-
+    \+ \+ ( \+ metta_shallow_call_accepted(Operation, Arguments),
+            metta_shallow_operation_parameters(Operation, Arguments, _, _) ).
+
 metta_arguments_match([], [], []).
 metta_arguments_match([Expected|Rest], [Origin|Origins],
                       [Argument|Arguments]) :-
@@ -483,6 +520,14 @@ metta_operation_parameters(Operation, Arguments, ParameterTypes, Origins) :-
     ;   \+ type_declaration_in(Module, Operation, _),
         builtin_type_declaration(Operation, Chain0)
     ),
+    copy_term(Chain0, [->|Types]),
+    append(ParameterTypes, [_], Types),
+    metta_argument_type_origins(ParameterTypes, Origins),
+    same_length(ParameterTypes, Arguments).
+
+metta_shallow_operation_parameters(Operation, Arguments, ParameterTypes,
+                                   Origins) :-
+    shallow_declared_type(Operation, Chain0),
     copy_term(Chain0, [->|Types]),
     append(ParameterTypes, [_], Types),
     metta_argument_type_origins(ParameterTypes, Origins),
@@ -601,6 +646,67 @@ metta_metatype_name('Variable').
 metta_argument_types(Argument, Types) :-
     current_metta_module(Module),
     metta_argument_types_in(Module, Argument, Types).
+
+%THE COMPILE-TIME READING of the same question, and the difference is that it
+%does not descend. A type walk over a nested call is proportional to the whole
+%subtree, so asking it at every call site while compiling one made compilation
+%quadratic in nesting depth: the translator's own linear-work test builds 400
+%nested additions and holds compilation to at most double the work for double
+%the depth [tested: translator_translation_depth:
+%every_nesting_shape_compiles_in_linear_work].
+%
+%One lookup per argument answers what the refusal needs: a literal carries its
+%own type, a call carries its head's declared RETURN type, and a symbol carries
+%what was declared for it. Nothing else is decided, and an argument this cannot
+%type is an argument the check accepts, so the compile-time decision is a
+%SUBSET of the runtime one and a call it does not refuse compiles exactly as it
+%did. The nesting is not lost either: the inner call is a call site of its own
+%and is asked the same question when it is compiled.
+%A VARIABLE first, and with a cut, because the clauses below match by head and
+%an unbound argument would UNIFY with `true` and be typed Bool: the compiled
+%body of `(= (qq $x) (+ $x 1))` came out as `qq(true, A)`, the check having
+%bound the head's own variable before refusing the call it then reported
+%[reproduced 2026-08-20].
+shallow_argument_types(X, _) :- var(X), !, fail.
+shallow_argument_types(X, ['Number']) :- number(X), !.
+shallow_argument_types(X, ['String']) :- string(X), !.
+shallow_argument_types(true, ['Bool']) :- !.
+shallow_argument_types(false, ['Bool']) :- !.
+shallow_argument_types([H|_], Types) :-
+    atom(H), !,
+    (   '$petta_atoms:&self':'&self'(':', H, _)
+    ->  findall(Return,
+                ( '$petta_atoms:&self':'&self'(':', H, Chain),
+                  nonvar(Chain), Chain = [->|Rest], last(Rest, Return) ),
+                Types),
+        Types \== []
+    ;   builtin_type_declaration(H, Chain),
+        nonvar(Chain), Chain = [->|Rest],
+        last(Rest, Return),
+        Types = [Return]
+    ).
+shallow_argument_types(X, Types) :-
+    atom(X),
+    (   '$petta_atoms:&self':'&self'(':', X, _)
+    ->  findall(Type,
+                ( '$petta_atoms:&self':'&self'(':', X, Type),
+                  \+ ( nonvar(Type), Type = [->|_] ) ),
+                Types),
+        Types \== []
+    ;   builtin_type_declaration(X, Type),
+        \+ ( nonvar(Type), Type = [->|_] ),
+        Types = [Type]
+    ).
+
+%The two indexed registers, read directly: &self's own declarations and the
+%engine's surface. type_declaration/2 would go through match/4 and the prelude,
+%which is the door data_head_answer_dl/6's note measures at +44% on a compile
+%path [measured 2026-08-19].
+shallow_declared_type(Name, Type) :-
+    '$petta_atoms:&self':'&self'(':', Name, Type).
+shallow_declared_type(Name, Type) :-
+    \+ '$petta_atoms:&self':'&self'(':', Name, _),
+    builtin_type_declaration(Name, Type).
 
 metta_argument_types_in(Module, Argument, Types) :-
     (   metta_reading_declared_types

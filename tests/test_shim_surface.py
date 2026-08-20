@@ -70,6 +70,9 @@ HOST_SERVICES = {
     "petta_transport_failure/1",
     "sread_with_names/3",
     "swrite_with_names/3",
+    # Eval crosses through a cached translation template while source forms
+    # retain translate_expr/3, so compile-once loading pays no cache tax.
+    "translate_cached_expr/3",
     "translate_expr/3",
     "unregister_metta_extension/1",
     "with_metta_module/2",
@@ -142,7 +145,11 @@ FLOOR_REASONS = {
     "petta_transaction/1": "door",
     "petta_transport_failure/1": "error-vocabulary",
     "sread_with_names/3": "codec",
+<<<<<<< HEAD
     "swrite_with_names/3": "codec",
+=======
+    "translate_cached_expr/3": "codec",
+>>>>>>> translation-cache
     "translate_expr/3": "codec",
     "unregister_metta_extension/1": "door",
     "with_metta_module/2": "door",
