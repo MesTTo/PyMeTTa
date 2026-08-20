@@ -384,7 +384,10 @@ metta_engine_emitted(metta_ensure_duals/1).
 %src/duals.pl emits this one, into the dual clause it builds.
 metta_engine_emitted(metta_negation/5).
 metta_engine_emitted(petta_match_atoms/2).
+metta_engine_emitted(petta_answer_terms/3).
 metta_engine_emitted(petta_prune_empty/2).
+metta_engine_emitted(petta_prune_empty_answers/2).
+metta_engine_emitted(petta_run_named/3).
 metta_engine_emitted(petta_transaction/1).
 metta_engine_emitted(function_overapplication/3).
 metta_engine_emitted(metta_bad_argument_error/3).
@@ -601,6 +604,91 @@ translate_runnable_expr(C, Goals, Out) :- setup_call_cleanup(assertz(translating
                                             -> retractall(runnable_negation),
                                                quantify_negations(Out, Goals)
                                              ; true ).
+
+%Collect one runnable with its reader-side Name-Var map inside findall's
+%template. findall copies the answer and map as one term, so the printer can
+%recover variable identity after collection without attributed variables on
+%the matcher hot path [tested: test_variable_names_survive_to_the_printer;
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
+%% translate_runnable_expr(+Expression, +Names, -Goals, -Answers) is det.
+translate_runnable_expr(C, Names, Goals, Out) :-
+    Context = '$petta_name_context'(Names, []),
+    setup_call_cleanup(
+        install_runnable_name_context(Context, SavedContext),
+        translate_runnable_expr(C, InnerGoals, Value),
+        restore_runnable_name_context(SavedContext)),
+    arg(1, Context, CollectedReaderNames),
+    arg(2, Context, CollectedNames),
+    NameState = '$petta_name_state'(CollectedReaderNames,
+                                    [RuntimeNames|CollectedNames]),
+    goals_list_to_conj(InnerGoals, Conj),
+    NamedConj = petta_run_named(CollectedReaderNames, Conj, RuntimeNames),
+    (   Value == 'Empty'
+    ->  Goals = [Out = []]
+    ;   nonvar(Value)
+    ->  Goals = [findall('$petta_answer'(Value, NameState), NamedConj, Out)]
+    ;   Goals = [(findall('$petta_answer'(Value, NameState), NamedConj, All),
+                  petta_prune_empty_answers(All, Out))]
+    ).
+
+install_runnable_name_context(Context, saved(Previous)) :-
+    nb_current('$petta_runnable_name_context', Previous), !,
+    nb_linkval('$petta_runnable_name_context', Context).
+install_runnable_name_context(Context, none) :-
+    nb_linkval('$petta_runnable_name_context', Context).
+
+restore_runnable_name_context(saved(Previous)) :- !,
+    nb_linkval('$petta_runnable_name_context', Previous).
+restore_runnable_name_context(none) :-
+    nb_delete('$petta_runnable_name_context').
+
+%Record a compile-time freshening beside the reader map. sealed creates true
+%Prolog variables before the runnable findall exists; extending the map here
+%lets that findall copy the fresh variable and its source spelling together.
+runnable_note_copied_variables([], []).
+runnable_note_copied_variables([Original|Originals], [Copy|Copies]) :-
+    (   nb_current('$petta_runnable_name_context', Context),
+        Context = '$petta_name_context'(Names, _),
+        petta_reader_variable_name(Names, Original, Name)
+    ->  next_runnable_variable_epoch(Epoch),
+        runnable_variable_base_name(Name, BaseName),
+        EpochName = '$petta_epoch_name'(BaseName, Epoch),
+        arg(1, Context, CurrentNames),
+        setarg(1, Context, [EpochName-Copy|CurrentNames])
+    ;   true
+    ),
+    runnable_note_copied_variables(Originals, Copies).
+
+runnable_variable_base_name('$petta_epoch_name'(Name, _), Name) :- !.
+runnable_variable_base_name(Name, Name).
+
+next_runnable_variable_epoch(Epoch) :-
+    (   nb_current('$petta_runnable_variable_epoch', Epoch)
+    ->  Next is Epoch + 1,
+        nb_setval('$petta_runnable_variable_epoch', Next)
+    ;   Epoch = 0,
+        nb_setval('$petta_runnable_variable_epoch', 1)
+    ).
+
+:- meta_predicate with_runnable_variable_epochs(0).
+with_runnable_variable_epochs(Goal) :-
+    (   nb_current('$petta_runnable_variable_epoch', _)
+    ->  call(Goal)
+    ;   setup_call_cleanup(
+            nb_setval('$petta_runnable_variable_epoch', 0),
+            call(Goal),
+            nb_delete('$petta_runnable_variable_epoch'))
+    ).
+
+%Snapshot the names produced by already translated inner collapses, then add a
+%slot for this collapse to the final runnable state. setarg/3 is confined to
+%the deterministic translation pass; no run-time variable receives an
+%attribute or mutable payload.
+runnable_collapse_name_state(State, Slot) :-
+    nb_current('$petta_runnable_name_context', Context),
+    Context = '$petta_name_context'(Names, PriorSlots),
+    State = '$petta_name_state'(Names, PriorSlots),
+    setarg(2, Context, [Slot|PriorSlots]).
 
 %A runnable is compiled WHOLE before any of it runs, so a registration inside
 %one cannot affect its own compilation. The call compiles while the name is
@@ -1150,7 +1238,24 @@ translate_special_dl(superpose, [Args], AfterHead, Goals, Out) :-
 %the identical example].
 translate_special_dl(collapse, [Expr], AfterHead, Goals, Out) :-
     translate_expr_to_conj(Expr, Conj, ExprValue),
-    (   ExprValue == 'Empty'
+    (   runnable_collapse_name_state(CollapseState, NameSlot)
+    ->  CollapseState = '$petta_name_state'(CollapseNames, PriorNames),
+        NameState = '$petta_name_state'(CollapseNames,
+                                        [CollapseRuntimeNames|PriorNames]),
+        NamedConj = petta_run_named(CollapseNames, Conj,
+                                    CollapseRuntimeNames),
+        (   ExprValue == 'Empty'
+        ->  AfterHead = [(Out = [], NameSlot = [])|Goals]
+        ;   nonvar(ExprValue)
+        ->  AfterHead = [(findall('$petta_answer'(ExprValue, NameState),
+                                  NamedConj, Carried),
+                          petta_answer_terms(Carried, Out, NameSlot))|Goals]
+        ;   AfterHead = [(findall('$petta_answer'(ExprValue, NameState),
+                                  NamedConj, Carried0),
+                          petta_prune_empty_answers(Carried0, Carried),
+                          petta_answer_terms(Carried, Out, NameSlot))|Goals]
+        )
+    ;   ExprValue == 'Empty'
     ->  AfterHead = [Out = []|Goals]
     ;   nonvar(ExprValue)
     ->  AfterHead = [findall(ExprValue, Conj, Out)|Goals]
@@ -1373,44 +1478,21 @@ translate_special_dl('let*', [Binds, Body], AfterHead, Goals, Out) :-
       -> AfterHead = [letstar_runtime(Binds, Body, Out)|Goals]
       ;  letstar_to_rec_let(Binds, Body, RecursiveLet),
          translate_expr_dl(RecursiveLet, AfterHead, Goals, Out) ).
-%sealed renames the listed variables inside the expression so they are local to
-%it, which is HE's own wording: "Replaces all occurrences of any var from var
-%list inside atom by unique variable. Can be used to create locally scoped
-%variables."
-%
-%TWO DIVERGENCES from the current corelib dump, both pinned by
-%examples/control/sealed.metta so neither can drift silently.
-%
-%The first argument's ROLE is inverted. The wording quoted above is HE's own
-%older one and this implements exactly it: the LISTED variables are renamed.
-%The current dump says the opposite, "any var inside atom, EXCEPT list of
-%variables to ignore" [source: LeaTTa/stdlib.md, the sealed entry], so upstream
-%renames everything you did NOT name. This reading is what makes every use in
-%this tree work, seal_lambda_locals/3 below included: you name the variable you
-%want local. Under upstream's, the same call localises the surrounding
-%variables instead and the outer binding is lost.
-%
-%And this EVALUATES the sealed expression where upstream answers the renamed
-%atom as data: upstream prints `[(pair $x#19 $x#19)]` with nothing reduced,
-%while `(sealed ($v) (+ 1 2))` is 3 here. Evaluating is consistent with the
-%rest of PeTTa, and `quote` is how to get the atom instead.
-%
-%The rename happens HERE, at compile time, on the source expression.
-%copy_term/4 renames exactly the variables of its first argument that occur in
-%its second and shares everything else [source: SWI-Prolog 10.1 Reference
-%Manual, copy_term(+VarsIn, +In, -VarsOut, -Out)], which is the operation
-%sealed wants.
-%
-%It used to be emitted as a RUNTIME goal over the already-translated body, and
-%that cannot work for the case sealed exists for. By the time the goal runs,
-%an outer binding has bound the variable being sealed, so there is no variable
-%left to rename: (let $x 1 (sealed ($x) (let $x 2 $x))) copied [1] instead of
-%[$x], ran the inner let as (let 1 2 1), and answered NOTHING. Measured
-%2026-08-15; it answers 2 now. The form had no test and no example anywhere in
-%the tree, which is how that survived.
-translate_special_dl(sealed, [Vars, Expr], AfterHead, Goals, Out) :-
-    copy_term(Vars, Expr, _, SealedExpr),
-    translate_expr_dl(SealedExpr, AfterHead, Goals, Out).
+%sealed returns a renamed Atom. Every variable in the Atom is fresh except a
+%variable present in the first argument's ignore list [tested:
+%translator_sealed:the_ignore_list_preserves_only_its_variables;
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]. copy_term/4 performs that selective rename before evaluation
+%can bind an outer variable, and the answer remains data rather than being
+%reduced [tested: translator_sealed:sealed_returns_data_instead_of_evaluating_it;
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
+translate_special_dl(sealed, [Ignored, Expr], Goals, Goals, SealedExpr) :-
+    term_variables(Expr, ExprVariables),
+    term_variables(Ignored, IgnoredVariables),
+    exclude({IgnoredVariables}/[Variable]>>
+                memberchk_eq(Variable, IgnoredVariables),
+            ExprVariables, FreshVariables),
+    copy_term(FreshVariables, Expr, FreshCopies, SealedExpr),
+    runnable_note_copied_variables(FreshVariables, FreshCopies).
 
 translate_special_dl('forall', [Generator, Test], AfterHead, Goals, Out) :-
     ( is_list(Generator)
@@ -1890,16 +1972,30 @@ occurs_in(Var, Term) :- term_variables(Term, Vars), memberchk_eq(Var, Vars).
 %apart, so a variable used both inside a sealed form and outside it stays free
 %for its outside occurrences and is excluded only for its inside ones.
 seal_lambda_locals(Term, Sealed, Locals) :-
-    (   nonvar(Term), Term = [Head, Vars, Expr], Head == sealed
+    (   nonvar(Term), Term = [Head, Ignored, Expr], Head == sealed
     ->  seal_lambda_locals(Expr, Inner, InnerLocals),
-        copy_term(Vars, [sealed, Vars, Inner], _, Sealed),
-        Sealed = [_, SealedVars, _],
-        term_variables(SealedVars, Renamed),
-        append(Renamed, InnerLocals, Locals)
+        term_variables(Inner, InnerVariables),
+        term_variables(Ignored, IgnoredVariables),
+        exclude({IgnoredVariables}/[Variable]>>
+                    memberchk_eq(Variable, IgnoredVariables),
+                InnerVariables, FreshVariables),
+        copy_term(FreshVariables, [sealed, Ignored, Inner], FreshCopies,
+                  Sealed),
+        runnable_note_copied_variables(FreshVariables, FreshCopies),
+        maplist(remap_copied_variable(FreshVariables, FreshCopies),
+                InnerLocals, RemappedInnerLocals),
+        append(FreshCopies, RemappedInnerLocals, Locals0),
+        term_variables(Locals0, Locals)
     ;   nonvar(Term), Term = [_|_]
     ->  seal_lambda_locals_list(Term, Sealed, Locals)
     ;   Sealed = Term, Locals = []
     ).
+
+remap_copied_variable([Original|_], [Copy|_], Variable, Copy) :-
+    Original == Variable, !.
+remap_copied_variable([_|Originals], [_|Copies], Variable, Remapped) :-
+    remap_copied_variable(Originals, Copies, Variable, Remapped).
+remap_copied_variable([], [], Variable, Variable).
 
 seal_lambda_locals_list(Term, Sealed, Locals) :-
     (   Term == []

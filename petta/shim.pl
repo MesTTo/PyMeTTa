@@ -54,6 +54,9 @@
 %   - petta_py_read_forms/2 is the exception and stays one: it neither compiles
 %     nor stores nor runs, so it parses without preparing
 %     [tested test_a_manifest_neither_runs_nor_defines]
+%   - grouped runnable answers use their carried reader map when encoding free
+%     variables, so the public run surface retains source names
+%     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -502,7 +505,13 @@ petta_py_run(Source, Space, Groups) :-
     maplist(petta_py_encode_group, TermGroups, Groups).
 
 petta_py_encode_group(Terms, Encoded) :-
-    maplist(petta_py_encode, Terms, Encoded).
+    maplist(petta_py_encode_answer, Terms, Encoded).
+
+petta_py_encode_answer('$petta_answer'(Term, NameState), Encoded) :- !,
+    petta_name_pairs(NameState, Names),
+    petta_py_encode_named(Term, Names, Encoded).
+petta_py_encode_answer(Term, Encoded) :-
+    petta_py_encode(Term, Encoded).
 
 %Run with named host values: each Name-Value pair substitutes the bare
 %symbol Name throughout the parsed forms before anything runs, the local-
@@ -527,7 +536,7 @@ petta_py_status_group(Rows, Encoded) :-
 
 petta_py_status_row([empty, none], [empty, none]) :- !.
 petta_py_status_row([Status, Term], [Status, Encoded]) :-
-    petta_py_encode(Term, Encoded).
+    petta_py_encode_answer(Term, Encoded).
 
 petta_py_load(File, Space, Groups) :-
     metta_host_load_file(File, Space, TermGroups),

@@ -1692,7 +1692,55 @@ prolog:error_message(petta_builtin_redefinition(Name, Arity, Space)) -->
 %whether or not its output slot aliases an input.
 space_operation_error(Operation, Arguments, Reason, Error) :-
     copy_term(Arguments, Subject),
+    petta_note_copied_variables(Arguments, Subject),
     Error = ['Error', [Operation|Subject], Reason].
+
+%A runnable installs its flat reader map only while its goals execute. The
+%open Generated list is copied with each answer, so an operation that must
+%copy a diagnostic subject can record the copied variable's spelling without
+%putting attributes on matcher variables
+%[tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
+:- meta_predicate petta_run_named(+, 0, -).
+petta_run_named(Names, Goal, Generated) :-
+    Context = '$petta_runtime_name_context'(Names, Generated, Generated),
+    setup_call_cleanup(
+        install_runtime_name_context(Context, SavedContext),
+        call(Goal),
+        restore_runtime_name_context(SavedContext)).
+
+install_runtime_name_context(Context, saved(Previous)) :-
+    nb_current('$petta_runtime_name_context', Previous), !,
+    nb_linkval('$petta_runtime_name_context', Context).
+install_runtime_name_context(Context, none) :-
+    nb_linkval('$petta_runtime_name_context', Context).
+
+restore_runtime_name_context(saved(Previous)) :- !,
+    nb_linkval('$petta_runtime_name_context', Previous).
+restore_runtime_name_context(none) :-
+    nb_delete('$petta_runtime_name_context').
+
+petta_note_copied_variables(Original, Copy) :-
+    nb_current('$petta_runtime_name_context', Context), !,
+    Context = '$petta_runtime_name_context'(Names, _, _),
+    term_variables(Original, OriginalVars),
+    term_variables(Copy, CopyVars),
+    petta_note_variable_pairs(OriginalVars, CopyVars, Names, Context).
+petta_note_copied_variables(_, _).
+
+petta_note_variable_pairs([], [], _, _).
+petta_note_variable_pairs([Original|Originals], [Copy|Copies], Names, Context) :-
+    (   petta_reader_variable_name(Names, Original, Name)
+    ->  arg(3, Context, Tail),
+        Tail = [Name-Copy|Next],
+        setarg(3, Context, Next)
+    ;   true
+    ),
+    petta_note_variable_pairs(Originals, Copies, Names, Context).
+
+petta_reader_variable_name([Name-Variable|_], Original, Name) :-
+    Variable == Original, !.
+petta_reader_variable_name([_|Names], Original, Name) :-
+    petta_reader_variable_name(Names, Original, Name).
 
 %get-atoms is worded differently because upstream words it differently: it
 %takes ONE argument, so pinned `space.rs:143` says "its argument" where the
@@ -2194,6 +2242,41 @@ petta_drop_empty_([X|Xs], Kept) :-
     ;   Kept = [X|Kept1],
         petta_drop_empty_(Xs, Kept1)
     ).
+
+%The runnable collector carries each answer beside its reader names. Prune on
+%the answer slot while retaining the side map for every surviving answer.
+%This mirrors petta_prune_empty/2's identity test, so a free answer variable
+%is not mistaken for Empty [tested: test_variable_names_survive_to_the_printer;
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
+petta_prune_empty_answers(All, Kept) :-
+    (   \+ memberchk('$petta_answer'('Empty', _), All)
+    ->  Kept = All
+    ;   petta_member_empty_answer_(All)
+    ->  petta_drop_empty_answers_(All, Kept)
+    ;   Kept = All
+    ).
+
+petta_member_empty_answer_(['$petta_answer'(X, _)|Xs]) :-
+    (   X == 'Empty'
+    ->  true
+    ;   petta_member_empty_answer_(Xs)
+    ).
+
+petta_drop_empty_answers_([], []).
+petta_drop_empty_answers_(['$petta_answer'(X, Names)|Xs], Kept) :-
+    (   X == 'Empty'
+    ->  petta_drop_empty_answers_(Xs, Kept)
+    ;   Kept = ['$petta_answer'(X, Names)|Kept1],
+        petta_drop_empty_answers_(Xs, Kept1)
+    ).
+
+%Unwrap a nested collapse for evaluation while retaining each copied name
+%state in the enclosing runnable's side map. Term and state came out of one
+%findall template, so their variables still share identity here.
+petta_answer_terms([], [], []).
+petta_answer_terms(['$petta_answer'(Term, Names)|Answers],
+                   [Term|Terms], [Names|NameStates]) :-
+    petta_answer_terms(Answers, Terms, NameStates).
 
 
 %A foreign provider enumerates candidates. Unification against the pattern

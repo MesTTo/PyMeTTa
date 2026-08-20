@@ -7,6 +7,9 @@
 %   - swrite/2 names variables by first occurrence, independent of SWI's
 %     process-local variable identifiers [tested 2026-08-14:
 %     parser_stable_variables].
+%   - swrite_with_names/3 preserves reader names without binding the source
+%     term; distinct variables carrying one written name receive #N epochs in
+%     first-occurrence order [tested: parser_named_variables; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 %   - a token ends at exactly the Unicode White_Space property plus `(`, `)`
 %     and `;`, and at nothing else, which is upstream MeTTa's own rule.
 %     metta_token_boundary/2 is the one place that says so, and the layout
@@ -36,14 +39,50 @@
 %builds while it reads.
 sread_with_names(Text, Term, VarMap) :-
     (   string(Text) -> S = Text ; atom_string(Text, S) ),
-    atom_string(A, S),
-    atom_codes(A, Cs),
-    phrase(sexpr(Term, [], VarMap), Cs).
+    string_codes(S, Cs),
+    ( catch(phrase(sexpr(Term, [], VarMap), Cs),
+            error(syntax_error(float_overflow), _),
+            metta_saturating_parse(sexpr(Term, [], VarMap), Cs))
+      -> true
+       ; format(atom(Msg), 'Parse error in form: ~w', [S]),
+         throw(error(syntax_error(Msg), none)) ).
 
 %Generate a MeTTa S-expression string from the Prolog list (inverse parsing):
 swrite(Term, String) :- stable_print_term(Term, Printable),
                         phrase(swrite_numbered(Printable), Codes),
                         string_codes(String, Codes).
+
+%Print one answer with the reader's Name-Var pairs. Term and Names are copied
+%as one template before numbering, the same identity-preserving shape findall
+%uses for runnable answers. The source term and any attributed constraints on
+%it therefore remain untouched [tested: parser_named_variables;
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
+swrite_with_names(Term, Names, String) :-
+    named_print_term(Term, Names, Printable),
+    phrase(swrite_numbered(Printable), Codes),
+    string_codes(String, Codes).
+
+%Print a collected answer group. The carrier is internal to the runnable
+%collection boundary; accepting ordinary answers too keeps diagnostic clients
+%able to print a group they constructed themselves.
+swrite_answer_group(Answers, String) :-
+    phrase(swrite_answer_group_(Answers), Codes),
+    string_codes(String, Codes).
+
+swrite_answer_group_([]) --> "()".
+swrite_answer_group_([Answer|Answers]) -->
+    "(", swrite_answer_(Answer), swrite_answer_tail(Answers), ")".
+
+swrite_answer_tail([]) --> [].
+swrite_answer_tail([Answer|Answers]) -->
+    " ", swrite_answer_(Answer), swrite_answer_tail(Answers).
+
+swrite_answer_('$petta_answer'(Term, Names)) --> !,
+    { named_print_term(Term, Names, Printable) },
+    swrite_numbered(Printable).
+swrite_answer_(Term) -->
+    { stable_print_term(Term, Printable) },
+    swrite_numbered(Printable).
 %Keep the writer DCGs usable by direct parser clients while the internal
 %forms operate on a numbered copy of the source term.
 swrite_exp(Term) --> { stable_print_term(Term, Printable) },
@@ -54,6 +93,89 @@ seq(Terms) --> { stable_print_term(Terms, Printable) },
 stable_print_term(Term, Printable) :-
     copy_term_nat(Term, Printable),
     numbervars(Printable, 0, _, [functor_name('$petta_variable')]).
+
+named_print_term(Term, Names, Printable) :-
+    copy_term_nat(Term-Names, Numbered-NumberedState),
+    numbervars(Numbered-NumberedState, 0, _,
+               [functor_name('$petta_variable')]),
+    petta_name_pairs(NumberedState, NumberedNames),
+    numbered_variable_indices(Numbered, VariableIndices0),
+    sort(VariableIndices0, VariableIndices),
+    named_variable_spellings(NumberedNames, VariableIndices, Spellings),
+    apply_named_variable_spellings(Numbered, Spellings, Printable).
+
+%A source reader supplies a flat pair list. Nested collapse slots hold copied
+%name states, one per collected answer. Unfilled slots are numbered markers
+%after the copy and contribute nothing.
+petta_name_pairs(State, []) :- var(State), !.
+petta_name_pairs('$petta_name_state'(Base, Slots), Pairs) :- !,
+    petta_name_pairs(Base, BasePairs),
+    petta_name_pairs(Slots, SlotPairs),
+    append(BasePairs, SlotPairs, Pairs).
+petta_name_pairs([], []) :- !.
+petta_name_pairs([Entry|Rest], [Written-Var|Pairs]) :-
+    nonvar(Entry),
+    Entry = '$petta_epoch_name'(Name, Epoch)-Var, !,
+    format(atom(Written), '~w#~d', [Name, Epoch]),
+    petta_name_pairs(Rest, Pairs).
+petta_name_pairs([Name-Var|Rest], [Name-Var|Pairs]) :- atom(Name), !,
+    petta_name_pairs(Rest, Pairs).
+petta_name_pairs([State|Rest], Pairs) :- !,
+    petta_name_pairs(State, StatePairs),
+    petta_name_pairs(Rest, RestPairs),
+    append(StatePairs, RestPairs, Pairs).
+petta_name_pairs(_, []).
+
+numbered_variable_indices('$petta_variable'(Index), [Index]) :- !.
+numbered_variable_indices([Head|Tail], Indices) :- !,
+    numbered_variable_indices(Head, HeadIndices),
+    numbered_variable_indices(Tail, TailIndices),
+    append(HeadIndices, TailIndices, Indices).
+numbered_variable_indices(_, []).
+
+%numbervars visits the answer before its side map. Sorting by its ground
+%ordinal therefore recovers answer first occurrence without comparing live
+%variables. Repeated identical pairs collapse before epoch assignment.
+named_variable_spellings(Names, VariableIndices, Spellings) :-
+    findall(Index-Name,
+            ( member(Name-'$petta_variable'(Index), Names),
+              atom(Name),
+              memberchk(Index, VariableIndices) ),
+            Raw),
+    sort(Raw, Ordered),
+    named_variable_spellings_(Ordered, Ordered, Spellings).
+
+named_variable_spellings_([], _, []).
+named_variable_spellings_([Index-Name|Rest], All,
+                          [Index-Spelling|Spellings]) :-
+    named_variable_count(Name, All, 0, Count),
+    (   Count =:= 1
+    ->  Spelling = Name
+    ;   named_variable_ordinal(Name, Index, All, 0, Epoch),
+        format(atom(Spelling), '~w#~d', [Name, Epoch])
+    ),
+    named_variable_spellings_(Rest, All, Spellings).
+
+named_variable_count(_, [], Count, Count).
+named_variable_count(Name, [_-OtherName|Rest], Count0, Count) :-
+    ( OtherName == Name -> Count1 is Count0 + 1 ; Count1 = Count0 ),
+    named_variable_count(Name, Rest, Count1, Count).
+
+named_variable_ordinal(Name, Index, [OtherIndex-OtherName|Rest], N0, Epoch) :-
+    (   OtherIndex =:= Index, OtherName == Name
+    ->  Epoch = N0
+    ;   ( OtherName == Name -> N1 is N0 + 1 ; N1 = N0 ),
+        named_variable_ordinal(Name, Index, Rest, N1, Epoch)
+    ).
+
+apply_named_variable_spellings('$petta_variable'(Index), Spellings,
+                               '$petta_named_variable'(Name)) :-
+    memberchk(Index-Name, Spellings), !.
+apply_named_variable_spellings([Head|Tail], Spellings, [NamedHead|NamedTail]) :-
+    !,
+    apply_named_variable_spellings(Head, Spellings, NamedHead),
+    apply_named_variable_spellings(Tail, Spellings, NamedTail).
+apply_named_variable_spellings(Term, _, Term).
 
 %A width-aware layout for deep terms: a subterm prints inline when it
 %fits the remaining width, and otherwise breaks after its head with each
@@ -92,6 +214,7 @@ petta_inline_text(T, S) :-
     phrase(swrite_numbered(T), Codes),
     string_codes(S, Codes).
 
+swrite_numbered('$petta_named_variable'(Name)) --> !, "$", atom(Name).
 swrite_numbered('$petta_variable'(Index)) --> !, "$_", { number_codes(Index, Cs) }, Cs.
 %The language spells its booleans `True` and `False`. atom_symbol//1 maps both
 %onto Prolog's own true/false so a compiled guard calls them directly, and this
