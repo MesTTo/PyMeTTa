@@ -10,6 +10,8 @@ Guarantees:
   [tested: test_no_pragma_key_is_accepted_and_inert; commit=WORKTREE]
   - under-applied arrow heads have no type instead of a tuple fallback.
   [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=WORKTREE]
+  - empty-expression type observers report unit without changing classifiers.
+  [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=WORKTREE]
 """
 
 import pytest
@@ -98,3 +100,19 @@ def test_an_underapplied_arrow_head_types_as_the_arbiter_does():
 
     assert _answers(metta, "!(get-type (Cons 1))") == []
     assert _answers(metta, "!(get-type (Cons 1 Nil))") == ["(List Number)"]
+
+
+def test_the_empty_expressions_type_follows_the_arbiters_ruling():
+    metta = MeTTa(verbose=False)
+    metta.run("(: A Type)")
+    metta.run("(: h (-> %Undefined% Atom))")
+
+    assert _answers(metta, "!(get-type ())") == ["(->)"]
+    assert _answers(metta, "!(get-type-space &self ())") == ["(->)"]
+
+    # These are the ruling case's five controls, in its recorded order.
+    assert _answers(metta, "!(get-metatype ())") == ["Expression"]
+    assert _answers(metta, "!(get-type (nop))") == ["(->)"]
+    assert _answers(metta, "!(get-type assert)") == ["(-> Atom (->))"]
+    assert _answers(metta, "!(is-function (->))") == ["True"]
+    assert _answers(metta, "!(get-type (h ()))") == ["Atom"]
