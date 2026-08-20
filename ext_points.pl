@@ -559,10 +559,6 @@ ext_point_kind(metta_backend_selftest/0, event).
 %exactly the engine predicates the shipped shim calls, and shrinking it is
 %the shim-thinning work's scoreboard.
 ext_point_kind(catch_recover/2, host_service).
-ext_point_kind(claim_function_name/3, host_service).
-ext_point_kind(clear_foreign_atoms/1, host_service).
-ext_point_kind(clear_native_atoms/1, host_service).
-ext_point_kind(foreign_provides/2, host_service).
 ext_point_kind(translate_expr/3, host_service).
 %The host run and load surface: the grouped runner (with the
 %using-substitution folded in as Bindings), the status runner, the load
@@ -589,36 +585,66 @@ ext_point_kind(metta_host_load_fast/2, host_service).
 ext_point_kind(metta_host_fast_header/1, host_service).
 ext_point_kind(metta_host_digest/2, host_service).
 ext_point_kind(metta_host_substitute/3, host_service).
-ext_point_kind(foreign_pushdown_class/3, host_service).
-ext_point_kind(function_changed/2, host_service).
-ext_point_kind(get_native_atom/2, host_service).
+%The registration lifecycle: open proves a name free before the host mutates
+%anything, adopt makes an asserted dispatch clause a claimed function of the
+%base tier, drop retires one arity, forget releases a name nothing defines.
+%These four replaced the seven bookkeeping predicates every binding restated
+%in order (claim_function_name, function_changed,
+%recompile_definitions_mentioning, refuse_other_tiers_name, register_fun_in,
+%release_function_name, unregister_fun_everywhere, 2026-08-20), and the
+%dependent recompile that rode the shim's metta_on_function_changed clause
+%is the engine's own now, so those events are pure observations again.
+ext_point_kind(metta_host_open_function/3, host_service).
+ext_point_kind(metta_host_adopt_function/4, host_service).
+ext_point_kind(metta_host_drop_function/2, host_service).
+ext_point_kind(metta_host_forget_function/1, host_service).
+%The space read-and-remove pair a host talks to storage through:
+%metta_host_stored/2 enumerates stored atoms unifying a pattern
+%(index-directed native, provider-enumerated foreign), and
+%metta_host_remove_reported/3 removes with the whether-anything-went
+%verdict a host API wants, existence probed before the mutation. These
+%replaced get_native_atom/2, native_storage_module/2 and
+%metta_remove_atom/3 on this list (2026-08-20); the index-directed
+%existence probe is engine-internal now.
+ext_point_kind(metta_host_stored/2, host_service).
+ext_point_kind(metta_host_remove_reported/3, host_service).
+%The explain mirror: one call answers what the seam already decided for a
+%query (per-pattern classes with term origins, the plan's claimed and rest
+%indexes, refusals preflighted), so a host renders prose instead of
+%re-deriving routing precedence. foreign_pushdown_class/3,
+%petta_refuse_guard/2, refuse_lossy_plan/4, petta_handles_route/5 and
+%foreign_provides/2 left this list with it (2026-08-20); the two that
+%extensions genuinely consult moved to the service list below.
+ext_point_kind(metta_host_explain_match/3, host_service).
+%The bulk space cleanups: clear a space whoever holds it (Prolog providers
+%through their seam, native spaces with the announce-when-watched and
+%tabling-death rules), and clear the (defined ...) reflection facts about
+%one space in one crossing. clear_foreign_atoms/1, clear_native_atoms/1 and
+%metta_atom_hook_clause/2 left this list with them (2026-08-20): the
+%handler census is engine-internal now, handed to the hooks-idle ownership
+%seams as an argument.
+ext_point_kind(metta_host_clear_space/1, host_service).
+ext_point_kind(metta_host_clear_defined/1, host_service).
+%The builtin-refusal classification: operation, kind, expected and culprit
+%read from the error term the engine's own throwers shape, absence left
+%unbound for the host to map to its None (2026-08-20).
+ext_point_kind(metta_host_operation_error/5, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
-ext_point_kind(metta_atom_hook_clause/2, host_service).
-ext_point_kind(metta_remove_atom/3, host_service).
 ext_point_kind(metta_source_declarations/2, host_service).
 ext_point_kind(metta_space_names/1, host_service).
 ext_point_kind(metta_string_declarations/2, host_service).
 ext_point_kind(metta_substitute_self/3, host_service).
 ext_point_kind(metta_trace_source/4, host_service).
-ext_point_kind(native_storage_module/2, host_service).
 ext_point_kind(petta_annotations/2, host_service).
 ext_point_kind(petta_contract_fact/1, host_service).
 ext_point_kind(petta_error_answer/3, host_service).
 ext_point_kind(petta_handles_coherent/1, host_service).
-ext_point_kind(petta_handles_route/5, host_service).
 ext_point_kind(petta_on_error_mode/3, host_service).
-ext_point_kind(petta_refuse_guard/2, host_service).
 ext_point_kind(petta_source_reset/1, host_service).
 ext_point_kind(petta_transaction/1, host_service).
 ext_point_kind(petta_transport_failure/1, host_service).
-ext_point_kind(recompile_definitions_mentioning/1, host_service).
-ext_point_kind(refuse_lossy_plan/4, host_service).
-ext_point_kind(refuse_other_tiers_name/2, host_service).
-ext_point_kind(register_fun_in/2, host_service).
-ext_point_kind(release_function_name/1, host_service).
 ext_point_kind(sread_with_names/3, host_service).
-ext_point_kind(unregister_fun_everywhere/1, host_service).
 ext_point_kind(unregister_metta_extension/1, host_service).
 ext_point_kind(with_metta_module/2, host_service).
 
@@ -640,6 +666,11 @@ ext_point_kind(metta_unwritable_symbol/2, service).
 %host_service above; named here in prose so an extension author finds the
 %pair together).
 ext_point_kind(petta_shape_route/5, service).
+%The routing classifier and the capability probe, consulted by
+%lib/lib_conformance.pl: published for extensions, no longer part of the
+%host transport's own list.
+ext_point_kind(foreign_pushdown_class/3, service).
+ext_point_kind(foreign_provides/2, service).
 
 %ERRORS. An extension that throws reports in the vocabulary of whatever threw,
 %so `Y is X * 2` on a symbol names is/2 rather than the operation the program

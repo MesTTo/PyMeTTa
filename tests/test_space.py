@@ -43,7 +43,7 @@ from petta import (
     parse,
     val,
 )
-from petta.atoms import Gnd
+from petta.atoms import Gnd, Var
 from petta.foreign import SpaceProvider, register_provider, unregister_provider
 
 
@@ -511,6 +511,25 @@ def test_bare_atoms_are_refused_loudly(m):
         m.add(expr())
     with pytest.raises(TypeError, match="non-empty expression"):
         m.remove(expr())
+
+
+def test_a_bare_runnable_atom_answers_a_group(m):
+    """! atom answers its group, one per directive, like any runnable.
+
+    The arbiter's self-evaluating rule: a symbol nothing defines, a
+    number, a string and a free variable each return themselves as one
+    answer group (LeaTTa eval-core/self-evaluating-atoms.metta, MEASURED
+    [untouched-symbol], [42], ["text"], [$free], hyperon 0.2.10
+    verbatim). The reader admitted the bare form first and the run half
+    answered nothing; the grouped runner treats every runnable form
+    alike now, and this pins all four categories.
+    """
+    assert m.run("! untouched-symbol") == [[S["untouched-symbol"]]]
+    assert m.run("! 42") == [[42]]
+    assert m.run('! "text"') == [["text"]]
+    variable_groups = m.run("! $free")
+    assert len(variable_groups) == 1 and len(variable_groups[0]) == 1
+    assert isinstance(variable_groups[0][0], Var)
 
 
 def test_remove_reports_presence_and_subtracts_one_duplicate(m):

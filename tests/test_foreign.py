@@ -837,3 +837,41 @@ def test_a_stream_explains_without_pulling_a_row(metta):
         assert "stored atoms: engine unification" in text
         # explaining consumed nothing: the row is still there to pull
         assert [str(row[0]) for row in cursor] == ["only"]
+
+
+def test_an_eager_foreign_match_pulls_each_candidate_once(metta):
+    """The eager collapse door costs one provider yield per candidate.
+
+    Filed from a wire measurement of 20,000 yields for 10,000 stored atoms
+    through !(collapse (match ...)); re-measured 2026-08-20 on the same
+    counter shape and the doubling no longer reproduces on either the
+    enumerate or the match capability, so this pins the once-per-candidate
+    cost against regression on both routes.
+    """
+
+    class CountingEnumerate(SpaceProvider):
+        def __init__(self):
+            self.yields = 0
+
+        def atoms(self):
+            for i in range(2000):
+                self.yields += 1
+                yield expr(S.p, i)
+
+    class CountingMatch(CountingEnumerate):
+        def match(self, pattern):
+            for i in range(2000):
+                self.yields += 1
+                yield expr(S.p, i)
+
+    for name, provider in (("&pull-enumerate", CountingEnumerate()),
+                           ("&pull-match", CountingMatch())):
+        with metta.new_space() as m:
+            m.register_space(provider, name)
+            groups = m.run(f"!(collapse (match {name} (p $x) $x))")
+            answers = groups[0][0].children
+            assert len(answers) == 2000
+            assert provider.yields == 2000, (
+                f"{type(provider).__name__} was pulled "
+                f"{provider.yields} times for 2000 candidates"
+            )

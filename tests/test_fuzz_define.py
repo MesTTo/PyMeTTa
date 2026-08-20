@@ -31,6 +31,7 @@ Open Obligations:
 import ast
 import itertools
 
+import pytest
 from hypothesis import HealthCheck, Phase, find, given, settings
 from hypothesis import strategies as st
 
@@ -133,8 +134,17 @@ def bool_expr(draw, names: tuple, depth: int = 0):
         right = draw(int_expr(names, depth + 1))
         if op in ("==", "!=") and draw(st.integers(0, 3)) == 0:
             # Mixed numeric equality: Python says 4 == 4.0; so must the
-            # compiled form, through py-eq.
-            right = f"({right} / 1)"
+            # compiled form, through py-eq. The operand is a fresh SMALL
+            # literal rather than an arbitrary expression, because the two
+            # executors genuinely part company past binary64: the engine's
+            # division saturates to the IEEE infinity while plain Python
+            # raises OverflowError converting the huge int, so an unbounded
+            # operand made the twin die on its own arithmetic instead of
+            # reporting a disagreement (Hypothesis found it, 8/8
+            # reproductions; the boundary itself is pinned two-sidedly in
+            # test_the_define_twin_survives_integer_division_past_the_float_range).
+            # Small literals exercise the py-eq mixed-equality path fully.
+            right = f"({draw(st.integers(-9, 9))} / 1)"
         return f"({left} {op} {right})"
     if kind == "chain":
         op1, op2 = draw(st.sampled_from(("<", "<="))), draw(st.sampled_from(("<", "<=")))
@@ -441,3 +451,36 @@ def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):
         assert engine == [], source
         return
     assert [_normalize(e) for e in engine] == [_normalize(twin)], source
+
+
+def test_the_define_twin_survives_integer_division_past_the_float_range(
+    metta, tmp_path_factory
+):
+    """The committed Hypothesis example: huge int meets /, both sides pinned.
+
+    The generator once grew a value past binary64 and divided it by 1 for
+    the mixed-equality probe; the engine saturates that division to the
+    IEEE infinity (the numeric-boundary rule its own suite pins) while
+    plain Python raises OverflowError converting the huge int, so the
+    differential died on the twin's arithmetic instead of reporting a
+    disagreement. The boundary is genuinely twin-inexpressible: every
+    int-to-float conversion on such a value raises in Python. This pins
+    BOTH true behaviors, the way the tuple-index case above pins its
+    raise, and the generator now keeps its mixed-equality operand small.
+    """
+    source = (
+        "def grown_mix(a, b):\n"
+        "    acc = 10 + abs(a)\n"
+        "    for _ in range(200):\n"
+        "        acc = acc * 1000\n"
+        "    return a if (b == (acc / 1)) else b\n"
+    )
+    fn = _load(tmp_path_factory, source, "grown_mix")
+    defined = metta.define(fn)
+    engine = metta.eval(defined(3, 4))
+    assert [_normalize(e) for e in engine] == [4], (
+        "the engine saturates acc / 1 to inf, 4 == inf is False, so the "
+        "else branch answers"
+    )
+    with pytest.raises(OverflowError):
+        fn(3, 4)

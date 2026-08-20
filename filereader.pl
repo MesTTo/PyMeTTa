@@ -215,7 +215,10 @@ load_entry_metta_file(Filename, Results, Space) :-
     ( var(Results) -> Results = [] ; true ).
 
 load_metta_file_impl(Filename, Results, Space) :-
-    load_metta_file_impl(Filename, Results, Space, compile).
+    setup_call_cleanup(push_working_dir(Filename),
+                       ( read_metta_source(Filename, S),
+                         process_loader_string(S, Results, Space) ),
+                       pop_working_dir).
 
 %One answer GROUP per runnable form, in source order, which the flattening
 %above deliberately loses: a program wants every answer and nothing else, and
@@ -236,7 +239,7 @@ load_metta_source_groups(Filename, Space, Groups) :-
 read_metta_source_groups(Filename, Space, Groups) :-
     read_metta_source(Filename, Source),
     prepare_metta_source(Source, Forms),
-    maplist(process_form(Space, compile), Forms, PerForm),
+    maplist(process_loader_form(Space), Forms, PerForm),
     !,
     runnable_groups(Forms, PerForm, Groups).
 
@@ -608,11 +611,6 @@ metta_host_digest_line(Atom, Line) :-
     with_output_to(string(Line),
                    write_term(Copy, [quoted(true), numbervars(true)])).
 
-load_metta_file_impl(Filename, Results, Space, CompileMode) :-
-    setup_call_cleanup(push_working_dir(Filename),
-                       ( read_metta_source(Filename, S),
-                         process_metta_string(S, Results, Space, CompileMode) ),
-                       pop_working_dir).
 
 % A .gz program reads through the engine's own zlib stream. Any other path
 % reads plain text, so imports and the CLI share the same source reader.
@@ -642,9 +640,11 @@ read_source_text(Filename, S) :-
                                          'while reading gzip-compressed MeTTa source'))))
     ; read_file_to_string(Filename, S, []) ).
 
-% Function clauses are global Prolog predicates, while source atoms belong to a
-% particular MeTTa space.  Coordinate compilation by canonical source path so
-% the clauses are emitted once, then populate every requested space separately.
+% Every space that receives a file compiles its own copy of the file's
+% equations, into its own execution module, exactly as the runtime door
+% does: the arbiter's import law admits a module's contents into the
+% importing space and nowhere else, so a clause cannot be shared across
+% spaces without making the name callable where it was never imported.
 %The re-population closure is load_imported_metta_file_impl/3 with its first
 %two arguments filled: the file, and a fresh Results slot per space, since a
 %space that is only being brought back up to date has no answers to report.
@@ -656,22 +656,23 @@ load_imported_metta_file(Filename, Results, Space) :-
           Error,
           rethrow_metta_file_error(Filename, Error)).
 
-%The populate pass gets a load context of its own, the same as the compile
-%pass. A file's equations compile once, into the module compile mode targets,
-%but its ATOMS are stored once per space, so the second space's copy is a
-%contribution the file made and has to be recorded as one; without this a
-%reload replaced the first space's copy and left the second's standing.
+%Each pass gets a load context of its own: a file's equations compile into
+%EVERY receiving space's module and its atoms are stored once per space, so
+%the second space's copy is a contribution the file made and has to be
+%recorded as one; without this a reload replaced the first space's copy and
+%left the second's standing. The loading marker still guards the FIRST load
+%of a path, so a recursive import of the file being loaded is caught.
 load_imported_metta_file_impl(Filename, Results, Space) :-
     ( compiled_metta_source(Filename)
       -> with_source_load(Filename, Space,
-                          load_metta_file_impl(Filename, Results, Space, populate))
+                          load_metta_file_impl(Filename, Results, Space))
        ; run_with_loading_marker(
              compiled_metta_source(Filename),
              run_new_source_load(Filename, Results, Space)) ).
 
 run_new_source_load(Filename, Results, Space) :-
     with_source_load(Filename, Space,
-                     load_metta_file_impl(Filename, Results, Space, compile)).
+                     load_metta_file_impl(Filename, Results, Space)).
 
 %One source load: the context every assertion is filed under while it runs, the
 %repair pass at the end, and the two ways it can finish. A failure rolls the
@@ -930,9 +931,9 @@ process_direct_metta_string(S, Results, Space) :-
     prepare_metta_source(S, ParsedForms),
     maplist(process_form(Space), ParsedForms, ResultsList), !,
     append(ResultsList, Results).
-process_metta_string(S, Results, Space, CompileMode) :-
+process_loader_string(S, Results, Space) :-
     prepare_metta_source(S, ParsedForms),
-    maplist(process_form(Space, CompileMode), ParsedForms, ResultsList), !,
+    maplist(process_loader_form(Space), ParsedForms, ResultsList), !,
     append(ResultsList, Results).
 
 prepare_metta_source(S, ParsedForms) :-
@@ -1261,37 +1262,45 @@ process_form(_, In, _) :-
     throw(error(petta_translation_failed(In),
                 context(process_form/3, 'could not translate MeTTa form'))).
 
-% The loader records every asserted clause reference. A later source error can
-% then erase the whole partial load and leave the file retryable.
-process_form(Space, _, parsed(expression, _, Term), []) :-
+% The loader's own door: it records every asserted clause reference, so a
+% later source error can erase the whole partial load and leave the file
+% retryable. It used to carry a compile/populate MODE whose compile half
+% targeted the BASE tier: a file imported into a named space stored its
+% atoms there while its equations compiled into &self's module, so a
+% top-level call reduced through a space it never imported. The arbiter
+% pins the opposite (LeaTTa tests/semantics/grounded/
+% 29-builtin-module-alias-import.metta, MEASURED: an alias import admits
+% nothing into the caller, both probes staying unreduced data; its model
+% is World.moduleReady testing the RUNNING CONTEXT's own space's import
+% mark). So equations compile into the RECEIVING space's module, exactly
+% as the runtime door above does, every receiving space compiles its own
+% copy, and the mode distinction died with the shared-clause optimization
+% it existed for [tested:
+% test_an_import_into_a_named_space_registers_its_equations_there].
+process_loader_form(Space, parsed(expression, _, Term), []) :-
     %This pipeline bypasses metta_add_atom/3, so the user-wins rule for
     %prelude declarations applies here directly.
     evict_prelude_declaration(Space, Term),
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     print_expression_form(Term).
-process_form(Space, _, parsed(runnable, FormStr, Term), Result) :-
+process_loader_form(Space, parsed(runnable, FormStr, Term), Result) :-
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
     space_module(Space, Module),
     with_metta_module(Module,
                       translate_runnable_expr([collapse, BoundTerm], Goals, Result)),
     print_runnable_form(FormStr, Goals),
     call_goals_in(Module, Goals).
-process_form(Space, populate, parsed(function, _, Term), []) :-
-    add_sexp(Space, Term, SpaceRef),
-    record_source_assertion(SpaceRef).
-process_form(Space, compile, parsed(function, FormStr, Term), []) :-
+process_loader_form(Space, parsed(function, FormStr, Term), []) :-
     add_sexp(Space, Term, SpaceRef),
     record_source_assertion(SpaceRef),
     rewrite_parsed_form(Space, FormStr, Term, BoundTerm),
-    %Compile-mode targets the base tier, so the one door sees &self's module
-    %and applies the same user-wins eviction it always applies there.
-    metta_self_module(Self),
-    compile_metta_equation(Self, BoundTerm, _Clause, Ref),
+    space_module(Space, Module),
+    compile_metta_equation(Module, BoundTerm, _Clause, Ref),
     print_function_form(FormStr, Ref).
-process_form(_, _, In, _) :-
+process_loader_form(_, In, _) :-
     throw(error(petta_translation_failed(In),
-                context(process_form/4, 'could not translate MeTTa form'))).
+                context(process_loader_form/3, 'could not translate MeTTa form'))).
 
 print_expression_form(_) :- silent(true), !.
 print_expression_form(Term) :-

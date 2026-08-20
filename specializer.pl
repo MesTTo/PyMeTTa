@@ -485,7 +485,10 @@ forget_symbol(Module, Name) :-
     %of it failed with it [tested: python/tests/test_import_reuse.py::
     %test_import_translation_leaves_variable_heads_dynamic].
     forall(member(R, Refs), ( erase(R), retractall(translated_from(R, _)) )),
-    forall(metta_on_function_removed(Name), true),
+    %function_removed/1 rather than the bare event: the recompile of the
+    %dependents rides in the engine now, so this path repairs compiled
+    %mentions even when no host installed an observer.
+    function_removed(Name),
     unregister_fun_in(Module, Name),
     %The name-wide registers go only when NO module still defines it, because
     %the same generated name can belong to two spaces at once. Name-wide means

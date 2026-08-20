@@ -82,11 +82,17 @@ native_storage_module(Space, Module) :-
     atom_concat('$petta_atoms:', Space, Module).
 
 :- dynamic native_storage_module_cache/2.
-%Whether a HOST's own add hooks are idle, the host's clause of it: the
-%shim answers for the Python side, and with no host loaded the seam has no
-%clause and the engine's own test above already answered.
-:- multifile metta_host_add_hooks_idle/1.
-ext_point_kind(metta_host_add_hooks_idle/1, ownership).
+%Whether a HOST's own atom hooks are idle for a space, the host's clause of
+%it: the shim answers for the Python side, and with no host loaded the seam
+%has no clause and the engine's own no-handlers test already answered. The
+%engine hands the host the full handler CENSUS as clause references, so a
+%host clause matches the census against the one reference it installed and
+%never consults engine internals to answer: a host is asked about ITS hooks,
+%with the facts it needs in the question.
+:- multifile metta_host_add_hooks_idle/2.
+ext_point_kind(metta_host_add_hooks_idle/2, ownership).
+:- multifile metta_host_remove_hooks_idle/2.
+ext_point_kind(metta_host_remove_hooks_idle/2, ownership).
 
 %Only a module that actually holds something belongs to somebody else.
 %current_module/1 is not that test: SWI creates a module as a side effect of
@@ -1250,8 +1256,24 @@ store_equation(Storage, Space, Term) :- add_sexp_in(Storage, Space, Term, Ref),
 %the compile door's own module switch and the invalidation behind it is scoped
 %to one space now: reading the ambient module here would have made a write in
 %one space invalidate whichever space happened to be in force.
-function_changed(Module, FAtom) :- forall(metta_on_function_changed(FAtom), true),
-                                   invalidate_specializations(Module, FAtom).
+function_changed(Module, FAtom) :- invalidate_specializations(Module, FAtom),
+                                   forall(metta_on_function_changed(FAtom), true).
+
+%The removal repair is the engine's own duty, not an observer's: it used to
+%ride a shim clause of the metta_on_function_removed EVENT, so an engine
+%without Python in the process kept a compiled mention of a retired function
+%answering as a call. Removal needs the FULL caller recompile, because a
+%mention compiled as a CALL is what must flip back to data, and the
+%data-direction repair (repair_stale_definitions, which registration rides
+%through register_fun/1's scheduler) cannot see a call. The ARRIVAL
+%direction deliberately has no twin walk here: a new function's flip is
+%register_fun's scheduled repair, which defers inside an active source load
+%so a rolled-back load cannot leave callers recompiled against a definition
+%that never landed. Both directions and the rollback are pinned
+%[tested: the_engine_recompiles_dependents_without_a_host]
+%[tested: failed_late_definition_does_not_recompile_existing_callers].
+function_removed(FAtom) :- recompile_definitions_mentioning(FAtom),
+                           forall(metta_on_function_removed(FAtom), true).
 
 %The caller has classified the atom as an equation, so the shape test that used
 %to be here is gone with it.
@@ -1269,7 +1291,64 @@ refuse_ruleless_equation(Space, Term) :-
 metta_add_hooks_idle(_) :-
     \+ metta_atom_hook_clause(added, _), !.
 metta_add_hooks_idle(Space) :-
-    metta_host_add_hooks_idle(Space).
+    findall(Ref, metta_atom_hook_clause(added, Ref), Refs),
+    metta_host_add_hooks_idle(Space, Refs).
+
+%The removal mirror, asked by the bulk clear below: nothing is listening
+%when no removed-atom handler exists at all, or when a host claims the
+%whole census as its own idle hooks.
+metta_remove_hooks_idle(_) :-
+    \+ metta_atom_hook_clause(removed, _), !.
+metta_remove_hooks_idle(Space) :-
+    findall(Ref, metta_atom_hook_clause(removed, Ref), Refs),
+    metta_host_remove_hooks_idle(Space, Refs).
+
+%Clear a space, whoever holds it: a Prolog foreign provider clears through
+%its own seam (or refuses, loudly, when it cannot); a native space
+%announces the atoms it drops through the removal funnel exactly when
+%something is watching, since the two bulk doors used to disagree, add
+%announcing per atom and clear announcing nothing, and then sweeps its
+%storage module in one pass [tested: test_clear_announces_every_atom_it_drops].
+%Tabling state dies with the space life: clause removal leaves both the
+%tabled property and the answer tables standing, so a reused pooled module
+%answered its NEW definition from the dead life's cache with no tabling
+%declared in the new life. Untable every tabled predicate the module itself
+%owns (current_predicate/1 enumeration does not cross the default-module
+%chain), abolish whatever tables remain, and retract the space's
+%(tabled ...) reflection facts, which describe declarations that no longer
+%exist [tested: test_pool_reuse_starts_tabling_clean].
+metta_host_clear_space(Space) :-
+    metta_foreign_space(Space), !,
+    clear_foreign_atoms(Space).
+metta_host_clear_space(Space) :-
+    (   metta_remove_hooks_idle(Space)
+    ->  true
+    ;   findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+        forall(member(Atom, Atoms), 'remove-atom'(Space, Atom, _))
+    ),
+    clear_native_atoms(Space),
+    space_module(Space, Module),
+    metta_host_clear_tabling(Space, Module).
+
+metta_host_clear_tabling(Space, Module) :-
+    forall(( current_predicate(Module:Name/Arity),
+             functor(Head, Name, Arity),
+             \+ predicate_property(Module:Head, imported_from(_)),
+             predicate_property(Module:Head, tabled) ),
+           untable(Module:Name/Arity)),
+    abolish_module_tables(Module),
+    findall([tabled, Space, F, A],
+            'get-atoms'('&petta', [tabled, Space, F, A]),
+            Facts),
+    forall(member(Fact, Facts), 'remove-atom'('&petta', Fact, _)).
+
+%Bulk cleanup of the reflection facts describing one space: every
+%(defined <Space> _) atom in &petta goes through the engine's own removal
+%funnel (hooks fire per fact), in ONE host crossing; the per-fact crossing
+%measured 10,000 calls and 64ms for 10,000 defines.
+metta_host_clear_defined(Space) :-
+    findall(F, 'get-atoms'('&petta', [defined, Space, F]), Fs),
+    forall(member(F, Fs), 'remove-atom'('&petta', [defined, Space, F], _)).
 
 %%%% The foreign seam's failure contract %%%%
 %
@@ -1731,6 +1810,9 @@ metta_space_expression(Operation, Terms, _) :-
 %all handled by the code that owns them.
 
 %% metta_remove_atom(+Space:atom, ?Atom, -Removed:boolean) is semidet.
+metta_remove_atom(Space, _, _) :-
+    metta_refuse_module_for_space(Space, metta_remove_atom/3),
+    fail.
 metta_remove_atom(Space, Term, Removed) :- var(Term), !,
     findall(A, 'get-atoms'(Space, A), Atoms),
     (   Atoms == []
@@ -1752,6 +1834,62 @@ metta_remove_atom(Space, Term, Removed) :- Term = [':', F, _], atom(F), fun(F), 
                                            space_module(Space, DeclModule),
                                            function_changed(DeclModule, F).
 metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
+
+%A host's reporting removal: whether anything actually went. The
+%language-facing `remove-atom` answers the UNIT value, because its type is
+%`(-> spaceType Atom (->))` and the specification says absence is not
+%reported there; a HOST API where `space.remove(atom)` returns whether
+%anything went is the useful answer, and nothing in MeTTa's contract
+%governs it. Existence is asked BEFORE the mutation against a copy, so the
+%removal's own bindings cannot narrow the question; a foreign space's
+%provider owns its verdict outright.
+metta_host_remove_reported(Space, Term, Verdict) :-
+    (   metta_foreign_space(Space)
+    ->  metta_remove_atom(Space, Term, Verdict)
+    ;   copy_term(Term, Pattern),
+        (   metta_host_removal_probe(Space, Pattern)
+        ->  Existed = true
+        ;   Existed = false
+        ),
+        metta_remove_atom(Space, Term, Removed0),
+        ( Removed0 == false -> Verdict = false ; Verdict = Existed )
+    ).
+
+%Whether an atom unifying with Pattern is stored, without enumerating the
+%space when the answer is reachable by index. The first branch probes the
+%native storage predicate directly, which first-argument indexing makes
+%O(1) for the ground common case; it may only SUCCEED, never conclude
+%absence, because storage shapes this cannot express (a foreign layout, an
+%atom that is not a list) still exist. Failure falls back to the
+%enumeration, so the semantics are the old ones exactly and only the cost
+%moves. Found because the contract ontology's 65 resident atoms in &petta
+%turned a get-atoms walk into +149 inferences per register-and-unregister
+%cycle on the register-op benchmark [measured 2026-08-18: a remove on an
+%80-atom &petta cost 303 inferences against 61 on a plain space, and the
+%engine-level remove path profiled flat].
+metta_host_removal_probe(Space, Pattern) :-
+    is_list(Pattern),
+    Pattern = [Head|Arguments],
+    atom(Head),
+    catch(( native_storage_module(Space, Module),
+            Goal =.. [Space, Head|Arguments],
+            call(Module:Goal) ),
+          error(existence_error(procedure, _), _),
+          fail),
+    !.
+metta_host_removal_probe(Space, Pattern) :-
+    once(('get-atoms'(Space, Stored), Stored = Pattern)).
+
+%Every stored atom unifying Pattern, live from the space: a native space
+%answers through its storage module's clause indexing, a foreign one
+%enumerates its provider and unifies. Pattern-directed where storage
+%allows, so an indexed head pattern does not pay a whole-space walk.
+metta_host_stored(Space, Pattern) :-
+    (   metta_foreign_space(Space)
+    ->  'get-atoms'(Space, Atom),
+        Atom = Pattern
+    ;   get_native_atom(Space, Pattern)
+    ).
 
 %% remove_equation(+Space:atom, +Equation, +Function:atom, +Arguments, ?Body, -Removed:boolean) is semidet.
 remove_equation(Space, Term, F, Args, Body, Removed) :-
@@ -1781,7 +1919,10 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),
-         forall(metta_on_function_removed(F), true)
+         %function_removed/1, not the bare event: fun(F) is false only now,
+         %so THIS recompile is the one that reads mentions of F as data
+         %again; the function_changed above ran while F was still a function.
+         function_removed(F)
       ; true ),
     ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
 
@@ -2432,6 +2573,65 @@ prolog:error_message(petta_top_unordered(Ctx, Semiring)) -->
        context annotates its answers, or use (take k ...) for any \c
        k'-[Ctx, Semiring, Ctx] ].
 
+%What the seam already decided for a query, shown to a host without running
+%it: refusal preflighted through the same petta_refuse_guard that
+%match_foreign consults, per-pattern classes through foreign_pushdown_class
+%with each pattern asked standalone, and the conjunction claim through the
+%same guarded metta_foreign_plan call the execution commits to, the
+%lossy-partition check included. Claimed and Rest come back as indexes into
+%the pattern list, so a host renders its own atoms and its caller's variable
+%names survive. A stored space answers explain(stored, [], [], []): the
+%engine joins by unification and no provider is consulted. Origins are
+%TERMS, declared(Entry, Fidelity, Det), provider, unclaimed or
+%refused(Entry); prose is the host's own presentation.
+metta_host_explain_match(Space, Patterns, Report) :-
+    (   \+ metta_foreign_space(Space)
+    ->  Report = explain(stored, [], [], [])
+    ;   ( Patterns = [Whole] -> true ; Whole = [','|Patterns] ),
+        catch(
+            ( \+ \+ petta_refuse_guard(Space, Whole),
+              maplist(metta_host_explain_class(Space), Patterns, Classes),
+              metta_host_explain_plan(Space, Patterns, ClaimedIdx, RestIdx),
+              Report = explain(foreign, Classes, ClaimedIdx, RestIdx) ),
+            error(petta_refused_shape(_, _, Entry), _),
+            Report = explain(refused, [Entry], [], []))
+    ).
+
+metta_host_explain_class(Space, Pattern, class(Class, Origin)) :-
+    catch(
+        ( foreign_pushdown_class(Space, Pattern, Class),
+          metta_host_explain_origin(Space, Pattern, Origin) ),
+        error(petta_refused_shape(_, _, Refusing), _),
+        ( Class = refused,
+          Origin = refused(Refusing) )).
+
+%The origin consult mirrors foreign_pushdown_class's own precedence: a
+%declared (handles ...) entry outranks the provider's method, and silence
+%is the closed-world inexact.
+metta_host_explain_origin(Space, Pattern, Origin) :-
+    (   petta_handles_route(Space, Pattern, Entry, Fidelity, Det)
+    ->  Origin = declared(Entry, Fidelity, Det)
+    ;   metta_foreign_pushdown(Space, Pattern, _)
+    ->  Origin = provider
+    ;   Origin = unclaimed
+    ).
+
+metta_host_explain_plan(Space, Patterns, ClaimedIdx, RestIdx) :-
+    (   Patterns = [_, _|_],
+        foreign_provides(Space, plan),
+        once(metta_foreign_plan(Space, Patterns, Claimed, Rest, _Goal)),
+        Claimed \== []
+    ->  refuse_lossy_plan(Space, Patterns, Claimed, Rest),
+        maplist(metta_host_explain_index(Patterns), Claimed, ClaimedIdx),
+        maplist(metta_host_explain_index(Patterns), Rest, RestIdx)
+    ;   ClaimedIdx = [],
+        findall(I, nth0(I, Patterns, _), RestIdx)
+    ).
+
+metta_host_explain_index(Patterns, Term, Index) :-
+    nth0(Index, Patterns, Candidate),
+    Candidate == Term, !.
+
 %What a provider claims about its own filtering for THIS pattern. Silence is
 %inexact, which is Prolog's own closed-world reading of the question, "any
 %conclusion that cannot be proved to follow from the facts and rules in the
@@ -2755,8 +2955,29 @@ compiled_half_atom(Space, Module, [':', F, Type]) :-
 %[tested: spaces_storage_modules:reading_atoms_requires_a_named_space].
 get_native_atom(Space, Pattern) :-
     ( var(Space) -> instantiation_error(Space) ; true ),
+    metta_refuse_module_for_space(Space, get_native_atom/2),
     native_storage_module_ready(Space, Module),
     get_native_atom(Module, Space, Pattern).
+
+%The mirror of with_metta_module/2's refusal, at the space-name doors: a
+%space MODULE handed where a NAME is wanted read exactly like a miss, the
+%store answering "not held" with no type error, so a wrong-argument call
+%was indistinguishable from absence and a plt cleanup once removed nothing
+%from four of five cases in silence. One prefix probe turns it into a
+%refusal at the door
+%[tested: test_a_module_where_a_space_name_is_wanted_refuses_by_name].
+metta_refuse_module_for_space(Space, Door) :-
+    (   atom(Space),
+        metta_exec_module_prefix(Prefix),
+        sub_atom(Space, 0, _, _, Prefix)
+    ->  throw(error(type_error(metta_space_name, Space),
+                    context(Door,
+                            'a space MODULE arrived where a space NAME is \c
+                             wanted; a space is named by its own atom and \c
+                             space_module/2 maps it to this module, not \c
+                             back')))
+    ;   true
+    ).
 
 get_native_atom(Module, Space, Pattern) :-
     current_predicate(Module:Space/Arity),

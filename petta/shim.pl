@@ -467,52 +467,15 @@ metta_control_signal_info(
 metta_control_signal_kind(Error, Kind) :-
     metta_control_signal_info(Error, Kind, _).
 
-%The engine names the written MeTTa operation in the context of a builtin's
-%error, so the Python side reads that name from the term rather than from the
-%rendered text. Only a type_error carries an expected type and a culprit; any
-%other formal reports its own functor with both unbound, which crosses as None.
-petta_py_operation_error(error(Formal, context(Operation, Message)),
-                         Operation, Kind, Expected, Culprit) :-
-    atom(Operation),
-    nonvar(Message),
-    petta_py_operation_message(Message),
-    nonvar(Formal),
-    petta_py_operation_formal(Formal, Kind, Expected0, Culprit0),
+%The classification is the engine's metta_host_operation_error/5; this side
+%maps its neutral absence, an unbound part, onto janus's None.
+petta_py_operation_error(Error, Operation, Kind, Expected, Culprit) :-
+    metta_host_operation_error(Error, Operation, Kind, Expected0, Culprit0),
     petta_py_operation_part(Expected0, Expected),
     petta_py_operation_part(Culprit0, Culprit).
 
-%Absence is my own unbound output and crosses as None. A variable INSIDE a
-%culprit is one the user wrote and has to render, or (a $x) and (a <absent>)
-%read alike on the far side.
-petta_py_operation_part(Term, @none) :- var(Term), !.
-petta_py_operation_part(Term, Value) :- petta_py_operation_value(Term, Value).
-
-%janus carries atomics and lists of them; any other compound would raise
-%`Domain error: py_term expected` while binding the output, which would turn a
-%user's type error into a classifier failure. Such a culprit crosses as its
-%written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs. The text
-%comes from swrite/2, the engine's own printer, so it reads back as the MeTTa
-%the user wrote: term_to_atom spells a variable `_112` and a partial
-%application `partial(g,[1])`, neither of which is MeTTa surface syntax.
-petta_py_operation_value(Term, Term) :- atomic(Term), !.
-petta_py_operation_value(Term, Value) :- is_list(Term), !,
-                                         maplist(petta_py_operation_value, Term, Value).
-petta_py_operation_value(Term, Text) :- swrite(Term, Text).
-
-petta_py_operation_message('while evaluating MeTTa operation').
-petta_py_operation_message('invalid MeTTa operation argument').
-
-%is/2 reports an unevaluable term as a predicate indicator, Name/Arity. That
-%is a Prolog artifact rather than anything the user wrote, and swrite would
-%read the / as MeTTa and print (/ a 0). A zero-arity indicator is exactly the
-%symbol the source wrote, so it crosses as that symbol.
-petta_py_operation_formal(type_error(evaluable, Name/Arity), type_error,
-                          evaluable, Culprit) :- !,
-    ( Arity =:= 0 -> Culprit = Name
-                   ; format(atom(Culprit), '~w/~w', [Name, Arity]) ).
-petta_py_operation_formal(type_error(Expected, Culprit), type_error,
-                          Expected, Culprit) :- !.
-petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
+petta_py_operation_part(Part, @none) :- var(Part), !.
+petta_py_operation_part(Part, Part).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a petta_py_control_exception/1 here holding a SECOND copy of the list,
@@ -994,48 +957,12 @@ petta_py_add_many(Space, TaggedList) :-
     maplist(petta_py_decode_for_add, TaggedList, Terms),
     metta_add_atoms(Space, Terms).
 
+%The verdict dance and its index-directed existence probe are the engine's
+%metta_host_remove_reported/3 now; this is decode, one call, encode.
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
-    ( metta_foreign_space(Space)
-      -> Existed = provider
-    ; copy_term(Term, Pattern),
-      ( petta_py_existed(Space, Pattern) -> Existed = true
-      ; Existed = false ) ),
-    %metta_remove_atom/3, not `remove-atom`: the language-facing one answers the
-    %UNIT value now, because its type is `(-> spaceType Atom (->))` and the
-    %specification says absence is not reported there. This is the PYTHON API,
-    %where `space.remove(atom)` returning whether anything went is the useful
-    %answer and nothing in MeTTa's contract governs it.
-    metta_remove_atom(Space, Term, Removed0),
-    ( Existed == provider -> Verdict = Removed0
-    ; Removed0 == false -> Verdict = false
-    ; Verdict = Existed ),
+    metta_host_remove_reported(Space, Term, Verdict),
     petta_py_encode(Verdict, Removed).
-
-%Whether an atom unifying with Pattern is stored, without enumerating the
-%space when the answer is reachable by index. The first branch probes the
-%native storage predicate directly, which first-argument indexing makes O(1)
-%for the ground common case; it may only SUCCEED, never conclude absence,
-%because storage shapes this cannot express (a foreign layout, an atom that
-%is not a list) still exist. Failure falls back to the enumeration, so the
-%semantics are the old ones exactly and only the cost moves. Found because
-%the contract ontology's 65 resident atoms in &petta turned this check's
-%former get-atoms walk into +149 inferences per register-and-unregister
-%cycle on the register-op benchmark [measured 2026-08-18: a remove on an
-%80-atom &petta cost 303 inferences against 61 on a plain space, and the
-%engine-level remove path profiled flat].
-petta_py_existed(Space, Pattern) :-
-    is_list(Pattern),
-    Pattern = [Head|Arguments],
-    atom(Head),
-    catch(( native_storage_module(Space, Module),
-            Goal =.. [Space, Head|Arguments],
-            call(Module:Goal) ),
-          error(existence_error(procedure, _), _),
-          fail),
-    !.
-petta_py_existed(Space, Pattern) :-
-    once(('get-atoms'(Space, Stored), Stored = Pattern)).
 
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
@@ -1061,8 +988,7 @@ petta_py_trace_event(event(Depth, exit, Term, Answer, Names),
 %per-fact crossing measured 10,000 calls and 64ms for 10,000 defines.
 petta_py_reflect_clear_defined(SpaceName) :-
     ( atom(SpaceName) -> S = SpaceName ; atom_string(S, SpaceName) ),
-    findall(F, 'get-atoms'('&petta', [defined, S, F]), Fs),
-    forall(member(F, Fs), 'remove-atom'('&petta', [defined, S, F], _)).
+    metta_host_clear_defined(S).
 
 petta_py_count(Space, Count) :-
     aggregate_all(count, 'get-atoms'(Space, _), Count).
@@ -1090,73 +1016,31 @@ petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.
 
-%Clear a space: a foreign space's provider owns its storage, so the
-%provider clears (or refuses, loudly, when it cannot); a native space
-%removes equations first through the engine's own removal, which erases
-%their compiled clauses, then any remaining stored atoms:
+%Clear a space: a Python provider owns its storage, so it clears (or
+%refuses, loudly, when it cannot); everything else, Prolog providers and
+%native spaces with their announce-when-watched and tabling-death rules,
+%is the engine's metta_host_clear_space/1.
 petta_py_clear(Space) :-
     petta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_clear(SpaceStr), _).
-%The engine owns this now, as clear_foreign_atoms/1 in src/spaces.pl, so a
-%Prolog provider's clear is reachable without the bridge in the process.
 petta_py_clear(Space) :-
-    metta_foreign_space(Space), !,
-    clear_foreign_atoms(Space).
-%No separate equation pass: the engine's clear_native_atoms/1 funnels the
-%compiled-half shapes itself, and the watched path below removes every atom
-%through the announcing door anyway, so the pass here removed each equation
-%twice and announced nothing extra.
-petta_py_clear(Space) :-
-    petta_py_clear_stored(Space),
-    space_module(Space, Module),
-    petta_py_clear_tabling(Space, Module).
+    metta_host_clear_space(Space).
 
-%A watched space announces the atoms clear drops, the way any other removal
-%does. The equations above already went through the removal funnel, so a
-%subscription saw those and not the plain atoms beside them: the two bulk
-%doors disagreed, add announcing per atom and clear announcing nothing. With
-%nothing listening the whole set still goes in one sweep over the storage
-%module [tested: test_clear_announces_every_atom_it_drops].
-petta_py_clear_stored(Space) :-
-    petta_py_remove_hooks_idle(Space), !,
-    clear_native_atoms(Space).
-petta_py_clear_stored(Space) :-
-    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
-    forall(member(Atom, Atoms), 'remove-atom'(Space, Atom, _)),
-    clear_native_atoms(Space).
-
-%The removal mirror of metta_add_hooks_idle/1: nothing is listening when no
-%removed-atom handler exists at all, or when this unwatched space's only
-%handler is the subscription bridge.
-petta_py_remove_hooks_idle(_) :-
-    \+ metta_atom_hook_clause(removed, _), !.
-petta_py_remove_hooks_idle(Space) :-
+%The host's clause of the hooks-idle ownership seams: the engine hands the
+%handler census in as clause references, and this side answers from the one
+%reference it installed, the subscription bridge, without consulting any
+%engine internals. Idle means this unwatched space's only handler is the
+%bridge itself.
+:- multifile metta_host_add_hooks_idle/2.
+metta_host_add_hooks_idle(Space, [OnlyRef]) :-
     \+ petta_py_subscribed_space(Space),
-    petta_py_subscription_hook_ref(removed, SubscriptionRef),
-    findall(Ref, metta_atom_hook_clause(removed, Ref), [OnlyRef]),
-    OnlyRef == SubscriptionRef.
+    petta_py_subscription_hook_ref(added, OnlyRef).
 
-%Tabling state dies with the space life. Clause removal leaves both the
-%tabled property and the answer tables standing, so a reused pooled
-%module answered its NEW definition from the dead life's cache with no
-%tabling declared in the new life (probe p14_pool_table_leak). Untable
-%every tabled predicate the module itself owns (current_predicate/1
-%enumeration does not cross the default-module chain, probed on this
-%SWI), abolish whatever tables remain in the module, and retract the
-%space's (tabled ...) reflection facts, which describe declarations that
-%no longer exist.
-petta_py_clear_tabling(Space, Module) :-
-    forall(( current_predicate(Module:Name/Arity),
-             functor(Head, Name, Arity),
-             \+ predicate_property(Module:Head, imported_from(_)),
-             predicate_property(Module:Head, tabled) ),
-           untable(Module:Name/Arity)),
-    abolish_module_tables(Module),
-    findall([tabled, Space, F, A],
-            'get-atoms'('&petta', [tabled, Space, F, A]),
-            Facts),
-    forall(member(Fact, Facts), 'remove-atom'('&petta', Fact, _)).
+:- multifile metta_host_remove_hooks_idle/2.
+metta_host_remove_hooks_idle(Space, [OnlyRef]) :-
+    \+ petta_py_subscribed_space(Space),
+    petta_py_subscription_hook_ref(removed, OnlyRef).
 
 %Fresh space names for callers that want an anonymous space. The & prefix is
 %load-bearing: 'is-space' recognises it, and a $ name would read as a variable.
@@ -1185,7 +1069,7 @@ petta_py_next_space(Name) :-
 
 petta_py_space_untouched(Name) :-
     \+ petta_py_foreign(Name),
-    \+ get_native_atom(Name, _).
+    \+ metta_host_stored(Name, _).
 
 %Release a space: everything cleared, the name pooled for reuse.
 petta_py_release_space(Name0) :-
@@ -1211,71 +1095,38 @@ petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
 
-%What the seam already decided for this query, shown without running it:
-%refusal preflighted through the same petta_refuse_guard match_foreign
-%consults, per-pattern classes through foreign_pushdown_class with each
-%pattern asked standalone, and the conjunction claim through the same
-%guarded metta_foreign_plan call foreign_claims_plan commits to, lossy-
-%partition check included. Claimed and Rest come back as indexes into
-%the input list, so the Python side renders its own atoms and the
-%caller's variable names survive. A stored space answers
-%["stored", [], [], []]: the engine joins by unification and no provider
-%decision exists to show [tested test_explain_reflects_the_plan].
+%The seam's own decision for this query, shown without running it, is the
+%engine's metta_host_explain_match/3; this renders its term report as the
+%wire shape, classes to strings and origin terms to prose
+%[tested test_explain_reflects_the_plan].
 petta_py_explain(Space, PatternsTagged, Report) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, _),
-    (   \+ metta_foreign_space(Space)
-    ->  Report = ["stored", [], [], []]
-    ;   petta_py_match_goal(Space, Patterns, match(_, Whole, _, _)),
-        catch(
-            ( \+ \+ petta_refuse_guard(Space, Whole),
-              maplist(petta_py_explain_class(Space), Patterns, Classes),
-              petta_py_explain_plan(Space, Patterns, ClaimedIdx, RestIdx),
-              Report = ["foreign", Classes, ClaimedIdx, RestIdx] ),
-            error(petta_refused_shape(_, _, Entry), _),
-            ( swrite(Entry, EText),
-              Report = ["refused", [EText], [], []] ))
-    ).
+    metta_host_explain_match(Space, Patterns, Explained),
+    petta_py_render_explain(Explained, Report).
 
-petta_py_explain_class(Space, Pattern, [Class, Origin]) :-
-    catch(
-        ( foreign_pushdown_class(Space, Pattern, ClassAtom),
-          atom_string(ClassAtom, Class),
-          petta_py_explain_origin(Space, Pattern, Origin) ),
-        error(petta_refused_shape(_, _, Refusing), _),
-        ( Class = "refused",
-          swrite(Refusing, RText),
-          format(string(Origin), "the declared entry ~w answers Refuse",
-                 [RText]) )).
+petta_py_render_explain(explain(stored, _, _, _), ["stored", [], [], []]).
+petta_py_render_explain(explain(refused, [Entry], _, _),
+                        ["refused", [EText], [], []]) :-
+    swrite(Entry, EText).
+petta_py_render_explain(explain(foreign, Classes, ClaimedIdx, RestIdx),
+                        ["foreign", Rendered, ClaimedIdx, RestIdx]) :-
+    maplist(petta_py_render_class, Classes, Rendered).
 
-%The origin consult mirrors foreign_pushdown_class's own precedence:
-%a declared (handles ...) entry outranks the provider's method, and
-%silence is the closed-world inexact.
-petta_py_explain_origin(Space, Pattern, Origin) :-
-    (   petta_handles_route(Space, Pattern, Entry, Fidelity, Det)
-    ->  swrite(Entry, EText),
-        ( var(Det) -> DetText = unstated ; DetText = Det ),
-        format(string(Origin), "declared: (handles ~w ~w ~w)",
-               [EText, Fidelity, DetText])
-    ;   metta_foreign_pushdown(Space, Pattern, _)
-    ->  Origin = "the provider's own pushdown method"
-    ;   Origin = "unclaimed; silence is inexact and candidates re-unify"
-    ).
+petta_py_render_class(class(ClassAtom, Origin), [Class, OriginText]) :-
+    atom_string(ClassAtom, Class),
+    petta_py_render_origin(Origin, OriginText).
 
-petta_py_explain_plan(Space, Patterns, ClaimedIdx, RestIdx) :-
-    (   Patterns = [_, _|_],
-        foreign_provides(Space, plan),
-        once(metta_foreign_plan(Space, Patterns, Claimed, Rest, _Goal)),
-        Claimed \== []
-    ->  refuse_lossy_plan(Space, Patterns, Claimed, Rest),
-        maplist(petta_py_explain_index(Patterns), Claimed, ClaimedIdx),
-        maplist(petta_py_explain_index(Patterns), Rest, RestIdx)
-    ;   ClaimedIdx = [],
-        findall(I, nth0(I, Patterns, _), RestIdx)
-    ).
-
-petta_py_explain_index(Patterns, Term, Index) :-
-    nth0(Index, Patterns, Candidate),
-    Candidate == Term, !.
+petta_py_render_origin(declared(Entry, Fidelity, Det), Text) :-
+    swrite(Entry, EText),
+    ( var(Det) -> DetText = unstated ; DetText = Det ),
+    format(string(Text), "declared: (handles ~w ~w ~w)",
+           [EText, Fidelity, DetText]).
+petta_py_render_origin(provider, "the provider's own pushdown method").
+petta_py_render_origin(unclaimed,
+                       "unclaimed; silence is inexact and candidates re-unify").
+petta_py_render_origin(refused(Refusing), Text) :-
+    swrite(Refusing, RText),
+    format(string(Text), "the declared entry ~w answers Refuse", [RText]).
 
 %A query with a guard and a bound: the guard decodes IN THE SAME variable
 %scope as the patterns, so $age in both is one variable; after the match
@@ -1754,121 +1605,25 @@ prolog:error_message(petta_contract_conflict(Name, Pairs)) -->
 petta_py_register_op_set(Name0, Arities, Kind, Invertible) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     petta_py_set_invertible(Name, Invertible),
-    %First, and before the probe, because the probe's own diagnostic is SWI's:
-    %"assertz/2: No permission to modify static procedure 'f'/2" names a Prolog
-    %builtin and an arity the author never wrote, where this names the tier
-    %that owns it and what to do about it.
-    refuse_other_tiers_name(Name, python),
-    forall(member(A, Arities), petta_py_probe_op_name(Name, A)),
+    %OPEN before any mutation: the tier refusal and the name probe both run
+    %while there is still nothing to undo, and each one's diagnostic names
+    %what to do about it. The unregister of prior arities may release the
+    %name; the adopt below claims it again, so the set's final state is
+    %claimed whatever order the arities land in.
+    forall(member(A, Arities),
+           (   petta_py_op_spec(Name, A, _)
+           ->  true
+           ;   PredArity is A + 1,
+               metta_host_open_function(Name, python, PredArity)
+           )),
     forall(petta_py_op_spec(Name, Old, _), petta_py_unregister_op(Name, Old)),
-    forall(member(A, Arities), petta_py_register_op(Name, A, Kind)),
-    %Last, and once for the whole set rather than once per arity: every
-    %unregister above releases the name when nothing defines it any more, so a
-    %claim made earlier would be dropped by the registration's own teardown.
-    claim_function_name(Name, python, Kind).
+    forall(member(A, Arities), petta_py_register_op(Name, A, Kind)).
 
-%The probe is the same assert the registration will do, on a clause that can
-%never run; the engine's own permission error surfaces here, before any
-%existing registration has been touched. predicate_property cannot stand in
-%for it: autoloadable names report static yet accept clauses.
-%
-%What predicate_property CAN do is name the owner once the assert has already
-%refused, and that is the half SWI's own message leaves out. Unrendered it
-%reads "assertz/2: No permission to modify static procedure `dcg_basics:digit/3'",
-%naming a module the author never imported and a Prolog arity one higher than
-%the MeTTa one they wrote. src/spaces.pl:assert_function_clause/3 turns exactly
-%this error into MeTTa's terms for the EQUATION route; this is the operation
-%route's twin, and it differs in the advice because the two routes differ in
-%what is left to refuse. An equation goes into its own space's module and is
-%refused only for Prolog's protected core and for the names the engine itself
-%compiles into function bodies; an operation goes into the BASE tier's module,
-%&self's, so it is refused for the same protected core and the way out is a
-%different MeTTa name
-%[tested test_prologs_protected_core_is_still_refused].
-petta_py_probe_op_name(Name, Arity) :-
-    petta_py_op_spec(Name, Arity, _), !.
-%Nothing at all is defined at this name and arity, so nothing can refuse the
-%clause and there is nothing to ask about it. Worth its own clause because it
-%is the case every ordinary registration takes, and it skips the probe's
-%assert and erase as well as the two property calls: a registration of a
-%fresh name got CHEAPER than before this check existed, because the assert
-%and erase it replaces cost more than the lookup that proves them
-%unnecessary [measured 2026-08-18: register-op 39907 -> 38830 over 100
-%registrations, -10.8 each, min of 3 samples reproduced on 3 runs].
-petta_py_probe_op_name(Name, Arity) :-
-    PredArity is Arity + 1,
-    petta_py_module('&self', Base),
-    \+ current_predicate(Base:Name/PredArity),
-    !.
-petta_py_probe_op_name(Name, Arity) :-
-    PredArity is Arity + 1,
-    petta_py_module('&self', Base),
-    functor(Probe, Name, PredArity),
-    %Asked BEFORE the assert, because for a BUILTIN the assert succeeds and
-    %that is the dangerous outcome, not the safe one: SWI let a local
-    %user:format/2 override its own, and the engine's every println! then
-    %reached the operation instead, printing nothing and raising nothing
-    %[reproduced 2026-08-18: captured output went from '(hi)\n' to ''].
-    %succ/2, plus/3, print/2, between/3 and nb_getval/2 were shadowable the
-    %same way.
-    %
-    %built_in and nothing wider. A library predicate that is merely
-    %AUTOLOADABLE reports defined, imported_from and a home module before it
-    %has ever been loaded, so refusing on any of those would refuse
-    %module_ops over library(math), whose sqrt lands on quintus:sqrt/2, a
-    %compatibility shim nothing here calls
-    %[tested test_module_ops_bulk_registers_a_stdlib_module]. A library
-    %predicate that really is in use, dcg_basics:digit/3 and lists:last/2
-    %among them, is a free MeTTa name now: the operation's clauses go into
-    %&self's own module, where defining one shadows it there and leaves the
-    %library's alone
-    %[tested test_a_name_prolog_owns_registers_and_leaves_prolog_alone].
-    %
-    %The name for what that assert refuses is a WEAK IMPORT, and the manual's
-    %own advice for avoiding one is to import selectively: "using use_module/2
-    %to only import the predicates from the lists library that are actually
-    %used" [source: SWI-Prolog manual, "Local definition ... overrides weak
-    %import"]. The engine imports whole libraries into user, so its weak
-    %imports are 434 names [measured 2026-08-18]. Importing selectively would
-    %shrink that, and it would not free the names that actually bite:
-    %parser.pl really does call digit//1, so digit/3 stays taken however the
-    %import is spelled.
-    %ONE test, and it is the assert the registration will do, on a clause that
-    %can never run. There used to be a second one in front of it,
-    %`predicate_property(user:Probe, built_in)`, and it existed because the
-    %clauses went into `user`: asserting over a builtin THERE succeeds and
-    %destroys it, so the only safe answer was to refuse the name. The clauses
-    %go into &self's own module now, where the same assert makes a local shadow
-    %and leaves the engine's predicate answering, so refusing would be refusing
-    %a name that is free. That is most of the collision surface: of the 428
-    %names the engine imports, the test refused 86, 217, 163 and 64 at MeTTa
-    %arity 0 to 3 when it asked `user` with both halves, and refuses 7, 4, 2 and
-    %1 asking &self's module with this one [measured 2026-08-19, one process per
-    %measurement and a fresh module per name so an earlier probe cannot free a
-    %later one]. The four left at MeTTa arity 1 are call, clause, copy_term and
-    %sort: SWI's protected core, which no module can redefine and which is the
-    %protected core a rewrite system needs, obtained rather than implemented.
-    catch(setup_call_cleanup(assertz((Base:Probe :- fail), Ref), true, erase(Ref)),
-          error(permission_error(modify, static_procedure, _), _),
-          petta_py_refuse_op_name(Name, Arity, PredArity, Probe)).
-
-petta_py_refuse_op_name(Name, Arity, PredArity, Probe) :-
-    petta_py_module('&self', Base),
-    (   predicate_property(Base:Probe, imported_from(Owner))
-    ->  true
-    ;   Owner = Base
-    ),
-    throw(error(petta_op_name_taken(Name, Arity, PredArity, Owner),
-                context(register_op/2, 'the name is not free in user'))).
-
-:- multifile prolog:error_message//1.
-prolog:error_message(petta_op_name_taken(Name, Arity, PredArity, Owner)) -->
-    [ 'registering ~w at ~w MeTTa argument(s) would assert into Prolog\'s \c
-       ~w/~w, which ~w already owns in this process'-[Name, Arity, Name,
-                                                      PredArity, Owner], nl,
-      '  a registered operation\'s clauses live in user, so its name has to be \c
-       free there: register it under another name with name=, or write it as \c
-       an equation in a named space, which compiles into a module of its own' ].
+%The name probe, its owner-naming refusal and the petta_op_name_taken
+%message live in the engine now (metta_host_open_function/3): the protocol
+%was host-agnostic bookkeeping every binding restated in order. The one
+%shortcut kept here is the caller's: an arity this file already registered
+%occupies its own functor, so re-opening it proves nothing.
 
 %Register a Python-backed function of the given MeTTa arity. The compiled
 %predicate carries one extra output argument, the engine's own convention:
@@ -1887,21 +1642,13 @@ petta_py_register_op(Name0, Arity, Kind) :-
     petta_py_module('&self', Base),
     assertz(Base:(Head :- Body)),
     assertz(petta_py_op_spec(Name, Arity, Kind)),
-    %The claim is the BASE TIER's, and saying so is what keeps the operation
-    %callable after some named space defines an equation of the same name.
-    %register_fun/1 alone left it resolvable only while no space had claimed
-    %the name anywhere in the process, which is the same defect
-    %import_prolog_function/2 carried. The base tier is &self's module, which
-    %every other space inherits; a claim recorded against any other module
-    %would set fun_scoped/1 and make the operation invisible everywhere.
-    petta_py_module('&self', Base),
-    register_fun_in(Base, Name),
+    %Adopt AFTER the dispatch clause is in place: the engine marks the name a
+    %function of the BASE tier (which every space inherits, so the operation
+    %stays callable after a named space defines an equation of the same
+    %name), refreshes dependents against the clause that already exists, and
+    %claims the name for python.
     PredArity is Arity + 1,
-    ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
-    %The engine's own door rather than the hook alone, so the specializations
-    %this registration makes stale are invalidated in the module the
-    %operation's clauses went into.
-    function_changed(Base, Name).
+    metta_host_adopt_function(Name, python, Kind, PredArity).
 
 %The engine asks who a dispatch goal really is, so a purity refusal names the
 %operation rather than this file's dispatcher. The name is the goal's first
@@ -2028,13 +1775,13 @@ prolog:error_message(petta_py_inverse_arity(Name, Wanted, Got)) -->
 %arity/2 retract, so the next compile treats the name as data again:
 petta_py_unregister_op(Name0, Arity) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    PredArity is Arity + 1,
-    petta_py_module('&self', Base),
+    %The drop is guarded by this file's own bookkeeping, so only arities this
+    %file registered are dropped; the engine's drop then retracts the base
+    %tier's clauses and the arity row generically.
     ( petta_py_op_spec(Name, Arity, _)
-      -> functor(Head, Name, PredArity),
-         retractall(Base:Head),
-         retractall(petta_py_op_spec(Name, Arity, _)),
-         retractall(arity(Name, PredArity))
+      -> PredArity is Arity + 1,
+         metta_host_drop_function(Name, PredArity),
+         retractall(petta_py_op_spec(Name, Arity, _))
     ; true ),
     %"does anything still define this name at any arity" is a question about
     %OUR clauses, and clause/3 raises permission_error(access,
@@ -2043,11 +1790,7 @@ petta_py_unregister_op(Name0, Arity) :-
     %from here instead of unregistering. A builtin is never a clause of ours
     %[tested test_unregistering_a_name_a_system_predicate_shares_does_not_throw].
     ( \+ petta_py_name_still_defined(Name)
-      -> retractall(fun(Name)),
-         retractall(arity(Name, _)),
-         unregister_fun_everywhere(Name),
-         release_function_name(Name),
-         metta_on_function_removed(Name)
+      -> metta_host_forget_function(Name)
     ; true ).
 
 %Does anything still define this name at any arity? Two tiers are asked by
@@ -2159,12 +1902,8 @@ petta_py_arities(Name0, As) :-
 petta_py_equations(Space, Name0, Encoded) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     Pattern = [=, [Name|_], _],
-    (   metta_foreign_space(Space)
-    ->  findall(E, ( 'get-atoms'(Space, A), A = Pattern,
-                     petta_py_encode(A, E) ), Encoded)
-    ;   findall(E, ( get_native_atom(Space, Pattern),
-                     petta_py_encode(Pattern, E) ), Encoded)
-    ).
+    findall(E, ( metta_host_stored(Space, Pattern),
+                 petta_py_encode(Pattern, E) ), Encoded).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
 %listing per registered arity, resolved in this space's module so a named
@@ -2675,13 +2414,6 @@ petta_py_remove_subscription_hooks :-
     forall(retract(petta_py_subscription_hook_ref(_, Ref)),
            ( clause_property(Ref, erased) -> true ; erase(Ref) )).
 
-%The native batch writer may skip per-atom hook dispatch only when this
-%unwatched space has the subscription hook as its sole added-atom handler.
-metta_host_add_hooks_idle(Space) :-
-    \+ petta_py_subscribed_space(Space),
-    petta_py_subscription_hook_ref(added, SubscriptionRef),
-    findall(Ref, metta_atom_hook_clause(added, Ref), [OnlyRef]),
-    OnlyRef == SubscriptionRef.
 
 petta_py_subscriptions(Spaces) :-
     maplist(atom_string, SpaceAtoms, Spaces),
@@ -2721,40 +2453,15 @@ metta_grounded_type_names(X, Names) :-
 % body mentioning a name that only becomes a function later stays data: the
 % classic case is (= (f) (g)) in one run and (= (g) 5) in the next, and the
 % Python case is an operation registered after equations that call it.
-% Both paths that define a function fire the metta_on_function_changed/1
-% extension point; this multifile clause walks the live equations whose
-% bodies mention the changed name and retranslates them in their own module,
-% so the compile-time decision is refreshed rather than stale.
-
-:- multifile metta_on_function_changed/1.
-:- multifile metta_on_function_removed/1.
-
-%The invalidation is not guarded. Its failure mode is stale COMPILED CODE, so
-%swallowing it left a specialized call site answering from a definition that
-%had changed, which is a wrong answer with no symptom. The engine's own three
-%write sites already call it unguarded (src/filereader.pl, src/spaces.pl x2);
-%this is the register-an-operation path, where the hook fires with no write
-%behind it, and it was the one place a failure went unheard.
-%recompile_definitions_mentioning/1 is the engine's, in src/filereader.pl.
-%This file used to carry its own copy, which meant the engine could not repair
-%its own compiled code unless Python was in the process.
-metta_on_function_changed(Name) :-
-    recompile_definitions_mentioning(Name).
-
-%And NOT invalidate_specializations/2 beside it. It was here, with no module
-%to give it, so it read the ambient one: adding an atom into a space while a
-%DIFFERENT space's module was in force invalidated the wrong space, and that
-%is how MeTTa.copy() stripped its own source. The engine's function_changed/2
-%does the invalidation at every write door with the module the write is going
-%to, which is the only place that knows it; this hook is the recompile half
-%and nothing else
+% The dependent-recompile that used to ride here as clauses of the
+% metta_on_function_changed/1 and metta_on_function_removed/1 EVENTS is the
+% engine's own now (function_changed/2 and function_removed/1 in
+% src/spaces.pl): an event observer must be optional, and an engine without
+% this host in the process has to repair its own compiled code. The
+% invalidation was already the engine's, threaded with the module each write
+% goes to, which is the only place that knows it
 %[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone,
 %test_adding_in_one_space_never_removes_atoms_from_another].
-
-%A fully removed function refreshes the other way: a mention that compiled as
-%a call goes back to data, since the name no longer names a function.
-metta_on_function_removed(Name) :-
-    recompile_definitions_mentioning(Name).
 
 %%%%%%%%%% Silence %%%%%%%%%%
 %
