@@ -25,6 +25,9 @@ Guarantees:
     optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
   - async names and save formats retain the synchronous surface's contextual
     types [tested test_public_context_types_are_distinct]
+  - async declaration methods reuse the catalog-generated policy aliases and
+    own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
+    commit=WORKTREE]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -57,7 +60,7 @@ import threading
 import warnings
 import weakref
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Final, Literal, Self, TypeVar, overload
+from typing import Any, Final, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
 from ._engine import Runtime, bridge, runtime
@@ -66,6 +69,15 @@ from .errors import Interrupted, PettaError
 from .results import Rows
 from .space import MeTTa
 from .subscribe import SUBSCRIPTION_QUEUE_MAX
+from .vocabularies import (
+    AnswerPolicy,
+    Atomicity,
+    Fidelity,
+    OnErrorMode,
+    Semiring,
+    SourceKind,
+    World,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -884,7 +896,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_admits(name, type_name))
 
     async def declare_annotations(
-        self, name: str, semiring: Literal["bool", "bag", "set", "ranked", "prob", "prov"]
+        self, name: str, semiring: Semiring
     ) -> Atom:
         return await self.call(lambda m: m.declare_annotations(name, semiring))
 
@@ -892,12 +904,12 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_capacity(name, limit))
 
     async def declare_context(
-        self, name: str, world: Literal["closed-world", "open-world"]
+        self, name: str, world: World
     ) -> Atom:
         return await self.call(lambda m: m.declare_context(name, world))
 
     async def declare_emits(
-        self, name: str, policy: Literal["depth", "fair", "best-first"]
+        self, name: str, policy: AnswerPolicy
     ) -> Atom:
         return await self.call(lambda m: m.declare_emits(name, policy))
 
@@ -905,7 +917,7 @@ class AsyncMeTTa:
         self,
         name: str,
         pattern: str | Atom,
-        fidelity: Literal["Exact", "Partial", "Sound", "Refuse"],
+        fidelity: Fidelity,
         *,
         det: str | None = None,
     ) -> Atom:
@@ -914,7 +926,7 @@ class AsyncMeTTa:
         )
 
     async def declare_merge(
-        self, pattern: str | Atom, policy: Literal["depth", "fair", "best-first"]
+        self, pattern: str | Atom, policy: AnswerPolicy
     ) -> Atom:
         return await self.call(lambda m: m.declare_merge(pattern, policy))
 
@@ -922,7 +934,7 @@ class AsyncMeTTa:
         self,
         name: str,
         pattern: str | Atom,
-        mode: Literal["keep", "empty", "abort"],
+        mode: OnErrorMode,
     ) -> Atom:
         return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
 
@@ -932,14 +944,14 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_reaction(name, pattern, operation))
 
     async def declare_source(
-        self, name: str, kind: Literal["linear", "repeated", "peek"]
+        self, name: str, kind: SourceKind
     ) -> Atom:
         return await self.call(lambda m: m.declare_source(name, kind))
 
     async def declare_writes(
         self,
         name: str,
-        atomicity: Literal["transactional", "atomic-single", "best-effort"],
+        atomicity: Atomicity,
     ) -> Atom:
         return await self.call(lambda m: m.declare_writes(name, atomicity))
 

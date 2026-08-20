@@ -467,6 +467,7 @@ petta_py_raise(Kind, Detail) :-
 
 metta_control_signal_info(
     error(metta_control_signal(Kind, Detail), context(petta, _)), Kind, Detail) :-
+    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=bindings/python/petta/shim.pl:metta_control_signal_info/3
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 

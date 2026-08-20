@@ -466,6 +466,7 @@ class MeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=False is the overload discriminator for run return shape rather than an engine policy; evidence=bindings/python/petta/space.py:run
         capture: Literal[False] = False,
         atomic: bool = False,
         speculative: bool = False,
@@ -479,6 +480,7 @@ class MeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=True is the overload discriminator for run return shape rather than an engine policy; evidence=bindings/python/petta/space.py:run
         capture: Literal[True],
         atomic: bool = False,
         speculative: bool = False,
@@ -1249,6 +1251,7 @@ class MeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=False is the overload discriminator for eval return shape rather than an engine policy; evidence=bindings/python/petta/space.py:eval
         capture: Literal[False] = False,
         residuals: bool = False,
     ) -> list[Atom | Undefined]: ...
@@ -1261,6 +1264,7 @@ class MeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=True is the overload discriminator for eval return shape rather than an engine policy; evidence=bindings/python/petta/space.py:eval
         capture: Literal[True],
         residuals: bool = False,
     ) -> tuple[list[Atom | Undefined], str]: ...
