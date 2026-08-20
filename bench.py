@@ -2,17 +2,17 @@
 Guarantees:
   - every named case runs in a fresh process, so global engine state cannot
     make subset and suite counters disagree [tested
-    test_benchmark_cli_spawns_each_case; commit=WORKTREE]
+    test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - unknown names fail through argparse and --list reports every case
-    [tested: test_benchmark_cli_lists_and_rejects_case_names; commit=WORKTREE]
+    [tested: test_benchmark_cli_lists_and_rejects_case_names; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Owns resources:
   - main joins each benchmark process and terminates one that exceeds its
-    explicit limit [tested: test_benchmark_cli_spawns_each_case; commit=WORKTREE]
+    explicit limit [tested: test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - JSON output is assembled in a temporary directory and atomically
     replaces its destination
-    [tested: test_benchmark_json_merge_is_atomic; commit=WORKTREE]
+    [tested: test_benchmark_json_merge_is_atomic; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - updating selected cases preserves every unselected committed case
-    [tested: test_benchmark_json_merge_preserves_unselected_cases; commit=WORKTREE]
+    [tested: test_benchmark_json_merge_preserves_unselected_cases; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

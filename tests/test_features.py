@@ -6,7 +6,7 @@ differential fuzz.
 Guarantees:
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

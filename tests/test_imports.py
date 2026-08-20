@@ -3,7 +3,7 @@ Guarantees:
   - the minimal library remains idempotent after signature-registration and
     cross-space specialization traffic
     [tested: test_minimal_lib_install_is_idempotent_after_cross_file_traffic;
-    commit=WORKTREE].
+    commit=dcfc20be4933c19140ccb5759291401d13058301].
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 import builtins

@@ -1,16 +1,16 @@
 """Purpose: MeTTa.parallel, the Python spelling of the engine's hyperpose.
 Guarantees:
   - parallel answers the same set as the sequential superpose twin
-    [tested: test_parallel_answers_the_same_set_as_superpose; commit=WORKTREE]
+    [tested: test_parallel_answers_the_same_set_as_superpose; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - branches really overlap at an in-branch rendezvous
-    [tested: test_parallel_runs_branches_concurrently; commit=WORKTREE]
+    [tested: test_parallel_runs_branches_concurrently; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - the call takes a timeout and does not take an inference bound, because
     the engine's inference limit counts only the calling thread
     [tested: test_parallel_takes_a_timeout_and_has_no_inference_bound;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
   - a dual built for the first time by several threads at once is built ONCE,
     which is the property a check-then-act did not have
-    [tested: test_a_dual_is_built_once_under_concurrency; commit=WORKTREE]
+    [tested: test_a_dual_is_built_once_under_concurrency; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -17,7 +17,7 @@ Guarantees:
     repeated-variable, judged by two-way unifiability [tested:
     test_a_repeated_variable_liar_is_caught_by_the_folded_pattern,
     test_a_ground_only_matcher_is_caught_by_the_open_pattern;
-    commit=WORKTREE].
+    commit=dcfc20be4933c19140ccb5759291401d13058301].
 Open Obligations:
   To Do: None
   Hacks: None

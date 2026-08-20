@@ -13,10 +13,10 @@ Guarantees:
   - every position the engine's type surface declares strict, on a builtin
     PeTTa defines, refuses an unbound argument and names the MeTTa operation
     [tested: test_every_builtin_refuses_an_unbound_input_by_name;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
   - no such refusal names a Prolog predicate the MeTTa program never wrote
     [tested: test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

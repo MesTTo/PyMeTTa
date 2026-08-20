@@ -6,10 +6,10 @@ query that happens to be fully consumed.
 Guarantees:
   - a conjunctive match answers every row it found, through templates that
     remove the atoms the later conjuncts would have read
-    [tested: test_match_snapshots_rows_before_template_effects; commit=WORKTREE]
+    [tested: test_match_snapshots_rows_before_template_effects; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - a single pattern gets the same guarantee from the logical update view and
     keeps streaming, so a first answer off a large space does not walk it
-    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=WORKTREE]
+    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

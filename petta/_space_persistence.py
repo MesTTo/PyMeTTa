@@ -1,21 +1,21 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
+    [tested: test_save_syncs_before_replacing; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file; commit=WORKTREE]
+    test_text_save_write_failure_preserves_existing_file; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
   - text snapshots use UTF-8 regardless of the process locale [tested
-    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=WORKTREE]
+    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - the save format type admits exactly metta and fast [tested
-    test_public_context_types_are_distinct; commit=WORKTREE]
+    test_public_context_types_are_distinct; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
-    [tested: test_save_failure_preserves_existing_file; commit=WORKTREE]
+    [tested: test_save_failure_preserves_existing_file; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

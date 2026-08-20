@@ -7,7 +7,7 @@ this file. The vocab-sync gate lane fails when the two drift.
 
 Guarantees:
   - every tuple and Literal here exactly matches its catalog vocabulary row
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

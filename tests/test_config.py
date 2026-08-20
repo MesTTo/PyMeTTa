@@ -2,10 +2,10 @@
 Guarantees:
   - startup settings freeze after a successful consult while presentation
     settings remain live [tested: test_runtime_settings_freeze_after_startup,
-    test_live_limits_control_declarations_and_rows; commit=WORKTREE]
+    test_live_limits_control_declarations_and_rows; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - MORK startup never changes the host process working directory [tested
     test_backend_startup_does_not_change_process_working_directory;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

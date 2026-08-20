@@ -9,31 +9,31 @@ Guarantees:
     it, the same multiset law a native space obeys, so a provider swap does
     not change what `remove-atom` means
     [tested: test_a_persistent_space_subtracts_one_fact_like_a_native_one;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
   - constructor failure releases its path claim and any unattached reusable
     module [tested: test_constructor_failure_releases_path_and_unattached_module;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
   - terminal-tail recovery syncs the backup file and its directory before
     truncating the journal
-    [tested: test_tail_backup_is_durable_before_truncation; commit=WORKTREE]
+    [tested: test_tail_backup_is_durable_before_truncation; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - EVERY proper prefix of a record classifies as an incomplete tail and is
     recovered, and a tail carrying its terminating full stop is refused
     instead of truncated [measured 2026-08-19: 7 of 18 truncation points were refused;
     command=pytest tests/test_persistent.py -q -p no:benchmark;
-    fixture=all prefixes of assert(edge(a,b)).; commit=WORKTREE] [tested:
+    fixture=all prefixes of assert(edge(a,b)).; commit=dcfc20be4933c19140ccb5759291401d13058301] [tested:
     test_every_truncation_point_of_the_torn_tail_classifies,
     test_a_terminated_record_is_refused_rather_than_truncated;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Owns resources:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback
     [tested: test_detached_modules_are_reused_without_weakening_path_claims;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Guarded by:
   - _STATE_LOCK protects active paths and the module pool; each provider's
     _call_lock serializes journal operations
     [tested: test_detached_modules_are_reused_without_weakening_path_claims;
-    commit=WORKTREE]
+    commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None

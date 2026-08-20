@@ -9,12 +9,12 @@ Assumes:
       test_example_parity.py derives it
     - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
       to [source: bindings/python/petta/space.py:MeTTa.disassemble;
-      commit=WORKTREE]
+      commit=dcfc20be4933c19140ccb5759291401d13058301]
 Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
       evidence rather than decoration
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-      commit=WORKTREE]
+      commit=dcfc20be4933c19140ccb5759291401d13058301]
 Open Obligations:
   To Do: None
   Hacks: None
