@@ -18,6 +18,9 @@ Guarantees:
     [tested test_a_second_language_binding_passes_the_same_conformance_kit]
   - the two live hosts answer the same programs the same way
     [tested test_the_node_binding_and_the_python_host_answer_the_same_programs]
+  - both hosts carry the signed-i64 Number/BigInt boundary as exact integers
+    [tested test_a_second_language_binding_passes_the_same_conformance_kit,
+    test_the_node_binding_and_the_python_host_answer_the_same_programs]
   - the Node binding computes exactly the answers it is asked for, proven on
     an unbounded generator with a witness space
     [tested test_the_node_binding_leaves_the_third_answer_uncomputed]
@@ -160,8 +163,8 @@ def _comparable_transport(transport: list) -> list:
 def _number_to_text(value: Any) -> Any:
     """A number in the spelling SWI's ~q writes and its reader takes back,
     which is what bridge.pl's transport carries. The mirror of numberToText in
-    index.mjs, and it exists for the same reason: JSON and JavaScript both
-    have one number type where MeTTa has two.
+    index.mjs, and it exists because JSON has one number kind while the wire
+    must preserve both integer width and the integer/float distinction.
 
     A payload that is not a number at all goes through untouched, so the
     corpus's malformed cases are refused by the codec under test rather than
@@ -306,7 +309,7 @@ def test_a_second_language_binding_passes_the_same_conformance_kit(node_driver) 
 
     The kit is the authority on the grammar and this is the second language
     held to it. Measured 2026-08-20 against the corpus on the branch that
-    writes it, before either merged: 62 cases in scope over all four legs, zero
+    writes it, before either merged: 67 cases in scope over all four legs, zero
     complaints. It caught a real defect on the way, which is what a kit is
     for: the decoder minted a fresh variable per occurrence, so (f $x $x)
     came back as (f $x $y).

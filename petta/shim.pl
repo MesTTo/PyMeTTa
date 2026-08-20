@@ -36,6 +36,9 @@
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:
 %     shim_wire_decoding:a_payload_outside_its_tags_class_fails]
+%   - the n tag carries signed-i64 Number integers and wider BigInt integers
+%     through Janus without changing their exact value
+%     [tested 2026-08-20: test_janus_carries_bigint_losslessly]
 %   - petta_py_run/3, petta_py_run_using/4 and petta_py_run_status/3 register a
 %     source's whole signature set before processing any of its forms, through
 %     the engine's own prepare_parsed_forms/1, so a ! may NAME a function the
@@ -72,9 +75,10 @@
 % janus maps both a Prolog atom and a Prolog string to a Python str, and maps
 % the booleans to strings too, so a bare term crossing the boundary loses its
 % metatype. Every term crosses tagged instead: ["s",Name] symbol, ["g",Text]
-% string, ["n",N] number, ["b",true|false] boolean, ["v",Name] variable,
-% ["e",[...]] expression, ["o",Ref] Python object reference. The tag list
-% itself is nested lists, which janus converts natively in both directions.
+% string, ["n",N] Number or BigInt, ["b",true|false] boolean,
+% ["v",Name] variable, ["e",[...]] expression, ["o",Ref] Python object
+% reference. The tag list itself is nested lists, which janus converts
+% natively in both directions.
 
 %Encode a Prolog term as a tagged wire term:
 %The clauses are mutually exclusive and every one of them cuts, so their order
