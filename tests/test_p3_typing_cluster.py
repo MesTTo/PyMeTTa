@@ -6,7 +6,8 @@ Guarantees:
   [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=WORKTREE]
   - DontEvalType declarations mask evaluation without relying on a type name.
   [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=WORKTREE]
-  - a duplicate declaration is refused with the existing row in the message.
+  - a duplicate declaration is refused with the existing row in the message,
+    and a duplicate public batch is rejected before either copy is stored.
   [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
   - pragma! accepts only keys whose setting changes an engine mechanism.
   [tested: test_no_pragma_key_is_accepted_and_inert; commit=WORKTREE]
@@ -196,6 +197,21 @@ def test_a_duplicate_declaration_names_the_first_one():
     assert "duplicate" in message
     assert "the first declaration is (: duplicate-op (-> Number Number))" in message
     assert _answers(metta, "!(duplicate-op 5)") == ["(duplicate-op 5)"]
+
+    batch = metta.parse("(: duplicate-in-batch (-> Number Number))")
+    with pytest.raises(Exception) as batch_refused:
+        metta.add(batch, batch)
+
+    batch_message = str(batch_refused.value)
+    assert "duplicate" in batch_message
+    assert (
+        "the first declaration is "
+        "(: duplicate-in-batch (-> Number Number))" in batch_message
+    )
+    assert _answers(
+        metta,
+        "!(match &self (: duplicate-in-batch $type) $type)",
+    ) == []
 
 
 def test_no_pragma_key_is_accepted_and_inert():
