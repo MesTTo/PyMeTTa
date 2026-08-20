@@ -971,7 +971,7 @@ def test_stream_guard_and_per_pull_bounds(m):
 
 def test_atomic_run_commits_or_rolls_back_whole(m):
     with pytest.raises(EngineError):
-        m.run("(kept fact) !(/ 1 0)", atomic=True)
+        m.run("(kept fact) !(+ $left $right)", atomic=True)
     assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
     m.run("(kept fact) !(+ 1 1)", atomic=True)
     assert expr(S.kept, S.fact) in m  # and commits whole on success

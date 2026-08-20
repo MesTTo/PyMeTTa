@@ -639,7 +639,7 @@ def test_a_throwing_transaction_rolls_back_and_rethrows(metta):
     with pytest.raises(EngineError):
         metta.run(
             "!(transaction (let $t1 (add-atom &tx-throw (edge a b))"
-            " (% 1 0)))"
+            " (+ $left $right)))"
         )
     assert store.rows == []
     assert store.calls == ["begin", "rollback"]

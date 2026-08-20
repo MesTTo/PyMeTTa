@@ -81,12 +81,14 @@ def test_imported_source_error_names_the_file(metta, tmp_path):
         assert str(broken) in str(caught.value)
 
         # And the rollback, on a file that gets far enough to compile the
-        # definition before its last form raises. Division by zero is a HOST
-        # error, the kind that still raises; it carries its own context, so
-        # this half is checked apart from the naming above rather than
-        # through one file that cannot show both.
+        # definition before its last form raises. Two unbound arithmetic
+        # operands are a HOST instantiation error; integer division by zero
+        # is a contained Error answer now and cannot be a rollback sentinel.
+        # The host error carries its own context, so this half is checked
+        # apart from the naming above rather than through one file that
+        # cannot show both.
         broken.write_text(
-            "(= (partial-import $number) (+ $number 1))\n!(/ 1 0)\n"
+            "(= (partial-import $number) (+ $number 1))\n!(+ $a $b)\n"
         )
         with pytest.raises(EngineError):
             scratch.run(f'!(import! (context-space) "{broken}")')

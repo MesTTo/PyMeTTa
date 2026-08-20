@@ -19,7 +19,7 @@ import subprocess
 
 import pytest
 
-from petta import MettaOperationError, val
+from petta import val
 
 
 def test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code(metta):
@@ -145,7 +145,8 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
     isnan-math and isinf-math to observe them. Integer division by zero
     stays an error here: the arbiter's answer THERE is the Error atom, a
     different shape owned by the error-answer story, and this pins that an
-    integer zero keeps raising rather than leaking an infinity.
+    integer zero answers the contained DivisionByZero atom rather than
+    leaking an infinity.
     """
     assert metta.run("!(/ 1.0 0.0)")[0] == [math.inf]
     assert metta.run("!(/ -1.0 0.0)")[0] == [-math.inf]
@@ -160,8 +161,20 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
         assert len(answers) == 1 and math.isnan(answers[0]), form
     assert metta.run("!(isnan-math (- 1e400 1e400))")[0] == [True]
     assert metta.run("!(isinf-math (/ 1.0 0.0))")[0] == [True]
-    with pytest.raises(MettaOperationError):
-        metta.run("!(/ 1 0)")
+
+
+def test_integer_division_by_zero_answers_what_d1_decides(metta):
+    """Integer zero division is an operation answer, not a host exception.
+
+    LeaTTa's regression/division_convention.metta pins the direct Error atom;
+    collapse then contains that one answer as its one-element expression.
+    """
+    direct = metta.run("!(/ 7 0)")
+    assert str(direct[0][0]) == "(Error (/ 7 0) DivisionByZero)"
+    collapsed = metta.run("!(collapse (/ 7 0))")
+    assert str(collapsed[0][0]) == "((Error (/ 7 0) DivisionByZero))"
+    remainder = metta.run("!(% 7 0)")
+    assert str(remainder[0][0]) == "(Error (% 7 0) DivisionByZero)"
 
 
 def test_finite_floats_print_the_arbiters_layout(metta):

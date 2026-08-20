@@ -128,9 +128,9 @@ check("release takes back out what it finds", m.query(S.blocked(V.x)), [])
 # Grounding is all or nothing. A template that writes and then raises leaves
 # nothing behind, so the retry the caller is invited to make cannot duplicate
 # the rules the first attempt managed. The raise has to be a HOST error:
-# arithmetic on a wrongly typed operand ANSWERS `(Error ...)` and would leave
-# the write standing, which is a grounding that succeeded.
-broken = Part(m, "broken", lambda: "(kept one)\n!(/ 1 0)")
+# arithmetic on a wrongly typed operand and integer division by zero ANSWER
+# `(Error ...)` and would leave the write standing, a successful grounding.
+broken = Part(m, "broken", lambda: "(kept one)\n!(+ $left $right)")
 try:
     broken.ground()
     check("a failed grounding raises", "did not raise", "raised")

@@ -141,8 +141,8 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):
         m.run("!(change-state! (a $x) 6)")
     assert failure.value.culprit == ["a", "$_0"]
     with pytest.raises(MettaOperationError) as absent:
-        m.run("!(/ 1 0)")
-    assert absent.value.kind == "evaluation_error"
+        m.run("!(+ $left $right)")
+    assert absent.value.kind == "instantiation_error"
     assert absent.value.expected is None
     assert absent.value.culprit is None
 
@@ -704,7 +704,10 @@ def test_wrong_bound_types_name_the_argument(m):
 def test_a_reserved_limit_does_not_leak_janus_framing(metta):
     metta.run("(= (spin $n) (spin (+ $n 1)))")
     with pytest.raises(TimeLimitError) as failure:
-        metta.run("!(spin 0)", timeout=0.05)
+        metta.run(
+            "!(with-pragma! ((max-stack-depth 300000000)) (spin 0))",
+            timeout=0.05,
+        )
     assert "0.05 second time limit" in str(failure.value)
     assert "Unknown error term" not in str(failure.value)
     assert "metta_control_signal" not in str(failure.value)
