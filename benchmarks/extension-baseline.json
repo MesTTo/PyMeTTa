@@ -1,8 +1,8 @@
 {
   "benchmarks": {
     "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
-      "comment": "Lowered 78219 -> 65219 on 2026-08-21, 72.01 -> 60.01 inferences per add: space-admission-verdict reads the fixed admits and capacity heads directly from &petta's boot-created native storage, avoiding two petta_contract_fact =../catch wrappers on an accepted add. An absent row still fails under the storage module's unknown=fail policy. Semantics are pinned by hooks_admission_sugar and the differential in examples/spaces/admission_pools.metta.",
-      "inferences": 65219,
+      "comment": "Lowered 78219 -> 65219 on 2026-08-21, 72.01 -> 60.01 inferences per add: space-admission-verdict reads the fixed admits and capacity heads directly from &petta's boot-created native storage, avoiding two petta_contract_fact =../catch wrappers on an accepted add. Lowered again 60.01 -> 55.01: has_declared_type probes a ground direct declaration through its indexed storage shape before taking the exact type_witness_in fallback for every miss or non-ground call. Semantics are pinned by metta_has_declared_type, hooks_admission_sugar, and the admission differential.",
+      "inferences": 60219,
       "operations": 1000,
       "unit": "calls"
     },

@@ -1858,8 +1858,30 @@ type_witness_in(Module, X, T) :-
         once(( member(Widened, Types), Widened == T ))
     ).
 
-has_declared_type(X, T) :- current_metta_module(Module),
-                           type_witness_in(Module, X, T).
+%A ground declaration is the admission common case, so probe its indexed
+%storage shape first. Every miss and every relational call takes the exact
+%type_witness_in/3 path, retaining builtins, metatypes, supertypes, type rules,
+%foreign spaces and the named-space shared tier.
+has_declared_type(X, T) :-
+    current_metta_module(Module),
+    (   ground(X), ground(T), direct_type_declaration_in(Module, X, T)
+    ->  true
+    ;   type_witness_in(Module, X, T)
+    ).
+
+direct_type_declaration_in(Module, X, T) :-
+    metta_self_module(Module), !,
+    '$petta_atoms:&self':'&self'(':', X, T),
+    acyclic_term(T).
+direct_type_declaration_in(Module, X, T) :-
+    metta_module_space(Module, Space),
+    (   native_storage_module_ready(Space, Storage),
+        Head =.. [Space, ':', X, T],
+        call(Storage:Head),
+        acyclic_term(T)
+    ;   '$petta_atoms:&self':'&self'(':', X, T),
+        acyclic_term(T)
+    ).
 
 %The first clause is the whole common case and pays no bookkeeping at
 %all: a deterministic check derives one candidate and commits. Only a
