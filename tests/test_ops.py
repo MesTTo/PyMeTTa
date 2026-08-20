@@ -7,6 +7,8 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import functools
+import types
 import uuid
 
 import pytest
@@ -69,6 +71,65 @@ def test_generator_is_nondeterministic(metta):
     assert metta.run(f"!(collapse ({name} 3))") == [[expr(1, 2, 3)]]
     # Composes with let and arithmetic like any nondeterministic function.
     assert metta.run(f"!(collapse (let $x ({name} 3) (* $x 10)))") == [[expr(10, 20, 30)]]
+
+
+def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
+    """The synchronous operation surface refuses every awaitable function."""
+    from petta.ops import REFLECTION_SPACE, registered
+
+    async def coroutine(value):
+        return value
+
+    async def async_generator(value):
+        yield value
+
+    @types.coroutine
+    def iterable_coroutine(value):
+        yield value
+
+    class CallableCoroutine:
+        async def __call__(self, value):
+            return value
+
+    def wrapped(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    cases = [
+        ("coroutine function", coroutine),
+        ("coroutine function", functools.partial(coroutine)),
+        ("coroutine function", CallableCoroutine()),
+        ("async-generator function", async_generator),
+        ("generator-based coroutine", iterable_coroutine),
+        ("coroutine function", wrapped(coroutine)),
+    ]
+    reflection = MeTTa(REFLECTION_SPACE)
+    for expected, fn in cases:
+        name = unique("awaitable")
+        with pytest.raises(TypeError, match=expected):
+            metta.register_op(fn, name=name, typed=False)
+        assert name not in registered()
+        assert not any(
+            isinstance(atom, Expr)
+            and atom.children[:2] == (S.op, S[name])
+            for atom in reflection.atoms()
+        ), name
+
+    # Ordinary generators still use the many path after the same flag walk.
+    name = unique("ordinary-generator")
+
+    def ordinary(value):
+        yield value
+
+    metta.register_op(ordinary, name=name, typed=False)
+    try:
+        assert metta.run(f"!({name} 7)") == [[7]]
+        assert registered()[name].kind == "many"
+    finally:
+        metta.unregister_op(name)
 
 
 def test_none_and_decline_answer_nothing(metta):

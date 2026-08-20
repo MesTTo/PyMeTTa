@@ -15,6 +15,10 @@ Guarantees:
     emits its return arrow
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+  - callable code flags, through partials, wrappers, bound methods, and
+    callable objects, classify generators and refuse coroutine functions
+    before registration changes any engine or registry state [tested:
+    test_register_op_reads_co_flags_and_refuses_or_awaits; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -269,8 +273,49 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     return declared
 
 
+def _callable_code(fn: Callable) -> Any:
+    """The Python code object governing one callable, if it has one."""
+    current: Any = fn
+    seen: set[int] = set()
+    while id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, functools.partial):
+            current = current.func
+            continue
+        current = inspect.unwrap(current)
+        if inspect.ismethod(current):
+            current = current.__func__
+            continue
+        code = getattr(current, "__code__", None)
+        if code is not None:
+            return code
+        call = inspect.getattr_static(type(current), "__call__", None)
+        if call is None:
+            break
+        current = call
+    return None
+
+
 def _operation_kind(fn: Callable, raw: bool) -> str:
-    many = inspect.isgeneratorfunction(fn)
+    code = _callable_code(fn)
+    flags = code.co_flags if code is not None else 0
+    name = _callable_name(fn)
+    if flags & inspect.CO_ASYNC_GENERATOR:
+        raise TypeError(
+            f"cannot register {name}: an async-generator function cannot run "
+            "through synchronous register_op"
+        )
+    if flags & inspect.CO_COROUTINE:
+        raise TypeError(
+            f"cannot register {name}: a coroutine function cannot run through "
+            "synchronous register_op"
+        )
+    if flags & inspect.CO_ITERABLE_COROUTINE:
+        raise TypeError(
+            f"cannot register {name}: a generator-based coroutine cannot run "
+            "through synchronous register_op"
+        )
+    many = bool(flags & inspect.CO_GENERATOR)
     return {
         (False, False): "det",
         (False, True): "many",
@@ -451,6 +496,7 @@ def register(
     by name, loudly, rather than cached and quietly wrong.
     """
     metta_name = _metta_name(fn, name)
+    kind = _operation_kind(fn, raw)
     explicit_arities = arities
     arities, params = _arities(fn, arities)
     injected = _engine_positions(params, fn)
@@ -461,7 +507,6 @@ def register(
             # call site never fills them, so the range re-derives without.
             required = sum(1 for p in params if p.default is inspect.Parameter.empty)
             arities = list(range(required, len(params) + 1))
-    kind = _operation_kind(fn, raw)
     # Everything computable is computed BEFORE the engine changes: a
     # refusing annotation or an over-expanded Union leaves nothing half
     # registered. Then the engine registers every arity in one checked
@@ -471,7 +516,7 @@ def register(
     # registry commits last.
     if inverse is not None and not callable(inverse):
         raise TypeError(f"the inverse of {metta_name} is not callable: {inverse!r}")
-    if pure and raw and inspect.isgeneratorfunction(fn):
+    if pure and kind == "raw_many":
         # A raw generator is the one shape whose answers the engine never
         # sees whole, so "no effect a cache could hide" is not checkable even
         # in principle. Refusing here beats a caller finding out later.
