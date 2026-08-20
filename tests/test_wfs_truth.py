@@ -7,7 +7,8 @@ unbound variables with wrapper truth True, the silently wrong shape
 ai-tabling-review.md section 3 pinned.
 Guarantees:
   - Undefined carries only the answer and its delay condition [tested:
-    test_undefined_answers_cross_as_undefined; commit=WORKTREE]
+    test_undefined_answers_cross_as_undefined;
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 Open Obligations:
   To Do: None
   Hacks: None

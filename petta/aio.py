@@ -32,7 +32,7 @@ Guarantees:
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

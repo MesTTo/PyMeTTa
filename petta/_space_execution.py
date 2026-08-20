@@ -10,7 +10,7 @@ Guarantees:
   - ordinary evaluation returns an unreduced term directly and has no
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 Open Obligations:
   To Do: None
   Hacks: None

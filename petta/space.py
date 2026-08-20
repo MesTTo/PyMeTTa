@@ -44,7 +44,7 @@ Guarantees:
   - eval has one answer shape: a non-reducible result is its unreduced term,
     and no residuals flag changes it [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:
