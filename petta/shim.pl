@@ -20,6 +20,10 @@
 %     test_loading_the_same_file_twice_leaves_one_copy]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
+%   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
+%     declarations aligned with anonymous-name reuse [tested:
+%     test_a_recycled_child_name_may_choose_a_different_parent;
+%     commit=WORKTREE]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
@@ -1070,6 +1074,12 @@ petta_py_new_space(Name) :-
       -> true
     ; petta_py_next_space(Name) ).
 
+petta_py_new_space(Parent0, Name) :-
+    ( atom(Parent0) -> Parent = Parent0 ; atom_string(Parent, Parent0) ),
+    petta_py_new_space(Name),
+    catch(metta_declare_space_parent(Name, Parent), Error,
+          ( petta_py_pool_space(Name), throw(Error) )).
+
 petta_py_next_space(Name) :-
     retract(petta_py_space_counter(N)),
     N1 is N + 1,
@@ -1083,11 +1093,19 @@ petta_py_space_untouched(Name) :-
     \+ petta_py_foreign(Name),
     \+ metta_host_stored(Name, _).
 
-%Release a space: everything cleared, the name pooled for reuse.
+petta_py_pool_space(Name) :-
+    ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
+
+petta_py_space_releasable(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    metta_assert_space_releasable(Name).
+
+%Release a space: everything cleared, inheritance unlinked, the execution
+%base forgotten, and only then the name pooled for reuse.
 petta_py_release_space(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    petta_py_clear(Name),
-    ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
+    metta_release_space(Name),
+    petta_py_pool_space(Name).
 
 %%%%%%%%%% Query %%%%%%%%%%
 %

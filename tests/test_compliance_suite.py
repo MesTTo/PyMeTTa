@@ -16,6 +16,9 @@ Guarantees:
     [tested test_a_provider_declaring_nothing_cannot_pass]
   - the write round trip puts back what it took, so a real backend is left as
     it was found [tested test_the_suite_leaves_a_writable_provider_as_it_found_it]
+  - the engine-native inherited space passes the same compliance suite as an
+    external provider [tested: TestNativeInheritedSpaceComplies;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,6 +56,55 @@ class TestReadOnlySpaceComplies(SpaceComplianceSuite):
     @pytest.fixture()
     def provider(self):
         return ReadOnlySpace()
+
+
+class NativeInheritedSpace(SpaceProvider):
+    """Adapt a native child to the provider protocol the shared suite drives."""
+
+    def __init__(self):
+        self.parent = MeTTa().new_space()
+        self.child = MeTTa().new_space(inherits=self.parent)
+        self.child.add(*ROWS)
+
+    def match(self, _pattern):
+        return iter(self.child.atoms())
+
+    def atoms(self):
+        return iter(self.child.atoms())
+
+    def add(self, atom):
+        self.child.add(atom)
+
+    def add_many(self, atoms):
+        self.child.add(*atoms)
+
+    def remove(self, atom):
+        return self.child.remove(atom)
+
+    def clear(self):
+        self.child.clear()
+
+    def can_run(self, capability, /, **request):
+        if capability == "rules":
+            return True
+        return super().can_run(capability, **request)
+
+    def close(self):
+        self.child.drop()
+        self.parent.drop()
+
+
+class TestNativeInheritedSpaceComplies(SpaceComplianceSuite):
+    @pytest.fixture()
+    def provider(self):
+        provider = NativeInheritedSpace()
+        yield provider
+        provider.close()
+
+    @pytest.fixture()
+    def space(self, provider, exercised):
+        del exercised
+        yield provider.child
 
 
 class ProgramSpace(ListSpace):

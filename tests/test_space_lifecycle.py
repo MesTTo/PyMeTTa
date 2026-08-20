@@ -13,6 +13,10 @@ Guarantees:
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
+  - an inherited space reads its own multiset before its ancestors, joins
+    across those layers, and mutates only its own store
+    [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,7 +25,7 @@ Open Obligations:
 
 import pytest
 
-from petta import S
+from petta import PettaError, S, V
 
 
 @pytest.fixture()
@@ -142,3 +146,94 @@ def test_a_dropped_handle_refuses_rather_than_writing_into_the_next_life(metta):
     first.drop()
     with pytest.raises(Exception, match="dropped"):
         first.add(S.late(1))
+
+
+def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
+    """Inheritance is a child-first read union and a front-only mutation."""
+    with metta.new_space() as parent:
+        parent.add(
+            S.edge(S.a, S.b), S.parent_only(1), S.copy(S.same), S.layer(S.parent)
+        )
+        with metta.new_space(inherits=parent) as child:
+            child.add(
+                S.edge(S.b, S.c), S.child_only(2), S.copy(S.same), S.layer(S.child)
+            )
+
+            assert sorted(map(str, child.atoms())) == sorted(map(str, [
+                S.edge(S.b, S.c),
+                S.child_only(2),
+                S.copy(S.same),
+                S.layer(S.child),
+                S.edge(S.a, S.b),
+                S.parent_only(1),
+                S.copy(S.same),
+                S.layer(S.parent),
+            ]))
+            assert [row.x for row in child.query(S.layer(V.x))] == [
+                S.child,
+                S.parent,
+            ]
+            assert [(row.x, row.z) for row in child.query(
+                S.edge(V.x, V.y), S.edge(V.y, V.z)
+            )] == [(S.a, S.c)]
+            assert child.count() == 8
+            assert child.run("!(space-atom-count (context-space))") == [[4]]
+            assert not parent.query(S.child_only(V.x))
+
+            parent.run("(= (layer-answer) parent)")
+            assert child.run("!(layer-answer)") == [[S.parent]]
+            child.run("(= (layer-answer) child)")
+            assert child.run("!(layer-answer)") == [[S.child]]
+            assert parent.run("!(layer-answer)") == [[S.parent]]
+
+            assert child.remove(S.parent_only(1)) is False
+            assert parent.query(S.parent_only(1))
+            assert child.remove(V.any) is True
+            assert child.run("!(space-atom-count (context-space))") == [[0]]
+            assert child.remove(V.any) is False
+            assert child.query(S.parent_only(1))
+            assert child.run("!(layer-answer)") == [[S.parent]]
+            child.clear()
+            assert child.count() == 5
+            assert child.run("!(space-atom-count (context-space))") == [[0]]
+            assert child.query(S.parent_only(1))
+            assert parent.query(S.parent_only(1))
+
+        assert parent.query(S.parent_only(1))
+
+
+def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
+    parent = metta.new_space()
+    child = metta.new_space(inherits=parent)
+    try:
+        with pytest.raises(PettaError, match="live child"):
+            parent.drop()
+        parent.add(S.still_live(1))
+        assert child.query(S.still_live(1))
+    finally:
+        child.drop()
+        parent.drop()
+
+
+def test_a_recycled_child_name_may_choose_a_different_parent(drained):
+    first_parent = drained.new_space()
+    second_parent = drained.new_space()
+    first_parent.add(S.from_parent(S.first))
+    second_parent.add(S.from_parent(S.second))
+    first_parent.run("(= (parent-answer) first)")
+    second_parent.run("(= (parent-answer) second)")
+    first_child = drained.new_space(inherits=first_parent)
+    name = first_child.space_name
+    assert first_child.run("!(parent-answer)") == [[S.first]]
+    first_child.drop()
+
+    second_child = drained.new_space(inherits=second_parent)
+    try:
+        assert second_child.space_name == name
+        assert not second_child.query(S.from_parent(S.first))
+        assert second_child.query(S.from_parent(S.second))
+        assert second_child.run("!(parent-answer)") == [[S.second]]
+    finally:
+        second_child.drop()
+        first_parent.drop()
+        second_parent.drop()
