@@ -13,7 +13,8 @@ Assumes:
 Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
-    [tested: test_the_host_service_scoreboard_matches_the_tree]
+    [tested: test_the_host_service_scoreboard_matches_the_tree;
+    commit=WORKTREE]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor]
@@ -51,6 +52,7 @@ HOST_SERVICES = {
     "metta_host_clear_defined/1",
     "metta_host_fast_header/1",
     "metta_host_digest/2",
+    "metta_host_dispatch_proof_step/6",
     "metta_host_substitute/3",
     "metta_add_atoms/2",
     "metta_reducible_head/2",
@@ -114,6 +116,7 @@ FLOOR_REASONS = {
     "metta_host_clear_defined/1": "host-orchestration",
     "metta_host_clear_space/1": "host-orchestration",
     "metta_host_digest/2": "host-orchestration",
+    "metta_host_dispatch_proof_step/6": "host-orchestration",
     "metta_host_drop_function/2": "host-orchestration",
     "metta_host_explain_match/3": "host-orchestration",
     "metta_host_fast_header/1": "host-orchestration",
