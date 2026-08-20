@@ -8,6 +8,8 @@ Guarantees:
     [tested test_number_parameters_accept_bigint_without_retyping_number]
   - integer equality remains exact when its operands have different numeric
     types [tested test_mixed_bigint_number_equality_uses_exact_values]
+  - arithmetic keeps the exact unbounded result beyond Hyperon's i64 carrier
+    [tested test_integer_arithmetic_is_unbounded_where_hyperon_checks_i64]
   - Janus and the tagged n form carry BigInt values in both directions
     without changing a digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
@@ -46,11 +48,15 @@ def test_bigint_and_number_type_the_numeric_tower(metta):
         metta, f"!(let $value (- {I64_MAX + 1} 1) (get-type $value))"
     ) == ["Number"]
 
-    wide = 4_611_686_018_427_387_904 * 4
-    assert metta.run("!(* 4611686018427387904 4)") == [[wide]]
     assert _answers(
         metta, "!(let $value (* 4611686018427387904 4) (get-type $value))"
     ) == ["BigInt"]
+
+
+def test_integer_arithmetic_is_unbounded_where_hyperon_checks_i64(metta):
+    assert metta.run("!(* 4611686018427387904 4)") == [
+        [18_446_744_073_709_551_616]
+    ]
 
 
 @settings(max_examples=50)
