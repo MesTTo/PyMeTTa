@@ -1,7 +1,7 @@
 """Purpose: prove check.sh runs the real website snippet auditor as REPORT.
 Guarantees:
   - the auditor's fixed-baseline output reaches the gate log
-    [tested: test_the_snippet_auditor_runs_from_the_gate; commit=d91bdad9b870349de13271ffd8500903348ad172]
+    [tested: test_the_snippet_auditor_runs_from_the_gate; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -48,7 +48,7 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):
     log = run.stdout + run.stderr
     assert run.returncode == 0, log
     assert "=== snippets [REPORT] ===" in log
-    assert "snippet provenance backlog: 71 of 72 remain" in log
+    assert "snippet provenance backlog: 70 of 72 remain" in log
     assert "tracked in website/scripts/snippet_backlog.tsv" in log
     assert "guide/atoms-terms.md fence 2:" in log
     assert "REPORT snippets     findings" in log
