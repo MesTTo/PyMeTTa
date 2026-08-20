@@ -201,6 +201,7 @@ AlgebraEvaluationError = _algebra_api.AlgebraEvaluationError
 AlgebraLawError = _algebra_api.AlgebraLawError
 AlgebraOperationError = _algebra_api.AlgebraOperationError
 AlgebraRequirementError = _algebra_api.AlgebraRequirementError
+Amplitude = _algebra_api.Amplitude
 DeclaredAlgebra = _algebra_api.DeclaredAlgebra
 LinearEvidenceError = _algebra_api.LinearEvidenceError
 PlanDecision = _algebra_api.PlanDecision
@@ -305,6 +306,7 @@ __all__ = [
     "AlgebraLawError",
     "AlgebraOperationError",
     "AlgebraRequirementError",
+    "Amplitude",
     "Answer",
     "AssertionFailure",
     "Atom",

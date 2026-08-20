@@ -2552,9 +2552,10 @@ class MeTTa:
         default at which everything vanishes; ranked admits ordered
         annotations, which is what (top k ...) consumes. A custom name must
         first be introduced with :meth:`declare_algebra`. Capabilities are
-        checked against the algebra's requirements before the catalog write.
-        Declaring replaces any earlier row for the context, so the reader never
-        meets two disagreeing atoms.
+        checked against the algebra's requirements before the catalog write;
+        amplitude programs, for example, must explicitly declare ``finite``,
+        ``contractive`` and ``staged``. Declaring replaces any earlier row for
+        the context, so the reader never meets two disagreeing atoms.
         """
         declaration = _algebra.require(self, algebra)
         declared_capabilities = frozenset(capabilities)

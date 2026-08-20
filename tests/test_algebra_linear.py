@@ -23,6 +23,9 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
         requires=("linear",),
     )
     with metta.new_space() as program:
+        program.declare_annotations(
+            program.space_name, "p4-linear", capabilities=("linear",)
+        )
         program.add_tagged_fact(1, S.meeting_token(S.alice, S.room7))
         program.add_tagged_rule(
             0,

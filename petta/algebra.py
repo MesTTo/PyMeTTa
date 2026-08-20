@@ -15,6 +15,10 @@ Guarantees:
     publishes a derived answer [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
     commit=ab469c3679ab778c91ac73f14797af746a1ea87d]
+  - the amplitude preset is usable only by a context declaring the finite,
+    contractive, staged fragment [tested:
+    test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -27,6 +31,7 @@ import math
 import random
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from fractions import Fraction
 from numbers import Real
 from typing import TYPE_CHECKING, Any, Final
 
@@ -43,6 +48,7 @@ __all__ = [
     "AlgebraLawError",
     "AlgebraOperationError",
     "AlgebraRequirementError",
+    "Amplitude",
     "DeclaredAlgebra",
     "LinearEvidenceError",
     "PlanDecision",
@@ -78,6 +84,35 @@ class RateDeclarationError(AlgebraDeclarationError):
 
 class LinearEvidenceError(PettaError):
     """One stored premise occurrence was consumed twice in one derivation."""
+
+
+@dataclass(frozen=True, slots=True)
+class Amplitude:
+    """An exact complex value with rational real and imaginary components."""
+
+    real: Fraction
+    imag: Fraction = Fraction(0)
+
+    def __init__(  # noqa: D107 -- the class documents its exact carrier
+        self, real: int | Fraction, imag: int | Fraction = 0
+    ) -> None:
+        object.__setattr__(self, "real", Fraction(real))
+        object.__setattr__(self, "imag", Fraction(imag))
+
+    def __add__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- numeric protocol
+        return Amplitude(self.real + other.real, self.imag + other.imag)
+
+    def __mul__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- numeric protocol
+        return Amplitude(
+            self.real * other.real - self.imag * other.imag,
+            self.real * other.imag + self.imag * other.real,
+        )
+
+    def __neg__(self) -> Amplitude:  # noqa: D105 -- numeric protocol
+        return Amplitude(-self.real, -self.imag)
+
+    def __complex__(self) -> complex:  # noqa: D105 -- numeric protocol
+        return complex(float(self.real), float(self.imag))
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,6 +252,14 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     "prob": _preset("prob", "+", "*", 0, 1),
     "prov": _preset("prov", "plus", "times", Sym("zero"), Sym("one")),
     "budget": _preset("budget", "min", "+", Sym("infinity"), 0),
+    "amplitude": _preset(
+        "amplitude",
+        "amplitude-add",
+        "amplitude-multiply",
+        Amplitude(0),
+        Amplitude(1),
+        requires=("finite", "contractive", "staged"),
+    ),
 }
 
 _REGISTRY: dict[tuple[int, str], DeclaredAlgebra] = {}
@@ -305,6 +348,44 @@ def require(metta: MeTTa, name: str) -> DeclaredAlgebra:
         )
         raise AlgebraDeclarationError(msg)
     return declaration
+
+
+def _context_capabilities(metta: MeTTa, algebra: str) -> frozenset[str]:
+    context = Sym(str(metta.space_name))
+    for atom in metta.space("&petta").atoms():
+        if not isinstance(atom, Expr) or len(atom.children) not in {3, 4}:
+            continue
+        if atom.children[:3] != (Sym("annotations"), context, Sym(algebra)):
+            continue
+        if len(atom.children) == 3:
+            return frozenset()
+        field = atom.children[3]
+        if not isinstance(field, Expr) or not field.children:
+            return frozenset()
+        return frozenset(
+            capability.name
+            for capability in field.children[1:]
+            if isinstance(capability, Sym)
+        )
+    return frozenset()
+
+
+def _require_context_capabilities(
+    metta: MeTTa, declaration: DeclaredAlgebra
+) -> None:
+    missing = declaration.requires - _context_capabilities(metta, declaration.name)
+    if not missing:
+        return
+    refusal = (
+        "amplitude_fragment_refused"
+        if declaration.name == "amplitude"
+        else "algebra_requirements_missing"
+    )
+    msg = (
+        f"{refusal}({metta.space_name}, {declaration.name}, "
+        f"missing={sorted(missing)!r})"
+    )
+    raise AlgebraRequirementError(msg)
 
 
 def _same(left: Atom, right: Atom) -> bool:
@@ -648,6 +729,7 @@ def evaluate(
 ) -> AlgebraEvaluation:
     """Evaluate all finite tagged derivations in declaration order."""
     declaration = require(metta, algebra)
+    _require_context_capabilities(metta, declaration)
     goal = parse(query) if isinstance(query, str) else encode(query)
     available, rules = _program(metta.atoms())
     seen = {_signature(answer) for answer in available}
