@@ -1036,8 +1036,58 @@ body_form_dual('!=', [A, B], _, _Local, (Goals, ValueA = ValueB)) :-
 %it negates, and two functions may negate each other, so the set of equations a
 %dual summarises is not settled at compile time.
 body_form_dual(Fun, Args, _, _Local, Goal) :-
-    argument_values(Args, ArgGoals, Values),
+    dual_argument_values(Fun, Args, ArgGoals, Values),
     goals_to_conj([ArgGoals, metta_dual_goal(Fun, Values)], Goal).
+
+%The dual passes each argument exactly as the positive call would. A
+%position the declared chain types Atom takes the WRITTEN term, the same
+%mask translate_args_by_type honours, read off the same machinery the
+%positive call compiles from (call_site_type_chains, fitting_type_chains,
+%drop_unconstraining_types), so the two paths cannot drift: with
+%(: hh (-> Atom Bool)) and (= (hh 10) True), the positive path tries hh at
+%the written (dbl 5) and fails, and the dual used to EVALUATE the argument
+%to 10, where hh holds, so (not-provable (hh (dbl 5))) answered nothing
+%instead of True. With no declaration, or none fitting the arity, every
+%argument evaluates as before. Overloaded chains that disagree about a
+%position mask it only when ALL of them mask it: the positive path branches
+%per chain, the dual asks one metta_dual_goal, and evaluating in the
+%ambiguous case only narrows which negations are FOUND, never invents one
+%[tested: test_not_provable_honours_the_atom_mask_its_positive_path_honours].
+dual_argument_values(Fun, Args, Conj, Values) :-
+    length(Args, InputArity),
+    dual_atom_mask(Fun, InputArity, Mask),
+    maplist(dual_argument_value, Mask, Args, GoalLists, Values),
+    append(GoalLists, Goals),
+    goals_to_conj(Goals, Conj).
+
+dual_argument_value(atom, Arg, [], Arg) :- !.
+dual_argument_value(value, Arg, Goals, Value) :- translate_expr(Arg, Goals, Value).
+
+dual_atom_mask(Fun, InputArity, Mask) :-
+    (   atom(Fun),
+        call_site_type_chains(Fun, Chains),
+        Chains \== [],
+        fitting_type_chains(Chains, InputArity, Fitting),
+        findall(Kinds, ( member(Chain, Fitting),
+                         chain_argument_kinds(Chain, InputArity, Kinds) ),
+                KindLists),
+        KindLists \== []
+    ->  foldl(merge_argument_kinds, KindLists, none, Mask)
+    ;   length(Mask, InputArity),
+        maplist(=(value), Mask)
+    ).
+
+chain_argument_kinds(TypeChain, InputArity, Kinds) :-
+    TypeChain = [->|Xs],
+    append(ArgTypes0, [_], Xs),
+    length(ArgTypes0, InputArity),
+    drop_unconstraining_types(TypeChain, ArgTypes0, ArgTypes),
+    maplist([T, K]>>( T == 'Atom' -> K = atom ; K = value ), ArgTypes, Kinds).
+
+merge_argument_kinds(Kinds, none, Kinds) :- !.
+merge_argument_kinds(Kinds, Acc, Merged) :-
+    maplist([A, B, M]>>( A == atom, B == atom -> M = atom ; M = value ),
+            Kinds, Acc, Merged).
 
 comparison_dual('<', '>=').
 comparison_dual('>', '<=').
