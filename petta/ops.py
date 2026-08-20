@@ -7,10 +7,10 @@ Guarantees:
     space [tested test_public_context_types_are_distinct]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=4224c26819d90b9e03efdaef78cb573b91729295]
   - overload stubs each contribute their declared arrow and annotation claims
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
-     commit=WORKTREE]
+     commit=4224c26819d90b9e03efdaef78cb573b91729295]
 Open Obligations:
   To Do: None
   Hacks: None
