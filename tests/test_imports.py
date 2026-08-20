@@ -1,9 +1,16 @@
-"""Purpose: pin MeTTa and Python import rollback, cycles, and path identity."""
+"""Purpose: pin MeTTa and Python import rollback, cycles, and path identity.
+Guarantees:
+  - the minimal library remains idempotent after signature-registration and
+    cross-space specialization traffic
+    [tested: test_minimal_lib_install_is_idempotent_after_cross_file_traffic;
+    commit=WORKTREE].
+"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 import builtins
 import sys
 import types
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -278,15 +285,28 @@ def test_missing_relative_import_does_not_fall_back_to_cwd(petta_instance, tmp_p
         petta_instance.load_metta_file(str(root))
 
 
-def test_minimal_metta_lib_install_is_idempotent(metta):
-    """The library's own header claims this and nothing checked it.
+def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
+    """Exercise the minimized ordered trigger before installing twice.
 
     A notebook cell re-run, or two packages that both install it, calls
     install() twice on one space. It registers process-wide, so a second call
-    that duplicated equations would double every answer.
+    that duplicated equations would double every answer. Signature prepasses
+    followed by a copied specialization were the cross-file traffic that once
+    made the installed base equation lose precedence to a generated equation.
     """
-    import sys
-    from pathlib import Path
+    metta.run("!(import! &self (library lib_reflect))")
+    assert metta.run(
+        "!(engine-knows p017-later)\n"
+        "!(engine-arity p017-later)\n"
+        "(= (p017-later $x) (+ $x 1))\n"
+    ) == [[True], [2]]
+
+    metta.run("(= (p017-inc $x) (+ $x 1))")
+    metta.run("(= (p017-map $f $x) ($f $x))")
+    metta.run("(= (p017-use $z) (p017-map p017-inc $z))")
+    assert metta.run("!(p017-use 1)") == [[2]]
+    clone = metta.copy()
+    clone.drop()
 
     lib = Path(__file__).resolve().parents[3] / "lib"
     sys.path.insert(0, str(lib))
@@ -295,10 +315,10 @@ def test_minimal_metta_lib_install_is_idempotent(metta):
     finally:
         sys.path.remove(str(lib))
 
-    space = metta.new_space()
-    first = minimal_metta_lib.install(space)
-    second = minimal_metta_lib.install(space)
-    assert first == second
-    assert first, "install answered no names"
-    # The instruction set still answers once, not twice.
-    assert space.run("!(function (return 42))") == [[42]]
+    with metta.new_space() as space:
+        first = minimal_metta_lib.install(space)
+        second = minimal_metta_lib.install(space)
+        assert first == second
+        assert first, "install answered no names"
+        # The instruction set still answers once, not twice.
+        assert space.run("!(function (return 42))") == [[42]]
