@@ -56,8 +56,9 @@
       "operations": 3000,
       "unit": "calls"
     },
-    "extcost-python-operation-raw-true": {
-      "inferences": 33214,
+    "extcost-python-operation-transport-raw": {
+      "comment": "RENAMED 2026-08-21 from extcost-python-operation-raw-true after P5.25 replaced the raw boolean with the transport vocabulary. Re-measured minimum of [33215, 33213, 33215], one inference below the prior 33214 pin; the operation path itself is unchanged.",
+      "inferences": 33213,
       "operations": 3000,
       "unit": "calls"
     },
