@@ -319,6 +319,10 @@ def _object_str(value: Any) -> str:
     return f"<{type(value).__name__}>"
 
 
+def _leaf_refusal_message(atom: Atom, refusal: str) -> str:
+    return f"{atom!r} is a leaf atom and {refusal}"
+
+
 class Atom:
     """Base class. Atoms are immutable, hashable, and compare structurally."""
 
@@ -337,12 +341,10 @@ class Atom:
     # so the runtime is unchanged and the static story stops being a lie.
     @property
     def children(self) -> tuple[Atom, ...]:
-        msg = f"{self!r} is a leaf atom and has no children"
-        raise TypeError(msg)
+        raise TypeError(_leaf_refusal_message(self, "has no children"))
 
     def __len__(self) -> int:
-        msg = f"{self!r} is a leaf atom and has no length"
-        raise TypeError(msg)
+        raise TypeError(_leaf_refusal_message(self, "has no length"))
 
     # Declaring __len__ above would otherwise route bool() through it and
     # make every leaf atom raise where it used to be truthy. Expr overrides
@@ -351,12 +353,10 @@ class Atom:
         return True
 
     def __iter__(self) -> Iterator[Atom]:
-        msg = f"{self!r} is a leaf atom and is not iterable"
-        raise TypeError(msg)
+        raise TypeError(_leaf_refusal_message(self, "is not iterable"))
 
     def __getitem__(self, i: int | slice) -> Any:
-        msg = f"{self!r} is a leaf atom and is not indexable"
-        raise TypeError(msg)
+        raise TypeError(_leaf_refusal_message(self, "is not indexable"))
 
     # Term-building operators, the query-builder lesson: arithmetic and
     # order comparisons on symbols, variables and expressions CONSTRUCT the
@@ -484,28 +484,24 @@ class Atom:
     # datum it was handed and never runs a program. Gnd overrides these for
     # the values that genuinely are numbers.
 
-    def _not_a(self, target: str) -> TypeError:
-        return TypeError(
+    def _not_a_message(self, target: str) -> str:
+        return (
             f"cannot read {self} as a Python {target}: it is a {self.metatype} "
             f"in MeTTa, and only a grounded number converts. Evaluate it first "
             f"if it is a program: space.eval(atom)."
         )
 
     def __int__(self) -> int:
-        msg = "int"
-        raise self._not_a(msg)
+        raise TypeError(self._not_a_message("int"))
 
     def __float__(self) -> float:
-        msg = "float"
-        raise self._not_a(msg)
+        raise TypeError(self._not_a_message("float"))
 
     def __complex__(self) -> complex:
-        msg = "complex"
-        raise self._not_a(msg)
+        raise TypeError(self._not_a_message("complex"))
 
     def __index__(self) -> int:
-        msg = "int"
-        raise self._not_a(msg)
+        raise TypeError(self._not_a_message("int"))
 
     def __format__(self, spec: str) -> str:
         return str(self) if not spec else format(str(self), spec)
@@ -914,8 +910,7 @@ class Gnd(Atom):
     def __index__(self) -> int:
         v = self.value
         if isinstance(v, bool) or not isinstance(v, int):
-            msg = "int"
-            raise self._not_a(msg)
+            raise TypeError(self._not_a_message("int"))
         return v
 
     def __format__(self, spec: str) -> str:

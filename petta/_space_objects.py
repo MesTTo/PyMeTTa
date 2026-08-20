@@ -367,6 +367,13 @@ def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
     return "\n".join(lines)
 
 
+_CURSOR_LENGTH_REFUSAL = (
+    "a cursor has no len(): counting its rows means pulling all of them, "
+    "which is what it exists to avoid. Use space.count(pattern) for the "
+    "count, or query() if you want the rows"
+)
+
+
 class Cursor:
     """MeTTa.stream(): answers pulled one at a time from an engine-held
     query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
@@ -524,14 +531,7 @@ class Cursor:
         one would silently materialise the very thing the cursor exists to
         avoid.
         """
-        msg = (
-            "a cursor has no len(): counting its rows means pulling all of "
-            "them, which is what it exists to avoid. Use space.count(pattern) "
-            "for the count, or query() if you want the rows"
-        )
-        raise TypeError(
-            msg
-        )
+        raise TypeError(_CURSOR_LENGTH_REFUSAL)
 
     def close(self) -> None:
         """Destroy the held engine; idempotent and distinct from exhaustion."""

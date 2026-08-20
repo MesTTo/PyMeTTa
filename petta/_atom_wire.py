@@ -129,14 +129,7 @@ class Undefined:
         self.residual = residual
 
     def __bool__(self) -> bool:
-        msg = (
-            f"this answer's truth is undefined ({self.why}); branch on "
-            f".value and .why explicitly instead of treating it as a "
-            f"boolean"
-        )
-        raise PettaError(
-            msg
-        )
+        raise PettaError(_undefined_truth_message(self.why))
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -152,6 +145,12 @@ class Undefined:
     def __repr__(self) -> str:
         return f"Undefined({self.value!r}, why={self.why!r})"
 
+
+def _undefined_truth_message(reason: str) -> str:
+    return (
+        f"this answer's truth is undefined ({reason}); branch on "
+        ".value and .why explicitly instead of treating it as a boolean"
+    )
 
 def _expression_children(payload: Any) -> list | tuple:
     if not isinstance(payload, (list, tuple)):
