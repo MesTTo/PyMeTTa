@@ -3,6 +3,11 @@ documented in one table, derived from the class rather than maintained by
 hand, and the one operator that is deliberately NOT symbolic (`==`, whose
 term is spelled `.eq()`) is called out. Before this, `S.x + S.y` built a
 term and no page in website/ showed the form at all [measured 2026-08-19].
+Guarantees:
+    - one immutable 22-entry table generates every symbolic, templated,
+      provided, or refusing operator method [tested:
+      test_the_operator_table_is_generated_from_one_source_with_no_holes;
+      commit=WORKTREE]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -15,9 +20,12 @@ Open Obligations:
 
 from __future__ import annotations
 
+import operator
 from pathlib import Path
 
-from petta import S, V
+import pytest
+
+from petta import OPERATOR_LOWERINGS, Atom, Gnd, MeTTa, S, V
 
 DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 
@@ -40,14 +48,20 @@ def test_every_operator_is_documented_including_the_non_symbolic_one():
     here, and fails this test until the table names it."""
     text = DOC.read_text(encoding="utf-8")
     built: dict[str, str] = {}
+    entries = {entry.dunder: entry for entry in OPERATOR_LOWERINGS}
     for dunder in BINARY_DUNDERS:
         method = getattr(type(S.x), dunder, None)
         if method is None or getattr(object, dunder, None) is method:
             continue
+        if entries[dunder].kind == "absent":
+            with pytest.raises(TypeError, match="has no MeTTa lowering"):
+                method(S.x, V.y)
+            continue
         term = method(S.x, V.y)
         built[dunder] = _head(term)
-    # The unary and the two spelled methods.
-    built["__invert__"] = _head(~S.x)
+    # The unary forms and the two spelled methods.
+    for dunder in ("__invert__", "__neg__", "__abs__"):
+        built[dunder] = _head(getattr(type(S.x), dunder)(S.x))
     built["eq"] = _head(S.x.eq(V.y))
     built["ne"] = _head(S.x.ne(V.y))
 
@@ -67,3 +81,55 @@ def test_every_operator_is_documented_including_the_non_symbolic_one():
     )
     # And == really is the non-operator: it answers a bool, not a term.
     assert (S.x == S.x) is True and (S.x == S.y) is False
+
+
+def test_the_operator_table_is_generated_from_one_source_with_no_holes():
+    expected = {
+        "__abs__", "__add__", "__and__", "__eq__", "__floordiv__",
+        "__ge__", "__gt__", "__invert__", "__le__", "__lshift__",
+        "__lt__", "__matmul__", "__mod__", "__mul__", "__ne__",
+        "__neg__", "__or__", "__pow__", "__rshift__", "__sub__",
+        "__truediv__", "__xor__",
+    }
+    assert len(OPERATOR_LOWERINGS) == 22
+    assert {entry.dunder for entry in OPERATOR_LOWERINGS} == expected
+    assert {entry.kind for entry in OPERATOR_LOWERINGS} == {
+        "absent", "provided", "symbol", "taken", "template"
+    }
+    with pytest.raises(TypeError):
+        operator.setitem(OPERATOR_LOWERINGS, 0, OPERATOR_LOWERINGS[0])
+
+    for entry in OPERATOR_LOWERINGS:
+        if entry.kind == "taken":
+            assert entry.method in {"eq", "ne"}
+            assert callable(getattr(Atom, entry.method))
+            continue
+        method = getattr(Atom, entry.dunder)
+        assert method.__petta_lowering__ == entry
+        if entry.reflected is not None:
+            assert getattr(Atom, entry.reflected).__petta_lowering__ == entry
+
+    assert str(S.x // 2) == "(floor-math (/ x 2))"
+    assert str(-S.x) == "(- 0 x)"
+    assert str(abs(S.x)) == "(abs-math x)"
+    with pytest.raises(TypeError, match="MeTTa has no integer-left-shift operation"):
+        S.x << 2
+    with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
+        S.x >> 2
+
+    metta = MeTTa().new_space()
+    assert metta.eval(Atom.__floordiv__(Gnd(7), 2)) == [3]
+    assert metta.eval(Atom.__neg__(Gnd(7))) == [-7]
+    assert metta.eval(Atom.__abs__(Gnd(-7))) == [7]
+    provided = Atom.__matmul__(Gnd(6), 7)
+    assert metta.eval(provided) == [provided]
+    metta.run("(= (matmul $left $right) (* $left $right))")
+    assert metta.eval(provided) == [42]
+
+    assert Gnd(7) // 2 == 3
+    assert -Gnd(7) == -7
+    assert abs(Gnd(-7)) == 7
+    assert Gnd(3) << 2 == 12
+    assert Gnd(12) >> 2 == 3
+    assert (S.x == S.x) is True
+    assert str(S.x.eq(S.y)) == "(== x y)"

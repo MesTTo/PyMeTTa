@@ -14,6 +14,9 @@ Guarantees:
   - compiled definition facts and source spans are public immutable values
     [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - the immutable operator lowering table is public data [tested:
+    test_the_operator_table_is_generated_from_one_source_with_no_holes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -127,10 +130,12 @@ from . import (  # noqa: E402
 from ._engine import engine_thread  # noqa: E402
 from .answer import Answer, Bindings  # noqa: E402
 from .atoms import (  # noqa: E402
+    OPERATOR_LOWERINGS,
     Atom,
     Expr,
     Gnd,
     Handle,
+    OperatorLowering,
     S,
     Sym,
     Undefined,
@@ -271,6 +276,7 @@ def backend_info() -> dict[str, str | None]:
 
 __all__ = [
     "DECLINE",
+    "OPERATOR_LOWERINGS",
     "REFLECTION_SPACE",
     "Adder",
     "Answer",
@@ -305,6 +311,7 @@ __all__ = [
     "MettaOperationError",
     "MettaResultError",
     "MettaSyntaxError",
+    "OperatorLowering",
     "PeTTa",
     "PettaError",
     "Prepared",
