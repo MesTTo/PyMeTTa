@@ -15,6 +15,10 @@ Guarantees:
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
      commit=4224c26819d90b9e03efdaef78cb573b91729295]
+  - Annotated metadata remains matchable in annotation claims while its base
+    type continues to determine arrow types and runtime conversion [tested:
+    test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -73,6 +77,15 @@ def type_atom_for(annotation: Any) -> Atom:
 def annotation_atom_for(annotation: Any) -> Atom:
     """Project a Python annotation itself, preserving generic parameters."""
     origin = typing.get_origin(annotation)
+    if origin is typing.Annotated:
+        base, *metadata = typing.get_args(annotation)
+        return Expr(
+            [
+                S.Annotated,
+                annotation_atom_for(base),
+                *(item if isinstance(item, Atom) else encode(item) for item in metadata),
+            ]
+        )
     if isinstance(annotation, typing.TypeVar):
         if annotation.__constraints__:
             return Expr(
@@ -368,7 +381,7 @@ def callable_name(fn: Callable) -> str:
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
     """Resolve postponed annotations or raise a diagnostic naming the callable."""
     try:
-        return typing.get_type_hints(fn)
+        return typing.get_type_hints(fn, include_extras=True)
     except Exception as exc:
         raise TypeError(
             f"the annotations of {callable_name(fn)} do not resolve "

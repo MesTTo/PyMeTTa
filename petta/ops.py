@@ -29,6 +29,10 @@ Guarantees:
     form accepts, including repeated variadic annotations [tested:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
     commit=e5246578ba61fb5efc9d2282bade50479946e34a]
+  - Annotated MeTTa parameters retain metadata without losing engine
+    injection [tested:
+    test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -482,7 +486,14 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
         hints = resolved_annotations(fn)
     except TypeError:
         return []
-    return [i for i, p in enumerate(params) if hints.get(p.name) is MeTTa]
+    positions = []
+    for index, param in enumerate(params):
+        annotation = hints.get(param.name)
+        while typing.get_origin(annotation) is typing.Annotated:
+            annotation = typing.get_args(annotation)[0]
+        if annotation is MeTTa:
+            positions.append(index)
+    return positions
 
 
 def _with_engine(fn: Callable, positions: list[int]) -> Callable:

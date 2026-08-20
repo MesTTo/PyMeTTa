@@ -1,10 +1,17 @@
-"""Purpose: pin Phase 5's Python annotation and conversion seam."""
+"""Purpose: pin Phase 5's Python annotation and conversion seam.
+Guarantees:
+  - Annotated values of one base type retain distinct matchable metadata
+    claims without changing their arrow slots [tested:
+    test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
+    commit=WORKTREE]
+"""
 
 import types
 from collections.abc import Sequence
 from dataclasses import InitVar, dataclass
 from enum import Enum, Flag, IntEnum, StrEnum, auto
 from typing import (
+    Annotated,
     Literal,
     Never,
     NewType,
@@ -17,7 +24,7 @@ from typing import (
 
 import pytest
 
-from petta import Atom, Expr, Gnd, S, Sym, Var, encode, val
+from petta import Atom, Expr, Gnd, MeTTa, S, Sym, Var, encode, val
 from petta import integrate as pi
 from petta.convert import build, project, register_type, unregister_type
 from petta.ops import annotation_atom_for, type_atoms_for
@@ -189,6 +196,35 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     assert "(annotation advanced (param 5 (TypeIs Number)))" in claims
     assert "(annotation advanced (param 6 (type Number)))" in claims
     assert "(annotation advanced (return Empty))" in claims
+
+
+def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta):
+    def convert_units(
+        metres: Annotated[int, "metres"],
+        feet: Annotated[int, "feet"],
+    ) -> int:
+        return metres + feet
+
+    metta.register_op(convert_units)
+    declarations = {str(atom) for atom in metta.atoms()}
+    assert "(: convert_units (-> Number Number Number))" in declarations
+    assert (
+        '(annotation convert_units (param 1 (Annotated Number "metres")))'
+        in declarations
+    )
+    assert (
+        '(annotation convert_units (param 2 (Annotated Number "feet")))'
+        in declarations
+    )
+
+    def current_space(engine: Annotated[MeTTa, "engine"]):
+        return engine
+
+    metta.register_op(current_space, name="annotated-engine", typed=False)
+    ((answer,),) = metta.run("!(annotated-engine)")
+    assert isinstance(answer, Gnd)
+    assert isinstance(answer.value, MeTTa)
+    assert answer.value.space_name == metta.space_name
 
 
 def test_dunder_metta_is_read_off_the_class_not_the_instance():
