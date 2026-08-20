@@ -559,8 +559,6 @@ ext_point_kind(metta_backend_selftest/0, event).
 %exactly the engine predicates the shipped shim calls, and shrinking it is
 %the shim-thinning work's scoreboard.
 ext_point_kind(catch_recover/2, host_service).
-ext_point_kind(clear_foreign_atoms/1, host_service).
-ext_point_kind(clear_native_atoms/1, host_service).
 ext_point_kind(translate_expr/3, host_service).
 %The host run and load surface: the grouped runner (with the
 %using-substitution folded in as Bindings), the status runner, the load
@@ -618,13 +616,21 @@ ext_point_kind(metta_host_remove_reported/3, host_service).
 %foreign_provides/2 left this list with it (2026-08-20); the two that
 %extensions genuinely consult moved to the service list below.
 ext_point_kind(metta_host_explain_match/3, host_service).
+%The bulk space cleanups: clear a space whoever holds it (Prolog providers
+%through their seam, native spaces with the announce-when-watched and
+%tabling-death rules), and clear the (defined ...) reflection facts about
+%one space in one crossing. clear_foreign_atoms/1, clear_native_atoms/1 and
+%metta_atom_hook_clause/2 left this list with them (2026-08-20): the
+%handler census is engine-internal now, handed to the hooks-idle ownership
+%seams as an argument.
+ext_point_kind(metta_host_clear_space/1, host_service).
+ext_point_kind(metta_host_clear_defined/1, host_service).
 %The builtin-refusal classification: operation, kind, expected and culprit
 %read from the error term the engine's own throwers shape, absence left
 %unbound for the host to map to its None (2026-08-20).
 ext_point_kind(metta_host_operation_error/5, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
-ext_point_kind(metta_atom_hook_clause/2, host_service).
 ext_point_kind(metta_source_declarations/2, host_service).
 ext_point_kind(metta_space_names/1, host_service).
 ext_point_kind(metta_string_declarations/2, host_service).

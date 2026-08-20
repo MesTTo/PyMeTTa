@@ -29,8 +29,6 @@ import re
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
-    "clear_foreign_atoms/1",
-    "clear_native_atoms/1",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -46,11 +44,12 @@ HOST_SERVICES = {
     "metta_host_remove_reported/3",
     "metta_host_explain_match/3",
     "metta_host_operation_error/5",
+    "metta_host_clear_space/1",
+    "metta_host_clear_defined/1",
     "metta_host_fast_header/1",
     "metta_host_digest/2",
     "metta_host_substitute/3",
     "metta_add_atoms/2",
-    "metta_atom_hook_clause/2",
     "metta_reducible_head/2",
     "metta_source_declarations/2",
     "metta_space_names/1",

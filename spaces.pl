@@ -82,11 +82,17 @@ native_storage_module(Space, Module) :-
     atom_concat('$petta_atoms:', Space, Module).
 
 :- dynamic native_storage_module_cache/2.
-%Whether a HOST's own add hooks are idle, the host's clause of it: the
-%shim answers for the Python side, and with no host loaded the seam has no
-%clause and the engine's own test above already answered.
-:- multifile metta_host_add_hooks_idle/1.
-ext_point_kind(metta_host_add_hooks_idle/1, ownership).
+%Whether a HOST's own atom hooks are idle for a space, the host's clause of
+%it: the shim answers for the Python side, and with no host loaded the seam
+%has no clause and the engine's own no-handlers test already answered. The
+%engine hands the host the full handler CENSUS as clause references, so a
+%host clause matches the census against the one reference it installed and
+%never consults engine internals to answer: a host is asked about ITS hooks,
+%with the facts it needs in the question.
+:- multifile metta_host_add_hooks_idle/2.
+ext_point_kind(metta_host_add_hooks_idle/2, ownership).
+:- multifile metta_host_remove_hooks_idle/2.
+ext_point_kind(metta_host_remove_hooks_idle/2, ownership).
 
 %Only a module that actually holds something belongs to somebody else.
 %current_module/1 is not that test: SWI creates a module as a side effect of
@@ -1285,7 +1291,64 @@ refuse_ruleless_equation(Space, Term) :-
 metta_add_hooks_idle(_) :-
     \+ metta_atom_hook_clause(added, _), !.
 metta_add_hooks_idle(Space) :-
-    metta_host_add_hooks_idle(Space).
+    findall(Ref, metta_atom_hook_clause(added, Ref), Refs),
+    metta_host_add_hooks_idle(Space, Refs).
+
+%The removal mirror, asked by the bulk clear below: nothing is listening
+%when no removed-atom handler exists at all, or when a host claims the
+%whole census as its own idle hooks.
+metta_remove_hooks_idle(_) :-
+    \+ metta_atom_hook_clause(removed, _), !.
+metta_remove_hooks_idle(Space) :-
+    findall(Ref, metta_atom_hook_clause(removed, Ref), Refs),
+    metta_host_remove_hooks_idle(Space, Refs).
+
+%Clear a space, whoever holds it: a Prolog foreign provider clears through
+%its own seam (or refuses, loudly, when it cannot); a native space
+%announces the atoms it drops through the removal funnel exactly when
+%something is watching, since the two bulk doors used to disagree, add
+%announcing per atom and clear announcing nothing, and then sweeps its
+%storage module in one pass [tested: test_clear_announces_every_atom_it_drops].
+%Tabling state dies with the space life: clause removal leaves both the
+%tabled property and the answer tables standing, so a reused pooled module
+%answered its NEW definition from the dead life's cache with no tabling
+%declared in the new life. Untable every tabled predicate the module itself
+%owns (current_predicate/1 enumeration does not cross the default-module
+%chain), abolish whatever tables remain, and retract the space's
+%(tabled ...) reflection facts, which describe declarations that no longer
+%exist [tested: test_pool_reuse_starts_tabling_clean].
+metta_host_clear_space(Space) :-
+    metta_foreign_space(Space), !,
+    clear_foreign_atoms(Space).
+metta_host_clear_space(Space) :-
+    (   metta_remove_hooks_idle(Space)
+    ->  true
+    ;   findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+        forall(member(Atom, Atoms), 'remove-atom'(Space, Atom, _))
+    ),
+    clear_native_atoms(Space),
+    space_module(Space, Module),
+    metta_host_clear_tabling(Space, Module).
+
+metta_host_clear_tabling(Space, Module) :-
+    forall(( current_predicate(Module:Name/Arity),
+             functor(Head, Name, Arity),
+             \+ predicate_property(Module:Head, imported_from(_)),
+             predicate_property(Module:Head, tabled) ),
+           untable(Module:Name/Arity)),
+    abolish_module_tables(Module),
+    findall([tabled, Space, F, A],
+            'get-atoms'('&petta', [tabled, Space, F, A]),
+            Facts),
+    forall(member(Fact, Facts), 'remove-atom'('&petta', Fact, _)).
+
+%Bulk cleanup of the reflection facts describing one space: every
+%(defined <Space> _) atom in &petta goes through the engine's own removal
+%funnel (hooks fire per fact), in ONE host crossing; the per-fact crossing
+%measured 10,000 calls and 64ms for 10,000 defines.
+metta_host_clear_defined(Space) :-
+    findall(F, 'get-atoms'('&petta', [defined, Space, F]), Fs),
+    forall(member(F, Fs), 'remove-atom'('&petta', [defined, Space, F], _)).
 
 %%%% The foreign seam's failure contract %%%%
 %

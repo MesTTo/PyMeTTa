@@ -988,8 +988,7 @@ petta_py_trace_event(event(Depth, exit, Term, Answer, Names),
 %per-fact crossing measured 10,000 calls and 64ms for 10,000 defines.
 petta_py_reflect_clear_defined(SpaceName) :-
     ( atom(SpaceName) -> S = SpaceName ; atom_string(S, SpaceName) ),
-    findall(F, 'get-atoms'('&petta', [defined, S, F]), Fs),
-    forall(member(F, Fs), 'remove-atom'('&petta', [defined, S, F], _)).
+    metta_host_clear_defined(S).
 
 petta_py_count(Space, Count) :-
     aggregate_all(count, 'get-atoms'(Space, _), Count).
@@ -1017,73 +1016,31 @@ petta_py_contains(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.
 
-%Clear a space: a foreign space's provider owns its storage, so the
-%provider clears (or refuses, loudly, when it cannot); a native space
-%removes equations first through the engine's own removal, which erases
-%their compiled clauses, then any remaining stored atoms:
+%Clear a space: a Python provider owns its storage, so it clears (or
+%refuses, loudly, when it cannot); everything else, Prolog providers and
+%native spaces with their announce-when-watched and tabling-death rules,
+%is the engine's metta_host_clear_space/1.
 petta_py_clear(Space) :-
     petta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_clear(SpaceStr), _).
-%The engine owns this now, as clear_foreign_atoms/1 in src/spaces.pl, so a
-%Prolog provider's clear is reachable without the bridge in the process.
 petta_py_clear(Space) :-
-    metta_foreign_space(Space), !,
-    clear_foreign_atoms(Space).
-%No separate equation pass: the engine's clear_native_atoms/1 funnels the
-%compiled-half shapes itself, and the watched path below removes every atom
-%through the announcing door anyway, so the pass here removed each equation
-%twice and announced nothing extra.
-petta_py_clear(Space) :-
-    petta_py_clear_stored(Space),
-    space_module(Space, Module),
-    petta_py_clear_tabling(Space, Module).
+    metta_host_clear_space(Space).
 
-%A watched space announces the atoms clear drops, the way any other removal
-%does. The equations above already went through the removal funnel, so a
-%subscription saw those and not the plain atoms beside them: the two bulk
-%doors disagreed, add announcing per atom and clear announcing nothing. With
-%nothing listening the whole set still goes in one sweep over the storage
-%module [tested: test_clear_announces_every_atom_it_drops].
-petta_py_clear_stored(Space) :-
-    petta_py_remove_hooks_idle(Space), !,
-    clear_native_atoms(Space).
-petta_py_clear_stored(Space) :-
-    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
-    forall(member(Atom, Atoms), 'remove-atom'(Space, Atom, _)),
-    clear_native_atoms(Space).
-
-%The removal mirror of metta_add_hooks_idle/1: nothing is listening when no
-%removed-atom handler exists at all, or when this unwatched space's only
-%handler is the subscription bridge.
-petta_py_remove_hooks_idle(_) :-
-    \+ metta_atom_hook_clause(removed, _), !.
-petta_py_remove_hooks_idle(Space) :-
+%The host's clause of the hooks-idle ownership seams: the engine hands the
+%handler census in as clause references, and this side answers from the one
+%reference it installed, the subscription bridge, without consulting any
+%engine internals. Idle means this unwatched space's only handler is the
+%bridge itself.
+:- multifile metta_host_add_hooks_idle/2.
+metta_host_add_hooks_idle(Space, [OnlyRef]) :-
     \+ petta_py_subscribed_space(Space),
-    petta_py_subscription_hook_ref(removed, SubscriptionRef),
-    findall(Ref, metta_atom_hook_clause(removed, Ref), [OnlyRef]),
-    OnlyRef == SubscriptionRef.
+    petta_py_subscription_hook_ref(added, OnlyRef).
 
-%Tabling state dies with the space life. Clause removal leaves both the
-%tabled property and the answer tables standing, so a reused pooled
-%module answered its NEW definition from the dead life's cache with no
-%tabling declared in the new life (probe p14_pool_table_leak). Untable
-%every tabled predicate the module itself owns (current_predicate/1
-%enumeration does not cross the default-module chain, probed on this
-%SWI), abolish whatever tables remain in the module, and retract the
-%space's (tabled ...) reflection facts, which describe declarations that
-%no longer exist.
-petta_py_clear_tabling(Space, Module) :-
-    forall(( current_predicate(Module:Name/Arity),
-             functor(Head, Name, Arity),
-             \+ predicate_property(Module:Head, imported_from(_)),
-             predicate_property(Module:Head, tabled) ),
-           untable(Module:Name/Arity)),
-    abolish_module_tables(Module),
-    findall([tabled, Space, F, A],
-            'get-atoms'('&petta', [tabled, Space, F, A]),
-            Facts),
-    forall(member(Fact, Facts), 'remove-atom'('&petta', Fact, _)).
+:- multifile metta_host_remove_hooks_idle/2.
+metta_host_remove_hooks_idle(Space, [OnlyRef]) :-
+    \+ petta_py_subscribed_space(Space),
+    petta_py_subscription_hook_ref(removed, OnlyRef).
 
 %Fresh space names for callers that want an anonymous space. The & prefix is
 %load-bearing: 'is-space' recognises it, and a $ name would read as a variable.
@@ -2457,13 +2414,6 @@ petta_py_remove_subscription_hooks :-
     forall(retract(petta_py_subscription_hook_ref(_, Ref)),
            ( clause_property(Ref, erased) -> true ; erase(Ref) )).
 
-%The native batch writer may skip per-atom hook dispatch only when this
-%unwatched space has the subscription hook as its sole added-atom handler.
-metta_host_add_hooks_idle(Space) :-
-    \+ petta_py_subscribed_space(Space),
-    petta_py_subscription_hook_ref(added, SubscriptionRef),
-    findall(Ref, metta_atom_hook_clause(added, Ref), [OnlyRef]),
-    OnlyRef == SubscriptionRef.
 
 petta_py_subscriptions(Spaces) :-
     maplist(atom_string, SpaceAtoms, Spaces),
