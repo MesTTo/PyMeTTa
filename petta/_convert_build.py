@@ -8,6 +8,10 @@ Guarantees:
     error [tested test_union_build_selects_by_shape_and_surfaces_reverse_errors]
   - a requested class never accepts another class's constructor spelling
     [tested test_type_name_collision_is_refused_and_build_honors_requested_class]
+  - each supported container reconstructs through the same specialised hook
+    that projected its full annotation
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,6 +36,7 @@ from ._convert_registry import (
     constructor_for,
     explicitly_registered,
 )
+from ._parameterized import hook_for as _parameterized_hook
 from .atoms import Atom, Expr, Gnd, Sym, decode
 
 _UNHANDLED = object()
@@ -177,10 +182,9 @@ def _build_annotated(atom: Atom, annotation: Any) -> Any:
         return _build_annotated(atom, typing.get_args(annotation)[0])
     if origin in (typing.Union, types.UnionType):
         return _build_union(atom, typing.get_args(annotation))
-    if isinstance(atom, Expr) and isinstance(origin, type):
-        rebuilt = _build_sequence(atom, origin, typing.get_args(annotation))
-        if rebuilt is not _UNHANDLED:
-            return rebuilt
+    hook = _parameterized_hook(annotation)
+    if isinstance(atom, Expr) and hook is not None:
+        return hook.build(atom, annotation, build)
     if isinstance(annotation, type):
         return build(atom, annotation)
     return build(atom)

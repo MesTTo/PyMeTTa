@@ -5,6 +5,10 @@ Guarantees:
   - handle, symbol, expression, and operations images stay distinct [tested
     test_unregistered_object_stays_a_handle,
     test_enum_projects_to_symbols_with_declarations]
+  - the four builtin containers share MeTTa's bare-expression image and keep
+    reconstruction detail in the full-annotation hook
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,6 +33,8 @@ from ._convert_registry import (
     ensure_registered,
     resolved_hints,
 )
+from ._parameterized import hook_for as _parameterized_hook
+from ._parameterized import runtime_annotation
 from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, S, Sym, encode, val
 
@@ -44,7 +50,7 @@ class Projected(NamedTuple):
     declarations: tuple[Expr, ...]
 
 
-def project(value: Any) -> Projected:
+def project(value: Any, annotation: Any = None) -> Projected:
     """One Python value into MeTTa, by the image its type chose.
 
     The rule, from what the object is rather than from taste: match on its
@@ -61,8 +67,12 @@ def project(value: Any) -> Projected:
     direct = _project_direct(value)
     if direct is not None:
         return direct
-    if isinstance(value, (list, tuple)) and not hasattr(type(value), "_fields"):
-        return _project_sequence(value)
+    parameterized = annotation if annotation is not None else runtime_annotation(value)
+    hook = _parameterized_hook(parameterized) if parameterized is not None else None
+    if hook is not None:
+        atom, parts = hook.project(value, parameterized, project)
+        nested = [declaration for part in parts for declaration in part.declarations]
+        return Projected(atom, _dedup(nested))
     return _project_object(value)
 
 
@@ -72,16 +82,6 @@ def _project_direct(value: Any) -> Projected | None:
     if isinstance(value, (bool, int, float, str)):
         return Projected(encode(value), ())
     return None
-
-
-def _project_sequence(value: list[Any] | tuple[Any, ...]) -> Projected:
-    parts = [project(item) for item in value]
-    projected_declarations = [
-        declaration for part in parts for declaration in part.declarations
-    ]
-    return Projected(
-        Expr([part.atom for part in parts]), _dedup(projected_declarations)
-    )
 
 
 def _project_object(value: Any) -> Projected:

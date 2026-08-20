@@ -6,7 +6,11 @@ Guarantees:
     test_union_expansion_is_bounded]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
-     commit=97f9129d31e36b63677fe4b8bfa2a3e84de25b4c]
+     commit=WORKTREE]
+  - full container parameters survive as matchable annotation atoms while
+    the runtime type stays MeTTa's Expression
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +29,7 @@ from typing import Any
 
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
+from ._parameterized import hook_for as _parameterized_hook
 from .atoms import Atom, Expr, Gnd, S, Sym, Var, expr
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
@@ -58,6 +63,17 @@ def metta_type_for(annotation: Any) -> str:
 def type_atom_for(annotation: Any) -> Atom:
     """Return the first MeTTa type alternative for an annotation."""
     return type_atoms_for(annotation)[0]
+
+
+def annotation_atom_for(annotation: Any) -> Atom:
+    """Project a Python annotation itself, preserving generic parameters."""
+    hook = _parameterized_hook(annotation)
+    if hook is not None:
+        return hook.annotation_atom(annotation, annotation_atom_for)
+    alternatives = type_atoms_for(annotation)
+    if len(alternatives) == 1:
+        return alternatives[0]
+    return Expr([S.Union, *alternatives])
 
 
 def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
@@ -140,6 +156,9 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
         return _union_type_atoms(annotation)
     if origin is abc.Callable:
         return _callable_type_atoms(annotation)
+    hook = _parameterized_hook(annotation)
+    if hook is not None:
+        return [hook.type_atom(annotation, type_atoms_for)]
     if origin is tuple:
         return _tuple_type_atoms(annotation)
     return _generic_type_atoms(origin)
@@ -185,6 +204,24 @@ def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> 
         declaration = expr(S[":"], S[name], Expr([S["->"], *combination]))
         _add_unique(declarations, seen, declaration)
     return declarations
+
+
+def annotation_exprs(
+    name: str, arg_annotations: list[Any], ret_annotation: Any
+) -> list[Expr]:
+    """Represent full Python annotations as ordinary, matchable claims."""
+    claims = [
+        expr(
+            S.annotation,
+            S[name],
+            expr(S.param, index, annotation_atom_for(annotation)),
+        )
+        for index, annotation in enumerate(arg_annotations, start=1)
+    ]
+    claims.append(
+        expr(S.annotation, S[name], expr(S["return"], annotation_atom_for(ret_annotation)))
+    )
+    return claims
 
 
 def referenced_classes(annotations: Iterable[Any]) -> list[type]:

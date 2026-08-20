@@ -5,6 +5,9 @@ annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - registration distinguishes a MeTTa function name from its declaration
     space [tested test_public_context_types_are_distinct]
+  - full annotations become ordinary claims in the declaration space
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,9 +27,8 @@ from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
-    callable_name as _callable_name,
-)
-from ._type_annotations import (
+    annotation_atom_for,
+    annotation_exprs,
     declaration_exprs,
     metta_type_for,
     referenced_classes,
@@ -34,10 +36,15 @@ from ._type_annotations import (
     type_atom_for,
     type_atoms_for,
 )
+from ._type_annotations import (
+    callable_name as _callable_name,
+)
 from .atoms import Expr, S, expr
 
 __all__ = [
     "REFLECTION_SPACE",
+    "annotation_atom_for",
+    "annotation_exprs",
     "class_declarations",
     "declaration_exprs",
     "metta_type_for",
@@ -225,6 +232,7 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     annotations = [hints.get(p.name, inspect.Parameter.empty) for p in params]
     ret = hints.get("return", Any)
     declared = declaration_exprs(name, annotations, ret)
+    declared.extend(annotation_exprs(name, annotations, ret))
     for cls in referenced_classes([*annotations, ret]):
         for extra in class_declarations(cls):
             if extra not in declared:
