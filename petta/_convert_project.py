@@ -21,6 +21,10 @@ Guarantees:
     instance proxy whether an arbitrary attribute exists
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
      commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
+  - an otherwise opaque buffer carries its identity together with shape,
+    format, item size, dimensionality, strides, and access metadata
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -123,9 +127,42 @@ def _registration_for(cls: type) -> _Registration | None:
 
 def _project_unregistered(value: Any, cls: type) -> Projected:
     atom = explicit_metta_atom(value)
-    if atom is None:
-        return Projected(val(value), ())
-    return Projected(atom, ())
+    if atom is not None:
+        return Projected(atom, ())
+    buffer = _project_buffer(value)
+    return buffer if buffer is not None else Projected(val(value), ())
+
+
+def _project_buffer(value: Any) -> Projected | None:
+    """Carry one buffer zero-copy, with its public memoryview description."""
+    try:
+        view = memoryview(value)
+    except TypeError:
+        return None
+    metadata = (
+        Expr([S.shape, *(encode(size) for size in (view.shape or ()))]),
+        Expr([S.format, encode(view.format)]),
+        Expr([S.itemsize, encode(view.itemsize)]),
+        Expr([S.ndim, encode(view.ndim)]),
+        Expr([S.strides, *(encode(step) for step in (view.strides or ()))]),
+        Expr([S.readonly, encode(view.readonly)]),
+        Expr([S["c-contiguous"], encode(view.c_contiguous)]),
+    )
+    declaration = Expr(
+        [
+            S[":"],
+            S.Buffer,
+            Expr(
+                [
+                    S["->"],
+                    S.Grounded,
+                    *(S.Expression for _item in metadata),
+                    S.Buffer,
+                ]
+            ),
+        ]
+    )
+    return Projected(Expr([S.Buffer, val(value), *metadata]), (declaration,))
 
 
 #Sixteen top-level elements: about 55 inferences of conversion at the

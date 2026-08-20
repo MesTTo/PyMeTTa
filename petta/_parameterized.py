@@ -8,6 +8,10 @@ Guarantees:
     image, with optional or mismatched keys refused before data is lost
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - bare and abstract sequence, mapping, and set annotations select the same
+    full-annotation hooks as their builtin concrete forms
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=WORKTREE]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
@@ -19,6 +23,7 @@ from __future__ import annotations
 
 import functools
 import typing
+from collections import abc
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -42,7 +47,7 @@ def _arguments(annotation: Any) -> tuple[Any, ...]:
 
 
 def _container_type(annotation: Any, recurse: Callable[[Any], list[Atom]]) -> Atom:
-    origin = typing.get_origin(annotation)
+    origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     if origin is tuple and arguments and arguments[-1] is not Ellipsis:
         return Expr([recurse(argument)[0] for argument in arguments])
@@ -52,7 +57,7 @@ def _container_type(annotation: Any, recurse: Callable[[Any], list[Atom]]) -> At
 def _container_annotation(
     annotation: Any, recurse: Callable[[Any], Atom]
 ) -> Atom:
-    origin = typing.get_origin(annotation)
+    origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     children = [S[origin.__name__]]
     for argument in arguments:
@@ -64,7 +69,7 @@ def _container_annotation(
 
 
 def _sequence_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
-    origin = typing.get_origin(annotation)
+    origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     if origin is tuple and arguments and arguments[-1] is not Ellipsis:
         item_types = arguments
@@ -104,7 +109,7 @@ def _set_project(value: set, annotation: Any, recurse: Callable) -> tuple:
 
 
 def _sequence_build(atom: Expr, annotation: Any, recurse: Callable) -> Any:
-    origin = typing.get_origin(annotation)
+    origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     children = atom.children
     if origin is tuple and arguments and arguments[-1] is not Ellipsis:
@@ -228,12 +233,29 @@ CONTAINER_HOOKS: dict[type, ParameterizedHook] = {
 }
 
 
+def _container_origin(annotation: Any) -> Any:
+    return typing.get_origin(annotation) or annotation
+
+
+def _container_hook(origin: Any) -> ParameterizedHook | None:
+    direct = CONTAINER_HOOKS.get(origin)
+    if direct is not None or not isinstance(origin, type):
+        return direct
+    if origin in (abc.Mapping, abc.MutableMapping):
+        return CONTAINER_HOOKS[dict]
+    if origin in (abc.Set, abc.MutableSet):
+        return CONTAINER_HOOKS[set]
+    if origin in (abc.Sequence, abc.MutableSequence):
+        return CONTAINER_HOOKS[list]
+    return None
+
+
 @functools.cache
 def hook_for(annotation: Any) -> ParameterizedHook | None:
     """Return the specialised hook selected by the complete annotation."""
     if typing.is_typeddict(annotation):
         return TYPED_DICT_HOOK
-    return CONTAINER_HOOKS.get(typing.get_origin(annotation))
+    return _container_hook(_container_origin(annotation))
 
 
 def runtime_annotation(value: Any) -> Any | None:

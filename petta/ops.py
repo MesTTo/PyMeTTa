@@ -11,6 +11,10 @@ Guarantees:
   - overload stubs each contribute their declared arrow and annotation claims
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
      commit=4224c26819d90b9e03efdaef78cb573b91729295]
+  - unreachable **kwargs refuses and a typed zero-parameter operation still
+    emits its return arrow
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -203,7 +207,10 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
     variadic = False
     for p in sig.parameters.values():
         if p.kind is inspect.Parameter.VAR_KEYWORD:
-            continue  # unreachable from MeTTa, harmless to ignore
+            raise TypeError(
+                f"cannot register {_callable_name(fn)}: **{p.name} is "
+                "unreachable from a positional MeTTa call site"
+            )
         if p.kind is inspect.Parameter.VAR_POSITIONAL:
             variadic = True
             continue
@@ -278,7 +285,7 @@ def _operation_declarations(
     fn: Callable,
     typed: bool,
 ) -> tuple[Expr, ...]:
-    if not typed or not params:
+    if not typed:
         return ()
     return tuple(_type_declarations(name, params, fn))
 

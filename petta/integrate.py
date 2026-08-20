@@ -18,6 +18,10 @@ Guarantees:
     test_type_registration_can_be_removed_and_its_name_reclaimed]
   - installation idempotence ends with the lifetime of its space [tested
     test_dropped_space_name_reinstalls_integrations]
+  - discovery refuses duplicate names, missing dependencies, and named
+    dependency cycles, and installs acyclic entries in topological order
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=WORKTREE]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -36,6 +40,7 @@ Open Obligations:
 from __future__ import annotations
 
 import dataclasses
+import graphlib
 import importlib
 import inspect
 import threading
@@ -237,11 +242,46 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
 
 
 def discover(m) -> list[str]:
-    """Install every integration installed packages advertise."""
-    return [
-        integrate(m, entry.load())
-        for entry in metadata.entry_points(group=ENTRY_POINT_GROUP)
-    ]
+    """Install advertised integrations after satisfying PETTA_REQUIRES."""
+    advertised = tuple(metadata.entry_points(group=ENTRY_POINT_GROUP))
+    entries: dict[str, Any] = {}
+    for entry in advertised:
+        if entry.name in entries:
+            raise PettaError(
+                f"duplicate {ENTRY_POINT_GROUP} entry point {entry.name!r}; "
+                "integration names must be unique"
+            )
+        entries[entry.name] = entry
+    targets = {name: entry.load() for name, entry in entries.items()}
+
+    graph: dict[str, tuple[str, ...]] = {}
+    for name, target in targets.items():
+        raw = getattr(target, "PETTA_REQUIRES", ())
+        if isinstance(raw, str) or not isinstance(raw, Iterable):
+            raise PettaError(
+                f"integration {name!r} PETTA_REQUIRES must be an iterable "
+                "of entry-point names"
+            )
+        dependencies = tuple(raw)
+        invalid = [item for item in dependencies if not isinstance(item, str)]
+        if invalid:
+            raise PettaError(
+                f"integration {name!r} PETTA_REQUIRES contains a non-string name"
+            )
+        missing = sorted(set(dependencies) - targets.keys())
+        if missing:
+            raise PettaError(
+                f"integration {name!r} requires missing integration(s): "
+                f"{', '.join(missing)}"
+            )
+        graph[name] = dependencies
+
+    try:
+        order = tuple(graphlib.TopologicalSorter(graph).static_order())
+    except graphlib.CycleError as exc:
+        cycle = " -> ".join(exc.args[1])
+        raise PettaError(f"integration dependency cycle: {cycle}") from exc
+    return [integrate(m, targets[name]) for name in order]
 
 
 # ----------------------------------------------------------------- operations

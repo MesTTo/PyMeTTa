@@ -18,6 +18,10 @@ Guarantees:
     the decorator order that preserves the new class object
     [tested: test_a_slots_dataclass_registration_follows_the_new_class_or_refuses;
      commit=0bfe63082cdc62b9bb09550d563057321ab90bb6]
+  - a dataclass whose required InitVar cannot be reconstructed is refused at
+    registration, while a defaulted InitVar remains reconstructible
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=WORKTREE]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -30,6 +34,7 @@ Open Obligations:
 from __future__ import annotations
 
 import dataclasses
+import inspect
 import sys
 import threading
 import typing
@@ -341,6 +346,25 @@ def _dataclass_registration(cls: type) -> _Registration:
             f"with to_atom and from_atom."
         )
     names = tuple(field.name for field in data_fields)
+    required_non_fields = tuple(
+        parameter.name
+        for parameter in inspect.signature(cls).parameters.values()
+        if parameter.name not in names
+        and parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+    )
+    if required_non_fields:
+        listed = ", ".join(required_non_fields)
+        raise TypeError(
+            f"{cls.__name__} has required constructor state that dataclass "
+            f"fields() cannot project ({listed}); give each InitVar a default "
+            "or register an explicit conversion"
+        )
     return _Registration(
         "expression",
         lambda obj: tuple(getattr(obj, name) for name in names),

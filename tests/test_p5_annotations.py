@@ -1,7 +1,9 @@
 """Purpose: pin Phase 5's Python annotation and conversion seam."""
 
-from dataclasses import dataclass
-from enum import Flag, IntEnum, StrEnum, auto
+import types
+from collections.abc import Sequence
+from dataclasses import InitVar, dataclass
+from enum import Enum, Flag, IntEnum, StrEnum, auto
 from typing import (
     Literal,
     Never,
@@ -16,6 +18,7 @@ from typing import (
 import pytest
 
 from petta import Atom, Expr, Gnd, S, Sym, Var, encode, val
+from petta import integrate as pi
 from petta.convert import build, project, register_type, unregister_type
 from petta.ops import annotation_atom_for, type_atoms_for
 
@@ -240,3 +243,106 @@ def test_a_slots_dataclass_registration_follows_the_new_class_or_refuses():
             project(SlottedRegistrationProbe(1))
     finally:
         unregister_type(registered[0])
+
+
+def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
+    @dataclass
+    class BareSequence:
+        items: list
+
+    sequence = BareSequence([Expr([S.item, Gnd(1)])])
+    sequence_atom = project(sequence).atom
+    assert build(sequence_atom, BareSequence) == sequence
+    assert build(project([1, 2], Sequence[int]).atom, Sequence[int]) == [1, 2]
+
+    payload = bytearray(b"abc")
+    buffer_atom = project(payload).atom
+    assert isinstance(buffer_atom, Expr) and buffer_atom.head == S.Buffer
+    metadata = {child.head: child.args for child in buffer_atom.args[1:]}
+    assert metadata == {
+        S.shape: (Gnd(3),),
+        S.format: (Gnd("B"),),
+        S.itemsize: (Gnd(1),),
+        S.ndim: (Gnd(1),),
+        S.strides: (Gnd(1),),
+        S.readonly: (Gnd(False),),
+        S["c-contiguous"]: (Gnd(True),),
+    }
+    assert build(buffer_atom) is payload
+    assert build(project(memoryview(payload)).atom).obj is payload
+
+    @dataclass
+    class RequiredInitVar:
+        value: int
+        seed: InitVar[int]
+
+    with pytest.raises(TypeError, match=r"RequiredInitVar.*seed.*default"):
+        project(RequiredInitVar(1, 2))
+
+    @dataclass
+    class DefaultedInitVar:
+        value: int
+        seed: InitVar[int] = 0
+
+    defaulted = DefaultedInitVar(1)
+    assert build(project(defaulted).atom, DefaultedInitVar) == defaulted
+
+    def kwargs(value: int, **options) -> int:
+        return value + len(options)
+
+    with pytest.raises(TypeError, match=r"\*\*options.*unreachable"):
+        metta.register_op(kwargs)
+
+    class Choice(Enum):
+        first = 1
+
+    def choose() -> Choice:
+        return Choice.first
+
+    metta.register_op(choose)
+    assert "(: choose (-> Choice))" in {str(atom) for atom in metta.atoms()}
+
+    installed: list[str] = []
+
+    class Target:
+        def __init__(self, name, requires=()):
+            self.name = name
+            self.PETTA_REQUIRES = requires
+
+        def install(self, _metta):
+            installed.append(self.name)
+
+    def entry(name, target):
+        return types.SimpleNamespace(name=name, load=lambda: target)
+
+    base = Target("p5-order-base")
+    child = Target("p5-order-child", ("p5-order-base",))
+    monkeypatch.setattr(
+        pi.metadata,
+        "entry_points",
+        lambda *, group: (entry("p5-order-child", child), entry("p5-order-base", base)),
+    )
+    assert pi.discover(metta) == ["p5-order-base", "p5-order-child"]
+    assert installed == ["p5-order-base", "p5-order-child"]
+
+    left = Target("p5-cycle-left", ("p5-cycle-right",))
+    right = Target("p5-cycle-right", ("p5-cycle-left",))
+    monkeypatch.setattr(
+        pi.metadata,
+        "entry_points",
+        lambda *, group: (entry("p5-cycle-left", left), entry("p5-cycle-right", right)),
+    )
+    with pytest.raises(
+        pi.PettaError,
+        match=r"dependency cycle: p5-cycle-left -> p5-cycle-right -> p5-cycle-left",
+    ):
+        pi.discover(metta)
+
+    duplicate = Target("p5-duplicate")
+    monkeypatch.setattr(
+        pi.metadata,
+        "entry_points",
+        lambda *, group: (entry("p5-duplicate", duplicate),) * 2,
+    )
+    with pytest.raises(pi.PettaError, match=r"duplicate.*p5-duplicate"):
+        pi.discover(metta)
