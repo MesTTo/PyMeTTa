@@ -6,7 +6,7 @@ Guarantees:
     test_union_expansion_is_bounded]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
-     commit=WORKTREE]
+     commit=97f9129d31e36b63677fe4b8bfa2a3e84de25b4c]
 Open Obligations:
   To Do: None
   Hacks: None
