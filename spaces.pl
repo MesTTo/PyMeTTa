@@ -2973,7 +2973,8 @@ clear_foreign_atoms(Space) :-
 %[source: https://www.swi-prolog.org/pldoc/man?predicate=predicate_property%2F2].
 %One property read per stored arity plus the scalar shelf, so the check a
 %capacity contract runs per add costs the same over a million atoms as over
-%ten [tested: spaces_atom_count, and the extcost capacity row]. A space
+%ten [tested: spaces_atom_count]; the write-door capacity row in
+%python/benchmarks/extension-baseline.json carries the number. A space
 %that has never been written has no storage module and holds nothing. A
 %foreign space's atoms live with its provider, where the only general
 %count is an enumeration; at this predicate's contract that would be a lie
