@@ -139,8 +139,8 @@ def test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch(
     """
     from llmsdoc import _absent_artefact_diagnosis
 
-    backend = tmp_path / "mork_ffi"
-    backend.mkdir()
+    backend = tmp_path / "backends" / "mork" / "mork_ffi"
+    backend.mkdir(parents=True)
     (backend / "morkspaces.pl").write_text(
         "metta_backend_builtin('mm2-exec').\n"
         "metta_backend_builtin('mork-add-atoms').\n"
@@ -148,7 +148,7 @@ def test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch(
     )
     note = _absent_artefact_diagnosis(225, 222, root=tmp_path)
     assert note is not None
-    assert "mork_ffi/target/release/libmork_ffi.so" in note
+    assert "backends/mork/mork_ffi/target/release/libmork_ffi.so" in note
     for name in ("mm2-exec", "mork-add-atoms", "mork-flush"):
         assert name in note
     # A delta the declarations do not explain is genuine drift, not config.

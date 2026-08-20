@@ -154,13 +154,18 @@ def _absent_artefact_diagnosis(stated: int, actual: int, root: pathlib.Path = RO
     """
     absent: list[tuple[str, list[str]]] = []
     fact = re.compile(r"^metta_backend_builtin\('?([^')]+)'?\)\.", re.MULTILINE)
-    for backend in sorted(root.glob("mork_ffi/morkspaces.pl")):
-        artefact = backend.parent / "target" / "release" / "libmork_ffi.so"
-        if artefact.exists():
-            continue
+    # Per-integration discovery: any fact-bearing implementation under a
+    # backend's folder, its artefact the crate build beside it, so a new
+    # backend is a new folder and this diagnosis needs no edit.
+    for backend in sorted(root.glob("backends/*/**/*.pl")):
         names = fact.findall(backend.read_text())
-        if names:
-            absent.append((str(artefact.relative_to(root)), names))
+        if not names:
+            continue
+        release = backend.parent / "target" / "release"
+        if release.is_dir() and any(release.glob("*.so")):
+            continue
+        artefact = release / f"lib{backend.parent.name}.so"
+        absent.append((str(artefact.relative_to(root)), names))
     missing = sum(len(names) for _, names in absent)
     if missing and stated == actual + missing:
         parts = "; ".join(
