@@ -2057,19 +2057,14 @@ petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status, _) :- !,
 %still executed by the authoritative dispatcher and recorded as one opaque
 %builtin; duplicating its retained-clause interpreter here would let proofs and
 %evaluation drift on the six policy axes.
-petta_py_solve_(M,
+petta_py_solve_(_,
                 dispatch_policy_execute(Module, Fun, Args, Goal, Out),
                 D, Tree, Status, Barrier) :-
     !,
-    dispatch_effective_axes(Fun, Order, ResultMode, ClauseMode, Exhaustion),
-    (   dispatch_fast_axes(Order, ResultMode, ClauseMode, Exhaustion)
-    ->  (   dispatch_any_head_matches(Module, Fun, Args, Goal)
-        ->  petta_py_solve_(Module, Goal, D, Tree, Status, Barrier)
-        ;   dispatch_no_match_result(Fun, Args, Out),
-            Tree = [builtin(dispatch_no_match_result(Fun, Args, Out))],
-            Status = complete
-        )
-    ;   dispatch_policy_execute(Module, Fun, Args, Goal, Out),
+    metta_host_dispatch_proof_step(Module, Fun, Args, Goal, Out, Route),
+    (   Route == direct
+    ->  petta_py_solve_(Module, Goal, D, Tree, Status, Barrier)
+    ;   Route == opaque,
         Tree = [builtin(dispatch_policy_execute(Module, Fun, Args, Goal, Out))],
         Status = complete
     ).
