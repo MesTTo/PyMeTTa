@@ -5,7 +5,7 @@ Guarantees:
   - an Atom annotation preserves the written call while an unconstrained
     parameter receives its reduction [tested:
     test_an_atom_annotation_changes_evaluation_order_as_documented;
-    commit=WORKTREE]
+    commit=a6a2287b5bfe03ec1b5dea9f7a8c55f715304d6b]
 Open Obligations:
   To Do: None
   Hacks: None

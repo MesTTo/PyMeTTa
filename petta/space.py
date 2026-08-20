@@ -23,7 +23,7 @@ Guarantees:
   - an Atom parameter changes call-site evaluation so the callable receives
     the written term while an unconstrained parameter receives its value
     [tested: test_an_atom_annotation_changes_evaluation_order_as_documented;
-     commit=WORKTREE]
+     commit=a6a2287b5bfe03ec1b5dea9f7a8c55f715304d6b]
   - define accepts source-bearing Python functions and refuses callable
     objects before reading compiler metadata [tested
     test_define_refuses_callable_objects]
