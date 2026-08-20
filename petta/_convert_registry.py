@@ -14,6 +14,10 @@ Guarantees:
     ordinary-class registry path
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
      commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - a slots dataclass replacing an already registered class is refused with
+    the decorator order that preserves the new class object
+    [tested: test_a_slots_dataclass_registration_follows_the_new_class_or_refuses;
+     commit=WORKTREE]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -186,6 +190,17 @@ def _require_stable_type_name(
 def _claim_type_name(cls: type, type_name: str) -> None:
     holder = _TYPE_OWNERS.get(type_name)
     if holder is not None and holder is not cls:
+        if (
+            holder.__module__ == cls.__module__
+            and holder.__qualname__ == cls.__qualname__
+            and dataclasses.is_dataclass(cls)
+            and "__slots__" in cls.__dict__
+        ):
+            raise ValueError(
+                f"dataclass(slots=True) replaced the registered {cls.__qualname__} "
+                "class object; place register_type outside the dataclass "
+                "decorator so it receives the replacement class"
+            )
         raise ValueError(
             f"the type name {type_name!r} already has a registered class "
             f"({_class_label(holder)}); register {_class_label(cls)} with "

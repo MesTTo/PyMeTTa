@@ -1,5 +1,6 @@
 """Purpose: pin Phase 5's Python annotation and conversion seam."""
 
+from dataclasses import dataclass
 from enum import Flag, IntEnum, StrEnum, auto
 from typing import (
     Literal,
@@ -12,8 +13,10 @@ from typing import (
     overload,
 )
 
+import pytest
+
 from petta import Atom, Expr, Gnd, S, Sym, Var, encode, val
-from petta.convert import build, project
+from petta.convert import build, project, register_type, unregister_type
 from petta.ops import annotation_atom_for, type_atoms_for
 
 
@@ -215,3 +218,25 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
     assert project(trapped).atom == val(trapped)
     assert encode(trapped) == val(trapped)
     assert looked_up == []
+
+
+def test_a_slots_dataclass_registration_follows_the_new_class_or_refuses():
+    registered = []
+
+    def capture(cls):
+        registered.append(register_type(cls))
+        return cls
+
+    @dataclass(slots=True)
+    @capture
+    class SlottedRegistrationProbe:
+        value: int
+
+    try:
+        with pytest.raises(
+            ValueError,
+            match=r"dataclass\(slots=True\).*register_type outside",
+        ):
+            project(SlottedRegistrationProbe(1))
+    finally:
+        unregister_type(registered[0])
