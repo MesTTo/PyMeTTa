@@ -1,14 +1,14 @@
 {
   "benchmarks": {
     "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
-      "comment": "Re-pinned 65217 -> 78219 on 2026-08-20 with P12.4: the bespoke petta_admission_check wrapper became the space-admission-verdict builtin behind the general pre-add hook's compiled guard, so this row now carries the whole fire path (44.02/add for an accept-all hook) plus the judge (has_declared_type is 15 of it). The old 60.01/add sat beside a plain add taxed to 49.22 by the global wrapper; the new 73.01/add sits beside an untaxed 29.01, so a workload that also writes anywhere else comes out ahead. Semantics pinned by hooks_admission_sugar and the differential in examples/spaces/admission_pools.metta.",
-      "inferences": 78219,
+      "comment": "Lowered 73.01 -> 49.01 inferences per add on 2026-08-21: space-admission-verdict reads fixed contract heads directly, has_declared_type takes an indexed ground declaration hit before its exact fallback, and petta_hook_eval skips an already-current module switch. The capacity counter's claimed-path selector makes the final row 51.01 while leaving the unclaimed write path untouched. Semantics are pinned by metta_has_declared_type, hooks_compiled_fire, hooks_admission_sugar, and the admission differential.",
+      "inferences": 56219,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-add-atom-into-a-pool-with-a-declared-capacity": {
-      "comment": "Lowered 4574905 -> 111227 on 2026-08-20 with P12.4, 4569.70 -> 106.02 inferences per add: the bespoke check enumerated every atom the pool held through get-atoms on every add, O(held) per write, and the judge now reads space_atom_count/2, the store's own number_of_clauses bookkeeping, whose cost does not grow with the pool. 43x at the 1000 atoms this row holds, unbounded at millions.",
-      "inferences": 111227,
+      "comment": "P12.4 first replaced per-add atom enumeration with space_atom_count/2. Direct fixed-head contract reads and the same-module compiled-fire path lowered the configured row to 87.02 inferences per add on 2026-08-21. A rollback-safe dynamic count installed only for capacity-claimed native pools lowers it again to 60.01; adds replace it atomically under its mutex and the judge reads its indexed fact instead of enumerating storage predicates.",
+      "inferences": 65225,
       "operations": 1000,
       "unit": "calls"
     },
@@ -19,8 +19,8 @@
       "unit": "calls"
     },
     "extcost-add-atom-through-an-accept-all-pre-add-hook": {
-      "comment": "Lowered from 234.03 to 64.02 inferences per add on 2026-08-20: the hook wrapper re-translated [Handler, Atom] through eval_metta_in_module/3 on every fire, and the call site is now translated once at claim time and asserted as a fire clause in the declaring module, healed lazily after any function change. Semantics pinned by hooks_compiled_fire, including that the offered atom reaches the handler as data. Lowered again to 44.02 the same day with P12.4: the global admission wrapper this row was also paying came off, the no-claims row's comment carries the mechanism.",
-      "inferences": 49231,
+      "comment": "Claim-time compilation first lowered this row from 234.03 to 64.02 inferences per add, and P12.4 removed the global admission wrapper. The same-module fire path lowered 44.02 -> 37.02 on 2026-08-21. The capacity counter's single claimed-path presence probe makes the final row 39.02; no unclaimed write runs that probe. Semantics are pinned by hooks_compiled_fire and the named-declarer admission test.",
+      "inferences": 44229,
       "operations": 1000,
       "unit": "calls"
     },

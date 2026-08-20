@@ -1604,17 +1604,25 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
 %petta_add_refused like any handler's. The Atom mask on the atom
 %parameter lives in src/prelude.metta: the pool judges the offered atom
 %as itself [tested: the_sugar_judges_the_offered_atom_as_itself].
+%The two fixed contract heads read &petta's boot-created storage directly,
+%so an absent row still fails while the general =../catch wrapper is off
+%this per-add path.
 'space-admission-verdict'(Pool, Atom, Verdict) :-
-    (   petta_contract_fact([admits, Pool, Type]),
+    (   '$petta_atoms:&petta':'&petta'(admits, Pool, Type),
         \+ has_declared_type(Atom, Type)
     ->  Verdict = [refuse, ['does-not-carry', Type]]
-    ;   petta_contract_fact([capacity, Pool, Limit]),
+    ;   '$petta_atoms:&petta':'&petta'(capacity, Pool, Limit),
         %A foreign pool's atoms live with its provider, so its count is
-        %the enumeration space-atom-count refuses to hide; a native one
-        %is the store's own clause bookkeeping, O(1) in what it holds.
+        %the enumeration space-atom-count refuses to hide. A native capacity
+        %claim owns an incremental dynamic count; the first decision after a
+        %direct contract write installs it from the exact store count.
         (   metta_foreign_space(Pool)
         ->  aggregate_all(count, 'get-atoms'(Pool, _), Count)
-        ;   space_atom_count(Pool, Count)
+        ;   (   petta_capacity_count(Pool, Count)
+            ->  true
+            ;   petta_capacity_count_install(Pool),
+                petta_capacity_count(Pool, Count)
+            )
         ),
         Count >= Limit
     ->  Verdict = [refuse, ['pool-at-capacity', Limit]]
@@ -1985,8 +1993,30 @@ type_witness_in(Module, X, T) :-
         once(( member(Widened, Types), Widened == T ))
     ).
 
-has_declared_type(X, T) :- current_metta_module(Module),
-                           type_witness_in(Module, X, T).
+%A ground declaration is the admission common case, so probe its indexed
+%storage shape first. Every miss and every relational call takes the exact
+%type_witness_in/3 path, retaining builtins, metatypes, supertypes, type rules,
+%foreign spaces and the named-space shared tier.
+has_declared_type(X, T) :-
+    current_metta_module(Module),
+    (   ground(X), ground(T), direct_type_declaration_in(Module, X, T)
+    ->  true
+    ;   type_witness_in(Module, X, T)
+    ).
+
+direct_type_declaration_in(Module, X, T) :-
+    metta_self_module(Module), !,
+    '$petta_atoms:&self':'&self'(':', X, T),
+    acyclic_term(T).
+direct_type_declaration_in(Module, X, T) :-
+    metta_module_space(Module, Space),
+    (   native_storage_module_ready(Space, Storage),
+        Head =.. [Space, ':', X, T],
+        call(Storage:Head),
+        acyclic_term(T)
+    ;   '$petta_atoms:&self':'&self'(':', X, T),
+        acyclic_term(T)
+    ).
 
 %The first clause is the whole common case and pays no bookkeeping at
 %all: a deterministic check derives one candidate and commits. Only a
@@ -3362,6 +3392,10 @@ metta_undeclare_hook(Slot, Space) :-
                   ->  metta_remove_atom('&petta', [SlotAtom, Space, Handler], _),
                       petta_hook_drop_compiled(Space, Slot)
                   ;   true
+                  ),
+                  (   Slot == pre_add
+                  ->  petta_capacity_count_uninstall(Space)
+                  ;   true
                   ) )).
 
 %(admits Pool Type) and (capacity Pool N) in &petta are data until a pool
@@ -3390,7 +3424,8 @@ petta_admission_claim(Pool0, Declarer0) :-
                                              _)
                           ),
                           metta_declare_hook(pre_add, Pool, Guard) )))
-    ).
+    ),
+    petta_capacity_count_claim(Pool).
 
 petta_install_space_hooks :-
     (   petta_space_hooks_installed
@@ -3440,9 +3475,10 @@ petta_install_space_hooks :-
 %
 %The body is call_goals_in_/2 over the translated goal list, not a
 %flattened conjunction, so a translated cut stays exactly as opaque as
-%the eval path has it, and the fire site keeps with_metta_module/2, so a
-%handler body reading (context-space) or compiling against the current
-%module sees what it saw before. Everything observable is the eval
+%the eval path has it. The fire site below keeps the declaring module in
+%force, switching only when the caller is not already there, so a handler
+%body reading (context-space) or compiling against the current module sees
+%what it saw before. Everything observable is the eval
 %path's: same first-verdict law at the callers, same failure-is-stuck,
 %same nondeterminism underneath
 %[tested: hooks:a_compiled_fire_answers_what_the_eval_path_answers].
@@ -3468,9 +3504,13 @@ petta_hook_eval(Space, Slot, Handler, Module, Term, Verdict) :-
                    ;   petta_hook_compile(Space, Slot, Handler, Module)
                    ))
     ),
-    with_metta_module(Module,
-                      call(Module:'$petta_hook_fire'(Space, Slot, Term,
-                                                     Verdict))).
+    current_metta_module(Current),
+    (   Current == Module
+    ->  call(Module:'$petta_hook_fire'(Space, Slot, Term, Verdict))
+    ;   with_metta_module(Module,
+                          call(Module:'$petta_hook_fire'(Space, Slot, Term,
+                                                         Verdict)))
+    ).
 
 petta_hook_drop_compiled(Space, Slot) :-
     forall(retract(petta_hook_compiled(Space, Slot, Ref)),
@@ -3495,7 +3535,11 @@ petta_space_hooked_add(Space, Term, R, Wrapped) :-
 petta_hook_pre_phase(Space, Term, R, Wrapped) :-
     (   petta_hook_claim(Space, pre_add, Handler, Module)
     ->  (   petta_hook_eval(Space, pre_add, Handler, Module, Term, Verdict)
-        ->  petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
+        ->  (   petta_capacity_count(Space, _)
+            ->  petta_hook_apply_counted(Verdict, Space, Handler, Term, R,
+                                         Wrapped)
+            ;   petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
+            )
         ;   throw(error(petta_hook_stuck(Space, 'pre-add', Handler, Term),
                         none))
         )
@@ -3545,7 +3589,8 @@ petta_hook_post_apply([accept, Term1], Space, _, Term) :- !,
         setup_call_cleanup(
             b_setval('$petta_hook_granted', granted(Space, Term1)),
             metta_add_atom(Space, Term1, _),
-            b_setval('$petta_hook_granted', []))
+            b_setval('$petta_hook_granted', [])),
+        petta_capacity_count_added(Space, Term1)
     ).
 %The refusal's undo is the catch handler's, once for every error path.
 petta_hook_post_apply([refuse, Words], Space, _, Term) :- !,
@@ -3559,6 +3604,25 @@ petta_hook_granted_form(Space, Term) :-
     catch(b_getval('$petta_hook_granted', granted(GSpace, GTerm)), _, fail),
     GSpace == Space,
     GTerm == Term.
+
+%The counter fact is tested in the claimed pre phase, never on the direct
+%write path. A counted accept therefore knows it owns the fact and can update
+%without a second presence probe; the ordinary verdict algebra stays the
+%shared fallback for refusal, drop and malformed answers.
+petta_hook_apply_counted([accept], Space, _, Term, _, Wrapped) :- !,
+    call(Wrapped),
+    petta_capacity_count_added_known(Space, Term).
+petta_hook_apply_counted([accept, Term1], Space, _, Term, R, Wrapped) :- !,
+    (   Term1 == Term
+    ->  call(Wrapped)
+    ;   setup_call_cleanup(
+            b_setval('$petta_hook_granted', granted(Space, Term1)),
+            metta_add_atom(Space, Term1, R),
+            b_setval('$petta_hook_granted', []))
+    ),
+    petta_capacity_count_added_known(Space, Term1).
+petta_hook_apply_counted(Verdict, Space, Handler, Term, R, Wrapped) :-
+    petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped).
 
 petta_hook_apply([accept], _, _, _, _, Wrapped) :- !, call(Wrapped).
 petta_hook_apply([accept, Term1], Space, _, Term, R, Wrapped) :- !,
