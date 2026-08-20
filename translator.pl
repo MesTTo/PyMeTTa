@@ -30,7 +30,7 @@
 %     already contradict its declared parameter types is refused before those
 %     operands run, while accepted and undecided operands retain ordinary
 %     translation
-%     [tested: operation_answers, test_a_repeated_eval_does_not_recompile_and_the_effects_cluster_conforms; commit=WORKTREE].
+%     [tested: operation_answers, test_a_repeated_eval_does_not_recompile_and_the_effects_cluster_conforms; commit=8d0027a3942000c799daccb45bf0abe1b46b10aa].
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
 %   - Branch-return merging preserves shared and pre-bound variables while
@@ -1230,7 +1230,7 @@ refused_argument_call(Fun, Args) :-
 %a synthetic BadArgType during the full battery
 %[tested: python/tests/test_ops.py::test_a_name_prolog_owns_registers_and_leaves_prolog_alone,
 %python/tests/test_space_operation_errors.py::test_a_non_symbol_first_argument_is_refused_by_the_read_path,
-%examples/data/atomops.metta; commit=WORKTREE]. format-args is the one effects
+%examples/data/atomops.metta; commit=8d0027a3942000c799daccb45bf0abe1b46b10aa]. format-args is the one effects
 %probe outside runtime_type_guarded/1; its first String operand is evaluated,
 %so the same ordering is required there, while its Expression operand remains
 %quoted by ordinary typed translation.
