@@ -659,17 +659,27 @@ store_atom(Space, Term) :- add_sexp(Space, Term, Ref),
 %stored and inert, because nothing told the engine. That is the honest edge and
 %it is narrower than a second evaluator that is wrong on every program above.
 %A specialization is DERIVED: the specializer wrote it from this module's own
-%equations and owns the name. So an equation arriving from outside for a name
-%this module has already derived carries nothing, and storing it a second time
-%is what made a space stop reproducing itself: MeTTa.copy() enumerates a space
-%and re-adds every atom into a fresh one, the clone re-derives the
-%specialization while it compiles the equation that triggers it, and the copied
-%atom then lands on top, so a four-atom space cloned to five and answered its
-%query twice [measured 2026-08-19; the aio surface test compares a clone's
-%count against its source's and this is what it was seeing].
-add_equation(Space, _, FAtom, _) :-
+%equations and owns the name. An equation arriving for a derived name that is
+%an ALPHA-DUPLICATE of one already stored carries nothing, and storing it a
+%second time is what made a space stop reproducing itself: MeTTa.copy()
+%enumerates a space and re-adds every atom into a fresh one, the clone
+%re-derived the specialization while compiling the equation that triggered
+%it, and the copied atom then landed on top, so a four-atom space cloned to
+%five and answered its query twice [measured 2026-08-19]. The guard used to
+%swallow by NAME alone, which was right while clones re-derived; with
+%adoption the copied equations ARE the derived ones, and the name-only
+%swallow ate every clause of a copied specialization that arrived after its
+%sibling had been adopted, so a two-clause specialization cloned to one
+%[measured 2026-08-20]. Only the true duplicate is swallowed now, and the
+%probe runs only on derived-name adds, which are rare by construction
+%[tested: a_copied_space_adopts_its_specializations_instead_of_duplicating].
+add_equation(Space, Term, FAtom, _) :-
     space_module(Space, Module),
     ho_specialization(Module, _, FAtom),
+    copy_term(Term, Probe),
+    get_native_atom(Space, Stored),
+    Stored = [=, [FAtom|_], _],
+    Stored =@= Probe,
     !.
 add_equation(Space, Term, FAtom, W) :-
     metta_foreign_space(Space), !,

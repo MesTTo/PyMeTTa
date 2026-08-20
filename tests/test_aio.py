@@ -28,6 +28,7 @@ from petta import (
     V,
     aio,
 )
+from petta.atoms import Var, map_atoms
 
 
 @pytest.fixture()
@@ -505,21 +506,34 @@ def test_aio_structural_surface_behaves():
             assert "stored atoms: engine unification" in await route.explain()
 
             cloned = await am.copy()
-            # Counts alone made this the suite's one flake, failing 1 in 12
-            # parallel runs as `assert 51 == 47` and naming nothing. Compared
-            # as atom multisets instead, the failure named its own cause in
-            # one firing [measured 2026-08-19]: the clone held four
-            # specializer-generated `_Spec_` equations that &self no longer
-            # did. No concurrency is involved. An earlier test in the same
-            # worker leaves a specialized function's stored spec atoms in
-            # &self; copy() re-adds every atom into the clone, and re-adding
-            # the BASE equation fires invalidate_specializations/1, which is
-            # keyed by bare name with the module a wildcard, so it retracts
-            # &self's spec clauses and their stored atoms. copy()
-            # self-invalidates its source. The engine-side fix is scoping
-            # that invalidation to the writing space's module.
-            clone_atoms = Counter(str(a) for a in await cloned.atoms())
-            self_atoms = Counter(str(a) for a in await am.atoms())
+            # This assertion has flaked through three distinct causes, each
+            # fixed where it lived. First the module-blind invalidation
+            # wrapper let a clone's write strip &self's spec atoms (fixed by
+            # scoping, 2026-08-19). Then a copied specialization's own body
+            # re-entered the specializer with no row behind its name and
+            # stored every spec TWICE in the clone (fixed by adoption), and
+            # an enumeration that interleaved a base equation between two
+            # generated clauses dropped the earlier one (fixed by copy()
+            # ordering generated equations last), both 2026-08-20. What
+            # remains here is the comparison itself: str() spells variables
+            # by their raw ids, and two enumerations of the same stored
+            # equation may render different ids, so equal-up-to-alpha atoms
+            # compared unequal as strings. Canonicalizing variable names by
+            # first occurrence compares what the assertion means.
+            def _canonical(atom):
+                names: dict[str, str] = {}
+
+                def rename(node):
+                    if isinstance(node, Var):
+                        label = names.setdefault(node.name,
+                                                 f"$c{len(names)}")
+                        return Var(label)
+                    return node
+
+                return str(map_atoms(atom, rename))
+
+            clone_atoms = Counter(_canonical(a) for a in await cloned.atoms())
+            self_atoms = Counter(_canonical(a) for a in await am.atoms())
             extra = sorted((clone_atoms - self_atoms).elements())
             missing = sorted((self_atoms - clone_atoms).elements())
             assert not extra and not missing, (

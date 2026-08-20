@@ -255,6 +255,23 @@ def _inline_module_name(source: str) -> str:
     return f"petta_inline_{digest}"
 
 
+def _copies_after_its_base(atom: Any) -> bool:
+    """Whether a copied atom is a specializer-generated equation.
+
+    The engine spells every generated head with the `_Spec_` infix, so the
+    infix is the marker; a user function that happens to carry it is merely
+    ORDERED after the others, never dropped, so the heuristic cannot lose an
+    atom.
+    """
+    try:
+        if not isinstance(atom, Expr) or str(atom.head) != "=":
+            return False
+        lhs = atom.args[0]
+        return isinstance(lhs, Expr) and "_Spec_" in str(lhs.head)
+    except (AttributeError, IndexError):
+        return False
+
+
 def _to_stored_atom(value: Any) -> Expr:
     """Accept exactly the non-empty expression shape spaces can store."""
     atom = _to_atom(value)
@@ -844,6 +861,12 @@ class MeTTa:
         require_capability(self._space, "enumerate", "copy")
         clone = self.new_space()
         atoms = list(self.atoms())
+        # Specializer-generated equations add LAST, stably. Re-adding a base
+        # equation invalidates the clone's specializations of that name, so
+        # an enumeration that interleaves a base between two generated
+        # clauses dropped the earlier one; with every base in first, each
+        # generated equation compiles once and is adopted by the engine.
+        atoms.sort(key=_copies_after_its_base)
         if atoms:
             clone.add(*atoms)
         return clone

@@ -172,6 +172,21 @@ specialize_call(HV, AVs, Out, Goal, CleanBindSet, MetaList,
 specialize_call_locked(HV, _, _, _, SpecName, _, ready) :-
     current_metta_module(Module),
     ho_specialization(Module, HV, SpecName), !.
+%A COPIED specialization. A space cloned from one that had specialized
+%carries the generated equations as ordinary atoms, and compiling their
+%bodies re-enters here with no ho_specialization/3 row behind the name:
+%regenerating then stored the same equations a SECOND time beside the
+%copies, so a clone held every specialization twice and the copies were
+%orphans nothing would ever invalidate. The name already being a compiled
+%function of this module IS the copy's signature, so it is adopted, the
+%row recorded as if generated here, and invalidation sees the clone's
+%specializations again
+%[tested: a_copied_space_adopts_its_specializations_instead_of_duplicating].
+specialize_call_locked(HV, _, _, _, SpecName, _, ready) :-
+    current_metta_module(Module),
+    fun_in(Module, SpecName), !,
+    assertz(ho_specialization(Module, HV, SpecName), Ref),
+    record_source_assertion(Ref).
 %The specialization belongs to the space whose code triggered it. This runs
 %during translation, inside with_metta_module/2, so the current module is the
 %one whose functions the generated body references. Registering globally and
