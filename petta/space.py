@@ -58,7 +58,7 @@ Guarantees:
   - builtins() returns every registered function and every translator special
     form, sorted without duplicates [tested:
     test_builtins_equals_the_union_of_functions_and_special_forms;
-    commit=WORKTREE]
+    commit=bcf80e727923cce0e034f716d7eef01f9395c490]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]

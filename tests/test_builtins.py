@@ -3,7 +3,7 @@ Guarantees:
   - MeTTa.builtins() equals the sorted set union of fun/1 and the heads of
     translate_special_dl/5, with neither list copied into Python [tested:
     test_builtins_equals_the_union_of_functions_and_special_forms;
-    commit=WORKTREE]
+    commit=bcf80e727923cce0e034f716d7eef01f9395c490]
 Open Obligations:
   To Do: None
   Hacks: None

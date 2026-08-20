@@ -68,7 +68,7 @@
 %     every translate_special_dl/5 head, so host tooling sees the language
 %     rather than only its callable registry [tested:
 %     test_builtins_equals_the_union_of_functions_and_special_forms;
-%     commit=WORKTREE]
+%     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
