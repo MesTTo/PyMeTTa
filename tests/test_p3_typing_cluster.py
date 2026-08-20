@@ -227,6 +227,8 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():
     metta = MeTTa(verbose=False)
     metta.run("(: A Type)")
     metta.run("(: h (-> %Undefined% Atom))")
+    metta.run("(: classifier-control (-> Number Atom))")
+    metta.run("(= (classifier-control $x) accepted)")
 
     assert _answers(metta, "!(get-type ())") == ["(->)"]
     assert _answers(metta, "!(get-type-space &self ())") == ["(->)"]
@@ -237,3 +239,8 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():
     assert _answers(metta, "!(get-type assert)") == ["(-> Atom (->))"]
     assert _answers(metta, "!(is-function (->))") == ["True"]
     assert _answers(metta, "!(get-type (h ()))") == ["Atom"]
+
+    # The observer type must not leak into argument classification. LeaTTa's
+    # classifier derives no type here, so the existing gradual fallback admits
+    # the value at a concrete parameter instead of rejecting unit against it.
+    assert _answers(metta, "!(classifier-control ())") == ["accepted"]
