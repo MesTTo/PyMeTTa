@@ -23,6 +23,10 @@ Guarantees:
     policy in &petta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - context image declarations state whether one Python type crosses as a
+    handle or a structural expression [tested:
+    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -69,6 +73,12 @@ _EFFECT_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Effect"), Sym("EffectDecl")]
 _ARGUMENTS_TYPE = Expr(
     [Sym("->"), Sym("Symbol"), Sym("ArgumentDelivery"), Sym("ArgumentsDecl")]
 )
+_CONTEXT_IMAGE_TYPE = Expr(
+    [Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("ImageSetting"), Sym("ImageDecl")]
+)
+_REGISTRY_IMAGE_TYPE = Expr(
+    [Sym("->"), Sym("Symbol"), Sym("TypeImage"), Sym("ImageDecl")]
+)
 
 ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "Declaration", "Type"),
@@ -95,6 +105,8 @@ ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "arguments", _ARGUMENTS_TYPE),
     (_COLON, "ImageDecl", "Type"),
     (_SUB, "ImageDecl", "Declaration"),
+    (_COLON, "image", _CONTEXT_IMAGE_TYPE),
+    (_COLON, "image", _REGISTRY_IMAGE_TYPE),
     (_COLON, "HandlesDecl", "Type"),
     (_SUB, "HandlesDecl", "Declaration"),
     (_COLON, "LoweringDecl", "Type"),

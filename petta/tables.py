@@ -47,6 +47,11 @@ Guarantees:
     [tested test_a_nonground_add_is_refused]
   - an atom every shape refuses, or two shapes admit, is refused naming
     the shapes [tested test_an_ambiguous_add_is_refused_naming_both]
+  - TableBridge.from_context applies `(image <ctx> <Type> <setting>)` to
+    each row value before it crosses, keeping opaque objects as handles and
+    projecting transparent objects [tested:
+    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
+    commit=WORKTREE]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -62,7 +67,8 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Iterator
 from typing import Any, Protocol, cast
 
-from .atoms import Atom, Expr, Var, is_ground, unify
+from .atoms import Atom, Expr, Var, is_ground, substitute, unify, val
+from .convert import auto_image, project
 from .foreign import SpaceProvider
 
 
@@ -173,13 +179,48 @@ class _Shape:
             if isinstance(shaped, Var)
         ]
 
-    def atom(self, parse: Callable[[str], Atom], row: Any) -> Atom:
+    def atom(self, cell_atom: Callable[[Any], Atom], row: Any) -> Atom:
         values = iter(row)
-        spelled = " ".join(
-            str(next(values)) if isinstance(child, Var) else str(child)
+        bindings = {
+            child.name: cell_atom(next(values))
             for child in self.shape.children
-        )
-        return parse(f"({spelled})")
+            if isinstance(child, Var)
+        }
+        return substitute(self.shape, bindings)
+
+
+class _ImageCodec:
+    """Turn DB-API cells into atoms under one attached context's catalog."""
+
+    def __init__(
+        self,
+        parse: Callable[[str], Atom],
+        settings: dict[str, str] | None,
+    ) -> None:
+        self._parse = parse
+        self._settings = settings or {}
+        invalid = set(self._settings.values()) - {
+            "opaque",
+            "transparent",
+            "auto",
+        }
+        if invalid:
+            raise ValueError(
+                "an image setting is opaque, transparent, or auto, not "
+                f"{sorted(invalid)!r}"
+            )
+
+    def __call__(self, value: Any) -> Atom:
+        setting = self._settings.get(type(value).__name__)
+        if setting is None:
+            setting = self._settings.get("_")
+        if setting is None:
+            return self._parse(str(value))
+        if setting == "auto":
+            setting = auto_image(value)
+        if setting == "opaque":
+            return val(value)
+        return project(value).atom
 
 
 class TableBridge(SpaceProvider):
@@ -191,8 +232,10 @@ class TableBridge(SpaceProvider):
         parse: Callable[[str], Atom],
         connection: Executes,
         declarations: Atom | str | Iterable[Atom | str],
+        *,
+        images: dict[str, str] | None = None,
     ) -> None:
-        self._parse = parse
+        self._cell_atom = _ImageCodec(parse, images)
         self.connection = connection
         self.executed: list[str] = []
         if isinstance(declarations, (str, Atom)):
@@ -221,13 +264,28 @@ class TableBridge(SpaceProvider):
         declarations = list(group[0])
         if not declarations:
             raise ValueError(f"&petta declares no (bridge {name} ...) schema")
-        return cls(m.parse, connection, declarations)
+        (image_group,) = m.run(
+            f"!(collapse (match &petta (image {name} $type $setting)"
+            f" ($type $setting)))"
+        )
+        images: dict[str, str] = {}
+        for pair in image_group[0]:
+            if not isinstance(pair, Expr) or len(pair.children) != 2:
+                continue
+            type_name, setting = map(str, pair.children)
+            prior = images.setdefault(type_name, setting)
+            if prior != setting:
+                raise ValueError(
+                    f"{name} declares conflicting images for {type_name}: "
+                    f"{prior} and {setting}"
+                )
+        return cls(m.parse, connection, declarations, images=images)
 
     # -- the provider surface, all of it derived -----------------------------
 
     def atoms(self) -> Iterator[Atom]:
         return (
-            shape.atom(self._parse, row)
+            shape.atom(self._cell_atom, row)
             for shape in self._shapes
             for row in self._select(shape, [], [])
         )
@@ -236,7 +294,7 @@ class TableBridge(SpaceProvider):
         def answers() -> Iterator[Atom]:
             for shape, (where, arguments, _exact) in self._admitting(pattern):
                 for row in self._select(shape, where, arguments, limit):
-                    yield shape.atom(self._parse, row)
+                    yield shape.atom(self._cell_atom, row)
 
         return answers()
 
@@ -287,7 +345,7 @@ class TableBridge(SpaceProvider):
             doomed = [
                 shape.values(atom)
                 for row in self._select(shape, where, arguments)
-                for atom in (shape.atom(self._parse, row),)
+                for atom in (shape.atom(self._cell_atom, row),)
                 if isinstance(atom, Expr) and unify(pattern, atom) is not None
             ]
             clause = " AND ".join(f"{column} = ?" for column in shape.columns.values())

@@ -37,6 +37,9 @@ Guarantees:
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - declare_image reaches the synchronous declaration owner on the engine
+    worker [tested: test_aio_covers_the_whole_synchronous_surface;
+    commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -909,6 +912,16 @@ class AsyncMeTTa:
     ) -> Atom:
         return await self.call(
             lambda m: m.declare_handles(name, pattern, fidelity, det=det)
+        )
+
+    async def declare_image(
+        self,
+        name: str,
+        type_name: str,
+        setting: Literal["opaque", "transparent", "auto"],
+    ) -> Atom:
+        return await self.call(
+            lambda m: m.declare_image(name, type_name, setting)
         )
 
     async def declare_merge(
