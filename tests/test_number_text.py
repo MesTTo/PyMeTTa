@@ -5,6 +5,9 @@ the arbiter's way (inf, -inf, NaN), and a finite float prints the
 arbiter's LAYOUT over the shortest-round-trip digits: 1e16, 0.00001 and
 1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300. Gnd's own
 renderer implements the same law, so one atom has one text in both hosts.
+Computed string operands are refused at every numeric math position before the
+host can reinterpret one character as its code [tested:
+test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,6 +20,47 @@ import subprocess
 import pytest
 
 from petta import MettaOperationError, val
+
+
+def test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code(metta):
+    """Every math position rejects a computed one-character string.
+
+    A literal is already caught by translated-call type filtering. The helper
+    equation makes the String arrive only after evaluation and therefore pins
+    the operation's own door, where SWI otherwise treats ``"s"`` as 115.
+    """
+    metta.run('(= (p1-string) "s")')
+    operations = {
+        "pow-math": 2,
+        "sqrt-math": 1,
+        "abs-math": 1,
+        "log-math": 2,
+        "exp-math": 1,
+        "trunc-math": 1,
+        "ceil-math": 1,
+        "floor-math": 1,
+        "round-math": 1,
+        "sin-math": 1,
+        "cos-math": 1,
+        "tan-math": 1,
+        "asin-math": 1,
+        "acos-math": 1,
+        "atan-math": 1,
+        "isnan-math": 1,
+        "isinf-math": 1,
+        "exp": 1,
+    }
+    for operation, arity in operations.items():
+        for position in range(1, arity + 1):
+            arguments = ["2"] * arity
+            arguments[position - 1] = "(p1-string)"
+            answer = str(metta.run(f'!({operation} {" ".join(arguments)})')[0][0])
+            assert answer == (
+                f'(Error ({operation} '
+                + " ".join('"s"' if index == position else "2"
+                           for index in range(1, arity + 1))
+                + f") (BadArgType {position} Number String))"
+            ), (operation, position, answer)
 
 
 def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
