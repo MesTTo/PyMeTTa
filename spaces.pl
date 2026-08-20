@@ -32,7 +32,7 @@
 %     [tested: the_capacity_counter_tracks_direct_adds_batches_removals_and_clears,
 %     capacity_counter_changes_roll_back_with_the_atoms,
 %     capacity_redeclaration_recounts_writes_made_while_unbounded;
-%     commit=WORKTREE].
+%     commit=819b139c7cdbdaa673f854713e8beb988eb12ead].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -2992,7 +2992,7 @@ clear_foreign_atoms(Space) :-
 %so that rare shape recounts after the write instead of assuming one landed
 %[tested: capacity_counter_changes_roll_back_with_the_atoms,
 %capacity_redeclaration_recounts_writes_made_while_unbounded;
-%commit=WORKTREE].
+%commit=819b139c7cdbdaa673f854713e8beb988eb12ead].
 :- dynamic petta_capacity_count/2.
 :- dynamic petta_capacity_remove_hook/2.
 
@@ -3037,7 +3037,7 @@ petta_capacity_count_uninstall(Space) :-
 %probe [measured: register-op 44334 inferences on 2026-08-21, min of 3;
 %command=cd python && python bench.py --counter-only --keep-going;
 %fixture=python/benchmarks/test_benchmarks.py::test_register_operation;
-%commit=WORKTREE]. The clause and its reference are dynamic database state,
+%commit=819b139c7cdbdaa673f854713e8beb988eb12ead]. The clause and its reference are dynamic database state,
 %hence an enclosing transaction rolls their installation back with the claim.
 petta_capacity_remove_hook_install(Space) :-
     (   petta_capacity_remove_hook(Space, _)
