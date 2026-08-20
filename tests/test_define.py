@@ -7,7 +7,10 @@ Guarantees:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
   - a local annotated assignment emits and enforces its in-place type claim
-    [tested: test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+    without reinterpreting source-level colon data [tested:
+    test_an_annotated_binding_emits_its_claim,
+    translator_typed_let:a_source_colon_pair_stays_a_pattern;
+    commit=WORKTREE]
   - every definition derives source, documentation, captures, and purity from
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;

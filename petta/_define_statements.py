@@ -5,8 +5,11 @@ Guarantees:
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
   - an annotated assignment lowers its target as an in-place type claim in
-    ordinary and generator blocks [tested:
-    test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+    ordinary and generator blocks, using an internal marker so source-level
+    colon patterns remain data [tested:
+    test_an_annotated_binding_emits_its_claim,
+    translator_typed_let:a_source_colon_pair_stays_a_pattern;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -154,7 +157,8 @@ class StatementCompilerMixin(CompilerContext):
             value = self.expression(head.value)
         variable: Atom = Var(self._bind(target))
         if isinstance(head, ast.AnnAssign):
-            variable = Expr([Sym(":"), variable, self.annotation_atom(head.annotation)])
+            claim = Expr([Sym(":"), variable, self.annotation_atom(head.annotation)])
+            variable = Expr([Sym("__petta_typed_binding__"), claim])
         return variable, value
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
