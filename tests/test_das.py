@@ -11,7 +11,7 @@ Guarantees:
   - a terminal event closes its event iterator before query returns [tested
     test_completed_query_closes_its_event_stream]
   - a symbol cannot be emitted with the router's variable sigil [tested:
-    test_a_symbol_never_renders_as_a_variable_to_the_router; commit=WORKTREE]
+    test_a_symbol_never_renders_as_a_variable_to_the_router; commit=d3b584fad0c081cca59287b70a4bda3c4f5a985b]
 Open Obligations:
   To Do: None
   Hacks: None

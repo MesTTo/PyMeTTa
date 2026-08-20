@@ -29,7 +29,7 @@ Guarantees:
   - the MeTTa-text dialect refuses a symbol beginning with DAS's variable
     sigil before making a request, so a symbol can never be routed as a
     variable [tested: test_a_symbol_never_renders_as_a_variable_to_the_router;
-    commit=WORKTREE]
+    commit=d3b584fad0c081cca59287b70a4bda3c4f5a985b]
 Open Obligations:
   To Do: None
   Hacks: None
