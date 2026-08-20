@@ -1,7 +1,9 @@
-"""Purpose: the numeric boundary past binary64, both sides. Engine
-arithmetic saturates to the IEEE value the way the reader's literals
-already do, and a printed answer spells a non-finite float the arbiter's
-way: inf, -inf, NaN.
+"""Purpose: the numeric boundary past binary64, both sides, and the float
+text seam. Engine arithmetic saturates to the IEEE value the way the
+reader's literals already do, a printed answer spells a non-finite float
+the arbiter's way (inf, -inf, NaN), and a finite float prints the
+arbiter's LAYOUT over the shortest-round-trip digits: 1e16, 0.00001 and
+1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -115,3 +117,34 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
     assert metta.run("!(isinf-math (/ 1.0 0.0))")[0] == [True]
     with pytest.raises(MettaOperationError):
         metta.run("!(/ 1 0)")
+
+
+def test_finite_floats_print_the_arbiters_layout(metta):
+    """A finite float's printed text is the arbiter's layout, not SWI's.
+
+    The digits always agreed, both sides printing the shortest decimal
+    that reads back to the same binary64; the LAYOUT did not: SWI's
+    number_codes writes 1.0e+16, 1.0e-05 and 1.5e+300 where the arbiter
+    writes 1e16, 0.00001 and 1.5e300 [source: LeaTTa
+    RyuLean4/Runtime.lean:371-396, Decimal.formatMeTTa, ryu's pretty
+    layout, its fallback proved dead]. The pins are the four measured
+    divergence witnesses plus one row per layout branch, each driven
+    through the public print surface, and each spelling reads back to
+    the same value through the public reader.
+    """
+    pins = [
+        ("1e16", 1.0e16),
+        ("0.00001", 0.00001),
+        ("1.5e300", 1.5e300),
+        ("1e26", 1.0e26),
+        ("1230.0", 1230.0),
+        ("3.8", 3.8),
+        ("0.0001", 0.0001),
+        ("1e-6", 0.000001),
+        ("-1e16", -1.0e16),
+        ("5e-324", 5.0e-324),
+    ]
+    for want, value in pins:
+        _, text = metta.run(f"!(println! {want})", capture=True)
+        assert text.strip() == want, f"{value!r} printed {text.strip()}"
+        assert metta.run(f"!(min-atom ({want}))") == [[value]], want

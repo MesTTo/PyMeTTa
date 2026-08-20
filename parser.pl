@@ -130,21 +130,104 @@ swrite_numbered(Term)  --> { term_string(Term, Text), string_codes(Text, Cs) }, 
 seq_numbered([X])    --> !, swrite_numbered(X).
 seq_numbered([X|Xs]) --> swrite_numbered(X), " ", seq_numbered(Xs).
 
-%The two float classes with no digits in their SWI spelling print the
-%arbiter's way instead: inf, -inf by sign, and an unsigned NaN, the forms
-%hyperon's Rust f64 Display prints and the arbiter's pretty-printer pins.
-%Every finite float keeps number_codes/2, whose spelling sexpr_token//3
-%reads back [tested: parser_number_text]. The printed non-finite spelling
-%reads back as a SYMBOL of that name, upstream's exactly as ours, which is
-%why metta_number_writable/1 below keeps refusing the class at the text
-%seam: the answer PRINTS faithfully, it still does not round-trip.
+%Every float class prints the arbiter's way: inf, -inf by sign, an unsigned
+%NaN (the forms hyperon's Rust f64 Display prints and the arbiter's
+%pretty-printer pins), and a finite float in the arbiter's LAYOUT over SWI's
+%own shortest-round-trip digits. The digits were already the arbiter's, the
+%layout was not: SWI writes 1.0e+16 and 1.0e-05 where the arbiter writes
+%1e16 and 0.00001 [source 2026-08-20: LeaTTa RyuLean4/Runtime.lean:371-396,
+%Decimal.formatMeTTa, Rust ryu's pretty layout]. The printed non-finite
+%spelling reads back as a SYMBOL of that name, upstream's exactly as ours,
+%which is why metta_number_writable/1 below keeps refusing the class at the
+%text seam: the answer PRINTS faithfully, it still does not round-trip.
 metta_float_codes(Float, Codes) :-
     float_class(Float, Class),
     (   Class == infinite
     ->  ( Float > 0.0 -> atom_codes(inf, Codes) ; atom_codes('-inf', Codes) )
     ;   Class == nan
     ->  atom_codes('NaN', Codes)
-    ;   number_codes(Float, Codes)
+    ;   metta_finite_float_codes(Float, Codes)
+    ).
+
+%The arbiter's layout, re-laid over SWI's spelling as pure text. SWI's
+%number_codes/2 already emits the shortest decimal that reads back to the
+%same binary64 (the digits the arbiter selects too), so this only reshapes:
+%with D the stripped significand digits and KK the exponent making the value
+%0.D*10^KK, print positionally when the decimal point falls inside or just
+%past the digits (KK in -4..16) and scientifically otherwise, exponent KK-1,
+%minus sign only, never a plus, never zero-padded. Reshaping text cannot
+%move the value, and reading is correctly rounded, so every spelling still
+%reads back to the same bits [tested: parser:arbiter_float_layout].
+metta_finite_float_codes(Float, Codes) :-
+    number_codes(Float, Swi),
+    (   Swi = [0'-|Body] -> Sign = [0'-] ; Sign = [], Body = Swi ),
+    metta_float_split(Body, AllDigits, Tens),
+    metta_strip_leading_zeros(AllDigits, Fore),
+    metta_strip_trailing_zeros(Fore, Tens, D, E),
+    (   D == [0'0]
+    ->  append(Sign, `0.0`, Codes)
+    ;   length(D, Len),
+        KK is Len + E,
+        metta_float_layout(D, Len, KK, Laid),
+        append(Sign, Laid, Codes)
+    ).
+
+%Split an unsigned SWI float spelling into its digits and the power of ten
+%they carry: "1.5e+300" becomes "15" times 10^299. The mantissa's dot only
+%positions digits, so folding it into the exponent is exact.
+metta_float_split(Body, AllDigits, Tens) :-
+    (   append(Mant, [E0|ExpCs0], Body), memberchk(E0, `eE`)
+    ->  ( ExpCs0 = [0'+|ExpCs] -> true ; ExpCs = ExpCs0 ),
+        number_codes(Exp, ExpCs)
+    ;   Mant = Body,
+        Exp = 0
+    ),
+    (   append(IntCs, [0'.|FracCs], Mant)
+    ->  true
+    ;   IntCs = Mant,
+        FracCs = []
+    ),
+    append(IntCs, FracCs, AllDigits),
+    length(FracCs, FracLen),
+    Tens is Exp - FracLen.
+
+metta_strip_leading_zeros([0'0, C|Cs], D) :- !,
+    metta_strip_leading_zeros([C|Cs], D).
+metta_strip_leading_zeros(D, D).
+
+%Dropping a trailing zero divides the digits by ten, so the exponent rises
+%with each drop and the value stays put.
+metta_strip_trailing_zeros(D0, E0, D, E) :-
+    append(Fore, [0'0], D0),
+    Fore \== [],
+    !,
+    E1 is E0 + 1,
+    metta_strip_trailing_zeros(Fore, E1, D, E).
+metta_strip_trailing_zeros(D, E, D, E).
+
+%The five layout branches, in the oracle's own order.
+metta_float_layout(D, Len, KK, Laid) :-
+    Point is KK - Len,
+    (   Point >= 0, KK =< 16
+    ->  length(Zeros, Point),
+        maplist(=(0'0), Zeros),
+        append([D, Zeros, `.0`], Laid)
+    ;   KK > 0, KK =< 16
+    ->  length(Whole, KK),
+        append(Whole, Frac, D),
+        append([Whole, `.`, Frac], Laid)
+    ;   KK > -5, KK =< 0
+    ->  Pad is -KK,
+        length(Zeros, Pad),
+        maplist(=(0'0), Zeros),
+        append([`0.`, Zeros, D], Laid)
+    ;   Exponent is KK - 1,
+        number_codes(Exponent, ExpCs),
+        (   D = [Only]
+        ->  append([[Only], `e`, ExpCs], Laid)
+        ;   D = [First|Rest],
+            append([[First], `.`, Rest, `e`, ExpCs], Laid)
+        )
     ).
 %The five escapes hyperon's Str Display emits and this reader already
 %decodes (string_chars): quote, backslash, newline, tab, carriage
