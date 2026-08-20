@@ -9,7 +9,8 @@ Guarantees:
   - a duplicate declaration is refused with the existing row in the message,
     and a duplicate public batch is rejected before either copy is stored.
   [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
-  - pragma! accepts only keys whose setting changes an engine mechanism.
+  - pragma! accepts only keys and values whose setting changes an engine
+    mechanism, while none explicitly disables execution bounds.
   [tested: test_no_pragma_key_is_accepted_and_inert; commit=WORKTREE]
   - under-applied arrow heads have no type instead of a tuple fallback.
   [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=WORKTREE]
@@ -217,8 +218,25 @@ def test_a_duplicate_declaration_names_the_first_one():
 def test_no_pragma_key_is_accepted_and_inert():
     metta = MeTTa(verbose=False)
 
+    assert _answers(metta, "!(pragma! max-time 0.25)") == ["()"]
+    assert _answers(metta, "!(pragma! max-time none)") == ["()"]
     assert _answers(metta, "!(pragma! max-inferences 100000)") == ["()"]
     assert _answers(metta, "!(pragma! max-inferences none)") == ["()"]
+
+    for key, bad_value in (
+        ("max-time", "not-a-number"),
+        ("max-time", "0"),
+        ("max-time", "-1"),
+        ("max-inferences", "not-a-number"),
+        ("max-inferences", "0"),
+        ("max-inferences", "-1"),
+        ("max-inferences", "1.5"),
+    ):
+        with pytest.raises(
+            Exception,
+            match=rf"metta_pragma_value.*{key}",
+        ):
+            metta.run(f"!(pragma! {key} {bad_value})")
 
     for key, value in (
         ("type-check", "auto"),
