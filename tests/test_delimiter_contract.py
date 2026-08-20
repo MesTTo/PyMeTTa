@@ -1,4 +1,5 @@
 """Purpose: keep symbol text validation owned by the engine grammar.
+
 Guarantees:
   - Python keeps no delimiter regex and the shim delegates every symbol
     decision to metta_symbol_writable/1 [tested:
@@ -12,7 +13,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 

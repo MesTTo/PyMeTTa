@@ -1,4 +1,5 @@
 """Purpose: keep operation registration names reachable through MeTTa source.
+
 Guarantees:
   - register_op refuses every spelling the engine reader would not recover as
     one symbol, identifies the conflicting character, and leaves no engine or
@@ -9,7 +10,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 import pytest
 

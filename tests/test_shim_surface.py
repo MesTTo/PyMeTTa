@@ -13,7 +13,8 @@ Assumes:
 Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
-    [tested: test_the_host_service_scoreboard_matches_the_tree]
+    [tested: test_the_host_service_scoreboard_matches_the_tree;
+    commit=WORKTREE]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor]
@@ -35,6 +36,9 @@ HOST_SERVICES = {
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
+    # Reader-token mutation is an engine-owned door. The host contributes the
+    # retained constructor but does not reimplement the registry lifecycle.
+    "metta_host_register_reader_token/2",
     "metta_host_run_source/4",
     "metta_host_run_source_status/3",
     "metta_host_save_fast/3",
@@ -52,6 +56,7 @@ HOST_SERVICES = {
     "metta_host_fast_header/1",
     "metta_host_digest/2",
     "metta_host_substitute/3",
+    "metta_host_unregister_reader_token/1",
     "metta_add_atoms/2",
     "metta_reducible_head/2",
     "metta_source_declarations/2",
@@ -123,12 +128,14 @@ FLOOR_REASONS = {
     "metta_host_open_function/3": "host-orchestration",
     "metta_host_operation_error/5": "error-vocabulary",
     "metta_host_read_forms/2": "host-orchestration",
+    "metta_host_register_reader_token/2": "door",
     "metta_host_remove_reported/3": "host-orchestration",
     "metta_host_run_source/4": "host-orchestration",
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
+    "metta_host_unregister_reader_token/1": "door",
     "metta_reducible_head/2": "door",
     "metta_source_declarations/2": "codec",
     "metta_space_names/1": "door",

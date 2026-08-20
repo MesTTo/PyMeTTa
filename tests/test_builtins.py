@@ -1,4 +1,5 @@
 """Purpose: pin the public language-name enumeration to engine-owned data.
+
 Guarantees:
   - MeTTa.builtins() equals the sorted set union of fun/1 and the heads of
     translate_special_dl/5, with neither list copied into Python [tested:
@@ -8,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 
 def test_builtins_equals_the_union_of_functions_and_special_forms(metta):

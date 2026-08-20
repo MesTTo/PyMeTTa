@@ -55,7 +55,8 @@ class _OneRow:
         st.floats(allow_nan=False, allow_infinity=False),
     )
 )
-def test_a_row_value_becomes_an_atom_without_being_reparsed(value):  # noqa: D103  -- the exact acceptance-test name states the property
+def test_a_row_value_becomes_an_atom_without_being_reparsed(value):
+    """Map a database row value directly into one atom without parsing text."""
     m = petta.MeTTa()
     provider = TableBridge(
         m.parse,

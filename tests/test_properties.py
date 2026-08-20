@@ -129,12 +129,10 @@ def test_every_generated_atom_survives_the_write_parse_round_trip(
 def test_swrite_writes_mettas_own_boolean_literal(metta_session):
     """The engine emits the language's canonical boolean spellings."""
     rt = metta_session.runtime
-    assert rt.once("petta_py_swrite(W, Str)", W=Gnd(True).to_wire())[  # noqa: FBT003  -- these are language literal fixtures, not control flags
-        "Str"
-    ] == "True"
-    assert rt.once("petta_py_swrite(W, Str)", W=Gnd(False).to_wire())[  # noqa: FBT003  -- these are language literal fixtures, not control flags
-        "Str"
-    ] == "False"
+    true_atom = metta_session.parse("True")
+    false_atom = metta_session.parse("False")
+    assert rt.once("petta_py_swrite(W, Str)", W=true_atom.to_wire())["Str"] == "True"
+    assert rt.once("petta_py_swrite(W, Str)", W=false_atom.to_wire())["Str"] == "False"
 
 
 @given(_atoms(), _atoms())

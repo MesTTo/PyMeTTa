@@ -1,4 +1,5 @@
 """Purpose: construct reader-token atoms for the engine's Python host seam.
+
 Guarantees:
   - a constructor receives the complete matched lexeme and may return either
     an Atom or any value accepted by encode; both cross as the same Atom wire
@@ -8,7 +9,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from collections.abc import Callable
 from typing import Any
