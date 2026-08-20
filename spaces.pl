@@ -278,14 +278,44 @@ petta_declaration_check(_).
 
 %A landed catalog row must beat any negative cache row for its subject:
 %the positive rows self-heal through their stored reference, the negative
-%ones have nothing to watch, so the write funnel retracts them here.
+%ones have nothing to watch, so the write funnel retracts them here. A
+%kind or routing row landing also rebuilds its head's materialized route
+%dispatch, which is how the shipped routes come up during the preset walk
+%and how a third-party routed kind starts routing the moment its rows are
+%in.
 petta_catalog_note_added([kind, Head|_]) :-
     !,
-    retractall(petta_kind_cache(Head, _, _)).
+    retractall(petta_kind_cache(Head, _, _)),
+    petta_materialize_route(Head).
 petta_catalog_note_added([vocabulary, Vocab|_]) :-
     !,
     retractall(petta_vocab_cache(Vocab, _, _)).
+petta_catalog_note_added(['routed-by-shape', Head|_]) :-
+    !,
+    petta_materialize_route(Head).
 petta_catalog_note_added(_).
+
+%The removal twin, called by the '&petta' clause of remove_sexp below for
+%a row that actually left. A variable head means the caller removed by
+%pattern and anything may have gone, so everything derived is dropped and
+%rebuilt, which over-invalidates and never under-invalidates.
+petta_catalog_note_removed([Rel|_]) :-
+    var(Rel),
+    !,
+    retractall(petta_kind_cache(_, _, _)),
+    retractall(petta_vocab_cache(_, _, _)),
+    petta_materialize_routes.
+petta_catalog_note_removed([kind, Head|_]) :-
+    !,
+    retractall(petta_kind_cache(Head, _, _)),
+    petta_materialize_route(Head).
+petta_catalog_note_removed([vocabulary, Vocab|_]) :-
+    !,
+    retractall(petta_vocab_cache(Vocab, _, _)).
+petta_catalog_note_removed(['routed-by-shape', Head|_]) :-
+    !,
+    petta_materialize_route(Head).
+petta_catalog_note_removed(_).
 
 %One catalog row as a list, whatever its arity: '&petta'(kind, handles,
 %symbol, ...) reads back as [kind, handles, symbol, ...]. The walk over the
@@ -429,7 +459,26 @@ petta_check_catalog_semantics(kind, [KindHead|Spec], Term) :-
                                   'one kind row per head; remove the old row first')
     ;   true
     ),
-    petta_check_argspecs(Spec, 2, Term).
+    petta_check_argspecs(Spec, 2, Term),
+    %A head already routed by shape keeps routable: re-declaring its kind
+    %(remove, then add) with a spec the route cannot dispatch would leave a
+    %standing routed-by-shape row over an unroutable shape, so the unfit
+    %spec is refused here rather than discovered as dead routing.
+    (   petta_routed_head(KindHead, Key)
+    ->  petta_check_route_fit(Key, Spec, Term)
+    ;   true
+    ).
+petta_check_catalog_semantics('routed-by-shape', [Head|KeyArgs], Term) :-
+    !,
+    (   KeyArgs == []
+    ->  Key = context
+    ;   KeyArgs = [Key]
+    ),
+    (   petta_kind_spec(Head, Spec)
+    ->  petta_check_route_fit(Key, Spec, Term)
+    ;   petta_declaration_refused(Term, 1,
+                                  'a kind row for the routed head, declared first')
+    ).
 petta_check_catalog_semantics(vocabulary, [Name|_], Term) :-
     !,
     (   petta_vocabulary_values(Name, _)
@@ -484,6 +533,119 @@ petta_check_argspec_form(_, Position, Term) :-
 petta_declaration_refused(Term, Position, Expected) :-
     throw(error(petta_declaration_malformed(Term, Position, Expected), none)).
 
+%%%% Materialized shape-route dispatch %%%%
+%
+%(routed-by-shape Head [Key]) in the catalog makes (Head ...) declarations
+%route by shape through metta.pl's one algorithm: specificity over adorned
+%entries, coherence among the maximal ones. The materializer compiles the
+%head's kind row into the exact petta_shape_fact/4 and
+%petta_shape_declared/2 clauses the router dispatches on, one fact clause
+%per stored arity with omitted trailing optionals padded to none, and one
+%guard clause probing those arities, so consulting a route costs what the
+%hand-written clauses cost, indexed clause dispatch, and the catalog pays
+%at its own writes: every add or removal of a kind or routing row lands in
+%the notes above and rebuilds that head's clauses from the rows then
+%standing. The shipped handles, on-error and merge dispatch is built by
+%this same walk from the presets below, which is what makes a third-party
+%routed kind and a shipped one the same thing.
+petta_materialize_routes :-
+    forall(petta_routed_head(Head, _), petta_materialize_route(Head)).
+
+petta_routed_head(Head, Key) :-
+    petta_catalog_row(['routed-by-shape', Head|KeyArgs]),
+    (   KeyArgs == []
+    ->  Key = context
+    ;   KeyArgs = [Key]
+    ).
+
+petta_materialize_route(Head) :-
+    \+ atom(Head),
+    !,
+    petta_materialize_routes.
+petta_materialize_route(Head) :-
+    retractall(petta_shape_fact(Head, _, _, _)),
+    retractall(petta_shape_declared(Head, _)),
+    (   petta_routed_head(Head, Key),
+        petta_kind_spec(Head, Spec),
+        petta_route_shape(Key, Spec, PayloadSpecs)
+    ->  forall(petta_payload_slice(PayloadSpecs, Stored, Payload),
+               petta_assert_route_fact(Key, Head, Stored, Payload)),
+        petta_assert_route_guard(Key, Head, PayloadSpecs)
+    ;   true
+    ).
+
+%How a kind row reads as a route: a context-keyed route is (head ctx-symbol
+%entry-pattern payload...), a global one is (head entry-pattern payload...),
+%and the payload may not carry rest, whose open arity nothing could probe.
+petta_route_shape(context, [symbol, pattern|PayloadSpecs], PayloadSpecs) :-
+    \+ memberchk([rest, _], PayloadSpecs).
+petta_route_shape(global, [pattern|PayloadSpecs], PayloadSpecs) :-
+    \+ memberchk([rest, _], PayloadSpecs).
+
+petta_check_route_fit(Key, Spec, Term) :-
+    (   petta_route_shape(Key, Spec, _)
+    ->  true
+    ;   petta_declaration_refused(Term, 1,
+            'a kind row the route can dispatch: (symbol pattern payload...) \c
+             under the context key, (pattern payload...) under global, \c
+             payload without rest')
+    ).
+
+%Stored and consumed payload pairs, one per legal arity: mandatory specs
+%are always stored, and the first omitted trailing optional pads every
+%remaining consumed position with none, which is the padding the handles
+%consumers have always read for an entry that declared no determinism.
+petta_payload_slice([], [], []).
+petta_payload_slice([_Spec|Specs], [V|Stored], [V|Payload]) :-
+    petta_payload_slice(Specs, Stored, Payload).
+petta_payload_slice([[optional, _]|Specs], [], [none|Padding]) :-
+    petta_payload_padding(Specs, Padding).
+
+petta_payload_padding([], []).
+petta_payload_padding([_|Specs], [none|Padding]) :-
+    petta_payload_padding(Specs, Padding).
+
+petta_assert_route_fact(context, Head, Stored, Payload) :-
+    assertz((petta_shape_fact(Head, Ctx, Entry, Payload) :-
+                 petta_contract_fact([Head, Ctx, Entry|Stored]))).
+petta_assert_route_fact(global, Head, Stored, Payload) :-
+    assertz((petta_shape_fact(Head, global, Entry, Payload) :-
+                 petta_contract_fact([Head, Entry|Stored]))).
+
+%The guard probes the smallest stored arity first, the common case (an
+%entry declaring no trailing optionals), each probe deterministic the way
+%the hand-written guards were.
+petta_assert_route_guard(Key, Head, PayloadSpecs) :-
+    findall(N,
+            ( petta_payload_slice(PayloadSpecs, Stored, _),
+              length(Stored, N) ),
+            Ns),
+    sort(0, @<, Ns, Arities),
+    petta_route_probes(Key, Head, Module, Ctx, Arities, Probes),
+    petta_probe_chain(Probes, Chain),
+    assertz((petta_shape_declared(Head, Ctx) :-
+                 petta_contract_storage(Module),
+                 Chain)).
+
+%A global route's guard leaves Ctx free on purpose: petta_shape_declared
+%(merge, _) has always matched any context, the entries being keyed by
+%query shape alone.
+petta_route_probes(context, Head, Module, Ctx, Arities, Probes) :-
+    maplist(petta_route_probe(Head, Module, Ctx), Arities, Probes).
+petta_route_probes(global, Head, Module, _Ctx, Arities, Probes) :-
+    maplist(petta_route_probe_global(Head, Module), Arities, Probes).
+
+petta_route_probe(Head, Module, Ctx, N, Module:Goal) :-
+    length(Vars, N),
+    Goal =.. ['&petta', Head, Ctx, _Entry|Vars].
+petta_route_probe_global(Head, Module, N, Module:Goal) :-
+    length(Vars, N),
+    Goal =.. ['&petta', Head, _Entry|Vars].
+
+petta_probe_chain([Probe], (Probe -> true)) :- !.
+petta_probe_chain([Probe|Probes], (Probe -> true ; Chain)) :-
+    petta_probe_chain(Probes, Chain).
+
 :- multifile prolog:error_message//1.
 prolog:error_message(petta_declaration_malformed(Term, Position, Expected)) -->
     { Term = [Head|_],
@@ -519,7 +681,10 @@ petta_catalog_preset([vocabulary, 'effect-class', immutable]).
 petta_catalog_preset([vocabulary, 'op-kind', det, many, raw_det, raw_many]).
 petta_catalog_preset([vocabulary, 'subscription-edge', add, remove, both]).
 petta_catalog_preset([vocabulary, volatility, volatile, stable, immutable]).
+petta_catalog_preset([vocabulary, 'route-key', context, global]).
 petta_catalog_preset([kind, kind, symbol, [rest, term]]).
+petta_catalog_preset([kind, 'routed-by-shape', symbol,
+                      [optional, ['one-of', 'route-key']]]).
 petta_catalog_preset([kind, vocabulary, symbol, [rest, symbol]]).
 petta_catalog_preset([kind, claim, symbol, symbol, [rest, symbol]]).
 petta_catalog_preset([kind, handles, symbol, pattern, ['one-of', fidelity],
@@ -543,6 +708,9 @@ petta_catalog_preset([kind, tabled, symbol, symbol, integer]).
 petta_catalog_preset([kind, defined, symbol, symbol]).
 petta_catalog_preset([kind, subscription, symbol, pattern,
                       ['one-of', 'subscription-edge']]).
+petta_catalog_preset(['routed-by-shape', handles]).
+petta_catalog_preset(['routed-by-shape', 'on-error']).
+petta_catalog_preset(['routed-by-shape', merge, global]).
 petta_catalog_preset([claim, semiring, ranked, ordered]).
 petta_catalog_preset([claim, semiring, prob, ordered]).
 
@@ -556,6 +724,9 @@ petta_catalog_preset_missing([kind, Head|_]) :-
 petta_catalog_preset_missing([vocabulary, Name|_]) :-
     !,
     \+ petta_vocabulary_values(Name, _).
+petta_catalog_preset_missing(['routed-by-shape', Head|_]) :-
+    !,
+    \+ petta_routed_head(Head, _).
 petta_catalog_preset_missing(Atom) :-
     \+ petta_catalog_row(Atom).
 
@@ -660,6 +831,16 @@ remove_sexp(Space, Atom) :- remove_sexp(Space, Atom, _).
 %nothing in its text saying which it would get
 %[tested: spaces_removal_answers_unit_for_success_and_an_error_for_absence,
 %test_remove_atom_removes_one_occurrence_not_all].
+remove_sexp('&petta', [Rel|Args], Removed) :- !,
+    (   native_storage_module_ready('&petta', Module)
+    ->  Term =.. ['&petta', Rel|Args],
+        native_retract_one(Module:Term, Removed),
+        (   Removed == true
+        ->  petta_catalog_note_removed([Rel|Args])
+        ;   true
+        )
+    ;   Removed = false
+    ).
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],

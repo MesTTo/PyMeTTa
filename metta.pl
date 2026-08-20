@@ -2979,17 +2979,18 @@ petta_shape_entry(Head, Ctx, Query, entry(Stripped, Paths, Entry, Payload)) :-
     \+ \+ ( Stripped = Query,
             forall(member(Position, Requirements), nonvar(Position)) ).
 
-petta_shape_fact(handles, Ctx, Entry, [Fidelity, Det]) :-
-    (   petta_contract_fact([handles, Ctx, Entry, Fidelity, Det])
-    ;   petta_contract_fact([handles, Ctx, Entry, Fidelity]), Det = none
-    ).
-petta_shape_fact('on-error', Ctx, Entry, [Mode]) :-
-    petta_contract_fact(['on-error', Ctx, Entry, Mode]).
-%(merge <pattern> <policy>) has no context: it is the ENGINE's strategy
-%for merging answers across several contexts, keyed by the query shape,
-%so it rides the shape route under one global key.
-petta_shape_fact(merge, global, Entry, [Policy]) :-
-    petta_contract_fact([merge, Entry, Policy]).
+%WHICH heads route by shape is catalog data, not a clause list here: a
+%(routed-by-shape Head [Key]) row in '&petta' plus the head's (kind ...)
+%row make spaces.pl's materializer compile these two predicates' clauses
+%for that head, the shipped handles, on-error and merge dispatch built by
+%the same walk from the presets as any third-party routed kind. (merge
+%<pattern> <policy>) is the ENGINE's strategy for merging answers across
+%several contexts, keyed by the query shape alone, which is what its
+%global route key means. The materialized fact clauses read through
+%petta_contract_fact/1 exactly as the hand-written ones did, one clause
+%per stored arity with omitted trailing optionals padded to none.
+:- dynamic petta_shape_fact/4.
+:- dynamic petta_shape_declared/2.
 
 %Strip (in $x) wrappers, collecting the subterms that must arrive bound and
 %the position path of each, root-to-leaf indices reversed. Requirements are
@@ -3040,20 +3041,6 @@ petta_handles_route(Ctx, Query, Fidelity, Det) :-
 :- dynamic petta_contract_storage/1.
 :- native_storage_module('&petta', Module),
    assertz(petta_contract_storage(Module)).
-
-petta_shape_declared(handles, Ctx) :-
-    petta_contract_storage(Module),
-    (   Module:'&petta'(handles, Ctx, _, _)
-    ->  true
-    ;   Module:'&petta'(handles, Ctx, _, _, _)
-    ->  true
-    ).
-petta_shape_declared('on-error', Ctx) :-
-    petta_contract_storage(Module),
-    Module:'&petta'('on-error', Ctx, _, _).
-petta_shape_declared(merge, _) :-
-    petta_contract_storage(Module),
-    Module:'&petta'(merge, _, _).
 
 petta_handles_route(Ctx, Query, Entry, Fidelity, Det) :-
     petta_shape_route(handles, Ctx, Query, Entry, [Fidelity, Det]).
