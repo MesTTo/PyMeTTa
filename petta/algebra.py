@@ -6,7 +6,7 @@ Guarantees:
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
-    commit=WORKTREE]
+    commit=496643acc4104702e76e7d325e9ffac8c0cc08c1]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
