@@ -9,6 +9,8 @@ Guarantees:
     minimum of three instructions:u runs]
   - definite atom boundaries reject undefined truth wrappers [tested
     test_atom_from_wire_rejects_undefined_truth]
+  - n decodes Python integers without a width conversion, so Number and
+    BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
   To Do: None
   Hacks: None

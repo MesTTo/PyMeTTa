@@ -8,6 +8,8 @@ Guarantees:
     [tested test_number_parameters_accept_bigint_without_retyping_number]
   - integer equality remains exact when its operands have different numeric
     types [tested test_mixed_bigint_number_equality_uses_exact_values]
+  - Janus and the tagged n form carry BigInt values in both directions
+    without changing a digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
   To Do: Re-verify these rules when LeaTTa adds its announced BigInt type.
   Hacks: None
@@ -94,3 +96,20 @@ def test_numeric_types_are_published_from_the_catalog(metta):
     ) == [[parse("(Number BigInt)")]]
     assert NUMERIC_TYPE == ("Number", "BigInt")
     assert get_args(NumericType) == NUMERIC_TYPE
+
+
+def test_janus_carries_bigint_losslessly(metta):
+    values = (
+        I64_MIN - 1,
+        I64_MAX + 1,
+        2**127 + 12_345,
+        -(2**127 + 12_345),
+    )
+    for value in values:
+        assert metta.runtime.must("Y = X", X=value)["Y"] == value
+
+        wire = metta.runtime.must("petta_py_encode(X, W)", X=value)["W"]
+        assert wire == ["n", value]
+        assert metta.runtime.must(
+            "petta_py_decode_shared(W, Y, _)", W=wire
+        )["Y"] == value
