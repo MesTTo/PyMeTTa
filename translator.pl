@@ -377,6 +377,7 @@ metta_engine_emitted(case_runtime/3).
 metta_engine_emitted(control_exception/1).
 metta_engine_emitted(foldall/4).
 metta_engine_emitted(has_type/2).
+metta_engine_emitted(check_argument_type/3).
 metta_engine_emitted(include/3).
 metta_engine_emitted(letstar_runtime/3).
 metta_engine_emitted(metta_ensure_duals/1).
@@ -2057,9 +2058,12 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     TypeChain = [->|Xs],
     append(ArgTypes0, [OutType], Xs), !,
     drop_unconstraining_types(TypeChain, ArgTypes0, ArgTypes),
+    metta_argument_type_origins(ArgTypes, ArgOrigins),
+    argument_applicability_checks(T, ArgTypes, ArgOrigins, ApplicabilityChecks),
     translate_args_by_type(T, ArgTypes, GsT2, AVsTmp0, ArgChecks),
     ( IsPartial -> append(Bound, AVsTmp0, AVsTmp) ; AVsTmp = AVsTmp0 ),
-    append(GsH, GsT2, InnerEval),
+    append(GsH, ApplicabilityChecks, BeforeArgs),
+    append(BeforeArgs, GsT2, InnerEval),
     %The output check asks whether the result has the declared type, and
     %nothing reads OutType afterwards, so one witness is the whole answer. A
     %soft cut here instead enumerates every derivation and succeeds once per
@@ -2077,6 +2081,20 @@ typed_functioncall_branch(Fun, TypeChain, T, GsH, IsPartial, Bound, Out, BranchG
     place_type_checks(ArgTypes, OutType, ArgChecks, OutCheck, InnerEval, Inner, Extra),
     build_call_or_partial(Fun, AVsTmp, Out, Inner, Extra, GoalsList),
     goals_list_to_conj(GoalsList, BranchGoal).
+
+%A shared raw type variable needs the whole written call checked before any
+%argument runs. Earlier formals bind it and later formals consume that exact
+%binding; ordinary chains retain the existing evaluate-then-check path.
+argument_applicability_checks(Args, Types, Origins, Checks) :-
+    memberchk(derived_variable, Origins),
+    !,
+    maplist(argument_applicability_check, Args, Types, Origins, Raw),
+    goals_list_to_conj(Raw, Conj),
+    Checks = [once(Conj)].
+argument_applicability_checks(_, _, _, []).
+
+argument_applicability_check(Argument, Type, Origin,
+                             check_argument_type(Argument, Type, Origin)).
 
 %An argument whose declared type is a type variable occurring NOWHERE else in
 %the chain constrains nothing, and its check is pure waste. The check is
@@ -2172,17 +2190,22 @@ shares_a_variable(As, Bs) :- member(A, As), member(B, Bs), A == B, !.
 %translator_typed_checks].
 translate_args_by_type([], _, [], [], []) :- !.
 translate_args_by_type(Args, Types, GsOut, AVs, Checks) :-
-    translate_args_by_type_dl(Args, Types, GsOut, [], AVs, Checks, []).
+    metta_argument_type_origins(Types, Origins),
+    translate_args_by_type_dl(Args, Types, Origins,
+                              GsOut, [], AVs, Checks, []).
 
 translate_args_by_type_dl(Args, Types, Goals0, Goals, AVs) :-
-    translate_args_by_type_dl(Args, Types, Goals0, Tail, AVs, Checks, []),
+    metta_argument_type_origins(Types, Origins),
+    translate_args_by_type_dl(Args, Types, Origins,
+                              Goals0, Tail, AVs, Checks, []),
     ( Checks == []
       -> Tail = Goals
        ; goals_list_to_conj(Checks, CheckConj),
          Tail = [once(CheckConj)|Goals] ).
 
-translate_args_by_type_dl([], _, Goals, Goals, [], Checks, Checks) :- !.
-translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Checks) :-
+translate_args_by_type_dl([], _, _, Goals, Goals, [], Checks, Checks) :- !.
+translate_args_by_type_dl([A|As], [T|Ts], [Origin|Origins],
+                          Goals0, Goals, [AV|AVs], Checks0, Checks) :-
     ( T == 'Atom'
       -> AV = A,
          AfterArg = Goals0,
@@ -2191,10 +2214,11 @@ translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Chec
       ( (T == '%Undefined%' ; T == '_' ; statically_typed_literal(AV, T))
         -> AfterCheck = Checks0
       ; type_check_goal(AV, T,
-                        ( has_type(AV, T) *-> true ; 'get-metatype'(AV, T) ),
+                        check_argument_type(AV, T, Origin),
                         ArgGoal),
         Checks0 = [ArgGoal|AfterCheck] ) ),
-    translate_args_by_type_dl(As, Ts, AfterArg, Goals, AVs, AfterCheck, Checks).
+    translate_args_by_type_dl(As, Ts, Origins, AfterArg, Goals, AVs,
+                              AfterCheck, Checks).
 
 %A check that cannot be DROPPED can still be SPECIALISED. Three types are
 %decided by a single Prolog builtin, and when the declared type is one of them
