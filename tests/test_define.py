@@ -6,6 +6,8 @@ Guarantees:
     space's @doc atom [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+  - a local annotated assignment emits and enforces its in-place type claim
+    [tested: test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -136,6 +138,25 @@ def test_bindings_become_let_star(m):
 
     assert m.run("!(dhyp 3 4)") == [[5.0]]
     assert dhyp.py.__name__ == "dhyp"
+
+
+def test_an_annotated_binding_emits_its_claim(m):
+    @m.define
+    def annotated_binding(value):
+        result: int = value
+        return result
+
+    assert "(: $result Number)" in str(annotated_binding.body)
+    assert m.run("!(annotated_binding 7)") == [[7]]
+    assert m.run('!(annotated_binding "nope")') == [[]]
+
+    @m.define
+    def annotated_generator(value):
+        result: int = value
+        yield result
+
+    assert "(: $result Number)" in str(annotated_generator.body)
+    assert m.run("!(annotated_generator 8)") == [[8]]
 
 
 def test_true_division_matches_python_exactly(m):

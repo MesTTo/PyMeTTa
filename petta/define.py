@@ -12,6 +12,9 @@ Guarantees:
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+  - local annotated assignments resolve through a syntax-limited namespace
+    reader and compile to enforceable in-place type claims [tested:
+    test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,6 +36,7 @@ from ._define_statements import StatementCompilerMixin, _is_generator, _superpos
 from ._define_twins import (
     _python_twin,
 )
+from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
@@ -53,6 +57,105 @@ def _never(_name: str) -> bool:
 
 def _builtins_namespace() -> dict[str, Any]:
     return __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+
+
+def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:
+    """Resolve local annotation syntax without executing arbitrary source."""
+    nonlocals: dict[str, Any] = {}
+    for name, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
+        try:
+            nonlocals[name] = cell.cell_contents
+        except ValueError:
+            # A decorator is compiling the recursive function before Python
+            # assigns its name into the closure cell. It cannot resolve an
+            # annotation from that empty cell and does not need to.
+            continue
+    namespace = {
+        **_builtins_namespace(),
+        **fn.__globals__,
+        **nonlocals,
+    }
+
+    def resolve(node: ast.expr) -> Any:
+        if isinstance(node, ast.Name):
+            if node.id not in namespace:
+                raise CompileError(
+                    f"the local annotation name {node.id!r} is not available",
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            return namespace[node.id]
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.Tuple):
+            return tuple(resolve(item) for item in node.elts)
+        if isinstance(node, ast.Attribute):
+            owner = resolve(node.value)
+            if isinstance(owner, types.ModuleType):
+                values = vars(owner)
+                if node.attr in values:
+                    return values[node.attr]
+            elif isinstance(owner, type):
+                value = inspect.getattr_static(owner, node.attr, None)
+                if isinstance(value, type):
+                    return value
+            raise CompileError(
+                f"the local annotation attribute {ast.unparse(node)!r} is not a "
+                "module or nested type",
+                construct="annotation",
+                line=node.lineno,
+            )
+        if isinstance(node, ast.Subscript):
+            target = resolve(node.value)
+            target_module = getattr(target, "__module__", "")
+            if target_module not in {"builtins", "typing", "collections.abc"}:
+                raise CompileError(
+                    f"the local annotation {ast.unparse(node)!r} would execute "
+                    "a user subscript; use a named type instead",
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            argument = resolve(node.slice)
+            try:
+                return target[argument]
+            except (KeyError, TypeError, ValueError) as exc:
+                raise CompileError(
+                    f"the local annotation {ast.unparse(node)!r} is invalid: {exc}",
+                    construct="annotation",
+                    line=node.lineno,
+                ) from exc
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            left = resolve(node.left)
+            right = resolve(node.right)
+            if not all(
+                isinstance(value, type) or getattr(value, "__module__", "") == "typing"
+                for value in (left, right)
+            ):
+                raise CompileError(
+                    f"the local annotation {ast.unparse(node)!r} is not a type union",
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            return left | right
+        raise CompileError(
+            f"{type(node).__name__} is not allowed in a local annotation; "
+            "use a type name or a standard typing subscript",
+            construct="annotation",
+            line=getattr(node, "lineno", None),
+        )
+
+    def to_atom(node: ast.expr) -> Atom:
+        alternatives = type_atoms_for(resolve(node))
+        if len(alternatives) != 1:
+            raise CompileError(
+                f"the local annotation {ast.unparse(node)!r} names "
+                f"{len(alternatives)} alternative types; bind one type here",
+                construct="annotation",
+                line=node.lineno,
+            )
+        return alternatives[0]
+
+    return to_atom
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
@@ -281,6 +384,7 @@ def compile_function(
         nondet=nondet,
         pyname=fn.__name__,
         host=host,
+        annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
     body: Atom
@@ -372,6 +476,7 @@ class _Compiler(
         host: Callable[[str], bool] | None = None,
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
+        annotation_resolver: Callable[[ast.expr], Atom] | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -411,6 +516,16 @@ class _Compiler(
         # nested loop must carry them even when its own syntax never
         # mentions them, or the enclosing recursion loses its state.
         self.closer_names: list[str] = []
+        self._annotation_resolver = annotation_resolver
+
+    def annotation_atom(self, node: ast.expr) -> Atom:
+        if self._annotation_resolver is None:
+            raise CompileError(
+                "this compiler has no local annotation namespace",
+                construct="annotation",
+                line=node.lineno,
+            )
+        return self._annotation_resolver(node)
 
     def nondet(self, called: str) -> bool:
         lifted = self.lifted.get(called)
@@ -420,29 +535,10 @@ class _Compiler(
 
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
-        forked = _Compiler(
-            self.name,
-            self.scope.copy(),
-            self.known,
-            used=self.used,
-            nondet=self._given_nondet,
-            aux=self.aux,
-            lifted=self.lifted,
-            closer=self.closer,
-            pyname=self.pyname,
-            host=self.host,
-            runtime_ops=self.runtime_ops,
-            hazards=self.hazards,
-        )
-        forked.closer_names = self.closer_names.copy()
-        return forked
+        return self._nested_compiler(self.scope.copy())
 
-    def _inner(self, extra: list[str]) -> _Compiler:
-        """A compiler for a nested binder (lambda, comprehension): the outer
-        scope plus the binder's own parameters, shadowing by name."""
-        scope = self.scope.copy()
-        scope.update({p: p for p in extra})
-        inner = _Compiler(
+    def _nested_compiler(self, scope: dict[str, str]) -> _Compiler:
+        nested = _Compiler(
             self.name,
             scope,
             self.known,
@@ -455,9 +551,17 @@ class _Compiler(
             host=self.host,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
+            annotation_resolver=self._annotation_resolver,
         )
-        inner.closer_names = self.closer_names.copy()
-        return inner
+        nested.closer_names = self.closer_names.copy()
+        return nested
+
+    def _inner(self, extra: list[str]) -> _Compiler:
+        """A compiler for a nested binder (lambda, comprehension): the outer
+        scope plus the binder's own parameters, shadowing by name."""
+        scope = self.scope.copy()
+        scope.update({p: p for p in extra})
+        return self._nested_compiler(scope)
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
@@ -475,6 +579,7 @@ class _Compiler(
             host=self.host,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
+            annotation_resolver=self._annotation_resolver,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
