@@ -18,7 +18,8 @@ Guarantees:
   - callable code flags, through partials, wrappers, bound methods, and
     callable objects, classify generators and refuse coroutine functions
     before registration changes any engine or registry state [tested:
-    test_register_op_reads_co_flags_and_refuses_or_awaits; commit=WORKTREE]
+    test_register_op_reads_co_flags_and_refuses_or_awaits;
+    commit=9b1b808f6b8d8aa6a8080c13092fa73ce7893aaa]
 Open Obligations:
   To Do: None
   Hacks: None
