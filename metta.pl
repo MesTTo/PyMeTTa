@@ -5449,6 +5449,52 @@ throw_metta_type_error(Operation, Expected, Culprit) :-
     throw(error(type_error(Expected, Culprit),
                 context(Operation, 'invalid MeTTa operation argument'))).
 
+%The classification a host reads a builtin refusal through, beside the two
+%throwers that produce the shape. The engine names the written MeTTa
+%operation in the context, so a host reads the name from the term rather
+%than from rendered text; only a type_error carries an expected type and a
+%culprit, and any other formal reports its own functor with both parts
+%ABSENT. Absence is an unbound part, which is the one marker no culprit can
+%collide with; a host maps var-ness to its own None.
+metta_host_operation_error(error(Formal, context(Operation, Message)),
+                           Operation, Kind, Expected, Culprit) :-
+    atom(Operation),
+    nonvar(Message),
+    metta_host_operation_message(Message),
+    nonvar(Formal),
+    metta_host_operation_formal(Formal, Kind, Expected0, Culprit0),
+    metta_host_operation_part(Expected0, Expected),
+    metta_host_operation_part(Culprit0, Culprit).
+
+metta_host_operation_message('while evaluating MeTTa operation').
+metta_host_operation_message('invalid MeTTa operation argument').
+
+%is/2 reports an unevaluable term as a predicate indicator, Name/Arity. That
+%is a Prolog artifact rather than anything the user wrote, and swrite would
+%read the / as MeTTa and print (/ a 0). A zero-arity indicator is exactly
+%the symbol the source wrote, so it crosses as that symbol.
+metta_host_operation_formal(type_error(evaluable, Name/Arity), type_error,
+                            evaluable, Culprit) :- !,
+    ( Arity =:= 0 -> Culprit = Name
+                   ; format(atom(Culprit), '~w/~w', [Name, Arity]) ).
+metta_host_operation_formal(type_error(Expected, Culprit), type_error,
+                            Expected, Culprit) :- !.
+metta_host_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
+
+%A wire carries atomics and lists of them; any other compound crosses as
+%its written text, from swrite/2, the engine's own printer, so it reads
+%back as the MeTTa the user wrote: a generic term writer would spell a
+%variable _112 and a partial application partial(g,[1]), neither of which
+%is MeTTa surface syntax. An unbound part stays unbound.
+metta_host_operation_part(Term, Term) :- var(Term), !.
+metta_host_operation_part(Term, Value) :- metta_host_operation_value(Term, Value).
+
+metta_host_operation_value(Term, Term) :- atomic(Term), !.
+metta_host_operation_value(Term, Value) :-
+    is_list(Term), !,
+    maplist(metta_host_operation_value, Term, Value).
+metta_host_operation_value(Term, Text) :- swrite(Term, Text).
+
 %The culprit in the message is the value the program wrote, so it reads as
 %MeTTa: (State 5), not ['State',5]. The Formal term stays ISO, because
 %callers and the MeTTa catch form inspect it, and the structured Python

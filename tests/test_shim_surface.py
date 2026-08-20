@@ -45,6 +45,7 @@ HOST_SERVICES = {
     "metta_host_stored/2",
     "metta_host_remove_reported/3",
     "metta_host_explain_match/3",
+    "metta_host_operation_error/5",
     "metta_host_fast_header/1",
     "metta_host_digest/2",
     "metta_host_substitute/3",

@@ -467,52 +467,15 @@ metta_control_signal_info(
 metta_control_signal_kind(Error, Kind) :-
     metta_control_signal_info(Error, Kind, _).
 
-%The engine names the written MeTTa operation in the context of a builtin's
-%error, so the Python side reads that name from the term rather than from the
-%rendered text. Only a type_error carries an expected type and a culprit; any
-%other formal reports its own functor with both unbound, which crosses as None.
-petta_py_operation_error(error(Formal, context(Operation, Message)),
-                         Operation, Kind, Expected, Culprit) :-
-    atom(Operation),
-    nonvar(Message),
-    petta_py_operation_message(Message),
-    nonvar(Formal),
-    petta_py_operation_formal(Formal, Kind, Expected0, Culprit0),
+%The classification is the engine's metta_host_operation_error/5; this side
+%maps its neutral absence, an unbound part, onto janus's None.
+petta_py_operation_error(Error, Operation, Kind, Expected, Culprit) :-
+    metta_host_operation_error(Error, Operation, Kind, Expected0, Culprit0),
     petta_py_operation_part(Expected0, Expected),
     petta_py_operation_part(Culprit0, Culprit).
 
-%Absence is my own unbound output and crosses as None. A variable INSIDE a
-%culprit is one the user wrote and has to render, or (a $x) and (a <absent>)
-%read alike on the far side.
-petta_py_operation_part(Term, @none) :- var(Term), !.
-petta_py_operation_part(Term, Value) :- petta_py_operation_value(Term, Value).
-
-%janus carries atomics and lists of them; any other compound would raise
-%`Domain error: py_term expected` while binding the output, which would turn a
-%user's type error into a classifier failure. Such a culprit crosses as its
-%written text instead, which is what `(+ 1 a)`'s evaluable a/0 needs. The text
-%comes from swrite/2, the engine's own printer, so it reads back as the MeTTa
-%the user wrote: term_to_atom spells a variable `_112` and a partial
-%application `partial(g,[1])`, neither of which is MeTTa surface syntax.
-petta_py_operation_value(Term, Term) :- atomic(Term), !.
-petta_py_operation_value(Term, Value) :- is_list(Term), !,
-                                         maplist(petta_py_operation_value, Term, Value).
-petta_py_operation_value(Term, Text) :- swrite(Term, Text).
-
-petta_py_operation_message('while evaluating MeTTa operation').
-petta_py_operation_message('invalid MeTTa operation argument').
-
-%is/2 reports an unevaluable term as a predicate indicator, Name/Arity. That
-%is a Prolog artifact rather than anything the user wrote, and swrite would
-%read the / as MeTTa and print (/ a 0). A zero-arity indicator is exactly the
-%symbol the source wrote, so it crosses as that symbol.
-petta_py_operation_formal(type_error(evaluable, Name/Arity), type_error,
-                          evaluable, Culprit) :- !,
-    ( Arity =:= 0 -> Culprit = Name
-                   ; format(atom(Culprit), '~w/~w', [Name, Arity]) ).
-petta_py_operation_formal(type_error(Expected, Culprit), type_error,
-                          Expected, Culprit) :- !.
-petta_py_operation_formal(Formal, Kind, _, _) :- functor(Formal, Kind, _).
+petta_py_operation_part(Part, @none) :- var(Part), !.
+petta_py_operation_part(Part, Part).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a petta_py_control_exception/1 here holding a SECOND copy of the list,

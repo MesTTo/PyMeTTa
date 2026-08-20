@@ -618,6 +618,10 @@ ext_point_kind(metta_host_remove_reported/3, host_service).
 %foreign_provides/2 left this list with it (2026-08-20); the two that
 %extensions genuinely consult moved to the service list below.
 ext_point_kind(metta_host_explain_match/3, host_service).
+%The builtin-refusal classification: operation, kind, expected and culprit
+%read from the error term the engine's own throwers shape, absence left
+%unbound for the host to map to its None (2026-08-20).
+ext_point_kind(metta_host_operation_error/5, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
 ext_point_kind(metta_atom_hook_clause/2, host_service).
