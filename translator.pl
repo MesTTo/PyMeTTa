@@ -25,7 +25,12 @@
 %   - Runnable translations are cached as fresh templates by execution module
 %     and a copy_term/2 plus numbervars/4 variant key; changing or removing a
 %     mentioned function evicts every dependent template
-%     [tested: sh check.sh plunit; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873].
+%     [tested: translation_cache; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873].
+%   - A runtime-type-guarded built-in, or format-args, whose written operands
+%     already contradict its declared parameter types is refused before those
+%     operands run, while accepted and undecided operands retain ordinary
+%     translation
+%     [tested: operation_answers, test_a_repeated_eval_does_not_recompile_and_the_effects_cluster_conforms; commit=WORKTREE].
 %   - User get-type equations extend the deduplicating type boundary through
 %     get_type_rule/2 [tested 2026-08-15: translator_type_extensions].
 %   - Branch-return merging preserves shared and pre-bound variables while
@@ -1018,17 +1023,20 @@ translate_expr_dl([H|T], Goals0, Goals, Out) :-
             ; compound(HV), HV = partial(Fun, Bound), IsPartial = true
             ) % Check for type definition [:,HV,TypeChain]
             -> ( runtime_guarded_builtin_call(Fun)
-                 -> UniqueTypeChains = []
+                 -> UniqueTypeChains = [], EffectsPrecheck = true
                   ; findall(TypeChain,
                             catch_recover(type_declaration(Fun, TypeChain),
                                           fail),
                             TypeChains),
-                    list_to_set(TypeChains, UniqueTypeChains) ),
-               ( typed_functioncall_dl(Fun, UniqueTypeChains, T, IsPartial, Bound, Out, AfterHead, Goals)
-                 -> true
-              ; translate_args_dl(T, AfterHead, AfterArgs, AVs),
-                ( IsPartial -> append(Bound, AVs, AllAVs) ; AllAVs = AVs ),
-                build_call_or_partial_dl(Fun, AllAVs, Out, AfterArgs, Goals, []))
+                    list_to_set(TypeChains, UniqueTypeChains),
+                    ( effects_prechecked_nonruntime_builtin(Fun)
+                    -> EffectsPrecheck = true
+                    ;  EffectsPrecheck = false ) ),
+               ( EffectsPrecheck == true, refused_argument_call(Fun, T)
+                 -> refused_argument_call_dl(Fun, UniqueTypeChains, T, IsPartial,
+                                             Bound, Out, AfterHead, Goals)
+              ; functioncall_dl(Fun, UniqueTypeChains, T, IsPartial, Bound, Out,
+                                AfterHead, Goals))
           %Literals (numbers, strings, etc.), known non-function atom => data:
           %A grounded head that is an OPERATION is a call, not data. Without
           %this it fell into the data branch below and never reached reduce/3,
@@ -1178,6 +1186,76 @@ atom_positions_only(Chain, Chain).
 
 atom_position_or_undefined(T, Masked) :-
     ( T == 'Atom' -> Masked = 'Atom' ; Masked = '%Undefined%' ).
+
+%A BUILTIN CALL WHOSE DECLARED TYPES ALREADY REFUSE IT does not run its
+%arguments.
+%Upstream type-checks an application before interpreting its operands
+%(`hyperon-experimental@3f76dc4` interpreter.rs:1224-1258 against :1352-1395),
+%and the arbiter's eight effects files are built to see the difference: each
+%pairs a control with an experiment whose operand emits a marker from inside
+%itself, and no marker appears for a rejected operand
+%[source: LeaTTa tests/semantics/grounded/13-effects-arithmetic.metta through
+%21-effects-strings-metatype.metta, all STATUS conforms]. This engine ran the
+%operand first and then reported the REDUCED value, so `(+ 1 (effect-string
+%PLUS-WRONG True))` printed the marker and answered
+%`(Error (+ 1 s) (BadArgType 2 Number String))` where the arbiter answers the
+%call as written and prints nothing.
+%
+%DECIDED HERE, at compile time, because that is where it is free. The types of
+%a written call are known once its head is declared, so the refusal is a
+%property of the call text rather than of the run, and a call the declarations
+%accept compiles to exactly what it compiled to before. Asking at run time
+%would put a type walk in front of every operation, which is the shape the
+%benchmarks refuse [measured 2026-08-20: one extra inference per space
+%operation was +30,002 on py-method-call].
+%
+%The emitted goal asks AGAIN rather than carrying the answer, and falls back to
+%the ordinary compilation when it finds nothing: a declaration this engine
+%recompiles call sites for can be retracted between the compile and the run,
+%and a call whose types no longer refuse it must still run its arguments
+%[tested: operation_answers:a_wrongly_typed_operand_does_not_run,
+%an_operand_of_the_right_type_still_runs, an_undecided_operand_still_runs].
+%\+ \+ so the decision leaves NOTHING bound: this runs over the call as
+%written, whose variables are the compiled clause's own, and a check that bound
+%one would compile the binding into the clause.
+refused_argument_call(Fun, Args) :-
+    is_list(Args),
+    metta_shallow_call_refused(Fun, Args).
+
+%Only built-ins whose own runtime contract already promises BadArgType get the
+%earlier ordering. Other operations deliberately own different refusals:
+%get-atoms names its space error, size-atom on a number answers nothing, and a
+%host may register an untyped operation called last over Prolog's same-named
+%predicate. Applying every declaration here replaced all three contracts with
+%a synthetic BadArgType during the full battery
+%[tested: python/tests/test_ops.py::test_a_name_prolog_owns_registers_and_leaves_prolog_alone,
+%python/tests/test_space_operation_errors.py::test_a_non_symbol_first_argument_is_refused_by_the_read_path,
+%examples/data/atomops.metta; commit=WORKTREE]. format-args is the one effects
+%probe outside runtime_type_guarded/1; its first String operand is evaluated,
+%so the same ordering is required there, while its Expression operand remains
+%quoted by ordinary typed translation.
+effects_prechecked_nonruntime_builtin('format-args') :-
+    \+ metta_builtin_overridden('format-args').
+
+refused_argument_call_dl(Fun, Chains, Args, IsPartial, Bound, Out, Goals0, Goals) :-
+    functioncall_dl(Fun, Chains, Args, IsPartial, Bound, OrdinaryOut,
+                    OrdinaryGoals, []),
+    goals_list_to_conj(OrdinaryGoals, Ordinary),
+    Goals0 = [( metta_bad_argument_error(Fun, Args, Out)
+              *-> true
+              ;   Ordinary, Out = OrdinaryOut
+              )|Goals].
+
+%The ordinary compilation of a call, extracted so the refusal above can wrap it
+%without re-entering the translator, which recursed into its own decision.
+functioncall_dl(Fun, Chains, Args, IsPartial, Bound, Out, Goals0, Goals) :-
+    (   typed_functioncall_dl(Fun, Chains, Args, IsPartial, Bound, Out,
+                              Goals0, Goals)
+    ->  true
+    ;   translate_args_dl(Args, Goals0, AfterArgs, AVs),
+        ( IsPartial -> append(Bound, AVs, AllAVs) ; AllAVs = AVs ),
+        build_call_or_partial_dl(Fun, AllAVs, Out, AfterArgs, Goals, [])
+    ).
 
 %A name alone is not enough: a user or named-space equation can override a
 %builtin and must retain reflective type checks. Only the unmodified runtime
