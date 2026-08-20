@@ -3068,7 +3068,31 @@ metta_refuse_module_for_space(Space, Door) :-
     ;   true
     ).
 
+%A pattern whose SHAPE is known builds the storage head FIRST, so the
+%store's argument indexing dispatches the way match/4's identical read
+%does, instead of enumerating every clause under an unbound head and
+%filtering afterwards: a bound-pattern read through this door was
+%O(space held) where the same read through match was one indexed lookup
+%[measured 2026-08-21: a per-add presence probe through the old path
+%cost 2,055 inferences at 2,000 held atoms and 21,055 at 10,000,
+%linear, against 69.01 flat through match's spelling of the same
+%question; through this clause the same probe reads 57.01 at 2,000 and
+%57.00 at 10,000]. The occurs check mirrors native_expression/4's: a cyclic
+%binding is never a MeTTa answer. A partial list keeps the enumerating
+%clause below, and a bound SCALAR skips both, because =../2 on it threw
+%where the store owed a clean miss and the scalar shelf is that atom's
+%own clause anyway [tested: spaces_contains].
 get_native_atom(Module, Space, Pattern) :-
+    is_list(Pattern),
+    Pattern = [_|_],
+    !,
+    length(Pattern, Arity),
+    functor(Head, Space, Arity),
+    Head =.. [Space | Pattern],
+    call(Module:Head),
+    acyclic_term(Pattern).
+get_native_atom(Module, Space, Pattern) :-
+    \+ atomic(Pattern),
     current_predicate(Module:Space/Arity),
     functor(Head, Space, Arity),
     clause(Module:Head, true),

@@ -490,6 +490,12 @@
 ; [tested: metta_has_declared_type in tests/prolog/metta.plt].
 (: has-declared-type (-> Atom %Undefined% Bool))
 
+; space-contains asks whether the space holds an atom unifying with the
+; given one, about the atom AS ITSELF: one indexed probe against the
+; store, flat however large the space grows, which is what a
+; set-semantics rule wants per add.
+(: space-contains (-> %Undefined% Atom Bool))
+
 ; %%%% Space admission: the shipped judge over (admits ...) and (capacity ...) %%%%
 ;
 ; The judge itself is the engine builtin space-admission-verdict,

@@ -1456,6 +1456,30 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
                                                      Position).
 'has-declared-type'(X, T, R) :-
     ( has_declared_type(X, T) -> R = true ; R = false ).
+%(space-contains <space> <atom>) answers whether the space holds an atom
+%unifying with the given one, as one probe against the store rather than
+%an enumeration: stored atoms are clauses and SWI's just-in-time argument
+%indexing hashes their arguments, so a ground probe costs the same over
+%ten thousand held atoms as over ten [measured 2026-08-21: a
+%set-semantics pre-add rule spelled over this probe costs 57.01
+%inferences per add at 2,000 held atoms and 57.00 at 10,000, against
+%69.01 flat for the collapse-over-match spelling it replaces and 27.01
+%for a plain add; a replayed duplicate drops at 46.00; the match
+%spelling is its differential, pinned in
+%test_set_semantics_is_a_declared_rule_not_a_property_of_the_space].
+%Kernel vocabulary, beyond the conforming stdlib (the user's standing
+%ruling): LeaTTa does not speak about the name, and the Atom mask on the
+%second parameter lives in src/prelude.metta so the asked-about atom is
+%never reduced by the asking [tested: spaces_contains].
+'space-contains'(Space, _, _) :- var(Space), !,
+                                 refuse_unbound_input('space-contains', 1).
+'space-contains'(_, Atom, _) :- var(Atom), !,
+                                refuse_unbound_input('space-contains', 2).
+'space-contains'(Space, Atom, R) :-
+    (   'is-space'(Space, true)
+    ->  ( \+ \+ 'get-atoms'(Space, Atom) -> R = true ; R = false )
+    ;   throw_metta_type_error('space-contains', 'SpaceType', Space)
+    ).
 %(space-admission-verdict <pool> <atom>) is the shipped judge over the
 %(admits <pool> <type>) and (capacity <pool> <n>) contract atoms in
 %&petta, the handler petta_admission_claim/2's guard equation applies.
@@ -2417,6 +2441,7 @@ metta_grounded_token('get-state').
 metta_grounded_token('get-type').
 metta_grounded_token('has-declared-type').
 metta_grounded_token('space-admission-verdict').
+metta_grounded_token('space-contains').
 metta_grounded_token('get-type-space').
 metta_grounded_token('git-import!').
 metta_grounded_token('git-module!').
@@ -2668,6 +2693,11 @@ metta_effect_classify(_, 'get-atoms'(Space, Pattern), Queue-Reads0,
 %of tabling a number every write stales.
 metta_effect_classify(_, 'space-atom-count'(Space, _), Queue-Reads0,
                       Queue-[read('space-atom-count', Space, count)|Reads0]) :- !.
+%The probed atom IS the read's pattern: where it is an expression the
+%tabling admission can resolve the read like a match's, and a scalar
+%probe falls to the same conservative refusal a count does.
+metta_effect_classify(_, 'space-contains'(Space, Atom, _), Queue-Reads0,
+                      Queue-[read('space-contains', Space, Atom)|Reads0]) :- !.
 %A bridge's dispatch goal is classified under the OPERATION's name, not the
 %dispatcher's. Ahead of the generic compound clause because that clause would
 %read the functor and refuse petta_py_dispatch_det/3, naming an internal the
@@ -6379,7 +6409,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count', 'has-declared-type', 'space-admission-verdict',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count', 'has-declared-type', 'space-admission-verdict', 'space-contains',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
