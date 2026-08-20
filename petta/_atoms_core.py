@@ -47,12 +47,13 @@ Guarantees:
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE]
+    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704, 660489697;
     command=python -m benchmarks.check_instructions term-operators;
-    fixture=CPython 3.14 controlled perf lane; commit=WORKTREE]
+    fixture=CPython 3.14 controlled perf lane;
+    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
