@@ -3,7 +3,8 @@ text seam. Engine arithmetic saturates to the IEEE value the way the
 reader's literals already do, a printed answer spells a non-finite float
 the arbiter's way (inf, -inf, NaN), and a finite float prints the
 arbiter's LAYOUT over the shortest-round-trip digits: 1e16, 0.00001 and
-1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300.
+1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300. Gnd's own
+renderer implements the same law, so one atom has one text in both hosts.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,7 +16,7 @@ import subprocess
 
 import pytest
 
-from petta import MettaOperationError
+from petta import MettaOperationError, val
 
 
 def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
@@ -148,3 +149,33 @@ def test_finite_floats_print_the_arbiters_layout(metta):
         _, text = metta.run(f"!(println! {want})", capture=True)
         assert text.strip() == want, f"{value!r} printed {text.strip()}"
         assert metta.run(f"!(min-atom ({want}))") == [[value]], want
+
+
+def test_gnd_str_spells_numbers_the_engines_way(metta):
+    """One atom, one text: str(Gnd(x)) equals the engine's printed answer.
+
+    Gnd rendered numbers with Python's repr, a second number writer that
+    split from swrite/2 on the plus sign (1e+16), the exponent padding
+    (1e-05), the positional threshold (1e-05 where the law says 0.00001)
+    and nan against NaN. Both writers implement the arbiter's layout law
+    now; this drives a value through both and demands byte equality, plus
+    the non-finite spellings engine-free.
+    """
+    values = [
+        0.0, -0.0, 5.0, 1230.0, 3.8, 0.30000000000000004,
+        1e16, 1e15, 1234567890123456.0, 0.0001, 0.00001, 0.000001,
+        1.5e-7, 1e26, 1e20, 1.5e300, 5e-324, -5e-324,
+        2.2250738585072014e-308, 1.7976931348623157e308, -1e16,
+        7, -3, 9223372036854775808,
+    ]
+    source = "".join(f"!(println! {value!r})\n" for value in values)
+    _, printed = metta.run(source, capture=True)
+    engine_lines = printed.splitlines()
+    assert len(engine_lines) == len(values)
+    for value, engine_text in zip(values, engine_lines, strict=True):
+        assert str(val(value)) == engine_text, (
+            f"{value!r}: python {str(val(value))!r} engine {engine_text!r}"
+        )
+    assert str(val(math.inf)) == "inf"
+    assert str(val(-math.inf)) == "-inf"
+    assert str(val(math.nan)) == "NaN"
