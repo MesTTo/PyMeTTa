@@ -4,7 +4,7 @@ Guarantees:
   - a seeded two-branch histogram matches its declared ratio while ordinary
     queries stay unchanged [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
-    commit=WORKTREE]
+    commit=f95becb09e1d83fbb7bfd083fdb5b8b3f84ee225]
 """
 
 import pytest
