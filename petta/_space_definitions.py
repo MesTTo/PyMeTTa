@@ -11,7 +11,7 @@ Guarantees:
   - source spans, AST documentation, free variables, and derived purity
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]

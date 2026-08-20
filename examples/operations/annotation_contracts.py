@@ -11,9 +11,9 @@ facts:
 
 Guarantees:
   - Atom parameters preserve written terms while ordinary parameters receive
-    reduced values [tested: annotation_contracts example; commit=WORKTREE]
+    reduced values [tested: annotation_contracts example; commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
   - local type claims and source-derived definition facts are visible through
-    the public API [tested: annotation_contracts example; commit=WORKTREE]
+    the public API [tested: annotation_contracts example; commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Open Obligations:
   To Do: None
   Hacks: None

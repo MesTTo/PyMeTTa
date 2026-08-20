@@ -18,7 +18,7 @@ Guarantees:
     commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Open Obligations:
   To Do: None
   Hacks: None

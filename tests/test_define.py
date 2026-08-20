@@ -11,7 +11,7 @@ Guarantees:
   - every definition derives source, documentation, captures, and purity from
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

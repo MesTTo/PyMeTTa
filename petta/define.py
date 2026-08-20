@@ -18,7 +18,7 @@ Guarantees:
   - source spans, source docstrings, lexical captures, and call purity are
     derived from the parsed function and exposed as immutable facts [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Open Obligations:
   To Do: None
   Hacks: None
