@@ -1,4 +1,5 @@
 """Purpose: prove restricted execution modules expose only creation grants.
+
 Guarantees:
   - file, process, and network operations name their missing capability before
     they run [tested:
@@ -22,6 +23,7 @@ from petta import S, SpaceCapabilityError, aio
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
     metta, tmp_path
 ):
+    """Name each omitted capability before a restricted operation runs."""
     path = tmp_path / "visible.txt"
     path.write_text("visible")
 
@@ -68,6 +70,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
 
 
 def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
+    """Refuse cross-space execution and mutation from a restricted space."""
     with metta.new_space() as victim:
         with metta.new_space(restricted=True) as locked:
             with pytest.raises(SpaceCapabilityError) as evalc_error:
@@ -81,6 +84,7 @@ def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
 
 
 def test_a_recycled_name_retains_no_restriction(metta):
+    """Remove restriction policy before an anonymous name is reused."""
     restricted = metta.new_space(restricted=True)
     name = restricted.space_name
     restricted.drop()
@@ -95,6 +99,7 @@ def test_a_recycled_name_retains_no_restriction(metta):
 
 
 def test_restricted_constructor_validation_is_eager(metta):
+    """Validate restricted-space grants before allocating a space."""
     with pytest.raises(ValueError, match="grants require"):
         metta.new_space(grants=("file",))
     with pytest.raises(ValueError, match="unknown space capabilities"):
@@ -105,6 +110,7 @@ def test_restricted_constructor_validation_is_eager(metta):
 
 
 def test_async_new_space_forwards_restriction_and_grants(metta, tmp_path):
+    """Forward async restriction and grant arguments to the native space."""
     path = tmp_path / "async-visible.txt"
     path.write_text("visible")
 

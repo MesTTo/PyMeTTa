@@ -713,7 +713,8 @@ class AsyncMeTTa:
     ) -> AsyncMeTTa:
         """Return an isolated space that borrows this connection's worker."""
         if inherits is not None and inherits._worker is not self._worker:
-            raise ValueError("an inherited async space must share this engine worker")
+            msg = "an inherited async space must share this engine worker"
+            raise ValueError(msg)
         parent = None if inherits is None else inherits._m
         requested_grants = tuple(grants)
         fresh = await self.call(

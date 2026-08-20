@@ -97,7 +97,7 @@ class EngineError(PettaError):
 class SpaceCapabilityError(EngineError):
     """A restricted space tried an operation its creation grants omit."""
 
-    def __init__(
+    def __init__(  # noqa: D107  -- the class contract documents the stable refusal fields
         self,
         message: str,
         *,

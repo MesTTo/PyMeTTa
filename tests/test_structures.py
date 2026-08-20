@@ -93,6 +93,7 @@ def test_matchindex_nonlinear_patterns_are_exact():  # noqa: D103  -- pytest dis
 
 
 def test_matchindex_uses_grounded_numeric_equality():
+    """Match grounded integers and equal-valued floats at one index key."""
     index = MatchIndex()
     index.add(val(0), "mixed")
     assert list(index.matches(val(0.0))) == [(val(0), "mixed")]

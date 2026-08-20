@@ -1,4 +1,5 @@
 """Purpose: pin expression-named native spaces at the public MeTTa surface.
+
 Guarantees:
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
@@ -33,6 +34,7 @@ def _release(metta, space_term):
 
 
 def test_two_instances_of_a_parametric_space_answer_independently(metta):
+    """Keep each ground expression's storage and context parameters isolated."""
     left = "(cache &p12-param-left 100)"
     right = "(cache &p12-param-right 10)"
     definition = (
@@ -95,6 +97,7 @@ def test_two_instances_of_a_parametric_space_answer_independently(metta):
 
 
 def test_invalid_parametric_names_publish_no_cache_entry(metta):
+    """Refuse malformed names before publishing native or execution caches."""
     before = metta.runtime.must(
         "aggregate_all(count, space_parametric(_), Parametric), "
         "aggregate_all(count, native_storage_module_cache(_, _), Storage), "
@@ -118,6 +121,7 @@ def test_invalid_parametric_names_publish_no_cache_entry(metta):
 
 
 def test_a_parametric_fact_leaf_names_its_space(metta):
+    """Name the full parametric identity in a derived fact leaf."""
     name = "[cache, '&p12-param-leaf', 1]"
     try:
         metta.run("!(new-space (cache &p12-param-leaf 1))")
@@ -133,6 +137,7 @@ def test_a_parametric_fact_leaf_names_its_space(metta):
 
 
 def test_a_callable_family_head_does_not_replace_the_identity(metta):
+    """Treat a registered family term as identity, never as a callable head."""
     surface = "(cache &p12-param-callable 2)"
     name = "[cache, '&p12-param-callable', 2]"
     try:

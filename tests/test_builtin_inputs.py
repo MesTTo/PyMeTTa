@@ -96,7 +96,7 @@ print(json.dumps(report))
 @pytest.fixture(scope="module")
 def report():
     """Run the generated probe on a freshly booted engine and read it back."""
-    finished = subprocess.run(  # noqa: S603  -- the argv is a literal list around sys.executable and repo paths, no untrusted input
+    finished = subprocess.run(
         [sys.executable, "-c", _PROBE, str(REPO / "bindings" / "python")],
         capture_output=True,
         text=True,

@@ -63,47 +63,60 @@ class NativeInheritedSpace(SpaceProvider):
     """Adapt a native child to the provider protocol the shared suite drives."""
 
     def __init__(self):
+        """Create an inherited native pair populated with the shared rows."""
         self.parent = MeTTa().new_space()
         self.child = MeTTa().new_space(inherits=self.parent)
         self.child.add(*ROWS)
 
     def match(self, _pattern):
+        """Enumerate the child for the provider protocol's matching door."""
         return iter(self.child.atoms())
 
     def atoms(self):
+        """Enumerate the inherited child's visible atoms."""
         return iter(self.child.atoms())
 
     def add(self, atom):
+        """Add one atom to the inherited child."""
         self.child.add(atom)
 
     def add_many(self, atoms):
+        """Add a batch of atoms to the inherited child."""
         self.child.add(*atoms)
 
     def remove(self, atom):
+        """Remove one atom from the inherited child."""
         return self.child.remove(atom)
 
     def clear(self):
+        """Clear the inherited child's local atoms."""
         self.child.clear()
 
     def can_run(self, capability, /, **request):
+        """Declare rule storage in addition to the native provider defaults."""
         if capability == "rules":
             return True
         return super().can_run(capability, **request)
 
     def close(self):
+        """Drop the child before its parent."""
         self.child.drop()
         self.parent.drop()
 
 
 class TestNativeInheritedSpaceComplies(SpaceComplianceSuite):
+    """Run the provider compliance suite over an inherited native space."""
+
     @pytest.fixture()
     def provider(self):
+        """Yield the native provider and release both spaces afterward."""
         provider = NativeInheritedSpace()
         yield provider
         provider.close()
 
     @pytest.fixture()
     def space(self, provider, exercised):
+        """Yield the provider's child as the engine-visible test space."""
         del exercised
         yield provider.child
 

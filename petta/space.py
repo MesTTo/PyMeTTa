@@ -424,7 +424,7 @@ class MeTTa:
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
-    def new_space(
+    def new_space(  # noqa: C901  -- constructor validation keeps one public policy boundary
         self,
         *,
         inherits: MeTTa | None = None,
@@ -447,31 +447,35 @@ class MeTTa:
         a name, unregister it.
         """
         if inherits is not None and not isinstance(inherits, MeTTa):
-            raise TypeError(
-                f"new_space(inherits=...) takes a live MeTTa space, got "
-                f"{inherits!r}"
-            )
+            msg = f"new_space(inherits=...) takes a live MeTTa space, got {inherits!r}"
+            raise TypeError(msg)
         if inherits is not None and inherits._dropped:
-            raise PettaError("new_space(inherits=...) takes a live MeTTa space")
+            msg = "new_space(inherits=...) takes a live MeTTa space"
+            raise PettaError(msg)
         if not isinstance(restricted, bool):
-            raise TypeError("new_space(restricted=...) takes a bool")
+            msg = "new_space(restricted=...) takes a bool"
+            raise TypeError(msg)
         if isinstance(grants, str):
-            raise TypeError("new_space(grants=...) takes an iterable of capability names")
+            msg = "new_space(grants=...) takes an iterable of capability names"
+            raise TypeError(msg)
         try:
             requested_grants = tuple(grants)
         except TypeError as exc:
-            raise TypeError(
-                "new_space(grants=...) takes an iterable of capability names"
-            ) from exc
+            msg = "new_space(grants=...) takes an iterable of capability names"
+            raise TypeError(msg) from exc
         if any(not isinstance(capability, str) for capability in requested_grants):
-            raise TypeError("every new_space grant must be a string")
+            msg = "every new_space grant must be a string"
+            raise TypeError(msg)
         unknown = set(requested_grants) - {"file", "process", "network"}
         if unknown:
-            raise ValueError(f"unknown space capabilities: {sorted(unknown)!r}")
+            msg = f"unknown space capabilities: {sorted(unknown)!r}"
+            raise ValueError(msg)
         if requested_grants and not restricted:
-            raise ValueError("new_space grants require restricted=True")
+            msg = "new_space grants require restricted=True"
+            raise ValueError(msg)
         if inherits is not None and restricted:
-            raise ValueError("a space cannot be both inherited and restricted")
+            msg = "a space cannot be both inherited and restricted"
+            raise ValueError(msg)
 
         if restricted:
             row = self._rt.must(

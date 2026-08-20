@@ -54,6 +54,7 @@ def test_bigint_and_number_type_the_numeric_tower(metta):  # noqa: D103  -- pyte
 
 
 def test_integer_arithmetic_is_unbounded_where_hyperon_checks_i64(metta):
+    """Keep integer arithmetic unbounded beyond Hyperon's i64 carrier."""
     assert metta.run("!(* 4611686018427387904 4)") == [
         [18_446_744_073_709_551_616]
     ]
