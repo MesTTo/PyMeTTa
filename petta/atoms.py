@@ -11,7 +11,7 @@ Guarantees:
     test_object_repr_registrations_can_be_removed_exactly]
   - the immutable operator lowering table is public data [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE]
+    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -16,7 +16,7 @@ Guarantees:
     commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
   - the immutable operator lowering table is public data [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE]
+    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
 Open Obligations:
   To Do: None
   Hacks: None

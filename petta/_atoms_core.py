@@ -47,7 +47,7 @@ Guarantees:
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE]
+    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]

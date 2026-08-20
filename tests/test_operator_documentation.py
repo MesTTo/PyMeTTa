@@ -7,7 +7,7 @@ Guarantees:
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=WORKTREE]
+      commit=613f35974fa98746552dba584ad66082fdd1f3c7]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
