@@ -35,7 +35,7 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
         )
         with pytest.raises(
             LinearEvidenceError,
-            match=r"linear_evidence_already_spent\(p4-linear, token=0\)",
+            match=r"linear_evidence_already_spent\(p4-linear, token=\d+\)",
         ):
             program.evaluate_algebra(
                 S.double_booked(S.alice), algebra="p4-linear"

@@ -39,7 +39,19 @@ from fractions import Fraction
 from numbers import Real
 from typing import TYPE_CHECKING, Any, Final
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, decode, encode, parse, substitute, unify
+from .atoms import (
+    Atom,
+    Expr,
+    Gnd,
+    Sym,
+    Undefined,
+    Var,
+    decode,
+    encode,
+    parse,
+    substitute,
+    unify,
+)
 from .errors import PettaError
 
 if TYPE_CHECKING:
@@ -103,19 +115,19 @@ class Amplitude:
         object.__setattr__(self, "real", Fraction(real))
         object.__setattr__(self, "imag", Fraction(imag))
 
-    def __add__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- numeric protocol
+    def __add__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
         return Amplitude(self.real + other.real, self.imag + other.imag)
 
-    def __mul__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- numeric protocol
+    def __mul__(self, other: Amplitude) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
         return Amplitude(
             self.real * other.real - self.imag * other.imag,
             self.real * other.imag + self.imag * other.real,
         )
 
-    def __neg__(self) -> Amplitude:  # noqa: D105 -- numeric protocol
+    def __neg__(self) -> Amplitude:  # noqa: D105 -- Python's numeric protocol defines this public operation
         return Amplitude(-self.real, -self.imag)
 
-    def __complex__(self) -> complex:  # noqa: D105 -- numeric protocol
+    def __complex__(self) -> complex:  # noqa: D105 -- Python's numeric protocol defines this public conversion
         return complex(float(self.real), float(self.imag))
 
 
@@ -141,7 +153,14 @@ class DeclaredAlgebra:
                 f"{left}, {right}, answers={len(answers)})"
             )
             raise AlgebraOperationError(msg)
-        return answers[0]
+        result = answers[0]
+        if isinstance(result, Undefined):
+            msg = (
+                f"algebra_operation_undefined({self.name}, {name}, "
+                f"{left}, {right}, why={result.why})"
+            )
+            raise AlgebraOperationError(msg)
+        return result
 
     def combine_values(self, metta: MeTTa, left: Atom, right: Atom) -> Atom:
         """Combine alternative derivations."""
@@ -298,16 +317,27 @@ def _catalog_declaration(metta: MeTTa, name: str) -> DeclaredAlgebra | None:
         if not isinstance(combine, Sym) or not isinstance(extend, Sym):
             msg = f"algebra_catalog_operations_malformed({name})"
             raise AlgebraDeclarationError(msg)
-        fields = ((laws, "laws"), (carrier, "carrier"), (requires, "requires"))
-        if any(
-            not isinstance(field, Expr) or not field.children or field.children[0] != Sym(kind)
-            for field, kind in fields
+        if (
+            not isinstance(laws, Expr)
+            or not laws.children
+            or laws.children[0] != Sym("laws")
         ):
             msg = f"algebra_catalog_fields_malformed({name})"
             raise AlgebraDeclarationError(msg)
-        assert isinstance(laws, Expr)
-        assert isinstance(carrier, Expr)
-        assert isinstance(requires, Expr)
+        if (
+            not isinstance(carrier, Expr)
+            or not carrier.children
+            or carrier.children[0] != Sym("carrier")
+        ):
+            msg = f"algebra_catalog_fields_malformed({name})"
+            raise AlgebraDeclarationError(msg)
+        if (
+            not isinstance(requires, Expr)
+            or not requires.children
+            or requires.children[0] != Sym("requires")
+        ):
+            msg = f"algebra_catalog_fields_malformed({name})"
+            raise AlgebraDeclarationError(msg)
         law_names = tuple(
             law.name for law in laws.children[1:] if isinstance(law, Sym)
         )
@@ -602,8 +632,9 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
     facts: list[TaggedAnswer] = []
     rules: list[_Rule] = []
     for order, atom in enumerate(atoms):
+        if not isinstance(atom, Expr):
+            continue
         if _head(atom, "fact", 3):
-            assert isinstance(atom, Expr)
             facts.append(
                 TaggedAnswer(
                     value=atom.children[2],
@@ -613,12 +644,10 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
                 )
             )
         elif _head(atom, "rule", 4):
-            assert isinstance(atom, Expr)
             body = atom.children[3]
-            if not _head(body, "premises"):
+            if not isinstance(body, Expr) or not _head(body, "premises"):
                 msg = f"tagged_rule_body_malformed({atom}, expected=(premises ...))"
                 raise AlgebraDeclarationError(msg)
-            assert isinstance(body, Expr)
             rules.append(
                 _Rule(order, atom.children[1], atom.children[2], body.children[1:])
             )
@@ -774,8 +803,7 @@ class AlgebraEvaluationError(PettaError):
 
 def _rate(tag: Atom) -> float:
     value: Any = tag
-    if _head(tag, "rate", 2):
-        assert isinstance(tag, Expr)
+    if isinstance(tag, Expr) and _head(tag, "rate", 2):
         value = tag.children[1]
     if isinstance(value, Gnd):
         value = decode(value)
@@ -814,7 +842,7 @@ def sample(
         raise RateDeclarationError(msg)
     if total <= 0:
         return ()
-    generator = random.Random(seed)  # noqa: S311 -- reproducible simulation, not security
+    generator = random.Random(seed)  # noqa: S311 -- caller-seeded simulation is not a security boundary  # nosec B311
     selected: list[Atom] = []
     for _ in range(draws):
         threshold = generator.random() * total
