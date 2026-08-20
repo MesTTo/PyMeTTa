@@ -17,7 +17,7 @@ Guarantees:
   - a slots dataclass replacing an already registered class is refused with
     the decorator order that preserves the new class object
     [tested: test_a_slots_dataclass_registration_follows_the_new_class_or_refuses;
-     commit=WORKTREE]
+     commit=0bfe63082cdc62b9bb09550d563057321ab90bb6]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
