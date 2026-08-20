@@ -1,48 +1,74 @@
 {
   "benchmarks": {
+    "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
+      "inferences": 65217,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-into-a-pool-with-a-declared-capacity": {
+      "inferences": 4574905,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-no-claims-on-the-space": {
+      "inferences": 54223,
+      "operations": 1000,
+      "unit": "calls"
+    },
+    "extcost-add-atom-through-an-accept-all-pre-add-hook": {
+      "comment": "Lowered from 234.03 to 64.02 inferences per add on 2026-08-20: the hook wrapper re-translated [Handler, Atom] through eval_metta_in_module/3 on every fire, and the call site is now translated once at claim time and asserted as a fire clause in the declaring module, healed lazily after any function change. Semantics pinned by hooks_compiled_fire, including that the offered atom reaches the handler as data.",
+      "inferences": 69231,
+      "operations": 1000,
+      "unit": "calls"
+    },
     "extcost-c-foreign-predicate": {
-      "inferences": 18214,
+      "inferences": 18202,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-m-define-annotated": {
       "comment": "Lowered from 75241 on 2026-08-16, -27000 over 3000 calls, which is nine inferences per call. A literal argument's type is settled while the call site compiles, so translate_args_by_type_dl/7 emits no has_type/2 check for one; a call whose arguments are all literals of the declared types now compiles to exactly what the untyped one does, with no once/1 wrapper either. The published table's annotated row moved 20.00 -> 11.00 inferences per call and 6.67x -> 3.67x against an ordinary MeTTa function. The drop is one-directional and never rejects: a literal of the WRONG declared type keeps its check and is still refused, because a get-type extension may give a literal a second type and deciding that statically would be unsound. Guarded by translator_literal_type_checks in tests/prolog/translator.plt.",
-      "inferences": 24238,
+      "inferences": 24222,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-m-define-no-annotations": {
-      "inferences": 24258,
+      "inferences": 24237,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-ordinary-metta-function": {
-      "inferences": 24230,
+      "inferences": 24216,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-prolog-grounded-predicate": {
-      "inferences": 21234,
+      "inferences": 21217,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-python-operation-encoded": {
-      "inferences": 54248,
+      "inferences": 54228,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-python-operation-raw-true": {
-      "inferences": 33230,
+      "inferences": 33214,
       "operations": 3000,
       "unit": "calls"
     },
+    "extcost-the-add-driver-itself": {
+      "inferences": 5211,
+      "operations": 1000,
+      "unit": "calls"
+    },
     "extcost-the-driver-itself": {
-      "inferences": 15226,
+      "inferences": 15211,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-translator-rule-a-macro": {
-      "inferences": 21232,
+      "inferences": 15214,
       "operations": 3000,
       "unit": "calls"
     }

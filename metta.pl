@@ -3221,14 +3221,20 @@ metta_declare_hook(Slot, Space, Handler) :-
                                       none))
                       )
                   ;   assertz(petta_hook_claim(Space, Slot, Handler, Module)),
-                      metta_add_atom('&petta', [SlotAtom, Space, Handler], _)
+                      metta_add_atom('&petta', [SlotAtom, Space, Handler], _),
+                      %Compiled inside the same transaction, so a handler
+                      %whose call site does not translate refuses the whole
+                      %claim loudly at declaration instead of at the first
+                      %write.
+                      petta_hook_compile(Space, Slot, Handler, Module)
                   ) )),
     petta_install_space_hooks.
 
 metta_undeclare_hook(Slot, Space) :-
     hook_slot_surface(Slot, SlotAtom),
     transaction(( (   retract(petta_hook_claim(Space, Slot, Handler, _))
-                  ->  metta_remove_atom('&petta', [SlotAtom, Space, Handler], _)
+                  ->  metta_remove_atom('&petta', [SlotAtom, Space, Handler], _),
+                      petta_hook_drop_compiled(Space, Slot)
                   ;   true
                   ) )).
 
@@ -3245,8 +3251,80 @@ petta_install_space_hooks :-
                            petta_space_hooked_add(Space, Term, R, Wrapped))
         ->  true
         ;   throw(error(petta_atom_hook_install_failed(space_hooks), none))
-        )
+        ),
+        %The compiled fire clauses below bake each handler's translated call
+        %site, and a changed equation or declaration re-shapes what that
+        %translation would be, so any function change drops them all and the
+        %next fire recompiles against the new program. Conservative on
+        %purpose: claims are few, one stale template is a wrong verdict with
+        %no symptom, and a flush costs one indexed lookup on a table that is
+        %empty until something claims. Installed here, not at load, for the
+        %reason the seam's header gives: a resident handler clause costs
+        %four inferences on every compiled equation. If-then-else rather
+        %than a cut, which is the event-seam law.
+        assertz((metta_on_function_changed(_) :-
+                    (   petta_hook_compiled(_, _, _)
+                    ->  petta_hook_flush_compiled
+                    ;   true
+                    ))),
+        assertz((metta_on_function_removed(_) :-
+                    (   petta_hook_compiled(_, _, _)
+                    ->  petta_hook_flush_compiled
+                    ;   true
+                    )))
     ).
+
+%The claim-time compilation of a handler's call site, the specializer's
+%own move applied to the hook door: eval_metta_in_module/3 per fire spent
+%its cost re-translating [Handler, Atom] on EVERY write into a claimed
+%space, measured at 234.03 inferences per add against 49.01 for a plain
+%add, and the translation is the same every time until the program
+%changes. The call site is translated once, here, and asserted as one
+%clause in the DECLARING module:
+%
+%    '$petta_hook_fire'(Space, Slot, Atom, Verdict) :- call_goals_in_(M, Goals)
+%
+%The body is call_goals_in_/2 over the translated goal list, not a
+%flattened conjunction, so a translated cut stays exactly as opaque as
+%the eval path has it, and the fire site keeps with_metta_module/2, so a
+%handler body reading (context-space) or compiling against the current
+%module sees what it saw before. Everything observable is the eval
+%path's: same first-verdict law at the callers, same failure-is-stuck,
+%same nondeterminism underneath
+%[tested: hooks:a_compiled_fire_answers_what_the_eval_path_answers].
+:- dynamic petta_hook_compiled/3.
+
+petta_hook_compile(Space, Slot, Handler, Module) :-
+    with_metta_module(Module,
+                      translate_expr([Handler, Atom], Goals, Verdict)),
+    assertz(Module:('$petta_hook_fire'(Space, Slot, Atom, Verdict) :-
+                        call_goals_in_(Module, Goals)),
+            Ref),
+    assertz(petta_hook_compiled(Space, Slot, Ref)).
+
+%Fire through the compiled clause, healing lazily after a flush: the
+%mutex closes the race where two threads heal the same claim and the
+%second assert would double the clause.
+petta_hook_eval(Space, Slot, Handler, Module, Term, Verdict) :-
+    (   petta_hook_compiled(Space, Slot, _)
+    ->  true
+    ;   with_mutex('$petta_hook_compile',
+                   (   petta_hook_compiled(Space, Slot, _)
+                   ->  true
+                   ;   petta_hook_compile(Space, Slot, Handler, Module)
+                   ))
+    ),
+    with_metta_module(Module,
+                      call(Module:'$petta_hook_fire'(Space, Slot, Term,
+                                                     Verdict))).
+
+petta_hook_drop_compiled(Space, Slot) :-
+    forall(retract(petta_hook_compiled(Space, Slot, Ref)),
+           catch(erase(Ref), _, true)).
+
+petta_hook_flush_compiled :-
+    forall(retract(petta_hook_compiled(_, _, Ref)),
+           catch(erase(Ref), _, true)).
 
 petta_space_hooked_add(Space, Term, R, Wrapped) :-
     (   petta_hook_granted_form(Space, Term)
@@ -3262,7 +3340,7 @@ petta_space_hooked_add(Space, Term, R, Wrapped) :-
 
 petta_hook_pre_phase(Space, Term, R, Wrapped) :-
     (   petta_hook_claim(Space, pre_add, Handler, Module)
-    ->  (   eval_metta_in_module(Module, [Handler, Term], Verdict)
+    ->  (   petta_hook_eval(Space, pre_add, Handler, Module, Term, Verdict)
         ->  petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
         ;   throw(error(petta_hook_stuck(Space, 'pre-add', Handler, Term),
                         none))
@@ -3279,7 +3357,8 @@ petta_hook_pre_phase(Space, Term, R, Wrapped) :-
 petta_hook_post_phase(Space, Term) :-
     (   petta_hook_claim(Space, post_add, Handler, Module),
         petta_hook_wrote_as_offered(Space, Term)
-    ->  catch(( (   eval_metta_in_module(Module, [Handler, Term], Verdict)
+    ->  catch(( (   petta_hook_eval(Space, post_add, Handler, Module, Term,
+                                    Verdict)
                 ->  petta_hook_post_apply(Verdict, Space, Handler, Term)
                 ;   throw(error(petta_hook_stuck(Space, 'post-add', Handler,
                                                  Term),
