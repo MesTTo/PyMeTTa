@@ -7,6 +7,9 @@ toggled between solves and ended by release, clingo's #external, which on
 an engine with no grounding step is exactly a togglable fact. The two
 classes below are the whole translation; the solve side is the query
 surface the space already has.
+Guarantees:
+  - reachability is a relation whose absent horizons fail instead of returning
+    residual calls [tested: integration/multishot_solving; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -76,6 +79,7 @@ class Part:
 
 
 m = MeTTa().new_space()
+m.run("!(add-atom &petta (dispatch-policy reach NoMatchEnum NoMatchFail))")
 
 # The base part: a graph as tabular facts, and step zero of reachability.
 m.add_table("edge", [(S.a, S.b), (S.b, S.c), (S.c, S.d)])
