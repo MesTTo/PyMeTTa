@@ -4,7 +4,7 @@ Guarantees:
     test_numpy_scalars_are_engine_numbers]
   - Gnd equality uses the engine's numeric-value relation across integer and
     float values [tested: test_python_equality_is_engine_equality;
-    commit=WORKTREE]
+    commit=e8ca6683f151c0dff369fec7d070c52b68458e30]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expr is a complete immutable Sequence with iterative equality and hashing
