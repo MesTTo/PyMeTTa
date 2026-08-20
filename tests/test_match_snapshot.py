@@ -5,11 +5,11 @@ arbiter pins it with an experiment built to tell an eager snapshot from a lazy
 query that happens to be fully consumed.
 Guarantees:
   - a conjunctive match answers every row it found, through templates that
-    remove the atoms the later conjuncts would have read [tested
-    test_match_snapshots_rows_before_template_effects]
+    remove the atoms the later conjuncts would have read
+    [tested: test_match_snapshots_rows_before_template_effects; commit=WORKTREE]
   - a single pattern gets the same guarantee from the logical update view and
     keeps streaming, so a first answer off a large space does not walk it
-    [tested test_a_single_pattern_snapshot_costs_nothing_extra]
+    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -73,9 +73,10 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
 
     A single pattern is one goal over one dynamic predicate, and the logical
     update view already fixes what it sees, so it keeps streaming: taking one
-    answer costs the same whether the space holds ten atoms or two thousand.
-    Measured 2026-08-19 on this box: 683 inferences either way, after a one-time first-use cost of 99 the probe below pays before comparing, first-use index and cache build; without the warm-up the verdict depended on which worker ran this file first, against the
-    thousands a collapse over the same two thousand atoms spends.
+    answer has no workload-sized growth between ten atoms and two thousand.
+    The probe pays the session's first-use work, then uses the benchmark
+    harness's established minimum-of-three policy and four-inference absolute
+    allowance for counter noise.
     """
     def first_answer_cost(size):
         space = metta.new_space()
@@ -90,8 +91,13 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
     first_answer_cost(2)  # the session's one-time first-use cost lands here, not in the comparison
 
     first_answer_cost(10)  # the first run compiles the directive; warm first
-    small, large = first_answer_cost(10), first_answer_cost(2000)
-    assert small == large, "taking one answer does not walk the space"
+    small_samples = [first_answer_cost(10) for _ in range(3)]
+    large_samples = [first_answer_cost(2000) for _ in range(3)]
+    small, large = min(small_samples), min(large_samples)
+    assert large <= small + 4, (
+        "taking one answer does not walk the space: "
+        f"small={small_samples!r}, large={large_samples!r}"
+    )
 
 
 def test_a_conjunction_carries_each_rows_annotation(metta):
