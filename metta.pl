@@ -1483,11 +1483,16 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
     ->  Verdict = [refuse, ['does-not-carry', Type]]
     ;   '$petta_atoms:&petta':'&petta'(capacity, Pool, Limit),
         %A foreign pool's atoms live with its provider, so its count is
-        %the enumeration space-atom-count refuses to hide; a native one
-        %is the store's own clause bookkeeping, O(1) in what it holds.
+        %the enumeration space-atom-count refuses to hide. A native capacity
+        %claim owns an incremental dynamic count; the first decision after a
+        %direct contract write installs it from the exact store count.
         (   metta_foreign_space(Pool)
         ->  aggregate_all(count, 'get-atoms'(Pool, _), Count)
-        ;   space_atom_count(Pool, Count)
+        ;   (   petta_capacity_count(Pool, Count)
+            ->  true
+            ;   petta_capacity_count_install(Pool),
+                petta_capacity_count(Pool, Count)
+            )
         ),
         Count >= Limit
     ->  Verdict = [refuse, ['pool-at-capacity', Limit]]
@@ -3251,6 +3256,10 @@ metta_undeclare_hook(Slot, Space) :-
                   ->  metta_remove_atom('&petta', [SlotAtom, Space, Handler], _),
                       petta_hook_drop_compiled(Space, Slot)
                   ;   true
+                  ),
+                  (   Slot == pre_add
+                  ->  petta_capacity_count_uninstall(Space)
+                  ;   true
                   ) )).
 
 %(admits Pool Type) and (capacity Pool N) in &petta are data until a pool
@@ -3279,7 +3288,8 @@ petta_admission_claim(Pool0, Declarer0) :-
                                              _)
                           ),
                           metta_declare_hook(pre_add, Pool, Guard) )))
-    ).
+    ),
+    petta_capacity_count_claim(Pool).
 
 petta_install_space_hooks :-
     (   petta_space_hooks_installed
@@ -3389,7 +3399,11 @@ petta_space_hooked_add(Space, Term, R, Wrapped) :-
 petta_hook_pre_phase(Space, Term, R, Wrapped) :-
     (   petta_hook_claim(Space, pre_add, Handler, Module)
     ->  (   petta_hook_eval(Space, pre_add, Handler, Module, Term, Verdict)
-        ->  petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
+        ->  (   petta_capacity_count(Space, _)
+            ->  petta_hook_apply_counted(Verdict, Space, Handler, Term, R,
+                                         Wrapped)
+            ;   petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped)
+            )
         ;   throw(error(petta_hook_stuck(Space, 'pre-add', Handler, Term),
                         none))
         )
@@ -3439,7 +3453,8 @@ petta_hook_post_apply([accept, Term1], Space, _, Term) :- !,
         setup_call_cleanup(
             b_setval('$petta_hook_granted', granted(Space, Term1)),
             metta_add_atom(Space, Term1, _),
-            b_setval('$petta_hook_granted', []))
+            b_setval('$petta_hook_granted', [])),
+        petta_capacity_count_added(Space, Term1)
     ).
 %The refusal's undo is the catch handler's, once for every error path.
 petta_hook_post_apply([refuse, Words], Space, _, Term) :- !,
@@ -3453,6 +3468,25 @@ petta_hook_granted_form(Space, Term) :-
     catch(b_getval('$petta_hook_granted', granted(GSpace, GTerm)), _, fail),
     GSpace == Space,
     GTerm == Term.
+
+%The counter fact is tested in the claimed pre phase, never on the direct
+%write path. A counted accept therefore knows it owns the fact and can update
+%without a second presence probe; the ordinary verdict algebra stays the
+%shared fallback for refusal, drop and malformed answers.
+petta_hook_apply_counted([accept], Space, _, Term, _, Wrapped) :- !,
+    call(Wrapped),
+    petta_capacity_count_added_known(Space, Term).
+petta_hook_apply_counted([accept, Term1], Space, _, Term, R, Wrapped) :- !,
+    (   Term1 == Term
+    ->  call(Wrapped)
+    ;   setup_call_cleanup(
+            b_setval('$petta_hook_granted', granted(Space, Term1)),
+            metta_add_atom(Space, Term1, R),
+            b_setval('$petta_hook_granted', []))
+    ),
+    petta_capacity_count_added_known(Space, Term1).
+petta_hook_apply_counted(Verdict, Space, Handler, Term, R, Wrapped) :-
+    petta_hook_apply(Verdict, Space, Handler, Term, R, Wrapped).
 
 petta_hook_apply([accept], _, _, _, _, Wrapped) :- !, call(Wrapped).
 petta_hook_apply([accept, Term1], Space, _, Term, R, Wrapped) :- !,

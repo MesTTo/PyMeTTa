@@ -26,6 +26,13 @@
 %     specialization is not stored again, so enumerating a space and re-adding
 %     its atoms answers a space that holds and answers what the first one did
 %     [tested: test_a_copy_reproduces_the_space_it_copied].
+%   - A native pool with a capacity admission claim keeps one rollback-safe
+%     dynamic atom count across direct adds, batches, removals, clears and
+%     capacity redeclaration; a pool without that claim keeps no counter
+%     [tested: the_capacity_counter_tracks_direct_adds_batches_removals_and_clears,
+%     capacity_counter_changes_roll_back_with_the_atoms,
+%     capacity_redeclaration_recounts_writes_made_while_unbounded;
+%     commit=WORKTREE].
 %   - Five 2,000-row native joins take 270305 direct and 270307 prepared
 %     inferences [measured: 270305 and 270307 inferences on 2026-08-15].
 %   - Native spaces preserve scalar atoms and expressions as distinct values
@@ -68,7 +75,8 @@
 %     pure-Prolog foreign match 34 to 41 inferences, bounded take 41 to
 %     55].
 % Guarded by: '$petta_native_storage' serializes private module creation and
-%   publication in native_storage_module_cache/2.
+%   publication in native_storage_module_cache/2; '$petta_capacity_count'
+%   serializes installation and replacement of each incremental count.
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -314,6 +322,9 @@ petta_catalog_note_added([vocabulary, Vocab|_]) :-
 petta_catalog_note_added(['routed-by-shape', Head|_]) :-
     !,
     petta_materialize_route(Head).
+petta_catalog_note_added([capacity, Pool, _]) :-
+    !,
+    petta_capacity_contract_added(Pool).
 petta_catalog_note_added(_).
 
 %The removal twin, called by the '&petta' clause of remove_sexp below for
@@ -325,7 +336,8 @@ petta_catalog_note_removed([Rel|_]) :-
     !,
     retractall(petta_kind_cache(_, _, _)),
     retractall(petta_vocab_cache(_, _, _)),
-    petta_materialize_routes.
+    petta_materialize_routes,
+    petta_capacity_counts_prune.
 petta_catalog_note_removed([kind, Head|_]) :-
     !,
     retractall(petta_kind_cache(Head, _, _)),
@@ -336,6 +348,9 @@ petta_catalog_note_removed([vocabulary, Vocab|_]) :-
 petta_catalog_note_removed(['routed-by-shape', Head|_]) :-
     !,
     petta_materialize_route(Head).
+petta_catalog_note_removed([capacity|_]) :-
+    !,
+    petta_capacity_counts_prune.
 petta_catalog_note_removed(_).
 
 %One catalog row as a list, whatever its arity: '&petta'(kind, handles,
@@ -868,18 +883,21 @@ remove_sexp('&petta', [Rel|Args], Removed) :- !,
         ;   true
         )
     ;   Removed = false
-    ).
+    ),
+    petta_capacity_count_removed('&petta', Removed).
 remove_sexp(Space, [Rel|Args], Removed) :- !,
     (   native_storage_module_ready(Space, Module)
     ->  Term =.. [Space, Rel | Args],
         native_retract_one(Module:Term, Removed)
     ;   Removed = false
-    ).
+    ),
+    petta_capacity_count_removed(Space, Removed).
 remove_sexp(Space, Atom, Removed) :-
     (   native_storage_module_ready(Space, Module)
     ->  native_retract_one(Module:'$petta_native_scalar'(Atom), Removed)
     ;   Removed = false
-    ).
+    ),
+    petta_capacity_count_removed(Space, Removed).
 
 native_retract_one(Head, Removed) :-
     ( \+ \+ retract(Head) -> Removed = true ; Removed = false ).
@@ -2966,25 +2984,137 @@ clear_foreign_atoms(Space) :-
 %nothing here to find and no removal is announced twice
 %[tested: spaces_execution_modules:clearing_a_space_empties_its_execution_module,
 %test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
-%How many atoms a native space holds, read from the store's own clause
-%bookkeeping rather than by walking it: every stored shape is a clause in
-%the storage module, and number_of_clauses/1 is the count SWI already
-%maintains per predicate, the manual's own count-asserted-facts idiom
+%Only a pool whose synthesized admission guard and capacity row coexist gets
+%a counter. Its dynamic fact participates in an enclosing transaction exactly
+%like the stored atom clauses do, so a rollback restores both. The regular
+%write door never probes it: successful claimed writes update it from the hook
+%path, while removals and clears repair it at their own doors. Removing the
+%capacity row drops it; adding the row back recounts once before the next
+%decision. An equation can be a derived duplicate that stores nothing, so that
+%rare shape recounts after the write instead of assuming one landed
+%[tested: capacity_counter_changes_roll_back_with_the_atoms,
+%capacity_redeclaration_recounts_writes_made_while_unbounded;
+%commit=WORKTREE].
+:- dynamic petta_capacity_count/2.
+
+petta_capacity_contract_added(Pool) :-
+    (   petta_capacity_admission_claim(Pool)
+    ->  petta_capacity_count_install(Pool)
+    ;   true
+    ).
+
+petta_capacity_admission_claim(Pool) :-
+    atom_concat('space-admission-guard-', Pool, Guard),
+    petta_hook_claim(Pool, pre_add, Guard, _).
+
+petta_capacity_count_claim(Pool) :-
+    (   '$petta_atoms:&petta':'&petta'(capacity, Pool, _)
+    ->  petta_capacity_count_install(Pool)
+    ;   true
+    ).
+
+petta_capacity_count_install(Space) :-
+    (   metta_foreign_space(Space)
+    ->  true
+    ;   petta_capacity_count(Space, _)
+    ->  true
+    ;   with_mutex('$petta_capacity_count',
+                   (   petta_capacity_count(Space, _)
+                   ->  true
+                   ;   space_atom_count_uncached(Space, Count),
+                       assertz(petta_capacity_count(Space, Count))
+                   ))
+    ).
+
+petta_capacity_count_uninstall(Space) :-
+    with_mutex('$petta_capacity_count',
+               retractall(petta_capacity_count(Space, _))).
+
+petta_capacity_counts_prune :-
+    findall(Pool, petta_capacity_count(Pool, _), Pools0),
+    sort(Pools0, Pools),
+    forall(member(Pool, Pools),
+           (   '$petta_atoms:&petta':'&petta'(capacity, Pool, _)
+           ->  true
+           ;   petta_capacity_count_uninstall(Pool)
+           )).
+
+petta_capacity_count_added(Space, [=, [F|_], _]) :-
+    atom(F),
+    !,
+    petta_capacity_count_recount(Space).
+petta_capacity_count_added(Space, _) :-
+    petta_capacity_count_delta(Space, 1).
+
+petta_capacity_count_added_known(Space, [=, [F|_], _]) :-
+    atom(F),
+    !,
+    petta_capacity_count_recount(Space).
+petta_capacity_count_added_known(Space, _) :-
+    petta_capacity_count_delta_known(Space, 1).
+
+petta_capacity_count_removed(_, false) :- !.
+petta_capacity_count_removed(Space, true) :-
+    petta_capacity_count_delta(Space, -1).
+
+petta_capacity_count_delta(Space, Delta) :-
+    (   petta_capacity_count(Space, _)
+    ->  petta_capacity_count_delta_known(Space, Delta)
+    ;   true
+    ).
+
+petta_capacity_count_delta_known(Space, Delta) :-
+    with_mutex('$petta_capacity_count',
+               transaction(( (   retract(petta_capacity_count(Space, Count0))
+                             ->  Count1 is Count0 + Delta,
+                                 (   Count1 >= 0
+                                 ->  Count = Count1
+                                 ;   space_atom_count_uncached(Space, Count)
+                                 ),
+                                 assertz(petta_capacity_count(Space, Count))
+                             ;   true
+                             ) ))).
+
+petta_capacity_count_recount(Space) :-
+    (   petta_capacity_count(Space, _)
+    ->  with_mutex('$petta_capacity_count',
+                   ( space_atom_count_uncached(Space, Count),
+                     transaction(( retractall(petta_capacity_count(Space, _)),
+                                   assertz(petta_capacity_count(Space, Count)) )) ))
+    ;   true
+    ).
+
+petta_capacity_count_cleared('&petta') :-
+    !,
+    with_mutex('$petta_capacity_count',
+               retractall(petta_capacity_count(_, _))).
+petta_capacity_count_cleared(Space) :-
+    (   petta_capacity_count(Space, _)
+    ->  with_mutex('$petta_capacity_count',
+                   transaction(( retractall(petta_capacity_count(Space, _)),
+                                 assertz(petta_capacity_count(Space, 0)) )))
+    ;   true
+    ).
+
+%How many atoms a native space holds. A capacity-claimed pool reads its
+%incremental fact; every other space reads the store's own per-predicate
+%clause bookkeeping, the manual's count-asserted-facts idiom
 %[source: https://www.swi-prolog.org/pldoc/man?predicate=predicate_property%2F2].
-%One property read per stored arity plus the scalar shelf, so the check a
-%capacity contract runs per add costs the same over a million atoms as over
-%ten [tested: spaces_atom_count]; the write-door capacity row in
-%python/benchmarks/extension-baseline.json carries the number. A space
-%that has never been written has no storage module and holds nothing. A
-%foreign space's atoms live with its provider, where the only general
-%count is an enumeration; at this predicate's contract that would be a lie
-%of a different complexity class, so a foreign space is refused by name
-%and a provider that keeps a count exposes it itself
+%A space that has never been written has no storage module and holds nothing.
+%A foreign space's atoms live with its provider, where the only general count
+%is an enumeration; hiding that would promise the wrong complexity class
 %[tested: spaces_atom_count:a_foreign_space_has_no_native_count].
+space_atom_count(Space, Count) :-
+    petta_capacity_count(Space, Count),
+    !.
 space_atom_count(Space, Count) :-
     (   metta_foreign_space(Space)
     ->  throw(error(petta_foreign_space_count(Space), none))
-    ;   native_storage_module_ready(Space, Module)
+    ;   space_atom_count_uncached(Space, Count)
+    ).
+
+space_atom_count_uncached(Space, Count) :-
+    (   native_storage_module_ready(Space, Module)
     ->  findall(N,
                 ( current_predicate(Module:Name/Arity),
                   functor(Head, Name, Arity),
@@ -3008,6 +3138,7 @@ clear_native_atoms(Space) :-
         retractall(Module:'$petta_native_scalar'(_))
     ;   true
     ),
+    petta_capacity_count_cleared(Space),
     retractall(import_life(Space, _, _)),
     forget_space_source_loads(Space).
 
