@@ -67,12 +67,13 @@
 %   - pattern_modifier/3 lifts lazy paths out of stored-pattern position and
 %     resolves them only after the root handle has matched [tested:
 %     test_a_path_reaches_into_a_handle_without_converting_it;
-%     commit=WORKTREE]
+%     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
 %   - a modifier-free query decides that case before its nondeterministic match,
 %     so path support adds 22 fixed inferences per one-pattern query instead of
 %     one call per answer [measured: query-2k-rows minimum of 561469, 561467,
 %     561467, 440 over 20 queries; command=python bench.py query-2k-rows
-%     --counter-only; fixture=2000-row native space; commit=WORKTREE]
+%     --counter-only; fixture=2000-row native space;
+%     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
