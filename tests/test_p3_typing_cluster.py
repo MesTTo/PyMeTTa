@@ -8,6 +8,8 @@ Guarantees:
   [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
   - pragma! accepts only keys whose setting changes an engine mechanism.
   [tested: test_no_pragma_key_is_accepted_and_inert; commit=WORKTREE]
+  - under-applied arrow heads have no type instead of a tuple fallback.
+  [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=WORKTREE]
 """
 
 import pytest
@@ -87,3 +89,12 @@ def test_no_pragma_key_is_accepted_and_inert():
     ):
         with pytest.raises(Exception, match=f"metta_pragma_key.*{key}"):
             metta.run(f"!(pragma! {key} {value})")
+
+
+def test_an_underapplied_arrow_head_types_as_the_arbiter_does():
+    metta = MeTTa(verbose=False)
+    metta.run("(: Nil (List $t))")
+    metta.run("(: Cons (-> $t (List $t) (List $t)))")
+
+    assert _answers(metta, "!(get-type (Cons 1))") == []
+    assert _answers(metta, "!(get-type (Cons 1 Nil))") == ["(List Number)"]
