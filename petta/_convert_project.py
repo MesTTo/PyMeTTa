@@ -16,7 +16,7 @@ Guarantees:
   - a TypedDict's full annotation selects the same named constructor image
     and field declaration as its value
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-     commit=WORKTREE]
+     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -16,7 +16,7 @@ Guarantees:
   - resolved parameter and return annotations select conversion in both
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-    commit=WORKTREE]
+    commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

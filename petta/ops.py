@@ -7,7 +7,7 @@ Guarantees:
     space [tested test_public_context_types_are_distinct]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
 Open Obligations:
   To Do: None
   Hacks: None

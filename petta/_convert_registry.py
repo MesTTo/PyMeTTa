@@ -13,7 +13,7 @@ Guarantees:
   - TypedDict classes route through their annotation hook rather than the
     ordinary-class registry path
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-     commit=WORKTREE]
+     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
