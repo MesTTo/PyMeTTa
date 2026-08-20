@@ -7,6 +7,10 @@ Assumes:
   - an Exact handles route pushes the caller's bound to the provider, so
     the bound the provider records is the routing observable
     [tested: test_foreign.py's bound-pushdown suite]
+Guarantees:
+  - generated vocabulary aliases preserve declared CamelCase names
+    [tested: test_generated_alias_preserves_declared_camel_case;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -111,6 +115,16 @@ def test_the_vocabulary_module_is_generated(repo_root):
     finally:
         sys.path.pop(0)
     assert vocabgen.main([]) == 0
+
+
+def test_generated_alias_preserves_declared_camel_case(repo_root):
+    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    try:
+        import vocabgen
+    finally:
+        sys.path.pop(0)
+    assert vocabgen.alias_name("answer-policy") == "AnswerPolicy"
+    assert vocabgen.alias_name("ClauseFailedEnum") == "ClauseFailedEnum"
 
 
 def test_the_binding_refuses_by_the_generated_vocabulary():

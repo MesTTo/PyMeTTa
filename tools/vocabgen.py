@@ -15,9 +15,12 @@ Assumes:
     which is how every gate lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested test_the_vocabulary_module_is_generated]
+    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
+  - a catalog name that already uses CamelCase keeps that spelling in its
+    Python alias [tested: test_generated_alias_preserves_declared_camel_case;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -84,7 +87,7 @@ def constant_name(vocab: str) -> str:
 
 
 def alias_name(vocab: str) -> str:
-    return "".join(part.capitalize() for part in vocab.split("-"))
+    return "".join(part[:1].upper() + part[1:] for part in vocab.split("-"))
 
 
 def module_text(rows: list[tuple[str, list[str]]]) -> str:

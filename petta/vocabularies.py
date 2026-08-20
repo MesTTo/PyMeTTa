@@ -20,14 +20,20 @@ __all__ = [
     "ANSWER_POLICY",
     "ATOMICITY",
     "CACHE_MODE",
+    "CLAUSEFAILEDENUM",
     "DETERMINISM",
     "EFFECT_CLASS",
+    "EVALUATIONORDERENUM",
     "FIDELITY",
+    "FUNCTIONRESULTENUM",
     "MEMO_AGGREGATE",
     "MEMO_STRATEGY",
+    "MISMATCHENUM",
+    "NOMATCHENUM",
     "NUMERIC_TYPE",
     "ON_ERROR_MODE",
     "OP_KIND",
+    "OUTOFCLAUSESENUM",
     "ROUTE_KEY",
     "SAVE_FORMAT",
     "SEMIRING",
@@ -38,14 +44,20 @@ __all__ = [
     "AnswerPolicy",
     "Atomicity",
     "CacheMode",
+    "ClauseFailedEnum",
     "Determinism",
     "EffectClass",
+    "EvaluationOrderEnum",
     "Fidelity",
+    "FunctionResultEnum",
     "MemoAggregate",
     "MemoStrategy",
+    "MismatchEnum",
+    "NoMatchEnum",
     "NumericType",
     "OnErrorMode",
     "OpKind",
+    "OutOfClausesEnum",
     "RouteKey",
     "SaveFormat",
     "Semiring",
@@ -54,6 +66,30 @@ __all__ = [
     "Volatility",
     "World",
 ]
+
+#: (vocabulary ClauseFailedEnum ClauseFailNonDet ClauseFailDet)
+CLAUSEFAILEDENUM = ("ClauseFailNonDet", "ClauseFailDet")
+ClauseFailedEnum = Literal["ClauseFailNonDet", "ClauseFailDet"]
+
+#: (vocabulary EvaluationOrderEnum OrderClause OrderFittest)
+EVALUATIONORDERENUM = ("OrderClause", "OrderFittest")
+EvaluationOrderEnum = Literal["OrderClause", "OrderFittest"]
+
+#: (vocabulary FunctionResultEnum Nondeterministic Deterministic)
+FUNCTIONRESULTENUM = ("Nondeterministic", "Deterministic")
+FunctionResultEnum = Literal["Nondeterministic", "Deterministic"]
+
+#: (vocabulary MismatchEnum MismatchOriginal MismatchError MismatchFail)
+MISMATCHENUM = ("MismatchOriginal", "MismatchError", "MismatchFail")
+MismatchEnum = Literal["MismatchOriginal", "MismatchError", "MismatchFail"]
+
+#: (vocabulary NoMatchEnum NoMatchOriginal NoMatchFail NoMatchError)
+NOMATCHENUM = ("NoMatchOriginal", "NoMatchFail", "NoMatchError")
+NoMatchEnum = Literal["NoMatchOriginal", "NoMatchFail", "NoMatchError"]
+
+#: (vocabulary OutOfClausesEnum FailureOriginal FailureEmpty FailureError)
+OUTOFCLAUSESENUM = ("FailureOriginal", "FailureEmpty", "FailureError")
+OutOfClausesEnum = Literal["FailureOriginal", "FailureEmpty", "FailureError"]
 
 #: (vocabulary answer-policy depth fair best-first)
 ANSWER_POLICY = ("depth", "fair", "best-first")
