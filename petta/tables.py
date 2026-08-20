@@ -33,6 +33,10 @@ connection)` reads every one back, so a program carries its schema as
 knowledge and the attach is one line.
 
 Guarantees:
+  - a database row becomes an atom from its typed cell values; plain text is
+    always a symbol, NULL is Gnd(None), and structured values use the tagged
+    atom wire rather than the source parser [tested:
+    test_a_row_value_becomes_an_atom_without_being_reparsed; commit=WORKTREE]
   - the whole pattern family is filtered exactly where SQL can express
     it: ground positions become comparisons, a repeated variable becomes
     the equality it demands (column to column, or column to the declared
@@ -59,11 +63,88 @@ Open Obligations:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable, Iterator
 from typing import Any, Protocol, cast
 
-from .atoms import Atom, Expr, Var, is_ground, unify
+from .atoms import (
+    Atom,
+    Expr,
+    Gnd,
+    Sym,
+    Var,
+    atom_from_wire,
+    encode,
+    is_ground,
+    unify,
+)
 from .foreign import SpaceProvider
+
+_ATOM_CELL_PREFIX = b"\x00petta-atom-v1\x00"
+
+
+def _encoded_cell(atom: Atom) -> bytes:
+    """A structured atom in a DB-API scalar, without passing through text."""
+    try:
+        payload = json.dumps(
+            atom.to_wire(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        msg = (
+            f"{atom!r} has no stable table-cell representation; table rows can "
+            "carry symbols, primitive grounded values, and expressions made from them"
+        )
+        raise ValueError(msg) from exc
+    return _ATOM_CELL_PREFIX + payload
+
+
+def _atom_from_cell(value: Any) -> Atom:
+    """Map one driver value to its atom; text is data, never source code."""
+    binary = bytes(value) if isinstance(value, (bytearray, memoryview)) else value
+    if isinstance(binary, bytes) and binary.startswith(_ATOM_CELL_PREFIX):
+        try:
+            wire = json.loads(binary[len(_ATOM_CELL_PREFIX) :].decode("utf-8"))
+            return atom_from_wire(wire)
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            msg = "a table cell starts with PeTTa's atom tag but its payload is corrupt"
+            raise ValueError(msg) from exc
+    if isinstance(value, str):
+        return Sym(value)
+    return encode(value)
+
+
+def _cell_from_atom(atom: Atom) -> Any:
+    """Map an atom to one DB-API parameter that `_atom_from_cell` inverts."""
+    if isinstance(atom, Sym):
+        return atom.name
+    if isinstance(atom, Gnd):
+        value = atom.value
+        if value is None or type(value) in (int, float):
+            return value
+        if type(value) in (bool, str):
+            return _encoded_cell(atom)
+        msg = (
+            f"{atom!r} is an opaque grounded value; a table cell needs a stable "
+            "database representation"
+        )
+        raise ValueError(msg)
+    if isinstance(atom, Expr):
+        return _encoded_cell(atom)
+    msg = f"{atom!r} cannot be stored in one table column"
+    raise ValueError(msg)
+
+
+def _value_constraint(
+    where: list[str], arguments: list[Any], column: str, value: Any
+) -> None:
+    """Append SQL's explicit NULL comparison or a parameter comparison."""
+    if value is None:
+        where.append(f"{column} IS NULL")
+    else:
+        where.append(f"{column} = ?")
+        arguments.append(value)
 
 
 class Executes(Protocol):
@@ -111,7 +192,7 @@ class _Shape:
                 msg = f"the atom shape's {child} has no column in {row_shape}"
                 raise ValueError(msg)
 
-    def constraints(self, pattern: Atom) -> tuple[list[str], list[str], bool] | None:  # noqa: C901  -- constraints keeps the table constraint compiler together so its branches share one state
+    def constraints(self, pattern: Atom) -> tuple[list[str], list[Any], bool] | None:  # noqa: C901  -- constraints keeps the table constraint compiler together so its branches share one state
         """WHERE fragments from matching the pattern against this shape.
 
         Answers (where, arguments, exact), or None when the shapes cannot
@@ -123,12 +204,12 @@ class _Shape:
         if not isinstance(pattern, Expr) or len(pattern.children) != len(self.shape.children):
             return None
         where: list[str] = []
-        arguments: list[str] = []
+        arguments: list[Any] = []
         exact = True
-        seen: dict[str, tuple[str, str]] = {}
+        seen: dict[str, tuple[str, Any]] = {}
         for shaped, given in zip(self.shape.children, pattern.children, strict=True):
             if not isinstance(shaped, Var):
-                constant = str(shaped)
+                constant = shaped
                 if isinstance(given, Var):
                     name = str(given)
                     prior = seen.get(name)
@@ -138,10 +219,14 @@ class _Shape:
                         if prior[1] != constant:
                             return None
                     else:
-                        where.append(f"{prior[1]} = ?")
-                        arguments.append(constant)
+                        _value_constraint(
+                            where,
+                            arguments,
+                            prior[1],
+                            _cell_from_atom(constant),
+                        )
                     continue
-                if str(given) != constant:
+                if given != constant:
                     return None
                 continue
             column = self.columns[str(shaped)]
@@ -153,14 +238,22 @@ class _Shape:
                 elif prior[0] == "column":
                     where.append(f"{column} = {prior[1]}")
                 else:
-                    where.append(f"{column} = ?")
-                    arguments.append(prior[1])
+                    _value_constraint(
+                        where,
+                        arguments,
+                        column,
+                        _cell_from_atom(prior[1]),
+                    )
                 continue
             if isinstance(given, Expr) and not is_ground(given):
                 exact = False
                 continue
-            where.append(f"{column} = ?")
-            arguments.append(str(given))
+            _value_constraint(
+                where,
+                arguments,
+                column,
+                _cell_from_atom(given),
+            )
         return where, arguments, exact
 
     def column_list(self) -> str:
@@ -170,20 +263,20 @@ class _Shape:
             if isinstance(child, Var)
         )
 
-    def values(self, atom: Expr) -> list[str]:
+    def values(self, atom: Expr) -> list[Any]:
         return [
-            str(given)
+            _cell_from_atom(given)
             for shaped, given in zip(self.shape.children, atom.children, strict=True)
             if isinstance(shaped, Var)
         ]
 
-    def atom(self, parse: Callable[[str], Atom], row: Any) -> Atom:
+    def atom(self, row: Any) -> Atom:
         values = iter(row)
-        spelled = " ".join(
-            str(next(values)) if isinstance(child, Var) else str(child)
+        children = [
+            _atom_from_cell(next(values)) if isinstance(child, Var) else child
             for child in self.shape.children
-        )
-        return parse(f"({spelled})")
+        ]
+        return Expr(children)
 
 
 class TableBridge(SpaceProvider):
@@ -235,7 +328,7 @@ class TableBridge(SpaceProvider):
 
     def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return (
-            shape.atom(self._parse, row)
+            shape.atom(row)
             for shape in self._shapes
             for row in self._select(shape, [], [])
         )
@@ -244,7 +337,7 @@ class TableBridge(SpaceProvider):
         def answers() -> Iterator[Atom]:
             for shape, (where, arguments, _exact) in self._admitting(pattern):
                 for row in self._select(shape, where, arguments, limit):
-                    yield shape.atom(self._parse, row)
+                    yield shape.atom(row)
 
         return answers()
 
@@ -301,14 +394,19 @@ class TableBridge(SpaceProvider):
             doomed = [
                 shape.values(atom)
                 for row in self._select(shape, where, arguments)
-                for atom in (shape.atom(self._parse, row),)
+                for atom in (shape.atom(row),)
                 if isinstance(atom, Expr) and unify(pattern, atom) is not None
             ]
-            clause = " AND ".join(f"{column} = ?" for column in shape.columns.values())
             for values in doomed:
+                clauses: list[str] = []
+                delete_args: list[Any] = []
+                for column, value in zip(
+                    shape.columns.values(), values, strict=True
+                ):
+                    _value_constraint(clauses, delete_args, column, value)
                 self.connection.execute(
-                    f"DELETE FROM {shape.table} WHERE {clause}",  # noqa: S608 - identifiers from the trusted declaration  # nosec B608
-                    values,
+                    f"DELETE FROM {shape.table} WHERE {' AND '.join(clauses)}",  # noqa: S608 - identifiers from the trusted declaration  # nosec B608
+                    delete_args,
                 )
             removed = bool(doomed) or removed
         return removed
@@ -340,7 +438,7 @@ class TableBridge(SpaceProvider):
         self,
         shape: _Shape,
         where: list[str],
-        arguments: list[str],
+        arguments: list[Any],
         limit: int | None = None,
     ) -> list[Any]:
         sql = f"SELECT {shape.column_list()} FROM {shape.table}"  # noqa: S608  # nosec B608 - identifiers from the trusted declaration

@@ -13,13 +13,58 @@ from importlib import util as _importlib_util
 from pathlib import Path
 
 import pytest
+from hypothesis import example, given
+from hypothesis import strategies as st
 
 import petta
 from petta import S, testing
+from petta.tables import TableBridge
 
 _MODULE_PATH = (
     Path(__file__).resolve().parents[1] / "examples" / "integration" / "sqlite_space.py"
 )
+
+
+class _OneRow:
+    """The DB-API slice needed to expose one generated driver row."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def execute(self, _sql, _parameters=()):
+        return [(self.value,)]
+
+    def commit(self):
+        return None
+
+    def rollback(self):
+        return None
+
+
+@example(None)
+@example("None")
+@example("space here")
+@example("(")
+@example('say "hello"')
+@example("λ雪")
+@given(
+    st.one_of(
+        st.none(),
+        st.text(),
+        st.integers(),
+        st.floats(allow_nan=False, allow_infinity=False),
+    )
+)
+def test_a_row_value_becomes_an_atom_without_being_reparsed(value):  # noqa: D103  -- the exact acceptance-test name states the property
+    m = petta.MeTTa()
+    provider = TableBridge(
+        m.parse,
+        _OneRow(value),
+        "(bridge (value $x) (row generated (cell $x)))",
+    )
+    (atom,) = tuple(provider.atoms())
+    expected = petta.Sym(value) if isinstance(value, str) else petta.encode(value)
+    assert atom == petta.Expr([S.value, expected])
 
 
 def _module():
