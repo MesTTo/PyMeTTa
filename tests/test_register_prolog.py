@@ -29,6 +29,10 @@ Guarantees:
   - one name has one owning tier, refused in both directions and leaving the
     incumbent usable [tested test_a_python_operation_is_not_silently_replaced,
     test_a_prolog_registration_is_not_silently_replaced]
+  - an extension may add its own builtin type row without replacing the
+    engine's table, and unload removes only that row [tested:
+    test_a_library_types_its_own_blob_without_destroying_the_table;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,6 +40,8 @@ Open Obligations:
 """
 
 import contextlib
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -357,6 +363,48 @@ def test_an_extension_unloads_whole(space, declared):
     assert str(space.one("(rp-demo-scale 3)")) == "(rp-demo-scale 3)"
     with pytest.raises(PettaError, match="does not exist"):
         space.unregister_prolog("rp_demo")
+
+
+def test_a_library_types_its_own_blob_without_destroying_the_table(
+    repo_root, tmp_path
+):
+    """A clause from another file extends the shared type register safely."""
+    extension = tmp_path / "p5_blob_types.pl"
+    extension.write_text(
+        ":- metta_extension(p5_blob_types, [version('0.1.0')]).\n"
+        "builtin_type_declaration('p5-blob', 'P5Blob').\n"
+    )
+    script = """
+import sys
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+sys.path.insert(0, str(repo / "bindings" / "python"))
+from petta import MeTTa
+
+m = MeTTa(petta_path=str(repo))
+def types(form):
+    return {str(atom) for row in m.run(form) for atom in row}
+
+plus = {"(-> Number Number Number)"}
+assert types("!(get-type +)") == plus
+assert m.register_prolog(path=sys.argv[2]) == ()
+assert types("!(get-type p5-blob)") == {"P5Blob"}
+assert types("!(get-type +)") == plus
+m.unregister_prolog("p5_blob_types")
+assert types("!(get-type p5-blob)") == {"%Undefined%"}
+assert types("!(get-type +)") == plus
+print("P5_MULTIFILE_OK")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(repo_root), str(extension)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stdout.strip().endswith("P5_MULTIFILE_OK")
 
 
 def test_a_declaration_without_an_extension_still_reports_its_names(space, tmp_path):
