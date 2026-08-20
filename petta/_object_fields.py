@@ -2,7 +2,7 @@
 Guarantees:
   - reflective operations and object-space views share one field inventory
     [tested: test_a_query_joins_stored_atoms_with_live_object_fields;
-    commit=WORKTREE]
+    commit=a3f7e1600b1547617d8be1c365df9c00a74ee81e]
 Open Obligations:
   To Do: None
   Hacks: None
