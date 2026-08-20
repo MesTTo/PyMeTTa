@@ -53,6 +53,10 @@ Guarantees:
     a provider whose add() drops the atom still answers the call
     [measured 2026-08-17], and firing alone would pass for a provider holding
     nothing [tested test_a_declared_rule_space_holds_a_program]
+  - the cross-space join witness carries the shared value and inspects the
+    collapse result's children, so one joined row cannot look like no answer
+    [tested: test_the_provider_joins_with_a_native_space;
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 Owns: one registered space name per test, unregistered in the fixture's
   teardown whatever the test did
 Decides: which of the engine's expectations are general enough to hold of ANY
@@ -576,9 +580,9 @@ class SpaceComplianceSuite:
             answered = native.run(
                 f"!(collapse (match {space.space_name} {open_pattern(atom)} "
                 f"(match (context-space) "
-                f"(petta-compliance-native $shared) reached)))"
+                f"(petta-compliance-native $shared) (reached $shared))))"
             )
-        assert answered and answered[0] and answered[0][0].args, (
+        assert answered and answered[0] and answered[0][0].children, (
             "a join between a native space and the provider answered nothing"
         )
 

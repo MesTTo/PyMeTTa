@@ -33,6 +33,14 @@ Guarantees:
     test_cast_target_is_positional_only]
   - dropping a space releases its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - new_space(inherits=parent) creates a child-first read view whose writes and
+    lifecycle stay local [tested:
+    test_a_child_space_reads_through_its_parent_and_writes_locally;
+    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+  - new_space(restricted=True, grants=...) fixes a capability profile at
+    creation [tested:
+    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
   - eval_status and run_status separate a pruned branch from an unevaluated
     term, and strict= refuses only the latter [tested
     test_eval_status_reports_the_four_outcomes,
@@ -416,7 +424,13 @@ class MeTTa:
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
-    def new_space(self) -> MeTTa:
+    def new_space(
+        self,
+        *,
+        inherits: MeTTa | None = None,
+        restricted: bool = False,
+        grants: _abc.Iterable[str] = (),
+    ) -> MeTTa:
         """An anonymous space with a name nothing else is using.
 
         Works as a context manager: leaving the block drops the space, so a
@@ -432,7 +446,44 @@ class MeTTa:
         isolate the data a test writes, not the names it registers; to isolate
         a name, unregister it.
         """
-        row = self._rt.must("petta_py_new_space(Name)")
+        if inherits is not None and not isinstance(inherits, MeTTa):
+            raise TypeError(
+                f"new_space(inherits=...) takes a live MeTTa space, got "
+                f"{inherits!r}"
+            )
+        if inherits is not None and inherits._dropped:
+            raise PettaError("new_space(inherits=...) takes a live MeTTa space")
+        if not isinstance(restricted, bool):
+            raise TypeError("new_space(restricted=...) takes a bool")
+        if isinstance(grants, str):
+            raise TypeError("new_space(grants=...) takes an iterable of capability names")
+        try:
+            requested_grants = tuple(grants)
+        except TypeError as exc:
+            raise TypeError(
+                "new_space(grants=...) takes an iterable of capability names"
+            ) from exc
+        if any(not isinstance(capability, str) for capability in requested_grants):
+            raise TypeError("every new_space grant must be a string")
+        unknown = set(requested_grants) - {"file", "process", "network"}
+        if unknown:
+            raise ValueError(f"unknown space capabilities: {sorted(unknown)!r}")
+        if requested_grants and not restricted:
+            raise ValueError("new_space grants require restricted=True")
+        if inherits is not None and restricted:
+            raise ValueError("a space cannot be both inherited and restricted")
+
+        if restricted:
+            row = self._rt.must(
+                "petta_py_new_restricted_space(Grants, Name)",
+                Grants=list(requested_grants),
+            )
+        elif inherits is None:
+            row = self._rt.must("petta_py_new_space(Name)")
+        else:
+            row = self._rt.must(
+                "petta_py_new_space(Parent, Name)", Parent=inherits._space
+            )
         fresh = MeTTa(str(row["Name"]))
         fresh._ephemeral = True
         return fresh
@@ -449,6 +500,10 @@ class MeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._dropped:
             return
+        if self._space != "&self":
+            self._rt.must(
+                "petta_py_space_releasable(Space)", Space=self._space
+            )
         for subscription in _subscriptions_for(self._space):
             subscription.cancel()
         if has_provider(self._space):

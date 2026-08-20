@@ -22,6 +22,10 @@ Guarantees:
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
     as EngineError, neither an instance of the other [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
+  - the restricted-space formal maps to SpaceCapabilityError before the
+    generic operation and engine classifiers [tested:
+    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -59,6 +63,7 @@ from .errors import (
     MettaOperationError,
     MettaSyntaxError,
     PettaError,
+    SpaceCapabilityError,
     TimeLimitError,
 )
 
@@ -647,6 +652,7 @@ class Runtime:
                 if error_type is not None:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
             self._raise_assertion_failure(exc, term, message)
+            self._raise_space_capability_error(exc, term, message)
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
 
@@ -708,6 +714,38 @@ class Runtime:
             return None
         obj = row.get("Obj")
         return obj if isinstance(obj, base) else None
+
+    def _raise_space_capability_error(
+        self, exc: BaseException, term: object, message: str
+    ) -> None:
+        """Raise SpaceCapabilityError with the refusal's stable fields."""
+        try:
+            row = self._janus.query_once(
+                "petta_py_space_capability_error(Error, Space, Operation, Capability)",
+                {"Error": term},
+            )
+        except self._janus.PrologError as classifier_error:
+            raise EngineError(
+                f"{message}; the capability classifier failed: "
+                f"{_clean_message(classifier_error)}"
+            ) from exc
+        if row is None or row.get("truth") is False:
+            return
+        space = row.get("Space")
+        operation = row.get("Operation")
+        capability = row.get("Capability")
+        if (
+            not isinstance(space, str)
+            or not isinstance(operation, str)
+            or not isinstance(capability, str)
+        ):
+            return
+        raise SpaceCapabilityError(
+            message,
+            space=space,
+            operation=operation,
+            capability=capability,
+        ) from exc
 
     def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
         """Raise MettaOperationError when the term names a MeTTa operation."""

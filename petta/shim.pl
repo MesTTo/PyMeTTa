@@ -20,6 +20,17 @@
 %     test_loading_the_same_file_twice_leaves_one_copy]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
+%   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
+%     declarations aligned with anonymous-name reuse [tested:
+%     test_a_recycled_child_name_may_choose_a_different_parent;
+%     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
+%     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
+%     commit=6a08901f4125c2536f5b4032daac9937f793870f]
+%   - proof leaves recover a parametric space from its canonical storage
+%     module and reserved functor [tested:
+%     test_two_instances_of_a_parametric_space_answer_independently;
+%     commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
@@ -482,6 +493,10 @@ petta_py_operation_error(Error, Operation, Kind, Expected, Culprit) :-
 
 petta_py_operation_part(Part, @none) :- var(Part), !.
 petta_py_operation_part(Part, Part).
+
+petta_py_space_capability_error(
+    error(petta_space_capability_required(Space, Operation, Capability), _),
+    Space, Operation, Capability).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a petta_py_control_exception/1 here holding a SECOND copy of the list,
@@ -1070,6 +1085,22 @@ petta_py_new_space(Name) :-
       -> true
     ; petta_py_next_space(Name) ).
 
+petta_py_new_space(Parent0, Name) :-
+    ( atom(Parent0) -> Parent = Parent0 ; atom_string(Parent, Parent0) ),
+    petta_py_new_space(Name),
+    catch(metta_declare_space_parent(Name, Parent), Error,
+          ( petta_py_pool_space(Name), throw(Error) )).
+
+petta_py_new_restricted_space(Grants0, Name) :-
+    maplist(petta_py_space_capability, Grants0, Grants),
+    petta_py_new_space(Name),
+    catch(metta_declare_restricted_space(Name, Grants), Error,
+          ( petta_py_pool_space(Name), throw(Error) )).
+
+petta_py_space_capability(Capability, Capability) :- atom(Capability), !.
+petta_py_space_capability(Capability0, Capability) :-
+    atom_string(Capability, Capability0).
+
 petta_py_next_space(Name) :-
     retract(petta_py_space_counter(N)),
     N1 is N + 1,
@@ -1083,11 +1114,19 @@ petta_py_space_untouched(Name) :-
     \+ petta_py_foreign(Name),
     \+ metta_host_stored(Name, _).
 
-%Release a space: everything cleared, the name pooled for reuse.
+petta_py_pool_space(Name) :-
+    ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
+
+petta_py_space_releasable(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    metta_assert_space_releasable(Name).
+
+%Release a space: everything cleared, inheritance unlinked, the execution
+%base forgotten, and only then the name pooled for reuse.
 petta_py_release_space(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    petta_py_clear(Name),
-    ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
+    metta_release_space(Name),
+    petta_py_pool_space(Name).
 
 %%%%%%%%%% Query %%%%%%%%%%
 %
@@ -2055,7 +2094,7 @@ petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
          petta_py_solve_(M, Body, D1, Sub, Status, Barrier),
          Tree = [step(Goal, Source, Sub)]
     ; call(M:Body),
-      petta_py_leaf(Goal, Tree),
+      petta_py_leaf(M, Goal, Tree),
       Status = complete ).
 
 petta_py_findall_results([], [], [], complete).
@@ -2069,12 +2108,14 @@ petta_py_next_depth(D, D) :- D < 0, !.
 petta_py_next_depth(D, D1) :- D1 is D - 1.
 
 %A match over a space names the atom it found; anything else names its goal:
-petta_py_leaf(match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
-petta_py_leaf(Goal, [fact('&self', Fact)]) :-
+petta_py_leaf(_, match(Space, Pattern, _, _), [fact(Space, Pattern)]) :- !.
+petta_py_leaf(Module, Goal, [fact(Space, Fact)]) :-
+    metta_host_native_fact(Module, Goal, Space, Fact), !.
+petta_py_leaf(_, Goal, [fact('&self', Fact)]) :-
     functor(Goal, Space, _),
     atom_concat('&', _, Space), !,
     Goal =.. [Space|Fact].
-petta_py_leaf(Goal, [builtin(Goal)]).
+petta_py_leaf(_, Goal, [builtin(Goal)]).
 
 %The tree crosses as nested tagged expressions:
 %  (derivation Conclusion Steps...) with each step
