@@ -17,6 +17,10 @@
 %     source code before Python publishes an operation
 %     [tested: test_a_duplicate_declaration_names_the_first_one;
 %     commit=WORKTREE]
+%   - derivations descend through the default six-axis dispatch wrapper, so
+%     recursive proof depth remains bounded and one equation yields one proof
+%     [tested: test_depth_exhaustion_returns_a_partial_proof;
+%     commit=WORKTREE]
 %   - petta_py_load/3 loads under the engine's own source-load lifecycle, so
 %     the library's door and import! replace each other's loads of a file and
 %     not only their own [tested 2026-08-19:
@@ -2044,6 +2048,31 @@ petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status, _) :- !,
             Results),
     petta_py_findall_results(Results, Values, Tree, Status),
     ( Status == complete -> List = Values ; true ).
+
+%The P3 dispatcher is engine machinery, but its shipped fast path wraps an
+%ordinary generated goal. Treating the wrapper as a generic Prolog predicate
+%enumerated its implementation clauses as separate proofs and ran the wrapped
+%recursion through call/1, outside the derivation depth counter. Open the fast
+%path and keep its direct goal inside this interpreter. A non-default policy is
+%still executed by the authoritative dispatcher and recorded as one opaque
+%builtin; duplicating its retained-clause interpreter here would let proofs and
+%evaluation drift on the six policy axes.
+petta_py_solve_(M,
+                dispatch_policy_execute(Module, Fun, Args, Goal, Out),
+                D, Tree, Status, Barrier) :-
+    !,
+    dispatch_effective_axes(Fun, Order, ResultMode, ClauseMode, Exhaustion),
+    (   dispatch_fast_axes(Order, ResultMode, ClauseMode, Exhaustion)
+    ->  (   dispatch_any_head_matches(Module, Fun, Args, Goal)
+        ->  petta_py_solve_(Module, Goal, D, Tree, Status, Barrier)
+        ;   dispatch_no_match_result(Fun, Args, Out),
+            Tree = [builtin(dispatch_no_match_result(Fun, Args, Out))],
+            Status = complete
+        )
+    ;   dispatch_policy_execute(Module, Fun, Args, Goal, Out),
+        Tree = [builtin(dispatch_policy_execute(Module, Fun, Args, Goal, Out))],
+        Status = complete
+    ).
 
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is
