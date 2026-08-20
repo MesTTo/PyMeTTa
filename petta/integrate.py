@@ -21,7 +21,7 @@ Guarantees:
   - discovery refuses duplicate names, missing dependencies, and named
     dependency cycles, and installs acyclic entries in topological order
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested

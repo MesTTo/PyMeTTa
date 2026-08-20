@@ -24,7 +24,7 @@ Guarantees:
   - an otherwise opaque buffer carries its identity together with shape,
     format, item size, dimensionality, strides, and access metadata
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Open Obligations:
   To Do: None
   Hacks: None

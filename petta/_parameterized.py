@@ -11,7 +11,7 @@ Guarantees:
   - bare and abstract sequence, mapping, and set annotations select the same
     full-annotation hooks as their builtin concrete forms
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for

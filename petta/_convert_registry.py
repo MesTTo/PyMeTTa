@@ -21,7 +21,7 @@ Guarantees:
   - a dataclass whose required InitVar cannot be reconstructed is refused at
     registration, while a defaulted InitVar remains reconstructible
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]

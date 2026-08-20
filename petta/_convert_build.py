@@ -15,7 +15,7 @@ Guarantees:
   - buffer projections rebuild the exact carried exporter rather than copying
     or discarding its layout
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Open Obligations:
   To Do: None
   Hacks: None
