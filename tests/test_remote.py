@@ -15,6 +15,10 @@ Guarantees:
     test_an_idle_cursor_is_released,
     test_a_gateway_refuses_more_cursors_than_it_holds,
     test_closing_the_server_releases_open_cursors]
+  - lazy enumeration measurements vary only the atom count in one space and
+    use the minimum of three samples [tested:
+    test_two_answers_cross_the_wire_without_the_third_being_computed;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -454,49 +458,66 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
     door is measured beside it and grows with the space, which is the gap
     the lifecycle exists to close.
 
-    Measured 2026-08-20 on this box, identical across three runs: 1,250
-    inferences for two answers at either size, against 1,839 inferences
-    for all ten and 1,490,407 for all ten thousand.
-    `statistics(inferences)` is process-wide in SWI, so the server's own
-    worker thread is what these numbers count.
+    The same space grows from ten atoms to ten thousand, so space identity
+    and module setup cannot masquerade as size-dependent work. Each point is
+    the minimum of three samples. `statistics(inferences)` is process-wide in
+    SWI, so the server's own worker thread is what these numbers count.
     """
     server = remote.serve(metta)
-    scratches = []
+    scratch = metta.new_space()
     lazy, eager, crossings = {}, {}, {}
     try:
+        calls: list[str] = []
+        inner = remote.connect(server.url)
+
+        def counting(operation, payload, _inner=inner, _calls=calls):
+            _calls.append(operation)
+            return _inner(operation, payload)
+
+        space = remote.RemoteSpace(counting, scratch.space_name)
+        pattern = petta.parse("(re_lazy $n)")
+        populated = 0
         for size in (10, 10_000):
-            scratch = metta.new_space()
-            scratches.append(scratch)
-            scratch.add(*[petta.parse(f"(re_lazy {n})") for n in range(size)])
-            calls: list[str] = []
-            inner = remote.connect(server.url)
-
-            def counting(operation, payload, _inner=inner, _calls=calls):
-                _calls.append(operation)
-                return _inner(operation, payload)
-
-            space = remote.RemoteSpace(counting, scratch.space_name)
-            pattern = petta.parse("(re_lazy $n)")
+            scratch.add(
+                *[
+                    petta.parse(f"(re_lazy {number})")
+                    for number in range(populated, size)
+                ]
+            )
+            populated = size
             # Warm the path so first-call compilation and index realisation
-            # sit outside the window rather than inside the smaller one.
+            # sit outside every sample.
             with space.stream(pattern, batch=1) as warm:
                 next(warm)
-            calls.clear()
-            with metta.stats() as counted, space.stream(pattern, batch=1) as answers:
-                taken = [next(answers), next(answers)]
-            assert [str(a) for a in taken] == ["(re_lazy 0)", "(re_lazy 1)"]
-            lazy[size], crossings[size] = counted.inferences, list(calls)
-            with metta.stats() as counted_all:
-                assert len(list(space.match(pattern))) == size
-            eager[size] = counted_all.inferences
+            lazy_samples = []
+            crossing_samples = []
+            eager_samples = []
+            for _ in range(3):
+                calls.clear()
+                with metta.stats() as counted, space.stream(
+                    pattern, batch=1
+                ) as answers:
+                    taken = [next(answers), next(answers)]
+                assert [str(atom) for atom in taken] == [
+                    "(re_lazy 0)",
+                    "(re_lazy 1)",
+                ]
+                lazy_samples.append(counted.inferences)
+                crossing_samples.append(list(calls))
+                with metta.stats() as counted_all:
+                    assert len(list(space.match(pattern))) == size
+                eager_samples.append(counted_all.inferences)
+            lazy[size] = min(lazy_samples)
+            eager[size] = min(eager_samples)
+            crossings[size] = crossing_samples
     finally:
         server.close()
-        for scratch in scratches:
-            scratch.drop()
+        scratch.drop()
 
     # One ask, one next, one stop: the client took two answers and told the
     # server it was done, and nothing else crossed.
-    assert crossings[10] == crossings[10_000] == ["ask", "next", "stop"]
+    expected_crossings = [["ask", "next", "stop"]] * 3
+    assert crossings[10] == crossings[10_000] == expected_crossings
     # The cost of two answers does not grow with the enumeration behind
     # them, which is only possible if the rest was never computed.
     assert lazy[10_000] <= lazy[10], (
