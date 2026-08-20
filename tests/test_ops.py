@@ -1,6 +1,11 @@
 """Purpose: engine-backed tests for Python-backed MeTTa functions: kinds,
 typing from annotations, defaults as arities, declines, errors, raw mode,
 and the py-atom surface where the shim's presence changes the answer.
+Guarantees:
+  - an Atom annotation preserves the written call while an unconstrained
+    parameter receives its reduction [tested:
+    test_an_atom_annotation_changes_evaluation_order_as_documented;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,6 +35,23 @@ def test_det_op_composes_with_equations(metta):
     assert metta.run(f"!({name} 21)") == [[42]]
     quad = unique("quad")
     assert metta.run(f"(= ({quad} $x) ({name} ({name} $x)))\n!({quad} 5)") == [[20]]
+
+
+def test_an_atom_annotation_changes_evaluation_order_as_documented(metta):
+    atom_name = unique("anyatom")
+    value_name = unique("anyval")
+
+    @metta.register_op(name=atom_name)
+    def anyatom(term: Atom) -> Atom:
+        return term
+
+    @metta.register_op(name=value_name)
+    def anyval(term):
+        return term
+
+    metta.run("(= (p5-side) 42)")
+    assert metta.run(f"!({atom_name} (p5-side))") == [[S["p5-side"]()]]
+    assert metta.run(f"!({value_name} (p5-side))") == [[42]]
 
 
 def test_a_python_op_is_a_higher_order_argument(metta):

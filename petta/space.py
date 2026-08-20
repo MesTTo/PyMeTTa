@@ -20,6 +20,10 @@ Guarantees:
     test_stream_pulls_rows_lazily_and_interleaves]
   - register_op and unregister_op are the paired operation lifecycle names
     [tested test_operation_registration_names_are_symmetric]
+  - an Atom parameter changes call-site evaluation so the callable receives
+    the written term while an unconstrained parameter receives its value
+    [tested: test_an_atom_annotation_changes_evaluation_order_as_documented;
+     commit=WORKTREE]
   - define accepts source-bearing Python functions and refuses callable
     objects before reading compiler metadata [tested
     test_define_refuses_callable_objects]
@@ -1615,6 +1619,20 @@ class MeTTa:
         when the symbol-string distinction matters. pass_atoms hands the
         callable Atom objects instead of decoded Python values.
         unregister_op(name) removes every registered arity.
+
+        An `Atom` parameter changes evaluation order. The declaration tells
+        the compiler to pass the argument as written, before it reduces:
+
+            @m.register_op
+            def anyatom(term: Atom) -> Atom:
+                return term
+
+            # with (= (side) 42), !(anyatom (side)) answers (side)
+
+        An unconstrained parameter receives the evaluated value instead, so
+        the otherwise identical `def anyval(term): return term` answers 42.
+        Use `Atom` only when the operation deliberately implements syntax or
+        a control form; it is not just a static hint.
 
         The cost ladder, measured on the maintained box in inferences per
         call, is why the flags exist and which one to reach for:
