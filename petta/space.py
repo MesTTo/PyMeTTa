@@ -40,7 +40,7 @@ Guarantees:
   - new_space(restricted=True, grants=...) fixes a capability profile at
     creation [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=WORKTREE]
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
   - eval_status and run_status separate a pruned branch from an unevaluated
     term, and strict= refuses only the latter [tested
     test_eval_status_reports_the_four_outcomes,

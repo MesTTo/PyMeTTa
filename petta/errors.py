@@ -12,7 +12,7 @@ Guarantees:
   - SpaceCapabilityError carries the refused space, operation, and capability
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=WORKTREE]
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
 Open Obligations:
   To Do: None
   Hacks: None

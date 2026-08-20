@@ -31,7 +31,7 @@ Guarantees:
     test_cast_target_is_positional_only]
   - async new_space forwards inheritance, restriction, and grants on the
     owning worker [tested test_async_new_space_forwards_restriction_and_grants;
-    commit=WORKTREE]
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

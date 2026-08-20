@@ -26,7 +26,7 @@
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
-%     commit=WORKTREE]
+%     commit=6a08901f4125c2536f5b4032daac9937f793870f]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of

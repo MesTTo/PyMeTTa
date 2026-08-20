@@ -3,7 +3,7 @@ Guarantees:
   - file, process, and network operations name their missing capability before
     they run [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=WORKTREE]
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
   - dropping an anonymous restricted space removes its policy before the name
     is reused [tested test_a_recycled_name_retains_no_restriction]
 Open Obligations:

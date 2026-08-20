@@ -13,7 +13,7 @@ Guarantees:
     test_object_repr_registrations_can_be_removed_exactly]
   - SpaceCapabilityError is available at package level [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=WORKTREE]
+    commit=6a08901f4125c2536f5b4032daac9937f793870f]
 Open Obligations:
   To Do: None
   Hacks: None
