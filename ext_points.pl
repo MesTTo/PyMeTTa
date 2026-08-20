@@ -601,18 +601,25 @@ ext_point_kind(metta_host_open_function/3, host_service).
 ext_point_kind(metta_host_adopt_function/4, host_service).
 ext_point_kind(metta_host_drop_function/2, host_service).
 ext_point_kind(metta_host_forget_function/1, host_service).
+%The space read-and-remove pair a host talks to storage through:
+%metta_host_stored/2 enumerates stored atoms unifying a pattern
+%(index-directed native, provider-enumerated foreign), and
+%metta_host_remove_reported/3 removes with the whether-anything-went
+%verdict a host API wants, existence probed before the mutation. These
+%replaced get_native_atom/2, native_storage_module/2 and
+%metta_remove_atom/3 on this list (2026-08-20); the index-directed
+%existence probe is engine-internal now.
+ext_point_kind(metta_host_stored/2, host_service).
+ext_point_kind(metta_host_remove_reported/3, host_service).
 ext_point_kind(foreign_pushdown_class/3, host_service).
-ext_point_kind(get_native_atom/2, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
 ext_point_kind(metta_atom_hook_clause/2, host_service).
-ext_point_kind(metta_remove_atom/3, host_service).
 ext_point_kind(metta_source_declarations/2, host_service).
 ext_point_kind(metta_space_names/1, host_service).
 ext_point_kind(metta_string_declarations/2, host_service).
 ext_point_kind(metta_substitute_self/3, host_service).
 ext_point_kind(metta_trace_source/4, host_service).
-ext_point_kind(native_storage_module/2, host_service).
 ext_point_kind(petta_annotations/2, host_service).
 ext_point_kind(petta_contract_fact/1, host_service).
 ext_point_kind(petta_error_answer/3, host_service).

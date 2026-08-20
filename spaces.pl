@@ -1769,6 +1769,62 @@ metta_remove_atom(Space, Term, Removed) :- Term = [':', F, _], atom(F), fun(F), 
                                            function_changed(DeclModule, F).
 metta_remove_atom(Space, Term, Removed) :- unstore_atom(Space, Term, Removed).
 
+%A host's reporting removal: whether anything actually went. The
+%language-facing `remove-atom` answers the UNIT value, because its type is
+%`(-> spaceType Atom (->))` and the specification says absence is not
+%reported there; a HOST API where `space.remove(atom)` returns whether
+%anything went is the useful answer, and nothing in MeTTa's contract
+%governs it. Existence is asked BEFORE the mutation against a copy, so the
+%removal's own bindings cannot narrow the question; a foreign space's
+%provider owns its verdict outright.
+metta_host_remove_reported(Space, Term, Verdict) :-
+    (   metta_foreign_space(Space)
+    ->  metta_remove_atom(Space, Term, Verdict)
+    ;   copy_term(Term, Pattern),
+        (   metta_host_removal_probe(Space, Pattern)
+        ->  Existed = true
+        ;   Existed = false
+        ),
+        metta_remove_atom(Space, Term, Removed0),
+        ( Removed0 == false -> Verdict = false ; Verdict = Existed )
+    ).
+
+%Whether an atom unifying with Pattern is stored, without enumerating the
+%space when the answer is reachable by index. The first branch probes the
+%native storage predicate directly, which first-argument indexing makes
+%O(1) for the ground common case; it may only SUCCEED, never conclude
+%absence, because storage shapes this cannot express (a foreign layout, an
+%atom that is not a list) still exist. Failure falls back to the
+%enumeration, so the semantics are the old ones exactly and only the cost
+%moves. Found because the contract ontology's 65 resident atoms in &petta
+%turned a get-atoms walk into +149 inferences per register-and-unregister
+%cycle on the register-op benchmark [measured 2026-08-18: a remove on an
+%80-atom &petta cost 303 inferences against 61 on a plain space, and the
+%engine-level remove path profiled flat].
+metta_host_removal_probe(Space, Pattern) :-
+    is_list(Pattern),
+    Pattern = [Head|Arguments],
+    atom(Head),
+    catch(( native_storage_module(Space, Module),
+            Goal =.. [Space, Head|Arguments],
+            call(Module:Goal) ),
+          error(existence_error(procedure, _), _),
+          fail),
+    !.
+metta_host_removal_probe(Space, Pattern) :-
+    once(('get-atoms'(Space, Stored), Stored = Pattern)).
+
+%Every stored atom unifying Pattern, live from the space: a native space
+%answers through its storage module's clause indexing, a foreign one
+%enumerates its provider and unifies. Pattern-directed where storage
+%allows, so an indexed head pattern does not pay a whole-space walk.
+metta_host_stored(Space, Pattern) :-
+    (   metta_foreign_space(Space)
+    ->  'get-atoms'(Space, Atom),
+        Atom = Pattern
+    ;   get_native_atom(Space, Pattern)
+    ).
+
 %% remove_equation(+Space:atom, +Equation, +Function:atom, +Arguments, ?Body, -Removed:boolean) is semidet.
 remove_equation(Space, Term, F, Args, Body, Removed) :-
     unstore_atom(Space, Term, Stored),

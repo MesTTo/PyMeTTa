@@ -994,48 +994,12 @@ petta_py_add_many(Space, TaggedList) :-
     maplist(petta_py_decode_for_add, TaggedList, Terms),
     metta_add_atoms(Space, Terms).
 
+%The verdict dance and its index-directed existence probe are the engine's
+%metta_host_remove_reported/3 now; this is decode, one call, encode.
 petta_py_remove(Space, Tagged, Removed) :-
     petta_py_decode_shared(Tagged, Term, _),
-    ( metta_foreign_space(Space)
-      -> Existed = provider
-    ; copy_term(Term, Pattern),
-      ( petta_py_existed(Space, Pattern) -> Existed = true
-      ; Existed = false ) ),
-    %metta_remove_atom/3, not `remove-atom`: the language-facing one answers the
-    %UNIT value now, because its type is `(-> spaceType Atom (->))` and the
-    %specification says absence is not reported there. This is the PYTHON API,
-    %where `space.remove(atom)` returning whether anything went is the useful
-    %answer and nothing in MeTTa's contract governs it.
-    metta_remove_atom(Space, Term, Removed0),
-    ( Existed == provider -> Verdict = Removed0
-    ; Removed0 == false -> Verdict = false
-    ; Verdict = Existed ),
+    metta_host_remove_reported(Space, Term, Verdict),
     petta_py_encode(Verdict, Removed).
-
-%Whether an atom unifying with Pattern is stored, without enumerating the
-%space when the answer is reachable by index. The first branch probes the
-%native storage predicate directly, which first-argument indexing makes O(1)
-%for the ground common case; it may only SUCCEED, never conclude absence,
-%because storage shapes this cannot express (a foreign layout, an atom that
-%is not a list) still exist. Failure falls back to the enumeration, so the
-%semantics are the old ones exactly and only the cost moves. Found because
-%the contract ontology's 65 resident atoms in &petta turned this check's
-%former get-atoms walk into +149 inferences per register-and-unregister
-%cycle on the register-op benchmark [measured 2026-08-18: a remove on an
-%80-atom &petta cost 303 inferences against 61 on a plain space, and the
-%engine-level remove path profiled flat].
-petta_py_existed(Space, Pattern) :-
-    is_list(Pattern),
-    Pattern = [Head|Arguments],
-    atom(Head),
-    catch(( native_storage_module(Space, Module),
-            Goal =.. [Space, Head|Arguments],
-            call(Module:Goal) ),
-          error(existence_error(procedure, _), _),
-          fail),
-    !.
-petta_py_existed(Space, Pattern) :-
-    once(('get-atoms'(Space, Stored), Stored = Pattern)).
 
 petta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), petta_py_encode(P, E)), Encoded).
@@ -1185,7 +1149,7 @@ petta_py_next_space(Name) :-
 
 petta_py_space_untouched(Name) :-
     \+ petta_py_foreign(Name),
-    \+ get_native_atom(Name, _).
+    \+ metta_host_stored(Name, _).
 
 %Release a space: everything cleared, the name pooled for reuse.
 petta_py_release_space(Name0) :-
@@ -2051,12 +2015,8 @@ petta_py_arities(Name0, As) :-
 petta_py_equations(Space, Name0, Encoded) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     Pattern = [=, [Name|_], _],
-    (   metta_foreign_space(Space)
-    ->  findall(E, ( 'get-atoms'(Space, A), A = Pattern,
-                     petta_py_encode(A, E) ), Encoded)
-    ;   findall(E, ( get_native_atom(Space, Pattern),
-                     petta_py_encode(Pattern, E) ), Encoded)
-    ).
+    findall(E, ( metta_host_stored(Space, Pattern),
+                 petta_py_encode(Pattern, E) ), Encoded).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
 %listing per registered arity, resolved in this space's module so a named
