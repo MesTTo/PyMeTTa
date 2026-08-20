@@ -548,13 +548,13 @@ def test_the_benchmark_suite_prices_a_file_load():
     import json
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2]
-    registry = (root / "python" / "bench.py").read_text()
+    root = Path(__file__).resolve().parents[3]
+    registry = (root / "bindings" / "python" / "bench.py").read_text()
     assert '"file-load": "test_file_load"' in registry
-    suite = (root / "python" / "benchmarks" / "test_benchmarks.py").read_text()
+    suite = (root / "bindings" / "python" / "benchmarks" / "test_benchmarks.py").read_text()
     assert "def test_file_load(" in suite
     data = json.loads(
-        (root / "python" / "benchmarks" / "baseline.json").read_text()
+        (root / "bindings" / "python" / "benchmarks" / "baseline.json").read_text()
     )
     entry = data["benchmarks"]["file-load"]
     assert isinstance(entry["inferences"], int) and entry["inferences"] > 0

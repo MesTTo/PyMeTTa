@@ -124,7 +124,7 @@ def test_a_fresh_engine_refuses_an_unbound_read_the_same_way():
 # that leans on one answers BESIDE the rows a real space gave. That grew a
 # second answer for every match and `(anc $x $y)` recursed on it until the
 # process hung, which is why each clause guards itself
-# [reproduced 2026-08-20 through python/tests/test_derivation.py].
+# [reproduced 2026-08-20 through bindings/python/tests/test_derivation.py].
 def test_a_proof_over_a_match_does_not_carry_the_refusal(m):
     m.run("(par-p Tom Bob)\n(= (anc-p $x $y) (match &self (par-p $x $y) $y))")
     proofs = m.derivation(S["anc-p"](S.Tom, S.Bob))

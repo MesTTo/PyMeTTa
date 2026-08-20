@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "website" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[3] / "website" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import audit_snippets as auditor  # noqa: E402

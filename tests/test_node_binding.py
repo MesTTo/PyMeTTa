@@ -46,7 +46,7 @@ import pytest
 import petta
 from petta.atoms import atom_from_wire
 
-_BINDING = Path(__file__).resolve().parents[2] / "bindings" / "node"
+_BINDING = Path(__file__).resolve().parents[3] / "bindings" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
 # What the WebAssembly build refuses at boot, as bindings/node/index.mjs names
@@ -150,7 +150,7 @@ def _comparable_transport(transport: list) -> list:
 # --------------------------------------------------------------- the kit driver
 #
 # The codec kit drives an implementation through one object each, the same
-# way python/tests/test_codec_typescript.py drives the reference store. This
+# way bindings/python/tests/test_codec_typescript.py drives the reference store. This
 # is that object for the Node binding, and it runs every leg rather than the
 # store's two: a whole binding reads MeTTa source, prints through the engine's
 # own writer, and runs programs.

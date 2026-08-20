@@ -15,8 +15,8 @@ _FIXED_ORACLE_PATH_PATTERN = {
     "tests/conformance/leatta.py",
     "tests/conformance/cetta.py",
     "tests/conformance/cetta_corpus.py",
-    "python/tests/test_presented_core_oracle.py",
-    "python/tests/test_critical_pair_oracle.py",
+    "bindings/python/tests/test_presented_core_oracle.py",
+    "bindings/python/tests/test_critical_pair_oracle.py",
 }
 
 # Built in two pieces so the tracked scanner never matches its own needle.

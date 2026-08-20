@@ -20,7 +20,7 @@ _HOST_TOKEN = re.compile(r"\bpy_|\bpython|\bjanus", re.IGNORECASE)
 
 
 def _engine_sources():
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     return sorted((root / "engine").glob("*.pl"))
 
 
@@ -49,7 +49,7 @@ def test_the_python_binding_calls_only_the_published_host_surface(repo_root):
     """The host transport's engine calls are all declared host_service.
 
     The same walk the backends' gate uses, aimed the other way down the
-    wire: prolog_walk_code over python/petta with meta-predicate inference,
+    wire: prolog_walk_code over bindings/python/petta with meta-predicate inference,
     against the measured list engine/ext_points.pl declares. A shim call to an
     undeclared engine internal fails this naming the pair.
     """

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 
 _MACHINE_VAR = re.compile(r"\$_\d+")
 
@@ -95,14 +95,14 @@ def _cli_output(example: Path) -> str:
 
 
 def _library_output(example: Path) -> str:
-    script = _LIBRARY_RUNNER.format(python_dir=str(REPO / "python"), repo=str(REPO))
+    script = _LIBRARY_RUNNER.format(python_dir=str(REPO / "bindings" / "python"), repo=str(REPO))
     result = subprocess.run(
         [sys.executable, "-c", script, str(example)],
         capture_output=True,
         text=True,
         timeout=120,
         cwd=str(REPO),
-        env={**os.environ, "PYTHONPATH": str(REPO / "python")},
+        env={**os.environ, "PYTHONPATH": str(REPO / "bindings" / "python")},
     )
     assert result.returncode == 0, f"library failed on {example.name}: {result.stderr[:500]}"
     return result.stdout

@@ -20,7 +20,7 @@ from petta import MeTTa
 _ARBITER_ROOT = (
     Path(os.environ["LEATTA_PATH"])
     if "LEATTA_PATH" in os.environ
-    else Path(__file__).resolve().parents[4] / "LeaTTa"
+    else Path(__file__).resolve().parents[5] / "LeaTTa"
 )
 _TYPES_META = _ARBITER_ROOT / "tests" / "semantics" / "types-meta"
 

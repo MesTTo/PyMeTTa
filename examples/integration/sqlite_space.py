@@ -23,7 +23,7 @@ Declared Exact is trusted: the engine hands the bound down and a whole
 join can be claimed without re-derivation. The unification the engine
 still performs per answer is how bindings ENTER the local program, not
 a verification pass; for an Exact shape it never rejects.
-[tested: python/tests/test_sqlite_space.py]
+[tested: bindings/python/tests/test_sqlite_space.py]
 Open Obligations:
   To Do: None
   Hacks: None

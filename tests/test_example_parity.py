@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "python" / "tools"))
+REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
 

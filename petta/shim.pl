@@ -241,7 +241,7 @@ petta_py_decode_(h, [Id|_], Blob) :-
 %something instead: ["s",1] to the symbol '1', ["g",1] to "1", ["n","1/3"]
 %to a string wearing the number tag, ["v",1] to a fresh variable, and
 %["b",<anything>] to FALSE, which is the one that answers rather than fails
-%[measured 2026-08-20, both spellings, against python/petta/_atom_wire.py,
+%[measured 2026-08-20, both spellings, against bindings/python/petta/_atom_wire.py,
 %which refuses all six]. A wire term is written by an encoder, so nothing
 %conforming loses a shape here; what changes is that a boundary bug now
 %reports as one [tested: shim_wire_decoding:a_payload_outside_its_tags_class_fails].
@@ -1441,7 +1441,7 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %empty table. Seeding it with the arguments is the whole fix, and the seed is
 %expanded on first use by petta_py_shared_table/2, so a call whose result
 %holds no variable pays nothing at all for it.
-%petta_py_failure/2 is hosts/python/bridge.pl's, and a registered operation was the one
+%petta_py_failure/2 is bindings/python/bridge.pl's, and a registered operation was the one
 %Python caller not reaching it. That is not a cosmetic gap: without it janus's
 %own error term reaches MeTTa carrying the live exception OBJECT and a live
 %TRACEBACK object, which is the defect petta_py_failure/2 was written to fix

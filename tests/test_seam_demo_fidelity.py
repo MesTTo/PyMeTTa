@@ -18,8 +18,8 @@ import re
 from pathlib import Path
 
 DEMO = (
-    Path(__file__).resolve().parents[2]
-    / "python" / "examples" / "integration" / "sqlite_space.py"
+    Path(__file__).resolve().parents[3]
+    / "bindings" / "python" / "examples" / "integration" / "sqlite_space.py"
 )
 
 

@@ -28,7 +28,7 @@ def _example_id(path: Path) -> str:
 
 @pytest.mark.parametrize("example", EXAMPLES, ids=_example_id)
 def test_example_runs_and_verifies_itself(example):
-    repo = EXAMPLES_ROOT.parents[1]
+    repo = EXAMPLES_ROOT.parents[2]
     result = subprocess.run(
         [sys.executable, str(example)],
         capture_output=True,
@@ -67,7 +67,7 @@ def _run_example_source(tmp_path, source: str, *flags: str):
         cwd=str(tmp_path),
         env={
             **os.environ,
-            "PETTA_PATH": str(EXAMPLES_ROOT.parents[1]),
+            "PETTA_PATH": str(EXAMPLES_ROOT.parents[2]),
             "PYTHONPATH": str(EXAMPLES_ROOT)
             + os.pathsep
             + os.environ.get("PYTHONPATH", ""),

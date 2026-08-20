@@ -15,7 +15,7 @@ import pytest
 from petta import S, Sym
 
 _C_EXTENSION = (
-    Path(__file__).resolve().parents[2] / "examples" / "integration" / "c_extension"
+    Path(__file__).resolve().parents[3] / "examples" / "integration" / "c_extension"
 )
 
 

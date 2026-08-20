@@ -215,7 +215,7 @@ def loop_block(draw, scope: list, indent: str, nest: tuple, protected: tuple = (
     own equation with a fresh variable namespace, so the outer loop's
     remaining sequence resolved there to the INNER loop's tail and the
     outer loop resumed on the wrong list [source
-    python/petta/_define_loops.py:116-123].
+    bindings/python/petta/_define_loops.py:116-123].
     """
     kind, deeper = nest[0], nest[1:]
     counter = draw(st.sampled_from(("i", "j", "k")))

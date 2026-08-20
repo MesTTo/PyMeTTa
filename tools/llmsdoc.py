@@ -8,7 +8,7 @@ worst possible failure for a file whose whole purpose is to be believed
 without being verified.
 
 Assumes:
-  - petta imports here, unlike python/tools/reference.py, which reads the AST
+  - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running engine
     and there is no way to read them statically [assumed 2026-08-18]
   - a backticked token containing a slash and ending in a known extension is
@@ -36,7 +36,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 DOC = ROOT / "llms.txt"
 
 BACKTICK = re.compile(r"`([^`\n]+)`")
@@ -86,7 +86,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     names engine/prelude.metta registers with add-translator-rule!, read the same
     way, which is where a form goes when it leaves the compiler.
     """
-    sys.path.insert(0, str(ROOT / "python"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python"))
     from petta import MeTTa
 
     builtins = set(MeTTa().builtins())
@@ -112,7 +112,7 @@ def counts() -> list[tuple[str, int]]:
     src_lines = sum(
         len(p.read_text().splitlines()) for p in sorted((ROOT / "engine").glob("*.pl"))
     )
-    main = (ROOT / "python" / "petta" / "__main__.py").read_text()
+    main = (ROOT / "bindings" / "python" / "petta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
     # aliases for files already in the list and 12 fixtures that are inputs
@@ -120,17 +120,17 @@ def counts() -> list[tuple[str, int]]:
     # [measured 2026-08-18: 242 paths, 218 regular files, 206 discovered,
     # 200 run]. examples/README.md and this file disagreed with each other
     # and with the runner, each by a different amount.
-    sys.path.insert(0, str(ROOT / "python" / "tools"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python" / "tools"))
     from example_parity import corpus
 
     return [
         (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/petta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/*.plt")))),
-        (r"(\d+) files, blackbox", len(list(ROOT.glob("python/tests/*.py")))),
+        (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*.py")))),
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
-        (r"(\d+) runnable Python programs", len(list(ROOT.glob("python/examples/*/*.py")))),
+        (r"(\d+) runnable Python programs", len(list(ROOT.glob("bindings/python/examples/*/*.py")))),
         (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
         (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*.metta")))),
         (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*.metta")))),
@@ -183,7 +183,7 @@ def check() -> list[str]:
     parts = sections(text)
     bad: list[str] = []
 
-    sys.path.insert(0, str(ROOT / "python"))
+    sys.path.insert(0, str(ROOT / "bindings" / "python"))
     import petta
     from petta import MeTTa
 
@@ -212,7 +212,7 @@ def check() -> list[str]:
     # have covered for a later paragraph using it as though it were live.
     denial = paragraph(parts["The MeTTa language surface"], r"\d+ libraries load with")
     for module in sorted(gone):
-        if (ROOT / "python" / "petta" / f"{module}.py").exists():
+        if (ROOT / "bindings" / "python" / "petta" / f"{module}.py").exists():
             bad.append(f"llms.txt says petta.{module} is gone, but the module is back")
         elif text.count(f"petta.{module}") != denial.count(f"petta.{module}"):
             bad.append(f"petta.{module} is deleted but llms.txt names it outside the sentence saying so")

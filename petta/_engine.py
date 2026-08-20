@@ -231,8 +231,8 @@ def _resolve_petta_path() -> str:
     bundled = _bundled_runtime()
     if bundled is not None:
         return bundled
-    # petta/_engine.py -> petta -> python -> the checkout root.
-    return str(Path(__file__).resolve().parents[2])
+    # petta/_engine.py -> petta -> python -> bindings -> the checkout root.
+    return str(Path(__file__).resolve().parents[3])
 
 
 def _bundled_runtime() -> str | None:
@@ -386,7 +386,7 @@ class Runtime:
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['backends'])")
         main_file = root / "engine" / "main.pl"
-        helper_file = root / "python" / "helper.pl"
+        helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
             raise FileNotFoundError(
                 f"PeTTa runtime not found under {petta_path!r} (expected "

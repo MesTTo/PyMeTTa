@@ -3,7 +3,7 @@ and the shipped Python library, and require identical verdicts. The example
 corpus is the executable semantics documentation, and until this existed it
 was only ever executed by the engine: check.sh ran `swipl -s engine/main.pl`,
 test.sh and test_metta_examples.py shelled to run.sh, and the plunit suites
-loaded engine/metta.pl without python/petta/shim.pl. So the configuration most
+loaded engine/metta.pl without bindings/python/petta/shim.pl. So the configuration most
 users come through was gated by unit tests alone, and two defects lived
 there with green lanes above them [source: ai-audit-md-review.md section 4].
 
@@ -65,7 +65,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 SKIPS = REPO / "tests" / "example_skips.txt"
 VERDICT = " should "
 
@@ -169,7 +169,7 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
     every group after it.
     """
     source = (
-        "import sys; sys.path.insert(0, 'python')\n"
+        "import sys; sys.path.insert(0, 'bindings/python')\n"
         "from petta import MeTTa\n"
         f"for group in MeTTa(petta_path='.').load({str(path.relative_to(root))!r}):\n"
         "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
@@ -252,7 +252,7 @@ def main() -> int:
         print(len(paths))
         return 0
 
-    sys.path.insert(0, str(REPO / "python"))
+    sys.path.insert(0, str(REPO / "bindings" / "python"))
     with ThreadPoolExecutor() as pool:
         found = [d for d in pool.map(compare, paths) if d is not None]
 

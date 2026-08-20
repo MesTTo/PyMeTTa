@@ -9,7 +9,7 @@ Guarantees:
     [source: engine/translator.pl, unify_with_occurs_check in translate_let_dl/6]
   - alpha-unique and sort-atom reach copying, term hashing, and msort
     [source: engine/metta.pl:152-168]
-  - digest reaches findall, copying, and msort [source: python/petta/shim.pl:1304]
+  - digest reaches findall, copying, and msort [source: bindings/python/petta/shim.pl:1304]
   - source loading reaches sort and findall [source: engine/filereader.pl:136]
   - method dispatch reaches sub_atom and term construction [source: engine/metta.pl:428]
   - space-name recognition reaches atom_concat [source: engine/metta.pl:327]

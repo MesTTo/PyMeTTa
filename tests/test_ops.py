@@ -688,7 +688,7 @@ def test_a_zero_arity_compound_crosses_without_raising(metta):
 
     It reached only the LIBRARY. The engine has its own writer and never runs
     the shim's encoder, so the example corpus was green above it for as long
-    as it existed; `python/tools/example_parity.py` is the lane that would
+    as it existed; `bindings/python/tools/example_parity.py` is the lane that would
     have caught it.
 
     The answer this pins is the ENCODER's, uniform across arities. It is not

@@ -1,8 +1,14 @@
 import importlib
 import os
+import sys
 from pathlib import Path
 
 import pytest
+
+# The legacy python.petta alias resolves through the repo root, whatever
+# directory the lane invokes from; the seat's own pythonpath entry only
+# reaches the seat.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from petta import MeTTa
 
@@ -21,7 +27,7 @@ else:
 
 @pytest.fixture(scope="session")
 def repo_root():
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture(scope="session")
@@ -46,7 +52,7 @@ def petta_verbose(petta_module, petta_path):
 
 @pytest.fixture(scope="session")
 def dummy_metta_path(repo_root):
-    return repo_root / "python" / "tests" / "data" / "dummy.metta"
+    return repo_root / "bindings" / "python" / "tests" / "data" / "dummy.metta"
 
 
 @pytest.fixture(scope="session")
