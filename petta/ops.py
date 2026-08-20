@@ -7,7 +7,7 @@ Guarantees:
     space [tested test_public_context_types_are_distinct]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -451,6 +451,7 @@ def register(
             f"cross one at a time and are never seen whole"
         )
     declarations = _operation_declarations(metta_name, params, fn, typed)
+    conversion_hints = resolved_annotations(fn) if typed else {}
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
@@ -463,6 +464,10 @@ def register(
         arities=tuple(arities),
         inverse=inverse,
         pure=pure,
+        parameter_annotations=tuple(
+            conversion_hints.get(param.name, Any) for param in params
+        ),
+        return_annotation=conversion_hints.get("return", Any),
     )
     new_facts, old_facts = _register_transaction(runtime, operation, previous)
     # Committed: the previous life retires, shared pieces surviving. Facts

@@ -13,6 +13,10 @@ Guarantees:
     declarations that distinguish them from their scalar payloads
     [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
      commit=49d2fc7b551ad057dfa018c350874bdee0e07cba]
+  - a TypedDict's full annotation selects the same named constructor image
+    and field declaration as its value
+    [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -76,6 +80,8 @@ def project(value: Any, annotation: Any = None) -> Projected:
     if hook is not None:
         atom, parts = hook.project(value, parameterized, project)
         nested = [declaration for part in parts for declaration in part.declarations]
+        if hook.declarations is not None:
+            nested.extend(hook.declarations(parameterized, type_atoms_for))
         return Projected(atom, _dedup(nested))
     return _project_object(value)
 
@@ -303,6 +309,9 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     way registration maps signatures, so a dataclass field typed float
     declares Number rather than %Undefined%; a Union field superposes one
     arrow per member, the checker's own reading of alternatives."""
+    hook = _parameterized_hook(cls)
+    if hook is not None and hook.declarations is not None:
+        return hook.declarations(cls, type_atoms_for)
     if issubclass(cls, Enum):
         return _enum_declarations(cls)
     found = _registration_for(cls)

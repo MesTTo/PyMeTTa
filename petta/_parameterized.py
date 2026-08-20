@@ -3,7 +3,11 @@ Python annotations, project matching values, and rebuild those values.
 Guarantees:
   - tuple, list, dict, and set hooks receive the full parameterized type on
     every route [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+    commit=WORKTREE]
+  - TypedDict fields drive both its constructor declaration and its value
+    image, with optional or mismatched keys refused before data is lost
+    [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+    commit=WORKTREE]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
@@ -30,6 +34,7 @@ class ParameterizedHook:
     annotation_atom: Callable[[Any, Callable[[Any], Atom]], Atom]
     project: Callable[[Any, Any, Callable[[Any, Any], Any]], Any]
     build: Callable[[Expr, Any, Callable[[Atom, Any], Any]], Any]
+    declarations: Callable[[Any, Callable[[Any], list[Atom]]], tuple[Expr, ...]] | None = None
 
 
 def _arguments(annotation: Any) -> tuple[Any, ...]:
@@ -81,8 +86,8 @@ def _sequence_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
 def _mapping_project(value: dict, annotation: Any, recurse: Callable) -> tuple:
     padded = (*_arguments(annotation), Any, Any)
     key_type, value_type = padded[:2]
-    pairs = []
-    parts = []
+    pairs: list[Atom] = []
+    parts: list[Any] = []
     for key, item in value.items():
         projected_key = recurse(key, key_type)
         projected_value = recurse(item, value_type)
@@ -135,6 +140,78 @@ def _set_build(atom: Expr, annotation: Any, recurse: Callable) -> set:
     return {recurse(child, element_type) for child in atom.children}
 
 
+def _typed_dict_fields(annotation: Any) -> tuple[tuple[str, Any], ...]:
+    optional: frozenset[str] = getattr(
+        annotation, "__optional_keys__", frozenset()
+    )
+    if optional:
+        names = ", ".join(sorted(optional))
+        raise TypeError(
+            f"{annotation.__name__} has optional TypedDict field(s) {names}; "
+            "the constructor image cannot distinguish absent from omitted"
+        )
+    hints = typing.get_type_hints(annotation, include_extras=True)
+    return tuple(hints.items())
+
+
+def _typed_dict_type(annotation: Any, _recurse: Callable) -> Atom:
+    return S[annotation.__name__]
+
+
+def _typed_dict_annotation(annotation: Any, recurse: Callable[[Any], Atom]) -> Atom:
+    fields = [Expr([S.field, S[name], recurse(kind)]) for name, kind in _typed_dict_fields(annotation)]
+    return Expr([S.TypedDict, S[annotation.__name__], *fields])
+
+
+def _typed_dict_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
+    fields = _typed_dict_fields(annotation)
+    names = tuple(name for name, _kind in fields)
+    if not isinstance(value, dict):
+        raise TypeError(f"{annotation.__name__} requires a dict value")
+    missing = sorted(set(names) - value.keys())
+    extra = sorted(value.keys() - set(names))
+    if missing or extra:
+        raise TypeError(
+            f"{annotation.__name__} keys disagree with its annotation "
+            f"(missing={missing}, extra={extra})"
+        )
+    parts = [recurse(value[name], kind) for name, kind in fields]
+    return Expr([S[annotation.__name__], *(part.atom for part in parts)]), parts
+
+
+def _typed_dict_build(atom: Expr, annotation: Any, recurse: Callable) -> dict:
+    fields = _typed_dict_fields(annotation)
+    if atom.head != S[annotation.__name__]:
+        raise TypeError(
+            f"expected a ({annotation.__name__} ...) image, got {atom}"
+        )
+    if len(atom.args) != len(fields):
+        raise TypeError(
+            f"{annotation.__name__} requires {len(fields)} field(s), "
+            f"but {atom} carries {len(atom.args)}"
+        )
+    return {
+        name: recurse(child, kind)
+        for child, (name, kind) in zip(atom.args, fields, strict=True)
+    }
+
+
+def _typed_dict_declarations(annotation: Any, recurse: Callable) -> tuple[Expr, ...]:
+    fields = _typed_dict_fields(annotation)
+    field_types = [recurse(kind)[0] for _name, kind in fields]
+    name = S[annotation.__name__]
+    return (Expr([S[":"], name, Expr([S["->"], *field_types, name])]),)
+
+
+TYPED_DICT_HOOK = ParameterizedHook(
+    _typed_dict_type,
+    _typed_dict_annotation,
+    _typed_dict_project,
+    _typed_dict_build,
+    _typed_dict_declarations,
+)
+
+
 CONTAINER_HOOKS: dict[type, ParameterizedHook] = {
     tuple: ParameterizedHook(
         _container_type, _container_annotation, _sequence_project, _sequence_build
@@ -154,6 +231,8 @@ CONTAINER_HOOKS: dict[type, ParameterizedHook] = {
 @functools.cache
 def hook_for(annotation: Any) -> ParameterizedHook | None:
     """Return the specialised hook selected by the complete annotation."""
+    if typing.is_typeddict(annotation):
+        return TYPED_DICT_HOOK
     return CONTAINER_HOOKS.get(typing.get_origin(annotation))
 
 

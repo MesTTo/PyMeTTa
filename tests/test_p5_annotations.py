@@ -1,8 +1,9 @@
 """Purpose: pin Phase 5's Python annotation and conversion seam."""
 
 from enum import Flag, IntEnum, StrEnum, auto
+from typing import TypedDict
 
-from petta import Atom, Expr, Gnd, Sym, Var
+from petta import Atom, Expr, Gnd, S, Sym, Var
 from petta.convert import build, project
 from petta.ops import annotation_atom_for, type_atoms_for
 
@@ -84,3 +85,27 @@ def test_int_str_and_flag_enums_each_project_with_their_declarations():
         declarations = set(map(str, projected.declarations))
         assert f"(: {type_name} Type)" in declarations
         assert f"(: {symbol} {type_name})" in declarations
+
+
+def test_a_typed_dict_annotation_agrees_with_its_value(metta):
+    class Config(TypedDict):
+        retries: int
+        label: str
+
+    value: Config = {"retries": 3, "label": "fast"}
+    projected = project(value, Config)
+    assert projected.atom == Expr([Sym("Config"), Gnd(3), Gnd("fast")])
+    assert type_atoms_for(Config) == [Sym("Config")]
+    assert "(: Config (-> Number String Config))" in set(
+        map(str, projected.declarations)
+    )
+    assert build(projected.atom, Config) == value
+
+    def echo_config(config: Config) -> Config:
+        return config
+
+    metta.register_op(echo_config)
+    assert metta.eval(Expr([S.echo_config, projected.atom])) == [projected.atom]
+    claims = {str(atom) for atom in metta.atoms()}
+    assert "(annotation echo_config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
+    assert "(annotation echo_config (return (TypedDict Config (field retries Number) (field label String))))" in claims

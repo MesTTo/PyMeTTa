@@ -13,6 +13,10 @@ Guarantees:
     answers normally [measured 2026-08-19: an OSError raised while releasing
     reached stderr and nobody else] [tested
     test_a_nondeterministic_ops_generator_releases_what_it_holds]
+  - resolved parameter and return annotations select conversion in both
+    directions, so an annotation cannot describe one image while carrying
+    another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+    commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -42,7 +46,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ._api_types import MettaName, SpaceName
-from ._convert_project import explicit_projection
+from ._convert_build import build
+from ._convert_project import explicit_projection, project
 from .answer import Answer
 from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, decode, encode
 from .errors import Decline, PettaError, is_transport_failure
@@ -77,21 +82,27 @@ class Operation:
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     pure: bool = False  # no effect a cache could hide
+    parameter_annotations: tuple[Any, ...] = ()
+    return_annotation: Any = Any
 
 
 REGISTRY: dict[str, Operation] = {}
 
 
-def _decode_arg(wire: Any, pass_atoms: bool) -> Any:
+def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:
     atom = atom_from_wire(wire)
     if pass_atoms:
         return atom
+    if isinstance(annotation, type) and issubclass(annotation, Atom):
+        return atom
+    if annotation is not Any and annotation is not inspect.Parameter.empty:
+        return build(atom, annotation)
     # Grounded values unwrap to Python; symbols, variables and expressions
     # stay atoms, which is the structure an operation may want to inspect.
     return decode(atom) if isinstance(atom, Gnd) else atom
 
 
-def _encode_result(value: Any) -> list:
+def _encode_result(value: Any, annotation: Any = Any) -> list:
     if isinstance(value, Answer):
         # The explicit answer: bindings for the call's variables, crossing
         # as the seam's own wire form beside the plain atoms.
@@ -102,6 +113,8 @@ def _encode_result(value: Any) -> list:
         return _DECLINED
     if isinstance(value, Atom):
         return value.to_wire()
+    if annotation is not Any and annotation is not inspect.Parameter.empty:
+        return project(value, annotation).atom.to_wire()
     # An author's opt-in projects: an explicit register_type or a __metta__
     # method makes the value cross as its declared image, so an operation
     # returning a registered type answers (Pt 3 4) rather than an opaque
@@ -116,9 +129,13 @@ def _encode_result(value: Any) -> list:
 def dispatch(name: str, tagged_args: list) -> list:
     """One answer, encoded; the declined sentinel for no answer."""
     op = REGISTRY[name]
-    args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
+    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
+    args = [
+        _decode_arg(argument, op.pass_atoms, annotation)
+        for argument, annotation in zip(tagged_args, annotations, strict=False)
+    ]
     try:
-        return _encode_result(op.fn(*args))
+        return _encode_result(op.fn(*args), op.return_annotation)
     except Decline:
         return _DECLINED
 
@@ -138,8 +155,15 @@ def dispatch_inverse(name: str, tagged_result: Any):
     typo and forgetting the comma would otherwise iterate a string.
     """
     op = REGISTRY[name]
-    for arguments in _preimages(name, _decode_arg(tagged_result, op.pass_atoms)):
-        yield [_encode_result(argument) for argument in arguments]
+    for arguments in _preimages(
+        name,
+        _decode_arg(tagged_result, op.pass_atoms, op.return_annotation),
+    ):
+        annotations = (*op.parameter_annotations, *(Any for _ in arguments))
+        yield [
+            _encode_result(argument, annotation)
+            for argument, annotation in zip(arguments, annotations, strict=False)
+        ]
 
 
 def dispatch_inverse_raw(name: str, result: Any):
@@ -197,7 +221,11 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     stream; control signals and transport failures re-raise, always.
     """
     op = REGISTRY[name]
-    args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
+    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
+    args = [
+        _decode_arg(argument, op.pass_atoms, annotation)
+        for argument, annotation in zip(tagged_args, annotations, strict=False)
+    ]
     # closing/1 rather than a bare loop: the stream is one-shot and this is
     # what consumed it. A "many" operation is a generator function by
     # construction (ops._operation_kind), so close() is always there.
@@ -206,7 +234,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             for value in answers:
                 if value is None:
                     continue
-                yield _encode_result(value)
+                yield _encode_result(value, op.return_annotation)
     # KeyboardInterrupt and SystemExit are BaseException, outside this
     # handler by construction, so control signals pass through untouched.
     except Exception as error:

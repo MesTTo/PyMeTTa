@@ -10,6 +10,10 @@ Guarantees:
   - unregister_type removes the exact class, its constructor, and its public
     type-name claim atomically [tested
     test_type_registration_can_be_removed_and_its_name_reclaimed]
+  - TypedDict classes route through their annotation hook rather than the
+    ordinary-class registry path
+    [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+     commit=WORKTREE]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -62,7 +66,11 @@ _REGISTRY_LOCK = threading.RLock()
 
 def _is_plain_class(value: object) -> bool:
     """Whether value is a class rather than a parameterized annotation."""
-    return isinstance(value, type) and typing.get_origin(value) is None
+    return (
+        isinstance(value, type)
+        and typing.get_origin(value) is None
+        and not typing.is_typeddict(value)
+    )
 
 
 def _class_label(cls: type) -> str:
