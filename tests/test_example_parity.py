@@ -12,6 +12,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -121,8 +122,6 @@ def test_the_stated_corpus_size_is_the_real_one():
     survey ledger said 169, against 200 that run [measured 2026-08-18]. A
     number nothing derives is a number that drifts.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    import re
-
     size = len(parity.corpus())
     readme = (REPO / "examples" / "README.md").read_text()
     stated = re.search(r"contains (\d+) examples that run", readme)
@@ -132,9 +131,7 @@ def test_the_stated_corpus_size_is_the_real_one():
     )
 
 
-def test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch(
-    tmp_path,
-):
+def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     """A worktree without a backend's build product reads the truth, not red.
 
     The builtin count is the one llms.txt claim carrying a CONFIGURATION:
@@ -149,20 +146,33 @@ def test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch(
 
     backend = tmp_path / "backends" / "mork" / "mork_ffi"
     backend.mkdir(parents=True)
-    (backend / "morkspaces.pl").write_text(
-        "metta_backend_builtin('mm2-exec').\n"
-        "metta_backend_builtin('mork-add-atoms').\n"
-        "metta_backend_builtin('mork-flush').\n"
+    declarations = (
+        REPO / "backends" / "mork" / "mork_ffi" / "morkspaces.pl"
+    ).read_text(encoding="utf-8")
+    (backend / "morkspaces.pl").write_text(declarations, encoding="utf-8")
+    names = re.findall(
+        r"^metta_backend_builtin\('?([^')]+)'?\)\.",
+        declarations,
+        re.MULTILINE,
     )
-    note = _absent_artefact_diagnosis(225, 222, root=tmp_path)
+    assert names
+    stated = int(
+        re.search(
+            r"(\d+) builtins are registered",
+            (REPO / "llms.txt").read_text(encoding="utf-8"),
+        ).group(1)
+    )
+    bare = stated - len(names)
+    note = _absent_artefact_diagnosis(stated, bare, root=tmp_path)
     assert note is not None
     assert "backends/mork/mork_ffi/target/release/libmork_ffi.so" in note
-    for name in ("mm2-exec", "mork-add-atoms", "mork-flush"):
+    assert "missing build product, not doc drift" in note
+    for name in names:
         assert name in note
     # A delta the declarations do not explain is genuine drift, not config.
-    assert _absent_artefact_diagnosis(225, 221, root=tmp_path) is None
+    assert _absent_artefact_diagnosis(stated, bare - 1, root=tmp_path) is None
     # With the artefact present the diagnosis stands aside entirely.
     artefact = backend / "target" / "release"
     artefact.mkdir(parents=True)
     (artefact / "libmork_ffi.so").touch()
-    assert _absent_artefact_diagnosis(225, 222, root=tmp_path) is None
+    assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) is None

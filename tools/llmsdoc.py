@@ -10,15 +10,18 @@ without being verified.
 Assumes:
   - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running engine
-    and there is no way to read them statically [assumed 2026-08-18]
+    and there is no static inventory exposed to this checker
+    [assumed: the supported builtin inventory is runtime-defined; commit=WORKTREE]
   - a backticked token containing a slash and ending in a known extension is
     a path claim, and nothing else in the file is shaped that way
-    [tested test_llms_txt_paths_all_resolve]
+    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=WORKTREE]
 Guarantees:
   - every petta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, and the two modules it says
     are gone really are gone
+    [tested: GATE_ONLY=1 sh check.sh llms; commit=WORKTREE]
   - all failures are reported at once, not just the first
+    [source: bindings/python/tools/llmsdoc.py:check and main; commit=WORKTREE]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check
@@ -263,7 +266,7 @@ def check() -> list[str]:
             # facts, so a mismatch that the absent artefact fully explains is
             # diagnosed by name instead of reported as doc drift
             # [tested:
-            # test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch].
+            # test_the_llms_builtin_claim_holds_in_a_bare_configuration].
             diagnosis = _absent_artefact_diagnosis(value, actual) if builtins_claim else None
             if diagnosis:
                 # The claim HOLDS under the stated configuration: the doc
