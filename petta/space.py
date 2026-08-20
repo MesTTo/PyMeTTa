@@ -55,6 +55,10 @@ Guarantees:
     an operand add() would lift into one atom [tested
     test_ior_merges_a_space_equations_included,
     test_ior_refuses_the_operands_add_would_lift]
+  - builtins() returns every registered function and every translator special
+    form, sorted without duplicates [tested:
+    test_builtins_equals_the_union_of_functions_and_special_forms;
+    commit=WORKTREE]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -1769,7 +1773,7 @@ class MeTTa:
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
-        """Every function name the engine has registered."""
+        """Every registered function and translator special-form name."""
         return self._rt.builtins()
 
     def is_function(self, name: str) -> bool:

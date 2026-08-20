@@ -64,6 +64,11 @@
 %     decision to Python consumers without reproducing delimiters there
 %     [tested: test_every_delimiter_check_derives_from_one_grammar_rule;
 %     commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
+%   - petta_py_builtins/1 answers the sorted union of every fun/1 name and
+%     every translate_special_dl/5 head, so host tooling sees the language
+%     rather than only its callable registry [tested:
+%     test_builtins_equals_the_union_of_functions_and_special_forms;
+%     commit=WORKTREE]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -1886,9 +1891,23 @@ petta_py_unregister_extension(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     unregister_metta_extension(Name).
 
-%Every function name the engine has registered, for completion and docs:
+%Every function or translator special-form name the language knows, for
+%completion and docs. The translator clause table is the special-form
+%registry; asking it keeps this answer current when a form is added there.
 petta_py_builtins(Names) :-
-    findall(S, ( fun(N), atom_string(N, S) ), Names).
+    findall(N, fun(N), Functions),
+    petta_py_special_form_names(SpecialForms),
+    append(Functions, SpecialForms, Language0),
+    sort(Language0, Language),
+    maplist(atom_string, Language, Names).
+
+petta_py_special_form_names(Names) :-
+    petta_engine_module(Engine),
+    findall(Name,
+            ( clause(Engine:translate_special_dl(Name, _, _, _, _), _),
+              atom(Name) ),
+            Names0),
+    sort(Names0, Names).
 
 petta_py_is_function(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
