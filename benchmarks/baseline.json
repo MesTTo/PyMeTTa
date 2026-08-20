@@ -271,6 +271,7 @@
             "wall_seconds_per_operation": 2.7933047502301635e-06
         },
         "typed-call": {
+            "comment": "INSTRUCTIONS RE-PINNED 2026-08-20, 6425150113 to 6714389531: the +4.50pp over the old pin decomposes by interleaved same-binary A/B as ZERO from the catalog train (the tip measures 38M BELOW its parent 723607f in matched location, 6554M against 6592M) plus +2.44pp TREE-LOCATION sensitivity (the same tip sha measures 6714M in the main tree and 6554M in a worktree, identical code, the Mytkowicz environment-bias effect via source-path atoms) plus pre-train accumulation under the ceiling. An inert-clause perturbation moved it only 0.015pp, so clause layout is not the lever; the tree path is. Compare instruction pins only within one tree location. ",
             "inference_slope": {
                 "delta_inferences": 7650306,
                 "large_operations": 500000,
@@ -279,8 +280,8 @@
             "inferences": 8500420,
             "instruction_comment": "RE-FLOORED 2026-08-18 from 6482141737: typed-call runs in TWO environment-selected alignment modes (6425150113 and 6674588065, each stable to ~60 instructions within a run, 3.9% apart, inference counter identical and green in both), the same class source-load's note records. The floor is the low mode and the noise percent spans the high one, so a real regression on either mode still trips.",
             "instruction_noise_comment": "RAISED to 5.0 on 2026-08-17, from the 1.0 every other bench carries, because this workload's instruction count is LAYOUT-sensitive at 3.13% and nothing in the tree selects the mode. Ten clauses that NOTHING CALLS, appended to src/python.pl, moved it from 6590121734 to 6390136042, and removing them moved it back. A sweep of the same probe reads 6590121734, 6558144686, 6462134810, 6518142057, 6438133781, 6390136042 at 0, 1, 2, 3, 5 and 10 clauses, saturating there and unchanged at 20, so it is a continuum rather than the two modes alpha-unique had [measured 2026-08-17]. The INFERENCE count is identical across every one of them, which is what says no logical work ever changed. This is code-layout bias, the effect Mytkowicz, Diwan, Hauswirth and Sweeney measured in 'Producing Wrong Data Without Doing Anything Obviously Wrong!' (ASPLOS 2009), where link order and environment size alone move a benchmark by several percent and can reverse a conclusion. alpha-unique's warm-up does NOT fix this one: with typed-call added to pure.py's _WARM_UP the same two trees still measure 6591481484 and 6391492325, so the mode is not the one-time stack growth that was, and the warm-up was reverted rather than left in for nothing. The allowance is measured rather than guessed, and the ceiling still sees what it exists for: this bench is gated in instructions because the inference counter cannot see the type-check specialisation, and disabling that specialisation by one token measures 9368378515, +42.2% against a 3.13% noise floor, a 13x margin [measured 2026-08-17]. The baseline stays at the LOW end of the layout range rather than being re-recorded at the tree's current value, so a real regression sitting on top of the high mode still fails.",
-            "instruction_noise_percent": 4.0,
-            "instructions": 6425150113,
+            "instruction_noise_percent": 1.0,
+            "instructions": 6714389531,
             "operations": 500000,
             "unit": "calls"
         },

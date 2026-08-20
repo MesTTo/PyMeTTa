@@ -477,7 +477,7 @@ petta_check_catalog_semantics(kind, [KindHead|Spec], Term) :-
     ;   true
     ),
     petta_check_argspecs(Spec, 2, Term),
-    %A head already routed by shape keeps routable: re-declaring its kind
+    %A head already routed by shape keeps routable: redeclaring its kind
     %(remove, then add) with a spec the route cannot dispatch would leave a
     %standing routed-by-shape row over an unroutable shape, so the unfit
     %spec is refused here rather than discovered as dead routing.
@@ -673,7 +673,7 @@ prolog:error_message(petta_declaration_malformed(Term, Position, Expected)) -->
       ) },
     [ 'the declaration ~w does not fit its declared kind: argument ~w \c
        expects ~w. Match (kind ~w $spec) in &petta to read the declared \c
-       shape, or remove the kind row and re-declare it to widen the \c
+       shape, or remove the kind row and redeclare it to widen the \c
        kind'-[TermText, Position, ExpectedText, Head] ].
 
 %The shipped catalog, as data. Every row becomes an ordinary '&petta' atom
