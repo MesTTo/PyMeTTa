@@ -28,7 +28,7 @@ Guarantees:
   - each registered arity owns the arrow for exactly the arguments that call
     form accepts, including repeated variadic annotations [tested:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-    commit=WORKTREE]
+    commit=e5246578ba61fb5efc9d2282bade50479946e34a]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -9,7 +9,7 @@ Guarantees:
   - each installed array operation has at least one arrow declaration and
     broadcast-shape works forwards and backwards as a CLP(FD) relation
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=WORKTREE]
+     commit=e5246578ba61fb5efc9d2282bade50479946e34a]
 Open Obligations:
   To Do: None
   Hacks: None

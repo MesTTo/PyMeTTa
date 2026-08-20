@@ -19,7 +19,7 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=WORKTREE]
+     commit=e5246578ba61fb5efc9d2282bade50479946e34a]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
