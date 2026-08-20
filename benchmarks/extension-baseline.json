@@ -1,14 +1,14 @@
 {
   "benchmarks": {
     "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
-      "comment": "Lowered 78219 -> 65219 on 2026-08-21, 72.01 -> 60.01 inferences per add: space-admission-verdict reads the fixed admits and capacity heads directly from &petta's boot-created native storage, avoiding two petta_contract_fact =../catch wrappers on an accepted add. Lowered again 60.01 -> 55.01: has_declared_type probes a ground direct declaration through its indexed storage shape before taking the exact type_witness_in fallback for every miss or non-ground call. Semantics are pinned by metta_has_declared_type, hooks_admission_sugar, and the admission differential.",
-      "inferences": 60219,
+      "comment": "Lowered 78219 -> 65219 on 2026-08-21, 72.01 -> 60.01 inferences per add: space-admission-verdict reads the fixed admits and capacity heads directly from &petta's boot-created native storage. Lowered again 60.01 -> 55.01: has_declared_type probes a ground direct declaration before its exact fallback. Lowered again 55.01 -> 48.01: petta_hook_eval calls the compiled fire clause directly when its declaring module is already current, retaining with_metta_module for the cross-module case. Semantics are pinned by metta_has_declared_type, hooks_compiled_fire, hooks_admission_sugar, and the admission differential.",
+      "inferences": 53219,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-add-atom-into-a-pool-with-a-declared-capacity": {
-      "comment": "P12.4 lowered 4574905 -> 111227 by replacing per-add atom enumeration with space_atom_count/2. Lowered again 103.02 -> 91.01 inferences per add on 2026-08-21: space-admission-verdict reads the fixed admits and capacity heads directly from &petta's boot-created native storage, avoiding two petta_contract_fact =../catch wrappers on an accepted add.",
-      "inferences": 96225,
+      "comment": "P12.4 lowered 4574905 -> 111227 by replacing per-add atom enumeration with space_atom_count/2. Direct fixed-head contract reads lowered 103.02 -> 91.01 inferences per add on 2026-08-21. The same-module compiled-fire path lowered it again to 84.02 while retaining with_metta_module for cross-module fires.",
+      "inferences": 89227,
       "operations": 1000,
       "unit": "calls"
     },
@@ -19,8 +19,8 @@
       "unit": "calls"
     },
     "extcost-add-atom-through-an-accept-all-pre-add-hook": {
-      "comment": "Lowered from 234.03 to 64.02 inferences per add on 2026-08-20: the hook wrapper re-translated [Handler, Atom] through eval_metta_in_module/3 on every fire, and the call site is now translated once at claim time and asserted as a fire clause in the declaring module, healed lazily after any function change. Semantics pinned by hooks_compiled_fire, including that the offered atom reaches the handler as data. Lowered again to 44.02 the same day with P12.4: the global admission wrapper this row was also paying came off, the no-claims row's comment carries the mechanism.",
-      "inferences": 49231,
+      "comment": "Claim-time compilation first lowered this row from 234.03 to 64.02 inferences per add, and P12.4 removed the global admission wrapper. Lowered 43.02 -> 36.02 on 2026-08-21: petta_hook_eval keeps the compiled-presence check but calls the fire clause directly when its declaring module is already current; the cross-module branch still uses with_metta_module. Semantics are pinned by hooks_compiled_fire and the named-declarer admission test.",
+      "inferences": 41231,
       "operations": 1000,
       "unit": "calls"
     },

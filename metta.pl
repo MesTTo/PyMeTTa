@@ -3329,9 +3329,10 @@ petta_install_space_hooks :-
 %
 %The body is call_goals_in_/2 over the translated goal list, not a
 %flattened conjunction, so a translated cut stays exactly as opaque as
-%the eval path has it, and the fire site keeps with_metta_module/2, so a
-%handler body reading (context-space) or compiling against the current
-%module sees what it saw before. Everything observable is the eval
+%the eval path has it. The fire site below keeps the declaring module in
+%force, switching only when the caller is not already there, so a handler
+%body reading (context-space) or compiling against the current module sees
+%what it saw before. Everything observable is the eval
 %path's: same first-verdict law at the callers, same failure-is-stuck,
 %same nondeterminism underneath
 %[tested: hooks:a_compiled_fire_answers_what_the_eval_path_answers].
@@ -3357,9 +3358,13 @@ petta_hook_eval(Space, Slot, Handler, Module, Term, Verdict) :-
                    ;   petta_hook_compile(Space, Slot, Handler, Module)
                    ))
     ),
-    with_metta_module(Module,
-                      call(Module:'$petta_hook_fire'(Space, Slot, Term,
-                                                     Verdict))).
+    current_metta_module(Current),
+    (   Current == Module
+    ->  call(Module:'$petta_hook_fire'(Space, Slot, Term, Verdict))
+    ;   with_metta_module(Module,
+                          call(Module:'$petta_hook_fire'(Space, Slot, Term,
+                                                         Verdict)))
+    ).
 
 petta_hook_drop_compiled(Space, Slot) :-
     forall(retract(petta_hook_compiled(Space, Slot, Ref)),
