@@ -47,7 +47,12 @@ Guarantees:
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+    commit=WORKTREE]
+  - symbolic operator rows specialize into direct constructors once at import,
+    so term-operators costs 660489697 instructions:u, 27.86% below its
+    915593600 baseline [measured: minimum of 660489757, 660489704, 660489697;
+    command=python -m benchmarks.check_instructions term-operators;
+    fixture=CPython 3.14 controlled perf lane; commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -1138,16 +1143,42 @@ def _apply_operator_lowering(
 def _operator_method(
     entry: OperatorLowering, *, reflected: bool = False
 ) -> Callable[..., Expr]:
-    """Create one dunder and retain its table row for inspection."""
+    """Specialize one dunder once and retain its table row for inspection."""
     name = entry.reflected if reflected else entry.dunder
     if name is None:
         raise RuntimeError(f"operator lowering {entry.dunder} has no reflected spelling")
-    if entry.arity == 1:
+    if entry.kind in {"symbol", "provided"}:
+        if not isinstance(entry.form, str):
+            raise RuntimeError(f"operator lowering {entry.dunder} has no symbol")
+        symbol = Sym(entry.form)
+        if entry.arity == 1:
+
+            def unary_symbol(self: Atom, _symbol: Sym = symbol) -> Expr:
+                return Expr([_symbol, self])
+
+            operator: Callable[..., Expr] = unary_symbol
+        elif reflected:
+
+            def reflected_symbol(
+                self: Atom, other: Any, _symbol: Sym = symbol
+            ) -> Expr:
+                return Expr([_symbol, encode(other), self])
+
+            operator = reflected_symbol
+        else:
+
+            def binary_symbol(
+                self: Atom, other: Any, _symbol: Sym = symbol
+            ) -> Expr:
+                return Expr([_symbol, self, encode(other)])
+
+            operator = binary_symbol
+    elif entry.arity == 1:
 
         def unary(self: Atom) -> Expr:
             return _apply_operator_lowering(entry, self)
 
-        operator: Callable[..., Expr] = unary
+        operator = unary
     else:
 
         def binary(self: Atom, other: Any) -> Expr:
