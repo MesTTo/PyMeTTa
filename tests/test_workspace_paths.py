@@ -14,6 +14,7 @@ import subprocess
 _FIXED_ORACLE_PATH_PATTERN = {
     "tests/conformance/leatta.py",
     "tests/conformance/cetta.py",
+    "tests/conformance/cetta_corpus.py",
     "python/tests/test_presented_core_oracle.py",
     "python/tests/test_critical_pair_oracle.py",
 }
