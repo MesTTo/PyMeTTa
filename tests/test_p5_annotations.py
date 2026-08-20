@@ -7,7 +7,7 @@ Guarantees:
   - container annotation acceptance selects its own callable's declarations
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=WORKTREE]
+    commit=5bdbd59f32e078187c9adf5bb3a507affd84852b]
 """
 
 import types
