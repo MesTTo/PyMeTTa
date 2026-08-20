@@ -22,7 +22,7 @@ Guarantees:
     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
-    test_eval_using_carries_identity; commit=WORKTREE]
+    test_eval_using_carries_identity; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

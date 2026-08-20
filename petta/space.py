@@ -52,7 +52,7 @@ Guarantees:
   - execution policies live in with-blocks and capture never changes run or
     eval return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
   - profile_extension reports every declared member of an extension, including
     one the workload never reached, with the tier that installed it and its
     clause index [tested 2026-08-16:

@@ -4,7 +4,7 @@ Guarantees:
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit and its
     refusal points to unannotated wrappers plus explicit declaration atoms
-    [tested: test_union_expansion_is_bounded; commit=WORKTREE]
+    [tested: test_union_expansion_is_bounded; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
      commit=4224c26819d90b9e03efdaef78cb573b91729295]

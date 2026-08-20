@@ -6,7 +6,7 @@ prepared queries, general weighted relations, goal-directed soft proving with Pr
 the &petta reflection space the library describes itself into.
 Guarantees:
   - an unannotated weighted operation stays untyped without a typed flag
-    [tested: test_a_weighted_relation_is_an_annotated_op; commit=WORKTREE]
+    [tested: test_a_weighted_relation_is_an_annotated_op; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -8,7 +8,7 @@ renderer implements the same law, so one atom has one text in both hosts.
 Guarantees:
   - numeric print probes collect text through a shape-preserving capture scope
     [tested: test_finite_floats_print_the_arbiters_layout,
-    test_gnd_str_spells_numbers_the_engines_way; commit=WORKTREE]
+    test_gnd_str_spells_numbers_the_engines_way; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

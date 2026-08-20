@@ -25,7 +25,7 @@ Guarantees:
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

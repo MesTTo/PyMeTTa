@@ -6,7 +6,7 @@ fails.
 Guarantees:
   - unannotated generator operations need no typed declaration switch
     [tested: test_a_nondeterministic_ops_generator_releases_what_it_holds;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

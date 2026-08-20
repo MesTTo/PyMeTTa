@@ -9,7 +9,7 @@ Guarantees:
   - execution modes are scopes, return shapes are invariant, and callable
     policy is reflected by atoms rather than boolean flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

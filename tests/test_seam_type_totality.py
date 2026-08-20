@@ -7,7 +7,7 @@ Guarantees:
   - an unannotated operation makes no type claim while its encoded opaque
     value still carries the host type [tested:
     test_get_type_over_an_encoded_heterogeneous_list_is_total;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

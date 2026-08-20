@@ -6,7 +6,7 @@ Guarantees:
   - every valid callable declaration combination compiles the expected clause
     and invalid raw-Atom and immutable-raw-generator combinations are absent
     [tested: test_every_cube_point_compiles_the_expected_clause;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

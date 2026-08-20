@@ -10,7 +10,7 @@ Guarantees:
     per-call shape or mode flags [tested: test_run_capture_collects_printed_output,
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

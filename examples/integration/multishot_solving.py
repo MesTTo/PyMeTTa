@@ -9,7 +9,7 @@ classes below are the whole translation; the solve side is the query
 surface the space already has.
 Guarantees:
   - grounding scopes each template run atomically without a call-shape flag
-    [tested: test_example_runs_and_verifies_itself; commit=WORKTREE]
+    [tested: test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None

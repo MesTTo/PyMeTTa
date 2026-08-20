@@ -9,7 +9,7 @@ Guarantees:
   - corpus output is captured without changing the evaluated group shape
     [tested:
     test_a_type_variable_bound_through_an_application_constrains_the_next_argument;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 """
 
 from __future__ import annotations

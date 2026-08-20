@@ -9,7 +9,7 @@ Guarantees:
     `(arguments name atoms)` policies instead of a boolean registration flag
     [tested: test_fstrings_str_round_range_slices,
     test_mixed_numeric_equality_and_membership;
-    commit=WORKTREE]
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
