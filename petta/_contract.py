@@ -16,6 +16,9 @@ Guarantees:
     OpDecl [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
     commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+  - compiled-definition source, capture, and effect facts are typed ordinary
+    declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,6 +38,30 @@ _SUB = ":<"
 # (head, subject, object) triples; the whole ontology is (: X Y) and
 # (:< X Y) forms, so triples are the entire grammar it needs.
 _OP_DECL_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Number"), Sym("OpKind"), Sym("OpDecl")])
+_DEFINED_TYPE = Expr([Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("DefinitionFact")])
+_SOURCE_SPAN_TYPE = Expr(
+    [
+        Sym("->"),
+        Sym("SpaceType"),
+        Sym("Symbol"),
+        Sym("String"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("DefinitionFact"),
+    ]
+)
+_FREE_VARIABLE_TYPE = Expr(
+    [
+        Sym("->"),
+        Sym("SpaceType"),
+        Sym("Symbol"),
+        Sym("Symbol"),
+        Sym("DefinitionFact"),
+    ]
+)
+_EFFECT_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Effect"), Sym("EffectDecl")])
 
 ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "Declaration", "Type"),
@@ -46,6 +73,11 @@ ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "raw_det", "OpKind"),
     (_COLON, "raw_many", "OpKind"),
     (_COLON, "op", _OP_DECL_TYPE),
+    (_COLON, "DefinitionFact", "Type"),
+    (_SUB, "DefinitionFact", "Declaration"),
+    (_COLON, "defined", _DEFINED_TYPE),
+    (_COLON, "source-span", _SOURCE_SPAN_TYPE),
+    (_COLON, "free-variable", _FREE_VARIABLE_TYPE),
     (_COLON, "EffectDecl", "Type"),
     (_SUB, "EffectDecl", "Declaration"),
     (_COLON, "ImageDecl", "Type"),
@@ -76,6 +108,7 @@ ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_SUB, "Exact", "Partial"),
     (_SUB, "Partial", "Sound"),
     (_COLON, "Effect", "Type"),
+    (_COLON, "effect", _EFFECT_TYPE),
     (_COLON, "immutable", "Effect"),
     (_COLON, "stable", "Effect"),
     (_COLON, "volatile", "Effect"),

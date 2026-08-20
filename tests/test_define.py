@@ -8,6 +8,10 @@ Guarantees:
     commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
   - a local annotated assignment emits and enforces its in-place type claim
     [tested: test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+  - every definition derives source, documentation, captures, and purity from
+    its AST and retires stale reflection on replacement and clear [tested:
+    test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -28,7 +32,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import CompileError, EngineError, S, expr
+from petta import CompileError, EngineError, S, expr, parse
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -157,6 +161,122 @@ def test_an_annotated_binding_emits_its_claim(m):
 
     assert "(: $result Number)" in str(annotated_generator.body)
     assert m.run("!(annotated_generator 8)") == [[8]]
+
+
+def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
+    @m.define
+    def ast_helper(value):
+        return value
+
+    def ast_observed(value):
+        """Documentation derived from the parsed function body."""
+        return ast_helper(value)
+
+    ast_observed.__doc__ = "A mutable runtime attribute is not the source fact."
+    observed = m.define(ast_observed)
+
+    assert observed.doc == "Documentation derived from the parsed function body."
+    assert observed.source_span.path == str(Path(__file__).resolve())
+    assert observed.source_span.start_line == inspect.getsourcelines(ast_observed)[1]
+    assert observed.free_variables == ("ast_helper",)
+    assert observed.pure is True
+    assert "pure" not in inspect.signature(m.define).parameters
+
+    reflection = m.space("&petta")
+    source_rows = reflection.query(
+        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+    )
+    assert len(source_rows) == 1
+    source_row = source_rows[0]
+    assert source_row.space == S[m.space_name]
+    assert source_row.path.value == str(Path(__file__).resolve())
+    source_fact = expr(
+        S["source-span"],
+        source_row.space,
+        S.ast_observed,
+        source_row.path,
+        source_row.sl,
+        source_row.sc,
+        source_row.el,
+        source_row.ec,
+    )
+    free_fact = parse(
+        "(free-variable " + m.space_name + " ast_observed ast_helper)"
+    )
+    effect_fact = parse("(effect ast_observed immutable)")
+    assert free_fact in reflection
+    assert effect_fact in reflection
+    assert reflection.run(
+        f"!(get-type (defined {m.space_name} ast_observed))"
+    ) == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl]]
+    assert "Documentation derived from the parsed function body." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    m.run("(= (ast_effect $value) (println! $value))")
+
+    def ast_observed(value):
+        """Replacement documentation from the replacement AST."""
+        return ast_effect(value)  # noqa: F821
+
+    replacement = m.define(ast_observed)
+    assert replacement.pure is False
+    assert effect_fact not in reflection
+    assert len(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    ) == 1
+    assert "Replacement documentation from the replacement AST." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    old_source = list(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    )
+
+    def ast_observed(value):
+        """A fact publication failure must not install this clause."""
+        return value + 1
+
+    runtime_type = type(m.runtime)
+    real_must = runtime_type.must
+    failed = False
+
+    def fail_reflection(runtime, goal, **inputs):
+        nonlocal failed
+        if (
+            not failed
+            and goal == "petta_py_add(Space, W)"
+            and inputs.get("Space") == "&petta"
+        ):
+            failed = True
+            raise EngineError("forced definition-fact failure")
+        return real_must(runtime, goal, **inputs)
+
+    monkeypatch.setattr(runtime_type, "must", fail_reflection)
+    with pytest.raises(EngineError, match="forced definition-fact failure"):
+        m.define(ast_observed)
+    monkeypatch.setattr(runtime_type, "must", real_must)
+    assert list(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    ) == old_source
+    assert "Replacement documentation from the replacement AST." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    m.clear()
+    assert not reflection.query(
+        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+    )
+    assert free_fact not in reflection
 
 
 def test_true_division_matches_python_exactly(m):

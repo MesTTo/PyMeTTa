@@ -15,6 +15,10 @@ Guarantees:
   - local annotated assignments resolve through a syntax-limited namespace
     reader and compile to enforceable in-place type claims [tested:
     test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+  - source spans, source docstrings, lexical captures, and call purity are
+    derived from the parsed function and exposed as immutable facts [tested:
+    test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,6 +35,7 @@ from collections.abc import Callable
 from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, cast
 
 from ._define_expression import ExpressionCompilerMixin
+from ._define_facts import DefinitionFacts, SourceSpan, derive_definition_facts
 from ._define_loops import LoopCompilerMixin
 from ._define_statements import StatementCompilerMixin, _is_generator, _superpose
 from ._define_twins import (
@@ -40,7 +45,7 @@ from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
-__all__ = ["Defined", "PrologBacked", "compile_function"]
+__all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -204,6 +209,7 @@ class Defined(Generic[_P, _R]):
         "_py",
         "body",
         "doc",
+        "facts",
         "name",
         "params",
         "patterns",
@@ -224,6 +230,7 @@ class Defined(Generic[_P, _R]):
         *,
         patterns: dict[str, Atom] | None = None,
         runtime_ops: frozenset[str] = frozenset(),
+        facts: DefinitionFacts | None = None,
     ):
         self.name = name
         self.params = params
@@ -236,6 +243,7 @@ class Defined(Generic[_P, _R]):
         # compiled source runs on any evaluator; named means it needs this
         # runtime's registered operations.
         self.runtime_ops = runtime_ops
+        self.facts = facts
         self.__name__ = name
         self.__wrapped__ = py
 
@@ -255,6 +263,21 @@ class Defined(Generic[_P, _R]):
     def __doc__(self) -> str | None:  # type: ignore[override]
         """The canonical first clause's cleaned Python docstring."""
         return self.doc
+
+    @property
+    def source_span(self) -> SourceSpan | None:
+        """Absolute coordinates of the compiled Python definition."""
+        return self.facts.source_span if self.facts is not None else None
+
+    @property
+    def free_variables(self) -> tuple[str, ...]:
+        """Lexical captures reported by Python's symbol table."""
+        return self.facts.free_variables if self.facts is not None else ()
+
+    @property
+    def pure(self) -> bool | None:
+        """Whether every source call is a local or declared-pure call."""
+        return self.facts.pure if self.facts is not None else None
 
     @property
     def head(self) -> Expr:
@@ -318,12 +341,14 @@ class Compiled(NamedTuple):
     aux: list[Expr]
     runtime_ops: frozenset[str]
     hazards: frozenset[str]
+    facts: DefinitionFacts
 
 
 def compile_function(
     fn: types.FunctionType,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
+    pure: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
@@ -346,7 +371,8 @@ def compile_function(
     if not isinstance(fn, types.FunctionType):
         raise TypeError(f"define expects a Python function, got {type(fn).__name__}")
     try:
-        source = textwrap.dedent(inspect.getsource(fn))
+        source_lines, first_line = inspect.getsourcelines(fn)
+        source = textwrap.dedent("".join(source_lines))
     except (OSError, TypeError) as exc:
         raise CompileError(
             f"the source of {fn.__name__} is not available, so it cannot be "
@@ -396,15 +422,27 @@ def compile_function(
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
+    facts = derive_definition_facts(
+        fn,
+        definition,
+        source=source,
+        source_lines=source_lines,
+        first_line=first_line,
+        known=known,
+        pure=_provided(pure, _never),
+    )
+    twin = _python_twin(fn, patterns)
+    twin.__doc__ = facts.doc
     return Compiled(
         params,
         patterns,
         body,
-        _python_twin(fn, patterns),
+        twin,
         generator,
         compiler.aux,
         frozenset(compiler.runtime_ops),
         frozenset(compiler.hazards),
+        facts,
     )
 
 

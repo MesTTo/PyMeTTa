@@ -25,6 +25,7 @@ with a message when the dependency is absent.
 | example | what it shows |
 |---|---|
 | [`operations/python_definitions.py`](operations/python_definitions.py) | `@m.define`: Python compiled to equations, stacked clauses, generators, and match |
+| [`operations/annotation_contracts.py`](operations/annotation_contracts.py) | annotations as evaluation contracts, local type claims, and source-derived definition facts |
 | [`operations/engine_controls.py`](operations/engine_controls.py) | per-call time and inference bounds, engine stats, captured output, and DataFrame conversion |
 
 ## Data

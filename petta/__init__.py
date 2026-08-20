@@ -11,6 +11,9 @@ Guarantees:
     [tested test_public_context_types_are_distinct]
   - atom formatter registrations have public removal counterparts [tested
     test_object_repr_registrations_can_be_removed_exactly]
+  - compiled definition facts and source spans are public immutable values
+    [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -154,7 +157,7 @@ from .atoms import (  # noqa: E402
     variables,
 )
 from .casting import CastError, cast  # noqa: E402
-from .define import Defined  # noqa: E402
+from .define import Defined, DefinitionFacts, SourceSpan  # noqa: E402
 from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
@@ -284,6 +287,7 @@ __all__ = [
     "CustomMatch",
     "Decline",
     "Defined",
+    "DefinitionFacts",
     "Derivation",
     "EngineError",
     "EngineProfile",
@@ -311,6 +315,7 @@ __all__ = [
     "S",
     "SaveFormat",
     "SourceNotFound",
+    "SourceSpan",
     "SpaceName",
     "SpaceProvider",
     "Step",
