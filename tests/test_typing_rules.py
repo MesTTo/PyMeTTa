@@ -9,6 +9,10 @@ Guarantees:
     refusal or defer as conditional obligations
     [tested: test_a_user_typing_rule_participates_like_a_shipped_one;
     commit=WORKTREE]
+  - the shipped reporting family keeps Atom ordinary while the runtime family
+    retains Atom's gradual wildcard behavior
+    [tested: test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -132,3 +136,18 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     assert "user rule p37-deny and user rule p37-guard" in report
     assert "user rule p37-deny and shipped rule " in report
     assert "unconditional critical-pair checker" in report
+
+
+def test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard():
+    metta = MeTTa()
+    metta.run("(: p37-r Type)")
+    metta.run("(: p37-a Type)")
+    metta.run("(: p37-value p37-a)")
+    metta.run("(: p37-atom-result (-> p37-a Atom))")
+    for metatype in ("Grounded", "Symbol", "Variable"):
+        function = f"p37-needs-{metatype.lower()}"
+        metta.run(f"(: {function} (-> {metatype} p37-r))")
+        assert _answers(
+            metta,
+            f"(get-type ({function} (p37-atom-result p37-value)))",
+        ) == []
