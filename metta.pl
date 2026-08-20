@@ -4235,6 +4235,113 @@ claim_over(Name, _, _, Tier, _) :-
 
 release_function_name(Name) :- retractall(metta_function_origin(Name, _, _)).
 
+%%%% The host registration lifecycle, four calls instead of seven %%%%
+%
+%A host registering an operation performs one protocol: prove the name is
+%free, assert its own dispatch clause, then make the engine treat the name
+%as a function. The protocol's steps were published one bookkeeping
+%predicate at a time (refuse_other_tiers_name, the probe, register_fun_in,
+%arity/2, function_changed, claim_function_name, and the release trio), so
+%every binding had to restate the engine's registration invariants in order.
+%These four carry the whole protocol; the fine-grained predicates stay as
+%the internals they always were.
+%
+%OPEN runs before the host mutates anything, which is the probe's whole
+%value: a taken name refuses here, naming its owner, while nothing has been
+%asserted yet. The tier refusal comes first because its diagnostic names the
+%owning tier and what to do about it, where the probe's names a Prolog
+%predicate [tested: host_registration:a_taken_name_refuses_before_any_write].
+metta_host_open_function(Name, Tier, PredArity) :-
+    refuse_other_tiers_name(Name, Tier),
+    metta_host_probe_function(Name, PredArity).
+
+%ADOPT runs after the host asserted its dispatch clause at the base tier:
+%the name becomes a function, its dependents refresh against the clause
+%that is already in place, and the tier claim lands last, after any
+%unregistration of prior arities has run its releases
+%[tested: host_registration:an_adopted_name_is_a_function_and_claimed].
+metta_host_adopt_function(Name, Tier, Kind, PredArity) :-
+    metta_self_module(Base),
+    %The arity row BEFORE register_fun_in: registering a fresh name repairs
+    %stale mentions through register_fun/1's scheduler, and that recompile
+    %compiles the mention as a call, which needs the arity to exist. Flip
+    %this order and adopt fails
+    %[tested: host_registration:a_forgotten_name_reads_as_data_again].
+    ( arity(Name, PredArity) -> true ; assertz(arity(Name, PredArity)) ),
+    register_fun_in(Base, Name),
+    function_changed(Base, Name),
+    claim_function_name(Name, Tier, Kind).
+
+%DROP removes one arity: the base tier's clauses at that functor and the
+%arity row. The host guards this with its own bookkeeping so it only drops
+%arities it registered; equations live in their space's own modules, and
+%the tier claim keeps a host operation and a base-tier equation from
+%sharing a name in the first place.
+metta_host_drop_function(Name, PredArity) :-
+    metta_self_module(Base),
+    functor(Head, Name, PredArity),
+    retractall(Base:Head),
+    retractall(arity(Name, PredArity)).
+
+%FORGET runs when nothing defines the name at any arity: the engine stops
+%treating it as a function everywhere, the tier claim releases, and the
+%dependents that compiled mentions of it as calls recompile back to data
+%[tested: host_registration:a_forgotten_name_reads_as_data_again].
+metta_host_forget_function(Name) :-
+    retractall(fun(Name)),
+    retractall(arity(Name, _)),
+    unregister_fun_everywhere(Name),
+    release_function_name(Name),
+    function_removed(Name).
+
+%The probe is the assert the registration will do, on a clause that can
+%never run, so the engine's own permission error surfaces before any
+%existing registration has been touched. predicate_property cannot stand in
+%for it: autoloadable names report static yet accept clauses. The fresh-name
+%clause first, because it is the case every ordinary registration takes and
+%it skips the assert, the erase and the property calls [measured 2026-08-18:
+%register-op 39907 -> 38830 over 100 registrations, -10.8 each, min of 3].
+%
+%built_in and nothing wider decides the refusal: a merely AUTOLOADABLE
+%library predicate reports defined, imported_from and a home module before
+%it has ever been loaded, and a library predicate really in use is a free
+%MeTTa name now that operation clauses go into the base tier's own module,
+%where defining one shadows it locally. Of the 428 names the engine imports,
+%probing the base module refuses 7, 4, 2 and 1 at MeTTa arity 0 to 3: SWI's
+%protected core, which no module may redefine, the protected core a rewrite
+%system needs, obtained rather than implemented [measured 2026-08-19, one
+%process per measurement and a fresh module per name].
+metta_host_probe_function(Name, PredArity) :-
+    metta_self_module(Base),
+    \+ current_predicate(Base:Name/PredArity),
+    !.
+metta_host_probe_function(Name, PredArity) :-
+    metta_self_module(Base),
+    functor(Probe, Name, PredArity),
+    catch(setup_call_cleanup(assertz((Base:Probe :- fail), Ref), true, erase(Ref)),
+          error(permission_error(modify, static_procedure, _), _),
+          metta_host_refuse_taken_name(Name, PredArity, Probe)).
+
+metta_host_refuse_taken_name(Name, PredArity, Probe) :-
+    metta_self_module(Base),
+    (   predicate_property(Base:Probe, imported_from(Owner))
+    ->  true
+    ;   Owner = Base
+    ),
+    Arity is PredArity - 1,
+    throw(error(petta_op_name_taken(Name, Arity, PredArity, Owner),
+                context(metta_host_open_function/3, 'the name is not free'))).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_op_name_taken(Name, Arity, PredArity, Owner)) -->
+    [ 'registering ~w at ~w MeTTa argument(s) would assert into Prolog\'s \c
+       ~w/~w, which ~w already owns in this process'-[Name, Arity, Name,
+                                                      PredArity, Owner], nl,
+      '  a registered operation\'s clauses live in the base tier, so its \c
+       name has to be free there: register it under another name (the \c
+       binding\'s name= override), or write it as an equation in a named \c
+       space, which compiles into a module of its own' ].
+
 %%%% A library declares its own exports, in the file that implements them %%%%
 %
 %Registering one predicate took three statements in two languages: the name in
@@ -4557,11 +4664,7 @@ loaded_extension_file(Extension, File) :-
 
 forget_registered_function(Name) :-
     remove_sexp('&self', [':', Name, _]),
-    release_function_name(Name),
-    unregister_fun_everywhere(Name),
-    retractall(fun(Name)),
-    retractall(arity(Name, _)),
-    forall(metta_on_function_removed(Name), true).
+    metta_host_forget_function(Name).
 
 %Ask whether a whole list of names may be registered from Source, BEFORE
 %Source is loaded. Order is the whole point: consulting a file that defines a

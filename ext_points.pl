@@ -559,7 +559,6 @@ ext_point_kind(metta_backend_selftest/0, event).
 %exactly the engine predicates the shipped shim calls, and shrinking it is
 %the shim-thinning work's scoreboard.
 ext_point_kind(catch_recover/2, host_service).
-ext_point_kind(claim_function_name/3, host_service).
 ext_point_kind(clear_foreign_atoms/1, host_service).
 ext_point_kind(clear_native_atoms/1, host_service).
 ext_point_kind(foreign_provides/2, host_service).
@@ -589,8 +588,20 @@ ext_point_kind(metta_host_load_fast/2, host_service).
 ext_point_kind(metta_host_fast_header/1, host_service).
 ext_point_kind(metta_host_digest/2, host_service).
 ext_point_kind(metta_host_substitute/3, host_service).
+%The registration lifecycle: open proves a name free before the host mutates
+%anything, adopt makes an asserted dispatch clause a claimed function of the
+%base tier, drop retires one arity, forget releases a name nothing defines.
+%These four replaced the seven bookkeeping predicates every binding restated
+%in order (claim_function_name, function_changed,
+%recompile_definitions_mentioning, refuse_other_tiers_name, register_fun_in,
+%release_function_name, unregister_fun_everywhere, 2026-08-20), and the
+%dependent recompile that rode the shim's metta_on_function_changed clause
+%is the engine's own now, so those events are pure observations again.
+ext_point_kind(metta_host_open_function/3, host_service).
+ext_point_kind(metta_host_adopt_function/4, host_service).
+ext_point_kind(metta_host_drop_function/2, host_service).
+ext_point_kind(metta_host_forget_function/1, host_service).
 ext_point_kind(foreign_pushdown_class/3, host_service).
-ext_point_kind(function_changed/2, host_service).
 ext_point_kind(get_native_atom/2, host_service).
 ext_point_kind(match_foreign/5, host_service).
 ext_point_kind(metta_add_atoms/2, host_service).
@@ -612,13 +623,8 @@ ext_point_kind(petta_refuse_guard/2, host_service).
 ext_point_kind(petta_source_reset/1, host_service).
 ext_point_kind(petta_transaction/1, host_service).
 ext_point_kind(petta_transport_failure/1, host_service).
-ext_point_kind(recompile_definitions_mentioning/1, host_service).
 ext_point_kind(refuse_lossy_plan/4, host_service).
-ext_point_kind(refuse_other_tiers_name/2, host_service).
-ext_point_kind(register_fun_in/2, host_service).
-ext_point_kind(release_function_name/1, host_service).
 ext_point_kind(sread_with_names/3, host_service).
-ext_point_kind(unregister_fun_everywhere/1, host_service).
 ext_point_kind(unregister_metta_extension/1, host_service).
 ext_point_kind(with_metta_module/2, host_service).
 

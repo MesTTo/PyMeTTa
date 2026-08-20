@@ -1250,8 +1250,24 @@ store_equation(Storage, Space, Term) :- add_sexp_in(Storage, Space, Term, Ref),
 %the compile door's own module switch and the invalidation behind it is scoped
 %to one space now: reading the ambient module here would have made a write in
 %one space invalidate whichever space happened to be in force.
-function_changed(Module, FAtom) :- forall(metta_on_function_changed(FAtom), true),
-                                   invalidate_specializations(Module, FAtom).
+function_changed(Module, FAtom) :- invalidate_specializations(Module, FAtom),
+                                   forall(metta_on_function_changed(FAtom), true).
+
+%The removal repair is the engine's own duty, not an observer's: it used to
+%ride a shim clause of the metta_on_function_removed EVENT, so an engine
+%without Python in the process kept a compiled mention of a retired function
+%answering as a call. Removal needs the FULL caller recompile, because a
+%mention compiled as a CALL is what must flip back to data, and the
+%data-direction repair (repair_stale_definitions, which registration rides
+%through register_fun/1's scheduler) cannot see a call. The ARRIVAL
+%direction deliberately has no twin walk here: a new function's flip is
+%register_fun's scheduled repair, which defers inside an active source load
+%so a rolled-back load cannot leave callers recompiled against a definition
+%that never landed. Both directions and the rollback are pinned
+%[tested: the_engine_recompiles_dependents_without_a_host]
+%[tested: failed_late_definition_does_not_recompile_existing_callers].
+function_removed(FAtom) :- recompile_definitions_mentioning(FAtom),
+                           forall(metta_on_function_removed(FAtom), true).
 
 %The caller has classified the atom as an equation, so the shape test that used
 %to be here is gone with it.
@@ -1781,7 +1797,10 @@ remove_equation(Space, Term, F, Args, Body, Removed) :-
     ( module_owns_function(Module, F) -> true ; unregister_fun_in(Module, F) ),
     ( \+ function_still_defined(F)
       -> retractall(fun(F)), unregister_fun_everywhere(F),
-         forall(metta_on_function_removed(F), true)
+         %function_removed/1, not the bare event: fun(F) is false only now,
+         %so THIS recompile is the one that reads mentions of F as data
+         %again; the function_changed above ran while F was still a function.
+         function_removed(F)
       ; true ),
     ( Erased == false, Stored \== true -> Removed = false ; Removed = true ).
 
