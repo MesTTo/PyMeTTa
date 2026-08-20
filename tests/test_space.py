@@ -20,6 +20,9 @@ Guarantees:
     test_a_copy_reproduces_the_space_it_copied]
   - run() preserves a runnable variable's source spelling through collection
     and the public wire [tested test_variable_names_survive_to_the_printer]
+  - removing an equation from a named space removes its compiled answer as
+    well as its stored atom [tested
+    test_removing_an_equation_from_a_named_space_stops_its_answers]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -313,6 +316,23 @@ def test_ior_merges_a_space_equations_included(metta, m):
     # The equation crossed as an atom AND compiled on arrival.
     assert parse("(= (ior-double $x) (* 2 $x))") in m
     assert m.run("!(ior-double 21)") == [[42]]
+
+
+def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
+    """`metta_remove_atom/3` removes both halves of a named-space equation.
+
+    The stored atom and compiled clause can live in different private modules;
+    the public removal funnel must retract both, leaving the call as data.
+    """
+    equation = parse("(= (p1-named-gone $x) (+ $x 1))")
+    with metta.new_space() as named:
+        named.add(equation)
+        assert named.run("!(p1-named-gone 41)") == [[42]]
+        assert named.remove(equation) is True
+        assert equation not in named
+        assert named.run("!(p1-named-gone 41)") == [
+            [expr(S["p1-named-gone"], 41)]
+        ]
 
 
 def test_ior_merges_an_iterable_and_a_registered_name(metta, m):
