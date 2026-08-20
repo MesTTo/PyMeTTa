@@ -70,7 +70,7 @@
 %     names before any registry state changes and explains the grammar that
 %     claimed them [tested: test_register_op_refuses_a_name_metta_cannot_read,
 %     test_a_registered_token_class_parses_like_a_shipped_one;
-%     commit=WORKTREE]
+%     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 %   - petta_py_builtins/1 answers the sorted union of every fun/1 name and
 %     every translate_special_dl/5 head, so host tooling sees the language
 %     rather than only its callable registry [tested:
@@ -80,7 +80,7 @@
 %     reader table and metta_host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
 %     test_a_registered_token_class_parses_like_a_shipped_one;
-%     commit=WORKTREE]
+%     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None

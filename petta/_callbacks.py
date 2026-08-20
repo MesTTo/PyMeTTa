@@ -2,7 +2,7 @@
 Guarantees:
   - the callback facade owns no registry state and delegates to its owning
     modules, including reader-token construction [tested:
-    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
+    test_callback_facade_owns_no_state_and_delegates; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 Open Obligations:
   To Do: None
   Hacks: None
