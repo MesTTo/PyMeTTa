@@ -405,6 +405,11 @@ petta_vocabulary_values_fresh(Vocab, Values) :-
         fail
     ).
 
+%One value's membership, the question every consulting site asks.
+petta_vocabulary_value(Vocab, Value) :-
+    petta_vocabulary_values(Vocab, Values),
+    memberchk(Value, Values).
+
 %The positional walk. Position counts declaration arguments from 1, the way
 %the refusal prints them; the Expected a refusal carries is the argspec as
 %declared, so the message shows the row's own words.

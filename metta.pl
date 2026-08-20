@@ -2544,9 +2544,21 @@ petta_annotations(Ctx, Semiring) :-
                     none))
     ).
 
+%Whether the declared semiring carries an order is a CLAIM in the catalog,
+%(claim semiring ranked ordered) and its prob sibling shipped as presets,
+%so a third-party semiring value declared ordered serves (top k ...) with
+%no engine edit, the same way Oracle's RELY constraint state is a declared
+%per-constraint fact its optimizer acts on.
 petta_annotations_ordered(Ctx) :-
     petta_annotations(Ctx, Semiring),
-    memberchk(Semiring, [ranked, prob]).
+    petta_vocabulary_claim(semiring, Semiring, ordered).
+
+%A declared per-value fact: (claim Vocab Value Property...) rows carry any
+%number of properties, and a consumer asks for one.
+petta_vocabulary_claim(Vocab, Value, Property) :-
+    petta_catalog_row([claim, Vocab, Value|Properties]),
+    memberchk(Property, Properties),
+    !.
 
 %(source Ctx Kind) declares a context's consumption discipline: repeated
 %(the default, re-enumerable), linear (consume once; a second physical
@@ -4290,17 +4302,21 @@ record_metta_export(File, parsed(_, Text, Term)) :-
     ->  assertz(pending_metta_export(File, Name, Type))
     ;   Term = [export, Name, Arity], atom(Name), integer(Arity)
     ->  assertz(pending_metta_export(File, Name, arity(Arity)))
+    %The two word lists are the catalog's volatility and determinism
+    %vocabularies, consulted as data: a program that widens either row in
+    %'&petta' widens what this parser accepts, one authority.
     ;   Term = [volatility, Name, Level], atom(Name),
-        memberchk(Level, [volatile, stable, immutable])
+        petta_vocabulary_value(volatility, Level)
     ->  declare_function_volatility(Name, Level)
     ;   Term = [determinism, Name, Mode], atom(Name),
-        memberchk(Mode, [det, semidet, nondet])
+        petta_vocabulary_value(determinism, Mode)
     ->  declare_function_determinism(Name, Mode)
     ;   throw(error(petta_export_form(Text),
                     context(metta_export/1,
                             'an export is (: name (-> ...)), (export name arity), \c
-                             (volatility name volatile|stable|immutable) or \c
-                             (determinism name det|semidet|nondet)')))
+                             (volatility name <a volatility vocabulary value>) or \c
+                             (determinism name <a determinism vocabulary value>); \c
+                             both vocabularies are (vocabulary ...) rows in &petta')))
     ).
 
 %How much a caller may assume about a function's answers, and therefore what
