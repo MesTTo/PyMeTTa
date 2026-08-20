@@ -19,7 +19,7 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=e5246578ba61fb5efc9d2282bade50479946e34a]
+     commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -407,14 +407,14 @@ def install(m, default: Any = None) -> list[str]:
     op(squeeze, name="squeeze")
     op(tensor_index, name="t-index")
 
-    def cat_op(tensors: Expr, dim: Atom | int = 0) -> DLTensor:
+    def cat_op(tensors: Expr, dim: int = 0) -> DLTensor:
         parts = [decode(c) for c in tensors]
         dimension = decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(
             val(namespace_of(parts[0]).concat(parts, axis=int(dimension)))
         )
 
-    def stack_op(tensors: Expr, dim: Atom | int = 0) -> DLTensor:
+    def stack_op(tensors: Expr, dim: int = 0) -> DLTensor:
         parts = [decode(c) for c in tensors]
         dimension = decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(

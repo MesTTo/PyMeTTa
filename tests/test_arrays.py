@@ -9,7 +9,7 @@ Guarantees:
   - each installed array operation has at least one arrow declaration and
     broadcast-shape works forwards and backwards as a CLP(FD) relation
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=e5246578ba61fb5efc9d2282bade50479946e34a]
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -66,6 +66,13 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
     assert am.run("!(broadcast-shape (2 3) (4 3) (4 3))") == [[]]
 
     assert am.run("!(t-shape (reshape (arange-t 4) 2 2))") == [[expr(2, 2)]]
+    tensors = "((tensor ((1 2))) (tensor ((3 4))))"
+    assert am.run(f"!(t-tolist (cat {tensors} 0))") == [
+        [expr(expr(1.0, 2.0), expr(3.0, 4.0))]
+    ]
+    assert am.run(f"!(t-tolist (stack {tensors} 0))") == [
+        [expr(expr(expr(1.0, 2.0)), expr(expr(3.0, 4.0)))]
+    ]
 
 
 def test_the_constructor_builds_numpy_here(am):
