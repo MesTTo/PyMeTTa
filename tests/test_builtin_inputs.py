@@ -50,13 +50,14 @@ TABLE = (
     "  findall(_Kind, "
     "          ( member(_Type, _Types), "
     "            ( nonvar(_Type), "
-    "              memberchk(_Type, ['Expression', 'Number', 'String', "
-    "                                'Bool', 'Symbol', 'Variable']) "
+    "              memberchk(_Type, ['Expression', 'Number', 'BigInt', "
+    "                                'String', 'Bool', 'Symbol', 'Variable']) "
     "              -> _Kind = _Type ; _Kind = other ) ), "
     "          _Kinds) ), "
     "Rows)"
 )
-FILLER = {"Expression": "(a b)", "Number": "1", "String": '"s"', "Bool": "true",
+FILLER = {"Expression": "(a b)", "Number": "1", "BigInt": "9223372036854775808",
+          "String": '"s"', "Bool": "true",
           "Symbol": "&probe-space", "Variable": "$probe-bound", "other": "a"}
 
 engine = MeTTa()

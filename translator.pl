@@ -29,6 +29,10 @@
 %     translator_branch_returns].
 %   - A typed function remains partially applicable until it has produced a
 %     return value [tested 2026-08-14: translator_typed_currying].
+%   - The Number fast path admits both signed-i64 Number integers and wider
+%     BigInt integers, matching the type boundary's directed compatibility
+%     rule [tested 2026-08-20:
+%     bigint_number:number_accepts_bigint_but_bigint_stays_narrow].
 %   - Arity selection does not compile typed arguments before their branch
 %     translation [tested 2026-08-14: translator_typed_single_pass].
 %   - Empty special-form inputs have explicit identity or failure semantics
@@ -2190,12 +2194,13 @@ translate_args_by_type_dl([A|As], [T|Ts], Goals0, Goals, [AV|AVs], Checks0, Chec
 %purpose: `(: mysym Number)` makes has_type(mysym, 'Number') true while
 %number(mysym) is false, and the second disjunct is what still says so.
 %
-%Soundness in the other direction is what makes the shortcut legal at all, and
-%it is a property of the engine rather than an assumption: both
-%get_type_candidate/2 and get_type_candidate_in/3 open with a CUTTING clause
-%for each of these three, so number(V) implies has_type(V, 'Number') in every
-%module, whatever a get-type extension adds later [source: src/metta.pl:904 and
-%the get_type_candidate_in/3 clauses beside it].
+%Soundness in the other direction is what makes the shortcut legal at all.
+%Both get_type_candidate/2 and get_type_candidate_in/3 open with a CUTTING
+%numeric clause. Signed-i64 integers and floats answer Number directly. Wider
+%integers answer BigInt, which metta_types_match/2 admits when Number is the
+%expected type. Thus number(V) implies has_type(V, 'Number') in every module,
+%whatever a get-type extension adds later [source: src/metta.pl,
+%metta_numeric_type/2 and metta_types_match/2].
 %
 %This is the other half of what statically_typed_literal/2 below does, from the
 %same compile-time fact. A compiler holding type information "remov[es] type
@@ -2230,9 +2235,9 @@ intrinsic_type_test('Bool',   V, (V == true ; V == false)).
 %Dropping every check leaves no once/1 wrapper either, so the fully literal
 %call compiles to exactly what the untyped one does.
 %
-%Only four literals qualify, and only because get_type_candidate/2's first
-%clauses CUT: a number is Number and nothing else, a string is String, and
-%true and false are Bool, whatever a user's get-type extension adds later.
+%Only four literal shapes qualify. A number is accepted by Number, including
+%a BigInt integer through the directed compatibility rule. A string is String,
+%and true and false are Bool, whatever a user's get-type extension adds later.
 %
 %This only ever DROPS a check that must pass; it never rejects. `(f "s")`
 %against a Number parameter still compiles its check and still refuses at run

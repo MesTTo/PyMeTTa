@@ -6,8 +6,7 @@ presets; edit the presets in src/spaces.pl and rerun with --write, never
 this file. The vocab-sync gate lane fails when the two drift.
 
 Guarantees:
-  - every tuple here is exactly the value set the engine's declaration
-    checker enforces at the &petta write doors
+  - every tuple and Literal here exactly matches its catalog vocabulary row
     [tested test_the_vocabulary_module_is_generated]
 Open Obligations:
   To Do: None
@@ -24,6 +23,7 @@ __all__ = [
     "DETERMINISM",
     "EFFECT_CLASS",
     "FIDELITY",
+    "NUMERIC_TYPE",
     "ON_ERROR_MODE",
     "OP_KIND",
     "ROUTE_KEY",
@@ -38,6 +38,7 @@ __all__ = [
     "Determinism",
     "EffectClass",
     "Fidelity",
+    "NumericType",
     "OnErrorMode",
     "OpKind",
     "RouteKey",
@@ -71,6 +72,10 @@ EffectClass = Literal["immutable"]
 #: (vocabulary fidelity Exact Partial Sound Refuse)
 FIDELITY = ("Exact", "Partial", "Sound", "Refuse")
 Fidelity = Literal["Exact", "Partial", "Sound", "Refuse"]
+
+#: (vocabulary numeric-type Number BigInt)
+NUMERIC_TYPE = ("Number", "BigInt")
+NumericType = Literal["Number", "BigInt"]
 
 #: (vocabulary on-error-mode keep empty abort)
 ON_ERROR_MODE = ("keep", "empty", "abort")

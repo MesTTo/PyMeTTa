@@ -1,14 +1,14 @@
 """Purpose: generate python/petta/vocabularies.py from the running engine's
 (vocabulary ...) catalog rows, so the binding's Literal types and runtime
-value tuples and the engine's checker have ONE authority between them.
+value tuples follow the catalog's one authority.
 
 Before this, every declare_* method repeated its value words three times:
 the Literal annotation, the runtime check tuple, and the engine's
 consultation site, and the annotations surface was measured advertising six
 semirings while the engine acted on two. The catalog presets in
 src/spaces.pl are the source now; this asks the engine itself rather than
-parsing Prolog text, because the running catalog is the thing the checker
-enforces.
+parsing Prolog text, because the running catalog is what declaration checks
+and generated binding surfaces consume.
 
 Assumes:
   - swipl is on PATH and src/metta.pl consults from the repository root,
@@ -47,8 +47,7 @@ presets; edit the presets in src/spaces.pl and rerun with --write, never
 this file. The vocab-sync gate lane fails when the two drift.
 
 Guarantees:
-  - every tuple here is exactly the value set the engine's declaration
-    checker enforces at the &petta write doors
+  - every tuple and Literal here exactly matches its catalog vocabulary row
     [tested test_the_vocabulary_module_is_generated]
 Open Obligations:
   To Do: None

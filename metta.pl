@@ -17,6 +17,13 @@
 %   - get-type/2 returns each derived type once, while has_type/2 uses one
 %     witness for a fixed expected type [tested 2026-08-15:
 %     metta_type_answers, translator_typed_checks].
+%   - Integers inside signed i64 report Number and integers outside it report
+%     BigInt; a Number parameter admits either while a BigInt parameter admits
+%     only BigInt, and arithmetic may cross the boundary in either direction
+%     without changing its exact SWI value [tested 2026-08-20:
+%     bigint_number, test_bigint_and_number_type_the_numeric_tower,
+%     test_integer_type_follows_the_signed_i64_boundary,
+%     test_number_parameters_accept_bigint_without_retyping_number].
 %   - Import lifecycle state is separate from atom storage, so wildcard atom
 %     removal cannot make a loaded source run twice [tested 2026-08-15:
 %     filereader_import_lifecycle].
@@ -543,15 +550,20 @@ metta_argument_types(Argument, Types) :-
                            erase(Ref))
     ).
 
-%The prelude's match-types, in Prolog: %Undefined% and Atom are wildcards on
-%either side and everything else unifies, bindings and all, which is what makes
+%The call site's compatibility relation. %Undefined% and Atom are wildcards
+%on either side and ordinary types unify, bindings and all, which is what makes
 %a chain writing one type variable twice report the type its first argument
-%fixed rather than the variable.
+%fixed rather than the variable. BigInt is the one directed case: an actual
+%BigInt satisfies an existing Number parameter so the arithmetic surface keeps
+%accepting every exact integer SWI already handled, while a Number does not
+%satisfy a BigInt parameter. This pins operational acceptance without claiming
+%the still-unpublished glossary subtype relation [assumed 2026-08-20].
 metta_types_match(Left, Right) :-
     (   Left == '%Undefined%' -> true
     ;   Right == '%Undefined%' -> true
     ;   Left == 'Atom' -> true
     ;   Right == 'Atom' -> true
+    ;   Left == 'BigInt', Right == 'Number' -> true
     ;   Left = Right
     ).
 
@@ -1198,7 +1210,7 @@ non_list(X) :- compound(X), X \= [_|_].
 %
 %A structural operation READS a term; it does not solve for one. An unbound
 %variable in a position the engine's own type surface declares Expression,
-%Number, String, Symbol or Bool is a program error, and letting one through
+%Number, BigInt, String, Symbol or Bool is a program error, and letting one through
 %produced four different silent wrongs at once, measured 2026-08-19 by a
 %probe generated over every such position:
 %
@@ -1225,6 +1237,7 @@ non_list(X) :- compound(X), X \= [_|_].
 %A bound argument does not reach the clause.
 strict_input_type('Expression').
 strict_input_type('Number').
+strict_input_type('BigInt').
 strict_input_type('String').
 strict_input_type('Symbol').
 strict_input_type('Bool').
@@ -1676,10 +1689,14 @@ has_type_in(Module, X, T) :-
 %with T and lets an unknown through, because a call site may not refuse what
 %it cannot prove wrong. A gate asks whether X is KNOWN to be a T, and an
 %unknown must not pass one: `(admits &pool Space)` is a contract, and an atom
-%nothing declares is not evidence of a Space
+%nothing declares is not evidence of a Space. The directed BigInt-to-Number
+%case is explicit here too, so reflective and compiled call checks use the same
+%operational rule
 %[tested: python/tests/test_answer_protocol.py::test_admission_types_the_pool].
 type_witness_in(Module, X, T) :-
-    (   once(type_candidate_in(Module, X, T))
+    (   T == 'Number', once(type_candidate_in(Module, X, 'BigInt'))
+    ->  true
+    ;   once(type_candidate_in(Module, X, T))
     ->  true
     ;   satisfies_metatype(X, T)
     ->  true
@@ -1889,7 +1906,21 @@ get_type_rule_in(Module, X, T) :- \+ metta_reading_declared_types,
 get_type_rule_in(_, X, T) :- \+ metta_reading_declared_types,
                              metta_self_module(Self), Self:get_type_rule(X, T).
 
-get_type_candidate(X, 'Number')   :- number(X), !.
+%The current upstream Number holds Integer(i64) and Float(f64), while its
+%tokenizer names an integer outside that capacity as the future BigInt case.
+%It publishes no suffix or promotion table, so signed decimal syntax stays
+%one class and the value boundary is signed i64 inclusive. SWI integers stay
+%unbounded underneath: this predicate classifies a value and never converts
+%it. A result can therefore cross either way after arithmetic
+%[source: hyperon-experimental@3f76dc4, hyperon-atom/src/gnd/number.rs and
+%lib/src/metta/text.rs:866-877; assumed 2026-08-20: the exact future boundary].
+metta_numeric_type(X, 'BigInt') :-
+    integer(X),
+    ( X < -9223372036854775808 ; X > 9223372036854775807 ),
+    !.
+metta_numeric_type(X, 'Number') :- number(X).
+
+get_type_candidate(X, T) :- number(X), !, metta_numeric_type(X, T).
 get_type_candidate(X, _) :- var(X), !.
 get_type_candidate(X, 'String')   :- string(X), !.
 get_type_candidate(true, 'Bool')  :- !.
@@ -1920,7 +1951,7 @@ get_type_candidate(X, T) :- builtin_type_declaration(X, T).
 %still answered first [tested: space_handle_type].
 get_type_candidate(X, 'SpaceType') :- petta_space_operand(X).
 
-get_type_candidate_in(_, X, 'Number')   :- number(X), !.
+get_type_candidate_in(_, X, T) :- number(X), !, metta_numeric_type(X, T).
 get_type_candidate_in(_, X, _) :- var(X), !.
 get_type_candidate_in(_, X, 'String')   :- string(X), !.
 get_type_candidate_in(_, true, 'Bool')  :- !.

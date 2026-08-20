@@ -34,6 +34,9 @@
 %     error at both write doors, naming the atom, the argument position and
 %     the argspec; a head with no kind row passes untouched
 %     [tested 2026-08-20: catalog_self_description].
+%   - The numeric-type vocabulary publishes Number and BigInt in boundary
+%     order for generated binding types [tested 2026-08-20:
+%     test_numeric_types_are_published_from_the_catalog].
 %   - A selective native match is one indexed probe rather than a scan, and
 %     the acyclic guard does not change that because it runs on the answer
 %     [tested 2026-08-18:
@@ -681,11 +684,13 @@ prolog:error_message(petta_declaration_malformed(Term, Position, Expected)) -->
 %Vocabularies come first; (kind kind ...) enters while no kind row exists
 %to check it; every later row is validated by the self-description already
 %in place, claims last so their kind row checks them. The value sets are
-%exactly what the engine's consultation sites act on today, strict by
-%design: a value no site acts on would pass the checker only to sit
-%silently inert, the failure mode this catalog exists to make loud.
+%exactly what an engine consultation site or generated binding surface acts
+%on today, strict by design: a value no consumer acts on would pass the
+%checker only to sit silently inert, the failure mode this catalog exists to
+%make loud.
 petta_catalog_preset([vocabulary, fidelity, 'Exact', 'Partial', 'Sound', 'Refuse']).
 petta_catalog_preset([vocabulary, determinism, det, semidet, nondet]).
+petta_catalog_preset([vocabulary, 'numeric-type', 'Number', 'BigInt']).
 petta_catalog_preset([vocabulary, 'on-error-mode', keep, empty, abort]).
 petta_catalog_preset([vocabulary, 'answer-policy', depth, fair, 'best-first']).
 petta_catalog_preset([vocabulary, semiring, bool, bag, set, ranked, prob, prov]).
