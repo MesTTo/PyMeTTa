@@ -6,6 +6,8 @@ Guarantees:
   [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=WORKTREE]
   - a duplicate declaration is refused with the existing row in the message.
   [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
+  - pragma! accepts only keys whose setting changes an engine mechanism.
+  [tested: test_no_pragma_key_is_accepted_and_inert; commit=WORKTREE]
 """
 
 import pytest
@@ -69,3 +71,19 @@ def test_a_duplicate_declaration_names_the_first_one():
     assert "duplicate" in message
     assert "the first declaration is (: duplicate-op (-> Number Number))" in message
     assert _answers(metta, "!(duplicate-op 5)") == ["(duplicate-op 5)"]
+
+
+def test_no_pragma_key_is_accepted_and_inert():
+    metta = MeTTa(verbose=False)
+
+    assert _answers(metta, "!(pragma! max-inferences 100000)") == ["()"]
+    assert _answers(metta, "!(pragma! max-inferences none)") == ["()"]
+
+    for key, value in (
+        ("type-check", "auto"),
+        ("max-stack-depth", "100"),
+        ("interpreter", "bare-minimal"),
+        ("unknown-policy", "on"),
+    ):
+        with pytest.raises(Exception, match=f"metta_pragma_key.*{key}"):
+            metta.run(f"!(pragma! {key} {value})")
