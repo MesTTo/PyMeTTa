@@ -67,7 +67,12 @@
 %   - pattern_modifier/3 lifts lazy paths out of stored-pattern position and
 %     resolves them only after the root handle has matched [tested:
 %     test_a_path_reaches_into_a_handle_without_converting_it;
-%     commit=a1b10566194f10c174101fdc05f956b33171613b]
+%     commit=WORKTREE]
+%   - a modifier-free query decides that case before its nondeterministic match,
+%     so path support adds 22 fixed inferences per one-pattern query instead of
+%     one call per answer [measured: query-2k-rows minimum of 561469, 561467,
+%     561467, 440 over 20 queries; command=python bench.py query-2k-rows
+%     --counter-only; fixture=2000-row native space; commit=WORKTREE]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -1106,8 +1111,12 @@ petta_py_query(Space, PatternsTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
     petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers),
     petta_py_match_goal(Space, PlainPatterns, Goal),
-    call(Goal),
-    petta_py_call_modifiers(Modifiers),
+    %Choose before the nondeterministic match. Calling the empty modifier
+    %walker after Goal would call it once for every answer row.
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_row(VarNames, Bindings, Row).
 
 %A path marker occupies the root handle's position while Python builds the
@@ -1116,13 +1125,8 @@ petta_py_query(Space, PatternsTagged, VarNames, Row) :-
 %like any stored value and Python sees only the named segments, never an eager
 %projection of the object graph.
 :- multifile pattern_modifier/3.
-pattern_modifier(Pattern, Root, petta_py_path_guard(Root, Segments, Target)) :-
-    nonvar(Pattern),
-    Pattern = [Head, [SegmentHead|Segments], Target],
-    nonvar(Head),
-    Head == 'path-at',
-    nonvar(SegmentHead),
-    SegmentHead == segments,
+pattern_modifier(['path-at', [segments|Segments], Target], Root,
+                 petta_py_path_guard(Root, Segments, Target)) :-
     !.
 
 petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers) :-
@@ -1202,8 +1206,10 @@ petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     petta_py_match_goal(Space, PlainPatterns, Goal),
     petta_py_module(Space, Module),
     petta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
-    call(Goal),
-    petta_py_call_modifiers(Modifiers),
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_call_goals(Module, Goals),
     Out == true,
     petta_py_row(VarNames, Bindings, Row).
@@ -1236,8 +1242,11 @@ petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
 petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
     petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
     petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers),
-    match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
-    petta_py_call_modifiers(Modifiers),
+    (   Modifiers == []
+    ->  match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered)
+    ;   match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
+        petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_row(VarNames, Bindings, Row).
 
 %A row holds one encoded value per requested name; a variable the answer left
