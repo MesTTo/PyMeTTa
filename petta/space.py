@@ -2580,7 +2580,11 @@ class MeTTa:
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
-        self._rt.must("petta_install_admission")
+        self._rt.must(
+            "petta_admission_claim(Pool, Declarer)",
+            Pool=str(name),
+            Declarer=self._space,
+        )
         return atom
 
     def declare_capacity(self, name: str, limit: int) -> Atom:
@@ -2597,7 +2601,11 @@ class MeTTa:
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
-        self._rt.must("petta_install_admission")
+        self._rt.must(
+            "petta_admission_claim(Pool, Declarer)",
+            Pool=str(name),
+            Declarer=self._space,
+        )
         return atom
 
     def declare_writes(

@@ -784,7 +784,7 @@ def test_admission_types_the_pool(metta):
     metta.declare_admits("&pool", "Space")
     metta.run("!(add-atom &self (: &worker-a Space))")
     metta.run("!(add-atom &pool &worker-a)")
-    with pytest.raises(EngineError, match="Space-typed"):
+    with pytest.raises(EngineError, match="does-not-carry"):
         metta.run("!(add-atom &pool (not a space))")
     out = metta.run("!(collapse (match &pool $s $s))")
     assert str(out[0][0]) == "(&worker-a)"
@@ -807,6 +807,20 @@ def test_capacity_bounds_the_pool(metta):
 def test_declare_capacity_validates(metta):
     with pytest.raises(ValueError, match="positive integer"):
         metta.declare_capacity("&pool3", 0)
+
+
+def test_admission_is_sugar_over_the_pre_add_hook(metta):
+    """declare_admits claims the pool's pre-add hook like any handler.
+
+    The claim is visible through the same &petta contract atom every hook
+    claim leaves, and a second claimant meets the one-claimant rule, not a
+    bespoke wrapper.
+    """
+    metta.declare_admits("&pool4", "Space")
+    out = metta.run("!(match &petta (pre-add &pool4 $h) $h)")
+    assert str(out[0][0]) == "space-admission-guard-&pool4"
+    with pytest.raises(EngineError, match="claims"):
+        metta.run("!(declare-pre-add! &pool4 my-own-guard)")
 
 
 # ------------------------------------------------------- replay lane (G6)

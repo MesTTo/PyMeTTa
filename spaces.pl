@@ -1442,15 +1442,15 @@ foreign_write(Space, Capability, Goal) :-
 %trips and never commands.]
 metta_add_atoms(_, []) :- !.
 metta_add_atoms(Space, Terms) :-
-    %A pool is the other way an atom carries work: admission gates the
-    %write itself, so a space with an admits or capacity contract takes
-    %the per-atom door below, where the wrapper sees every atom. Both
-    %one-crossing clauses write behind that wrapper's back, the foreign
-    %one through the provider's own bulk door and the native one through
-    %add_sexp_in/4 [tested: a_batch_beyond_capacity_is_refused_like_lone_adds].
-    %A claimed pre-add hook is the same gate generalised, and takes the
-    %same route [tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom].
-    petta_admission_idle(Space),
+    %A claimed hook gates the write itself, so a hooked space takes the
+    %per-atom door below, where the wrapper consults the handler for every
+    %atom; a pool's admission guard is one such claim, which is how a
+    %batch beyond capacity meets the refusal its atoms meet arriving
+    %alone. Both one-crossing clauses write behind the wrapper's back, the
+    %foreign one through the provider's own bulk door and the native one
+    %through add_sexp_in/4
+    %[tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom,
+    %a_batch_beyond_capacity_is_refused_like_lone_adds].
     petta_hook_claim_idle(Space),
     atoms_store_only(Terms),
     add_atoms_in_one_crossing(Space, Terms), !.

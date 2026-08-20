@@ -483,3 +483,29 @@
                                               (collapse (superpose $b)))))))
 (= (subtraction $a $b) (noeval (noeval (subtraction $a $b))))
 !(add-translator-rule! subtraction)
+
+; has-declared-type asks whether (: <atom> <type>) is declared, about the
+; atom AS ITSELF: the first parameter carries the Atom mask so the question
+; is asked of the unreduced atom, the way get-type asks
+; [tested: metta_has_declared_type in tests/prolog/metta.plt].
+(: has-declared-type (-> Atom %Undefined% Bool))
+
+; %%%% Space admission: the shipped judge over (admits ...) and (capacity ...) %%%%
+;
+; The judge itself is the engine builtin space-admission-verdict,
+; Prolog-bodied by measurement: the same chain written here as equations
+; cost 131.01 inferences per add against the builtin body, the two
+; collapse-over-match reads of &petta being the gap, and a pool is a
+; millions-of-adds surface (python/benchmarks/extension_cost.py's
+; write-door table is the record). The declaration below is the half of
+; its contract that lives at this level: the Atom mask keeps the offered
+; atom unreduced, so a pool judges the atom AS ITSELF
+; [tested: the_sugar_judges_the_offered_atom_as_itself in tests/prolog/hooks.plt].
+; petta_admission_claim/2 writes a one-line guard equation,
+;   (= (space-admission-guard-<pool> $x) (space-admission-verdict <pool> $x))
+; into the declaring space and claims the pool's pre-add hook with it, so
+; enforcement rides the general one-claimant registry and a space may
+; shadow the judge like any builtin. The same judge written in MeTTa runs
+; as executable documentation, with a differential against this builtin,
+; in examples/spaces/admission_pools.metta.
+(: space-admission-verdict (-> %Undefined% Atom %Undefined%))

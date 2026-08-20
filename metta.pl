@@ -1442,6 +1442,54 @@ prolog:error_message(petta_unbound_input(_, Position)) -->
     ;   throw_metta_type_error('space-atom-count', 'SpaceType', Space)
     ),
     space_atom_count(Space, Count).
+%(has-declared-type $x $type) answers whether a (: $x $type) declaration
+%witnesses the type, in the module the call runs in, which for a hook
+%handler is the module captured when the claim was declared. The admission
+%contract's own question, exposed so a policy written in MeTTa can ask it;
+%examples/spaces/admission_pools.metta's metta-admission-typed does. A
+%witness, never a consistency judgement: an atom nothing declares answers
+%False for every type, because "nothing says it is one" is not evidence
+%that it is.
+'has-declared-type'(X, T, _) :- ( var(X) ; var(T) ), !,
+                                ( var(X) -> Position = 1 ; Position = 2 ),
+                                refuse_unbound_input('has-declared-type',
+                                                     Position).
+'has-declared-type'(X, T, R) :-
+    ( has_declared_type(X, T) -> R = true ; R = false ).
+%(space-admission-verdict <pool> <atom>) is the shipped judge over the
+%(admits <pool> <type>) and (capacity <pool> <n>) contract atoms in
+%&petta, the handler petta_admission_claim/2's guard equation applies.
+%Prolog-bodied by measurement: the same chain written as prelude
+%equations cost 131.01 inferences per add against this body's, the two
+%collapse-over-match reads of &petta being the gap, and a pool is a
+%millions-of-adds surface [measured 2026-08-20:
+%python/benchmarks/extension_cost.py write-door table, min of 3 runs].
+%The MeTTa-bodied chain runs on as executable documentation with a
+%differential in examples/spaces/admission_pools.metta, and a space may
+%shadow this name like any builtin. Every declared admits type must be
+%carried, the witness reading has-declared-type states above; the
+%verdict names the FIRST violated contract in the general algebra's own
+%words, (refuse (does-not-carry <type>)) or
+%(refuse (pool-at-capacity <limit>)), so the refusal arrives as
+%petta_add_refused like any handler's. The Atom mask on the atom
+%parameter lives in src/prelude.metta: the pool judges the offered atom
+%as itself [tested: the_sugar_judges_the_offered_atom_as_itself].
+'space-admission-verdict'(Pool, Atom, Verdict) :-
+    (   petta_contract_fact([admits, Pool, Type]),
+        \+ has_declared_type(Atom, Type)
+    ->  Verdict = [refuse, ['does-not-carry', Type]]
+    ;   petta_contract_fact([capacity, Pool, Limit]),
+        %A foreign pool's atoms live with its provider, so its count is
+        %the enumeration space-atom-count refuses to hide; a native one
+        %is the store's own clause bookkeeping, O(1) in what it holds.
+        (   metta_foreign_space(Pool)
+        ->  aggregate_all(count, 'get-atoms'(Pool, _), Count)
+        ;   space_atom_count(Pool, Count)
+        ),
+        Count >= Limit
+    ->  Verdict = [refuse, ['pool-at-capacity', Limit]]
+    ;   Verdict = [accept]
+    ).
 'car-atom'(Term, _) :- var(Term), !, refuse_unbound_input('car-atom', 1).
 'car-atom'([H|_], H) :- !.
 'car-atom'(Term, Out) :- grounded_list_view(Term, [H|_]), !, Out = H.
@@ -2367,6 +2415,8 @@ metta_grounded_token('get-atoms').
 metta_grounded_token('get-metatype').
 metta_grounded_token('get-state').
 metta_grounded_token('get-type').
+metta_grounded_token('has-declared-type').
+metta_grounded_token('space-admission-verdict').
 metta_grounded_token('get-type-space').
 metta_grounded_token('git-import!').
 metta_grounded_token('git-module!').
@@ -3071,66 +3121,6 @@ petta_bridge_op([revise, Target, Old, New]) :- !,
 petta_bridge_op(Op) :-
     throw(error(petta_bridge_unknown_op(Op), none)).
 
-%(admits Pool Type) and (capacity Pool N): a pool is a space whose
-%membership is typed by the ontology, so only atoms carrying the
-%declared type enter, and whose size is bounded, an add beyond it
-%refused loudly. Both are ordinary contract atoms checked BEFORE the
-%write through a wrapper installed only when petta_install_admission/0
-%runs, so an engine without pools keeps the direct write path.
-petta_install_admission :-
-    (   petta_admission_installed
-    ->  true
-    ;   assertz(petta_admission_installed),
-        petta_engine_module(Engine),
-        %The wrapper body is unqualified for the reason ext_points.pl's two
-        %give: wrap_predicate/4 declares it `0` and SWI qualifies it with this
-        %file's module, which is the engine's.
-        (   wrap_predicate(Engine:metta_add_atom(Space, Term, _R),
-                           petta_admission_guard, Wrapped,
-                           ( petta_admission_check(Space, Term),
-                             call(Wrapped) ))
-        ->  true
-        ;   throw(error(petta_atom_hook_install_failed(admission), none))
-        )
-    ).
-
-:- dynamic petta_admission_installed/0.
-
-petta_admission_check(Space, Term) :-
-    forall(petta_contract_fact([admits, Space, Type]),
-           %A witness, not consistency: an atom whose type nothing declares
-           %is not evidence that it is one of these, and a contract that let
-           %it in would admit everything a program never got round to
-           %declaring.
-           (   has_declared_type(Term, Type)
-           ->  true
-           ;   throw(error(petta_admission_refused(Space, Term, Type),
-                           none))
-           )),
-    (   petta_contract_fact([capacity, Space, Limit])
-    ->  findall(A, 'get-atoms'(Space, A), Held),
-        length(Held, Count),
-        (   Count < Limit
-        ->  true
-        ;   throw(error(petta_pool_full(Space, Limit), none))
-        )
-    ;   true
-    ).
-
-%Whether admission has nothing to say about a space's writes, which is what
-%the bulk door asks before taking the one-crossing path: a pool's batch
-%degrades to per-atom adds so the wrapper above sees every atom. The bulk
-%door's own header cites the discipline (a multi-row INSERT still fires
-%per-row triggers), and before it asked, a pool at capacity 2 held five
-%atoms after a store-only batch landed behind the wrapper's back
-%[tested: a_batch_beyond_capacity_is_refused_like_lone_adds].
-petta_admission_idle(Space) :-
-    (   petta_admission_installed
-    ->  \+ petta_contract_fact([admits, Space, _]),
-        \+ petta_contract_fact([capacity, Space, _])
-    ;   true
-    ).
-
 %%%% Space hooks: the general pre-add mechanism (P12) %%%%
 %
 %(declare-pre-add! <space> <handler>) claims the pre-add hook on a space
@@ -3238,12 +3228,40 @@ metta_undeclare_hook(Slot, Space) :-
                   ;   true
                   ) )).
 
+%(admits Pool Type) and (capacity Pool N) in &petta are data until a pool
+%is equipped: this writes the guard equation
+%  (= (space-admission-guard-<pool> $x) (space-admission-verdict <pool> $x))
+%into DECLARER's space and claims POOL's pre-add hook with it, so the
+%shipped judge, the space-admission-verdict builtin above, runs behind the
+%same one-claimant registry as any user handler and a pool the sugar never
+%touched keeps the direct write path. Idempotent per pool; a standing
+%foreign claim on the slot conflicts loudly, which is the one-claimant
+%rule doing its job [tested: hooks_admission_sugar].
+petta_admission_claim(Pool0, Declarer0) :-
+    (   atom(Pool0) -> Pool = Pool0 ; atom_string(Pool, Pool0) ),
+    (   atom(Declarer0) -> Declarer = Declarer0 ; atom_string(Declarer, Declarer0) ),
+    atom_concat('space-admission-guard-', Pool, Guard),
+    (   petta_hook_claim(Pool, pre_add, Guard, _)
+    ->  true
+    ;   space_module(Declarer, Module),
+        with_metta_module(Module,
+            transaction(( (   \+ \+ 'get-atoms'(Declarer, [=, [Guard, _], _])
+                          ->  true
+                          ;   metta_add_atom(Declarer,
+                                             [=, [Guard, X],
+                                              ['space-admission-verdict',
+                                               Pool, X]],
+                                             _)
+                          ),
+                          metta_declare_hook(pre_add, Pool, Guard) )))
+    ).
+
 petta_install_space_hooks :-
     (   petta_space_hooks_installed
     ->  true
     ;   assertz(petta_space_hooks_installed),
         petta_engine_module(Engine),
-        %Unqualified body for the reason the admission wrapper gives:
+        %Unqualified body for the reason ext_points.pl's two wrappers give:
         %wrap_predicate/4 declares it `0` and SWI qualifies it with this
         %file's module, which is the engine's.
         (   wrap_predicate(Engine:metta_add_atom(Space, Term, R),
@@ -3421,10 +3439,11 @@ petta_hook_apply([drop], _, _, _, true, _) :- !.
 petta_hook_apply(Got, Space, Handler, Term, _, _) :-
     throw(error(petta_hook_bad_verdict(Space, Handler, Term, Got), none)).
 
-%The bulk door's question, beside petta_admission_idle/1 above: a space
-%with a claimed hook on either slot routes its batches through the
-%per-atom door, where the wrapper consults the handler for every atom
-%[tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom].
+%The bulk door's question: a space with a claimed hook on either slot
+%routes its batches through the per-atom door, where the wrapper consults
+%the handler for every atom, and a pool's admission guard is one such
+%claim [tested: a_batch_into_a_hooked_space_consults_the_handler_per_atom,
+%a_batch_beyond_capacity_is_refused_like_lone_adds].
 petta_hook_claim_idle(Space) :-
     \+ petta_hook_claim(Space, _, _, _).
 
@@ -3449,14 +3468,6 @@ prolog:error_message(petta_bridge_unknown_op(Op)) -->
     [ 'the bridge operation ~q is not a managed head; the heads are \c
        (insert Ctx Atom), (retract Ctx Atom) and (revise Ctx Old \c
        New)'-[Op] ].
-prolog:error_message(petta_admission_refused(Space, Term, Type)) -->
-    [ '~w admits ~w-typed atoms and ~q does not carry that type; declare \c
-       (: <atom> ~w) or widen the admission'-[Space, Type, Term, Type] ].
-prolog:error_message(petta_pool_full(Space, Limit)) -->
-    [ '~w declares (capacity ~w ~w) and holds that many already; this \c
-       add is refused rather than silently growing the pool'-[Space,
-                                                              Space,
-                                                              Limit] ].
 prolog:error_message(petta_hook_conflict(Space, Slot, Prior, Claimant)) -->
     [ '~w already claims the ~w hook on ~w and ~w tried to claim it \c
        too; one claimant per name, checked when the claim is made, so \c
@@ -3865,6 +3876,7 @@ pure_structure(empty).  pure_structure(id).      pure_structure(noeval).
 pure_structure(copy_term). pure_structure(term_hash).
 
 pure_inspection('get-type').     pure_inspection('get-metatype').
+pure_inspection('has-declared-type').
 pure_inspection('is-var').       pure_inspection('is-ground').
 pure_inspection('is-expr').      pure_inspection('is-space').
 pure_inspection(repr).           pure_inspection(repra).
@@ -6367,7 +6379,7 @@ unregister_fun_in(Module, N) :- retractall(fun_in(Module, N)),
 
 unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                                 retractall(fun_scoped(N)).
-:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count',
+:- maplist(register_builtin_fun, [superpose, empty, let, 'let*', '+','-','*','/', '%', min, max, 'change-state!', 'get-state', 'bind!', 'declare-pre-add!', 'undeclare-pre-add!', 'declare-post-add!', 'undeclare-post-add!', 'space-atom-count', 'has-declared-type', 'space-admission-verdict',
                           '<','>','==', '!=', '=', '=?', '<=', '>=', and, or, xor, implies, not, exp,
                           'first-from-pair', 'second-from-pair', 'car-atom', 'cdr-atom', 'unique-atom', 'alpha-unique-atom',
                           repr, repra, parse, 'pretty-atom', 'println!', 'readln!', 'read-form!', 'sread-command', test, 'test-no-answer', assert, atom_concat, atom_chars, copy_term, term_hash,
