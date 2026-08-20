@@ -17,6 +17,9 @@ Guarantees:
   - the immutable operator lowering table is public data [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+  - lazy query paths are public immutable values and keep their root opaque
+    [tested: test_a_path_reaches_into_a_handle_without_converting_it;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -192,6 +195,7 @@ from .foreign import (  # noqa: E402
     SpaceProvider,
 )
 from .ops import REFLECTION_SPACE, record  # noqa: E402
+from .paths import Attr, Key, Path, path  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
@@ -282,6 +286,7 @@ __all__ = [
     "Answer",
     "AssertionFailure",
     "Atom",
+    "Attr",
     "Bindings",
     "Boot",
     "Builtin",
@@ -305,6 +310,7 @@ __all__ = [
     "Handle",
     "InferenceLimitError",
     "Interrupted",
+    "Key",
     "Matcher",
     "MeTTa",
     "MettaName",
@@ -312,6 +318,7 @@ __all__ = [
     "MettaResultError",
     "MettaSyntaxError",
     "OperatorLowering",
+    "Path",
     "PeTTa",
     "PettaError",
     "Prepared",
@@ -365,6 +372,7 @@ __all__ = [
     "order_key",
     "parallel",
     "parse",
+    "path",
     "persistent",
     "pretty",
     "query",
