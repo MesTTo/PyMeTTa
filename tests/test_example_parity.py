@@ -1,8 +1,9 @@
 """Purpose: prove the parity lane detects a difference, ignores a difference
-in spelling that is not one, and preserves the per-form grouping. The lane
-compares the example corpus across the engine and the shipped library; a
-lane that cannot be shown failing is not evidence of anything, so these
-plant differences and require it to report them.
+in spelling that is not one, and preserves the per-form grouping, and that
+the llms lane's builtin-count claim distinguishes a missing build product
+from documentation drift. A lane that cannot be shown failing is not
+evidence of anything, so these plant differences and require the lanes to
+report them.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -121,3 +122,39 @@ def test_the_stated_corpus_size_is_the_real_one():
     assert int(stated.group(1)) == size, (
         f"examples/README.md says {stated.group(1)}, the runners run {size}"
     )
+
+
+def test_the_llms_lane_names_a_missing_artefact_instead_of_a_count_mismatch(
+    tmp_path,
+):
+    """A worktree without a backend's build product reads the truth, not red.
+
+    The builtin count is the one llms.txt claim carrying a CONFIGURATION:
+    backends register builtins only where their artefact is built, and both
+    wave-10 agents lost a gate run to the bare mismatch message. The
+    backends declare their registrations as metta_backend_builtin/1 facts,
+    so when the absent artefact explains the difference exactly, the lane
+    passes with a note naming the artefact and every registration; a
+    difference the artefact does not explain stays a failing drift claim.
+    """
+    from llmsdoc import _absent_artefact_diagnosis
+
+    backend = tmp_path / "mork_ffi"
+    backend.mkdir()
+    (backend / "morkspaces.pl").write_text(
+        "metta_backend_builtin('mm2-exec').\n"
+        "metta_backend_builtin('mork-add-atoms').\n"
+        "metta_backend_builtin('mork-flush').\n"
+    )
+    note = _absent_artefact_diagnosis(225, 222, root=tmp_path)
+    assert note is not None
+    assert "mork_ffi/target/release/libmork_ffi.so" in note
+    for name in ("mm2-exec", "mork-add-atoms", "mork-flush"):
+        assert name in note
+    # A delta the declarations do not explain is genuine drift, not config.
+    assert _absent_artefact_diagnosis(225, 221, root=tmp_path) is None
+    # With the artefact present the diagnosis stands aside entirely.
+    artefact = backend / "target" / "release"
+    artefact.mkdir(parents=True)
+    (artefact / "libmork_ffi.so").touch()
+    assert _absent_artefact_diagnosis(225, 222, root=tmp_path) is None
