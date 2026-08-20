@@ -59,18 +59,14 @@ _EXPECTED_REFUSALS = [
     ("lib/lib_gitimport.pl", "library(process)"),
 ]
 
-# Where the two hosts render the SAME atom differently, measured 2026-08-20.
-# It is a pinned inventory rather than a filter: a divergence that is not
-# listed fails the comparison, and one that is listed carries why.
-#
-# petta.atoms.Gnd.__str__ renders a number with Python's own repr, so a float
-# that needs an exponent is spelled by Python and not by the engine's swrite/2,
-# which is the published writer and what the Node binding reports. Both denote
-# the same double; only the spelling differs. This is the Python surface's own
-# second writer and it predates this binding.
-_KNOWN_TEXT_DIVERGENCES = {
-    ("1.0e+20", "1e+20"),
-}
+# Where the two hosts render the SAME atom differently. It is a pinned
+# inventory rather than a filter: a divergence that is not listed fails the
+# comparison, and one that is listed carries why. It is EMPTY because
+# Gnd.__str__ implements the same float layout law the engine's swrite/2
+# does, so the one entry it held (repr's 1e+20 against the engine's
+# spelling) resolved when the Python surface stopped being a second number
+# writer; the mechanism stays for the next real divergence.
+_KNOWN_TEXT_DIVERGENCES: set[tuple[str, str]] = set()
 
 # A fresh variable is printed under the name the writer numbered it, which is
 # a counter and not part of the atom, so the two hosts number the same answer

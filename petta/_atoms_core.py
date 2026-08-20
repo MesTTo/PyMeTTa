@@ -248,6 +248,47 @@ def unregister_object_repr_protocol(
     raise KeyError("no protocol repr is registered for those exact callables")
 
 
+def _float_text(value: float) -> str:
+    """The engine's float spelling, so one atom has one text in both hosts.
+
+    The digits are repr's, the shortest decimal that reads back to the
+    same binary64, which is also what the engine's writer starts from;
+    the LAYOUT is the arbiter's law the engine implements [source: LeaTTa
+    RyuLean4/Runtime.lean:371-396, Decimal.formatMeTTa]: with D the
+    stripped significand and KK the exponent making the value 0.D*10^KK,
+    print positionally while KK is in -4..16 and scientifically
+    otherwise, exponent KK-1, minus sign only, never a plus, never
+    zero-padded. repr differs on exactly the plus sign (1e+16), the
+    exponent padding (1e-05), the small-magnitude threshold (1e-05 where
+    the law says 0.00001), and nan against the engine's NaN
+    [tested: test_gnd_str_spells_numbers_the_engines_way].
+    """
+    if math.isnan(value):
+        return "NaN"
+    if math.isinf(value):
+        return "inf" if value > 0 else "-inf"
+    text = repr(value)
+    sign = "-" if text.startswith("-") else ""
+    mantissa, _, exponent_text = text.lstrip("-").partition("e")
+    int_part, _, frac_part = mantissa.partition(".")
+    digits = (int_part + frac_part).lstrip("0")
+    if not digits:
+        return sign + "0.0"
+    tens = (int(exponent_text) if exponent_text else 0) - len(frac_part)
+    stripped = digits.rstrip("0")
+    tens += len(digits) - len(stripped)
+    kk = len(stripped) + tens
+    if kk - len(stripped) >= 0 and kk <= 16:
+        return f"{sign}{stripped}{'0' * (kk - len(stripped))}.0"
+    if 0 < kk <= 16:
+        return f"{sign}{stripped[:kk]}.{stripped[kk:]}"
+    if -5 < kk <= 0:
+        return f"{sign}0.{'0' * -kk}{stripped}"
+    if len(stripped) == 1:
+        return f"{sign}{stripped}e{kk - 1}"
+    return f"{sign}{stripped[0]}.{stripped[1:]}e{kk - 1}"
+
+
 def _object_str(value: Any) -> str:
     with _STATE_LOCK:
         formatter = next(
@@ -817,7 +858,9 @@ class Gnd(Atom):
                 .replace("\r", "\\r")
             )
             return '"' + escaped + '"'
-        if isinstance(v, (int, float)):
+        if isinstance(v, float):
+            return _float_text(v)
+        if isinstance(v, int):
             return repr(v)
         return _object_str(v)
 
