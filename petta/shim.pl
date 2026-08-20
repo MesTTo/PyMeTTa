@@ -56,7 +56,7 @@
 %     [tested test_a_manifest_neither_runs_nor_defines]
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
-%     [tested: test_variable_names_survive_to_the_printer; commit=WORKTREE]
+%     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None

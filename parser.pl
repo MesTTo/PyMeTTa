@@ -9,7 +9,7 @@
 %     parser_stable_variables].
 %   - swrite_with_names/3 preserves reader names without binding the source
 %     term; distinct variables carrying one written name receive #N epochs in
-%     first-occurrence order [tested: parser_named_variables; commit=WORKTREE].
+%     first-occurrence order [tested: parser_named_variables; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 %   - a token ends at exactly the Unicode White_Space property plus `(`, `)`
 %     and `;`, and at nothing else, which is upstream MeTTa's own rule.
 %     metta_token_boundary/2 is the one place that says so, and the layout
@@ -56,7 +56,7 @@ swrite(Term, String) :- stable_print_term(Term, Printable),
 %as one template before numbering, the same identity-preserving shape findall
 %uses for runnable answers. The source term and any attributed constraints on
 %it therefore remain untouched [tested: parser_named_variables;
-%commit=WORKTREE].
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 swrite_with_names(Term, Names, String) :-
     named_print_term(Term, Names, Printable),
     phrase(swrite_numbered(Printable), Codes),

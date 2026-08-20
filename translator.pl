@@ -609,7 +609,7 @@ translate_runnable_expr(C, Goals, Out) :- setup_call_cleanup(assertz(translating
 %template. findall copies the answer and map as one term, so the printer can
 %recover variable identity after collection without attributed variables on
 %the matcher hot path [tested: test_variable_names_survive_to_the_printer;
-%commit=WORKTREE].
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 %% translate_runnable_expr(+Expression, +Names, -Goals, -Answers) is det.
 translate_runnable_expr(C, Names, Goals, Out) :-
     Context = '$petta_name_context'(Names, []),
@@ -1481,10 +1481,10 @@ translate_special_dl('let*', [Binds, Body], AfterHead, Goals, Out) :-
 %sealed returns a renamed Atom. Every variable in the Atom is fresh except a
 %variable present in the first argument's ignore list [tested:
 %translator_sealed:the_ignore_list_preserves_only_its_variables;
-%commit=WORKTREE]. copy_term/4 performs that selective rename before evaluation
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]. copy_term/4 performs that selective rename before evaluation
 %can bind an outer variable, and the answer remains data rather than being
 %reduced [tested: translator_sealed:sealed_returns_data_instead_of_evaluating_it;
-%commit=WORKTREE].
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 translate_special_dl(sealed, [Ignored, Expr], Goals, Goals, SealedExpr) :-
     term_variables(Expr, ExprVariables),
     term_variables(Ignored, IgnoredVariables),

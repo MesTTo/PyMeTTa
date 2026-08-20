@@ -1699,7 +1699,7 @@ space_operation_error(Operation, Arguments, Reason, Error) :-
 %open Generated list is copied with each answer, so an operation that must
 %copy a diagnostic subject can record the copied variable's spelling without
 %putting attributes on matcher variables
-%[tested: test_variable_names_survive_to_the_printer; commit=WORKTREE].
+%[tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 :- meta_predicate petta_run_named(+, 0, -).
 petta_run_named(Names, Goal, Generated) :-
     Context = '$petta_runtime_name_context'(Names, Generated, Generated),
@@ -2247,7 +2247,7 @@ petta_drop_empty_([X|Xs], Kept) :-
 %the answer slot while retaining the side map for every surviving answer.
 %This mirrors petta_prune_empty/2's identity test, so a free answer variable
 %is not mistaken for Empty [tested: test_variable_names_survive_to_the_printer;
-%commit=WORKTREE].
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 petta_prune_empty_answers(All, Kept) :-
     (   \+ memberchk('$petta_answer'('Empty', _), All)
     ->  Kept = All

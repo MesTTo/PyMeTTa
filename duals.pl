@@ -447,7 +447,7 @@ strip_negations(Term, '$negation_site'(Out), [Term|Sites], Sites) :-
 %replacing only name-state positions, or a variable local to a negation looks
 %shared and loses its universal quantification [tested:
 %duals_quantification:a_top_level_query_quantifies_the_same_way;
-%commit=WORKTREE].
+%commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 strip_negations('$petta_answer'(Value, _),
                 '$petta_answer'(StrippedValue, '$petta_names'), Sites0, Sites) :-
     !,

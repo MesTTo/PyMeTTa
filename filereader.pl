@@ -53,7 +53,7 @@
 %   - Runnable answer groups carry each reader Name-Var map inside the
 %     collection template, preserving source variable identity through
 %     findall without attributed variables [tested:
-%     test_variable_names_survive_to_the_printer; commit=WORKTREE].
+%     test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa].
 %   - A file that loads again REPLACES what it put in that space rather than
 %     adding to it, reaches any other space its change has made stale, and
 %     says what it withdrew [tested 2026-08-19:
