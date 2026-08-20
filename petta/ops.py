@@ -20,6 +20,11 @@ Guarantees:
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
     commit=9b1b808f6b8d8aa6a8080c13092fa73ce7893aaa]
+  - every documented operation owns its portable @doc atom in the
+    declaration space, independent of typed=, under the same transactional
+    lifecycle and reference count as type declarations [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,6 +43,7 @@ from typing import Any, ParamSpec, TypeVar
 
 from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
+from ._documentation import documentation_atom
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
     annotation_atom_for,
@@ -331,9 +337,11 @@ def _operation_declarations(
     fn: Callable,
     typed: bool,
 ) -> tuple[Expr, ...]:
-    if not typed:
-        return ()
-    return tuple(_type_declarations(name, params, fn))
+    declarations = _type_declarations(name, params, fn) if typed else []
+    documentation = documentation_atom(name, fn)
+    if documentation is not None:
+        declarations.append(documentation)
+    return tuple(declarations)
 
 
 def _rollback_registration(

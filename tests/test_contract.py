@@ -2,11 +2,19 @@
 readable back as atoms and live and die with the registration, and
 (handles ...) entries route foreign matching, push or withhold the take
 bound, refuse loudly, and stay coherent, down to a SQL backend example.
+Guarantees:
+  - operation facts are typed OpDecl values and callable documentation shares
+    the registration transaction, replacement, ownership, and unregister
+    lifecycle [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+import uuid
 
 import pytest
 
@@ -93,6 +101,97 @@ def test_the_ontology_loads_once(metta):
     _contract.install(metta.runtime)
     rows = metta.space("&petta").query(parse("(: Declaration $t)"))
     assert [str(row.t) for row in rows] == ["Type"]
+
+
+def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, monkeypatch):
+    """All four operation kinds are typed; docs follow the full lifecycle."""
+    suffix = uuid.uuid4().hex
+
+    def deterministic(value):
+        """Deterministic operation documentation."""
+        return value
+
+    def nondeterministic(value):
+        """Nondeterministic operation documentation."""
+        yield value
+
+    functions = (
+        (f"p5-det-{suffix}", deterministic, False, "det"),
+        (f"p5-many-{suffix}", nondeterministic, False, "many"),
+        (f"p5-raw-det-{suffix}", deterministic, True, "raw_det"),
+        (f"p5-raw-many-{suffix}", nondeterministic, True, "raw_many"),
+    )
+    reflection = metta.space("&petta")
+    assert parse("(: OpKind Type)") in reflection
+    assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
+    for name, fn, raw, kind in functions:
+        metta.register_op(fn, name=name, raw=raw, typed=False)
+        fact = parse(f"(op {name} 1 {kind})")
+        assert fact in reflection
+        assert metta.space("&petta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
+        docs = metta.run(f"!(get-doc {name})")
+        assert len(docs) == 1 and "operation documentation." in str(docs[0][0])
+
+    # Retaining the same documentation during replacement must not remove the
+    # shared atom when the previous registration releases its ownership.
+    stable = f"p5-stable-{suffix}"
+
+    def same(value):
+        """Stable replacement documentation."""
+        return value
+
+    metta.register_op(same, name=stable, typed=False)
+    metta.register_op(same, name=stable, typed=False)
+    assert len(metta.run(f"!(get-doc {stable})")) == 1
+
+    replacement = f"p5-replacement-{suffix}"
+
+    def first(value):
+        """First registration documentation."""
+        return value
+
+    def second(value):
+        """Second registration documentation."""
+        return value
+
+    metta.register_op(first, name=replacement, typed=False)
+    metta.register_op(second, name=replacement, typed=False)
+    replaced_docs = metta.run(f"!(get-doc {replacement})")
+    assert len(replaced_docs) == 1
+    assert "Second registration documentation." in str(replaced_docs[0][0])
+    assert "First registration documentation." not in str(replaced_docs[0][0])
+
+    # Force the last transactional step to fail. The documentation was
+    # retained already, so its absence proves rollback releases it too.
+    rollback = f"p5-rollback-{suffix}"
+
+    def documented_failure(value):
+        """Documentation which must roll back."""
+        return value
+
+    runtime_type = type(metta.runtime)
+    real_must = runtime_type.must
+    failed = False
+
+    def fail_compile(runtime, goal, **inputs):
+        nonlocal failed
+        if not failed and goal == "petta_py_compile_op(Name)" and inputs.get("Name") == rollback:
+            failed = True
+            raise EngineError("forced registration failure")
+        return real_must(runtime, goal, **inputs)
+
+    monkeypatch.setattr(runtime_type, "must", fail_compile)
+    with pytest.raises(EngineError, match="forced registration failure"):
+        metta.register_op(documented_failure, name=rollback, typed=False)
+    assert metta.run(f"!(get-doc {rollback})") == [[]]
+    assert parse(f"(op {rollback} 1 det)") not in reflection
+
+    for name, *_ in functions:
+        metta.unregister_op(name)
+        assert metta.run(f"!(get-doc {name})") == [[]]
+    for name in (stable, replacement):
+        metta.unregister_op(name)
+        assert metta.run(f"!(get-doc {name})") == [[]]
 
 
 def test_the_fidelity_chain_rides_subtype_widening(metta):

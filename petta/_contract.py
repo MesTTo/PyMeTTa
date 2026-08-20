@@ -12,6 +12,10 @@ Assumes:
 Guarantees:
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
+  - registered operation kinds inhabit OpKind and `(op ...)` terms inhabit
+    OpDecl [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,10 +34,18 @@ _SUB = ":<"
 
 # (head, subject, object) triples; the whole ontology is (: X Y) and
 # (:< X Y) forms, so triples are the entire grammar it needs.
-ONTOLOGY: tuple[tuple[str, str, str], ...] = (
+_OP_DECL_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Number"), Sym("OpKind"), Sym("OpDecl")])
+
+ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "Declaration", "Type"),
     (_COLON, "OpDecl", "Type"),
     (_SUB, "OpDecl", "Declaration"),
+    (_COLON, "OpKind", "Type"),
+    (_COLON, "det", "OpKind"),
+    (_COLON, "many", "OpKind"),
+    (_COLON, "raw_det", "OpKind"),
+    (_COLON, "raw_many", "OpKind"),
+    (_COLON, "op", _OP_DECL_TYPE),
     (_COLON, "EffectDecl", "Type"),
     (_SUB, "EffectDecl", "Declaration"),
     (_COLON, "ImageDecl", "Type"),
@@ -130,8 +142,9 @@ def install(runtime) -> None:
     if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:
-        atom = Expr([Sym(head), Sym(subject), Sym(obj)])
+        atom = Expr([Sym(head), Sym(subject), obj if isinstance(obj, Expr) else Sym(obj)])
         runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
+
     def listener(_cls, old, new, _runtime=runtime):
         _reflect_image(_runtime, old, new)
 
