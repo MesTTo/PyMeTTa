@@ -1,3 +1,12 @@
+; Purpose: define the standard vocabulary the engine loads with no import.
+; Guarantees:
+;   - the doc family receives the upstream Atom masks and formal signatures
+;     [tested: test_the_doc_family_answers_what_upstream_answers].
+; Open Obligations:
+;   To Do: None
+;   Hacks: None
+;   Future Enhancements: None
+;
 ; %%%% The engine's prelude: standard vocabulary, no import needed. %%%%
 ;
 ; Every form here is part of the core engine. The loader in metta.pl
@@ -253,6 +262,18 @@
 ;answers with no import and a program's own (@doc ...) atoms stay the
 ;program's. Descriptions follow the pinned corelib's where it has them.
 
+;The unary get-doc is PeTTa's raw-document convenience. The two-input arrow
+;and the four helpers are upstream's formal family. Atom keeps each documented
+;subject and prose part unevaluated while the engine joins them with the type
+;from the selected space [source: hyperon-experimental@3f76dc4,
+;lib/src/metta/runner/stdlib/stdlib.metta:795-875].
+(: get-doc (-> Atom %Undefined%))
+(: get-doc (-> SpaceType Atom %Undefined%))
+(: get-doc-atom (-> SpaceType Atom %Undefined%))
+(: get-doc-single-atom (-> SpaceType Atom %Undefined%))
+(: get-doc-function (-> SpaceType Atom Type %Undefined%))
+(: get-doc-params (-> Expression Atom Expression (Expression Atom)))
+
 (@doc if-equal
   (@desc "Selects the third argument when the first two are alpha-equivalent, atoms equal up to a consistent variable renaming, and the fourth otherwise")
   (@params ((@param "First atom") (@param "Second atom") (@param "Result on equivalence") (@param "Result otherwise")))
@@ -342,9 +363,25 @@
   (@params ((@param "Space to select") (@param "Atom to type")))
   (@return "The type, as get-type answers it in that space"))
 (@doc get-doc
-  (@desc "The documentation atom for a name, from the current space or the engine's own register, or nothing when there is none")
-  (@params ((@param "The name to look up")))
-  (@return "The (@doc ...) atom"))
+  (@desc "Returns formal documentation for an atom or function in a selected space; the one-argument PeTTa overload returns the raw (@doc ...) atom")
+  (@params ((@param "The space to search") (@param "The atom or function to document")))
+  (@return "An (@doc-formal ...) atom"))
+(@doc get-doc-atom
+  (@desc "Builds formal atom documentation from prose and the selected space's type")
+  (@params ((@param "The space to search") (@param "The atom to document")))
+  (@return "An atom-shaped (@doc-formal ...) atom"))
+(@doc get-doc-single-atom
+  (@desc "Dispatches one atom to function or atom documentation according to its selected-space type")
+  (@params ((@param "The space to search") (@param "The atom to document")))
+  (@return "An (@doc-formal ...) atom"))
+(@doc get-doc-function
+  (@desc "Builds formal function documentation by pairing parameter and return prose with an arrow type")
+  (@params ((@param "The space to search") (@param "The function name") (@param "Its arrow type")))
+  (@return "A function-shaped (@doc-formal ...) atom"))
+(@doc get-doc-params
+  (@desc "Pairs informal parameter and return descriptions with their types")
+  (@params ((@param "The (@param ...) list") (@param "The (@return ...) description") (@param "The parameter and return types")))
+  (@return "The formal parameter list and return description"))
 (@doc get-doc-space
   (@desc "get-doc run against the selected space")
   (@params ((@param "Space to select") (@param "The name to look up")))

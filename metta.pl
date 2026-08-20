@@ -86,6 +86,10 @@
 %     the inspected expression, so inspection has no effects of its own
 %     [tested 2026-08-19:
 %     python/tests/test_type_inspection.py::test_get_type_does_not_run_its_arguments_effects].
+%   - get-type-space/3 reads only the selected space, and the upstream doc
+%     family builds @doc-formal answers from that scoped type and prose
+%     [tested 2026-08-20:
+%     python/tests/test_doc_family.py::test_the_doc_family_answers_what_upstream_answers].
 %   - builtin_type_declaration/2 rows are the union of lib_builtin_types.metta
 %     and the prelude's, with each row written once and evicted only by the
 %     register that wrote it [tested 2026-08-19:
@@ -1990,6 +1994,124 @@ tuple_type(Members, Type) :-
     ->  Type = '%Undefined%'
     ;   Type = Members
     ).
+
+%%%% Type lookup in one explicitly selected space %%%%
+%
+%Ordinary get-type in a named execution context intentionally sees that
+%space and &self, the shared tier. get-type-space is a different operation:
+%upstream's GetTypeSpaceOp passes exactly the selected DynSpace to
+%get_atom_types, so a foreign declaration cannot acquire an ambient sibling
+%[source: hyperon-experimental@3f76dc4,
+%lib/src/metta/runner/stdlib/atom.rs:433-445].
+%
+%This is a separate call graph rather than a thread-local "scoped" flag in
+%type_declaration_in/3. The ordinary named-space lookup is the typed-call hot
+%path, and testing a flag there would charge every lookup for a mode only
+%get-type-space requests. The explicit operation pays for its own isolation;
+%ordinary get-type keeps the predicates and inference count it had before
+%[tested: get_type_space_selects_only_the_space].
+scoped_type_answers(Space, X, Types) :-
+    space_module(Space, Module),
+    findall(Type, scoped_type_candidate(Space, Module, X, Type), Candidates),
+    unique_type_answers(Candidates, Unique),
+    scoped_widen_to_super_types(Space, Module, X, Unique, Widened),
+    ( Widened == [] -> Types = ['%Undefined%'] ; Types = Widened ).
+
+scoped_type_candidate(_, _, X, T) :- number(X), !, metta_numeric_type(X, T).
+scoped_type_candidate(_, _, X, _) :- var(X), !.
+scoped_type_candidate(_, _, X, 'String') :- string(X), !.
+scoped_type_candidate(_, _, true, 'Bool') :- !.
+scoped_type_candidate(_, _, false, 'Bool') :- !.
+scoped_type_candidate(_, _, X, T) :- atomic(X), \+ atom(X),
+                                     metta_host_object(X),
+                                     metta_grounded_type(X, T).
+scoped_type_candidate(Space, Module, X, T) :-
+    scoped_function_type(Space, Module, X, T).
+scoped_type_candidate(Space, Module, X, T) :-
+    \+ scoped_function_type(Space, Module, X, _),
+    is_list(X),
+    maplist(scoped_has_type(Space, Module), X, Members),
+    tuple_type(Members, T).
+scoped_type_candidate(Space, _, X, T) :-
+    match_stored(Space, [':', X, T], T, _),
+    acyclic_term(T).
+scoped_type_candidate(_, _, X, T) :- builtin_type_declaration(X, T).
+scoped_type_candidate(_, _, X, 'SpaceType') :- petta_space_operand(X).
+
+scoped_function_type(Space, Module, [F|Args], T) :-
+    nonvar(F),
+    (   match_stored(Space, [':', F, [->|Ts0]], Ts0, _)
+    *-> Ts = Ts0
+    ;   builtin_type_declaration(F, [->|Ts])
+    ),
+    append(Expected, [T], Ts),
+    maplist(scoped_has_type(Space, Module), Args, Expected).
+
+%The selected path materializes its candidate set. That cost belongs only to
+%the explicit scoped operation; the ordinary has_type_in/3 path keeps its
+%lazy first-witness fast path unchanged.
+scoped_has_type(Space, Module, X, T) :-
+    (   ground(T)
+    ->  (   T == '%Undefined%'
+        ->  true
+        ;   scoped_type_witness(Space, Module, X, T)
+        ->  true
+        ;   scoped_type_answers(Space, X, ['%Undefined%'])
+        )
+    ;   scoped_type_answers(Space, X, Types),
+        member(T, Types)
+    ).
+
+scoped_type_witness(Space, Module, X, T) :-
+    (   T == 'Number', once(scoped_type_candidate(Space, Module, X, 'BigInt'))
+    ->  true
+    ;   once(scoped_type_candidate(Space, Module, X, T))
+    ->  true
+    ;   satisfies_metatype(X, T)
+    ->  true
+    ;   scoped_type_answers(Space, X, Types),
+        once(( member(Widened, Types), Widened == T ))
+    ).
+
+scoped_widen_to_super_types(Space, Module, X, Types0, Types) :-
+    (   scoped_widening_applies(Space, Module, X),
+        scoped_any_super_type_edge(Space)
+    ->  findall(Declared,
+                match_stored(Space, [':', X, Declared], Declared, _),
+                Directs),
+        partition(type_already_listed(Directs), Types0, Direct, Products),
+        scoped_add_super_types(Space, Direct, DirectWidened),
+        append(Products, DirectWidened, Combined),
+        scoped_add_super_types(Space, Combined, Types)
+    ;   Types = Types0
+    ).
+
+scoped_widening_applies(Space, Module, X) :-
+    \+ number(X),
+    \+ string(X),
+    X \== true,
+    X \== false,
+    \+ scoped_function_type(Space, Module, X, _).
+
+scoped_any_super_type_edge(Space) :-
+    \+ \+ match_stored(Space, [':<', _, _], true, _).
+
+scoped_add_super_types(Space, Types, Widened) :-
+    scoped_super_type_rounds(Space, Types, Types, Widened).
+
+scoped_super_type_rounds(_, [], Widened, Widened) :- !.
+scoped_super_type_rounds(Space, Frontier, Accumulated, Widened) :-
+    findall(Super,
+            ( member(Type, Frontier),
+              match_stored(Space, [':<', Type, Super], Super, _) ),
+            Supers),
+    exclude(type_already_listed(Accumulated), Supers, Fresh),
+    (   Fresh == []
+    ->  Widened = Accumulated
+    ;   append(Accumulated, Fresh, Grown),
+        scoped_super_type_rounds(Space, Fresh, Grown, Widened)
+    ).
+
 %A grounded Python object is Grounded, and its Python classes are its types:
 %every class on the object's method resolution order short of object itself is
 %a candidate, so a torch Linear is a Linear and a Module, in the same way
@@ -3458,8 +3580,8 @@ assert(Goal, true) :- current_metta_module(Module),
                                  space_argument_error('get-type-space',
                                                       [Space, X], T).
 'get-type-space'(Space, X, T) :- petta_space_name(Space),
-                                 space_module(Space, Module),
-                                 with_metta_module(Module, 'get-type'(X, T)).
+                                 scoped_type_answers(Space, X, Types),
+                                 member(T, Types).
 
 %%% Documentation, HE's vocabulary, first class %%%
 %
@@ -3490,6 +3612,17 @@ assert(Goal, true) :- current_metta_module(Module),
 'get-doc'(Name, Doc) :- current_metta_space(Space),
                         'get-doc-space'(Space, Name, Doc).
 
+%Upstream's two-input operation. The unary overload above remains the raw-doc
+%convenience PeTTa already shipped; this arity is the formal family and follows
+%the pinned stdlib equations field for field.
+'get-doc'(Space, _, _) :- var(Space), !,
+                          refuse_unbound_input('get-doc', 1).
+'get-doc'(Space, Atom, Doc) :-
+    metatype_of(Atom, 'Expression'), !,
+    'get-doc-atom'(Space, Atom, Doc).
+'get-doc'(Space, Atom, Doc) :-
+    'get-doc-single-atom'(Space, Atom, Doc).
+
 %One shape per arity rather than one open-tailed pattern, the library's
 %own load-bearing craft: @doc carries two, three or four parts depending
 %on how much was written, and the engine's matcher walks proper lists,
@@ -3506,6 +3639,79 @@ doc_shape(Name, ['@doc', Name, _, _, _]).
     (   prelude_doc_atom(Name, Doc)
     ;   match_stored(Space, Doc, Doc, _)
     ).
+
+%Documentation used by the formal family comes from the selected space. The
+%engine's prelude register is the fallback only for the current context, where
+%it represents the vocabulary that space can call. A foreign space with no
+%matching atom cannot acquire ambient prose.
+formal_doc_atom(Space, Name, Pattern) :-
+    (   \+ \+ match_stored(Space, Pattern, Pattern, _)
+    ->  match_stored(Space, Pattern, Pattern, _)
+    ;   current_metta_space(Space),
+        prelude_doc_atom(Name, Stored),
+        Stored = Pattern
+    ).
+
+doc_type_error(['Error'|_]).
+
+'get-doc-single-atom'(Space, _, _) :- var(Space), !,
+                                      refuse_unbound_input('get-doc-single-atom', 1).
+'get-doc-single-atom'(Space, Atom, Doc) :-
+    'get-type-space'(Space, Atom, Type),
+    (   doc_type_error(Type)
+    ->  Doc = Type
+    ;   Type = [->|_]
+    ->  'get-doc-function'(Space, Atom, Type, Doc)
+    ;   'get-doc-atom'(Space, Atom, Doc)
+    ).
+
+'get-doc-atom'(Space, _, _) :- var(Space), !,
+                               refuse_unbound_input('get-doc-atom', 1).
+'get-doc-atom'(Space, Atom, Doc) :-
+    'get-type-space'(Space, Atom, Type),
+    (   doc_type_error(Type)
+    ->  Doc = Type
+    ;   \+ \+ formal_doc_atom(Space, Atom, ['@doc', Atom, _])
+    ->  formal_doc_atom(Space, Atom, ['@doc', Atom, Description]),
+        Doc = ['@doc-formal', ['@item', Atom], ['@kind', atom],
+               ['@type', Type], Description]
+    ;   'get-doc-function'(Space, Atom, '%Undefined%', Doc)
+    ).
+
+'get-doc-function'(Space, _, _, _) :- var(Space), !,
+                                      refuse_unbound_input('get-doc-function', 1).
+'get-doc-function'(Space, Name, Type, Doc) :-
+    formal_doc_atom(Space, Name,
+                    ['@doc', Name, Description, ['@params', Params], Return]),
+    doc_function_types(Type, Params, Types),
+    doc_params(Params, Return, Types, FormalParams, FormalReturn),
+    Doc = ['@doc-formal', ['@item', Name], ['@kind', function],
+           ['@type', Type], Description, ['@params', FormalParams],
+           FormalReturn].
+
+doc_function_types('%Undefined%', Params, Types) :- !,
+    length(Params, ParameterCount),
+    TypeCount is ParameterCount + 1,
+    length(Types, TypeCount),
+    maplist(=('%Undefined%'), Types).
+doc_function_types([->|Types], _, Types).
+
+'get-doc-params'(Params, _, Types, _) :-
+    (   var(Params)
+    ->  refuse_unbound_input('get-doc-params', 1)
+    ;   var(Types)
+    ->  refuse_unbound_input('get-doc-params', 3)
+    ;   fail
+    ), !.
+'get-doc-params'(Params, Return, Types, [FormalParams, FormalReturn]) :-
+    doc_params(Params, Return, Types, FormalParams, FormalReturn).
+
+doc_params([], ['@return', Description], [Type|_], [],
+           ['@return', ['@type', Type], ['@desc', Description]]).
+doc_params([['@param', Description]|Params], Return, [Type|Types],
+           [['@param', ['@type', Type], ['@desc', Description]]|FormalParams],
+           FormalReturn) :-
+    doc_params(Params, Return, Types, FormalParams, FormalReturn).
 
 'help!'(Name, []) :-
     (   \+ 'get-doc'(Name, _)
@@ -5537,7 +5743,9 @@ unregister_fun_everywhere(N) :- retractall(fun_in(_, N)),
                           'add-atom', 'remove-atom', 'add-atoms', 'add-reduct', 'add-reducts', 'get-atoms', match, 'is-var', 'is-ground', 'is-expr', 'is-space',
                           decons, 'decons-atom', noeval, 'new-space',
                           'get-type', 'get-type-space', 'get-metatype', '=alpha', sread, cons, reverse,
-                          'get-doc', 'get-doc-space', 'help!', documented, 'documented-space',
+                          'get-doc', 'get-doc-space', 'get-doc-atom',
+                          'get-doc-single-atom', 'get-doc-function', 'get-doc-params',
+                          'help!', documented, 'documented-space',
                           'defined-name', undocumented, 'undocumented-space',
                           '#+','#-','#*','#div','#//','#mod','#min','#max','#<','#>','#=','#\\=','#=<','#>=',
                           'union-atom', 'cons-atom', 'intersection-atom', 'subtraction-atom', 'index-atom', id,
