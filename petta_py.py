@@ -13,7 +13,7 @@ Guarantees:
   - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
     behind a Python object reference, despite Janus translating base tuples
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=WORKTREE]
+    commit=5e080da67c989c7065bcc3de985187ce1a1ef70e]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; bindings/python/bridge.pl asks janus for py_object(true)
 Fails when:
