@@ -531,7 +531,7 @@ def test_an_op_empty_answers_nothing(metta):
 
 
 def test_declare_on_error_validates(metta):
-    with pytest.raises(ValueError, match="keep, empty or abort"):
+    with pytest.raises(ValueError, match="keep, empty, abort"):
         metta.declare_on_error("&oe-v", "(edge $x $y)", "retry")
 
 
@@ -744,7 +744,7 @@ def test_the_merge_routes_by_shape(metta):
 
 
 def test_declare_merge_validates(metta):
-    with pytest.raises(ValueError, match="depth, fair or best-first"):
+    with pytest.raises(ValueError, match="depth, fair, best-first"):
         metta.declare_merge("(x $y)", "roundrobin")
 
 
@@ -903,7 +903,7 @@ def test_negation_over_native_spaces_is_untouched(metta):
 
 
 def test_declare_context_validates(metta):
-    with pytest.raises(ValueError, match="closed-world or open-world"):
+    with pytest.raises(ValueError, match="closed-world, open-world"):
         metta.declare_context("&cw-v", "half-open")
 
 

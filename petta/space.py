@@ -156,6 +156,23 @@ from .results import Rows, raise_error_answers, rows_into
 from .subscribe import SUBSCRIPTION_QUEUE_MAX, _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
+from .vocabularies import (
+    ANSWER_POLICY,
+    ATOMICITY,
+    DETERMINISM,
+    FIDELITY,
+    ON_ERROR_MODE,
+    SEMIRING,
+    SOURCE_KIND,
+    WORLD,
+    AnswerPolicy,
+    Atomicity,
+    Fidelity,
+    OnErrorMode,
+    Semiring,
+    SourceKind,
+    World,
+)
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
 
@@ -2319,7 +2336,7 @@ class MeTTa:
         self,
         name: str,
         pattern: str | Atom,
-        fidelity: Literal["Exact", "Partial", "Sound", "Refuse"],
+        fidelity: Fidelity,
         *,
         det: str | None = None,
     ) -> Atom:
@@ -2341,18 +2358,18 @@ class MeTTa:
         that falls into their overlap. The atom is returned; removing it
         from &petta withdraws the declaration.
         """
-        if fidelity not in ("Exact", "Partial", "Sound", "Refuse"):
+        if fidelity not in FIDELITY:
             raise ValueError(
-                f"fidelity is one of Exact, Partial, Sound or Refuse, "
+                f"fidelity is one of {', '.join(FIDELITY)}, "
                 f"not {fidelity!r}: it is the declared claim the router "
                 f"acts on, so an unknown word would silently declare "
                 f"nothing"
             )
-        if det is not None and det not in ("det", "semidet", "nondet"):
+        if det is not None and det not in DETERMINISM:
             raise ValueError(
-                f"det is det, semidet or nondet, not {det!r}: the same "
-                f"vocabulary declare_function_determinism uses everywhere "
-                f"else"
+                f"det is one of {', '.join(DETERMINISM)}, not {det!r}: the "
+                f"same vocabulary declare_function_determinism uses "
+                f"everywhere else"
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         children = [Sym("handles"), Sym(str(name)), shape, Sym(fidelity)]
@@ -2370,7 +2387,7 @@ class MeTTa:
     def declare_annotations(
         self,
         name: str,
-        semiring: Literal["bool", "bag", "set", "ranked", "prob", "prov"],
+        semiring: Semiring,
     ) -> Atom:
         """Declare the semiring a context's answer annotations live in.
 
@@ -2380,9 +2397,9 @@ class MeTTa:
         replaces any earlier declaration for the context, so the reader
         never meets two disagreeing atoms.
         """
-        if semiring not in ("bool", "bag", "set", "ranked", "prob", "prov"):
+        if semiring not in SEMIRING:
             raise ValueError(
-                f"semiring is one of bool, bag, set, ranked, prob or prov, "
+                f"semiring is one of {', '.join(SEMIRING)}, "
                 f"not {semiring!r}: it decides how annotations combine and "
                 f"compare, so an unknown word would silently declare nothing"
             )
@@ -2401,7 +2418,7 @@ class MeTTa:
     def declare_source(
         self,
         name: str,
-        kind: Literal["linear", "repeated", "peek"],
+        kind: SourceKind,
     ) -> Atom:
         """Declare a space's consumption discipline.
 
@@ -2413,9 +2430,9 @@ class MeTTa:
         source. peek promises reads do not consume, which the conformance
         kit checks by enumerating twice.
         """
-        if kind not in ("linear", "repeated", "peek"):
+        if kind not in SOURCE_KIND:
             raise ValueError(
-                f"kind is linear, repeated or peek, not {kind!r}"
+                f"kind is one of {', '.join(SOURCE_KIND)}, not {kind!r}"
             )
         previous = Expr([Sym("source"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2433,7 +2450,7 @@ class MeTTa:
         self,
         name: str,
         pattern: str | Atom,
-        mode: Literal["keep", "empty", "abort"],
+        mode: OnErrorMode,
     ) -> Atom:
         """Declare what a context's failure becomes, per query shape.
 
@@ -2447,8 +2464,10 @@ class MeTTa:
         emptied: an interrupt is the caller's, and an absent backend has
         said nothing about the data.
         """
-        if mode not in ("keep", "empty", "abort"):
-            raise ValueError(f"mode is keep, empty or abort, not {mode!r}")
+        if mode not in ON_ERROR_MODE:
+            raise ValueError(
+                f"mode is one of {', '.join(ON_ERROR_MODE)}, not {mode!r}"
+            )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expr([Sym("on-error"), Sym(str(name)), shape, Sym(mode)])
         self._rt.must(
@@ -2459,7 +2478,7 @@ class MeTTa:
     def declare_merge(
         self,
         pattern: str | Atom,
-        policy: Literal["depth", "fair", "best-first"],
+        policy: AnswerPolicy,
     ) -> Atom:
         """Declare how the engine merges one query shape's answers
         ACROSS contexts, for the multi-context idiom
@@ -2471,9 +2490,9 @@ class MeTTa:
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
         """
-        if policy not in ("depth", "fair", "best-first"):
+        if policy not in ANSWER_POLICY:
             raise ValueError(
-                f"policy is depth, fair or best-first, not {policy!r}"
+                f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expr([Sym("merge"), shape, Sym(policy)])
@@ -2485,7 +2504,7 @@ class MeTTa:
     def declare_context(
         self,
         name: str,
-        world: Literal["closed-world", "open-world"],
+        world: World,
     ) -> Atom:
         """Record what a space's absence means.
 
@@ -2495,9 +2514,9 @@ class MeTTa:
         an undeclared one refuses under negation loudly. Native spaces
         are the engine's own database and closed by construction.
         """
-        if world not in ("closed-world", "open-world"):
+        if world not in WORLD:
             raise ValueError(
-                f"world is closed-world or open-world, not {world!r}"
+                f"world is one of {', '.join(WORLD)}, not {world!r}"
             )
         previous = Expr([Sym("context"), Sym(str(name)), Var("old")])
         self._rt.once(
@@ -2584,7 +2603,7 @@ class MeTTa:
     def declare_writes(
         self,
         name: str,
-        atomicity: Literal["transactional", "atomic-single", "best-effort"],
+        atomicity: Atomicity,
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
 
@@ -2596,9 +2615,9 @@ class MeTTa:
         silently surviving a rolled-back transaction is the wrong answer
         the declaration exists to replace.
         """
-        if atomicity not in ("transactional", "atomic-single", "best-effort"):
+        if atomicity not in ATOMICITY:
             raise ValueError(
-                f"atomicity is transactional, atomic-single or best-effort, "
+                f"atomicity is one of {', '.join(ATOMICITY)}, "
                 f"not {atomicity!r}"
             )
         previous = Expr([Sym("writes"), Sym(str(name)), Var("old")])
@@ -2616,7 +2635,7 @@ class MeTTa:
     def declare_emits(
         self,
         name: str,
-        policy: Literal["depth", "fair", "best-first"],
+        policy: AnswerPolicy,
     ) -> Atom:
         """Declare the order a context emits its own answers in.
 
@@ -2625,9 +2644,9 @@ class MeTTa:
         k best. Distinct from the (merge <pattern> <policy>) strategy,
         which is how the ENGINE merges answers across several contexts.
         """
-        if policy not in ("depth", "fair", "best-first"):
+        if policy not in ANSWER_POLICY:
             raise ValueError(
-                f"policy is depth, fair or best-first, not {policy!r}"
+                f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
             )
         previous = Expr([Sym("emits"), Sym(str(name)), Var("old")])
         self._rt.once(

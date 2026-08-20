@@ -71,6 +71,7 @@ from .errors import EngineError, PettaError, SubscriberError
 from .foreign import require_capability
 from .ops import REFLECTION_SPACE, _reflect_add, _reflect_remove
 from .structures import MatchIndex
+from .vocabularies import SUBSCRIPTION_EDGE
 
 __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 
@@ -450,8 +451,10 @@ def subscribe(
     *,
     queue_max: int = SUBSCRIPTION_QUEUE_MAX,
 ) -> Subscription:
-    if on not in ("add", "remove", "both"):
-        raise ValueError(f"on must be add, remove or both, not {on!r}")
+    if on not in SUBSCRIPTION_EDGE:
+        raise ValueError(
+            f"on must be one of {', '.join(SUBSCRIPTION_EDGE)}, not {on!r}"
+        )
     if queue_max < 1:
         raise ValueError(f"queue_max must be at least 1, not {queue_max!r}")
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)

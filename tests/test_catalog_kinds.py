@@ -13,10 +13,13 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import sys
+
 import pytest
 
 from petta import EngineError, MeTTa, S, V
 from petta.foreign import SpaceProvider
+from petta.vocabularies import FIDELITY, SEMIRING
 
 
 class _Recording(SpaceProvider):
@@ -96,3 +99,25 @@ def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):
     m.run("!(add-atom &petta (kind mood symbol (one-of mood-level)))")
     with pytest.raises(EngineError, match="does not fit its declared kind"):
         m.run("!(add-atom &petta (mood &somewhere excited))")
+
+
+def test_the_vocabulary_module_is_generated(repo_root):
+    """The catalog presets and the binding's Literal types are one
+    authority: the checked-in module has to equal what the engine's own
+    (vocabulary ...) rows produce."""
+    sys.path.insert(0, str(repo_root / "python" / "tools"))
+    try:
+        import vocabgen
+    finally:
+        sys.path.pop(0)
+    assert vocabgen.main([]) == 0
+
+
+def test_the_binding_refuses_by_the_generated_vocabulary():
+    """The runtime checks read the generated tuples, so the refusal names
+    exactly the values the engine's checker enforces."""
+    m = MeTTa()
+    with pytest.raises(ValueError, match=", ".join(FIDELITY)):
+        m.declare_handles("&vg-rows", "(edge $a $b)", "Exactly")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match=", ".join(SEMIRING)):
+        m.declare_annotations("&vg-rows", "heap")  # type: ignore[arg-type]

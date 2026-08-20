@@ -489,7 +489,7 @@ def test_declare_handles_rejects_a_conflict_eagerly(metta):
 
 
 def test_declare_handles_validates_the_fidelity_word(metta):
-    with pytest.raises(ValueError, match="Exact, Partial, Sound or Refuse"):
+    with pytest.raises(ValueError, match="Exact, Partial, Sound, Refuse"):
         metta.declare_handles("&hr-sugar4", "(edge $x $y)", "Sorta")
 
 
@@ -626,7 +626,7 @@ def test_the_undeclared_floor_keeps_todays_behaviour(metta):
 
 
 def test_declare_source_validates(metta):
-    with pytest.raises(ValueError, match="linear, repeated or peek"):
+    with pytest.raises(ValueError, match="linear, repeated, peek"):
         metta.declare_source("&sd-v", "stream")
 
 
