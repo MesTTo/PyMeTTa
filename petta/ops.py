@@ -7,7 +7,10 @@ Guarantees:
     space [tested test_public_context_types_are_distinct]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+     commit=WORKTREE]
+  - overload stubs each contribute their declared arrow and annotation claims
+    [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +23,7 @@ from __future__ import annotations
 import functools
 import inspect
 import threading
+import typing
 from collections.abc import Callable
 from typing import Any, ParamSpec, TypeVar
 
@@ -228,12 +232,30 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     typing, so postponed (string) annotations declare the types they name
     rather than %Undefined%, and TypeVars declare type variables, the
     parametric reading."""
-    hints = resolved_annotations(fn)
-    annotations = [hints.get(p.name, inspect.Parameter.empty) for p in params]
-    ret = hints.get("return", Any)
-    declared = declaration_exprs(name, annotations, ret)
-    declared.extend(annotation_exprs(name, annotations, ret))
-    for cls in referenced_classes([*annotations, ret]):
+    declared: list[Expr] = []
+    overloads = typing.get_overloads(fn)
+    signatures = overloads or (fn,)
+    all_annotations: list[Any] = []
+    for signature in signatures:
+        signature_params = (
+            list(inspect.signature(signature).parameters.values())
+            if overloads
+            else params
+        )
+        hints = resolved_annotations(signature)
+        annotations = [
+            hints.get(param.name, inspect.Parameter.empty)
+            for param in signature_params
+        ]
+        ret = hints.get("return", Any)
+        all_annotations.extend((*annotations, ret))
+        for atom in (
+            *declaration_exprs(name, annotations, ret),
+            *annotation_exprs(name, annotations, ret),
+        ):
+            if atom not in declared:
+                declared.append(atom)
+    for cls in referenced_classes(all_annotations):
         for extra in class_declarations(cls):
             if extra not in declared:
                 declared.append(extra)

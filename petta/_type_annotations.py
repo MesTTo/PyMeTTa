@@ -6,11 +6,15 @@ Guarantees:
     test_union_expansion_is_bounded]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+     commit=WORKTREE]
   - full container parameters survive as matchable annotation atoms while
     the runtime type stays MeTTa's Expression
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+     commit=WORKTREE]
+  - advanced typing constructs retain a target type and a full annotation
+    claim rather than collapsing to an undefined type
+    [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,12 +34,13 @@ from typing import Any
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
 from ._parameterized import hook_for as _parameterized_hook
-from .atoms import Atom, Expr, Gnd, S, Sym, Var, expr
+from .atoms import Atom, Expr, Gnd, S, Sym, Var, encode, expr
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
     (bool, "Bool"),
     (int, "Number"),
     (float, "Number"),
+    (complex, "Number"),
     (str, "String"),
 )
 
@@ -67,6 +72,40 @@ def type_atom_for(annotation: Any) -> Atom:
 
 def annotation_atom_for(annotation: Any) -> Atom:
     """Project a Python annotation itself, preserving generic parameters."""
+    origin = typing.get_origin(annotation)
+    if isinstance(annotation, typing.TypeVar):
+        if annotation.__constraints__:
+            return Expr(
+                [
+                    S.TypeVar,
+                    Var(annotation.__name__.lower()),
+                    Expr([S.one_of, *(annotation_atom_for(item) for item in annotation.__constraints__)]),
+                ]
+            )
+        if annotation.__bound__ is not None:
+            return Expr(
+                [
+                    S.TypeVar,
+                    Var(annotation.__name__.lower()),
+                    Expr([S.bound, annotation_atom_for(annotation.__bound__)]),
+                ]
+            )
+        return Var(annotation.__name__.lower())
+    if _is_new_type(annotation):
+        return Expr(
+            [S.NewType, S[annotation.__name__], annotation_atom_for(annotation.__supertype__)]
+        )
+    if origin is typing.Literal:
+        return Expr([S.Literal, *(encode(value) for value in typing.get_args(annotation))])
+    if origin in _type_predicate_origins():
+        return Expr([S[origin.__name__], annotation_atom_for(typing.get_args(annotation)[0])])
+    if origin is type:
+        arguments = typing.get_args(annotation)
+        return Expr([S.type, *(annotation_atom_for(item) for item in arguments)])
+    if annotation in (typing.Never, typing.NoReturn):
+        return S.Empty
+    if annotation is typing.Self:
+        return Var("t")
     hook = _parameterized_hook(annotation)
     if hook is not None:
         return hook.annotation_atom(annotation, annotation_atom_for)
@@ -77,11 +116,17 @@ def annotation_atom_for(annotation: Any) -> Atom:
 
 
 def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
-    if annotation is inspect.Parameter.empty or annotation is Any or annotation is object:
+    if annotation is inspect.Parameter.empty or annotation is Any:
         return [S["%Undefined%"]]
+    if annotation is object:
+        return [S.Atom]
     if annotation is None or annotation is type(None):
         return [S.NoneType]
     if isinstance(annotation, typing.TypeVar):
+        if annotation.__constraints__:
+            return _typevar_constraints(annotation)
+        if annotation.__bound__ is not None:
+            return type_atoms_for(annotation.__bound__)
         return [Var(annotation.__name__.lower())]
     if origin is not None:
         return None
@@ -147,6 +192,22 @@ def _generic_type_atoms(origin: Any) -> list[Atom]:
 def type_atoms_for(annotation: Any) -> list[Atom]:
     """Return every MeTTa type alternative named by an annotation."""
     origin = typing.get_origin(annotation)
+    if _is_new_type(annotation):
+        return [S[annotation.__name__]]
+    if origin is typing.Literal:
+        return _literal_type_atoms(annotation)
+    if origin in _type_predicate_origins():
+        return [S.Bool]
+    if annotation in (typing.Never, typing.NoReturn):
+        return [S.Empty]
+    if annotation is typing.Self:
+        return [Var("t")]
+    if annotation is typing.LiteralString:
+        return [S.String]
+    if origin is type:
+        return [S.Type]
+    if origin in (typing.Required, typing.NotRequired):
+        return type_atoms_for(typing.get_args(annotation)[0])
     if origin is typing.Annotated:
         return type_atoms_for(typing.get_args(annotation)[0])
     direct = _direct_type_atoms(annotation, origin)
@@ -162,6 +223,39 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
     if origin is tuple:
         return _tuple_type_atoms(annotation)
     return _generic_type_atoms(origin)
+
+
+def _type_predicate_origins() -> tuple[Any, ...]:
+    return tuple(
+        predicate
+        for predicate in (
+            getattr(typing, "TypeIs", None),
+            getattr(typing, "TypeGuard", None),
+        )
+        if predicate is not None
+    )
+
+
+def _is_new_type(annotation: Any) -> bool:
+    return callable(annotation) and hasattr(annotation, "__supertype__")
+
+
+def _literal_type_atoms(annotation: Any) -> list[Atom]:
+    alternatives: list[Atom] = []
+    seen: set[str] = set()
+    for value in typing.get_args(annotation):
+        for atom in type_atoms_for(type(value)):
+            _add_unique(alternatives, seen, atom)
+    return alternatives or [S["%Undefined%"]]
+
+
+def _typevar_constraints(annotation: typing.TypeVar) -> list[Atom]:
+    alternatives: list[Atom] = []
+    seen: set[str] = set()
+    for constraint in annotation.__constraints__:
+        for atom in type_atoms_for(constraint):
+            _add_unique(alternatives, seen, atom)
+    return alternatives
 
 
 def _class_type_name(cls: type) -> str:
