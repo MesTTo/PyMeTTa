@@ -67,7 +67,7 @@
 %   - pattern_modifier/3 lifts lazy paths out of stored-pattern position and
 %     resolves them only after the root handle has matched [tested:
 %     test_a_path_reaches_into_a_handle_without_converting_it;
-%     commit=WORKTREE]
+%     commit=a1b10566194f10c174101fdc05f956b33171613b]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None

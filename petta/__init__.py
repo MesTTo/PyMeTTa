@@ -19,7 +19,7 @@ Guarantees:
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
   - lazy query paths are public immutable values and keep their root opaque
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=WORKTREE]
+    commit=a1b10566194f10c174101fdc05f956b33171613b]
 Open Obligations:
   To Do: None
   Hacks: None

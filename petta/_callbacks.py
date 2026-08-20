@@ -4,7 +4,7 @@ Guarantees:
     modules [tested test_callback_facade_owns_no_state_and_delegates]
   - lazy path callbacks retain an opaque root and project one segment per
     crossing [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=WORKTREE]
+    commit=a1b10566194f10c174101fdc05f956b33171613b]
 Open Obligations:
   To Do: None
   Hacks: None
