@@ -12,9 +12,10 @@ Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]
   - MatchIndex.matches agrees with brute-force unification over every
-    registered pattern, including mixed integer/float values and NaNs
+    registered pattern, keeping integer and float atoms apart and NaN atoms
+    together the way the engine's matcher does
     [tested test_matchindex_agrees_with_brute_force,
-    test_matchindex_uses_grounded_numeric_equality]
+    test_matchindex_matches_grounded_numbers_by_unification]
   - MatchIndex.matches answers in REGISTRATION order whatever order the
     tree walk reached the entries in, and a remove does not disturb it
     [measured 2026-08-19: register a, b; remove a; register c; the answer

@@ -92,11 +92,15 @@ def test_matchindex_nonlinear_patterns_are_exact():  # noqa: D103  -- pytest dis
     assert [v for _, v in inbox.matches(S.pair(S.a, S.b))] == ["any"]
 
 
-def test_matchindex_uses_grounded_numeric_equality():
-    """MatchIndex compares grounded numbers by numeric value, matching Gnd equality."""
+def test_matchindex_matches_grounded_numbers_by_unification():
+    """MatchIndex answers by unification, the engine's matcher: an integer
+    pattern and a float probe stay apart even where the == operator would
+    answer True, because matching follows atom identity, not the tower.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     index = MatchIndex()
-    index.add(val(0), "mixed")
-    assert list(index.matches(val(0.0))) == [(val(0), "mixed")]
+    index.add(val(0), "int")
+    assert list(index.matches(val(0.0))) == []
+    assert list(index.matches(val(0))) == [(val(0), "int")]
 
 
 @given(

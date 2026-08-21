@@ -215,9 +215,9 @@ def _kind(value):
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
 )
 def test_python_equality_is_engine_equality(metta, a, b):
-    """Gnd == Gnd answers exactly what the engine's == answers for two values
-    of the same MeTTa type, NaN, negative zero and mixed numeric types
-    included.
+    """Gnd against a RAW value answers exactly what the engine's == answers
+    for two values of the same MeTTa type, NaN, negative zero and mixed
+    numeric types included.
 
     Across two DIFFERENT types the engine answers its refusal rather than a
     verdict, since `==` is declared `(-> $a $a Bool)` and the question has
@@ -225,18 +225,43 @@ def test_python_equality_is_engine_equality(metta, a, b):
     False there, and has to: `__eq__` may not raise, or a Gnd could not sit in
     a dict beside a value of another kind. So the law is "same kind, same
     verdict; different kind, the engine says so", which is the strongest form
-    both sides can hold at once.
+    both sides can hold at once. The raw operand carries the == operator's
+    relation; two ATOMS carry unification instead, the next law down.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if _kind(a) != _kind(b):
         refused = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
         assert len(refused) == 1
         assert str(refused[0]).startswith("(Error (==")
         assert "BadArgType" in str(refused[0])
-        assert (Gnd(a) == Gnd(b)) is False
+        assert (Gnd(a) == b) is False
         return
     engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
     assert len(engine) == 1
-    assert engine[0].value is (Gnd(a) == Gnd(b))
+    assert engine[0].value is (Gnd(a) == b)
+
+
+@settings(max_examples=80, deadline=None)
+@given(
+    a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
+    b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
+)
+def test_atom_equality_is_engine_unification(metta, a, b):
+    """Gnd against another ATOM answers exactly what the engine's matcher
+    answers, one universal law with no kind split: an integer atom never
+    matches a float atom even where == answers True, 0.0 and -0.0 are two
+    atoms, and one NaN atom matches another where == answers False. Java
+    draws the same line between == and Double.equals so hash collections
+    stay coherent; here the line is the engine's own unification, and unify
+    and hashing follow it. Found by the space state machine: its Counter
+    model diverged from storage on exactly the pairs the two relations split.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    with metta.new_space() as space:
+        space.add(Expr([Gnd(b)]))
+        matched = len(list(space.query(Expr([Gnd(a)])))) == 1
+    assert (Gnd(a) == Gnd(b)) is matched
+    assert (unify(Gnd(a), Gnd(b)) is not None) is matched
+    if matched:
+        assert hash(Gnd(a)) == hash(Gnd(b))
 
 
 @given(pt.atoms(ground=True))

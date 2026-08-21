@@ -2,9 +2,13 @@
 Guarantees:
   - Gnd normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
-  - Gnd equality uses the engine's numeric-value relation across integer and
-    float values [tested: test_python_equality_is_engine_equality;
-    commit=e8ca6683f151c0dff369fec7d070c52b68458e30]
+  - Gnd carries the engine's two relations, one per operand kind: against a
+    raw value it is the == operator's numeric tower, against another atom it
+    is unification identity (integer and float atoms distinct, signed zeros
+    distinct, NaN self-equal), the same split Java makes between == and
+    Double.equals so collections of values stay coherent
+    [tested: test_python_equality_is_engine_equality,
+    test_atom_equality_is_engine_unification; commit=WORKTREE]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expr is a complete immutable Sequence with iterative equality and hashing
@@ -123,11 +127,17 @@ def _is_primitive(value: Any) -> bool:
 
 
 def _ground_equal(mine: Any, theirs: Any) -> bool:
-    """Equality exactly as the engine's == reads it, so a comparison made in
-    Python and one made in an equation never disagree: booleans are not
-    numbers, integer and float values share the numeric tower, floats use
-    arithmetic equality (-0.0 equals 0.0, and NaN is unequal to itself), and
-    an opaque object is itself alone.
+    """Comparison exactly as the engine's == OPERATOR reads a crossed value,
+    so a comparison made in Python and one made in an equation never
+    disagree: booleans are not numbers, integer and float values share the
+    numeric tower, floats use arithmetic equality (-0.0 equals 0.0, NaN is
+    unequal to itself), and an opaque object is itself alone. NaN is the one
+    value the engine's own doors split on: == over crossed values answers
+    False as IEEE does, while the text reader's `!(== NaN NaN)` answers True
+    through term identity [measured 2026-08-21, recorded in the ledger as an
+    engine seam]; this relation follows the crossed-value door, which is the
+    door a Gnd travels. Two atoms compare by _ground_identical, the engine's
+    unification, which splits the tower and matches NaN atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
@@ -137,6 +147,29 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
         return mine == theirs
     if type(mine) is not type(theirs):
         return False
+    if _is_primitive(mine):
+        return mine == theirs
+    return mine is theirs
+
+
+def _ground_identical(mine: Any, theirs: Any) -> bool:
+    """Identity exactly as the engine UNIFIES two crossed values, which is a
+    different relation from its == operator on three measured edges: an
+    integer atom never matches a float atom where (== 0 0.0) answers True,
+    0.0 and -0.0 are two float values where == answers one, and one NaN
+    matches another where == answers False [measured 2026-08-21: space.query
+    over the live engine for each pair; commit=WORKTREE]. Matching,
+    membership, removal and every dict of atoms follow this relation, so a
+    Counter of atoms counts what the space stores.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    mine = _normalize_grounded(mine)
+    theirs = _normalize_grounded(theirs)
+    if type(mine) is not type(theirs):
+        return False
+    if type(mine) is float:
+        if math.isnan(mine) or math.isnan(theirs):
+            return math.isnan(mine) and math.isnan(theirs)
+        return mine == theirs and math.copysign(1.0, mine) == math.copysign(1.0, theirs)
     if _is_primitive(mine):
         return mine == theirs
     return mine is theirs
@@ -671,8 +704,14 @@ class Gnd(Atom):
     crosses as an object reference, stays the same object on the way back,
     and unifies by identity, which is the equality the engine applies to it.
 
-    Equality is ergonomic on purpose: a grounded primitive compares equal to
-    its raw Python value, so run("!(+ 1 2)") answers compare with == 3.
+    Equality carries the engine's own two relations, one per operand kind.
+    Against a RAW Python value it is the engine's == operator, ergonomic on
+    purpose: a grounded primitive compares equal to its raw value, so
+    run("!(+ 1 2)") answers compare with == 3 and Gnd(3.0) == 3 the way
+    (== 3.0 3) answers True. Against ANOTHER ATOM it is the engine's
+    unification: an integer atom never equals a float atom, 0.0 and -0.0 are
+    two atoms, one NaN atom equals another, so membership, removal and a
+    Counter of atoms agree with what a space actually stores and matches.
     True stays distinct from 1 the way MeTTa keeps Bool and Number apart.
     A symbol never equals a string; that distinction is the point.
     """
@@ -700,17 +739,24 @@ class Gnd(Atom):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Gnd):
-            return _ground_equal(self.value, other.value)
+            # Atom against atom is the engine's unification, so identity
+            # questions (dict keys, membership, remove) answer as the
+            # engine's own storage answers them.
+            return _ground_identical(self.value, other.value)
         if isinstance(other, Atom):
             return False
         # Raw Python value on the other side, the ergonomic comparison:
-        # the same engine identity the Gnd-to-Gnd case applies.
+        # the engine's == operator, numeric tower included.
         return _ground_equal(self.value, other)
 
     def __hash__(self) -> int:
         # Hash agrees with equality: a primitive hashes as its value, so
         # Gnd(3) and 3 land in the same bucket; an object hashes by identity.
+        # NaN atoms are all one atom to unification, and CPython hashes each
+        # nan float by object identity, so they need one shared bucket.
         if _is_primitive(self.value):
+            if type(self.value) is float and math.isnan(self.value):
+                return hash(("gnd", "nan"))
             return hash(self.value)
         return hash(("gnd", id(self.value)))
 

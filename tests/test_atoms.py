@@ -537,20 +537,27 @@ def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; i
 
 
 def test_ground_equality_is_the_engines():
-    """Python-side == must never disagree with an equation's ==: booleans
-    are not numbers, integers and floats compare by numeric value, IEEE
-    arithmetic equates signed zeros and leaves NaN unequal, objects by identity.
+    """Python-side equality carries the engine's own two relations. A raw
+    operand answers the == operator over crossed values: booleans are not
+    numbers, integers and floats compare by numeric value, signed zeros are
+    equal, NaN is unequal to itself as IEEE reads it. Another ATOM answers
+    unification instead: an integer atom never equals a float atom, signed
+    zeros are two atoms, one NaN atom matches another the way the engine's
+    matcher does, so a dict of atoms counts exactly what a space stores.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    assert Gnd(1) == Gnd(1.0)
-    assert Gnd(1.0) == Gnd(1.0)
-    assert Gnd(0.0) == Gnd(-0.0)
     nan = float("nan")
-    assert Gnd(nan) != Gnd(nan)
-    assert Gnd(True) != Gnd(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert Gnd(1) == 1 and Gnd(1) == 1.0
-    assert hash(Gnd(1)) == hash(Gnd(1.0))
-    assert unify(Gnd(1), Gnd(1.0)) == {}
-    assert unify(Gnd(nan), Gnd(nan)) is None
+    assert Gnd(0.0) == -0.0
+    assert Gnd(nan) != nan
+    assert Gnd(1) != Gnd(1.0)
+    assert Gnd(1.0) == Gnd(1.0)
+    assert Gnd(0.0) != Gnd(-0.0)
+    assert Gnd(nan) == Gnd(nan)
+    assert Gnd(True) != Gnd(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert hash(Gnd(1)) == hash(1)
+    assert hash(Gnd(nan)) == hash(Gnd(nan))
+    assert unify(Gnd(1), Gnd(1.0)) is None
+    assert unify(Gnd(nan), Gnd(nan)) == {}
 
 
 def test_boxes_intern_per_object_identity():

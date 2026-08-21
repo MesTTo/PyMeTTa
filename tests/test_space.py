@@ -1069,3 +1069,30 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
             assert clone.run("!(cp-use 1)") == source.run("!(cp-use 1)")
         finally:
             clone.drop()
+
+
+def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
+    """The space state machine's Hypothesis counterexample, pinned: after
+    adding (0.0), the pattern (0) matches nothing through any door, because
+    the engine unifies by value AND type while its == compares
+    arithmetically. Every library door agrees with storage: unify refuses,
+    atom equality refuses, membership and removal refuse, one NaN atom still
+    matches another, and the raw-value comparison keeps the == operator's
+    numeric tower so answers still compare with == 3.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    stored = petta.Expr([Gnd(0.0)])
+    pattern = petta.Expr([Gnd(0)])
+    with metta.new_space() as space:
+        space.add(stored)
+        assert list(space.query(pattern)) == []
+        assert pattern not in space
+        assert stored in space
+        assert space.remove(pattern) is False
+        assert space.remove(stored) is True
+    assert petta.unify(pattern, stored) is None
+    assert Gnd(0) != Gnd(0.0)
+    assert Gnd(0.0) != Gnd(-0.0)
+    assert petta.unify(Gnd(float("nan")), Gnd(float("nan"))) is not None
+    # The raw-value arm keeps the engine's == tower untouched.
+    assert Gnd(0) == 0.0
+    assert Gnd(3.0) == 3
