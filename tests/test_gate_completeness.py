@@ -54,7 +54,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # (TRY004). Every one is a per-line suppression with its own reason.
     # 2119 -> 2120 at the CLI-demo repair: its regression test's scenario
     # docstring carries the same one-invariant D205 convention.
-    "D": 2120,
+    # 2120 -> 2118 removing the legacy python.petta path: its two pinned
+    # tests went with it, each carrying a D103 suppression.
+    "D": 2118,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,
