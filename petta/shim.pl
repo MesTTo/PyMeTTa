@@ -1008,18 +1008,30 @@ petta_py_target_term(Space, Target, Term) :-
 %distinction because both kinds are one atom there.
 petta_py_swrite(Tagged, String) :-
     (   petta_py_wire_boolean_symbol(Tagged, Bad)
-    ->  metta_refuse_text(Bad)
+    ->  throw(error(metta_unwritable_text(Bad),
+                    context(swrite/2,
+                            'printed form would read back as a different value')))
     ;   petta_py_decode_shared(Tagged, Term, _),
         swrite(Term, String)
     ).
 
-petta_py_wire_boolean_symbol(["s", Name], Bad) :-
-    memberchk(Name, ["true", "false", "True", "False"]),
-    atom_string(Bad, Name).
-petta_py_wire_boolean_symbol(["e", Items], Bad) :-
+%Janus hands the wire's leaves over as atoms while Prolog-built wrappers use
+%strings, so both spellings of a tag are accepted here.
+petta_py_wire_boolean_symbol([Tag, Name], Bad) :-
+    petta_py_wire_tag(Tag, s),
+    (   atom(Name) -> Bad = Name ; string(Name), atom_string(Bad, Name) ),
+    memberchk(Bad, [true, false, 'True', 'False']).
+petta_py_wire_boolean_symbol([Tag, Items], Bad) :-
+    petta_py_wire_tag(Tag, e),
+    is_list(Items),
     member(Item, Items),
     petta_py_wire_boolean_symbol(Item, Bad),
     !.
+
+petta_py_wire_tag(Tag, Wanted) :-
+    (   atom(Tag) -> Tag == Wanted
+    ;   string(Tag), atom_string(Wanted, Tag)
+    ).
 
 %%%%%%%%%% Space operations %%%%%%%%%%
 %
