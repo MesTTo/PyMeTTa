@@ -264,5 +264,3 @@ def _expression_annotation_matches(atom: Expr, annotation: type) -> bool:
         return False
     registration = _lookup(annotation) or _default_registration(annotation)
     return registration is not None and registration.type_name == atom.head.name
-
-
