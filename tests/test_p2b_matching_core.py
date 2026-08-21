@@ -16,6 +16,12 @@ Guarantees:
     equation holding that call keeps its own head pattern.
   [tested: test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match;
    commit=WORKTREE]
+  - the compiler says which head pattern position it decided something about,
+    which label, and why, for both decisions it can take there, and says
+    nothing where the parameter's evaluation mask makes the decision the one
+    the programmer asked for.
+  [tested: test_the_compiler_names_a_pattern_position_it_turned_into_a_goal;
+   commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -124,3 +130,50 @@ def test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match():
     assert _answers(metta, "!(p216-uses-gp 5)") == ["(p216-gp 5)"]
     assert _answers(metta, "!(p216-uses-gp (pair 1 2))") == ["(got 1 2)"]
     assert _answers(metta, "!(p216-gp (pair 3 4))") == ["(got 3 4)"]
+
+
+def test_the_compiler_names_a_pattern_position_it_turned_into_a_goal(capfd):
+    """Both invisible decisions about a head pattern position are now said out loud.
+
+    A position that compiles to a type premise GOAL and a position whose label
+    already means something are both correct and both unreadable in the source:
+    ``!(p22-label (p22-g 3))`` arrives as ``(p22-label (inner 3))`` and matches
+    nothing, with no answer and, before this, no message. The engine speaks
+    through SWI's message machinery, so ``-q`` batch runs stay quiet while the
+    library door, which is where somebody is reading, prints it.
+    """
+    metta = MeTTa(verbose=False)
+    metta.run("(= (p22-g $x) (inner $x))")
+    capfd.readouterr()
+
+    metta.run("(= (p22-goal (: $x Number)) $x)")
+    annotation = capfd.readouterr().err
+    assert "(= (p22-goal ...) ...)" in annotation
+    assert "head argument 1" in annotation
+    assert "annotation on :" in annotation
+    assert "GOAL" in annotation
+
+    metta.run("(= (p22-label (deeper (p22-g $x))) $x)")
+    label = capfd.readouterr().err
+    assert "(= (p22-label ...) ...)" in label
+    assert "head argument 1, subterm 1" in label
+    assert "against (p22-g ...)" in label
+    assert "p22-g has equations here" in label
+    assert "matched STRUCTURALLY" in label
+
+    # The other route to a head meaning, which asking fun/1 alone would miss.
+    metta.run("(= (p22-special (if True 1 2)) hit)")
+    special = capfd.readouterr().err
+    assert "head argument 1" in special
+    assert "special form or a registered translator rule" in special
+
+    # And it stays quiet where the decision is the one the programmer asked
+    # for: an evaluation-masked parameter receives its argument as written.
+    metta.run("(: p22-lazy (-> Atom %Undefined%))")
+    metta.run("(= (p22-lazy (p22-g $x)) $x)")
+    assert capfd.readouterr().err == ""
+
+    # The decision the note describes is real, not a style opinion.
+    assert _answers(metta, "!(p22-label (deeper (p22-g 3)))") == [
+        "(p22-label (deeper (inner 3)))"
+    ]
