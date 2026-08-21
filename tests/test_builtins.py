@@ -4,11 +4,11 @@ Guarantees:
   - MeTTa.builtins() equals the sorted set union of fun/1 and the translator's
     published special-form heads, with neither list copied into Python [tested:
     test_builtins_equals_the_union_of_functions_and_special_forms;
-    commit=WORKTREE]
+    commit=dd407a40f623b16eda0bb51a74458f7dd3760e21]
   - neither half of that union can go empty unnoticed, which is the way this
     test was previously able to pass while the answer was wrong [tested:
     test_builtins_equals_the_union_of_functions_and_special_forms;
-    commit=WORKTREE]
+    commit=dd407a40f623b16eda0bb51a74458f7dd3760e21]
 Open Obligations:
   To Do: None
   Hacks: None
