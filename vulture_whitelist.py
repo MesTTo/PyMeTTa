@@ -50,6 +50,9 @@ _.to_pl
 _.transactional
 _.matching
 _.reachable
+# Subscription.drain is the queue spelling of Fold.take, documented as the
+# sugar it is; the general name is what the library calls internally now.
+_.drain
 
 # Protocol fields and methods read by getattr, a framework, or the wire.
 # PlanDecision is the algebra evaluator's law-gate answer; callers read the

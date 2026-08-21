@@ -192,6 +192,7 @@ from .errors import (  # noqa: E402
     SubscriberError,
     TimeLimitError,
 )
+from .events import Event, EventStream, Fold  # noqa: E402
 from .foreign import (  # noqa: E402
     Adder,
     Clearer,
@@ -205,7 +206,7 @@ from .ops import REFLECTION_SPACE, record  # noqa: E402
 from .paths import Attr, Key, Path, path  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
-from .subscribe import Event, Subscription, bridge  # noqa: E402
+from .subscribe import Subscription, bridge  # noqa: E402
 
 AlgebraDeclarationError = _algebra_api.AlgebraDeclarationError
 AlgebraEvaluation = _algebra_api.AlgebraEvaluation
@@ -342,8 +343,10 @@ __all__ = [
     "EngineProfile",
     "Enumerable",
     "Event",
+    "EventStream",
     "Expr",
     "Fact",
+    "Fold",
     "Gnd",
     "Handle",
     "InferenceLimitError",

@@ -37,11 +37,11 @@ Guarantees:
   - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
     non-object JSON with a response instead of dropping the connection
     [tested test_remote_server_rejects_malformed_request_bodies]
-  - RemoteSpace claims every capability the wire carries and refuses
-    subscribe, because the wire carries no event and a watcher would hear
-    only this process's own writes [measured 2026-08-19: an attached space
-    delivered the one atom this process wrote and nothing for the atom the
-    server added] [tested
+  - RemoteSpace claims every capability the wire carries and declares no
+    event delivery, because the wire carries no event and a watcher would
+    hear only this process's own writes [measured 2026-08-19: an attached
+    space delivered the one atom this process wrote and nothing for the atom
+    the server added] [tested
     test_remote_space_claims_subscribe_only_if_the_channel_exists]
 Owns:
   - Server owns the HTTP loop and its attached-engine worker until close()
@@ -389,8 +389,8 @@ class RemoteSpace(SpaceProvider):
     that stops early stops the server's work with it and an answer set
     larger than one body still crosses.
 
-    It does NOT subscribe, and that is the one capability the base class
-    would have given it for free. See can_run.
+    It does NOT subscribe, and that is the one capability a provider has to
+    promise rather than implement. See delivers.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -409,26 +409,19 @@ class RemoteSpace(SpaceProvider):
         self._space = space
         self._batch = batch
 
-    def can_run(self, capability: str, /, **request: Any) -> bool:
-        """Everything the wire carries, and not subscribe.
+    def delivers(self) -> tuple[str, str] | None:
+        """Nothing: the wire carries no event.
 
-        SpaceProvider derives subscribe from add and remove, and for a space
-        whose every change goes through this process that inference is
-        exact: the engine's own write hooks are the event source. A remote
-        space is the one shape where it fails, because its contents change
-        on the server, which is the whole reason it is remote. The wire has
-        four operations, match, enumerate, add and remove, and none of them
-        carries an event, so a watcher here hears only the writes this
-        process made and silently misses every other one [measured
-        2026-08-19: an attached space delivered the one atom this process
-        wrote and nothing for the atom the server added].
-
-        A capability is a promise about a space rather than a list of
-        methods, so the honest answer is no until the channel exists.
+        The wire has four operations, match, enumerate, add and remove, and
+        none of them carries an event, while a remote space's contents change
+        on the server, which is the whole reason it is remote. So a watcher
+        here would hear only the writes this process made and silently miss
+        every other one [measured 2026-08-19: an attached space delivered the
+        one atom this process wrote and nothing for the atom the server
+        added]. Declaring nothing is what refuses the subscription; the
+        sentence below is what a caller reads.
         """
-        if capability == "subscribe":
-            return False
-        return super().can_run(capability, **request)
+        return None
 
     def refusal(self, capability: str, /, **_request: Any) -> str | None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if capability != "subscribe":

@@ -17,13 +17,16 @@ Open Obligations:
 from typing import Literal
 
 __all__ = [
+    "AGENDA_POLICY",
     "ANSWER_POLICY",
     "ATOMICITY",
     "CACHE_MODE",
     "CLAUSEFAILEDENUM",
+    "DELIVERY",
     "DETERMINISM",
     "EFFECT_CLASS",
     "EVALUATIONORDERENUM",
+    "EVENT_ORDER",
     "FIDELITY",
     "FUNCTIONRESULTENUM",
     "MEMO_AGGREGATE",
@@ -42,13 +45,16 @@ __all__ = [
     "SUBSCRIPTION_EDGE",
     "VOLATILITY",
     "WORLD",
+    "AgendaPolicy",
     "AnswerPolicy",
     "Atomicity",
     "CacheMode",
     "ClauseFailedEnum",
+    "Delivery",
     "Determinism",
     "EffectClass",
     "EvaluationOrderEnum",
+    "EventOrder",
     "Fidelity",
     "FunctionResultEnum",
     "MemoAggregate",
@@ -93,6 +99,10 @@ NoMatchEnum = Literal["NoMatchOriginal", "NoMatchFail", "NoMatchError"]
 OUTOFCLAUSESENUM = ("FailureOriginal", "FailureEmpty", "FailureError")
 OutOfClausesEnum = Literal["FailureOriginal", "FailureEmpty", "FailureError"]
 
+#: (vocabulary agenda-policy declaration recency specificity priority user)
+AGENDA_POLICY = ("declaration", "recency", "specificity", "priority", "user")
+AgendaPolicy = Literal["declaration", "recency", "specificity", "priority", "user"]
+
 #: (vocabulary answer-policy depth fair best-first)
 ANSWER_POLICY = ("depth", "fair", "best-first")
 AnswerPolicy = Literal["depth", "fair", "best-first"]
@@ -105,6 +115,10 @@ Atomicity = Literal["transactional", "atomic-single", "best-effort"]
 CACHE_MODE = ("unchecked",)
 CacheMode = Literal["unchecked"]
 
+#: (vocabulary delivery at-most-once at-least-once per-write-exactly)
+DELIVERY = ("at-most-once", "at-least-once", "per-write-exactly")
+Delivery = Literal["at-most-once", "at-least-once", "per-write-exactly"]
+
 #: (vocabulary determinism det semidet nondet)
 DETERMINISM = ("det", "semidet", "nondet")
 Determinism = Literal["det", "semidet", "nondet"]
@@ -112,6 +126,10 @@ Determinism = Literal["det", "semidet", "nondet"]
 #: (vocabulary effect-class immutable)
 EFFECT_CLASS = ("immutable",)
 EffectClass = Literal["immutable"]
+
+#: (vocabulary event-order ordered unordered)
+EVENT_ORDER = ("ordered", "unordered")
+EventOrder = Literal["ordered", "unordered"]
 
 #: (vocabulary fidelity Exact Partial Sound Refuse)
 FIDELITY = ("Exact", "Partial", "Sound", "Refuse")

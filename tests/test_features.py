@@ -52,11 +52,12 @@ from petta import (
 )
 from petta.arrays import EmbeddingStore
 from petta.atoms import Expr, Gnd, Sym, Var
+from petta.events import Event, atom_added
 from petta.integrate import install_reflection_ops
-from petta.subscribe import Event, atom_added
 
 hypothesis = pytest.importorskip("hypothesis")
 subscribe_module = importlib.import_module("petta.subscribe")
+events_module = importlib.import_module("petta.events")
 
 
 @pytest.fixture()
@@ -94,7 +95,7 @@ class _SubscriptionRuntime:
 
 def _script_subscription_boundaries(monkeypatch):
     runtime = _SubscriptionRuntime()
-    registry = subscribe_module._SubscriptionRegistry()
+    registry = events_module._FoldRegistry()
 
     def reflect_add(active_runtime, fact):
         assert active_runtime is runtime
@@ -158,7 +159,7 @@ def test_stale_subscription_snapshot_cannot_deliver_after_cancel(monkeypatch):  
     stale_snapshot = registry.for_space("&stale")
     subscription.cancel()
 
-    stale_snapshot[0]._deliver(Event("add", "&stale", S.item, {}))
+    stale_snapshot[0]._run(Event("add", "&stale", S.item, {}))
 
     assert seen == []
 
@@ -175,7 +176,7 @@ def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):  # noqa: 
 
     subscription = subscribe_module.subscribe(runtime, "&inflight", S.item, callback)
     event = Event("add", "&inflight", S.item, {})
-    delivery = threading.Thread(target=subscription._deliver, args=(event,))
+    delivery = threading.Thread(target=subscription._run, args=(event,))
 
     def cancel():
         subscription.cancel()

@@ -8,6 +8,11 @@ requirement.
 Guarantees:
   - capabilities derive from implemented narrow protocols and unknown
     operations are refused [tested test_capabilities_follow_implemented_methods]
+  - subscribability is not derived: a provider declares what its change
+    events promise through delivers(), registration publishes that as the
+    space's (events ...) row, and one that declares nothing refuses a
+    subscription naming the missing capability [tested
+    test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuses]
   - providers may decline one concrete request through should_run before its
     operation executes [tested test_provider_can_decline_one_request]
   - provider registration changes Python state only after the engine accepts
@@ -53,6 +58,7 @@ from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 from .answer import Answer
 from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, encode
 from .errors import PettaError, TransportFailure, is_transport_failure
+from .vocabularies import DELIVERY, EVENT_ORDER
 
 __all__ = [
     "CAPABILITIES",
@@ -69,6 +75,7 @@ __all__ = [
     "Remover",
     "SpaceProvider",
     "Transactional",
+    "delivery_promise",
     "has_provider",
     "register_provider",
     "require_capability",
@@ -295,6 +302,28 @@ class SpaceProvider:
         "clear": (Clearer,),
     }
 
+    def delivers(self) -> tuple[str, str] | None:
+        """What this space's change events promise, or None for no events.
+
+        `(delivery, order)` from the catalog's own words: delivery is
+        "at-most-once", "at-least-once" or "per-write-exactly", and order is
+        "ordered" or "unordered". Registration writes the answer into &petta
+        as `(events <space> <delivery> <order>)`, so a MeTTa program reads
+        the same promise the engine acts on.
+
+        None is the default and it is the safe one. Whether a space can emit
+        change events is a promise about the SPACE, not something the seam
+        can read off the methods: a store whose every write comes through
+        this engine gets per-write-exactly for free from the engine's own
+        write hooks, and one whose contents also change elsewhere gets
+        nothing unless it has a channel of its own. Deriving it from add and
+        remove made a remote space claim events it could not deliver, and a
+        watcher heard this process's own writes and missed every other one.
+        Say what your channel promises, or say nothing and subscriptions are
+        refused with your own words.
+        """
+        return None
+
     def can_run(self, capability: str, /, **request: Any) -> bool:
         """Whether this provider implements the operation for this request."""
         protocols = self._PROTOCOLS.get(capability)
@@ -308,6 +337,15 @@ class SpaceProvider:
         return False
 
     def _can_subscribe(self, on: str) -> bool:
+        """A declared event capability, narrowed to the edge asked for.
+
+        Two questions, both required. The declaration says the space can
+        emit change events at all; the write protocol says which EDGE it can
+        produce, since a store with no remove never emits a removal and a
+        watcher for one would wait forever.
+        """
+        if delivery_promise(self) is None:
+            return False
         if on == "add":
             return isinstance(self, Adder)
         if on == "remove":
@@ -414,6 +452,12 @@ def _refusal_detail(
     if capability == "enumerate":
         return "cannot enumerate atoms"
     if capability == "subscribe":
+        if delivery_promise(provider) is None:
+            return (
+                "declares no event capability: override delivers() to return "
+                "one of the catalog's delivery promises, or leave it None and "
+                "poll the space instead"
+            )
         return "offers no event source for this subscription"
     return f"does not implement {capability}"
 
@@ -468,10 +512,16 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
         # it already was. Without it foreign_provides/2 reported that every
         # Python provider provides everything, so anything the engine decides
         # from a declaration excluded exactly the incomplete providers.
+        # The event promise rides the same crossing rather than a second one:
+        # it is written as the space's ordinary (events ...) declaration, and
+        # a re-registration that stops promising events has to stop the space
+        # being subscribable in the same step.
+        promise = delivery_promise(provider)
         runtime.must(
-            "petta_py_register_foreign(Space, Capabilities)",
+            "petta_py_register_foreign(Space, Capabilities, Delivery)",
             Space=name,
             Capabilities=[c for c in CAPABILITIES if provider.can_run(c)],
+            Delivery=list(promise) if promise is not None else [],
         )
         _PROVIDERS[name] = provider
 
@@ -566,6 +616,36 @@ def _candidates_from_matcher(provider: Matcher, pattern: Atom, limit: int | None
     if limit is None or not _match_takes_a_bound(type(provider)):
         return provider.match(pattern)
     return cast("BoundedMatcher", provider).match(pattern, limit=limit)
+
+
+def delivery_promise(provider: Any) -> tuple[str, str] | None:
+    """A provider's declared event capability, checked against the catalog.
+
+    Silence is None and means no events, which is the safe answer and what
+    every provider that says nothing gets. A claim outside the catalog's own
+    `delivery` and `event-order` vocabularies is a mistake worth hearing
+    about rather than a value to fall back from: falling back would either
+    invent a promise the author did not make or discard one they did.
+    """
+    if not callable(getattr(provider, "delivers", None)):
+        return None
+    claimed = provider.delivers()
+    if claimed is None:
+        return None
+    if (
+        not isinstance(claimed, tuple)
+        or len(claimed) != 2
+        or claimed[0] not in DELIVERY
+        or claimed[1] not in EVENT_ORDER
+    ):
+        msg = (
+            f"{type(provider).__name__}.delivers() answered {claimed!r}; it is "
+            f"None for a space with no change events, or a pair "
+            f"(delivery, order) with delivery one of {', '.join(DELIVERY)} and "
+            f"order one of {', '.join(EVENT_ORDER)}"
+        )
+        raise PettaError(msg)
+    return claimed
 
 
 def pushdown_class(provider: Any, pattern: Atom) -> str:

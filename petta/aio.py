@@ -87,8 +87,11 @@ from .results import Rows
 from .space import MeTTa
 from .subscribe import SUBSCRIPTION_QUEUE_MAX
 from .vocabularies import (
+    AgendaPolicy,
     AnswerPolicy,
     Atomicity,
+    Delivery,
+    EventOrder,
     Fidelity,
     OnErrorMode,
     SourceKind,
@@ -1036,6 +1039,22 @@ class AsyncMeTTa:
     ) -> Atom:
         return await self.call(lambda m: m.declare_emits(name, policy))
 
+    async def declare_events(
+        self, name: str, delivery: Delivery, order: EventOrder = "unordered"
+    ) -> Atom:
+        """Declare what a context's change events promise; see MeTTa.declare_events."""
+        return await self.call(lambda m: m.declare_events(name, delivery, order))
+
+    async def events(self) -> Any:
+        """This engine's public event stream; see MeTTa.events.
+
+        A fold registered through it runs on the engine thread, inside the
+        write that caused the event, exactly as a synchronous one does.
+        `AsyncMeTTa.subscribe` is the async-native door for the delivering
+        fold and hands events to an async iterator instead.
+        """
+        return await self.call(lambda m: m.events())
+
     async def declare_handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         name: str,
@@ -1073,9 +1092,21 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
 
     async def declare_reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, pattern: str | Atom, operation: str | Atom
+        self,
+        name: str,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
     ) -> Atom:
-        return await self.call(lambda m: m.declare_reaction(name, pattern, operation))
+        return await self.call(
+            lambda m: m.declare_reaction(name, pattern, operation, priority)
+        )
+
+    async def declare_agenda(
+        self, name: str, policy: AgendaPolicy, function: str | None = None
+    ) -> Atom:
+        """Declare which reaction fires first; see MeTTa.declare_agenda."""
+        return await self.call(lambda m: m.declare_agenda(name, policy, function))
 
     async def declare_source(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, kind: SourceKind

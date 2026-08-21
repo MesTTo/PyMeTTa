@@ -421,12 +421,23 @@ class DASSpace(SpaceProvider):
     def __init__(self, das: DAS) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._das = das
 
-    _READ_ONLY = "add", "clear", "enumerate", "remove", "subscribe"
+    #: subscribe is deliberately absent: a space says no to it by declaring
+    #: no event delivery, and delivers() below is where this one does. Naming
+    #: it here too would be the same fact written twice, free to drift.
+    _READ_ONLY = "add", "clear", "enumerate", "remove"
 
     def can_run(self, capability: str, /, **request: Any) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if capability in self._READ_ONLY:
             return False
         return super().can_run(capability, **request)
+
+    def delivers(self) -> tuple[str, str] | None:
+        """Nothing, because nothing writes here.
+
+        A DAS space never writes through this connection, so there is no
+        write for an event to be about.
+        """
+        return None
 
     def refusal(self, capability: str, /, **_request: Any) -> str | None:
         """The one place this rule is written.

@@ -192,6 +192,8 @@ from .casting import cast as _cast
 from .define import Defined, PrologBacked
 from .derivation import Derivation
 from .errors import EngineError, PettaError, SourceNotFound, StrictError
+from .events import EventStream
+from .events import stream as _stream
 from .foreign import (
     has_provider,
     register_provider,
@@ -204,15 +206,21 @@ from .subscribe import SUBSCRIPTION_QUEUE_MAX, _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
 from .vocabularies import (
+    AGENDA_POLICY,
     ANSWER_POLICY,
     ATOMICITY,
+    DELIVERY,
     DETERMINISM,
+    EVENT_ORDER,
     FIDELITY,
     ON_ERROR_MODE,
     SOURCE_KIND,
     WORLD,
+    AgendaPolicy,
     AnswerPolicy,
     Atomicity,
+    Delivery,
+    EventOrder,
     Fidelity,
     OnErrorMode,
     SourceKind,
@@ -2289,6 +2297,25 @@ class MeTTa:
             queue_max=queue_max,
         )
 
+    def events(self) -> EventStream:
+        """This engine's stream of `(action, space, atom)` changes.
+
+            seen = m.events().fold(
+                lambda held, event: [*held, event.atom],
+                space=m.space_name, pattern=S.order(V.id), state=[],
+            )
+            m.add(S.order(1))
+            seen.take()          # [(order 1)], and the fold starts again
+
+        The stream is the primitive and a FOLD over it is how anything
+        consumes it: a step `(state, event) -> state` run inside the write
+        that caused the event. subscribe() is the fold whose step delivers,
+        bridge() the fold whose step writes, and a declared `(on ...)`
+        reaction the fold whose step evaluates, so a consumer you write and
+        one this library ships are the same kind of thing.
+        """
+        return _stream(self._rt)
+
     def prolog(self) -> None:
         """Drop into the engine's own interactive Prolog toplevel, the
         deepest debugging lever there is: listing/1 shows compiled
@@ -2850,11 +2877,63 @@ class MeTTa:
         )
         return atom
 
+    def declare_agenda(
+        self,
+        name: str,
+        policy: AgendaPolicy,
+        function: str | None = None,
+    ) -> Atom:
+        """Declare which reaction fires first when several match one write.
+
+        declaration is the default and the order they were declared, which is
+        what the engine produced by accident before this was a policy;
+        recency is the most recently declared first; specificity is the most
+        tests in the pattern first; priority reads each reaction's own
+        declared number, highest first; and user names a MeTTa function that
+        SCORES a reaction, highest first. Every policy breaks ties on
+        declaration order.
+
+            m.declare_reaction("&alarms", "(alert $w)", "(insert &log (all $w))")
+            m.declare_reaction("&alarms", "(alert fire)", "(insert &log (fire))",
+                               priority=9)
+            m.declare_agenda("&alarms", "priority")
+        """
+        if policy not in AGENDA_POLICY:
+            msg = f"policy is one of {', '.join(AGENDA_POLICY)}, not {policy!r}"
+            raise ValueError(msg)
+        if (policy == "user") != (function is not None):
+            msg = (
+                "the user policy names the MeTTa function that scores a "
+                "reaction, and no other policy takes one"
+            )
+            raise ValueError(msg)
+        previous = Expr([Sym("agenda"), Sym(str(name)), Var("old")])
+        self._rt.once(
+            "petta_py_remove(Space, W, _)", Space="&petta", W=previous.to_wire()
+        )
+        previous_named = Expr(
+            [Sym("agenda"), Sym(str(name)), Var("old"), Var("fn")]
+        )
+        self._rt.once(
+            "petta_py_remove(Space, W, _)",
+            Space="&petta",
+            W=previous_named.to_wire(),
+        )
+        parts = [Sym("agenda"), Sym(str(name)), Sym(policy)]
+        if function is not None:
+            parts.append(Sym(str(function)))
+        atom = Expr(parts)
+        self._rt.must(
+            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+        )
+        return atom
+
     def declare_reaction(
         self,
         name: str,
         pattern: str | Atom,
         operation: str | Atom,
+        priority: int | None = None,
     ) -> Atom:
         """Declare a reaction, stored as an (on ...) atom: when an atom
         matching PATTERN lands in the space, OPERATION runs under the
@@ -2875,7 +2954,13 @@ class MeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
-        atom = Expr([Sym("on"), Sym(str(name)), shape, op])
+        parts = [Sym("on"), Sym(str(name)), shape, op]
+        if priority is not None:
+            if not isinstance(priority, int) or isinstance(priority, bool):
+                msg = f"priority is an integer, not {priority!r}"
+                raise TypeError(msg)
+            parts.append(Gnd(priority))
+        atom = Expr(parts)
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -2988,6 +3073,49 @@ class MeTTa:
             W=previous.to_wire(),
         )
         atom = Expr([Sym("emits"), Sym(str(name)), Sym(policy)])
+        self._rt.must(
+            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+        )
+        return atom
+
+    def declare_events(
+        self,
+        name: str,
+        delivery: Delivery,
+        order: EventOrder = "unordered",
+    ) -> Atom:
+        """Declare what a context's change events promise.
+
+        Subscribability is a promise about the context, not something the
+        seam reads off its methods. A native space needs no declaration:
+        every write into it runs the engine's own hooks, so it delivers
+        per-write-exactly and ordered by construction. A FOREIGN context
+        declares, and one that declares nothing refuses a subscription
+        instead of serving one that silently misses writes.
+
+            m.declare_events("&shared", "at-most-once")   # redis pub/sub
+            m.declare_events("&mirror", "per-write-exactly", "ordered")
+
+        delivery is at-most-once, at-least-once or per-write-exactly, and
+        order is ordered or unordered, defaulting to unordered because an
+        omitted promise is the weaker one. A Python provider says the same
+        thing by overriding delivers(), which registration writes here.
+        """
+        if delivery not in DELIVERY:
+            msg = f"delivery is one of {', '.join(DELIVERY)}, not {delivery!r}"
+            raise ValueError(msg)
+        if order not in EVENT_ORDER:
+            msg = f"order is one of {', '.join(EVENT_ORDER)}, not {order!r}"
+            raise ValueError(msg)
+        previous = Expr(
+            [Sym("events"), Sym(str(name)), Var("delivery"), Var("order")]
+        )
+        self._rt.once(
+            "petta_py_remove(Space, W, _)",
+            Space="&petta",
+            W=previous.to_wire(),
+        )
+        atom = Expr([Sym("events"), Sym(str(name)), Sym(delivery), Sym(order)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
