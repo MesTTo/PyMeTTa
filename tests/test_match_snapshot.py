@@ -10,6 +10,13 @@ Guarantees:
   - a single pattern gets the same guarantee from the logical update view and
     keeps streaming, so a first answer off a large space does not walk it
     [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - a CONJUNCTION under `once` or `take N` stops at the bound instead of
+    walking the join, and stops only where nothing between the row and the
+    answer could fail
+    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=WORKTREE]
+  - the bounded forms keep match/4's answer-shaped refusal, which the fused
+    template-and-result spelling had lost
+    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -98,6 +105,95 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
         "taking one answer does not walk the space: "
         f"small={small_samples!r}, large={large_samples!r}"
     )
+
+
+def _bounded_join_cost(metta, size, source):
+    """What one bounded query over a `size`-edge chain self-join costs."""
+    space = metta.new_space()
+    try:
+        space.add(*[S.edge(n, n + 1) for n in range(size)])
+        with metta.stats() as spent:
+            space.run(source)
+        return spent.inferences
+    finally:
+        space.drop()
+
+
+def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
+    """The bound the caller wrote reaches the conjunctive snapshot.
+
+    A conjunction finds every row before the first one leaves, which the
+    language requires, so before this `(once (match &s (, ...) ...))` walked
+    the whole join to answer one row: 1,328 inferences over ten edges against
+    6,398 over four hundred [measured 2026-08-21]. The bound now reaches
+    match_bounded/5, and the cost stops tracking the join.
+
+    It stops only where nothing between the row and the answer could fail. A
+    template that compiles to a call is exactly that case, so the last block
+    runs one whose first row fails: a bound pushed there would answer nothing.
+    """
+    for source in (
+        "!(once (match &self (, (edge $x $y) (edge $y $z)) $x))",
+        "!(once (match &self (, (edge $x $y) (edge $y $z)) (path $x $z)))",
+        "!(take 2 (match &self (, (edge $x $y) (edge $y $z)) (path $x $z)))",
+    ):
+        _bounded_join_cost(metta, 4, source)  # the session's first-use cost lands here
+        small = min(_bounded_join_cost(metta, 10, source) for _ in range(3))
+        large = min(_bounded_join_cost(metta, 400, source) for _ in range(3))
+        assert large <= small + 4, f"{source} still walks the join: {small} then {large}"
+
+    # Unbounded is untouched: it answers every row, so it pays for every row.
+    unbounded = "!(match &self (, (edge $x $y) (edge $y $z)) (path $x $z))"
+    _bounded_join_cost(metta, 4, unbounded)
+    assert _bounded_join_cost(metta, 400, unbounded) > 10 * _bounded_join_cost(
+        metta, 10, unbounded
+    )
+
+    space = metta.new_space()
+    try:
+        space.add(*[S.edge(n, n + 1) for n in range(6)])
+        space.run("(= (only-late $n) (if (> $n 2) (late $n) (empty)))")
+        # Rows come out in edge order, so the first three rows fail the
+        # template and the answer is the fourth row's. A bound pushed past a
+        # goal that can fail would have stopped at the first row and answered
+        # nothing.
+        (answers,) = space.run(
+            "!(once (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
+        )
+        assert answers == [expr(S.late, 3)]
+        (bounded,) = space.run(
+            "!(take 2 (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
+        )
+        assert bounded == [expr(S.late, 3), expr(S.late, 4)]
+    finally:
+        space.drop()
+
+
+@pytest.mark.parametrize(
+    "form",
+    [
+        "(match $u (f 1) matched)",
+        "(once (match $u (f 1) matched))",
+        "(take 1 (match $u (f 1) matched))",
+        "(match notaspace (f 1) matched)",
+        "(once (match notaspace (f 1) matched))",
+        "(take 1 (match notaspace (f 1) matched))",
+    ],
+)
+def test_a_bounded_match_on_an_unbound_space_answers_the_error(metta, form):
+    """A bound does not cost the refusal its shape.
+
+    match/4 answers an Error ATOM through its result, so a compiled form that
+    had already bound the result to the template left the refusal nothing to
+    unify with and the query answered zero rows instead. `(take 1 ...)` did
+    exactly that [measured 2026-08-21], and `once` now compiles through the
+    same door, so both are pinned here beside the plain form they must agree
+    with.
+    """
+    (answers,) = metta.run(f"!{form}")
+    assert len(answers) == 1
+    assert str(answers[0]).startswith("(Error (match ")
+    assert "match expects a space as the first argument" in str(answers[0])
 
 
 def test_a_conjunction_carries_each_rows_annotation(metta):
