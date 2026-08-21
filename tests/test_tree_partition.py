@@ -3,8 +3,8 @@ Guarantees:
   - engine/ names no seat: its only bindings/ mention is the decider glob,
     and no hosts/ path survives anywhere in it
     [tested: test_the_tree_partitions_by_seam]
-  - the engine discovers the python seat through the glob, and the legacy
-    python.petta alias still resolves to the canonical package
+  - the engine discovers the python seat through the glob, and the removed
+    legacy python.petta alias stays removed
     [tested: test_the_tree_partitions_by_seam]
 Open Obligations:
   To Do: None
@@ -12,7 +12,6 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-import importlib
 import re
 from pathlib import Path
 
@@ -53,21 +52,9 @@ def test_the_tree_partitions_by_seam():
     )
     assert "bindings/python/decider.pl" in deciders
 
-    legacy = importlib.import_module("python.petta")
-    import petta
-
-    assert legacy is petta
-
-    # The compat shim points one way: the seat never imports the legacy
-    # package. Asserted over source rather than import-linter because the
-    # imports lane runs inside the seat, where the repo-root shim is not
-    # importable and a linter contract on it would silently lose its teeth.
-    one_way = []
-    for source in sorted((REPO / "bindings" / "python" / "petta").rglob("*.py")):
-        for lineno, line in enumerate(source.read_text().splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith(("import python", "from python")):
-                one_way.append(
-                    f"{source.relative_to(REPO)}:{lineno}: {stripped}"
-                )
-    assert not one_way, "the seat imports the shim:\n" + "\n".join(one_way)
+    # The legacy python.petta alias was removed deliberately (the user broke
+    # that compatibility); a reintroduced shim would be a partition change,
+    # which is this test's subject.
+    assert not (REPO / "python" / "__init__.py").exists(), (
+        "the removed legacy python.petta alias is back"
+    )

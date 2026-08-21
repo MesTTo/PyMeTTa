@@ -266,29 +266,3 @@ def _expression_annotation_matches(atom: Expr, annotation: type) -> bool:
     return registration is not None and registration.type_name == atom.head.name
 
 
-def _build_sequence(atom: Expr, origin: type, args: tuple[Any, ...]) -> Any:
-    if origin is tuple:
-        return _build_tuple(atom, args)
-    if origin is list or issubclass(origin, abc.Sequence):
-        element = args[0] if args else None
-        return [build(child, element) for child in atom.children]
-    return _UNHANDLED
-
-
-def _build_tuple(atom: Expr, args: tuple[Any, ...]) -> tuple[Any, ...]:
-    if args and args[-1] is Ellipsis:
-        return _build_uniform_tuple(atom, args[0])
-    if args and len(args) == len(atom.children):
-        return _build_fixed_tuple(atom, args)
-    return tuple(build(child) for child in atom.children)
-
-
-def _build_uniform_tuple(atom: Expr, annotation: Any) -> tuple[Any, ...]:
-    return tuple(build(child, annotation) for child in atom.children)
-
-
-def _build_fixed_tuple(atom: Expr, annotations: tuple[Any, ...]) -> tuple[Any, ...]:
-    return tuple(
-        build(child, annotation)
-        for child, annotation in zip(atom.children, annotations, strict=True)
-    )
