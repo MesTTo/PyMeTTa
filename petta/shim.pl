@@ -1000,9 +1000,26 @@ petta_py_target_term(Space, Target, Term) :-
     ).
 
 %Print a tagged term the way PeTTa prints it:
+%A symbol spelled like a boolean has no faithful text form: the engine's
+%term for it IS the boolean (Prolog true/false), so only the wire tag still
+%knows the caller meant a symbol, and text written here would read back as
+%the boolean. Refuse at this door, where the tag is visible, with the
+%writer's own refusal shape; the engine-side writer cannot make this
+%distinction because both kinds are one atom there.
 petta_py_swrite(Tagged, String) :-
-    petta_py_decode_shared(Tagged, Term, _),
-    swrite(Term, String).
+    (   petta_py_wire_boolean_symbol(Tagged, Bad)
+    ->  metta_refuse_text(Bad)
+    ;   petta_py_decode_shared(Tagged, Term, _),
+        swrite(Term, String)
+    ).
+
+petta_py_wire_boolean_symbol(["s", Name], Bad) :-
+    memberchk(Name, ["true", "false", "True", "False"]),
+    atom_string(Bad, Name).
+petta_py_wire_boolean_symbol(["e", Items], Bad) :-
+    member(Item, Items),
+    petta_py_wire_boolean_symbol(Item, Bad),
+    !.
 
 %%%%%%%%%% Space operations %%%%%%%%%%
 %
