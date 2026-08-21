@@ -393,6 +393,7 @@ def require(metta: MeTTa, name: str) -> DeclaredAlgebra:
 def _context_capabilities(metta: MeTTa, algebra: str) -> frozenset[str]:
     context = Sym(str(metta.space_name))
     for atom in metta.space("&petta").atoms():
+        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/petta/space.py:declare_annotations
         if not isinstance(atom, Expr) or len(atom.children) not in {3, 4}:
             continue
         if atom.children[:3] != (Sym("annotations"), context, Sym(algebra)):
@@ -553,6 +554,7 @@ def _check_law(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
         _check_commutative(metta, declaration, law, operation)
     elif law == "combine-idempotent":
         _check_idempotent(metta, declaration, law)
+    # policy-inventory-exempt: mechanism-internal; reason=these are the two law names that share one checker, so the dispatcher groups them where its other arms match a single name; evidence=bindings/python/petta/algebra.py:_check_distributive
     elif law in {"left-distributive", "right-distributive"}:
         _check_distributive(metta, declaration, law)
     elif law == "combine-zero-identity":

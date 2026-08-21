@@ -41,6 +41,10 @@ Guarantees:
     type, and effect atoms rather than boolean decorator flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - the first Python owner refuses to adopt a source-owned declaration, while
+    later Python owners share the declaration reference count
+    [tested: test_a_duplicate_declaration_names_the_first_one;
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -143,7 +147,11 @@ def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
     if count == 0:
-        runtime.must("petta_py_add(Space, W)", Space=space, W=declaration.to_wire())
+        runtime.must(
+            "petta_py_add_strict_declaration(Space, W)",
+            Space=space,
+            W=declaration.to_wire(),
+        )
     _DECLARATION_REFS[key] = count + 1
 
 
@@ -363,6 +371,7 @@ def _callable_code(fn: Callable) -> Any:
     return None
 
 
+# policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the two wire-crossing modes a registration can ask for, and this decoder turns them into the (op ...) kind; evidence=bindings/python/petta/ops.py:register
 def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
     if transport not in ("encoded", "raw"):
         msg = f"transport must be 'encoded' or 'raw', got {transport!r}"
@@ -663,6 +672,7 @@ def register(
     fn: Callable[_P, _R],
     *,
     name: str | None = None,
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"] = "encoded",
     declarations: Iterable[Atom] = (),
     space: str = _DEFAULT_SPACE,

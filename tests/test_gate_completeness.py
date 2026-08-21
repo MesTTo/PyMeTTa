@@ -56,7 +56,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # docstring carries the same one-invariant D205 convention.
     # 2120 -> 2118 removing the legacy python.petta path: its two pinned
     # tests went with it, each carrying a D103 suppression.
-    "D": 2118,
+    # 2118 -> 2125 at the p3-typing-cluster merge: its three new test
+    # modules received the repository's docstring-suppression conventions
+    # (the obligation-header D205 and the named-contract D103 forms).
+    "D": 2125,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,

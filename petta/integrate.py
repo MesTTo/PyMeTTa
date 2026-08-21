@@ -343,6 +343,7 @@ def _register_module_callable(
     target: Callable,
     name: str,
     *,
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
@@ -363,6 +364,7 @@ def module_ops(
     *,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.

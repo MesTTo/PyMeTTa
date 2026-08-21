@@ -20,13 +20,22 @@ __all__ = [
     "ANSWER_POLICY",
     "ATOMICITY",
     "CACHE_MODE",
+    "CLAUSEFAILEDENUM",
     "DETERMINISM",
     "EFFECT_CLASS",
+    "EVALUATIONORDERENUM",
     "FIDELITY",
+    "FUNCTIONRESULTENUM",
+    "MEMO_AGGREGATE",
+    "MEMO_STRATEGY",
+    "MISMATCHENUM",
+    "NOMATCHENUM",
     "NUMERIC_TYPE",
     "ON_ERROR_MODE",
     "OP_KIND",
+    "OUTOFCLAUSESENUM",
     "ROUTE_KEY",
+    "SAVE_FORMAT",
     "SEMIRING",
     "SOURCE_KIND",
     "SPACE_CAPABILITY",
@@ -36,13 +45,22 @@ __all__ = [
     "AnswerPolicy",
     "Atomicity",
     "CacheMode",
+    "ClauseFailedEnum",
     "Determinism",
     "EffectClass",
+    "EvaluationOrderEnum",
     "Fidelity",
+    "FunctionResultEnum",
+    "MemoAggregate",
+    "MemoStrategy",
+    "MismatchEnum",
+    "NoMatchEnum",
     "NumericType",
     "OnErrorMode",
     "OpKind",
+    "OutOfClausesEnum",
     "RouteKey",
+    "SaveFormat",
     "Semiring",
     "SourceKind",
     "SpaceCapability",
@@ -50,6 +68,30 @@ __all__ = [
     "Volatility",
     "World",
 ]
+
+#: (vocabulary ClauseFailedEnum ClauseFailNonDet ClauseFailDet)
+CLAUSEFAILEDENUM = ("ClauseFailNonDet", "ClauseFailDet")
+ClauseFailedEnum = Literal["ClauseFailNonDet", "ClauseFailDet"]
+
+#: (vocabulary EvaluationOrderEnum OrderClause OrderFittest)
+EVALUATIONORDERENUM = ("OrderClause", "OrderFittest")
+EvaluationOrderEnum = Literal["OrderClause", "OrderFittest"]
+
+#: (vocabulary FunctionResultEnum Nondeterministic Deterministic)
+FUNCTIONRESULTENUM = ("Nondeterministic", "Deterministic")
+FunctionResultEnum = Literal["Nondeterministic", "Deterministic"]
+
+#: (vocabulary MismatchEnum MismatchOriginal MismatchError MismatchFail)
+MISMATCHENUM = ("MismatchOriginal", "MismatchError", "MismatchFail")
+MismatchEnum = Literal["MismatchOriginal", "MismatchError", "MismatchFail"]
+
+#: (vocabulary NoMatchEnum NoMatchOriginal NoMatchFail NoMatchError)
+NOMATCHENUM = ("NoMatchOriginal", "NoMatchFail", "NoMatchError")
+NoMatchEnum = Literal["NoMatchOriginal", "NoMatchFail", "NoMatchError"]
+
+#: (vocabulary OutOfClausesEnum FailureOriginal FailureEmpty FailureError)
+OUTOFCLAUSESENUM = ("FailureOriginal", "FailureEmpty", "FailureError")
+OutOfClausesEnum = Literal["FailureOriginal", "FailureEmpty", "FailureError"]
 
 #: (vocabulary answer-policy depth fair best-first)
 ANSWER_POLICY = ("depth", "fair", "best-first")
@@ -75,6 +117,14 @@ EffectClass = Literal["immutable"]
 FIDELITY = ("Exact", "Partial", "Sound", "Refuse")
 Fidelity = Literal["Exact", "Partial", "Sound", "Refuse"]
 
+#: (vocabulary memo-aggregate none min max sum count)
+MEMO_AGGREGATE = ("none", "min", "max", "sum", "count")
+MemoAggregate = Literal["none", "min", "max", "sum", "count"]
+
+#: (vocabulary memo-strategy wtinylfu lru)
+MEMO_STRATEGY = ("wtinylfu", "lru")
+MemoStrategy = Literal["wtinylfu", "lru"]
+
 #: (vocabulary numeric-type Number BigInt)
 NUMERIC_TYPE = ("Number", "BigInt")
 NumericType = Literal["Number", "BigInt"]
@@ -90,6 +140,10 @@ OpKind = Literal["det", "many", "raw_det", "raw_many"]
 #: (vocabulary route-key context global)
 ROUTE_KEY = ("context", "global")
 RouteKey = Literal["context", "global"]
+
+#: (vocabulary save-format metta fast)
+SAVE_FORMAT = ("metta", "fast")
+SaveFormat = Literal["metta", "fast"]
 
 #: (vocabulary semiring bool bag set ranked prob prov)
 SEMIRING = ("bool", "bag", "set", "ranked", "prob", "prov")

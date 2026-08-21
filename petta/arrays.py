@@ -255,6 +255,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         fn,
         *,
         name: str,
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):
@@ -279,6 +280,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         *,
         name: str,
         arities: list[int] | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):

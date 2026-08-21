@@ -13,6 +13,14 @@
 %     [tested test_declare_handles_rejects_a_conflict_eagerly]
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - petta_py_add_strict_declaration/2 refuses a declaration already owned by
+%     source code before Python publishes an operation
+%     [tested: test_a_duplicate_declaration_names_the_first_one;
+%     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+%   - derivations descend through the default six-axis dispatch wrapper, so
+%     recursive proof depth remains bounded and one equation yields one proof
+%     [tested: test_depth_exhaustion_returns_a_partial_proof;
+%     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 %   - petta_py_load/3 loads under the engine's own source-load lifecycle, so
 %     the library's door and import! replace each other's loads of a file and
 %     not only their own [tested 2026-08-19:
@@ -513,6 +521,7 @@ petta_py_raise(Kind, Detail) :-
 
 metta_control_signal_info(
     error(metta_control_signal(Kind, Detail), context(petta, _)), Kind, Detail) :-
+    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=bindings/python/petta/shim.pl:metta_control_signal_info/3
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 
@@ -1033,6 +1042,7 @@ petta_py_swrite(Tagged, String) :-
 petta_py_wire_boolean_symbol([Tag, Name], Bad) :-
     petta_py_wire_tag(Tag, s),
     (   atom(Name) -> Bad = Name ; string(Name), atom_string(Bad, Name) ),
+    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=bindings/python/petta/shim.pl:petta_py_wire_boolean_symbol/2
     memberchk(Bad, [true, false, 'True', 'False']).
 petta_py_wire_boolean_symbol([Tag, Items], Bad) :-
     petta_py_wire_tag(Tag, e),
@@ -1056,6 +1066,18 @@ petta_py_wire_tag(Tag, Wanted) :-
 petta_py_add(Space, Tagged) :-
     petta_py_decode_shared(Tagged, Term, _),
     'add-atom'(Space, Term, _).
+
+%Python operation registration owns the declaration it retains. Ordinary
+%source loading deliberately treats an identical declaration as an idempotent
+%warning, but adopting somebody else's row here would let unregister remove
+%that source-owned declaration. Probe and add through this shim's public doors
+%so the ownership distinction does not leak into the engine's general add API.
+petta_py_add_strict_declaration(Space, Tagged) :-
+    (   petta_py_contains(Space, Tagged)
+    ->  petta_py_decode_shared(Tagged, Term, _),
+        throw(error(petta_duplicate_declaration(Space, Term, Term), none))
+    ;   petta_py_add(Space, Tagged)
+    ).
 
 petta_py_decode_for_add(Tagged, Term) :-
     petta_py_decode_shared(Tagged, Term, _).
@@ -2199,6 +2221,26 @@ petta_py_solve_(M, findall(Template, Goal, List), D, Tree, Status, _) :- !,
             Results),
     petta_py_findall_results(Results, Values, Tree, Status),
     ( Status == complete -> List = Values ; true ).
+
+%The P3 dispatcher is engine machinery, but its shipped fast path wraps an
+%ordinary generated goal. Treating the wrapper as a generic Prolog predicate
+%enumerated its implementation clauses as separate proofs and ran the wrapped
+%recursion through call/1, outside the derivation depth counter. Open the fast
+%path and keep its direct goal inside this interpreter. A non-default policy is
+%still executed by the authoritative dispatcher and recorded as one opaque
+%builtin; duplicating its retained-clause interpreter here would let proofs and
+%evaluation drift on the six policy axes.
+petta_py_solve_(_,
+                dispatch_policy_execute(Module, Fun, Args, Goal, Out),
+                D, Tree, Status, Barrier) :-
+    !,
+    metta_host_dispatch_proof_step(Module, Fun, Args, Goal, Out, Route),
+    (   Route == direct
+    ->  petta_py_solve_(Module, Goal, D, Tree, Status, Barrier)
+    ;   Route == opaque,
+        Tree = [builtin(dispatch_policy_execute(Module, Fun, Args, Goal, Out))],
+        Status = complete
+    ).
 
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is

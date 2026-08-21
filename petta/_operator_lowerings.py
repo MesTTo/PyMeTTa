@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, NamedTuple
 
+# policy-inventory-exempt: mechanism-internal; reason=these five names are the lowering table's own entry kinds, read only by the apply and method doors that walk the table; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
 LoweringKind = Literal["symbol", "template", "absent", "taken", "provided"]
 LoweringForm = str | int | tuple[Any, ...]
 
@@ -33,6 +34,7 @@ class OperatorLowering(NamedTuple):
     form: LoweringForm | None
     method: str | None = None
     reason: str | None = None
+    # policy-inventory-exempt: mechanism-internal; reason=Python's operator protocol has only unary and binary dunders, so this is the table entry's own arity field; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
     arity: Literal[1, 2] = 2
 
 

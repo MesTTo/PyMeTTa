@@ -19,6 +19,9 @@ Guarantees:
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
     [tested: test_the_vocabulary_module_is_generated; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - a catalog name that already uses CamelCase keeps that spelling in its
+    Python alias [tested: test_generated_alias_preserves_declared_camel_case;
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -85,7 +88,7 @@ def constant_name(vocab: str) -> str:
 
 
 def alias_name(vocab: str) -> str:
-    return "".join(part.capitalize() for part in vocab.split("-"))
+    return "".join(part[:1].upper() + part[1:] for part in vocab.split("-"))
 
 
 def module_text(rows: list[tuple[str, list[str]]]) -> str:

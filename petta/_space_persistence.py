@@ -12,6 +12,10 @@ Guarantees:
     test_text_save_uses_utf8_for_plain_and_gzip_files; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - the save format type admits exactly metta and fast [tested
     test_public_context_types_are_distinct; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - save validation consumes the generated save-format catalog tuple rather
+    than owning a second closed list [tested:
+    test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
+    commit=42b5d28232e75c32b20a1d5bf1f740fec134938d]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
@@ -37,6 +41,7 @@ from ._engine import Runtime
 from ._space_objects import _limits
 from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
 from .errors import EngineError, ResourceLimitError
+from .vocabularies import SAVE_FORMAT
 
 _FAST_PREFIX = b"PETTA-CACHE\t"
 _FAST_ERRORS = (
@@ -48,6 +53,7 @@ _FAST_ERRORS = (
 )
 
 
+# policy-inventory-exempt: mechanism-internal; reason=rb and wt are the binary-read and UTF-8 text-write modes required by the gzip adapter; evidence=bindings/python/petta/_space_persistence.py:_open_maybe_gz
 def _open_maybe_gz(path: str | os.PathLike[str], mode: Literal["rb", "wt"]):
     """Open gzip paths through gzip and all other paths through open()."""
     file = os.fspath(path)
@@ -183,7 +189,7 @@ def save_space(
     save_format: SaveFormat,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
-    if save_format not in ("metta", "fast"):
+    if save_format not in SAVE_FORMAT:
         msg = f"save format must be 'metta' or 'fast', got {save_format!r}"
         raise ValueError(msg)
     _validate_atoms(rt, space, atoms)

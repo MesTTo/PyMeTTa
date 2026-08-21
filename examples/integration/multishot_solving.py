@@ -10,6 +10,8 @@ surface the space already has.
 Guarantees:
   - grounding scopes each template run atomically without a call-shape flag
     [tested: test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - reachability is a relation whose absent horizons fail instead of returning
+    residual calls [tested: integration/multishot_solving; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -80,6 +82,7 @@ class Part:
 
 
 m = MeTTa().new_space()
+m.run("!(add-atom &petta (dispatch-policy reach NoMatchEnum NoMatchFail))")
 
 # The base part: a graph as tabular facts, and step zero of reachability.
 m.add_table("edge", [(S.a, S.b), (S.b, S.c), (S.c, S.d)])

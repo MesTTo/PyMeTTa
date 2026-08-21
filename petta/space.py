@@ -1689,6 +1689,7 @@ class MeTTa:
         /,
         *,
         name: str | None = ...,
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -1700,6 +1701,7 @@ class MeTTa:
         self,
         *,
         name: str | None = ...,
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -1711,6 +1713,7 @@ class MeTTa:
         fn: Callable | None = None,
         *,
         name: str | None = None,
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
@@ -2670,6 +2673,7 @@ class MeTTa:
         self,
         name: str,
         type_name: str,
+        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/space.py:declare_image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         """Choose how one Python type crosses one context boundary.

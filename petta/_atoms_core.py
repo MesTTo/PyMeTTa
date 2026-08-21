@@ -1156,6 +1156,7 @@ def _apply_operator_lowering(
         operands = {"$left": left, "$right": right}
     form: Any = (
         (entry.form, *operands.values())
+        # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
         if entry.kind in {"symbol", "provided"}
         else entry.form
     )
@@ -1174,6 +1175,7 @@ def _operator_method(  # noqa: C901  -- _operator_method keeps every specializat
     if name is None:
         msg = f"operator lowering {entry.dunder} has no reflected spelling"
         raise RuntimeError(msg)
+    # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
     if entry.kind in {"symbol", "provided"}:
         if not isinstance(entry.form, str):
             msg = f"operator lowering {entry.dunder} has no symbol"
