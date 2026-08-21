@@ -89,6 +89,8 @@ from .subscribe import SUBSCRIPTION_QUEUE_MAX
 from .vocabularies import (
     AnswerPolicy,
     Atomicity,
+    Delivery,
+    EventOrder,
     Fidelity,
     OnErrorMode,
     SourceKind,
@@ -1035,6 +1037,12 @@ class AsyncMeTTa:
         self, name: str, policy: AnswerPolicy
     ) -> Atom:
         return await self.call(lambda m: m.declare_emits(name, policy))
+
+    async def declare_events(
+        self, name: str, delivery: Delivery, order: EventOrder = "unordered"
+    ) -> Atom:
+        """Declare what a context's change events promise; see MeTTa.declare_events."""
+        return await self.call(lambda m: m.declare_events(name, delivery, order))
 
     async def declare_handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,

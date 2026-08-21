@@ -2579,7 +2579,7 @@ metta_foreign_remove(Space, Term, Removed) :-
     py_call(petta_ops:foreign_remove(SpaceStr, W), R0),
     petta_py_bool(R0, Removed).
 
-petta_py_register_foreign(Space0, Capabilities) :-
+petta_py_register_foreign(Space0, Capabilities, Delivery) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     ( petta_py_foreign(Space) -> true ; assertz(petta_py_foreign(Space)) ),
     %A newly registered provider is a new source: the linear-consumption
@@ -2590,11 +2590,27 @@ petta_py_register_foreign(Space0, Capabilities) :-
     forall(member(Capability0, Capabilities),
            ( ( atom(Capability0) -> Capability = Capability0
              ; atom_string(Capability, Capability0) ),
-             assertz(petta_py_capability(Space, Capability)) )).
+             assertz(petta_py_capability(Space, Capability)) )),
+    petta_py_declare_delivery(Space, Delivery).
+
+%A provider's event promise, written as the ordinary (events ...)
+%declaration so a MeTTa program reads what the engine acts on. It rides
+%registration rather than a second crossing because the two are one fact
+%about one space: a re-registration that stops promising events must stop
+%the space being subscribable in the same step [P12.14].
+petta_py_declare_delivery(Space, Delivery) :-
+    metta_host_remove_reported('&petta', [events, Space, _, _], _),
+    (   Delivery = [Delivery0, Order0]
+    ->  ( atom(Delivery0) -> D = Delivery0 ; atom_string(D, Delivery0) ),
+        ( atom(Order0) -> O = Order0 ; atom_string(O, Order0) ),
+        'add-atom'('&petta', [events, Space, D, O], _)
+    ;   true
+    ).
 
 petta_py_unregister_foreign(Space0) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     retractall(petta_py_capability(Space, _)),
+    petta_py_declare_delivery(Space, []),
     retractall(petta_py_foreign(Space)).
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%

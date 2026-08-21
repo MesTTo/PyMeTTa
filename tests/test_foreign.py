@@ -153,7 +153,16 @@ def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest disco
         metta.unregister_space(name)
 
 
-def test_capabilities_follow_implemented_methods():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_capabilities_follow_implemented_methods():
+    """Five capabilities are read off the methods, and subscribe is not.
+
+    subscribe is a promise about the SPACE, so a provider that implements
+    every write method and declares no delivery does not get it: that
+    inference is exactly the one that made a remote space claim events it
+    could not deliver. Once the promise is made, the write protocols narrow
+    which EDGE it covers, because a store with no remove never emits a
+    removal and a watcher for one would wait forever.
+    """
     class ReadOnly(SpaceProvider):
         def atoms(self) -> Iterator[Any]:
             return iter(())
@@ -161,6 +170,11 @@ def test_capabilities_follow_implemented_methods():  # noqa: D103  -- pytest dis
     class AddOnly(SpaceProvider):
         def add(self, atom) -> None:
             pass
+
+    class AnnouncingAddOnly(AddOnly):
+        def delivers(self) -> tuple[str, str]:
+            """Every write, once, in write order."""
+            return ("per-write-exactly", "ordered")
 
     read_only = ReadOnly()
     assert isinstance(read_only, Enumerable)
@@ -173,9 +187,13 @@ def test_capabilities_follow_implemented_methods():  # noqa: D103  -- pytest dis
     add_only = AddOnly()
     assert isinstance(add_only, Adder)
     assert not isinstance(add_only, (Clearer, Remover))
-    assert add_only.can_run("subscribe", on="add")
-    assert not add_only.can_run("subscribe", on="remove")
-    assert not add_only.can_run("subscribe", on="both")
+    for on in ("add", "remove", "both"):
+        assert not add_only.can_run("subscribe", on=on), f"undeclared on={on}"
+
+    announcing = AnnouncingAddOnly()
+    assert announcing.can_run("subscribe", on="add")
+    assert not announcing.can_run("subscribe", on="remove")
+    assert not announcing.can_run("subscribe", on="both")
 
 
 def test_stale_static_capability_declaration_is_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -206,13 +206,17 @@ from .trace import trace as _trace
 from .vocabularies import (
     ANSWER_POLICY,
     ATOMICITY,
+    DELIVERY,
     DETERMINISM,
+    EVENT_ORDER,
     FIDELITY,
     ON_ERROR_MODE,
     SOURCE_KIND,
     WORLD,
     AnswerPolicy,
     Atomicity,
+    Delivery,
+    EventOrder,
     Fidelity,
     OnErrorMode,
     SourceKind,
@@ -2988,6 +2992,49 @@ class MeTTa:
             W=previous.to_wire(),
         )
         atom = Expr([Sym("emits"), Sym(str(name)), Sym(policy)])
+        self._rt.must(
+            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+        )
+        return atom
+
+    def declare_events(
+        self,
+        name: str,
+        delivery: Delivery,
+        order: EventOrder = "unordered",
+    ) -> Atom:
+        """Declare what a context's change events promise.
+
+        Subscribability is a promise about the context, not something the
+        seam reads off its methods. A native space needs no declaration:
+        every write into it runs the engine's own hooks, so it delivers
+        per-write-exactly and ordered by construction. A FOREIGN context
+        declares, and one that declares nothing refuses a subscription
+        instead of serving one that silently misses writes.
+
+            m.declare_events("&shared", "at-most-once")   # redis pub/sub
+            m.declare_events("&mirror", "per-write-exactly", "ordered")
+
+        delivery is at-most-once, at-least-once or per-write-exactly, and
+        order is ordered or unordered, defaulting to unordered because an
+        omitted promise is the weaker one. A Python provider says the same
+        thing by overriding delivers(), which registration writes here.
+        """
+        if delivery not in DELIVERY:
+            msg = f"delivery is one of {', '.join(DELIVERY)}, not {delivery!r}"
+            raise ValueError(msg)
+        if order not in EVENT_ORDER:
+            msg = f"order is one of {', '.join(EVENT_ORDER)}, not {order!r}"
+            raise ValueError(msg)
+        previous = Expr(
+            [Sym("events"), Sym(str(name)), Var("delivery"), Var("order")]
+        )
+        self._rt.once(
+            "petta_py_remove(Space, W, _)",
+            Space="&petta",
+            W=previous.to_wire(),
+        )
+        atom = Expr([Sym("events"), Sym(str(name)), Sym(delivery), Sym(order)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
