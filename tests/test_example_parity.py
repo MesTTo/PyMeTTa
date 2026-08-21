@@ -131,6 +131,21 @@ def test_an_error_line_is_not_an_empty_run():  # noqa: D103  -- pytest discovers
     assert outcome.groups == []
 
 
+def test_a_runner_returns_its_raw_text_beside_the_outcome():
+    """A runner may print more than answers on its own marker lines, and the
+    twin coverage lane reads an inference count and the defined heads from
+    exactly the same output. Discarding the text would have meant a second
+    copy of the subprocess handling, timeout and error tail included.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    outcome, text = parity._run(
+        [sys.executable, "-c", "print('LEATTA-ANSWER (1)'); print('OTHER 7')"],
+        REPO,
+    )
+    assert outcome.groups == ["(1)"]
+    assert outcome.error is None
+    assert "OTHER 7" in text
+
+
 @pytest.mark.parametrize("name", ["control/forall.metta", "types/types.metta"])
 def test_a_known_agreeing_example_agrees(name):
     """Two examples that do agree, so a change breaking the comparison

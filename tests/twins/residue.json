@@ -1,0 +1,60 @@
+{
+  "schema": "petta-twin-residue-1",
+  "note": "What the twins could not say, and what they could only say the long way round. A `declined` entry names a FORM the twin yields None for, and its example loses that form's coverage; a `friction` entry names a form the twin does reach, through a spelling the surface should not have needed. Both derive backlog, which is why they are one table. `row` is the ai-spec-execution.md row the fix lands on and `section` is the ai-python-first-revamp-discussion.md section that predicted it, or the correction where it did not.",
+  "entries": [
+    {
+      "kind": "declined",
+      "example": "examples/basics/time_and_pragmas.metta",
+      "form": 15,
+      "missing": "an evaluation door that opens a fuel scope",
+      "row": "P14.8",
+      "section": "§4 engine-stdlib gaps",
+      "detail": "!(bounded-factorial 5) answers (120 (Error -3 StackOverflow)) because the two equations are non-exclusive and max-stack-depth stops the runaway branch. Writing the equations is NOT the gap: m += S[\"=\"](head, body) writes both, non-exclusively, with no string. The gap is that petta_py_eval_all/3 (bindings/python/petta/shim.pl:1544) never opens the fuel scope engine/translator.pl:1070 wraps a runnable form in, so max-stack-depth does not apply to m.eval and the runaway branch overflows Prolog's stack instead of answering the error atom. m.eval's own docstring says it is 'what !(...) runs, minus the printing', so this is a seam defect as much as a missing spelling."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/xor.metta",
+      "form": null,
+      "missing": "^ inside a compiled body, where the same ^ builds (xor ...) at the term door",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "OPERATOR_LOWERINGS maps __xor__ to the symbol xor, so S-term a ^ b is (xor a b); the same operator inside @m.define raises 'the operator BitXor has no MeTTa function. MeTTa has no bitwise operators'. The twin reaches xor as a free name instead, bound with m.fn so the Python stays valid. & and | diverge the same way and are the reason math_exp_random's equation lowers differently from its original."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/math_exp_random.metta",
+      "form": null,
+      "missing": "MeTTa's (and ...) inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "Python's `and` in a compiled body is Python's `and`: it lowers to (let* ((v A)) (if (py-truthy v) B v)), short-circuiting on truthiness. The original writes (and (<= $lo $x) (<= $x $hi)), MeTTa's own generate-and-test over two values. The operator that would mean it, &, is refused in a body. So the equation stored is not the equation the example stores, and the twin's extra inferences are that lowering."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/fibsmart.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "A body resolves a free name EXACTLY (the fallback from sqrt_math to sqrt-math was removed on purpose), and a body may name ITSELF in either spelling. So fib-tr compiles, and fib calling fib-tr does not: 'fib_tr is not a parameter of fib, not a function the engine knows'. The twin writes fib's equation at the container door instead, m += S[\"=\"](S.fib(V.n), S[\"fib-tr\"](V.n, 0, 1))."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/time_and_pragmas.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "(= (spin $n) (if (> $n 0) (spin (- $n 1)) done)) answers the SYMBOL done. In a compiled body a capitalised free name becomes a constructor and a lowercase one is resolved as a function, so `done` raises and `Done` would store the wrong atom. The twin writes spin at the container door. There is no attribute form either: S.done inside a body is an ast.Attribute, which the compiled subset has no case for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/fibsmartimport.metta",
+      "form": null,
+      "missing": "a module name that resolves without an importing file",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "import! has no dedicated Python door, which the term builder covers: m.eval(S[\"import!\"](S[\"&self\"], S.fibsmart)) is a legal zero-string spelling. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
+    }
+  ]
+}
