@@ -1,0 +1,107 @@
+"""The Python twin of examples/control/metta4_streams.metta: a stream and its consumers.
+
+This is the file the phase's deepest claim is about. `range` is a Python
+GENERATOR, and the equation it compiles to is the original's, term for term:
+
+    if k < n:                  -->  (if (< $K $N)
+        yield k                -->      (superpose ($K
+        yield counter(k + 1, n)-->                 (range (+ $K 1) $N)))
+                               -->      (empty))
+
+**Each `yield` is one answer, which is what `superpose` spells**, and an `if`
+with no `else` contributes `(empty)`, so the base case needs no writing. Then
+`forall` runs the stream to exhaustion, `once` commits to its first answer, and
+`foldall` folds over it: three consumers, one producer, and the producer is an
+ordinary Python function.
+
+Two spellings the compiled subset does not have decide the rest. The recursive
+call is `yield counter(...)`, not `yield from counter(...)`: `yield from` a
+generator the engine does not yet know SPLICES the call's own children into the
+superposition, silently, and the residue table records that against P14.4 with
+its reproducer. And `gen`'s three clauses fix nothing, so they are written at
+the container door, where non-exclusive equations on one head live.
+
+The Python function is `counter` because `range` is a Python BUILTIN: a
+compiled body lowers a call to one before it looks for the definition's own
+name, so a function actually called `range` would compile its own recursion to
+`py-range`.
+"""
+
+from petta import S, V, expr
+
+#: Inferences this twin spends, its own tripwire.
+BUDGET = 10685
+
+
+def twin(m):
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    every other form says its own answer in the comment above it.
+    """
+
+    @m.define(name="range")
+    def counter(k, n):
+        # (= (range $K $N)
+        #    (if (< $K $N)
+        #        (superpose ($K (range (+ $K 1) $N)))
+        #        (empty)))
+        if k < n:
+            yield k
+            yield counter(k + 1, n)
+
+    # Add every range item to space &s1 using metta4's for; an item
+    # returning false "breaks" the loop.
+    # !(forall (range 1 5) (|-> ($x) (add-atom &s1 (num $x)))) answers (True)
+    yield m.eval(
+        S["forall"](
+            counter(1, 5),
+            S["|->"](
+                expr(V.x), S["add-atom"](S["&s1"], S.num(V.x))
+            ),
+        )
+    )
+
+    # Add only one committed option.
+    # !(let $x (once (range 1 5)) (add-atom &s2 (num $x))) answers (())
+    yield m.eval(
+        S["let"](
+            V.x,
+            S["once"](counter(1, 5)),
+            S["add-atom"](S["&s2"], S.num(V.x)),
+        )
+    )
+
+    # !(test (collapse (get-atoms &s1)) ((num 1) (num 2) (num 3) (num 4)))
+    yield m.eval(
+        S.test(
+            S["collapse"](S["get-atoms"](S["&s1"])),
+            expr(S.num(1), S.num(2), S.num(3), S.num(4)),
+        )
+    )
+
+    # !(test (collapse (get-atoms &s2)) ((num 1)))
+    yield m.eval(
+        S.test(
+            S["collapse"](S["get-atoms"](S["&s2"])), expr(S.num(1))
+        )
+    )
+
+    # (= (gen) 1)
+    m += S["="](S.gen(), 1)
+    # (= (gen) 2)
+    m += S["="](S.gen(), 2)
+    # (= (gen) 3)
+    m += S["="](S.gen(), 3)
+
+    # !(test (foldall (|-> ($x $y) (+ $x $y)) (gen) 0) 6)
+    yield m.eval(
+        S.test(
+            S["foldall"](
+                S["|->"](expr(V.x, V.y), S["+"](V.x, V.y)),
+                S.gen(),
+                0,
+            ),
+            6,
+        )
+    )

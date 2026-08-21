@@ -55,6 +55,87 @@
       "row": "P14.13",
       "section": "§4 surface gaps: directives",
       "detail": "import! has no dedicated Python door, which the term builder covers: m.eval(S[\"import!\"](S[\"&self\"], S.fibsmart)) is a legal zero-string spelling. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/control/eval.metta",
+      "form": 1,
+      "missing": "a budget law that admits a form whose own inference cost is nondeterministic",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The form ANSWERS correctly in Python; it cannot be PRICED. evalCustom adds an equation whose body carries a variable the enclosing match minted, and compiling that equation costs a number that moves with the variable's identity. Measured over six fresh processes on 2026-08-22: the .metta original costs 14,781/14,789/14,793/14,793/14,805/14,865 inferences and a twin that RUNS the form costs 12,870-12,914, against twin_coverage.TOLERANCE of 4. With the form declined the twin costs 5,658 every time over six runs. This corrects the lane's own Assumes line, which reads inferences as deterministic across processes from one basics/ measurement; two corpus examples break it and both are declined here. [measured: 24-inference spread over six fresh loads of the .metta original and 44 over six runs of a twin that runs form 1; command=twin_coverage.run_example and run_twin, six rounds each; fixture=examples/control/eval.metta and its twin, six fresh processes each on an idle box; commit=WORKTREE]"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/control/thin_forms.metta",
+      "form": 21,
+      "missing": "a budget law that admits a form whose own inference cost is nondeterministic",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "!(test (once (hyperpose ((spin 3000000) (spin 3)))) done) answers correctly and cannot be priced: hyperpose RACES its branches, so how far the three-million-step branch gets before `once` cuts it is what the race decides. Measured over six fresh processes on 2026-08-22: the .metta original costs 60,275-62,013 inferences and a twin that runs the form costs 34,138-35,851, against a TOLERANCE of 4. With the form declined the twin costs 32,759-32,761 over fourteen runs, a spread of 2 inside the allowance, the remainder being form 22's own two-branch hyperpose. [measured: 1,738-inference spread over six fresh loads of the .metta original and 1,713 over six runs of a twin that runs form 21, against 2 over fourteen runs with it declined; command=twin_coverage.run_example and run_twin; fixture=examples/control/thin_forms.metta and its twin, six fresh processes each on an idle box; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/metta4_streams.metta",
+      "form": null,
+      "missing": "`yield from` a generator the engine does not know yet, which SPLICES the call instead of delegating to it",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "`yield from f(...)` lowers through _define_statements._yield_from to (superpose <call>) when f is not known-nondeterministic, and _superpose then splices any (superpose <Expr>) member into the enclosing alternatives. For a CALL that is wrong and silent: `def counter(k, n): yield k; yield from counter(k+1, n)` compiles to (= (range $k $n) (superpose ((if (< $k $n) (superpose ($k range (+ $k 1) $n)) (empty))))) and (collapse (range 1 5)) answers (1 range 2 5) rather than (1 2 3 4). Self-recursion always hits it, because the definition is not installed while its own body compiles; so does any generator reached under a different name=, since _DEFINED_GENERATORS is keyed on the MeTTa name and _is_nondeterministic is asked the call site's PYTHON name. The twins write `yield counter(k + 1, n)`, MeTTa's own reading, where an element of a superposition contributes its own answers. Correct today: `yield from` a bound value ((superpose $xs), the argument is a Var so nothing splices), `yield from` an already-installed generator of the same name (the call itself), and a `for` loop over either. [measured: (collapse (range 1 5)) answers (1 range 2 5) from the yield-from spelling and (1 2 3 4) from the yield spelling; command=@m.define(name=\"range\") over `if k < n: yield k; yield from counter(k + 1, n)` against the same body with `yield counter(k + 1, n)`; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/case.metta",
+      "form": null,
+      "missing": "Python's `match` statement, which is what a MeTTa `case` is",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "ast.Match has no lowering, so every `case` equation in the corpus is written at the container door. P14.4's row already names this as the single most Pythonic missing construct and pins the lowering (chained unify with guards, as-patterns, `case _` fallback). Derived demand from this wave: control/case, control/case2, control/casecomputed, control/caseconstrain, control/caseempty, control/if_branch_binding, control/ifcasenondet and control/let_superpose_if_case all write a `case` this way, eight of the thirty-five files in control/."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/letlet.metta",
+      "form": null,
+      "missing": "a destructuring assignment as a `let*` PATTERN binding",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. _define_expression._name_of refuses a tuple target: 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. The one-spelling rule points at let* with a pattern on the left, which the form already supports."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/cut.metta",
+      "form": null,
+      "missing": "a compiled `match()` whose space, pattern and template are PARAMETERS",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_define_expression._match_call requires the space to be a literal string starting with & and reads the pattern as syntax through _PatternScope, so (= (match-single $space $pat $ret) (once (match $space $pat $ret))) has no compiled spelling: a definition that takes a query APART has to be written at the container door. control/cut and control/once are the same definition twice, and the shape is a common idiom rather than a corner."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/tests.metta",
+      "form": null,
+      "missing": "`superpose` over a BOUND value in expression position",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "superpose(x) in a compiled body is (superpose ($x)), a superposition over ONE alternative that happens to be $x, because _define_expression._x_Call wraps the argument list. (superpose $x), the superposition OF $x, is reachable only in yield position (`yield from x`) or as a for-loop source. So (= (program2 $Y) (let $list ... (superpose $list))) and (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2))))) are written at the container door. P14.4's expression-position rule names superpose(...) as one of the two forms to surface; this is the argument shape it has to admit."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/recursive_types2.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in an equation written from Python",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "define()'s _parameters reads a literal default as the head pattern for that position and refuses anything else, so `def g(n=0)` writes (= (g 0) ...) and there is no spelling for (= (Greater (S $x) Z) True). The container door writes it, m += S[\"=\"](S.Greater(SUCC(V.x), S.Z), TRUE), which wave one established is a working door; the gap is the taught form P14.3 ships. Derived demand from this wave: types/recursive_types2 (3 equations), types/inplace_annotations (6), types/types (testf), control/take's edge facts and every case-based equation above."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/outputtype.metta",
+      "form": null,
+      "missing": "an annotation-emitted declaration that reaches the engine BEFORE its own equation",
+      "row": "P14.9",
+      "section": "§4 the typing front",
+      "detail": "_space_definitions._install_define_locked stores the equation and only then calls _declare_definition, so a declaration derived from the signature arrives after the equation it types. An INPUT type still works, because it is read at the call site: types/functiontypes.py declares (: wu1 (-> Number Atom %Undefined%)) from `def wu1(a: int, b: Atom) -> Any` and the second argument does arrive unevaluated. An OUTPUT type does not. Measured on this tree 2026-08-22: `@m.define def g(x: int) -> Atom: return x + 42` puts (: g (-> Number Atom)) in the space and m.eval(g(S[\"+\"](1, 1))) still answers Gnd(44), where m += S[\":\"](S.g, S[\"->\"](S.Number, S.Atom)) before the identical compiled equation answers Expr('(+ 2 42)'). So types/outputtype.py, types/subtyping.py and types/types_dependent.py declare at the container door and compile the equation unannotated. [measured: annotation-declared g answers Gnd(44), atom-declared g answers Expr('(+ 2 42)'), same compiled equation; command=@m.define def g(x: int) -> Atom: return x + 42 against m += S[\":\"](S.g, S[\"->\"](S.Number, S.Atom)) then the unannotated def; commit=WORKTREE]"
     }
   ]
 }
