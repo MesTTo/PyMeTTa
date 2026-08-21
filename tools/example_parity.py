@@ -129,18 +129,25 @@ def _read(text: str) -> Outcome:
     return Outcome(groups, failure)
 
 
-def _run(command: list[str], cwd: Path) -> Outcome:
+def _run(command: list[str], cwd: Path) -> tuple[Outcome, str]:
+    """One configuration's run, as the outcome the comparator reads and the
+    raw text beside it. The text is returned rather than discarded because a
+    runner may emit more than answers on its own marker lines: the twin
+    coverage lane reads an inference count and the defined heads from the
+    same output [tested: test_a_runner_returns_its_raw_text_beside_the_outcome].
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     try:
         done = subprocess.run(
             command, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT
         )
     except subprocess.TimeoutExpired:
-        return Outcome([], f"timed out after {TIMEOUT}s")
-    outcome = _read(done.stdout + done.stderr)
+        return Outcome([], f"timed out after {TIMEOUT}s"), ""
+    text = done.stdout + done.stderr
+    outcome = _read(text)
     if outcome.error is None and done.returncode != 0:
-        tail = (done.stdout + done.stderr).strip().splitlines()
-        return Outcome(outcome.groups, tail[-1][:300] if tail else "no output")
-    return outcome
+        tail = text.strip().splitlines()
+        outcome = Outcome(outcome.groups, tail[-1][:300] if tail else "no output")
+    return outcome, text
 
 
 def run_engine(path: Path, root: Path = REPO) -> Outcome:
@@ -154,7 +161,7 @@ def run_engine(path: Path, root: Path = REPO) -> Outcome:
             "--", "--file", str(path.relative_to(root)), "backends",
         ],
         root,
-    )
+    )[0]
 
 
 def run_library(path: Path, root: Path = REPO) -> Outcome:
@@ -172,7 +179,7 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
         f"for group in MeTTa(petta_path='.').load({str(path.relative_to(root))!r}):\n"
         "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
-    return _run([sys.executable, "-c", source], root)
+    return _run([sys.executable, "-c", source], root)[0]
 
 
 @dataclass(frozen=True, slots=True)
