@@ -17,6 +17,11 @@ Guarantees:
   - no such refusal names a Prolog predicate the MeTTa program never wrote
     [tested: test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate;
     commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - `+ - * /` invert one unbound slot among integers, CLP(FD) solves the
+    nonlinear cases past that, and every backward query outside both refuses
+    with a named reason rather than a bare instantiation error
+    [tested: test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason;
+    commit=51d4c13abb1e443a6f659dff60e606dc2bc4993f]
   - the four cross-file residual inputs and the already-repaired surface match
     path refuse under their own written names
     [tested: test_the_residual_positions_refuse_by_their_own_names;
@@ -215,3 +220,79 @@ def test_the_residual_positions_refuse_by_their_own_names(metta):
     answer = str(groups[0][0])
     assert answer.startswith("(Error (match ")
     assert "match expects a space as the first argument" in answer
+
+
+def test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason():
+    """`+ - * /` are relations, and where they stop they say so.
+
+    Each solves for ONE unbound slot among integers, which nothing in the tree
+    recorded until now, so a function written forwards reads backwards for
+    free. Past one unknown the rearrangement becomes a CONSTRAINT: 25 = X*X is
+    nonlinear and no reordering of is/2 computes it, so the engine posts it to
+    CLP(FD) and labels what propagation leaves. A domain the constraint leaves
+    unbounded has nothing finite to search, and deciding a polynomial equation
+    over the integers is undecidable (Hilbert's tenth problem), so that case
+    refuses BY NAME rather than raising SWI's bare "Arguments are not
+    sufficiently instantiated", which named neither the operation's modes nor
+    what to write instead [measured 2026-08-21: every case below raised it].
+    """
+    engine = MeTTa()
+    answers = lambda query: [  # noqa: E731 - one shape, read many times
+        str(a) for g in engine.run(query) for a in g
+    ]
+
+    # The fragment, one unknown among integers, forwards and backwards. The
+    # name carries this row's prefix because &self is shared by every MeTTa()
+    # in a process: README.md registers a Python `double`, so a plain `double`
+    # here answers twice whenever tests/test_readme.py ran first in the same
+    # worker [measured 2026-08-21].
+    engine.run("(= (p225-double $x) (* 2 $x))")
+    assert answers("!(p225-double 5)") == ["10"]
+    assert answers("!(let 10 (p225-double $x) $x)")[0] == "5"
+    assert answers("!(let 5 (+ $p 2) $p)") == ["3"]
+    assert answers("!(let 6 (- $r 4) $r)") == ["10"]
+    assert answers("!(let 12 (* $q 4) $q)") == ["3"]
+    assert answers("!(let 3 (/ $s 4) $s)") == ["12"]
+    # No integer answers it, so the relation FAILS rather than erroring.
+    assert answers("!(collapse (let 7 (p225-double $x) $x))") == ["()"]
+
+    # Past the fragment: every solution, not one, and in the solver's order.
+    assert answers("!(collapse (let 25 (* $x $x) $x))") == ["(-5 5)"]
+    assert answers("!(collapse (let 25 (* $x $y) ($x $y)))") == [
+        "((-25 -1) (-5 -5) (-1 -25) (1 25) (5 5) (25 1))"
+    ]
+    # A posted CLP(FD) bound narrows it to one, which is the composition the
+    # specification measured as `25 #= B*B, B #>= 0` answering B = 5.
+    assert answers("!(collapse (let True (#>= $x 0) (let 25 (* $x $x) $x)))") == ["(5)"]
+    # Unsatisfiable is no answers, not an error.
+    assert answers("!(collapse (let 26 (* $x $x) $x))") == ["()"]
+
+    # Where it stops, it names the reason. Nothing here may reach the user as
+    # SWI's own instantiation error.
+    for source, reason in (
+        ("!(let 10 (+ $x $y) ($x $y))", "no finite domain to search"),
+        ("!(let 0 (- $x $x) $x)", "no finite domain to search"),
+        ("!(* $x 2)", "no finite domain to search"),
+        ("!(collapse (* $x $y))", "no finite domain to search"),
+        # Evaluation is inside-out, so a composed backward query reaches its
+        # inner operation with two unknowns. The # operators post rather than
+        # solve, which is why they still earn their place.
+        ("!(let 20 (* (+ $a 1) 4) $a)", "no finite domain to search"),
+        # `/` may answer a float, so there is no integer relation to post.
+        ("!(let 5 (/ $x $y) ($x $y))", "only +, - and * have an integer relation"),
+        # A float operand has no finite domain either, and reaches the same
+        # refusal through the recovery rather than through the solver.
+        ("!(let 10.0 (* 2.0 $x) $x)", "an operand is still unbound"),
+    ):
+        with pytest.raises(PettaError) as refused:
+            engine.run(source)
+        message = str(refused.value)
+        assert reason in message, (source, message)
+        assert "sufficiently instantiated" not in message, (source, message)
+
+    # And the numeric doctrine underneath is untouched: integer zero division
+    # is still a contained Error atom and float division still saturates.
+    assert answers("!(/ 7 0)") == ["(Error (/ 7 0) DivisionByZero)"]
+    assert answers("!(% 7 0)") == ["(Error (% 7 0) DivisionByZero)"]
+    assert answers("!(/ 1.0 0.0)") == ["inf"]
+    assert answers("!(* 6 7)") == ["42"]

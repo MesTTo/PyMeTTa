@@ -5,6 +5,9 @@
     corpus and requires the same family of pairs and the same verdict on each.
     Agreement is the criterion rather than "it runs", and a disagreement is
     diagnosable because the Lean side names the pair.
+    WHAT IT COVERS: REWRITING. A critical pair is an overlap between two rules
+    of a rewrite relation; MeTTa's evaluation narrows, and neither enumerator
+    says anything about that.
 Assumes:
   - the oracle lives at a fixed local path outside this repository, the same
     assumption tests/conformance/leatta.py documents; CI never has it, so the

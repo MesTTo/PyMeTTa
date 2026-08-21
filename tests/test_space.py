@@ -148,9 +148,13 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D1
     with pytest.raises(MettaOperationError) as failure:
         m.run("!(change-state! (a $x) 6)")
     assert failure.value.culprit == ["a", "$_0"]
+    # A formal with no expected type and no culprit reports both as absent.
+    # `(+ $left $right)` is two unknowns and an unbound result, which the
+    # arithmetic refusal names; it used to be SWI's bare instantiation_error.
     with pytest.raises(MettaOperationError) as absent:
         m.run("!(+ $left $right)")
-    assert absent.value.kind == "instantiation_error"
+    assert absent.value.kind == "petta_unsolved_arithmetic"
+    assert absent.value.operation == "+"
     assert absent.value.expected is None
     assert absent.value.culprit is None
 
