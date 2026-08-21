@@ -866,11 +866,12 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
 
 
 def test_a_bang_before_the_definition_answers_unreduced_not_a_host_error(metta):
-    """A source executes in program order even though its signature metadata
-    is registered in one pass. LeaTTa's evalSequentialRun evaluates each bang
-    against the current knowledge-base prefix and extends that prefix only
-    after a non-bang form, so the first call is data and the second reduces.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A source executes in program order despite one-pass signature metadata.
+
+    LeaTTa's evalSequentialRun evaluates each bang against the current
+    knowledge-base prefix and extends that prefix only after a non-bang
+    form, so the first call is data and the second reduces.
+    """
     groups = metta.run(
         "!(p121-respond me)\n"
         "(= (p121-respond me) hello)\n"

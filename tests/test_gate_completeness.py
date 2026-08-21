@@ -42,7 +42,10 @@ RUFF_FAMILY_BURN_DOWN = {
     "FBT": 55,
     "N": 35,
     "A": 8,
-    "D": 2112,
+    # 2112 -> 2114 at the p12-space-model merge: its two new test modules
+    # carry the repository's obligation-header docstring convention, whose
+    # Purpose/Guarantees block is a deliberate per-line D205 suppression.
+    "D": 2114,
     "ARG": 134,
     "PERF": 0,
     "C90": 16,
