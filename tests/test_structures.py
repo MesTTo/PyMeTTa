@@ -256,12 +256,20 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
     from petta.structures import LiveView
 
     def removal_cost(size, atom):
-        sp = metta.new_space()
-        sp.add(*[S.alert(S.red) for _ in range(size)])
-        with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
-            sp.remove(atom)
-        assert len(view) == size - 1
-        return spent.inferences
+        # Minimum of three, the repository's own measurement rule: the
+        # session-scoped engine carries whatever state earlier files in the
+        # xdist worker left, and a one-off transition wobbled a single
+        # reading by 2 in about one gate run in fourteen while the flat
+        # property itself always held. The floor is deterministic.
+        costs = []
+        for _ in range(3):
+            with metta.new_space() as sp:
+                sp.add(*[S.alert(S.red) for _ in range(size)])
+                with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
+                    sp.remove(atom)
+                assert len(view) == size - 1
+            costs.append(spent.inferences)
+        return min(costs)
 
     small, large = removal_cost(10, S.alert(S.red)), removal_cost(200, S.alert(S.red))
     assert small == large, "a ground removal does not read the space"
