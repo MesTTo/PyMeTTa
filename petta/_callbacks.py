@@ -22,6 +22,7 @@ from ._ops import (
     type_names,
 )
 from ._tokens import construct_token
+from .events import atom_added, atom_removed
 from .foreign import (
     foreign_add,
     foreign_add_many,
@@ -39,7 +40,6 @@ from .foreign import (
 from .paths import _path_begin as path_begin
 from .paths import _path_step as path_step
 from .paths import _path_value as path_value
-from .subscribe import atom_added, atom_removed
 
 __all__ = [
     "atom_added",

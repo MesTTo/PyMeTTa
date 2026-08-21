@@ -7,6 +7,9 @@ Guarantees:
     reactions exactly as a native space does, and one that declares none
     refuses all three naming the missing capability
     [tested test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuses]
+  - each of the three shipped event models is reproducible as a fold over
+    the public stream alone, with the same answers
+    [tested test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -156,3 +159,131 @@ def test_a_native_space_needs_no_declaration_to_be_watched(metta):
         assert str(explained["events"].children[2]) == "ordered"
     finally:
         subscription.cancel()
+
+
+def test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream(metta):
+    """P12.15: the stream is the primitive and the three models are folds.
+
+    A third party gets one operation, `EventStream.fold`, and writes each of
+    the shipped models with a different step: DELIVER for subscribe, WRITE
+    for bridge, EVALUATE for a reaction. Each is run beside its shipped
+    counterpart over the same writes and has to answer the same thing, which
+    is what makes "a third party could have written these" checkable rather
+    than asserted. Before this the tap was private and none of the three was
+    reachable from outside the library.
+    """
+    stream = metta.events()
+    source = metta.new_space()
+    shipped_target, folded_target = metta.new_space(), metta.new_space()
+    shipped_seen: list = []
+
+    # DELIVER, subscribe's step: hand the event to a callback.
+    shipped_subscription = source.subscribe(S.job(V.n), shipped_seen.append)
+    folded_deliver = stream.fold(
+        lambda held, event: [*held, event],
+        space=source.space_name,
+        pattern=S.job(V.n),
+        state=[],
+    )
+
+    # WRITE, bridge's step: land the template's instantiation elsewhere.
+    shipped_bridge = petta.bridge(source, S.job(V.n), shipped_target, S.done(V.n))
+
+    def write(state, event):
+        folded_target.add(S.done(event.bindings["n"]))
+        return state
+
+    folded_bridge = stream.fold(
+        write, space=source.space_name, pattern=S.job(V.n)
+    )
+
+    # EVALUATE, a reaction's step: run an operation under the bindings. The
+    # shipped form declares (on ...) and the engine folds it; this one folds
+    # the same evaluation from outside.
+    metta.declare_reaction(
+        source.space_name, "(job $n)", "(insert &ev-reacted (shipped $n))"
+    )
+    reacted = metta.space("&ev-reacted")
+
+    def evaluate(state, event):
+        reacted.add(S.folded(metta.run(f"!(+ {event.bindings['n']} 0)")[0][0]))
+        return state
+
+    folded_reaction = stream.fold(
+        evaluate, space=source.space_name, pattern=S.job(V.n)
+    )
+
+    try:
+        source.add(S.job(1), S.job(2))
+
+        # DELIVER: the same events, in the same order.
+        assert [event.atom for event in shipped_seen] == [S.job(1), S.job(2)]
+        assert [event.atom for event in folded_deliver.take()] == [
+            S.job(1), S.job(2),
+        ]
+        # take() resets the fold, so the next read starts again.
+        assert folded_deliver.take() == []
+
+        # WRITE: the same atoms in both targets.
+        assert sorted(str(atom) for atom in shipped_target.atoms()) == sorted(
+            str(atom) for atom in folded_target.atoms()
+        )
+        assert sorted(str(atom) for atom in folded_target.atoms()) == [
+            "(done 1)", "(done 2)",
+        ]
+
+        # EVALUATE: the same conclusions, one pair per write.
+        assert sorted(str(atom) for atom in reacted.atoms()) == [
+            "(folded 1)", "(folded 2)", "(shipped 1)", "(shipped 2)",
+        ]
+    finally:
+        folded_reaction.cancel()
+        folded_bridge.cancel()
+        folded_deliver.cancel()
+        shipped_bridge.cancel()
+        shipped_subscription.cancel()
+
+
+def test_a_fold_waits_for_an_arrival_without_polling(metta):
+    """wait() is the blocking read the queueing model is written over.
+
+    Something that arrived before the call is answered rather than waited
+    for, and a deadline with nothing arriving answers the initial state
+    instead of hanging.
+    """
+    space = metta.new_space()
+    counted = metta.events().fold(
+        lambda total, _event: total + 1,
+        space=space.space_name,
+        pattern=S.tick(V.n),
+        state=0,
+    )
+    try:
+        space.add(S.tick(1))
+        assert counted.wait(timeout=2.0) == 1
+        assert counted.wait(timeout=0.05) == 0
+    finally:
+        counted.cancel()
+
+
+def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
+    """A fold feeding itself cannot keep both answers, so it refuses.
+
+    The nested step finishes first and its state would be erased by the
+    outer one. Silently losing an event is what the error replaces.
+    """
+    space = metta.new_space()
+
+    def feed(held, event):
+        if event.atom == S.loop(1):
+            space.add(S.loop(2))
+        return [*held, event.atom]
+
+    fold = metta.events().fold(
+        feed, space=space.space_name, pattern=S.loop(V.n), state=[]
+    )
+    try:
+        with pytest.raises(PettaError, match="wrote an atom its own pattern"):
+            space.add(S.loop(1))
+    finally:
+        fold.cancel()

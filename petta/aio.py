@@ -1044,6 +1044,16 @@ class AsyncMeTTa:
         """Declare what a context's change events promise; see MeTTa.declare_events."""
         return await self.call(lambda m: m.declare_events(name, delivery, order))
 
+    async def events(self) -> Any:
+        """This engine's public event stream; see MeTTa.events.
+
+        A fold registered through it runs on the engine thread, inside the
+        write that caused the event, exactly as a synchronous one does.
+        `AsyncMeTTa.subscribe` is the async-native door for the delivering
+        fold and hands events to an async iterator instead.
+        """
+        return await self.call(lambda m: m.events())
+
     async def declare_handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         name: str,
