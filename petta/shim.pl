@@ -130,9 +130,12 @@
 :- use_module(library(prolog_profile)).
 :- use_module(library(wfs)).
 
-%The engine asserts translated_from/2 without declaring it, so a read before
-%the first equation would raise existence rather than finding nothing:
-:- dynamic translated_from/2.
+%translated_from/2 is engine/filereader.pl's, declared dynamic and exported
+%there, so a read before the first equation finds nothing rather than raising.
+%A `:- dynamic translated_from/2.` here used to supply that guarantee and now
+%creates a SECOND, local predicate that shadows the engine's: SWI reports
+%"Local definition of user:translated_from/2 overrides weak import from
+%filereader" and every read in this file answers about a table nothing writes.
 
 %%%%%%%%%% Wire encoding %%%%%%%%%%
 %

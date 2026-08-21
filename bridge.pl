@@ -34,6 +34,11 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+%crypto_data_hash/3 names a Python import's cached module key below. It used
+%to arrive through engine/filereader.pl's import into the one namespace the
+%whole engine shared; a binding declares what it calls, so it is declared here
+%[measured 2026-08-22, under NO_AUTOLOAD=1 once the loader became a module].
+:- use_module(library(crypto), [crypto_data_hash/3]).
 
 :- multifile seam:grounded_apply/3.
 :- multifile seam:grounded_structure/2.
