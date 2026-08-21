@@ -6,7 +6,7 @@ Guarantees:
   - a grounded tensor tag retains DLPack storage and its autograd graph through
     two declared rules and one pettorch module call [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
 """
 
 import pytest

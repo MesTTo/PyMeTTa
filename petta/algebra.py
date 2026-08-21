@@ -7,23 +7,23 @@ Guarantees:
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
   - declared nonnegative rates drive an isolated seeded sampler without
     changing ordinary queries [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
   - a linear algebra refuses overlapping premise-occurrence ledgers before it
     publishes a derived answer [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
   - the amplitude preset is usable only by a context declaring the finite,
     contractive, staged fragment [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
   - grounded tensor tags retain their live derivative graph through generic
     rule matching and declared operations [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

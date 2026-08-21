@@ -2,7 +2,7 @@
 
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
-    [tested: this module; commit=1822ca53390b180e622f262b766f224ae7a9278f]
+    [tested: this module; commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
 """
 
 from __future__ import annotations
