@@ -78,8 +78,9 @@ class Subscription(Fold):
     ) -> None:
         """Build the standing query; subscribe() publishes it."""
         super().__init__(
-            _REGISTRY, space, pattern, self._step_over, on,
-            STATELESS if callback is not None else [],
+            _REGISTRY, space, pattern, self._step_over,
+            on=on,
+            state=STATELESS if callback is not None else [],
         )
         self.callback = callback
         self.queue_max = queue_max

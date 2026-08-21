@@ -132,12 +132,13 @@ class Fold:
         "state",
     )
 
-    def __init__(  # noqa: PLR0917  -- a fold IS these six fields; grouping them into a record would name the same six twice
+    def __init__(
         self,
         registry: _FoldRegistry,
         space: str,
         pattern: Atom,
         step: Step,
+        *,
         on: str,
         state: Any,
     ) -> None:
@@ -555,7 +556,7 @@ class EventStream:
             raise ValueError(
                 msg
             )
-        fold = Fold(_REGISTRY, space, _to_atom(pattern), step, on, state)
+        fold = Fold(_REGISTRY, space, _to_atom(pattern), step, on=on, state=state)
         _REGISTRY.add(self._runtime, fold)
         return fold
 
