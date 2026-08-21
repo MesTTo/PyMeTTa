@@ -370,9 +370,10 @@ def _claim_named_by(text):
 
 
 def test_each_narrowing_citation_in_the_plan_states_which_it_covers(repo_root):
-    """Narrowing and rewriting are different relations, and a file that
-    borrows a result from one has to say which.
+    """A file borrowing a metatheory result says which relation it covers.
 
+    Narrowing and rewriting are different relations, and a claim about one is
+    not a claim about the other.
     Measured 2026-08-18: with `(= (f a) 1)` and `(= (f b) 2)`,
     `!(let $r (f $x) ($x $r))` answers `[(a 1), (b 2)]`, so evaluating
     `(f $x)` INSTANTIATES `$x`. The head is not an instance of the goal, they
