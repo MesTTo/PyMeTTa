@@ -59,7 +59,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # 2118 -> 2125 at the p3-typing-cluster merge: its three new test
     # modules received the repository's docstring-suppression conventions
     # (the obligation-header D205 and the named-contract D103 forms).
-    "D": 2125,
+    # 2125 -> 2131 with the translator rule system: one new test module
+    # carrying the obligation-header D205 form and the five named-contract
+    # D103 forms, one per acceptance criterion it proves.
+    "D": 2131,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,
