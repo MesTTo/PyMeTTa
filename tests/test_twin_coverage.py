@@ -50,6 +50,21 @@ def test_the_twin_set_is_derived_from_the_one_corpus():
     assert set(coverage.written()) <= set(corpus)
 
 
+def test_the_coverage_fraction_names_every_folder_of_the_corpus():
+    """A lane reporting only what has been written reports only good news.
+
+    The fraction is the point of this lane, so a folder with no twin at all
+    still prints, at zero over its corpus count.
+    """
+    folders = coverage._folders([], REPO)
+    corpus = {
+        str(path.relative_to(REPO / "examples").parent) for path in parity.corpus()
+    }
+    assert set(folders) == corpus
+    assert sum(counts[1] for counts in folders.values()) == len(parity.corpus())
+    assert all(counts[0] == 0 for counts in folders.values()), "no verdicts were given"
+
+
 def test_every_residue_entry_names_a_real_example_and_a_row():
     """A residue entry is the backlog, so it must name something that exists.
 

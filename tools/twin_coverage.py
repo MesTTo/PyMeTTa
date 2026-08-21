@@ -503,11 +503,14 @@ def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
 
 
 def _folders(verdicts: list[Verdict], root: Path) -> dict[str, tuple[int, ...]]:
-    """Per folder: files whose twin has NOTHING wrong with it, files in the
-    corpus, forms covered, forms in the twinned files. The coverage fraction
-    is the passing count over the corpus count, so a twin that runs but
-    disagrees, overruns its budget or smuggles source text buys nothing.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Per folder: files passing, files in the corpus, forms covered, forms asked.
+
+    A file passes when its twin has NOTHING wrong with it, so a twin that runs
+    but disagrees, overruns its budget or smuggles source text buys nothing.
+    EVERY folder of the corpus appears, including the ones with no twin at
+    all: a lane that reports only what has been written reports only good
+    news, and the fraction is the point.
+    """
     totals: dict[str, list[int]] = {}
     for path in parity.corpus(root):
         folder = str(path.relative_to(root / "examples").parent)
@@ -518,11 +521,7 @@ def _folders(verdicts: list[Verdict], root: Path) -> dict[str, tuple[int, ...]]:
         entry[0] += not verdict.findings
         entry[2] += verdict.covered
         entry[3] += verdict.forms
-    return {
-        folder: tuple(counts)
-        for folder, counts in totals.items()
-        if counts[3] or counts[0]
-    }
+    return {folder: tuple(counts) for folder, counts in totals.items()}
 
 
 def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> None:
@@ -538,14 +537,19 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
         )
 
     print()
-    for folder, (passing, corpus_files, covered, forms) in sorted(
-        _folders(verdicts, root).items()
-    ):
-        print(
-            f"coverage {folder}: {passing}/{corpus_files} files twinned and "
-            f"passing, {covered}/{forms} forms of those files answering "
-            f"alpha-equal"
+    folders = _folders(verdicts, root)
+    for folder, (passing, corpus_files, covered, forms) in sorted(folders.items()):
+        answering = (
+            f", {covered}/{forms} forms of those files answering alpha-equal"
+            if forms
+            else ""
         )
+        print(f"coverage {folder}: {passing}/{corpus_files} files{answering}")
+    totals = [sum(counts[index] for counts in folders.values()) for index in range(4)]
+    print(
+        f"coverage TOTAL: {totals[0]}/{totals[1]} files twinned and passing, "
+        f"{totals[2]}/{totals[3]} forms of those files answering alpha-equal"
+    )
 
     for kind in (DECLINED_KIND, FRICTION_KIND):
         chosen = [entry for entry in entries if entry["kind"] == kind]
