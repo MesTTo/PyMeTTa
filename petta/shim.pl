@@ -1258,8 +1258,16 @@ petta_py_query(Space, PatternsTagged, VarNames, Row) :-
 %like any stored value and Python sees only the named segments, never an eager
 %projection of the object graph.
 :- multifile pattern_modifier/3.
-pattern_modifier(['path-at', [segments|Segments], Target], Root,
+pattern_modifier([PathAt, [SegmentsHead|Segments], Target], Root,
                  petta_py_path_guard(Root, Segments, Target)) :-
+    %Both markers are read nonvar-then-==, the same reading colon_expression/1
+    %uses, because a LITERAL in the head unifies with an unbound head instead
+    %of rejecting it: an ordinary three-element pattern whose head is a
+    %variable was compiled as a lazy path and raised `invalid lazy path
+    %segment` out of paths.py [measured 2026-08-21, hypothesis
+    %SpaceStateMachine].
+    nonvar(PathAt), PathAt == 'path-at',
+    nonvar(SegmentsHead), SegmentsHead == segments,
     !.
 
 petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers) :-

@@ -1071,6 +1071,42 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
             clone.drop()
 
 
+def test_a_variable_headed_pattern_answers_through_every_door(metta):
+    """P2.30, and the pattern_modifier marker defect under it: a pattern
+    whose head is a variable is ordinary structure, so it answers stored
+    atoms with the head bound to the real label through the MeTTa match
+    door and the Python query door alike, the way Prolog's match/4 always
+    did. The two- and three-element shapes used to unify their head
+    variable with the ':=' and ':' modifier markers written as literals in
+    pattern_modifier/3's clause heads, so ($A $B) answered nothing and $A
+    silently became ':='; the shim's path-at clause did the same at three
+    elements and raised out of paths.py.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    with metta.new_space() as space:
+        space.run("(p230-f 1)")
+        space.run("(p230-g 2 3)")
+        space.run("(p230-h 4 5 6)")
+        widths = {
+            2: ("p230-f", "1"),
+            3: ("p230-g", "2", "3"),
+            4: ("p230-h", "4", "5", "6"),
+        }
+        for width, expected in widths.items():
+            pattern = petta.Expr([getattr(V, f"p230v{i}") for i in range(width)])
+            rows = list(space.query(pattern))
+            assert [tuple(str(cell) for cell in row) for row in rows] == [expected]
+    # The match door runs inside a fresh space's own context, because &self
+    # is shared process-wide at the root and a variable-headed pattern would
+    # legitimately match every sibling test's stored equation there.
+    with metta.new_space() as ctx:
+        ctx.run("(p230-qf 1)")
+        ctx.run("(p230-qg 2 3)")
+        two = ctx.run("!(match &self ($p230a $p230b) (p230-m2 $p230a $p230b))")
+        assert [[str(a) for a in group] for group in two] == [["(p230-m2 p230-qf 1)"]]
+        three = ctx.run("!(match &self ($p230a $p230b $p230c) (p230-m3 $p230a $p230b $p230c))")
+        assert [[str(a) for a in group] for group in three] == [["(p230-m3 p230-qg 2 3)"]]
+
+
 def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
     """The space state machine's Hypothesis counterexample, pinned: after
     adding (0.0), the pattern (0) matches nothing through any door, because
