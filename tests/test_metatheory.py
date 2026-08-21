@@ -20,6 +20,12 @@ Guarantees:
     corpus and not about one example.
   - the overlap test proves the thing the report warns about, by running the
     same two rules in both orders and getting two different answers.
+  - a rule's body is its condition: a body with no answer declines and the next
+    clause is tried, a rule whose only clause declines leaves the call to
+    ordinary dispatch, and the report says which of its verdict is a decision
+    and which a proof obligation because of it
+    [tested: test_an_answerless_translator_rule_body_behaves_as_ruled;
+     commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -63,10 +69,33 @@ REVERSED_RULES = """(= (m2 $x) (noeval two))
 !(usem2)
 """
 
-CLEAN_RULES = """(= (m5 $x) (noeval (cons 5 $x)))
+CLEAN_RULES = """(= (m7 $x) (noeval (cons 5 $x)))
+!(add-translator-rule! m7)
+(= (usem7) (m7 (6)))
+!(usem7)
+"""
+
+# A rule's body is its condition. `(empty)` is the policy-free way to write a
+# body with no answer: no dispatch declaration is involved, so what these
+# measure is the rule machinery and not a NoMatch setting.
+ANSWERLESS_BODY_FALLS_THROUGH = """(= (m5 a) (empty))
+(= (m5 $x) (noeval two))
 !(add-translator-rule! m5)
-(= (usem5) (m5 (6)))
+(= (usem5) (m5 a))
 !(usem5)
+"""
+
+ANSWERLESS_BODY_ALONE_DECLINES = """(= (m6 a) (empty))
+!(add-translator-rule! m6)
+(= (usem6) (m6 a))
+!(collapse (usem6))
+"""
+
+# The same two equations with no rule registered, so the difference between a
+# rule and a function is measured rather than assumed.
+ANSWERLESS_BODY_AS_A_FUNCTION = """(= (fn5 a) (empty))
+(= (fn5 $x) two)
+!(collapse (fn5 a))
 """
 
 
@@ -238,11 +267,16 @@ def test_overlapping_translator_rules_are_reported_with_the_overlap_named(  # no
     assert "rule 2 gives (noeval two)" in report
     assert "conclusion: NOT LOCALLY CONFLUENT." in report
 
-    # The decidable fragment, and which side of it this rule set is on.
+    # The fragment, and which side of it this rule set is on. Settled
+    # 2026-08-21: a rule's body is its condition, so every rule is a
+    # conditional rewrite rule and the verdict this report decides is about
+    # the unconditional system it extracts from the heads.
     assert "Knuth and Bendix (1970)" in report
-    assert "UNCONDITIONAL" in report
-    assert "CONDITIONAL rule" in report
+    assert "every translator rule is a CONDITIONAL rewrite rule" in report
+    assert "a rule's BODY is its condition" in report
     assert "undecidable in general" in report
+    assert "UNCONDITIONAL system extracted from the rule heads" in report
+    assert "PROOF OBLIGATION" in report
 
     # And the thing the report warns about is real: the same two rules in the
     # other order make the engine answer differently.
@@ -320,3 +354,40 @@ def test_the_confluence_reporter_analyzes_prelude_registered_rules(repo_root):
     assert "shipped tier:" in report
     assert "specialization pairs" in report
     assert "EQUIVALENCE OBLIGATION" in report
+
+
+def test_an_answerless_translator_rule_body_behaves_as_ruled(repo_root, tmp_path):
+    """A rule's body is its condition, and the machinery says so.
+
+    Measured 2026-08-19 and left unsettled: a rule whose body had no answer was
+    skipped and the next clause tried, which is conditional-rule dispatch
+    arriving by accident. Settled 2026-08-21 in favour of that behaviour,
+    because it is what every system this rule set is modelled on does: the
+    arbiter's own oriented conditional rewriting fires a rule when its left
+    side matches and each condition holds (LeaTTa
+    MeTTaILProofs/ConditionalCP.lean), CHR tries the next rule when a guard
+    fails, Haskell continues with the next alternative when every guard of one
+    fails, and Rw-Prolog writes a rule as ``Pattern := Template :- Conditions``.
+    """
+    fell_through = tmp_path / "fell_through.metta"
+    fell_through.write_text(ANSWERLESS_BODY_FALLS_THROUGH)
+    assert _run_metta(repo_root, fell_through)[-1] == "two"
+
+    declined = tmp_path / "declined.metta"
+    declined.write_text(ANSWERLESS_BODY_ALONE_DECLINES)
+    assert _run_metta(repo_root, declined)[-1] == "()"
+
+    # The same equations without the registration, so what the rule adds is
+    # the compile time and the commitment to one clause, not the answers.
+    as_a_function = tmp_path / "as_a_function.metta"
+    as_a_function.write_text(ANSWERLESS_BODY_AS_A_FUNCTION)
+    assert _run_metta(repo_root, as_a_function)[-1] == "(two)"
+
+    # And the ruling is written where the confluence verdict is given, because
+    # it is what that verdict is worth: a decision about the unconditional
+    # system extracted from the heads, a proof obligation about the rules that
+    # actually run.
+    report = _confluence_report(repo_root, [])
+    assert "every translator rule is a CONDITIONAL rewrite rule" in report
+    assert "a rule's BODY is its condition" in report
+    assert "PROOF OBLIGATION" in report
