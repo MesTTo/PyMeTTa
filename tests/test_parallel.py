@@ -108,11 +108,11 @@ def test_a_dual_is_built_once_under_concurrency(metta):
     ensure_dual/3 tested two markers and then built, with nothing between the
     test and the act. Thirty-two calls through a pool of eight left five
     clauses of the dual, five dual_ready facts, four dual_hooks_installed and
-    seven metta_on_function_changed handlers, and the answer came back True
+    seven seam:function_changed handlers, and the answer came back True
     five times instead of once. The count moved between runs, which is what
     said race rather than off-by-one.
 
-    The duplicated handlers were the worse half: metta_on_function_changed/1
+    The duplicated handlers were the worse half: seam:function_changed/1
     is an EVENT hook, so each duplicate ran on every compiled equation
     afterwards, and nothing bounded the growth.
 

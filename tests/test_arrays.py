@@ -124,7 +124,7 @@ def test_a_protocol_and_a_declaration_are_both_answered_once(am):
 
     A protocol name reaches the engine through the shim's bridge, which
     computes it in Python; a `(py-atom f Type)` declaration reaches it
-    through metta_grounded_extra_type/2, in Prolog. The engine used to CHOOSE
+    through seam:grounded_extra_type/2, in Prolog. The engine used to CHOOSE
     between the bridge and the branch the declaration hangs off, so with
     the library loaded the declaration was dropped
     [tested test_ops.py::test_a_declared_type_survives_the_library_being_loaded].

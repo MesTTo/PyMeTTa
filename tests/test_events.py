@@ -138,7 +138,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
 def test_a_native_space_needs_no_declaration_to_be_watched(metta):
     """The engine's own store is not a context making a promise.
 
-    Every write into a native space runs metta_on_atom_added/2, so
+    Every write into a native space runs seam:atom_added/2, so
     per-write-exactly and ordered are facts about this engine rather than
     assumptions about a provider, and explain says so without anything
     having been declared.

@@ -1,6 +1,6 @@
 """Purpose: the engine's CODE names no host, permanently. Every host
-reaches the engine through the declared seams (metta_host_builtin,
-metta_host_import, metta_host_object, metta_form_rewriter, the grounded
+reaches the engine through the declared seams (seam:host_builtin,
+seam:host_import, seam:host_object, seam:form_rewriter, the grounded
 type family, the error hooks), and every per-host line lives in that
 host's own hosts/ bridge, so the next host cannot regress the property by
 editing the engine.

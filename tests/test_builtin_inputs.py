@@ -56,7 +56,7 @@ from petta import MeTTa, PettaError
 TABLE = (
     "findall([_Name, _Position, _Kinds], "
     "( guarded_input_position(_Name, _Arity, _Position), "
-    "  builtin_type_declaration(_Name, ['->'|_Chain]), "
+    "  seam:builtin_type_declaration(_Name, ['->'|_Chain]), "
     "  length(_Chain, _Arity), append(_Types, [_], _Chain), "
     "  findall(_Kind, "
     "          ( member(_Type, _Types), "

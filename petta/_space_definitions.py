@@ -154,7 +154,7 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
 
 def _is_pure(space: Any, called: str) -> bool:
     """Whether the engine's declaration set says this callee is immutable."""
-    return bool(space.runtime.once("metta_pure_operation(Name)", Name=called))
+    return bool(space.runtime.once("seam:pure_operation(Name)", Name=called))
 
 
 def _validate_clause_order(

@@ -8,7 +8,7 @@ reason, and a deleted row fails until it leaves the manifest, so the
 scoreboard never drifts from the tree.
 
 Assumes:
-  - ext_point_kind rows in engine/ext_points.pl are the one authority for a
+  - seam:kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: every_seam_declares_one_kind in static_checks]
 Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
@@ -93,7 +93,7 @@ HOST_SERVICES = {
     "with_metta_module/2",
 }
 
-_ROW = re.compile(r"^ext_point_kind\(([a-zA-Z_'/0-9-]+/\d+),\s*host_service\)\.",
+_ROW = re.compile(r"^kind\(([a-zA-Z_'/0-9-]+/\d+),\s*host_service\)\.",
                   re.MULTILINE)
 
 

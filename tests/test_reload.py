@@ -277,7 +277,7 @@ def test_a_reload_that_fails_leaves_the_previous_definitions_standing(metta, sou
 def test_reloading_invalidates_a_memoized_answer(metta, source):
     """A reload is not retract-and-assert: everything derived from the
     definitions it replaces has to go with them. lib_memo caches by
-    generation and hangs its invalidation on metta_on_function_removed/1,
+    generation and hangs its invalidation on seam:function_removed/1,
     which the removal funnel fires.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     answer = fresh("memoed")

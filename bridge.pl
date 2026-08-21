@@ -17,7 +17,7 @@
 %     is 1,905 us, and the gap grows with the data]
 %     [tested: iteration_is_lazy].
 %   - a resolved callable is applicable in head position, through the engine's
-%     metta_grounded_apply/3 seam rather than through anything Python-specific
+%     seam:grounded_apply/3 seam rather than through anything Python-specific
 %     [tested: a_resolved_callable_is_applicable], and a grounded value that is
 %     not an operation stays unreduced rather than raising
 %     [tested: a_grounded_value_that_is_not_callable_stays_unreduced].
@@ -35,9 +35,9 @@
 
 :- use_module(library(janus)).
 
-:- multifile metta_grounded_apply/3.
-:- multifile metta_grounded_structure/2.
-:- multifile metta_grounded_text/2.
+:- multifile seam:grounded_apply/3.
+:- multifile seam:grounded_structure/2.
+:- multifile seam:grounded_text/2.
 
 %This surface is hyperon-experimental's, and PeTTa had none of it: `py-atom`,
 %`py-dot`, `py-list`, `py-tuple`, `py-dict` and `Kwargs` are what the language's
@@ -219,12 +219,12 @@ petta_py_result(Value, Value).
 %
 %That reading is what makes `(car-atom (py-atom "(1, 2)"))` answer 1 while the
 %same value still passes into Python as a tuple. Neither reading is a separate
-%answer; see metta_grounded_structure/2 in engine/ext_points.pl.
+%answer; see seam:grounded_structure/2 in engine/ext_points.pl.
 %
 %Elements are normalized because the VIEW is MeTTa's reading of the value: a
 %None inside a tuple reads as `()` here. The carrier itself is left exactly as
 %janus made it, because that is what has to go back.
-metta_grounded_structure(Tuple, Elements) :-
+seam:grounded_structure(Tuple, Elements) :-
     petta_py_tuple_arguments(Tuple, Raw),
     maplist(petta_py_result, Raw, Elements).
 
@@ -235,7 +235,7 @@ metta_grounded_structure(Tuple, Elements) :-
 %The length is asked first and separately. A pattern of fixed shape is rejected
 %by its length without pulling a single element, so matching `($x $y)` against
 %a million-element list costs one crossing rather than a million.
-metta_grounded_structure(Obj, Elements) :-
+seam:grounded_structure(Obj, Elements) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
@@ -274,12 +274,12 @@ petta_py_tuple_arguments(Tuple, Arguments) :-
 %The elements render through the display writer: a nested opaque host value
 %(a list inside a tuple) has a repr but no round-trip text, and a display
 %is presentation, exactly as the answer printers already treat it.
-metta_grounded_text(Tuple, Text) :-
+seam:grounded_text(Tuple, Text) :-
     petta_py_tuple_arguments(Tuple, Raw),
     !,
     maplist(petta_py_result, Raw, Elements),
     sdisplay(Elements, Text).
-metta_grounded_text(Obj, Text) :-
+seam:grounded_text(Obj, Text) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
@@ -302,7 +302,7 @@ metta_grounded_text(Obj, Text) :-
 %%Undefined% otherwise, so a Python function could not participate in typed
 %dispatch, be checked, or be reported by get-type as anything at all.
 %
-%It goes through metta_grounded_extra_type/2, the extension point that already
+%It goes through seam:grounded_extra_type/2, the extension point that already
 %exists for exactly this: "a protocol the object satisfies may name a type".
 %A declared type is one more candidate beside the object's own class walk,
 %so `(get-type (py-atom numpy.absolute (-> Number Number)))` answers the
@@ -345,7 +345,7 @@ petta_py_materialize(Value, Expression) :-
     petta_py_materialize_(Value, [], Expression).
 
 petta_py_materialize_(Value, Seen, Expression) :-
-    (   metta_grounded_structure(Value, Elements)
+    (   seam:grounded_structure(Value, Elements)
     ->  petta_py_cycle_check(Value, Seen, Deeper),
         maplist(petta_py_materialize_r(Deeper), Elements, Expression)
     ;   Expression = Value
@@ -372,7 +372,7 @@ petta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     ).
 
 :- dynamic petta_py_declared_type/2.
-:- multifile metta_grounded_extra_type/2.
+:- multifile seam:grounded_extra_type/2.
 
 %Keyed on the object, and recorded once: resolving the same name twice gives
 %the same Python object, so a repeated (py-atom f T) must not stack duplicate
@@ -383,7 +383,7 @@ assert_declared_python_type(Obj, Type) :-
     ;   assertz(petta_py_declared_type(Obj, Type))
     ).
 
-metta_grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
+seam:grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
 
 %The class walk, this host's clause of the fallback seam: every visible class
 %on the value's MRO except object, each a type candidate, which is what lets a
@@ -391,11 +391,11 @@ metta_grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
 %Box and Grounded-tuple carrier layers before walking, because neither is a
 %type of the MeTTa value. It lived in the engine and called the host directly,
 %which is exactly the line the seam exists to draw; the engine asks
-%metta_grounded_class_type/2 and this bridge answers for the values it created
+%seam:grounded_class_type/2 and this bridge answers for the values it created
 %[tested: metta_object_types,
 %test_a_python_tuple_answers_the_same_through_both_doors].
-:- multifile metta_grounded_class_type/2.
-metta_grounded_class_type(X, T) :-
+:- multifile seam:grounded_class_type/2.
+seam:grounded_class_type(X, T) :-
     petta_py_bridge,
     py_call(petta_py:class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
@@ -472,7 +472,7 @@ petta_py_pair(Pair, [Key, Value]) :-
 %partial application, so an ordinary MeTTa call never reaches it. Failing is how
 %a grounded value that is NOT an operation stays unreduced, which is what a
 %value should do.
-metta_grounded_apply(Obj, Args, Result) :-
+seam:grounded_apply(Obj, Args, Result) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
@@ -484,12 +484,12 @@ metta_grounded_apply(Obj, Args, Result) :-
                    py_call(petta_py:apply(Obj, Positional, Kwargs), Raw, Opts)),
     petta_py_result(Raw, Result).
 
-:- multifile metta_grounded_applicable/1.
+:- multifile seam:grounded_applicable/1.
 
 %The same blob-first guard protects every runtime probe in this file
 %(structure, text, apply, the cycle check), because each of them is
 %consulted with plain engine terms on ordinary paths: a nested-call data
-%shape reaches metta_grounded_apply/3, and probing its list head with
+%shape reaches seam:grounded_apply/3, and probing its list head with
 %py_is_object/1 booted CPython inside examples/spaces/matchnested.metta,
 %~104M instructions for a four-atom program [measured 2026-08-17].
 %The blob test comes FIRST because it is the one that costs nothing:
@@ -500,7 +500,7 @@ metta_grounded_apply(Obj, Args, Result) :-
 %example paid 3.4x upstream's whole run for it [measured 2026-08-17:
 %148.2M net instructions to 44M after this guard]. blob/2 is SWI-side
 %introspection and never touches janus.
-metta_grounded_applicable(Obj) :-
+seam:grounded_applicable(Obj) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
@@ -550,8 +550,8 @@ petta_py_kwarg(Other, _) :-
 %Everything below moved here from engine/metta.pl: the boolean codec at the
 %janus boundary, the py-call operator, the import-as alias table and its
 %form rewriter, and the .py import machinery. The engine reaches all of it
-%through declared seams (metta_host_import/1, metta_form_rewriter/1,
-%metta_host_builtin/1) and publishes the services this file calls back
+%through declared seams (seam:host_import/1, seam:form_rewriter/1,
+%seam:host_builtin/1) and publishes the services this file calls back
 %(import_when/4, resolve_existing_import_path/3, current_working_dir/1,
 %import_file_string/2, throw_missing_import/1, refuse_unbound_input/2), so
 %an engine with no host loaded has no clause at any of the seams and pays
@@ -560,19 +560,19 @@ petta_py_kwarg(Other, _) :-
 %This host's builtins, registered by the engine's own directive after its
 %builtin list, from these declarations rather than from a list there that
 %would name the host.
-:- multifile metta_host_builtin/1.
-metta_host_builtin('py-call').
-metta_host_builtin('py-atom').
-metta_host_builtin('py-dot').
-metta_host_builtin('py-list').
-metta_host_builtin('py-tuple').
-metta_host_builtin('py-dict').
-metta_host_builtin('py-iter').
+:- multifile seam:host_builtin/1.
+seam:host_builtin('py-call').
+seam:host_builtin('py-atom').
+seam:host_builtin('py-dot').
+seam:host_builtin('py-list').
+seam:host_builtin('py-tuple').
+seam:host_builtin('py-dict').
+seam:host_builtin('py-iter').
 
 %This host claims an import whose source is a .py file, and does the whole
 %job through the engine's own published lifecycle.
-:- multifile metta_host_import/1.
-metta_host_import(File) :-
+:- multifile seam:host_import/1.
+seam:host_import(File) :-
     python_import_file(File),
     resolve_python_import_path(File, CanonPath),
     import_when(not_loaded, '$python', CanonPath,
@@ -730,9 +730,9 @@ load_python_source(CanonPath) :-
                                       ParentDir, PreviousPath)),
     retractall(python_import_alias(ModuleName, _)),
     assertz(python_import_alias(ModuleName, ModuleKey)),
-    (   metta_form_rewriter(bind_python_calls)
+    (   seam:form_rewriter(bind_python_calls)
     ->  true
-    ;   assertz(metta_form_rewriter(bind_python_calls))
+    ;   assertz(seam:form_rewriter(bind_python_calls))
     ).
 
 load_python_source_in_context(CanonPath, ModuleKey, ModuleName, ParentDir,
@@ -766,8 +766,8 @@ restore_python_path(PreviousPath) :-
 %answered %Undefined% in an engine without the library; both names are
 %accepted so the guard cannot break again when one of them changes
 %[measured 2026-08-16].
-:- multifile metta_host_object/1.
-metta_host_object(X) :- python_object_blob(X), py_is_object(X).
+:- multifile seam:host_object/1.
+seam:host_object(X) :- python_object_blob(X), py_is_object(X).
 
 python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 

@@ -162,7 +162,7 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     The builtin count is the one llms.txt claim carrying a CONFIGURATION:
     backends register builtins only where their artefact is built, and both
     wave-10 agents lost a gate run to the bare mismatch message. The
-    backends declare their registrations as metta_backend_builtin/1 facts,
+    backends declare their registrations as seam:backend_builtin/1 facts,
     so when the absent artefact explains the difference exactly, the lane
     passes with a note naming the artefact and every registration; a
     difference the artefact does not explain stays a failing drift claim.
@@ -176,7 +176,7 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     ).read_text(encoding="utf-8")
     (backend / "morkspaces.pl").write_text(declarations, encoding="utf-8")
     names = re.findall(
-        r"^metta_backend_builtin\('?([^')]+)'?\)\.",
+        r"^seam:backend_builtin\('?([^')]+)'?\)\.",
         declarations,
         re.MULTILINE,
     )

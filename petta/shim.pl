@@ -96,7 +96,7 @@
 %     test_builtins_equals_the_union_of_functions_and_special_forms;
 %     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
 %   - petta_py_register_token/2 retains a Python constructor in the engine's
-%     reader table and metta_host_reader_token_construct/3 returns its encoded
+%     reader table and seam:host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
 %     test_a_registered_token_class_parses_like_a_shipped_one;
 %     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
@@ -104,7 +104,7 @@
 %     while an explicitly Grounded tuple remains an object reference
 %     [tested: test_a_python_tuple_answers_the_same_through_both_doors;
 %     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
-%   - pattern_modifier/3 lifts lazy paths out of stored-pattern position and
+%   - seam:pattern_modifier/3 lifts lazy paths out of stored-pattern position and
 %     resolves them only after the root handle has matched [tested:
 %     test_a_path_reaches_into_a_handle_without_converting_it;
 %     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
@@ -967,7 +967,7 @@ petta_py_read_form(Source, Term, VarMap) :-
 %registry to synchronize; Prolog's normal clause and blob reclamation owns a
 %retired constructor's lifetime.
 petta_py_register_token(Pattern, Constructor) :-
-    metta_host_object(Constructor),
+    seam:host_object(Constructor),
     metta_host_register_reader_token(Pattern, Constructor).
 
 petta_py_unregister_token(Pattern) :-
@@ -977,8 +977,8 @@ petta_py_unregister_token(Pattern) :-
 %the caller's first-success seam. Constructors receive the complete lexeme and
 %return an Atom wire; shared decoding preserves repeated variables if a custom
 %class deliberately constructs them.
-metta_host_reader_token_construct(Constructor, Text, Term) :-
-    metta_host_object(Constructor),
+seam:host_reader_token_construct(Constructor, Text, Term) :-
+    seam:host_object(Constructor),
     catch(py_call(petta_ops:construct_token(Constructor, Text), Wire),
           Error, petta_py_failure(['reader-token', Text], Error)),
     petta_py_decode_shared(Wire, Term, _).
@@ -1165,13 +1165,13 @@ petta_py_clear(Space) :-
 %reference it installed, the subscription bridge, without consulting any
 %engine internals. Idle means this unwatched space's only handler is the
 %bridge itself.
-:- multifile metta_host_add_hooks_idle/2.
-metta_host_add_hooks_idle(Space, [OnlyRef]) :-
+:- multifile seam:host_add_hooks_idle/2.
+seam:host_add_hooks_idle(Space, [OnlyRef]) :-
     \+ petta_py_subscribed_space(Space),
     petta_py_subscription_hook_ref(added, OnlyRef).
 
-:- multifile metta_host_remove_hooks_idle/2.
-metta_host_remove_hooks_idle(Space, [OnlyRef]) :-
+:- multifile seam:host_remove_hooks_idle/2.
+seam:host_remove_hooks_idle(Space, [OnlyRef]) :-
     \+ petta_py_subscribed_space(Space),
     petta_py_subscription_hook_ref(removed, OnlyRef).
 
@@ -1257,8 +1257,8 @@ petta_py_query(Space, PatternsTagged, VarNames, Row) :-
 %work becomes a post-match goal. The engine therefore joins the opaque handle
 %like any stored value and Python sees only the named segments, never an eager
 %projection of the object graph.
-:- multifile pattern_modifier/3.
-pattern_modifier([PathAt, [SegmentsHead|Segments], Target], Root,
+:- multifile seam:pattern_modifier/3.
+seam:pattern_modifier([PathAt, [SegmentsHead|Segments], Target], Root,
                  petta_py_path_guard(Root, Segments, Target)) :-
     %Both markers are read nonvar-then-==, the same reading colon_expression/1
     %uses, because a LITERAL in the head unifies with an unbound head instead
@@ -1369,7 +1369,7 @@ petta_py_query_guarded_all(Space, PatternsTagged, GuardTagged, VarNames, Limit, 
 %many candidates become answers.
 petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
     (   PatternsTagged = [PatternTagged],
-        metta_foreign_space(Space)
+        seam:foreign_space(Space)
     ->  findall(Row,
                 limit(Limit,
                       petta_py_bounded_query(Space, PatternTagged, VarNames,
@@ -1853,14 +1853,14 @@ petta_py_register_op(Name0, Arity, Kind) :-
 %The engine asks who a dispatch goal really is, so a purity refusal names the
 %operation rather than this file's dispatcher. The name is the goal's first
 %argument in all four kinds, which is why it is recoverable exactly.
-:- multifile metta_effect_operation_name/3.
-metta_effect_operation_name(petta_py_dispatch_det(Name, Args, _), Name, Arity) :-
+:- multifile seam:effect_operation_name/3.
+seam:effect_operation_name(petta_py_dispatch_det(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
-metta_effect_operation_name(petta_py_dispatch_many(Name, Args, _), Name, Arity) :-
+seam:effect_operation_name(petta_py_dispatch_many(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
-metta_effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
+seam:effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
-metta_effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
+seam:effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
 
 %The MeTTa arity, which is the argument list's length: the engine's extra
@@ -2335,16 +2335,16 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 % the pattern happens in Prolog, so the provider may over-approximate freely
 % and soundness stays the engine's. Registration is dynamic, from Python.
 
-:- multifile metta_foreign_space/1.
-:- multifile metta_foreign_match/3.
-:- multifile metta_foreign_add/2.
-:- multifile metta_foreign_add_many/2.
-:- multifile metta_foreign_plan/5.
-:- multifile metta_foreign_remove/3.
-:- multifile metta_foreign_atoms/2.
-:- multifile metta_foreign_pushdown/3.
-:- multifile metta_foreign_capability/2.
-:- multifile metta_foreign_refuse/2.
+:- multifile seam:foreign_space/1.
+:- multifile seam:foreign_match/3.
+:- multifile seam:foreign_add/2.
+:- multifile seam:foreign_add_many/2.
+:- multifile seam:foreign_plan/5.
+:- multifile seam:foreign_remove/3.
+:- multifile seam:foreign_atoms/2.
+:- multifile seam:foreign_pushdown/3.
+:- multifile seam:foreign_capability/2.
+:- multifile seam:foreign_refuse/2.
 
 :- dynamic petta_py_foreign/1.
 :- dynamic petta_py_capability/2.
@@ -2353,7 +2353,7 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 %
 %The seam had two capability models that never met. foreign.py derives the set
 %from the narrow protocols a provider implements and enforces it well; the
-%Prolog side reads metta_foreign_capability/2 and saw nothing, so
+%Prolog side reads seam:foreign_capability/2 and saw nothing, so
 %foreign_provides/2 reported that every Python provider provides EVERYTHING.
 %Not a correctness bug, because the Python half raises anyway, but it meant
 %engine logic keyed on a declaration silently excluded exactly the providers
@@ -2367,19 +2367,19 @@ petta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 %Each clause guards on the python registry: the foreign hooks are
 %multifile, and an engine-side foreign space (a Redis space, say) must
 %fall through to its own contribution instead of being claimed here.
-%metta_foreign_clear/1 is declared with the other five in engine/ext_points.pl
+%seam:foreign_clear/1 is declared with the other five in engine/ext_points.pl
 %now, so it is part of the seam a library author reads rather than something
 %only this file knew about.
 
-metta_foreign_space(Space) :- petta_py_foreign(Space).
+seam:foreign_space(Space) :- petta_py_foreign(Space).
 
-metta_foreign_capability(Space, Capability) :-
+seam:foreign_capability(Space, Capability) :-
     petta_py_foreign(Space),
     petta_py_capability(Space, Capability).
 
 %The refusal, handed back to the side that has the words. This raises; see
 %petta.foreign.foreign_refuse for why it may not return.
-metta_foreign_refuse(Space, Capability) :-
+seam:foreign_refuse(Space, Capability) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     atom_string(Capability, CapabilityStr),
@@ -2392,7 +2392,7 @@ metta_foreign_refuse(Space, Capability) :-
 %["x","end"] item marks exhaustion so an empty stream still claims the
 %route and the engine never re-consults the provider through the
 %fallback, which would consume a linear source twice.
-metta_foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
+seam:foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
     petta_py_foreign(Space),
     ( memberchk(limit(Limit), Licensed) -> true ; Limit = @(none) ),
     petta_py_encode(Pattern, W),
@@ -2421,26 +2421,26 @@ petta_py_erring_item(CW, Pattern, Limit, Space, answer) :-
 %matching is a context's job. Errors abort: a value's matching logic
 %has no (on-error ...) home, so a raising match_ is a defect at its own
 %yield site.
-metta_matchable_value(Blob) :-
-    metta_host_object(Blob),
+seam:matchable_value(Blob) :-
+    seam:host_object(Blob),
     py_call(petta_ops:is_matchable(Blob), R),
     R == @(true).
-metta_custom_match(Blob, Other) :-
+seam:custom_match(Blob, Other) :-
     petta_py_encode(Other, W),
     py_iter(petta_ops:match_object(Blob, W), CW),
     petta_py_answer_match(CW, Other, '$petta-matchable').
 
 %Transactional participation for Python providers, driven by (writes Ctx
 %transactional): the provider's own begin/commit/rollback methods.
-metta_foreign_begin(Space) :-
+seam:foreign_begin(Space) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_transaction(SpaceStr, "begin"), _).
-metta_foreign_commit(Space) :-
+seam:foreign_commit(Space) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_transaction(SpaceStr, "commit"), _).
-metta_foreign_rollback(Space) :-
+seam:foreign_rollback(Space) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_transaction(SpaceStr, "rollback"), _).
@@ -2448,7 +2448,7 @@ metta_foreign_rollback(Space) :-
 %The option reaches a provider whose match accepts a limit keyword and nobody
 %else, which foreign.py decides from the signature, so a provider that never
 %heard of it is called with none.
-metta_foreign_match(Space, Pattern, Options) :-
+seam:foreign_match(Space, Pattern, Options) :-
     petta_py_foreign(Space),
     ( memberchk(limit(Limit), Options) -> true ; Limit = @(none) ),
     petta_py_encode(Pattern, W),
@@ -2460,20 +2460,20 @@ metta_foreign_match(Space, Pattern, Options) :-
 %only when there is a bound to act on, so an unbounded match does not pay for
 %a crossing it gains nothing from. A provider with no pushdown method answers
 %inexact, which is what every provider written before this says.
-metta_foreign_pushdown(Space, Pattern, Class) :-
+seam:foreign_pushdown(Space, Pattern, Class) :-
     petta_py_foreign(Space),
     petta_py_encode(Pattern, W),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_pushdown(SpaceStr, W), ClassStr),
     atom_string(Class, ClassStr).
 
-metta_foreign_atoms(Space, Atom) :-
+seam:foreign_atoms(Space, Atom) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_iter(petta_ops:foreign_atoms(SpaceStr), CW),
     petta_py_decode_shared(CW, Atom, _).
 
-metta_foreign_add(Space, Term) :-
+seam:foreign_add(Space, Term) :-
     petta_py_foreign(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
@@ -2488,7 +2488,7 @@ metta_foreign_add(Space, Term) :-
 %would buy nothing and would hold a Python generator open across engine
 %backtracking, which is the shape that makes a provider's state hard to reason
 %about.
-metta_foreign_plan(Space, Patterns, Claimed, Rest, petta_py_plan_rows(Claimed, Rows)) :-
+seam:foreign_plan(Space, Patterns, Claimed, Rest, petta_py_plan_rows(Claimed, Rows)) :-
     petta_py_foreign(Space),
     petta_py_capability(Space, plan),
     maplist(petta_py_encode, Patterns, PatternWs),
@@ -2527,7 +2527,7 @@ petta_py_plan_selection_([W|Ws], Keys, Patterns, [P|Ps]) :-
         petta_py_plan_drop(I, Keys, RestWs, Patterns, RestPatterns)
     ;   throw(error(petta_foreign_plan_is_not_a_partition(unknown, Patterns,
                                                           [W], []),
-                    context(metta_foreign_plan/5,
+                    context(seam:foreign_plan/5,
                             'a claim names a pattern that was not offered')))
     ),
     petta_py_plan_selection_(Ws, RestWs, RestPatterns, Ps).
@@ -2572,15 +2572,15 @@ petta_py_plan_rows(Claimed, Rows) :-
     ).
 
 %The batch seam. A provider without a BulkAdder declares no add-many capability,
-%so this fails and the engine falls back to one metta_foreign_add/2 per atom.
-metta_foreign_add_many(Space, Terms) :-
+%so this fails and the engine falls back to one seam:foreign_add/2 per atom.
+seam:foreign_add_many(Space, Terms) :-
     petta_py_foreign(Space),
     petta_py_capability(Space, 'add-many'),
     maplist(petta_py_encode, Terms, Ws),
     atom_string(Space, SpaceStr),
     py_call(petta_ops:foreign_add_many(SpaceStr, Ws), _).
 
-metta_foreign_remove(Space, Term, Removed) :-
+seam:foreign_remove(Space, Term, Removed) :-
     petta_py_foreign(Space),
     petta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
@@ -2629,8 +2629,8 @@ petta_py_unregister_foreign(Space0) :-
 % Their guard is one dynamic fact per subscribed space, first-arg indexed, so
 % an unwatched space never crosses to Python while another space is watched.
 
-:- multifile metta_on_atom_added/2.
-:- multifile metta_on_atom_removed/2.
+:- multifile seam:atom_added/2.
+:- multifile seam:atom_removed/2.
 :- dynamic petta_py_subscribed_space/1.
 :- dynamic petta_py_subscription_hook_ref/2.
 
@@ -2653,12 +2653,12 @@ petta_py_install_subscription_hook(Kind) :-
     \+ clause_property(Ref, erased), !.
 petta_py_install_subscription_hook(added) :-
     retractall(petta_py_subscription_hook_ref(added, _)),
-    assertz((metta_on_atom_added(Space, Term) :-
+    assertz((seam:atom_added(Space, Term) :-
                 petta_py_notify_atom_added(Space, Term)), Ref),
     assertz(petta_py_subscription_hook_ref(added, Ref)).
 petta_py_install_subscription_hook(removed) :-
     retractall(petta_py_subscription_hook_ref(removed, _)),
-    assertz((metta_on_atom_removed(Space, Term) :-
+    assertz((seam:atom_removed(Space, Term) :-
                 petta_py_notify_atom_removed(Space, Term)), Ref),
     assertz(petta_py_subscription_hook_ref(removed, Ref)).
 
@@ -2683,16 +2683,16 @@ petta_py_subscriptions_locked(SpaceAtoms) :-
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %
-% The engine asks metta_grounded_extra_type/2 for names beyond an object's own
+% The engine asks seam:grounded_extra_type/2 for names beyond an object's own
 % classes; the answer comes from the Python-side protocol registry, so a
 % library teaches typing without touching Prolog.
 
-:- multifile metta_grounded_type_names/2.
+:- multifile seam:grounded_type_names/2.
 
 %Values cross the boundary boxed so janus cannot rewrite them; the names
 %are computed on the held value, in Python, and cross as plain text: the
 %classes off the method resolution order, then every satisfied protocol.
-metta_grounded_type_names(X, Names) :-
+seam:grounded_type_names(X, Names) :-
     py_is_object(X),
     py_call(petta_ops:type_names(X), Names).
 
@@ -2706,8 +2706,8 @@ metta_grounded_type_names(X, Names) :-
 % classic case is (= (f) (g)) in one run and (= (g) 5) in the next, and the
 % Python case is an operation registered after equations that call it.
 % The dependent-recompile that used to ride here as clauses of the
-% metta_on_function_changed/1 and metta_on_function_removed/1 EVENTS is the
-% engine's own now (function_changed/2 and function_removed/1 in
+% seam:function_changed/1 and seam:function_removed/1 EVENTS is the
+% engine's own now (announce_function_changed/2 and announce_function_removed/1 in
 % engine/spaces.pl): an event observer must be optional, and an engine without
 % this host in the process has to repair its own compiled code. The
 % invalidation was already the engine's, threaded with the module each write
@@ -2734,7 +2734,7 @@ petta_py_set_silent(Silent) :-
 %The fast cache and the digest are engine machinery now, the host run and
 %load surface in engine/filereader.pl: this side maps the term outcomes to
 %the wire and answers the ONE host question the engine asks through the
-%metta_host_object/1 seam, whether a term is a live Python object (the
+%seam:host_object/1 seam, whether a term is a live Python object (the
 %bridge contributes that clause). Results: object(Atom) and symbol(Atom)
 %name a refusing offender, saved(Count) and digest(Hash) land.
 

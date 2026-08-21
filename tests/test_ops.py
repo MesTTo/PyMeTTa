@@ -407,7 +407,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
 
     Two halves. The refusal read the dispatch goal's functor, so it said
     `petta_py_dispatch_det/3`, which is neither something an author wrote nor
-    something a declaration could match. And metta_pure_operation/1 was
+    something a declaration could match. And seam:pure_operation/1 was
     multifile but not dynamic, so a running process could add nothing to it
     even knowing the right name.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -434,7 +434,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
 def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
     """Withdrawing one declaration must not take the engine's list with it.
 
-    A host declaration went into metta_pure_operation/1 itself, and the
+    A host declaration went into seam:pure_operation/1 itself, and the
     engine's own entries there are RULES with a variable head, so the
     retractall that withdraws one declaration unified with every one of them:
     five clauses to zero, and `+` stopped being pure, from registering any
@@ -932,10 +932,10 @@ def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
 def test_a_declared_type_survives_the_library_being_loaded(metta):
     """`(py-atom f Type)` keeps its declaration in the shipped configuration.
 
-    The declaration is published through metta_grounded_extra_type/2, a
+    The declaration is published through seam:grounded_extra_type/2, a
     DECLARATION seam, whose every clause is meant to stay reachable
-    [source: engine/ext_points.pl, ext_point_every_clause_runs/1]. It hung off
-    the ELSE branch of the ownership seam metta_grounded_type_names/2, and the
+    [source: engine/ext_points.pl, seam:every_clause_runs/1]. It hung off
+    the ELSE branch of the ownership seam seam:grounded_type_names/2, and the
     shim answers that one for every Python object, so the whole branch was
     dead here and the declaration was accepted and dropped
     [measured 2026-08-18: `(builtin_function_or_method)` through the

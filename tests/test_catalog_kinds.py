@@ -53,10 +53,10 @@ EXTENSION = """\
 %The advisors: a cached context's routes lose the pushdown licence, a
 %stale one's are refused outright. Both read the third-party kind's own
 %catalog rows through the published shape route.
-:- multifile metta_route_cap/4.
-metta_route_cap(Space, Pattern, inexact, freshness(cached)) :-
+:- multifile seam:route_cap/4.
+seam:route_cap(Space, Pattern, inexact, freshness(cached)) :-
     petta_shape_route(freshness, Space, Pattern, _, [cached]).
-metta_route_cap(Space, Pattern, refuse, freshness(stale)) :-
+seam:route_cap(Space, Pattern, refuse, freshness(stale)) :-
     petta_shape_route(freshness, Space, Pattern, _, [stale]).
 """
 

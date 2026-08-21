@@ -186,7 +186,7 @@ def test_delitem_drains_every_unifying_occurrence(m):  # noqa: D103  -- pytest d
 # ----------------------------------------------------- one law, every space
 #
 # The law is the same whoever holds the atoms. It was not: the seam has
-# always declared `metta_foreign_remove/3` as "remove one" (EXTENDING.md),
+# always declared `seam:foreign_remove/3` as "remove one" (EXTENDING.md),
 # while the native store took every occurrence, so `(remove-atom $s $a)`
 # meant different things depending on how `$s` was implemented and nothing
 # in the text said which. These run the same three-add-one-remove-count-two

@@ -354,7 +354,7 @@ def type_names(obj: Any) -> list[str]:
 #
 # (predicate, type name) pairs; an object satisfying a predicate carries the
 # name as an additional type candidate. Consulted by the engine through the
-# shim's metta_grounded_extra_type/2 bridge.
+# shim's seam:grounded_extra_type/2 bridge.
 
 PROTOCOL_TYPES: list[tuple[Any, str]] = []
 _PROTOCOL_TYPES_LOCK = threading.RLock()

@@ -187,7 +187,7 @@ class Box:
     element objects. Which types convert is janus's decision, not ours, so
     every opaque value crosses boxed, uniformly, and every consuming surface
     unboxes: from_wire, raw operation arguments and results, and the
-    engine's typing through metta_grounded_type_names/2. A caller never sees a
+    engine's typing through seam:grounded_type_names/2. A caller never sees a
     box; it exists only on the wire and inside the engine.
 
     Boxes are INTERNED per object identity through boxed(): one live object

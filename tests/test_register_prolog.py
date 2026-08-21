@@ -372,7 +372,7 @@ def test_a_library_types_its_own_blob_without_destroying_the_table(
     extension = tmp_path / "p5_blob_types.pl"
     extension.write_text(
         ":- metta_extension(p5_blob_types, [version('0.1.0')]).\n"
-        "builtin_type_declaration('p5-blob', 'P5Blob').\n"
+        "seam:builtin_type_declaration('p5-blob', 'P5Blob').\n"
     )
     script = """
 import sys
@@ -461,10 +461,10 @@ def test_a_provider_only_file_registers_no_functions_and_is_accepted(space, tmp_
     source = tmp_path / "rp_provider.pl"
     source.write_text(
         ":- metta_extension(rp_provider_demo, []).\n"
-        ":- multifile metta_foreign_space/1.\n"
-        ":- multifile metta_foreign_atoms/2.\n"
-        "metta_foreign_space('&rp-provider-demo').\n"
-        "metta_foreign_atoms('&rp-provider-demo', [fact, a]).\n"
+        ":- multifile seam:foreign_space/1.\n"
+        ":- multifile seam:foreign_atoms/2.\n"
+        "seam:foreign_space('&rp-provider-demo').\n"
+        "seam:foreign_atoms('&rp-provider-demo', [fact, a]).\n"
     )
     try:
         assert space.register_prolog(path=source) == ()
@@ -486,10 +486,10 @@ def test_a_file_that_declares_nothing_does_not_load_either(space, tmp_path):
     """
     source = tmp_path / "rp_silent.pl"
     source.write_text(
-        ":- multifile metta_foreign_space/1.\n"
-        ":- multifile metta_foreign_atoms/2.\n"
-        "metta_foreign_space('&rp-silent-demo').\n"
-        "metta_foreign_atoms('&rp-silent-demo', [fact, a]).\n"
+        ":- multifile seam:foreign_space/1.\n"
+        ":- multifile seam:foreign_atoms/2.\n"
+        "seam:foreign_space('&rp-silent-demo').\n"
+        "seam:foreign_atoms('&rp-silent-demo', [fact, a]).\n"
     )
     with pytest.raises(ValueError, match="metta_extension"):
         space.register_prolog(path=source)

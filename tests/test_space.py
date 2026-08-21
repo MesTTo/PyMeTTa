@@ -1072,13 +1072,13 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
 
 
 def test_a_variable_headed_pattern_answers_through_every_door(metta):
-    """P2.30, and the pattern_modifier marker defect under it: a pattern
+    """P2.30, and the seam:pattern_modifier marker defect under it: a pattern
     whose head is a variable is ordinary structure, so it answers stored
     atoms with the head bound to the real label through the MeTTa match
     door and the Python query door alike, the way Prolog's match/4 always
     did. The two- and three-element shapes used to unify their head
     variable with the ':=' and ':' modifier markers written as literals in
-    pattern_modifier/3's clause heads, so ($A $B) answered nothing and $A
+    seam:pattern_modifier/3's clause heads, so ($A $B) answered nothing and $A
     silently became ':='; the shim's path-at clause did the same at three
     elements and raised out of paths.py.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose

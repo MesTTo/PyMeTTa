@@ -4,9 +4,9 @@ governance documents.
 
 The extension page is what a library author reads instead of the source, so a
 seam it does not mention is a seam nobody finds. Four were missing when this
-was first checked: metta_foreign_clear/1, which had lived in the Python shim
-rather than beside the other five space hooks; metta_grounded_extra_type/2 and
-metta_grounded_type_names/2, which are how a host value gets a type; and
+was first checked: seam:foreign_clear/1, which had lived in the Python shim
+rather than beside the other five space hooks; seam:grounded_extra_type/2 and
+seam:grounded_type_names/2, which are how a host value gets a type; and
 prolog:error_message//1, which is how a library gives its own error term a
 rendering. Nothing would have said so.
 Guarantees:

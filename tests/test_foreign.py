@@ -571,7 +571,7 @@ def test_a_python_providers_capabilities_reach_the_engine(metta):
     """The two halves of the seam had two capability models that never met.
 
     foreign.py derives the set from the narrow protocols a provider implements
-    and enforces it well. The Prolog side reads metta_foreign_capability/2 and
+    and enforces it well. The Prolog side reads seam:foreign_capability/2 and
     saw nothing at all, so foreign_provides/2 reported that every Python
     provider provides EVERYTHING: anything the engine decides from a
     declaration silently excluded exactly the providers most likely to be
@@ -586,14 +586,14 @@ def test_a_python_providers_capabilities_reach_the_engine(metta):
     metta.register_space(MatchOnly(), name)
     try:
         declared = metta._rt.must(
-            "findall(_C, user:metta_foreign_capability(S, _C), L)", S=name
+            "findall(_C, seam:foreign_capability(S, _C), L)", S=name
         )["L"]
         assert sorted(str(c) for c in declared) == ["enumerate", "match"]
     finally:
         metta.unregister_space(name)
     # And they go with the provider.
     assert not metta._rt.must(
-        "findall(_C, user:metta_foreign_capability(S, _C), L)", S=name
+        "findall(_C, seam:foreign_capability(S, _C), L)", S=name
     )["L"]
 
 
@@ -621,8 +621,8 @@ def test_an_absent_capability_still_carries_the_providers_own_words(metta):
 def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
     """One match hook, so a Prolog provider is reached whatever Python is doing.
 
-    There used to be a /2 beside metta_foreign_match/3, chosen between with
-    `clause(metta_foreign_match(_,_,_), _)`, which asks whether ANY provider
+    There used to be a /2 beside seam:foreign_match/3, chosen between with
+    `clause(seam:foreign_match(_,_,_), _)`, which asks whether ANY provider
     anywhere declared the bounded form. The Python shim declares it
     unconditionally, so with Python in the process that guard was true for
     every space: a Prolog-only provider writing /2 had /3 called instead, the
@@ -631,13 +631,13 @@ def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
     """
     source = tmp_path / "prolog_only_space.pl"
     source.write_text(
-        ":- multifile metta_foreign_space/1.\n"
-        ":- multifile metta_foreign_match/3.\n"
-        ":- multifile metta_foreign_pushdown/3.\n"
-        "metta_foreign_space('&prolog-only-test').\n"
-        "metta_foreign_match('&prolog-only-test', P, _) :-\n"
+        ":- multifile seam:foreign_space/1.\n"
+        ":- multifile seam:foreign_match/3.\n"
+        ":- multifile seam:foreign_pushdown/3.\n"
+        "seam:foreign_space('&prolog-only-test').\n"
+        "seam:foreign_match('&prolog-only-test', P, _) :-\n"
         "    member(P, [[fact, 1], [fact, 2], [fact, 3]]).\n"
-        "metta_foreign_pushdown('&prolog-only-test', _, exact).\n"
+        "seam:foreign_pushdown('&prolog-only-test', _, exact).\n"
     )
     metta._rt.consult(str(source))
     space = metta.space("&prolog-only-test")
