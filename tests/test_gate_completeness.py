@@ -1,9 +1,10 @@
-"""Purpose: pin Phase 0 outcomes that were reached and then left
-unpinned, so each one regresses loudly instead of silently. An outcome
-nothing tests is an outcome that comes back: the performance oracles were
-deleted rather than gated, `test.sh` computed a verdict summary it did not
-print, MeTTa's generated Prolog contains no cut, and Ruff's added families
-remain enabled with reviewed line-level suppressions.
+"""Purpose: pin outcomes that were reached and then left unpinned, so each
+one regresses loudly instead of silently. An outcome nothing tests is an
+outcome that comes back: the performance oracles were deleted rather than
+gated, `test.sh` computed a verdict summary it did not print, MeTTa's
+generated Prolog contains no cut, Ruff's added families remain enabled with
+reviewed line-level suppressions, and the compiler still threads its state by
+hand because measuring the DCG alternative said to.
 Assumes:
     - the repository root is two directories above this file, the same way
       test_example_parity.py derives it
@@ -292,3 +293,79 @@ def test_a_generated_clause_carries_no_cut(metta):
     assert answers == ["zero", "other"], (
         f"both clauses should answer; got {answers}, which is what a cut looks like"
     )
+
+
+def _dcg_scan(*sources):
+    """Every DCG rule and threaded clause head of the named engine files."""
+    finished = subprocess.run(
+        ["swipl", "-q", "dcg_semicontext.pl", "--", *sources],
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        cwd=str(REPO / "tests" / "prolog"),
+    )
+    scanned, dcgs, clauses = {}, set(), set()
+    for line in finished.stdout.splitlines():
+        head, *rest = line.split()
+        assert head in {"file", "dcg", "clause"}, f"unexpected scanner line: {line!r}"
+        if head == "file":
+            scanned[rest[0]] = int(rest[1])
+        elif head == "dcg":
+            dcgs.add((rest[0], rest[1], rest[2], int(rest[3])))
+        else:
+            clauses.add((rest[0], rest[1]))
+    return scanned, dcgs, clauses
+
+
+def test_no_dcg_semicontext_threads_the_compilers_state():
+    """P2.20, closed as REJECTED by measurement, and this is what it owes.
+
+    The question was whether the translator's hand-threaded difference lists
+    should become DCGs with semicontext, which threads the state implicitly the
+    way Triska's `lisprolog.pl` does. `listing/1` answered it: the DCG expands
+    to `num_leaves(nil, [A|B], C) :- D is A+1, E=B, C=[D|E].` where the hand
+    version is `hand(nil, N0, N1) :- N1 is N0+1.`, so the expansion adds head
+    destructuring and two unification goals the hand version does not have
+    [measured 2026-08-18]. The item closed on that, and nothing stopped it
+    being reversed by the next reader who finds a ten-argument predicate ugly.
+
+    The scan reads engine/translator.pl's TERMS, so the two `-->` inside its
+    tracer format strings are not mistaken for rules. Its only DCGs are the
+    three `prolog:error_message//1` message rules, which thread nothing.
+
+    The ban is the COMPILER's, not the engine's, and engine/filereader.pl is
+    scanned beside it to say so: its `exec_marker_boundary//0` pushes a token
+    back into the reader's stream, which is what the notation is for. That one
+    head is also what proves this detector can see a semicontext rule at all,
+    so a green result here is not an empty scan.
+    """
+    translator = "../../engine/translator.pl"
+    reader = "../../engine/filereader.pl"
+    scanned, dcgs, clauses = _dcg_scan(translator, reader)
+    assert scanned[translator] > 300, scanned
+    assert scanned[reader] > 100, scanned
+
+    # The detector is live: the reader's one pushback rule is found.
+    assert (reader, "semicontext", "exec_marker_boundary", 0) in dcgs, sorted(dcgs)
+
+    # And the compiler has no DCG that threads anything. Its message rules are
+    # the whole of its DCG use, so this covers the semicontext question and the
+    # wider one: no translator predicate became a DCG at all.
+    compiling = {
+        (shape, name, arity)
+        for path, shape, name, arity in dcgs
+        if path == translator
+    }
+    assert compiling == {("plain", "error_message", 1)}, sorted(compiling)
+
+    # The other half of the same claim, from the positive side: the predicates
+    # the item named still have ordinary clauses, which a converted one would
+    # not.
+    assert {name for path, name in clauses if path == translator} == {
+        "translate_expr_dl",
+        "translate_special_dl",
+        "translate_args_dl",
+        "translate_let_dl",
+        "mbr_goal",
+    }, sorted(clauses)
