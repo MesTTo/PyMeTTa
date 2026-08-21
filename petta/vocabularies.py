@@ -17,6 +17,7 @@ Open Obligations:
 from typing import Literal
 
 __all__ = [
+    "AGENDA_POLICY",
     "ANSWER_POLICY",
     "ATOMICITY",
     "CACHE_MODE",
@@ -44,6 +45,7 @@ __all__ = [
     "SUBSCRIPTION_EDGE",
     "VOLATILITY",
     "WORLD",
+    "AgendaPolicy",
     "AnswerPolicy",
     "Atomicity",
     "CacheMode",
@@ -96,6 +98,10 @@ NoMatchEnum = Literal["NoMatchOriginal", "NoMatchFail", "NoMatchError"]
 #: (vocabulary OutOfClausesEnum FailureOriginal FailureEmpty FailureError)
 OUTOFCLAUSESENUM = ("FailureOriginal", "FailureEmpty", "FailureError")
 OutOfClausesEnum = Literal["FailureOriginal", "FailureEmpty", "FailureError"]
+
+#: (vocabulary agenda-policy declaration recency specificity priority user)
+AGENDA_POLICY = ("declaration", "recency", "specificity", "priority", "user")
+AgendaPolicy = Literal["declaration", "recency", "specificity", "priority", "user"]
 
 #: (vocabulary answer-policy depth fair best-first)
 ANSWER_POLICY = ("depth", "fair", "best-first")

@@ -206,6 +206,7 @@ from .subscribe import SUBSCRIPTION_QUEUE_MAX, _subscriptions_for
 from .subscribe import subscribe as _subscribe
 from .trace import trace as _trace
 from .vocabularies import (
+    AGENDA_POLICY,
     ANSWER_POLICY,
     ATOMICITY,
     DELIVERY,
@@ -215,6 +216,7 @@ from .vocabularies import (
     ON_ERROR_MODE,
     SOURCE_KIND,
     WORLD,
+    AgendaPolicy,
     AnswerPolicy,
     Atomicity,
     Delivery,
@@ -2875,11 +2877,63 @@ class MeTTa:
         )
         return atom
 
+    def declare_agenda(
+        self,
+        name: str,
+        policy: AgendaPolicy,
+        function: str | None = None,
+    ) -> Atom:
+        """Declare which reaction fires first when several match one write.
+
+        declaration is the default and the order they were declared, which is
+        what the engine produced by accident before this was a policy;
+        recency is the most recently declared first; specificity is the most
+        tests in the pattern first; priority reads each reaction's own
+        declared number, highest first; and user names a MeTTa function that
+        SCORES a reaction, highest first. Every policy breaks ties on
+        declaration order.
+
+            m.declare_reaction("&alarms", "(alert $w)", "(insert &log (all $w))")
+            m.declare_reaction("&alarms", "(alert fire)", "(insert &log (fire))",
+                               priority=9)
+            m.declare_agenda("&alarms", "priority")
+        """
+        if policy not in AGENDA_POLICY:
+            msg = f"policy is one of {', '.join(AGENDA_POLICY)}, not {policy!r}"
+            raise ValueError(msg)
+        if (policy == "user") != (function is not None):
+            msg = (
+                "the user policy names the MeTTa function that scores a "
+                "reaction, and no other policy takes one"
+            )
+            raise ValueError(msg)
+        previous = Expr([Sym("agenda"), Sym(str(name)), Var("old")])
+        self._rt.once(
+            "petta_py_remove(Space, W, _)", Space="&petta", W=previous.to_wire()
+        )
+        previous_named = Expr(
+            [Sym("agenda"), Sym(str(name)), Var("old"), Var("fn")]
+        )
+        self._rt.once(
+            "petta_py_remove(Space, W, _)",
+            Space="&petta",
+            W=previous_named.to_wire(),
+        )
+        parts = [Sym("agenda"), Sym(str(name)), Sym(policy)]
+        if function is not None:
+            parts.append(Sym(str(function)))
+        atom = Expr(parts)
+        self._rt.must(
+            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+        )
+        return atom
+
     def declare_reaction(
         self,
         name: str,
         pattern: str | Atom,
         operation: str | Atom,
+        priority: int | None = None,
     ) -> Atom:
         """Declare a reaction, stored as an (on ...) atom: when an atom
         matching PATTERN lands in the space, OPERATION runs under the
@@ -2900,7 +2954,13 @@ class MeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
-        atom = Expr([Sym("on"), Sym(str(name)), shape, op])
+        parts = [Sym("on"), Sym(str(name)), shape, op]
+        if priority is not None:
+            if not isinstance(priority, int) or isinstance(priority, bool):
+                msg = f"priority is an integer, not {priority!r}"
+                raise TypeError(msg)
+            parts.append(Gnd(priority))
+        atom = Expr(parts)
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )

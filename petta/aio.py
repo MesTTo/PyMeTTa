@@ -87,6 +87,7 @@ from .results import Rows
 from .space import MeTTa
 from .subscribe import SUBSCRIPTION_QUEUE_MAX
 from .vocabularies import (
+    AgendaPolicy,
     AnswerPolicy,
     Atomicity,
     Delivery,
@@ -1091,9 +1092,21 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
 
     async def declare_reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, pattern: str | Atom, operation: str | Atom
+        self,
+        name: str,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
     ) -> Atom:
-        return await self.call(lambda m: m.declare_reaction(name, pattern, operation))
+        return await self.call(
+            lambda m: m.declare_reaction(name, pattern, operation, priority)
+        )
+
+    async def declare_agenda(
+        self, name: str, policy: AgendaPolicy, function: str | None = None
+    ) -> Atom:
+        """Declare which reaction fires first; see MeTTa.declare_agenda."""
+        return await self.call(lambda m: m.declare_agenda(name, policy, function))
 
     async def declare_source(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, name: str, kind: SourceKind
