@@ -71,6 +71,27 @@
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
 %     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
+%   - petta_py_symbol_writable/2 exposes the engine grammar's single symbol
+%     decision to Python consumers without reproducing delimiters there
+%     [tested: test_every_delimiter_check_derives_from_one_grammar_rule;
+%     commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e]
+%   - petta_py_symbol_refusal/2 derives its refusal from
+%     metta_symbol_writable/1 and identifies a whole-name custom token before
+%     looking for a reserved character, so register_op rejects unreadable
+%     names before any registry state changes and explains the grammar that
+%     claimed them [tested: test_register_op_refuses_a_name_metta_cannot_read,
+%     test_a_registered_token_class_parses_like_a_shipped_one;
+%     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
+%   - petta_py_builtins/1 answers the sorted union of every fun/1 name and
+%     every translate_special_dl/5 head, so host tooling sees the language
+%     rather than only its callable registry [tested:
+%     test_builtins_equals_the_union_of_functions_and_special_forms;
+%     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
+%   - petta_py_register_token/2 retains a Python constructor in the engine's
+%     reader table and metta_host_reader_token_construct/3 returns its encoded
+%     Atom through the shared decoder [tested:
+%     test_a_registered_token_class_parses_like_a_shipped_one;
+%     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -918,6 +939,27 @@ petta_py_read_form(Source, Term, VarMap) :-
       -> true
     ; format(atom(Msg), 'Parse error in form: ~w', [S]),
       petta_py_raise(syntax, Msg) ).
+
+%Registering a token stores the callable itself in the engine's mapping. The
+%dynamic clause's Janus blob owns its Python reference, so there is no Python
+%registry to synchronize; Prolog's normal clause and blob reclamation owns a
+%retired constructor's lifetime.
+petta_py_register_token(Pattern, Constructor) :-
+    metta_host_object(Constructor),
+    metta_host_register_reader_token(Pattern, Constructor).
+
+petta_py_unregister_token(Pattern) :-
+    metta_host_unregister_reader_token(Pattern).
+
+%Ownership is established by the live Python object before the cut implicit in
+%the caller's first-success seam. Constructors receive the complete lexeme and
+%return an Atom wire; shared decoding preserves repeated variables if a custom
+%class deliberately constructs them.
+metta_host_reader_token_construct(Constructor, Text, Term) :-
+    metta_host_object(Constructor),
+    catch(py_call(petta_ops:construct_token(Constructor, Text), Wire),
+          Error, petta_py_failure(['reader-token', Text], Error)),
+    petta_py_decode_shared(Wire, Term, _).
 
 %An evaluation target arrives either as a wire term or, when the caller passed
 %source text, as that text. The test is whether it is a wire term, not what
@@ -1921,9 +1963,23 @@ petta_py_unregister_extension(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     unregister_metta_extension(Name).
 
-%Every function name the engine has registered, for completion and docs:
+%Every function or translator special-form name the language knows, for
+%completion and docs. The translator clause table is the special-form
+%registry; asking it keeps this answer current when a form is added there.
 petta_py_builtins(Names) :-
-    findall(S, ( fun(N), atom_string(N, S) ), Names).
+    findall(N, fun(N), Functions),
+    petta_py_special_form_names(SpecialForms),
+    append(Functions, SpecialForms, Language0),
+    sort(Language0, Language),
+    maplist(atom_string, Language, Names).
+
+petta_py_special_form_names(Names) :-
+    petta_engine_module(Engine),
+    findall(Name,
+            ( clause(Engine:translate_special_dl(Name, _, _, _, _), _),
+              atom(Name) ),
+            Names0),
+    sort(Names0, Names).
 
 petta_py_is_function(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
@@ -2555,6 +2611,38 @@ petta_py_unwritable_atom(Space, Bad) :-
     'get-atoms'(Space, Atom),
     metta_unwritable_symbol(Atom, Unwritable), !,
     petta_py_encode(Unwritable, Bad).
+
+%One boolean crossing for consumers that must validate a name before they
+%mutate host state. The parser remains the authority, including reader token
+%classes registered after startup.
+petta_py_symbol_writable(Name, '@'(true)) :- metta_symbol_writable(Name), !.
+petta_py_symbol_writable(_, '@'(false)).
+
+%A refusal witness for a host error. Testing each one-character spelling
+%against the grammar finds a delimiter or reserved literal opener without a
+%second delimiter table; when only the whole token is reserved (True or a
+%registered token class), its first character locates the competing token.
+petta_py_symbol_refusal(Name0, Refusal) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    \+ metta_symbol_writable(Name),
+    petta_py_symbol_refusal_detail(Name, Refusal).
+
+petta_py_symbol_refusal_detail('', [empty]) :- !.
+petta_py_symbol_refusal_detail(Name, [token, Character]) :-
+    atom_string(Name, Text),
+    metta_reader_token_source(Text, custom),
+    atom_codes(Name, [First|_]),
+    atom_codes(Character, [First]),
+    !.
+petta_py_symbol_refusal_detail(Name, [character, Character]) :-
+    atom_codes(Name, Codes),
+    member(Code, Codes),
+    atom_codes(Character, [Code]),
+    \+ metta_symbol_writable(Character),
+    !.
+petta_py_symbol_refusal_detail(Name, [token, Character]) :-
+    atom_codes(Name, [First|_]),
+    atom_codes(Character, [First]).
 
 petta_py_fast_save(File, Space, Result) :-
     metta_host_save_fast(File, Space, Outcome),

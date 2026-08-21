@@ -307,6 +307,14 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
             assert len(await am.digest()) == 64
             assert "unknown" in (await am.why(S["aio-unknown"](V.x))).lower()
 
+            token_pattern = r"AIO[0-9]+"
+            await am.register_token(token_pattern, lambda token: S["aio-token"](token))
+            try:
+                assert await am.parse("AIO7") == S["aio-token"]("AIO7")
+            finally:
+                await am.unregister_token(token_pattern)
+            assert await am.parse("AIO7") == S.AIO7
+
             groups, profile = await am.profile("!(+ 1 2)")
             assert groups == [[3]]
             assert profile.samples >= 0

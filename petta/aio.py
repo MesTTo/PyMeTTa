@@ -32,6 +32,9 @@ Guarantees:
   - async new_space forwards inheritance, restriction, and grants on the
     owning worker [tested test_async_new_space_forwards_restriction_and_grants;
     commit=6a08901f4125c2536f5b4032daac9937f793870f]
+  - reader-token registration and removal run on the owning engine worker and
+    mirror the synchronous surface [tested:
+    test_aio_plain_methods_forward_on_the_worker; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -753,6 +756,14 @@ class AsyncMeTTa:
     async def parse(self, source: str) -> Any:
         """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
+
+    async def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+        """Register a full-lexeme reader class on the engine worker."""
+        return await self.call(lambda m: m.register_token(pattern, constructor))
+
+    async def unregister_token(self, pattern: str) -> None:
+        """Remove a reader class from the engine worker."""
+        return await self.call(lambda m: m.unregister_token(pattern))
 
     @overload
     async def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...

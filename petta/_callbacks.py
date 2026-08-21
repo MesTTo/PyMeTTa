@@ -1,7 +1,8 @@
 """Purpose: expose Python engine callbacks under the petta_ops import name.
 Guarantees:
   - the callback facade owns no registry state and delegates to its owning
-    modules [tested test_callback_facade_owns_no_state_and_delegates]
+    modules, including reader-token construction [tested:
+    test_callback_facade_owns_no_state_and_delegates; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,6 +18,7 @@ from ._ops import (
     dispatch_raw_many,
     type_names,
 )
+from ._tokens import construct_token
 from .foreign import (
     foreign_add,
     foreign_add_many,
@@ -36,6 +38,7 @@ from .subscribe import atom_added, atom_removed
 __all__ = [
     "atom_added",
     "atom_removed",
+    "construct_token",
     "dispatch",
     "dispatch_inverse",
     "dispatch_inverse_raw",

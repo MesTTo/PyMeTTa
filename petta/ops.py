@@ -5,6 +5,10 @@ annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - registration distinguishes a MeTTa function name from its declaration
     space [tested test_public_context_types_are_distinct]
+  - registration asks the engine grammar whether the requested name reads as
+    one symbol and refuses before reflecting or registering anything [tested:
+    test_register_op_refuses_a_name_metta_cannot_read;
+    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -265,6 +269,22 @@ def _operation_declarations(
     return tuple(_type_declarations(name, params, fn))
 
 
+def _require_readable_name(runtime: Any, name: MettaName) -> None:
+    """Refuse a name the engine reader would turn into anything but itself."""
+    refusal = runtime.apply("petta_py_symbol_refusal", name)
+    if refusal is None:
+        return
+    kind, *detail = refusal
+    if kind == "empty":
+        reason = "the name is empty"
+    elif kind == "character":
+        reason = f"character {detail[0]!r} prevents it being one symbol"
+    else:
+        reason = f"the token beginning with character {detail[0]!r} is another literal"
+    msg = f"cannot register operation {name!r}: {reason} in MeTTa's reader"
+    raise ValueError(msg)
+
+
 def _rollback_registration(
     runtime: Any,
     operation: Operation,
@@ -461,6 +481,10 @@ def register(
             msg
         )
     declarations = _operation_declarations(metta_name, params, fn, typed)
+    # The grammar check is the last read before the registration transaction:
+    # every Python-side refusal above remains free, and an unreadable name has
+    # not reflected a contract atom or opened a predicate when it is rejected.
+    _require_readable_name(runtime, metta_name)
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,

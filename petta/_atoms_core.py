@@ -52,7 +52,6 @@ from __future__ import annotations
 import contextlib
 import math
 import numbers as _numbers
-import re
 import threading
 import weakref
 from abc import ABCMeta
@@ -60,10 +59,6 @@ from collections import deque
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
 from typing import Any, Self, TypeVar, cast
-
-# A symbol prints bare only when PeTTa's tokeniser would read it back whole:
-# token//1 stops at whitespace, parentheses and quotes.
-_BARE = re.compile(r'^[^\s()"]+$')
 
 
 def _encodable(value: str) -> str:

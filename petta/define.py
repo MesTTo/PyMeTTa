@@ -54,14 +54,6 @@ def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
     return params.copy() if isinstance(params, dict) else {param: param for param in params}
 
 
-def canonical_aux(equation: Expr, name: str) -> Expr:
-    """The equation with its auxiliary names serial-independent, for
-    comparing a re-defined clause against the recorded one: every symbol
-    `name--kind-N` becomes `name--kind` numbered by first appearance.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return canonical_aux_set((equation,), name)[0]
-
-
 def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...]:
     """Canonicalize a main equation and all its helper equations together.
 

@@ -1,7 +1,15 @@
 """Purpose: property-based tests over the atom model and the boundary.
 Hypothesis generates random atoms; the laws are wire round trips in Python
-and through the live engine, print-then-parse agreement with the engine's own
-reader, alpha-equivalence being an equivalence, and unification soundness.
+and through the live engine, writer refusal or print-then-parse agreement with
+the engine's own reader, alpha-equivalence being an equivalence, and
+unification soundness.
+Guarantees:
+  - every generated atom either survives the engine writer-reader round trip
+    or receives the writer's explicit loss-of-identity refusal [tested:
+    test_every_generated_atom_survives_the_write_parse_round_trip;
+    commit=53686aed41e7ff02de69052198afdb537536cbdb]
+  - booleans use MeTTa's canonical True and False text [tested:
+    test_swrite_writes_mettas_own_boolean_literal; commit=53686aed41e7ff02de69052198afdb537536cbdb]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,6 +21,7 @@ import sys
 import pytest
 
 from petta import (
+    EngineError,
     Expr,
     Gnd,
     S,
@@ -41,6 +50,28 @@ _numbers = pt.numbers()
 _strings = pt.texts()
 _atoms = pt.atoms
 
+# This lane deliberately goes beyond petta.testing.atoms(), whose public
+# strategy generates only reader-safe names and serializable grounded values.
+# The writer law must cover values at the edge of its domain too: arbitrary
+# UTF-8 symbol names, and Janus tuples that have no MeTTa literal.
+_any_text = st.text(
+    alphabet=st.characters(codec="utf-8", exclude_characters="\x00"), max_size=20
+)
+_host_tuples = st.one_of(
+    st.just(()),
+    st.tuples(st.integers(-100, 100), _any_text),
+)
+_writer_atoms = st.recursive(
+    st.one_of(
+        _any_text.map(Sym),
+        pt.variables(),
+        pt.grounded(),
+        _host_tuples.map(Gnd),
+    ),
+    lambda inner: st.lists(inner, max_size=4).map(Expr),
+    max_leaves=10,
+)
+
 
 @given(_atoms())
 def test_python_wire_round_trip(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -66,20 +97,42 @@ def test_engine_wire_round_trip(metta_session, atom):
 # splits dumps on newlines, and the fuzz round read that back as corruption.
 # The other four are the rest of hyperon's five string escapes, which the
 # reader decodes and the printer therefore has to emit.
+@example(atom=Sym("$notvar"))
+@example(atom=Sym("has space"))
+@example(atom=Sym("42"))
+@example(atom=Gnd((1, 2)))
+@example(atom=Gnd(()))
 @example(atom=Gnd("line one\nline two"))
 @example(atom=Gnd("a\tb"))
 @example(atom=Gnd('say "hi"'))
 @example(atom=Gnd("back\\slash"))
 @example(atom=Gnd("carriage\rreturn"))
 @example(atom=expr(S.s, Gnd("nested\nnewline")))
-@given(_atoms())
-@settings(max_examples=60, deadline=None)
-def test_print_then_parse_agrees_with_the_engine(metta_session, atom):
-    """The engine's printer and reader close the loop, up to variable names."""
+@given(_writer_atoms)
+@settings(max_examples=100, deadline=None)
+def test_every_generated_atom_survives_the_write_parse_round_trip(
+    metta_session, atom
+):
+    """The writer either closes the reader loop or refuses before text exists."""
     rt = metta_session.runtime
-    printed = rt.once("petta_py_swrite(W, Str)", W=atom.to_wire())["Str"]
+    try:
+        printed = rt.once("petta_py_swrite(W, Str)", W=atom.to_wire())["Str"]
+    except EngineError as error:
+        message = str(error)
+        assert "cannot write" in message
+        assert "read back as a different value" in message
+        return
     reread = rt.once("petta_py_parse(Src, W2)", Src=printed)["W2"]
     assert alpha_eq(from_wire(reread), atom)
+
+
+def test_swrite_writes_mettas_own_boolean_literal(metta_session):
+    """The engine emits the language's canonical boolean spellings."""
+    rt = metta_session.runtime
+    true_atom = metta_session.parse("True")
+    false_atom = metta_session.parse("False")
+    assert rt.once("petta_py_swrite(W, Str)", W=true_atom.to_wire())["Str"] == "True"
+    assert rt.once("petta_py_swrite(W, Str)", W=false_atom.to_wire())["Str"] == "False"
 
 
 @given(_atoms(), _atoms())

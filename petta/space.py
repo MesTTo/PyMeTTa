@@ -63,6 +63,19 @@ Guarantees:
     an operand add() would lift into one atom [tested
     test_ior_merges_a_space_equations_included,
     test_ior_refuses_the_operands_add_would_lift]
+  - builtins() returns every registered function and every translator special
+    form, sorted without duplicates [tested:
+    test_builtins_equals_the_union_of_functions_and_special_forms;
+    commit=bcf80e727923cce0e034f716d7eef01f9395c490]
+  - register_op refuses a name the engine reader cannot recover as one symbol,
+    before changing either the engine or Python registries [tested:
+    test_register_op_refuses_a_name_metta_cannot_read;
+    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
+  - register_token installs a full-lexeme reader class and unregister_token
+    removes it; replacement affects future parses without changing atoms
+    already returned [tested:
+    test_a_registered_token_class_parses_like_a_shipped_one;
+    commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
@@ -838,6 +851,33 @@ class MeTTa:
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
         return parse(source)
+
+    def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+        """Register a full-token regex and its Atom constructor.
+
+        The constructor receives the complete matched lexeme. It may return an
+        Atom or any value accepted by :func:`petta.encode`. A later registration
+        of the same pattern replaces the constructor. Only future parses read
+        the new mapping; atoms already returned are immutable values.
+        """
+        if not isinstance(pattern, str):
+            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
+            raise TypeError(msg)
+        if not callable(constructor):
+            msg = "a reader-token constructor must be callable"
+            raise TypeError(msg)
+        self._rt.must(
+            "petta_py_register_token(Pattern, Constructor)",
+            Pattern=pattern,
+            Constructor=constructor,
+        )
+
+    def unregister_token(self, pattern: str) -> None:
+        """Remove a reader-token class; an absent pattern is already removed."""
+        if not isinstance(pattern, str):
+            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
+            raise TypeError(msg)
+        self._rt.must("petta_py_unregister_token(Pattern)", Pattern=pattern)
 
     # ------------------------------------------------------------- space edits
 
@@ -1742,6 +1782,11 @@ class MeTTa:
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
 
+        A name must read back as one MeTTa symbol. A space, parenthesis,
+        quote, comment opener, variable spelling, number, boolean, or another
+        registered reader token is refused before any registry changes, with
+        the name and the conflicting character in the error.
+
         Annotations become a (: ...) declaration unless typed=False, and the
         three combinations answer differently, which is worth knowing because
         the middle one reads like nothing happened:
@@ -1846,7 +1891,7 @@ class MeTTa:
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
-        """Every function name the engine has registered."""
+        """Every registered function and translator special-form name."""
         return self._rt.builtins()
 
     def is_function(self, name: str) -> bool:
