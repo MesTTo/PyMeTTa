@@ -31,7 +31,7 @@ Guarantees:
     rewriting its own results are about, and a file that starts naming it and
     says nothing fails the discovery half rather than passing quietly
     [tested: test_each_narrowing_citation_in_the_plan_states_which_it_covers;
-    commit=WORKTREE]
+    commit=6bacf853c74cc01304ffc2bae038ff60e3309e16]
 Open Obligations:
   To Do: None
   Hacks: None

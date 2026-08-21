@@ -13,10 +13,10 @@ Guarantees:
   - a CONJUNCTION under `once` or `take N` stops at the bound instead of
     walking the join, and stops only where nothing between the row and the
     answer could fail
-    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=WORKTREE]
+    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=54dec4e6de76f3adfd3c6cb941a8f6b04e594fa2]
   - the bounded forms keep match/4's answer-shaped refusal, which the fused
     template-and-result spelling had lost
-    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=WORKTREE]
+    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=54dec4e6de76f3adfd3c6cb941a8f6b04e594fa2]
 Open Obligations:
   To Do: None
   Hacks: None

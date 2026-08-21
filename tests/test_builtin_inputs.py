@@ -21,7 +21,7 @@ Guarantees:
     nonlinear cases past that, and every backward query outside both refuses
     with a named reason rather than a bare instantiation error
     [tested: test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason;
-    commit=WORKTREE]
+    commit=51d4c13abb1e443a6f659dff60e606dc2bc4993f]
   - the four cross-file residual inputs and the already-repaired surface match
     path refuse under their own written names
     [tested: test_the_residual_positions_refuse_by_their_own_names;
