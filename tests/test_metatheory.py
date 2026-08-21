@@ -1,5 +1,12 @@
 """Purpose: the three acceptance criteria of the metatheory cluster, each
-    checked against behaviour rather than against prose. The confluence checker
+    checked against behaviour rather than against prose.
+    WHAT IT COVERS: REWRITING for confluence and NARROWING for termination,
+    which are different relations over the same rule set and are kept apart
+    everywhere below. Critical pairs are a rewriting notion; a translator rule
+    is applied by calling its compiled clause, so the rule and the term unify,
+    and that is narrowing. The termination reports therefore come from
+    engine/narrowing.pl's reduction rather than from engine/trs.pl's order
+    directly. The confluence checker
     is an ADAPTATION whose provenance and whose termination caveat are both
     recorded and both true; the compile-time rule set's termination is
     ESTABLISHED or the failure is NAMED, with no third answer; and two
@@ -20,6 +27,11 @@ Guarantees:
     corpus and not about one example.
   - the overlap test proves the thing the report warns about, by running the
     same two rules in both orders and getting two different answers.
+  - every file that names the rewriting machinery says which of narrowing and
+    rewriting its own results are about, and a file that starts naming it and
+    says nothing fails the discovery half rather than passing quietly
+    [tested: test_each_narrowing_citation_in_the_plan_states_which_it_covers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -320,3 +332,91 @@ def test_the_confluence_reporter_analyzes_prelude_registered_rules(repo_root):
     assert "shipped tier:" in report
     assert "specialization pairs" in report
     assert "EQUIVALENCE OBLIGATION" in report
+
+
+# The files that make a claim about the compile-time rule set's metatheory:
+# the two machinery files, and every file that loads one of them. Each is
+# mapped to the relation its own results are about. `check.sh` loads both to
+# check for undefined predicates and is not here, because a runner makes no
+# claim; it is also not one of the extensions the discovery below walks.
+COVERAGE = {
+    "engine/trs.pl": {"REWRITING"},
+    "engine/narrowing.pl": {"NARROWING"},
+    # A THIRD sense of the word, named so it is not read as the second:
+    # constructive negation narrows a variable's domain, which is not the
+    # relation the termination analysis decides.
+    "engine/duals.pl": {"NARROWING"},
+    "tests/prolog/trs.plt": {"REWRITING"},
+    "tests/prolog/narrowing.plt": {"NARROWING"},
+    "tests/prolog/translator_confluence.pl": {"REWRITING", "NARROWING"},
+    "tests/prolog/README.md": {"REWRITING", "NARROWING"},
+    "tests/conformance/critical_pairs_run.pl": {"REWRITING"},
+    "bindings/python/tests/test_critical_pair_oracle.py": {"REWRITING"},
+    "bindings/python/tests/test_metatheory.py": {"REWRITING", "NARROWING"},
+}
+
+_MACHINERY = ("engine/trs.pl", "engine/narrowing.pl")
+_COVERS = re.compile(r"WHAT (?:IT|EACH HALF) COVERS: ([^.]*)")
+
+
+def _claim_named_by(text):
+    """Which of the two relations a file says its own results are about."""
+    return {
+        term
+        for sentence in _COVERS.findall(text)
+        for term in ("REWRITING", "NARROWING")
+        if term in sentence
+    }
+
+
+def test_each_narrowing_citation_in_the_plan_states_which_it_covers(repo_root):
+    """Narrowing and rewriting are different relations, and a file that
+    borrows a result from one has to say which.
+
+    Measured 2026-08-18: with `(= (f a) 1)` and `(= (f b) 2)`,
+    `!(let $r (f $x) ($x $r))` answers `[(a 1), (b 2)]`, so evaluating
+    `(f $x)` INSTANTIATES `$x`. The head is not an instance of the goal, they
+    unify, and that is narrowing. Every confluence result this repository
+    borrows, Knuth and Bendix through the critical-pair enumerators, is a
+    REWRITING result, and Nishida and Vidal's paper exists because termination
+    of narrowing does not follow from termination of rewriting.
+
+    The in-repo surface is thinner than the plan that records the same
+    correction: the repository cites only what it BUILT ON, which is nine
+    files. So this pins those, on both sides. Every one of them says which
+    relation its results are about, and the set cannot grow silently, because
+    a file that loads engine/trs.pl or engine/narrowing.pl and says nothing
+    fails the discovery half below.
+    """
+    walked = [
+        path
+        for pattern in ("engine/*.pl", "tests/**/*.pl", "tests/**/*.plt",
+                        "tests/**/*.md", "bindings/python/tests/*.py")
+        for path in repo_root.glob(pattern)
+    ]
+    assert len(walked) > 100, len(walked)
+
+    naming = {
+        path.relative_to(repo_root).as_posix()
+        for path in walked
+        if any(machinery in path.read_text(encoding="utf-8") for machinery in _MACHINERY)
+    }
+    assert naming == set(COVERAGE), (
+        "a file that names the rewriting machinery must say what its results "
+        f"cover; unmapped {sorted(naming - set(COVERAGE))}, "
+        f"stale {sorted(set(COVERAGE) - naming)}"
+    )
+
+    for relative, expected in COVERAGE.items():
+        claimed = _claim_named_by((repo_root / relative).read_text(encoding="utf-8"))
+        assert claimed == expected, (relative, claimed, expected)
+
+    # The claims are not decoration: the two machinery headers state the
+    # relation between the relations, which is the whole content of the
+    # correction, and each states it from its own side.
+    rewriting = (repo_root / "engine" / "trs.pl").read_text(encoding="utf-8")
+    narrowing = (repo_root / "engine" / "narrowing.pl").read_text(encoding="utf-8")
+    assert "termination of rewriting\n%   does not imply it" in narrowing
+    assert "The reduction to REWRITING is the whole content" in narrowing
+    assert "engine/narrowing.pl is the file that" in rewriting
+    assert "INSTANTIATES $x" in rewriting
