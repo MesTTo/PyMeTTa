@@ -1,0 +1,80 @@
+"""Purpose: the matching-core cluster's acceptance criteria, run not read.
+
+One compiler means a quoted term in a pattern position holds what a quoted term
+in a body position holds.
+
+Assumes:
+  - a MeTTa program can be evaluated in-process through ``petta.MeTTa``, and
+    one query group's atoms come back in their stable textual form.
+Guarantees:
+  - `quote` scopes a pattern exactly as it scopes a body, so a head written to
+    match what a body writes does match it.
+  [tested: test_quote_is_a_scope_in_head_position_too; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from petta import MeTTa
+
+# Terms whose meaning changes if a pattern's quote is walked instead of held.
+# `cons` is rewritten into an improper list by the pattern walk, `:` into a
+# type premise goal, and a defined label used to be run backwards; a body's
+# quote does none of those to any of them.
+QUOTED_PAYLOADS = [
+    "(cons 1 2)",
+    "(: $x Number)",
+    "(g $x)",
+    "(h (g 1))",
+    "(foo bar)",
+    "$x",
+]
+
+
+def _answers(metta: MeTTa, source: str) -> list[str]:
+    """Return one query group's atoms in their stable textual form."""
+    groups = metta.run(source)
+    assert len(groups) == 1
+    return [str(atom) for atom in groups[0]]
+
+
+@pytest.mark.parametrize(
+    "index, payload", list(enumerate(QUOTED_PAYLOADS)), ids=QUOTED_PAYLOADS
+)
+def test_quote_is_a_scope_in_head_position_too(index, payload):
+    """A quoted pattern matches the value a quoted body produces.
+
+    The body's own output is fed straight into the head's own pattern, so the
+    two positions are compared against each other rather than against a
+    transcription of what either was expected to compile to. Measured on the
+    tip before the pattern walk stopped descending into a quote: with the
+    payload ``(cons 1 2)`` the body compiled the value ``[quote, [cons, 1, 2]]``
+    and the head compiled the pattern ``[quote, [1|2]]``, so this call had no
+    answer at all.
+    """
+    metta = MeTTa(verbose=False)
+    body, head = f"qs-body-{index}", f"qs-head-{index}"
+    metta.run(f"(= ({body}) (quote {payload}))")
+    metta.run(f"(= ({head} (quote {payload})) matched)")
+    assert _answers(metta, f"!({head} ({body}))") == ["matched"]
+
+
+def test_a_quoted_annotation_pattern_matches_the_annotation_and_not_its_subject():
+    """The sharpest observable half of the same change, in both directions.
+
+    While the walk descended, ``(= (h3 (quote (: $x Number))) matched)``
+    compiled to ``h3([quote, A], matched) :- has_type(A, 'Number')``: the
+    pattern had lost the annotation and kept only its variable, so it matched
+    ``(quote 5)``, which nobody wrote it for, and refused
+    ``(quote (: foo Number))``, which is exactly what it says.
+    """
+    metta = MeTTa(verbose=False)
+    metta.run("(= (h3 (quote (: $x Number))) matched)")
+    assert _answers(metta, "!(h3 (quote (: foo Number)))") == ["matched"]
+    assert _answers(metta, "!(h3 (quote (: 7 Number)))") == ["matched"]
+    assert _answers(metta, "!(h3 (quote 5))") == ["(h3 (quote 5))"]
