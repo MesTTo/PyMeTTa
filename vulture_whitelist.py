@@ -52,6 +52,11 @@ _.matching
 _.reachable
 
 # Protocol fields and methods read by getattr, a framework, or the wire.
+# PlanDecision is the algebra evaluator's law-gate answer; callers read the
+# withheld optimization, whether it applied, and the laws it still misses.
+optimization
+applied
+missing_laws
 exact_integers
 non_finite
 resolves_anonymous
