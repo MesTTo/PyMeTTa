@@ -2074,8 +2074,13 @@ petta_py_unregister_extension(Name0) :-
     unregister_metta_extension(Name).
 
 %Every function or translator special-form name the language knows, for
-%completion and docs. The translator clause table is the special-form
-%registry; asking it keeps this answer current when a form is added there.
+%completion and docs. The special forms come from the translator's published
+%service rather than from its clause table: this used to read
+%clause(Engine:translate_special_dl(...), _) directly, and the moment the
+%compiler's clauses moved into a module of their own the read matched nothing
+%and m.builtins() quietly answered 31 names short, with no error anywhere
+%[measured 2026-08-22: 268 names before the translator became a module, 237
+%after, 268 again through the service].
 petta_py_builtins(Names) :-
     findall(N, fun(N), Functions),
     petta_py_special_form_names(SpecialForms),
@@ -2084,11 +2089,7 @@ petta_py_builtins(Names) :-
     maplist(atom_string, Language, Names).
 
 petta_py_special_form_names(Names) :-
-    petta_engine_module(Engine),
-    findall(Name,
-            ( clause(Engine:translate_special_dl(Name, _, _, _, _), _),
-              atom(Name) ),
-            Names0),
+    findall(Name, metta_special_form_head(Name), Names0),
     sort(Names0, Names).
 
 petta_py_is_function(Name0) :-
@@ -2273,15 +2274,40 @@ petta_py_solve_(M, Goal, _, [builtin(Goal)], complete, _) :-
     predicate_property(M:Goal, built_in), !,
     call(M:Goal).
 
+%A clause's body runs in the module that DEFINES the clause, which is the
+%space's module for a MeTTa equation and an engine subsystem's for engine
+%machinery. Running it in the caller's module worked only while the whole
+%engine shared one namespace: once engine/spaces.pl became a module of its own,
+%descending into match/4 and calling its body under the space gave
+%existence_error(procedure, '$petta_exec:&self':match_native/5), because
+%match_native/5 is spaces' own and a base module lends only what it exports
+%[measured 2026-08-22, on every test in tests/test_derivation.py].
 petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
-    catch_recover(clause(M:Goal, Body, Ref), fail),
+    petta_py_clause_owner(M, Goal, Owner),
+    catch_recover(clause(Owner:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
       -> petta_py_next_depth(D, D1),
-         petta_py_solve_(M, Body, D1, Sub, Status, Barrier),
+         petta_py_solve_(Owner, Body, D1, Sub, Status, Barrier),
          Tree = [step(Goal, Source, Sub)]
-    ; call(M:Body),
+    ; call(Owner:Body),
+      %The LEAF keeps the caller's module, because what it names is the space
+      %the fact came from and not the subsystem that ran the goal.
       petta_py_leaf(M, Goal, Tree),
       Status = complete ).
+
+%catch_recover/2 rather than catch/3, because this runs once per level of a
+%derivation and a blanket catch swallows the very signals that stop an
+%unbounded one: inference_limit_exceeded arriving inside predicate_property/2
+%was caught here and the loop ran on to a stack overflow at depth 9,673,261
+%instead of raising at 2,000 inferences
+%[measured 2026-08-22; tested: test_unbounded_derivation_obeys_resource_guards].
+petta_py_clause_owner(M, Goal, Owner) :-
+    (   catch_recover(predicate_property(M:Goal,
+                                         implementation_module(Definer)),
+                      fail)
+    ->  Owner = Definer
+    ;   Owner = M
+    ).
 
 petta_py_findall_results([], [], [], complete).
 petta_py_findall_results(
