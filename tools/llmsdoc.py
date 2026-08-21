@@ -131,6 +131,7 @@ def counts() -> list[tuple[str, int]]:
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/petta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/*.plt")))),
         (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*.py")))),
+        (r"(\d+) Python twins", len(list(ROOT.glob("bindings/python/tests/twins/**/*.py")))),
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
         (r"(\d+) runnable Python programs", len(list(ROOT.glob("bindings/python/examples/*/*.py")))),
