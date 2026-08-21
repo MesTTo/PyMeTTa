@@ -310,7 +310,7 @@ def test_subscription_cancel_is_thread_safe(m):  # noqa: D103  -- pytest discove
     def cancel():
         try:
             subscription.cancel()
-        except Exception as error:  # noqa: BLE001  -- the race harvest must record whatever a losing cancel raises
+        except Exception as error:
             failures.append(error)
 
     threads = [threading.Thread(target=cancel) for _ in range(20)]
@@ -587,7 +587,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
     remote rows with local facts across the wire.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     script = Path(__file__).parent / "data" / "remote_server.py"
-    child = subprocess.Popen(  # noqa: S603  -- the argv is sys.executable plus a repo-tracked script path, no untrusted input
+    child = subprocess.Popen(
         [sys.executable, str(script)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -674,12 +674,12 @@ def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytes
     server = remote.serve(
         metta,
         spaces=[served.space_name],
-        token="s3cret",  # noqa: S106  -- a fixture credential for the refusal scenario, not a real secret
+        token="s3cret",
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
     )
     try:
         with pytest.raises(PettaError, match="credentials require an https URL"):
-            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})  # noqa: S106  -- a fixture credential for the refusal scenario, not a real secret
+            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
     finally:
         server.close()
         served.drop()
@@ -689,8 +689,8 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     if shutil.which("openssl") is None:
         pytest.skip("openssl is not installed")
     key, cert = tmp_path / "k.pem", tmp_path / "c.pem"
-    subprocess.run(  # noqa: S603  -- the argv is a literal openssl invocation over tmp_path outputs, no untrusted input
-        [  # noqa: S607  -- openssl resolves through PATH deliberately; the test skips when it is absent
+    subprocess.run(
+        [
             "openssl",
             "req",
             "-x509",
@@ -719,7 +719,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     server = remote.serve(
         metta,
         spaces=[served.space_name],
-        token="s3cret",  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
+        token="s3cret",
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
         ssl_context=server_context,
     )
@@ -727,7 +727,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
         assert server.url.startswith("https://")
         transport = remote.connect(
             server.url,
-            token="s3cret",  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
+            token="s3cret",
             headers={"x-tenant": "acme"},
             ssl_context=client_context,
         )
@@ -736,13 +736,13 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
         with pytest.raises(PettaError, match="not authorized"):
             bad_token = remote.connect(
                 server.url,
-                token="wrong",  # noqa: S106  -- a deliberately invalid fixture credential, not a real secret
+                token="wrong",
                 headers={"x-tenant": "acme"},
                 ssl_context=client_context,
             )
             list(remote.RemoteSpace(bad_token, served.space_name).atoms())
         with pytest.raises(PettaError, match="not authorized"):
-            no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)  # noqa: S106  -- a fixture credential for the TLS scenario, not a real secret
+            no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)
             list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
     finally:
         server.close()

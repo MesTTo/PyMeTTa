@@ -228,7 +228,7 @@ def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or inj
     [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
 )
 def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    restored = pickle.loads(pickle.dumps(atom))  # noqa: S301  -- the bytes come from pickle.dumps in the same expression, never untrusted input
+    restored = pickle.loads(pickle.dumps(atom))
     assert restored == atom
     assert type(restored) is type(atom)
 

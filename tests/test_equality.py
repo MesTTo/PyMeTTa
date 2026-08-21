@@ -90,7 +90,7 @@ def test_mixed_numeric_equality_answers_what_the_arbiter_answers(declared):
     """LeaTTa's `Ground.equiv` promotes the integer with `Float.ofInt` in
     both mixed numeric cases (`MettaHyperonFull/Core/Atom.lean:47-62`), and
     `Atom.equiv` uses that relation for grounded atoms (lines 110-116).
-    """
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answer(declared, "(== 1 1.0)") == ["True"]
     assert _answer(declared, "(== 1.0 1)") == ["True"]
     assert _answer(declared, "(!= 1 1.0)") == ["False"]

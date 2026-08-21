@@ -16,8 +16,8 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
-"""
+  Future Enhancements: None.
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import pytest
 
@@ -33,6 +33,7 @@ def _release(metta, space_term):
 
 
 def test_two_instances_of_a_parametric_space_answer_independently(metta):
+    """Two instances of one parametric family hold independent atoms and answers."""
     left = "(cache &p12-param-left 100)"
     right = "(cache &p12-param-right 10)"
     definition = (
@@ -95,6 +96,7 @@ def test_two_instances_of_a_parametric_space_answer_independently(metta):
 
 
 def test_invalid_parametric_names_publish_no_cache_entry(metta):
+    """A malformed parametric identifier publishes no native or execution cache entry."""
     before = metta.runtime.must(
         "aggregate_all(count, space_parametric(_), Parametric), "
         "aggregate_all(count, native_storage_module_cache(_, _), Storage), "
@@ -118,6 +120,7 @@ def test_invalid_parametric_names_publish_no_cache_entry(metta):
 
 
 def test_a_parametric_fact_leaf_names_its_space(metta):
+    """A derivation leaf recovers the ground expression identity of its space."""
     name = "[cache, '&p12-param-leaf', 1]"
     try:
         metta.run("!(new-space (cache &p12-param-leaf 1))")
@@ -133,6 +136,7 @@ def test_a_parametric_fact_leaf_names_its_space(metta):
 
 
 def test_a_callable_family_head_does_not_replace_the_identity(metta):
+    """A callable family head at a space door names the instance, never evaluates."""
     surface = "(cache &p12-param-callable 2)"
     name = "[cache, '&p12-param-callable', 2]"
     try:

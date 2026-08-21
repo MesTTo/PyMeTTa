@@ -63,47 +63,59 @@ class NativeInheritedSpace(SpaceProvider):
     """Adapt a native child to the provider protocol the shared suite drives."""
 
     def __init__(self):
+        """Build a parent and an inheriting child seeded with the suite's rows."""
         self.parent = MeTTa().new_space()
         self.child = MeTTa().new_space(inherits=self.parent)
         self.child.add(*ROWS)
 
     def match(self, _pattern):
+        """Answer the child's atoms for any pattern; the suite checks membership."""
         return iter(self.child.atoms())
 
     def atoms(self):
+        """Enumerate the child-first union the inherited space reads."""
         return iter(self.child.atoms())
 
     def add(self, atom):
+        """Write into the child, front-only."""
         self.child.add(atom)
 
     def add_many(self, atoms):
+        """Bulk-write into the child, front-only."""
         self.child.add(*atoms)
 
     def remove(self, atom):
+        """Remove from the child; a parent-only atom is a miss."""
         return self.child.remove(atom)
 
     def clear(self):
+        """Clear the child and leave the parent untouched."""
         self.child.clear()
 
     def can_run(self, capability, /, **request):
+        """Declare rule capability; defer the rest to the base declaration."""
         if capability == "rules":
             return True
         return super().can_run(capability, **request)
 
     def close(self):
+        """Drop the child before the parent it inherits from."""
         self.child.drop()
         self.parent.drop()
 
 
 class TestNativeInheritedSpaceComplies(SpaceComplianceSuite):
+    """The shared compliance suite passes against the engine-native inherited child."""
     @pytest.fixture()
     def provider(self):
+        """Yield a fresh adapter and close it after the suite finishes."""
         provider = NativeInheritedSpace()
         yield provider
         provider.close()
 
     @pytest.fixture()
     def space(self, provider, exercised):
+        """Yield the native child space the suite's generic checks run against."""
         del exercised
         yield provider.child
 

@@ -246,6 +246,51 @@ def _require_name(name: Any, called: str) -> None:
         raise TypeError(msg)
 
 
+def _checked_new_space_request(
+    inherits: MeTTa | None,
+    *,
+    restricted: bool,
+    grants: _abc.Iterable[str],
+) -> tuple[str, ...]:
+    """Refuse a malformed new_space request here, naming each refusal.
+
+    Validation lives at this public boundary so the engine-side declaration
+    transaction only ever sees a live parent, a boolean restriction, and
+    known string capability grants.
+    """
+    if inherits is not None and not isinstance(inherits, MeTTa):
+        msg = f"new_space(inherits=...) takes a live MeTTa space, got {inherits!r}"
+        raise TypeError(msg)
+    if inherits is not None and inherits._dropped:
+        msg = "new_space(inherits=...) takes a live MeTTa space"
+        raise PettaError(msg)
+    if not isinstance(restricted, bool):
+        msg = "new_space(restricted=...) takes a bool"
+        raise TypeError(msg)
+    if isinstance(grants, str):
+        msg = "new_space(grants=...) takes an iterable of capability names"
+        raise TypeError(msg)
+    try:
+        requested_grants = tuple(grants)
+    except TypeError as exc:
+        msg = "new_space(grants=...) takes an iterable of capability names"
+        raise TypeError(msg) from exc
+    if any(not isinstance(capability, str) for capability in requested_grants):
+        msg = "every new_space grant must be a string"
+        raise TypeError(msg)
+    unknown = set(requested_grants) - {"file", "process", "network"}
+    if unknown:
+        msg = f"unknown space capabilities: {sorted(unknown)!r}"
+        raise ValueError(msg)
+    if requested_grants and not restricted:
+        msg = "new_space grants require restricted=True"
+        raise ValueError(msg)
+    if inherits is not None and restricted:
+        msg = "a space cannot be both inherited and restricted"
+        raise ValueError(msg)
+    return requested_grants
+
+
 def _source_identity(source: str | None, path: Any) -> str:
     """What the engine will record this registration's source as.
 
@@ -446,32 +491,9 @@ class MeTTa:
         isolate the data a test writes, not the names it registers; to isolate
         a name, unregister it.
         """
-        if inherits is not None and not isinstance(inherits, MeTTa):
-            raise TypeError(
-                f"new_space(inherits=...) takes a live MeTTa space, got "
-                f"{inherits!r}"
-            )
-        if inherits is not None and inherits._dropped:
-            raise PettaError("new_space(inherits=...) takes a live MeTTa space")
-        if not isinstance(restricted, bool):
-            raise TypeError("new_space(restricted=...) takes a bool")
-        if isinstance(grants, str):
-            raise TypeError("new_space(grants=...) takes an iterable of capability names")
-        try:
-            requested_grants = tuple(grants)
-        except TypeError as exc:
-            raise TypeError(
-                "new_space(grants=...) takes an iterable of capability names"
-            ) from exc
-        if any(not isinstance(capability, str) for capability in requested_grants):
-            raise TypeError("every new_space grant must be a string")
-        unknown = set(requested_grants) - {"file", "process", "network"}
-        if unknown:
-            raise ValueError(f"unknown space capabilities: {sorted(unknown)!r}")
-        if requested_grants and not restricted:
-            raise ValueError("new_space grants require restricted=True")
-        if inherits is not None and restricted:
-            raise ValueError("a space cannot be both inherited and restricted")
+        requested_grants = _checked_new_space_request(
+            inherits, restricted=restricted, grants=grants
+        )
 
         if restricted:
             row = self._rt.must(

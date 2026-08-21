@@ -157,8 +157,8 @@ def test_non_finite_floats_print_the_arbiters_spellings(repo_root, tmp_path):
         "!(py-atom \"float('nan')\")\n",
         encoding="utf-8",
     )
-    done = subprocess.run(  # noqa: S603  -- the argv is a literal swipl invocation over repo paths, no untrusted input
-        ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),  # noqa: S607  -- swipl resolves through PATH deliberately, as the CLI does
+    done = subprocess.run(
+        ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),
          "--", "silent", str(program)],
         capture_output=True,
         text=True,

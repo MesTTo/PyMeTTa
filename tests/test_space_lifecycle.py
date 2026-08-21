@@ -206,6 +206,7 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
 
 
 def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
+    """A parent refuses to drop while a live child inherits from its name."""
     parent = metta.new_space()
     child = metta.new_space(inherits=parent)
     try:
@@ -219,6 +220,7 @@ def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
 
 
 def test_a_recycled_child_name_may_choose_a_different_parent(drained):
+    """A recycled child name may declare a different parent in its next life."""
     first_parent = drained.new_space()
     second_parent = drained.new_space()
     first_parent.add(S.from_parent(S.first))

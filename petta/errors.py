@@ -105,6 +105,7 @@ class SpaceCapabilityError(EngineError):
         operation: str,
         capability: str,
     ):
+        """Carry the refusing space, operation, and missing capability as data."""
         super().__init__(
             message,
             space=space,

@@ -725,10 +725,11 @@ class Runtime:
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
-            raise EngineError(
+            msg = (
                 f"{message}; the capability classifier failed: "
                 f"{_clean_message(classifier_error)}"
-            ) from exc
+            )
+            raise EngineError(msg) from exc
         if row is None or row.get("truth") is False:
             return
         space = row.get("Space")

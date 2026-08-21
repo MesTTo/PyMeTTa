@@ -9,8 +9,8 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None
-"""
+  Future Enhancements: None.
+"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import asyncio
 
@@ -22,6 +22,7 @@ from petta import S, SpaceCapabilityError, aio
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
     metta, tmp_path
 ):
+    """File, process, and network operations refuse by naming the missing capability."""
     path = tmp_path / "visible.txt"
     path.write_text("visible")
 
@@ -68,6 +69,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
 
 
 def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
+    """A restricted space cannot reach an unrestricted space through evalc or writes."""
     with metta.new_space() as victim:
         with metta.new_space(restricted=True) as locked:
             with pytest.raises(SpaceCapabilityError) as evalc_error:
@@ -81,6 +83,7 @@ def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
 
 
 def test_a_recycled_name_retains_no_restriction(metta):
+    """Dropping a restricted space removes its policy before the name is reused."""
     restricted = metta.new_space(restricted=True)
     name = restricted.space_name
     restricted.drop()
@@ -95,6 +98,7 @@ def test_a_recycled_name_retains_no_restriction(metta):
 
 
 def test_restricted_constructor_validation_is_eager(metta):
+    """Malformed restriction and grant arguments refuse before any space exists."""
     with pytest.raises(ValueError, match="grants require"):
         metta.new_space(grants=("file",))
     with pytest.raises(ValueError, match="unknown space capabilities"):
@@ -105,6 +109,7 @@ def test_restricted_constructor_validation_is_eager(metta):
 
 
 def test_async_new_space_forwards_restriction_and_grants(metta, tmp_path):
+    """AsyncMeTTa.new_space forwards restricted= and grants= to the same policy."""
     path = tmp_path / "async-visible.txt"
     path.write_text("visible")
 
