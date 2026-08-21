@@ -1,10 +1,14 @@
 """Purpose: the third truth value crosses whole. An answer that is
 undefined under Well Founded Semantics reaches Python as Undefined with
-its delay condition, residual programs fill on request, definite answers
+its delay condition, definite answers
 stay plain atoms, and value() refuses to pretend an undefined answer is
 a value. Before this surface, such answers arrived as ordinary-looking
 unbound variables with wrapper truth True, the silently wrong shape
 ai-tabling-review.md section 3 pinned.
+Guarantees:
+  - Undefined carries only the answer and its delay condition [tested:
+    test_undefined_answers_cross_as_undefined;
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -45,7 +49,7 @@ def test_undefined_answers_cross_as_undefined(m, wfs_program):  # noqa: ARG001, 
     answer = answers[0]
     assert isinstance(answer, Undefined)
     assert "wfs_loop" in answer.why
-    assert answer.residual is None
+    assert not hasattr(answer, "residual")
     with pytest.raises(PettaError, match="undefined"):
         bool(answer)
 
@@ -59,13 +63,6 @@ def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):  # noqa: ARG001
     # The delay names the conditional subgoal itself, the engine's own
     # granularity for the condition.
     assert "wfs_mixed(2)" in undefined[0].why
-
-
-def test_residuals_fill_on_request(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    (answer,) = m.eval("(translatePredicate (wfs_loop))", residuals=True)
-    assert isinstance(answer, Undefined)
-    assert answer.residual is not None
-    assert "tnot" in answer.residual
 
 
 def test_value_refuses_undefined_truth(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract

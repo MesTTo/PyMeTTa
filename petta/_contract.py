@@ -12,6 +12,21 @@ Assumes:
 Guarantees:
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
+  - registered operation kinds inhabit OpKind and `(op ...)` terms inhabit
+    OpDecl [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+  - compiled-definition source, capture, and effect facts are typed ordinary
+    declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - callable argument delivery is a typed `(arguments name atoms|values)`
+    policy in &petta [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - context image declarations state whether one Python type crosses as a
+    handle or a structural expression [tested:
+    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,14 +45,68 @@ _SUB = ":<"
 
 # (head, subject, object) triples; the whole ontology is (: X Y) and
 # (:< X Y) forms, so triples are the entire grammar it needs.
-ONTOLOGY: tuple[tuple[str, str, str], ...] = (
+_OP_DECL_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Number"), Sym("OpKind"), Sym("OpDecl")])
+_DEFINED_TYPE = Expr([Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("DefinitionFact")])
+_SOURCE_SPAN_TYPE = Expr(
+    [
+        Sym("->"),
+        Sym("SpaceType"),
+        Sym("Symbol"),
+        Sym("String"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("Number"),
+        Sym("DefinitionFact"),
+    ]
+)
+_FREE_VARIABLE_TYPE = Expr(
+    [
+        Sym("->"),
+        Sym("SpaceType"),
+        Sym("Symbol"),
+        Sym("Symbol"),
+        Sym("DefinitionFact"),
+    ]
+)
+_EFFECT_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Effect"), Sym("EffectDecl")])
+_ARGUMENTS_TYPE = Expr(
+    [Sym("->"), Sym("Symbol"), Sym("ArgumentDelivery"), Sym("ArgumentsDecl")]
+)
+_CONTEXT_IMAGE_TYPE = Expr(
+    [Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("ImageSetting"), Sym("ImageDecl")]
+)
+_REGISTRY_IMAGE_TYPE = Expr(
+    [Sym("->"), Sym("Symbol"), Sym("TypeImage"), Sym("ImageDecl")]
+)
+
+ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
     (_COLON, "Declaration", "Type"),
     (_COLON, "OpDecl", "Type"),
     (_SUB, "OpDecl", "Declaration"),
+    (_COLON, "OpKind", "Type"),
+    (_COLON, "det", "OpKind"),
+    (_COLON, "many", "OpKind"),
+    (_COLON, "raw_det", "OpKind"),
+    (_COLON, "raw_many", "OpKind"),
+    (_COLON, "op", _OP_DECL_TYPE),
+    (_COLON, "DefinitionFact", "Type"),
+    (_SUB, "DefinitionFact", "Declaration"),
+    (_COLON, "defined", _DEFINED_TYPE),
+    (_COLON, "source-span", _SOURCE_SPAN_TYPE),
+    (_COLON, "free-variable", _FREE_VARIABLE_TYPE),
     (_COLON, "EffectDecl", "Type"),
     (_SUB, "EffectDecl", "Declaration"),
+    (_COLON, "ArgumentsDecl", "Type"),
+    (_SUB, "ArgumentsDecl", "Declaration"),
+    (_COLON, "ArgumentDelivery", "Type"),
+    (_COLON, "atoms", "ArgumentDelivery"),
+    (_COLON, "values", "ArgumentDelivery"),
+    (_COLON, "arguments", _ARGUMENTS_TYPE),
     (_COLON, "ImageDecl", "Type"),
     (_SUB, "ImageDecl", "Declaration"),
+    (_COLON, "image", _CONTEXT_IMAGE_TYPE),
+    (_COLON, "image", _REGISTRY_IMAGE_TYPE),
     (_COLON, "HandlesDecl", "Type"),
     (_SUB, "HandlesDecl", "Declaration"),
     (_COLON, "LoweringDecl", "Type"),
@@ -64,6 +133,7 @@ ONTOLOGY: tuple[tuple[str, str, str], ...] = (
     (_SUB, "Exact", "Partial"),
     (_SUB, "Partial", "Sound"),
     (_COLON, "Effect", "Type"),
+    (_COLON, "effect", _EFFECT_TYPE),
     (_COLON, "immutable", "Effect"),
     (_COLON, "stable", "Effect"),
     (_COLON, "volatile", "Effect"),
@@ -131,8 +201,9 @@ def install(runtime) -> None:
     if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:
-        atom = Expr([Sym(head), Sym(subject), Sym(obj)])
+        atom = Expr([Sym(head), Sym(subject), obj if isinstance(obj, Expr) else Sym(obj)])
         runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
+
     def listener(_cls, old, new, _runtime=runtime):
         _reflect_image(_runtime, old, new)
 

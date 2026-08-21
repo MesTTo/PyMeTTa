@@ -4,6 +4,18 @@ Guarantees:
     test_literal_defaults_are_head_patterns_and_clauses_stack]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
+  - a definition is exposed only after its first twin clause exists, and its
+    canonical first-clause documentation follows replacement and clearing
+    [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - source spans, AST documentation, free variables, and derived purity
+    replace atomically across clause replacement and leave reflection on
+    clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - generated class-method operations declare their Atom delivery policy in
+    &petta rather than passing a boolean registration flag [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -32,8 +44,9 @@ from ._define_twins import (
     select_clause_twin,
     twin_dispatcher,
 )
+from ._documentation import documentation_atom
 from ._ops import REGISTRY
-from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, encode
+from .atoms import Atom, Expr, Gnd, S, Sym, Var, alpha_eq, encode, expr
 from .define import (
     Compiled,
     Defined,
@@ -52,6 +65,9 @@ from .ops import (
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
+_DEFINE_DOCUMENTATION: dict[tuple[str, str], Expr] = {}
+_DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expr, ...]] = {}
+_DEFINE_FACT_REFS: dict[str, int] = {}
 _DEFINE_LOCK = threading.RLock()
 
 
@@ -59,14 +75,15 @@ def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions."""
     with _DEFINE_LOCK:
         space.runtime.must("petta_py_clear(Space)", Space=space.space_name)
-        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES):
+        for key in [key for key in _DEFINE_REFLECTION if key[0] == space.space_name]:
+            for fact in _DEFINE_REFLECTION.pop(key):
+                _release_definition_fact(space, fact)
+        for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
             for key in [key for key in registry if key[0] == space.space_name]:
                 del registry[key]
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.space_name}
         )
-        if space.space_name != _ops_module.REFLECTION_SPACE:
-            space.runtime.must("petta_py_reflect_clear_defined(Space)", Space=space.space_name)
 
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -135,6 +152,11 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
     return (space.space_name, called) in _DEFINED_GENERATORS
 
 
+def _is_pure(space: Any, called: str) -> bool:
+    """Whether the engine's declaration set says this callee is immutable."""
+    return bool(space.runtime.once("metta_pure_operation(Name)", Name=called))
+
+
 def _validate_clause_order(
     space: Any,
     name: str,
@@ -199,7 +221,7 @@ def _locate_clause(
     replaced = None
     for position, clause in enumerate(earlier):
         if _same_clause(clause, canonical, name):
-            return True, None
+            return True, position
         if clause["patterns"] == patterns:
             replaced = position
     return False, replaced
@@ -220,6 +242,7 @@ def _defined_result(
         space,
         patterns=compiled.patterns,
         runtime_ops=compiled.runtime_ops,
+        facts=compiled.facts,
     )
 
 
@@ -234,31 +257,146 @@ def _store_clause(
     clause_twin: Any,
     replaced: int | None,
 ) -> None:
-    record = {
-        "patterns": patterns.copy(),
-        "equation": equation,
-        "aux": tuple(compiled.aux),
-    }
+    record = _clause_record(patterns, equation, compiled)
+    previous_atoms: list[Expr] = []
+    if replaced is not None:
+        previous = earlier[replaced]
+        previous_atoms = [*previous.get("aux", ()), previous["equation"]]
+        for atom in previous_atoms:
+            space.remove(atom)
+    added: list[Expr] = []
+    try:
+        for atom in (*compiled.aux, equation):
+            space.add(atom)
+            added.append(atom)
+    except BaseException:
+        for atom in reversed(added):
+            space.remove(atom)
+        for atom in previous_atoms:
+            space.add(atom)
+        raise
     if replaced is None:
         earlier.append(record)
         append_twin_clause(dispatcher, clause_twin)
     else:
-        space.remove(earlier[replaced]["equation"])
-        for helper_equation in earlier[replaced].get("aux", ()):
-            space.remove(helper_equation)
         earlier[replaced] = record
         replace_twin_clause(dispatcher, replaced, clause_twin)
-    for helper_equation in compiled.aux:
-        space.add(helper_equation)
-    space.add(equation)
 
 
-def _reflect_definition(space: Any, name: str) -> None:
-    space.runtime.must(
-        "petta_py_add(Space, W)",
-        Space=_ops_module.REFLECTION_SPACE,
-        W=Expr([Sym("defined"), Sym(space.space_name), Sym(name)]).to_wire(),
+def _clause_record(
+    patterns: dict[str, Atom], equation: Expr, compiled: Compiled
+) -> dict[str, Any]:
+    return {
+        "patterns": patterns.copy(),
+        "equation": equation,
+        "aux": tuple(compiled.aux),
+        "facts": compiled.facts,
+    }
+
+
+def _definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> tuple[Expr, ...]:
+    """The aggregate reflection of every live clause under one name."""
+    facts: list[Expr] = [Expr([Sym("defined"), Sym(space.space_name), Sym(name)])]
+    for clause in clauses:
+        derived = clause["facts"]
+        span = derived.source_span
+        facts.append(
+            Expr(
+                [
+                    Sym("source-span"),
+                    Sym(space.space_name),
+                    Sym(name),
+                    Gnd(span.path),
+                    Gnd(span.start_line),
+                    Gnd(span.start_column),
+                    Gnd(span.end_line),
+                    Gnd(span.end_column),
+                ]
+            )
+        )
+    facts.extend(
+        Expr(
+            [
+                Sym("free-variable"),
+                Sym(space.space_name),
+                Sym(name),
+                Sym(free_variable),
+            ]
+        )
+        for free_variable in sorted(
+            {variable for clause in clauses for variable in clause["facts"].free_variables}
+        )
     )
+    if clauses and all(clause["facts"].pure for clause in clauses):
+        facts.append(Expr([Sym("effect"), Sym(name), Sym("immutable")]))
+    return tuple(dict.fromkeys(facts))
+
+
+def _retain_definition_fact(space: Any, fact: Expr) -> None:
+    key = str(fact)
+    count = _DEFINE_FACT_REFS.get(key, 0)
+    if count == 0:
+        space.runtime.must(
+            "petta_py_add(Space, W)",
+            Space=_ops_module.REFLECTION_SPACE,
+            W=fact.to_wire(),
+        )
+    _DEFINE_FACT_REFS[key] = count + 1
+
+
+def _release_definition_fact(space: Any, fact: Expr) -> None:
+    key = str(fact)
+    count = _DEFINE_FACT_REFS.get(key, 0)
+    if count <= 1:
+        _DEFINE_FACT_REFS.pop(key, None)
+        space.runtime.once(
+            "petta_py_remove(Space, W, _)",
+            Space=_ops_module.REFLECTION_SPACE,
+            W=fact.to_wire(),
+        )
+    else:
+        _DEFINE_FACT_REFS[key] = count - 1
+
+
+def _sync_definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> None:
+    """Replace a definition's reflected facts, restoring the old set on error."""
+    key = (space.space_name, name)
+    previous = _DEFINE_REFLECTION.get(key, ())
+    current = _definition_facts(space, name, clauses)
+    retained: list[Expr] = []
+    released: list[Expr] = []
+    try:
+        for fact in current:
+            if fact not in previous:
+                _retain_definition_fact(space, fact)
+                retained.append(fact)
+        for fact in previous:
+            if fact not in current:
+                _release_definition_fact(space, fact)
+                released.append(fact)
+    except BaseException:
+        for fact in reversed(released):
+            _retain_definition_fact(space, fact)
+        for fact in reversed(retained):
+            _release_definition_fact(space, fact)
+        raise
+    _DEFINE_REFLECTION[key] = current
+
+
+def _document_definition(space: Any, name: str, dispatcher: Any) -> None:
+    """Publish the dispatcher's canonical first-clause documentation."""
+    key = (space.space_name, name)
+    previous = _DEFINE_DOCUMENTATION.get(key)
+    current = documentation_atom(name, dispatcher)
+    if current == previous:
+        return
+    if current is not None:
+        space.add(current)
+        _DEFINE_DOCUMENTATION[key] = current
+    else:
+        _DEFINE_DOCUMENTATION.pop(key, None)
+    if previous is not None:
+        space.remove(previous)
 
 
 def _declare_definition(
@@ -320,13 +458,13 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         fn,
         known=space.is_function,
         nondet=partial(_is_nondeterministic, space),
+        pure=partial(_is_pure, space),
         metta_name=name,
     )
     params, patterns, body = compiled.params, compiled.patterns, compiled.body
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.space_name, name), [])
-    first_clause = not earlier
     _validate_clause_order(space, name, patterns, earlier)
     # MeTTa equations are alternatives, and a Python author stacking
     # clauses means first-match, so each clause is guarded against every
@@ -348,25 +486,45 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         patterns,
         params,
     )
+    clause_twin.__doc__ = compiled.facts.doc
     duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
-    defined = _defined_result(space, name, compiled, body, dispatcher)
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
-        return defined
-    _store_clause(
-        space,
-        earlier,
-        patterns=patterns,
-        equation=equation,
-        compiled=compiled,
-        dispatcher=dispatcher,
-        clause_twin=clause_twin,
-        replaced=replaced,
-    )
-    if first_clause:
-        # The function reflects into the library's own space, one fact
-        # per (space, name), following the space through clear().
-        _reflect_definition(space, name)
+        if replaced is None:
+            msg = "a duplicate clause has no replacement index"
+            raise RuntimeError(msg)
+        prospective = earlier.copy()
+        prospective[replaced] = earlier[replaced] | {
+            "facts": compiled.facts,
+        }
+        _sync_definition_facts(space, name, prospective)
+        earlier[replaced]["facts"] = compiled.facts
+        replace_twin_clause(dispatcher, replaced, clause_twin)
+        _document_definition(space, name, dispatcher)
+        return _defined_result(space, name, compiled, body, dispatcher)
+    prospective = earlier.copy()
+    record = _clause_record(patterns, equation, compiled)
+    if replaced is None:
+        prospective.append(record)
+    else:
+        prospective[replaced] = record
+    _sync_definition_facts(space, name, prospective)
+    try:
+        _store_clause(
+            space,
+            earlier,
+            patterns=patterns,
+            equation=equation,
+            compiled=compiled,
+            dispatcher=dispatcher,
+            clause_twin=clause_twin,
+            replaced=replaced,
+        )
+    except BaseException:
+        _sync_definition_facts(space, name, earlier)
+        raise
+    defined = _defined_result(space, name, compiled, body, dispatcher)
+    _document_definition(space, name, dispatcher)
     # Annotations declare the type, exactly as they do for operations,
     # once per name so stacked clauses do not repeat the declaration.
     _declare_definition(space, fn, name, params)
@@ -471,11 +629,13 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         parameters = list(_inspect.signature(fn).parameters.values())[1:]
         required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
         arities = list(range(1 + required, len(parameters) + 2))
+        operation_name = f"{type_name}-{method_name}"
         space.register_op(
             wrapper_for(fn),
-            name=f"{type_name}-{method_name}",
-            typed=False,
-            pass_atoms=True,
+            name=operation_name,
+            declarations=[
+                expr(S.arguments, S[operation_name], S.atoms)
+            ],
             arities=arities,
         )
 

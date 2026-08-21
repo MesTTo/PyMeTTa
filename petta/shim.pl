@@ -92,6 +92,24 @@
 %     Atom through the shared decoder [tested:
 %     test_a_registered_token_class_parses_like_a_shipped_one;
 %     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
+%   - a converted Python tuple encodes as its structural MeTTa expression,
+%     while an explicitly Grounded tuple remains an object reference
+%     [tested: test_a_python_tuple_answers_the_same_through_both_doors;
+%     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
+%   - pattern_modifier/3 lifts lazy paths out of stored-pattern position and
+%     resolves them only after the root handle has matched [tested:
+%     test_a_path_reaches_into_a_handle_without_converting_it;
+%     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
+%   - a modifier-free query decides that case before its nondeterministic match,
+%     so path support adds 22 fixed inferences per one-pattern query instead of
+%     one call per answer [measured: query-2k-rows minimum of 561469, 561467,
+%     561467, 440 over 20 queries on 2026-08-21; command=python bench.py query-2k-rows
+%     --counter-only; fixture=2000-row native space;
+%     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
+%   - evaluation emits one undefined-truth frame and never a flag-selected
+%     residual-program shape [tested:
+%     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+%     commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
@@ -152,6 +170,13 @@ petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es
 petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
     petta_py_encode(H, EH),
     petta_py_encode(T, ET).
+%Janus's default tuple translation is -/N. It is the carrier for a structural
+%MeTTa expression here, not a callable named `-`; a Grounded tuple never
+%reaches this clause because its Python reference is claimed above.
+petta_py_encode(T, ["e", Es]) :-
+    petta_py_tuple_arguments(T, Raw), !,
+    maplist(petta_py_result, Raw, Elements),
+    maplist(petta_py_encode, Elements, Es).
 %A non-list compound encodes as (f a b). compound_name_arguments/3 rather
 %than =../2, because =.. RAISES on a ZERO-ARITY compound and janus hands us
 %one for every empty Python tuple: py_call(builtins:tuple(), X) binds X to
@@ -161,15 +186,6 @@ petta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
 %and only through the LIBRARY: the engine has its own writer and never ran
 %this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
 %
-%Known disagreement, deliberately left visible rather than papered over.
-%janus renders a Python tuple as a `-` compound (`(1,2)` is `1-2`), so this
-%clause encodes one as `(- 1 2)` while the engine's swrite prints `(1, 2)`,
-%Python's own syntax, which sread cannot read back: it answers the two-item
-%expression `('1,' 2)` [measured 2026-08-18]. Both configurations are
-%self-consistent and they do not agree with each other. What a Python tuple
-%IS at this seam is a boundary decision, not an encoder detail, and it is
-%tracked as its own item; encoding every arity the same way here is what
-%stops the empty one being a crash while the rest are silent.
 petta_py_encode(T, ["e", [["s", FS] | Es]]) :-
     compound(T),
     compound_name_arguments(T, F, Args),
@@ -402,11 +418,9 @@ petta_py_answer_kappa(K0, Ctx) :-
 %reduces to a boolean and false drops the answer, a match form inside the
 %residue contributes one closure per solution, and a term with no
 %equation answers itself, exactly as !(edge a b) does at the top level.
-%This is one notion worn three ways already: 'residual-goals'/2 carries
-%dif/2 constraints an answer holds under, Undefined's residual carries
-%the delayed goals a WFS answer is conditional on, and a Planner's rest
-%is the part of a conjunction the provider left; the answer form carries
-%the same R across the wire.
+%This residue is only the part a provider did not discharge. Constraint goals
+%remain language-internal through residual-goals/2, and a WFS answer carries
+%its delay condition; neither creates a second Python return shape.
 petta_py_answer_close('@'(true), _) :- !.
 petta_py_answer_close(ResidueW, Table) :-
     petta_py_decode_shared_(ResidueW, Residue, Table, _),
@@ -612,7 +626,6 @@ petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_using_all).
-petta_py_wrappable(petta_py_eval_res_all).
 petta_py_wrappable(petta_py_eval_status_all).
 petta_py_wrappable(petta_py_run_status).
 petta_py_wrappable(petta_py_captured).
@@ -1207,9 +1220,48 @@ petta_py_release_space(Name0) :-
 
 petta_py_query(Space, PatternsTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
-    petta_py_match_goal(Space, Patterns, Goal),
-    call(Goal),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers),
+    petta_py_match_goal(Space, PlainPatterns, Goal),
+    %Choose before the nondeterministic match. Calling the empty modifier
+    %walker after Goal would call it once for every answer row.
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_row(VarNames, Bindings, Row).
+
+%A path marker occupies the root handle's position while Python builds the
+%pattern. Before matching, it becomes one fresh variable and its structural
+%work becomes a post-match goal. The engine therefore joins the opaque handle
+%like any stored value and Python sees only the named segments, never an eager
+%projection of the object graph.
+:- multifile pattern_modifier/3.
+pattern_modifier(['path-at', [segments|Segments], Target], Root,
+                 petta_py_path_guard(Root, Segments, Target)) :-
+    !.
+
+petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers) :-
+    lift_pattern_modifiers(Patterns, PlainPatterns, Modifiers).
+
+petta_py_call_modifiers([]).
+petta_py_call_modifiers([Modifier|Modifiers]) :-
+    call(Modifier),
+    petta_py_call_modifiers(Modifiers).
+
+petta_py_path_guard(Root, Segments, Target) :-
+    nonvar(Root),
+    py_call(petta_ops:path_begin(Root), Cursor),
+    petta_py_path_steps(Cursor, Segments),
+    py_call(petta_ops:path_value(Cursor), ValueWire),
+    petta_py_decode_shared(ValueWire, Value, _),
+    unify_with_occurs_check(Target, Value).
+
+petta_py_path_steps(_, []).
+petta_py_path_steps(Cursor, [Segment|Segments]) :-
+    petta_py_encode(Segment, SegmentWire),
+    py_call(petta_ops:path_step(Cursor, SegmentWire), Answer),
+    Answer == @(true),
+    petta_py_path_steps(Cursor, Segments).
 
 petta_py_match_goal(Space, [P], match(Space, P, answered, answered)) :- !.
 petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
@@ -1261,10 +1313,14 @@ petta_py_render_origin(refused(Refusing), Text) :-
 %row, which measured at ~500ms per 2000-row guarded query.
 petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
-    petta_py_match_goal(Space, Patterns, Goal),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers),
+    petta_py_match_goal(Space, PlainPatterns, Goal),
     petta_py_module(Space, Module),
     petta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
-    call(Goal),
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_call_goals(Module, Goals),
     Out == true,
     petta_py_row(VarNames, Bindings, Row).
@@ -1296,7 +1352,12 @@ petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
 
 petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
     petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
-    match_foreign(Space, Pattern, [limit(Limit)], answered, answered),
+    petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers),
+    (   Modifiers == []
+    ->  match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered)
+    ;   match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
+        petta_py_call_modifiers(Modifiers)
+    ),
     petta_py_row(VarNames, Bindings, Row).
 
 %A row holds one encoded value per requested name; a variable the answer left
@@ -1377,28 +1438,21 @@ petta_py_cast(Space, ValueW, TypeW, Out) :-
 %a plain twin, 222-236k against 248-249k calls per second); real
 %evaluations amortize it below that.
 petta_py_eval(Space, Tagged, Encoded) :-
-    petta_py_eval_(Space, Tagged, plain, Encoded).
-
-petta_py_eval_(Space, Target, Residuals, Encoded) :-
-    petta_py_target_term(Space, Target, Term),
+    petta_py_target_term(Space, Tagged, Term),
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Out)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
     ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
-    petta_py_encode_truth(Out, Delays, Residuals, Encoded).
+    petta_py_encode_truth(Out, Delays, Encoded).
 
-petta_py_encode_truth(Out, Delays, Residuals, Encoded) :-
+petta_py_encode_truth(Out, Delays, Encoded) :-
     ( Delays == true
       -> petta_py_encode(Out, Encoded)
     ; petta_py_encode(Out, Inner),
       term_string(Delays, Why),
-      ( Residuals == residual
-        -> delays_residual_program(Delays, _:Clauses),
-           term_string(Clauses, ResidualText),
-           Encoded = ["u", Inner, Why, ResidualText]
-      ; Encoded = ["u", Inner, Why] ) ).
+      Encoded = ["u", Inner, Why] ).
 
 %The fast path: a flat call of a compiled function whose arguments are all
 %plain data needs no translation, just the call. translate_expr costs two
@@ -1484,7 +1538,7 @@ petta_py_eval_term(Space, Term, Encoded) :-
     ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
-    petta_py_encode_truth(Out, Delays, plain, Encoded).
+    petta_py_encode_truth(Out, Delays, Encoded).
 
 %Which of PeTTa's own evaluation paths produced each answer, reported without
 %changing what the ordinary entry points return:
@@ -1516,12 +1570,6 @@ petta_py_eval_status_all(Space, Tagged, Results) :-
                                           ; Status = 'not-reducible' ),
     findall([Status, E], petta_py_eval(Space, Tagged, E), Answers),
     ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
-
-%The residual variant additionally derives, per undefined answer, the
-%residual program from its delays (the loop through tnot responsible),
-%the explanation surface eval(residuals=True) opts into.
-petta_py_eval_res_all(Space, Tagged, Encoded) :-
-    findall(E, petta_py_eval_(Space, Tagged, residual, E), Encoded).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %

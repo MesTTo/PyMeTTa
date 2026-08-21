@@ -7,6 +7,18 @@ the line, and what to write instead; every supported construct has one MeTTa
 spelling; and a free identifier must be a
 parameter, a known function, or read as a data constructor, so a compiled
 body is pure atoms that any evaluator can take whole.
+Guarantees:
+  - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
+    docstring after the twin dispatcher contains that clause [tested:
+    test_one_docstring_reaches_help_dot_doc_and_get_doc;
+    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+  - local annotated assignments resolve through a syntax-limited namespace
+    reader and compile to enforceable in-place type claims [tested:
+    test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+  - source spans, source docstrings, lexical captures, and call purity are
+    derived from the parsed function and exposed as immutable facts [tested:
+    test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,15 +35,17 @@ from collections.abc import Callable
 from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, cast
 
 from ._define_expression import ExpressionCompilerMixin
+from ._define_facts import DefinitionFacts, SourceSpan, derive_definition_facts
 from ._define_loops import LoopCompilerMixin
 from ._define_statements import StatementCompilerMixin, _is_generator, _superpose
 from ._define_twins import (
     _python_twin,
 )
+from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
 from .errors import CompileError
 
-__all__ = ["Defined", "PrologBacked", "compile_function"]
+__all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
@@ -48,6 +62,120 @@ def _never(_name: str) -> bool:
 
 def _builtins_namespace() -> dict[str, Any]:
     return __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+
+
+def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:  # noqa: C901  -- _annotation_resolver keeps the annotation namespace and its resolvers together so its branches share one state
+    """Resolve local annotation syntax without executing arbitrary source."""
+    nonlocals: dict[str, Any] = {}
+    for name, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
+        try:
+            nonlocals[name] = cell.cell_contents
+        except ValueError:
+            # A decorator is compiling the recursive function before Python
+            # assigns its name into the closure cell. It cannot resolve an
+            # annotation from that empty cell and does not need to.
+            continue
+    namespace = {
+        **_builtins_namespace(),
+        **fn.__globals__,
+        **nonlocals,
+    }
+
+    def resolve(node: ast.expr) -> Any:  # noqa: C901  -- resolve keeps the annotation syntax forms together so its branches share one state
+        if isinstance(node, ast.Name):
+            if node.id not in namespace:
+                msg = f"the local annotation name {node.id!r} is not available"
+                raise CompileError(
+                    msg,
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            return namespace[node.id]
+        if isinstance(node, ast.Constant):
+            return node.value
+        if isinstance(node, ast.Tuple):
+            return tuple(resolve(item) for item in node.elts)
+        if isinstance(node, ast.Attribute):
+            owner = resolve(node.value)
+            if isinstance(owner, types.ModuleType):
+                values = vars(owner)
+                if node.attr in values:
+                    return values[node.attr]
+            elif isinstance(owner, type):
+                value = inspect.getattr_static(owner, node.attr, None)
+                if isinstance(value, type):
+                    return value
+            msg = (
+                f"the local annotation attribute {ast.unparse(node)!r} is not a "
+                "module or nested type"
+            )
+            raise CompileError(
+                msg,
+                construct="annotation",
+                line=node.lineno,
+            )
+        if isinstance(node, ast.Subscript):
+            target = resolve(node.value)
+            target_module = getattr(target, "__module__", "")
+            if target_module not in {"builtins", "typing", "collections.abc"}:
+                msg = (
+                    f"the local annotation {ast.unparse(node)!r} would execute "
+                    "a user subscript; use a named type instead"
+                )
+                raise CompileError(
+                    msg,
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            argument = resolve(node.slice)
+            try:
+                return target[argument]
+            except (KeyError, TypeError, ValueError) as exc:
+                msg = f"the local annotation {ast.unparse(node)!r} is invalid: {exc}"
+                raise CompileError(
+                    msg,
+                    construct="annotation",
+                    line=node.lineno,
+                ) from exc
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            left = resolve(node.left)
+            right = resolve(node.right)
+            if not all(
+                isinstance(value, type) or getattr(value, "__module__", "") == "typing"
+                for value in (left, right)
+            ):
+                msg = f"the local annotation {ast.unparse(node)!r} is not a type union"
+                raise CompileError(
+                    msg,
+                    construct="annotation",
+                    line=node.lineno,
+                )
+            return left | right
+        msg = (
+            f"{type(node).__name__} is not allowed in a local annotation; "
+            "use a type name or a standard typing subscript"
+        )
+        raise CompileError(
+            msg,
+            construct="annotation",
+            line=getattr(node, "lineno", None),
+        )
+
+    def to_atom(node: ast.expr) -> Atom:
+        alternatives = type_atoms_for(resolve(node))
+        if len(alternatives) != 1:
+            msg = (
+                f"the local annotation {ast.unparse(node)!r} names "
+                f"{len(alternatives)} alternative types; bind one type here"
+            )
+            raise CompileError(
+                msg,
+                construct="annotation",
+                line=node.lineno,
+            )
+        return alternatives[0]
+
+    return to_atom
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
@@ -89,6 +217,7 @@ class Defined(Generic[_P, _R]):
         "_py",
         "body",
         "doc",
+        "facts",
         "name",
         "params",
         "patterns",
@@ -109,6 +238,7 @@ class Defined(Generic[_P, _R]):
         *,
         patterns: dict[str, Atom] | None = None,
         runtime_ops: frozenset[str] = frozenset(),
+        facts: DefinitionFacts | None = None,
     ):
         self.name = name
         self.params = params
@@ -116,11 +246,12 @@ class Defined(Generic[_P, _R]):
         self.body = body
         self._py = py
         self.space = space
-        self.doc = py.__doc__
+        self.doc = inspect.getdoc(py)
         # The prelude operations the equations lean on: empty means the
         # compiled source runs on any evaluator; named means it needs this
         # runtime's registered operations.
         self.runtime_ops = runtime_ops
+        self.facts = facts
         self.__name__ = name
         self.__wrapped__ = py
 
@@ -136,6 +267,26 @@ class Defined(Generic[_P, _R]):
     def py(self) -> Callable[_P, _R]:
         """The ordinary Python function, recursion included."""
         return self._py
+
+    @property
+    def __doc__(self) -> str | None:  # type: ignore[override]
+        """The canonical first clause's cleaned Python docstring."""
+        return self.doc
+
+    @property
+    def source_span(self) -> SourceSpan | None:
+        """Absolute coordinates of the compiled Python definition."""
+        return self.facts.source_span if self.facts is not None else None
+
+    @property
+    def free_variables(self) -> tuple[str, ...]:
+        """Lexical captures reported by Python's symbol table."""
+        return self.facts.free_variables if self.facts is not None else ()
+
+    @property
+    def pure(self) -> bool | None:
+        """Whether every source call is a local or declared-pure call."""
+        return self.facts.pure if self.facts is not None else None
 
     @property
     def head(self) -> Expr:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -199,12 +350,14 @@ class Compiled(NamedTuple):
     aux: list[Expr]
     runtime_ops: frozenset[str]
     hazards: frozenset[str]
+    facts: DefinitionFacts
 
 
 def compile_function(
     fn: types.FunctionType,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
+    pure: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
@@ -228,7 +381,8 @@ def compile_function(
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
     try:
-        source = textwrap.dedent(inspect.getsource(fn))
+        source_lines, first_line = inspect.getsourcelines(fn)
+        source = textwrap.dedent("".join(source_lines))
     except (OSError, TypeError) as exc:
         msg = (
             f"the source of {fn.__name__} is not available, so it cannot be "
@@ -271,6 +425,7 @@ def compile_function(
         nondet=nondet,
         pyname=fn.__name__,
         host=host,
+        annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
     body: Atom
@@ -282,15 +437,27 @@ def compile_function(
         body = _superpose(answers)
     else:
         body = compiler.block(definition.body)
+    facts = derive_definition_facts(
+        fn,
+        definition,
+        source=source,
+        source_lines=source_lines,
+        first_line=first_line,
+        known=known,
+        pure=_provided(pure, _never),
+    )
+    twin = _python_twin(fn, patterns)
+    twin.__doc__ = facts.doc
     return Compiled(
         params,
         patterns,
         body,
-        _python_twin(fn, patterns),
+        twin,
         generator,
         compiler.aux,
         frozenset(compiler.runtime_ops),
         frozenset(compiler.hazards),
+        facts,
     )
 
 
@@ -368,6 +535,7 @@ class _Compiler(
         host: Callable[[str], bool] | None = None,
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
+        annotation_resolver: Callable[[ast.expr], Atom] | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -407,6 +575,17 @@ class _Compiler(
         # nested loop must carry them even when its own syntax never
         # mentions them, or the enclosing recursion loses its state.
         self.closer_names: list[str] = []
+        self._annotation_resolver = annotation_resolver
+
+    def annotation_atom(self, node: ast.expr) -> Atom:
+        if self._annotation_resolver is None:
+            msg = "this compiler has no local annotation namespace"
+            raise CompileError(
+                msg,
+                construct="annotation",
+                line=node.lineno,
+            )
+        return self._annotation_resolver(node)
 
     def nondet(self, called: str) -> bool:
         lifted = self.lifted.get(called)
@@ -416,30 +595,10 @@ class _Compiler(
 
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
-        forked = _Compiler(
-            self.name,
-            self.scope.copy(),
-            self.known,
-            used=self.used,
-            nondet=self._given_nondet,
-            aux=self.aux,
-            lifted=self.lifted,
-            closer=self.closer,
-            pyname=self.pyname,
-            host=self.host,
-            runtime_ops=self.runtime_ops,
-            hazards=self.hazards,
-        )
-        forked.closer_names = self.closer_names.copy()
-        return forked
+        return self._nested_compiler(self.scope.copy())
 
-    def _inner(self, extra: list[str]) -> _Compiler:
-        """A compiler for a nested binder (lambda, comprehension): the outer
-        scope plus the binder's own parameters, shadowing by name.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        scope = self.scope.copy()
-        scope.update({p: p for p in extra})
-        inner = _Compiler(
+    def _nested_compiler(self, scope: dict[str, str]) -> _Compiler:
+        nested = _Compiler(
             self.name,
             scope,
             self.known,
@@ -452,9 +611,18 @@ class _Compiler(
             host=self.host,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
+            annotation_resolver=self._annotation_resolver,
         )
-        inner.closer_names = self.closer_names.copy()
-        return inner
+        nested.closer_names = self.closer_names.copy()
+        return nested
+
+    def _inner(self, extra: list[str]) -> _Compiler:
+        """A compiler for a nested binder (lambda, comprehension): the outer
+        scope plus the binder's own parameters, shadowing by name.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        scope = self.scope.copy()
+        scope.update({p: p for p in extra})
+        return self._nested_compiler(scope)
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
@@ -473,6 +641,7 @@ class _Compiler(
             host=self.host,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
+            annotation_resolver=self._annotation_resolver,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:

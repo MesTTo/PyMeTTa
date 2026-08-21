@@ -16,6 +16,10 @@ Guarantees:
     the omitted row count [tested test_rows_repr_is_bounded_and_recursive]
   - Rows.build preserves its requested class as the list element type [tested
     test_target_type_overloads_preserve_the_requested_class]
+  - a one-column Rows rebuilds constructor expressions through build(cls),
+    and rows_into selects that path for query(into=cls) [tested:
+    test_a_constructor_expression_rebuilds_through_the_query_door;
+    commit=2bf66c123858feaeaf9909729db3e8700aaca546]
   - Rows.to_dicts returns one Python-native mapping per row, including empty
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
@@ -388,10 +392,34 @@ class Rows(UserList[Row]):
             context.where,
         )
 
-    def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]:
-        """One column's atoms rebuilt as instances of cls, through the
-        two-way translator: typed rows, one call.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    @overload
+    def build(self, cls: type[_BuildT], /) -> list[_BuildT]: ...
+
+    @overload
+    def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]: ...
+
+    def build(self, column: str | type, cls: type | None = None) -> list:
+        """Rebuild constructor atoms through the two-way translator.
+
+        ``build(column, cls)`` projects a named column. ``build(cls)`` is the
+        query reconstruction door when exactly one column holds complete
+        constructor expressions.
+        """
+        if cls is None:
+            if not isinstance(column, type):
+                msg = "build(cls) needs a Python class as its sole argument"
+                raise TypeError(msg)
+            cls = column
+            if len(self.columns) != 1:
+                msg = (
+                    f"build({cls.__name__}) needs exactly one query column; "
+                    f"these rows have {list(self.columns)}"
+                )
+                raise TypeError(msg)
+            column = self.columns[0]
+        if not isinstance(column, str):
+            msg = "build(column, cls) needs a column name"
+            raise TypeError(msg)
         return [convert.build(value, cls) for value in self._column(column)]
 
     def to_dicts(self) -> list[dict[str, Any]]:
@@ -537,7 +565,7 @@ def _into_fields(cls: type) -> dict[str, Any]:
     )
 
 
-def rows_into(rows: Rows, cls: type) -> list:
+def rows_into(rows: Rows, cls: type) -> list:  # noqa: C901  -- rows_into keeps the per-annotation decode paths together so its branches share one row state
     """Each row as one cls instance, matched by field name: sqlite3's
     row_factory reading, over the existing conversion machinery. A field
     annotated with a registered class builds through the two-way
@@ -545,6 +573,9 @@ def rows_into(rows: Rows, cls: type) -> list:
     symbol landing in an int field is an error at the door rather than
     a surprise downstream; an unannotated field decodes plainly.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    constructor_rows: list[Any] | None = _constructor_rows(rows, cls)
+    if constructor_rows is not None:
+        return constructor_rows
     fields = _into_fields(cls)
     missing = [name for name in fields if name not in rows.columns]
     if missing:
@@ -587,3 +618,20 @@ def rows_into(rows: Rows, cls: type) -> list:
                 kwargs[name] = convert.build(atom, annotation)
         built.append(cls(**kwargs))
     return built
+
+
+def _constructor_rows(rows: Rows, cls: type[_BuildT]) -> list[_BuildT] | None:
+    """Rebuild a single complete-constructor column, or decline row shaping."""
+    if len(rows.columns) != 1 or typing.is_typeddict(cls):
+        return None
+    try:
+        registration = convert.ensure_registered(cls)
+    except TypeError:
+        return None
+    if registration.image != "expression":
+        return None
+    values = rows._column(rows.columns[0])
+    expected = Sym(registration.type_name)
+    if not all(isinstance(value, Expr) and value.head == expected for value in values):
+        return None
+    return rows.build(cls)

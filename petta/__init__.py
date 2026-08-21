@@ -14,6 +14,15 @@ Guarantees:
   - SpaceCapabilityError is available at package level [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
     commit=6a08901f4125c2536f5b4032daac9937f793870f]
+  - compiled definition facts and source spans are public immutable values
+    [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - the immutable operator lowering table is public data [tested:
+    test_the_operator_table_is_generated_from_one_source_with_no_holes;
+    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+  - lazy query paths are public immutable values and keep their root opaque
+    [tested: test_a_path_reaches_into_a_handle_without_converting_it;
+    commit=a1b10566194f10c174101fdc05f956b33171613b]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -128,10 +137,12 @@ from . import (  # noqa: E402
 from ._engine import engine_thread  # noqa: E402
 from .answer import Answer, Bindings  # noqa: E402
 from .atoms import (  # noqa: E402
+    OPERATOR_LOWERINGS,
     Atom,
     Expr,
     Gnd,
     Handle,
+    OperatorLowering,
     S,
     Sym,
     Undefined,
@@ -158,7 +169,7 @@ from .atoms import (  # noqa: E402
     variables,
 )
 from .casting import CastError, cast  # noqa: E402
-from .define import Defined  # noqa: E402
+from .define import Defined, DefinitionFacts, SourceSpan  # noqa: E402
 from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
 from .errors import (  # noqa: E402
     DECLINE,
@@ -189,6 +200,7 @@ from .foreign import (  # noqa: E402
     SpaceProvider,
 )
 from .ops import REFLECTION_SPACE, record  # noqa: E402
+from .paths import Attr, Key, Path, path  # noqa: E402
 from .results import Row, Rows  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Event, Subscription, bridge  # noqa: E402
@@ -281,11 +293,13 @@ def backend_info() -> dict[str, str | None]:
 
 __all__ = [
     "DECLINE",
+    "OPERATOR_LOWERINGS",
     "REFLECTION_SPACE",
     "Adder",
     "Answer",
     "AssertionFailure",
     "Atom",
+    "Attr",
     "Bindings",
     "Boot",
     "Builtin",
@@ -297,6 +311,7 @@ __all__ = [
     "CustomMatch",
     "Decline",
     "Defined",
+    "DefinitionFacts",
     "Derivation",
     "EngineError",
     "EngineProfile",
@@ -308,12 +323,15 @@ __all__ = [
     "Handle",
     "InferenceLimitError",
     "Interrupted",
+    "Key",
     "Matcher",
     "MeTTa",
     "MettaName",
     "MettaOperationError",
     "MettaResultError",
     "MettaSyntaxError",
+    "OperatorLowering",
+    "Path",
     "PeTTa",
     "PettaError",
     "Prepared",
@@ -324,6 +342,7 @@ __all__ = [
     "S",
     "SaveFormat",
     "SourceNotFound",
+    "SourceSpan",
     "SpaceCapabilityError",
     "SpaceName",
     "SpaceProvider",
@@ -367,6 +386,7 @@ __all__ = [
     "order_key",
     "parallel",
     "parse",
+    "path",
     "persistent",
     "pretty",
     "query",

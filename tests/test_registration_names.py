@@ -31,7 +31,7 @@ def test_register_op_refuses_a_name_metta_cannot_read(metta):
 
     for name, witness in cases.items():
         with pytest.raises(ValueError) as raised:
-            metta.register_op(lambda value: value, name=name, typed=False)
+            metta.register_op(lambda value: value, name=name)
 
         message = str(raised.value)
         assert name in message

@@ -2,6 +2,11 @@
 answers bindings for the query's own variables, plain atoms and explicit
 answers mix in one stream, and the staged slots (residue, annotation)
 refuse loudly instead of dropping silently.
+Guarantees:
+  - operations returning explicit bindings request evaluated Atom wrappers
+    through `(arguments name atoms)` declarations [tested:
+    test_a_generator_op_answers_bindings,
+    test_a_det_op_answers_bindings_with_a_value; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,7 +15,7 @@ Open Obligations:
 
 import pytest
 
-from petta import Answer, Bindings, parse
+from petta import Answer, Bindings, S, expr, parse
 from petta.atoms import Expr, Gnd, Sym, Var
 from petta.errors import EngineError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
@@ -146,7 +151,11 @@ def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discov
         yield Bindings({x: 1})
         yield Bindings({x: 2})
 
-    metta.register_op(relate, name="ap-rel", typed=False, pass_atoms=True)
+    metta.register_op(
+        relate,
+        name="ap-rel",
+        declarations=[expr(S.arguments, S["ap-rel"], S.atoms)],
+    )
     metta.run("(= (ap-probe $x) (let $r (ap-rel $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-probe $q))")
     assert str(out[0][0]) == "((pair 1 ()) (pair 2 ()))"
@@ -156,7 +165,11 @@ def test_a_det_op_answers_bindings_with_a_value(metta):  # noqa: D103  -- pytest
     def solve(x):
         return Answer({x: Sym("found")}, value=Sym("done"))
 
-    metta.register_op(solve, name="ap-solve", typed=False, pass_atoms=True)
+    metta.register_op(
+        solve,
+        name="ap-solve",
+        declarations=[expr(S.arguments, S["ap-solve"], S.atoms)],
+    )
     metta.run("(= (ap-sprobe $x) (let $r (ap-solve $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-sprobe $q))")
     assert str(out[0][0]) == "((pair found done))"
@@ -166,7 +179,7 @@ def test_a_raw_op_refuses_answers(metta):  # noqa: D103  -- pytest discovers or 
     def wrong(x):
         return Answer({"x": x})
 
-    metta.register_op(wrong, name="ap-raw", typed=False, raw=True)
+    metta.register_op(wrong, name="ap-raw", transport="raw")
     with pytest.raises(EngineError, match="raw"):
         metta.run("!(ap-raw 1)")
 
@@ -245,8 +258,16 @@ def test_an_op_residue_closes_through_the_engine(metta):  # noqa: D103  -- pytes
     def pickbig(x):
         return Answer({x: 50}, value=Sym("big"), residue=Expr([Sym("<"), x, Gnd(10)]))
 
-    metta.register_op(pick, name="ap-pick", typed=False, pass_atoms=True)
-    metta.register_op(pickbig, name="ap-pickbig", typed=False, pass_atoms=True)
+    metta.register_op(
+        pick,
+        name="ap-pick",
+        declarations=[expr(S.arguments, S["ap-pick"], S.atoms)],
+    )
+    metta.register_op(
+        pickbig,
+        name="ap-pickbig",
+        declarations=[expr(S.arguments, S["ap-pickbig"], S.atoms)],
+    )
     out = metta.run("!(collapse (ap-pick $x))")
     assert str(out[0][0]) == "(small)"
     # The failing residue makes the call answer nothing, the semidet rule.
@@ -310,7 +331,7 @@ def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D
         for word, degree in lexicon.items():
             yield Answer(value=word, k=degree)
 
-    metta.register_op(ap_lex, name="ap-lex", typed=False)
+    metta.register_op(ap_lex, name="ap-lex")
     metta.declare_annotations("ap-lex", "ranked")
     out = metta.run('!(collapse (top 2 (ap-lex "q" $c)))')
     assert str(out[0][0]) == '("beta" "delta")'
@@ -334,7 +355,7 @@ def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):  # noqa
         yield Answer(value=Sym("intone"), k=1)
         yield Answer(value=Sym("floathigh"), k=2.5)
 
-    metta.register_op(mixed, name="ap-mixed-k", typed=False)
+    metta.register_op(mixed, name="ap-mixed-k")
     metta.declare_annotations("ap-mixed-k", "ranked")
     (best,) = metta.run("!(collapse (top 1 (ap-mixed-k q)))")[0]
     assert [str(a) for a in best.children] == ["floathigh"]
@@ -390,7 +411,11 @@ def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -
     def scorer(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value=Sym("v"), k=0.5)
 
-    metta.register_op(scorer, name="ap-undeclared", typed=False, pass_atoms=True)
+    metta.register_op(
+        scorer,
+        name="ap-undeclared",
+        declarations=[expr(S.arguments, S["ap-undeclared"], S.atoms)],
+    )
     with pytest.raises(EngineError, match="annotations ap-undeclared ranked"):
         metta.run("!(collapse (ap-undeclared 1))")
 
@@ -516,7 +541,7 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):  # noqa: D103  -- pyt
             raise ValueError(msg)
         return x // 2
 
-    metta.register_op(half, name="oe-half", typed=False)
+    metta.register_op(half, name="oe-half")
     metta.declare_on_error("oe-half", "(oe-half $x)", "keep")
     out = metta.run("!(collapse (oe-half 8))")
     assert str(out[0][0]) == "(4)"
@@ -531,7 +556,7 @@ def test_an_op_empty_answers_nothing(metta):  # noqa: D103  -- pytest discovers 
         msg = "always broken"
         raise RuntimeError(msg)
 
-    metta.register_op(quarter, name="oe-quarter", typed=False)
+    metta.register_op(quarter, name="oe-quarter")
     metta.declare_on_error("oe-quarter", "(oe-quarter $x)", "empty")
     out = metta.run("!(collapse (oe-quarter 8))")
     assert str(out[0][0]) == "()"
@@ -549,7 +574,7 @@ def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- p
         msg = "stream died"
         raise ValueError(msg)
 
-    metta.register_op(counting, name="oe-gen", typed=False)
+    metta.register_op(counting, name="oe-gen")
     metta.declare_on_error("oe-gen", "(oe-gen $x)", "keep")
     out = metta.run("!(collapse (oe-gen 0))")
     answers = out[0][0].children
@@ -976,7 +1001,7 @@ def test_explain_covers_operations(metta):  # noqa: D103  -- pytest discovers or
     def ex_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="x", k=1.0)
 
-    metta.register_op(ex_lex, name="ex-lex", typed=False)
+    metta.register_op(ex_lex, name="ex-lex")
     metta.declare_annotations("ex-lex", "ranked")
     out = metta.run('!(explain (ex-lex "q" $c))')
     explained = {str(item.children[0]): item for item in out[0][0].children}
@@ -1042,7 +1067,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
     def pv_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="hit", k=0.75)
 
-    metta.register_op(pv_lex, name="pv-lex", typed=False)
+    metta.register_op(pv_lex, name="pv-lex")
     metta.declare_annotations("pv-lex", "ranked")
     out = metta.run(
         '!(collapse (let $r (pv-lex "q" $c) (pair $r (annotation))))'

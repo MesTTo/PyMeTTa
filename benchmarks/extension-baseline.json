@@ -2,29 +2,29 @@
   "benchmarks": {
     "extcost-add-atom-into-a-pool-with-a-declared-admits-type": {
       "comment": "Lowered 73.01 -> 49.01 inferences per add on 2026-08-21: space-admission-verdict reads fixed contract heads directly, has_declared_type takes an indexed ground declaration hit before its exact fallback, and petta_hook_eval skips an already-current module switch. The capacity counter's claimed-path selector makes the final row 51.01 while leaving the unclaimed write path untouched. Semantics are pinned by metta_has_declared_type, hooks_compiled_fire, hooks_admission_sugar, and the admission differential.",
-      "inference_comment": "RE-PINNED 2026-08-21, 59222 to 59228, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 56219 to 59222: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter, +3003 over 1000 calls; subtracting the equally moved driver preserves this row's published 51.01 marginal cost.",
-      "inferences": 59228,
+      "inference_comment": "RE-PINNED 2026-08-21, 59228 to 60227, at the p5-surface-cluster merge: every add pays one more inference through the write door (+999 over 1000 adds), the admits check unchanged beyond it; re-measured min-of-three fresh-process. Prior: RE-PINNED 2026-08-21, 59222 to 59228, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 56219 to 59222: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter, +3003 over 1000 calls; subtracting the equally moved driver preserves this row's published 51.01 marginal cost.",
+      "inferences": 60227,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-add-atom-into-a-pool-with-a-declared-capacity": {
       "comment": "P12.4 first replaced per-add atom enumeration with space_atom_count/2. Direct fixed-head contract reads and the same-module compiled-fire path lowered the configured row to 87.02 inferences per add on 2026-08-21. A rollback-safe dynamic count installed only for capacity-claimed native pools lowers it again to 60.01; adds replace it atomically under its mutex and the judge reads its indexed fact instead of enumerating storage predicates.",
-      "inference_comment": "RE-PINNED 2026-08-21, 68228 to 68234, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 65225 to 68228: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter, +3003 over 1000 calls; subtracting the equally moved driver preserves this row's published 60.01 marginal cost.",
-      "inferences": 68234,
+      "inference_comment": "RE-PINNED 2026-08-21, 68234 to 70233, at the p5-surface-cluster merge: every add pays one more inference through the write door and the capacity counter's claimed path a second (+1999 over 1000 adds); re-measured min-of-three fresh-process. Prior: RE-PINNED 2026-08-21, 68228 to 68234, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 65225 to 68228: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter, +3003 over 1000 calls; subtracting the equally moved driver preserves this row's published 60.01 marginal cost.",
+      "inferences": 70233,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-add-atom-no-claims-on-the-space": {
       "comment": "Lowered 54223 -> 34225 on 2026-08-20 with P12.4, 49.22 -> 29.01 inferences per add: petta_install_admission wrapped metta_add_atom globally, so once any pool declared a contract EVERY space's adds paid the wrapper's forall over the contract atoms. Enforcement is a per-pool hook claim now, and a space nothing claimed keeps the direct write path.",
-      "inference_comment": "RE-PINNED 2026-08-21, 37226 to 37234, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 34225 to 37226: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter; subtracting the moved driver preserves this row's published 29.01 marginal cost.",
-      "inferences": 37234,
+      "inference_comment": "RE-PINNED 2026-08-21, 37234 to 38231, at the p5-surface-cluster merge: every add pays one more inference through the write door (+997 over 1000 adds), the same +1.00/add the benchmark ledger records on file-load and both save-load lanes; re-measured min-of-three fresh-process. Prior: RE-PINNED 2026-08-21, 37226 to 37234, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 34225 to 37226: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter; subtracting the moved driver preserves this row's published 29.01 marginal cost.",
+      "inferences": 38231,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-add-atom-through-an-accept-all-pre-add-hook": {
       "comment": "Claim-time compilation first lowered this row from 234.03 to 64.02 inferences per add, and P12.4 removed the global admission wrapper. The same-module fire path lowered 44.02 -> 37.02 on 2026-08-21. The capacity counter's single claimed-path presence probe makes the final row 39.02; no unclaimed write runs that probe. Semantics are pinned by hooks_compiled_fire and the named-declarer admission test.",
-      "inference_comment": "RE-PINNED 2026-08-21, 47234 to 47238, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 44229 to 47234: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter; subtracting the moved driver preserves this row's published 39.02 marginal cost.",
-      "inferences": 47238,
+      "inference_comment": "RE-PINNED 2026-08-21, 47238 to 48239, at the p5-surface-cluster merge: every add pays one more inference through the write door (+1001 over 1000 adds), the hook path unchanged beyond it; re-measured min-of-three fresh-process. Prior: RE-PINNED 2026-08-21, 47234 to 47238, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 44229 to 47234: P1.22 charges the shared recursive add driver through m.limits' existing fuel counter; subtracting the moved driver preserves this row's published 39.02 marginal cost.",
+      "inferences": 48239,
       "operations": 1000,
       "unit": "calls"
     },
@@ -36,32 +36,32 @@
     "extcost-m-define-annotated": {
       "comment": "Lowered from 75241 on 2026-08-16, -27000 over 3000 calls, which is nine inferences per call. A literal argument's type is settled while the call site compiles, so translate_args_by_type_dl/7 emits no has_type/2 check for one; a call whose arguments are all literals of the declared types now compiles to exactly what the untyped one does, with no once/1 wrapper either. The published table's annotated row moved 20.00 -> 11.00 inferences per call and 6.67x -> 3.67x against an ordinary MeTTa function. The drop is one-directional and never rejects: a literal of the WRONG declared type keeps its check and is still refused, because a get-type extension may give a literal a second type and deciding that statically would be unsound. Guarded by translator_literal_type_checks in tests/prolog/translator.plt.",
       "inference_comment": "RE-PINNED 2026-08-21, 33223 to 33229, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 24222 to 33223: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the 3.00-inference marginal cost.",
-      "inferences": 33229,
+      "inferences": 33228,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-m-define-no-annotations": {
       "inference_comment": "RE-PINNED 2026-08-21, 33238 to 33244, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 24237 to 33238: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the 3.01-inference marginal cost.",
-      "inferences": 33244,
+      "inferences": 33243,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-ordinary-metta-function": {
       "comment": "24216 -> 24214 on 2026-08-20, two inferences over 3000 calls riding the P12.4 engine edits: clause-layout drift at the same-binary noise floor, no mechanism to name.",
       "inference_comment": "RE-PINNED 2026-08-21, 33217 to 33223, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 24214 to 33217: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the 3.00-inference marginal cost.",
-      "inferences": 33223,
+      "inferences": 33222,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-prolog-grounded-predicate": {
       "inference_comment": "RE-PINNED 2026-08-21, 30220 to 30228, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 21217 to 30220: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the 2.00-inference marginal cost.",
-      "inferences": 30228,
+      "inferences": 30225,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-python-operation-encoded": {
       "inference_comment": "RE-PINNED 2026-08-21, 63231 to 63237, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 54228 to 63231: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the 13.01-inference marginal cost.",
-      "inferences": 63237,
+      "inferences": 63236,
       "operations": 3000,
       "unit": "calls"
     },
@@ -71,21 +71,27 @@
       "operations": 3000,
       "unit": "calls"
     },
+    "extcost-python-operation-transport-raw": {
+      "comment": "ADDED 2026-08-21 at the p5-surface-cluster merge. transport=\"raw\" hands a Python operation its arguments as live handles, skipping the wire codec: 6.00 inferences/call flat across argument shapes, where the encoded twin scales with size (13.00 for an integer to 144.00 for a 64-item flat argument in the same run's shape table).",
+      "inferences": 42224,
+      "operations": 3000,
+      "unit": "calls"
+    },
     "extcost-the-add-driver-itself": {
       "inference_comment": "RE-PINNED 2026-08-21, 8214 to 8220, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 5211 to 8214: P1.22 charges each of this driver's 1000 recursive calls through m.limits' existing fuel counter; min-of-three floor.",
-      "inferences": 8220,
+      "inferences": 8219,
       "operations": 1000,
       "unit": "calls"
     },
     "extcost-the-driver-itself": {
       "inference_comment": "RE-PINNED 2026-08-21, 24214 to 24222, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 15211 to 24214: P1.22 charges each of this driver's 3000 recursive calls through m.limits' existing fuel counter; min-of-three floor.",
-      "inferences": 24222,
+      "inferences": 24221,
       "operations": 3000,
       "unit": "calls"
     },
     "extcost-translator-rule-a-macro": {
       "inference_comment": "RE-PINNED 2026-08-21, 24217 to 24223, at the p2-io-roundtrip merge: the reader-token mode probe and injective-writer check price each driver's source read and write a few inferences; re-measured by the extcost updater on the merged tree. Prior: RE-PINNED 2026-08-21, 15214 to 24217: P1.22 charges the shared recursive call driver through m.limits' existing fuel counter, +9003 over 3000 calls; subtracting the equally moved driver preserves the zero marginal cost.",
-      "inferences": 24223,
+      "inferences": 24224,
       "operations": 3000,
       "unit": "calls"
     }

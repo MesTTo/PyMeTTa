@@ -2,11 +2,16 @@
 Guarantees:
   - named host values retain object identity through source execution
     [tested test_run_using_carries_identity]
-  - atomic and speculative writes remain mutually exclusive and preserve
-    their transaction semantics [tested test_atomic_run_commits_or_rolls_back_whole,
-    test_speculative_run_answers_and_discards]
+  - capture never changes an answer shape, and atomic, speculative, and
+    strict execution policy scopes compose without per-call flags [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
+  - ordinary evaluation returns an unreduced term directly and has no
+    residual-shape flag [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,12 +22,83 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from typing import Any
+from contextvars import ContextVar
+from typing import Any, Self
 
 from ._engine import Runtime
 from ._space_objects import EngineProfile, FunctionCost, _limits
 from .atoms import Atom, Gnd, Undefined, _to_atom, atom_from_wire, decode, encode, from_wire
-from .errors import EngineError, PettaError
+from .errors import EngineError
+
+_SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
+    "petta_scoped_execution", default=frozenset()
+)
+_CAPTURED_OUTPUT: ContextVar[CapturedOutput | None]
+
+
+class ScopedExecution:
+    """One execution policy applied to calls inside a with-block."""
+
+    def __init__(self, mode: str) -> None:
+        if mode not in ("atomic", "speculative", "strict"):
+            msg = f"unknown execution mode {mode!r}"
+            raise ValueError(msg)
+        self.mode = mode
+        self._token: Any = None
+
+    def __enter__(self) -> Self:
+        current = _SCOPED_EXECUTION.get()
+        opposite = {"atomic": "speculative", "speculative": "atomic"}.get(
+            self.mode
+        )
+        if opposite is not None and opposite in current:
+            msg = (
+                "atomic and speculative scopes are exclusive: one commits "
+                "each call whole, the other discards its writes"
+            )
+            raise ValueError(msg)
+        self._token = _SCOPED_EXECUTION.set(current | {self.mode})
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _SCOPED_EXECUTION.reset(self._token)
+
+
+class CapturedOutput:
+    """Printed engine text accumulated without changing call return values."""
+
+    def __init__(self) -> None:
+        self._chunks: list[str] = []
+        self._token: Any = None
+
+    @property
+    def text(self) -> str:
+        return "".join(self._chunks)
+
+    def __enter__(self) -> Self:
+        self._token = _CAPTURED_OUTPUT.set(self)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _CAPTURED_OUTPUT.reset(self._token)
+
+    def _append(self, text: str) -> None:
+        self._chunks.append(text)
+
+
+_CAPTURED_OUTPUT = ContextVar("petta_captured_output", default=None)
+
+
+def execution_scope(mode: str) -> ScopedExecution:
+    return ScopedExecution(mode)
+
+
+def capture_output() -> CapturedOutput:
+    return CapturedOutput()
+
+
+def strict_enabled() -> bool:
+    return "strict" in _SCOPED_EXECUTION.get()
 
 
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
@@ -82,19 +158,13 @@ def run_source(
     *,
     timeout: float | None,
     inferences: int | None,
-    capture: bool,
-    atomic: bool,
-    speculative: bool,
-) -> list[list[Atom]] | tuple[list[list[Atom]], str]:
+) -> list[list[Atom]]:
     """Execute source through the direct or controlled engine entry."""
-    if atomic and speculative:
-        msg = (
-            "atomic= and speculative= are exclusive: one commits the run's "
-            "writes whole, the other discards them whole"
-        )
-        raise ValueError(
-            msg
-        )
+    modes = _SCOPED_EXECUTION.get()
+    atomic = "atomic" in modes
+    speculative = "speculative" in modes
+    captured = _CAPTURED_OUTPUT.get()
+    capture = captured is not None
     predicate, inputs = _run_target(space, source, using)
     limits = _limits(timeout, inferences)
     if limits is None and not (capture or atomic or speculative):
@@ -109,9 +179,10 @@ def run_source(
             atomic=atomic,
             speculative=speculative,
         )
-    if capture:
+    if captured is not None:
         groups_wire, text = output
-        return _decode_groups(groups_wire), text
+        captured._append(str(text))
+        return _decode_groups(groups_wire)
     return _decode_groups(output)
 
 
@@ -225,11 +296,9 @@ def evaluate(
     timeout: float | None,
     inferences: int | None,
     *,
-    capture: bool,
-    residuals: bool,
     using: dict[str, Any] | None = None,
-) -> list[Atom | Undefined] | tuple[list[Atom | Undefined], str]:
-    predicate = "petta_py_eval_res_all" if residuals else "petta_py_eval_all"
+) -> list[Atom | Undefined]:
+    predicate = "petta_py_eval_all"
     # Source text goes over as text. Parsing it here would cross to the engine's
     # reader, build an Atom from the wire form it answers, and walk that Atom
     # straight back to the same wire form for this call, so a string target cost
@@ -238,31 +307,24 @@ def evaluate(
     # parsed first against 449.00 read where it is evaluated].
     inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
     if using:
-        if residuals:
-            msg = (
-                "using= and residuals= do not compose yet: the residual door "
-                "reports which path produced each answer, and substitution "
-                "happens before any path is chosen"
-            )
-            raise PettaError(
-                msg
-            )
         predicate = "petta_py_eval_using_all"
         inputs = [
             *inputs,
             [[name, encode(value).to_wire()] for name, value in using.items()],
         ]
     limits = _limits(timeout, inferences)
-    if limits is None and not capture:
+    captured = _CAPTURED_OUTPUT.get()
+    if limits is captured is None:
         wires = rt.apply_must(predicate, *inputs)
     else:
-        if capture:
+        if captured is not None:
             predicate, inputs = "petta_py_captured", [predicate, inputs]
         seconds, steps = limits if limits is not None else (-1.0, -1)
         output = rt.apply_must("petta_py_limited", seconds, steps, predicate, inputs)
-        if capture:
+        if captured is not None:
             wires, text = output
-            return [from_wire(wire) for wire in wires], text
+            captured._append(str(text))
+            return [from_wire(wire) for wire in wires]
         wires = output
     return [from_wire(wire) for wire in wires]
 

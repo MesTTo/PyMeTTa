@@ -13,6 +13,19 @@ Guarantees:
     answers normally [measured 2026-08-19: an OSError raised while releasing
     reached stderr and nobody else] [tested
     test_a_nondeterministic_ops_generator_releases_what_it_holds]
+  - resolved parameter and return annotations select conversion in both
+    directions, so an annotation cannot describe one image while carrying
+    another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+    commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - type_names removes every __petta_wire_value__ carrier before reading the
+    MRO, so transport classes never become MeTTa types [tested:
+    test_a_python_tuple_answers_the_same_through_both_doors;
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - Atom annotations select syntax-level delivery, while an `(arguments ...
+    atoms)` seam declaration selects Atom wrappers after ordinary evaluation
+    without a pass_atoms boolean [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -36,13 +49,16 @@ from __future__ import annotations
 
 import inspect
 import threading
+import types
+import typing
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
 
 from ._api_types import MettaName, SpaceName
-from ._convert_project import explicit_projection
+from ._convert_build import build
+from ._convert_project import explicit_projection, project
 from .answer import Answer
 from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, decode, encode
 from .errors import Decline, PettaError, is_transport_failure
@@ -71,27 +87,43 @@ class Operation:
     fn: Callable[..., Any]
     kind: str  # det | many | raw_det | raw_many
     arity: int
-    pass_atoms: bool  # give the callable atoms rather than decoded values
+    pass_atoms: bool = False  # derived from (arguments name atoms)
     space: SpaceName | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
+    catalog: tuple = ()  # policy atoms owned in &petta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     pure: bool = False  # no effect a cache could hide
+    parameter_annotations: tuple[Any, ...] = ()
+    return_annotation: Any = Any
 
 
 REGISTRY: dict[str, Operation] = {}
 
 
-def _decode_arg(wire: Any, pass_atoms: bool) -> Any:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
+def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     atom = atom_from_wire(wire)
-    if pass_atoms:
+    if pass_atoms or _receives_atom(annotation):
         return atom
+    if annotation is not Any and annotation is not inspect.Parameter.empty:
+        return build(atom, annotation)
     # Grounded values unwrap to Python; symbols, variables and expressions
     # stay atoms, which is the structure an operation may want to inspect.
     return decode(atom) if isinstance(atom, Gnd) else atom
 
 
-def _encode_result(value: Any) -> list:
+def _receives_atom(annotation: Any) -> bool:
+    """Whether an annotation asks for syntax rather than an evaluated value."""
+    while typing.get_origin(annotation) is typing.Annotated:
+        annotation = typing.get_args(annotation)[0]
+    origin = typing.get_origin(annotation)
+    if origin in (typing.Union, types.UnionType):
+        members = [member for member in typing.get_args(annotation) if member is not type(None)]
+        return bool(members) and all(_receives_atom(member) for member in members)
+    return isinstance(annotation, type) and issubclass(annotation, Atom)
+
+
+def _encode_result(value: Any, annotation: Any = Any) -> list:
     if isinstance(value, Answer):
         # The explicit answer: bindings for the call's variables, crossing
         # as the seam's own wire form beside the plain atoms.
@@ -102,6 +134,8 @@ def _encode_result(value: Any) -> list:
         return _DECLINED
     if isinstance(value, Atom):
         return value.to_wire()
+    if annotation is not Any and annotation is not inspect.Parameter.empty:
+        return project(value, annotation).atom.to_wire()
     # An author's opt-in projects: an explicit register_type or a __metta__
     # method makes the value cross as its declared image, so an operation
     # returning a registered type answers (Pt 3 4) rather than an opaque
@@ -116,9 +150,13 @@ def _encode_result(value: Any) -> list:
 def dispatch(name: str, tagged_args: list) -> list:
     """One answer, encoded; the declined sentinel for no answer."""
     op = REGISTRY[name]
-    args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
+    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
+    args = [
+        _decode_arg(argument, op.pass_atoms, annotation)
+        for argument, annotation in zip(tagged_args, annotations, strict=False)
+    ]
     try:
-        return _encode_result(op.fn(*args))
+        return _encode_result(op.fn(*args), op.return_annotation)
     except Decline:
         return _DECLINED
 
@@ -138,8 +176,15 @@ def dispatch_inverse(name: str, tagged_result: Any):
     typo and forgetting the comma would otherwise iterate a string.
     """
     op = REGISTRY[name]
-    for arguments in _preimages(name, _decode_arg(tagged_result, op.pass_atoms)):
-        yield [_encode_result(argument) for argument in arguments]
+    for arguments in _preimages(
+        name,
+        _decode_arg(tagged_result, op.pass_atoms, op.return_annotation),
+    ):
+        annotations = (*op.parameter_annotations, *(Any for _ in arguments))
+        yield [
+            _encode_result(argument, annotation)
+            for argument, annotation in zip(arguments, annotations, strict=False)
+        ]
 
 
 def dispatch_inverse_raw(name: str, result: Any):
@@ -198,7 +243,11 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     stream; control signals and transport failures re-raise, always.
     """
     op = REGISTRY[name]
-    args = [_decode_arg(a, op.pass_atoms) for a in tagged_args]
+    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
+    args = [
+        _decode_arg(argument, op.pass_atoms, annotation)
+        for argument, annotation in zip(tagged_args, annotations, strict=False)
+    ]
     # closing/1 rather than a bare loop: the stream is one-shot and this is
     # what consumed it. A "many" operation is a generator function by
     # construction (ops._operation_kind), so close() is always there.
@@ -207,7 +256,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             for value in answers:
                 if value is None:
                     continue
-                yield _encode_result(value)
+                yield _encode_result(value, op.return_annotation)
     # KeyboardInterrupt and SystemExit are BaseException, outside this
     # handler by construction, so control signals pass through untouched.
     except Exception as error:
@@ -215,14 +264,26 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             raise
         if mode == "keep":
             call = Expr(
-                [Sym(name), *(encode(_decode_arg(a, True)) for a in tagged_args)]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+                [
+                    Sym(name),
+                    *(
+                        encode(_decode_arg(a, True, Atom))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+                        for a in tagged_args
+                    ),
+                ]
             )
             reason = f"{type(error).__name__}: {error}"
             yield Expr([Sym("Error"), call, Gnd(reason)]).to_wire()
 
 
 def _unbox(value: Any) -> Any:
-    return value.value if isinstance(value, Box) else value
+    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    if isinstance(wire_value, property):
+        if wire_value.fget is None:
+            msg = "__petta_wire_value__ must be a readable property"
+            raise TypeError(msg)
+        return _unbox(wire_value.fget(value))
+    return value
 
 
 def _rebox(value: Any) -> Any:
@@ -263,13 +324,13 @@ def _refuse_raw_answer(value: Any) -> Any:
     """A raw operation is the opaque fast path and its results skip the wire,
     so an Answer here would cross as an inert handle and its bindings would
     silently never bind. Refusing is the honest reading; bindings need the
-    wire, so the operation drops raw=True.
+    wire, so the operation selects transport="encoded".
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Answer):
         msg = (
             "a raw operation answered petta.Answer; raw results skip the "
-            "wire the bindings cross on, so register the operation without "
-            "raw=True to answer bindings"
+            "wire the bindings cross on, so register the operation with "
+            'transport="encoded" to answer bindings'
         )
         raise PettaError(
             msg
@@ -283,7 +344,7 @@ def type_names(obj: Any) -> list[str]:
     protocol. Computed on the boxed value's contents, and returned as text,
     which janus cannot damage.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    value = obj.value if isinstance(obj, Box) else obj
+    value = _unbox(obj)
     names = [c.__name__ for c in type(value).__mro__ if c.__name__ != "object"]
     names.extend(extra_types(value))
     return names

@@ -1,6 +1,15 @@
 """Purpose: the asyncio facade: the loop stays live while the engine
 works, results and errors cross threads intact, bounds fire on the worker
 thread, and spaces borrow the owner's engine thread.
+Guarantees:
+  - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
+    no residuals parameter [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+  - capture and execution-policy scopes cross the worker hop without changing
+    awaited return shapes [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -92,8 +101,10 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
                 )
             with pytest.raises(MettaSyntaxError):
                 await am.run("!(unclosed")
-            groups, text = await am.run("!(println! crossed)", capture=True)
-            return text
+            with am.capture() as output:
+                groups = await am.run("!(println! crossed)")
+            assert groups == [[petta.expr()]]
+            return output.text
 
     assert "crossed" in asyncio.run(go())
 
@@ -262,9 +273,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         "using",
         "timeout",
         "inferences",
-        "capture",
-        "atomic",
-        "speculative",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.query).parameters) == [
         "self",
@@ -281,8 +289,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         "using",
         "timeout",
         "inferences",
-        "capture",
-        "residuals",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",
@@ -333,7 +339,6 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
                 lambda sync: sync.register_op(
                     lambda value: value,
                     name="aio-unregister-target",
-                    typed=False,
                 )
             )
             assert await am.is_function("aio-unregister-target")

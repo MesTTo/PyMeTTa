@@ -4,6 +4,9 @@ Guarantees:
     test_define_from_two_threads_is_serialized]
   - compiler mixins operate on one explicit SSA scope and one shared
     auxiliary-equation collection [tested test_nested_loops_carry_the_outer_state]
+  - statement lowering can resolve a local annotation into an in-place MeTTa
+    type claim [tested: test_an_annotated_binding_emits_its_claim;
+    commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -49,6 +52,9 @@ class CompilerContext:
     lifted: dict[str, tuple[str, list[str], bool]]
     closer: Callable[[Any], Atom] | None
     closer_names: list[str]
+
+    def annotation_atom(self, node: ast.expr) -> Atom:
+        raise NotImplementedError
 
     def nondet(self, called: str) -> bool:
         raise NotImplementedError

@@ -8,6 +8,14 @@ Guarantees:
     error [tested test_union_build_selects_by_shape_and_surfaces_reverse_errors]
   - a requested class never accepts another class's constructor spelling
     [tested test_type_name_collision_is_refused_and_build_honors_requested_class]
+  - each supported container reconstructs through the same specialised hook
+    that projected its full annotation
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+  - buffer projections rebuild the exact carried exporter rather than copying
+    or discarding its layout
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,6 +40,7 @@ from ._convert_registry import (
     constructor_for,
     explicitly_registered,
 )
+from ._parameterized import hook_for as _parameterized_hook
 from .atoms import Atom, Expr, Gnd, Sym, decode
 
 _UNHANDLED = object()
@@ -60,7 +69,8 @@ def build(atom: Atom, cls: Any = None) -> Any:
     """
     rebuilt = (
         _build_annotated(atom, cls)
-        if cls is not None and not _is_plain_class(cls)
+        if cls is not None
+        and (_parameterized_hook(cls) is not None or not _is_plain_class(cls))
         else _build_plain(atom, cls)
     )
     return atom if rebuilt is _UNHANDLED else rebuilt
@@ -95,11 +105,24 @@ def _build_symbol(atom: Sym, cls: type) -> Any:
 def _build_expression(atom: Expr, cls: type | None) -> Any:
     if not atom.children or not isinstance(atom.head, Sym):
         return _UNHANDLED
+    if atom.head == Sym("Buffer"):
+        return _build_buffer(atom, cls)
     resolved = _resolve_constructor(atom, cls)
     if resolved is None:
         return _UNHANDLED
     target_cls, registration = resolved
     return _rebuild_registered(atom, target_cls, registration)
+
+
+def _build_buffer(atom: Expr, cls: type | None) -> Any:
+    if len(atom.args) != 8 or not isinstance(atom.args[0], Gnd):
+        msg = f"{atom} is not a complete Buffer image"
+        raise TypeError(msg)
+    value = decode(atom.args[0])
+    if cls is not None and not isinstance(value, cls):
+        msg = f"the Buffer image carries {type(value).__name__}, not {cls.__name__}"
+        raise TypeError(msg)
+    return value
 
 
 def _build_hook(atom: Expr, cls: type | None) -> Any:
@@ -186,10 +209,9 @@ def _build_annotated(atom: Atom, annotation: Any) -> Any:
         return _build_annotated(atom, typing.get_args(annotation)[0])
     if origin in (typing.Union, types.UnionType):
         return _build_union(atom, typing.get_args(annotation))
-    if isinstance(atom, Expr) and isinstance(origin, type):
-        rebuilt = _build_sequence(atom, origin, typing.get_args(annotation))
-        if rebuilt is not _UNHANDLED:
-            return rebuilt
+    hook = _parameterized_hook(annotation)
+    if isinstance(atom, Expr) and hook is not None:
+        return hook.build(atom, annotation, build)
     if isinstance(annotation, type):
         return build(atom, annotation)
     return build(atom)

@@ -5,6 +5,9 @@ modules, and a real third-party library (networkx) integrated in a page.
 Guarantees:
   - dropping a space invalidates its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - module operations use one transport selector and infer declarations from
+    annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -275,7 +278,7 @@ def test_networkx_integrates_in_a_page(metta):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
         return expr(*(S[n] for n in names))
 
-    space.register_op(shortest_path, name="nx-path", raw=False, typed=False)
+    space.register_op(shortest_path, name="nx-path")
     # And both compose with reasoning:
     assert space.run("!(nx-path a c)") == [[expr(S.a, S.b, S.c)]]
     rows = space.query(S.nx_edge(S.a, V.to, V.w))

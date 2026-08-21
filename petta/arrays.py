@@ -16,6 +16,14 @@ Guarantees:
     of three perf stat instructions:u runs]
   - the fixed public constructor vocabulary is marked immutable to type
     checkers [tested test_policy_constants_are_final]
+  - all 44 installed operation names own arity-accurate arrows, and
+    broadcast-shape relates compatible dimensions before any array exists
+    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - array transport and Atom-delivery choices use the same declaration
+    surface as every registered operation [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -31,8 +39,7 @@ import importlib
 import itertools
 import operator
 import threading
-from collections.abc import Iterator
-from typing import Any, Final
+from typing import Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
 from ._ops import REGISTRY
@@ -42,6 +49,7 @@ from .errors import PettaError
 
 __all__ = [
     "ARRAY_OPS",
+    "DLTensor",
     "EmbeddingStore",
     "data_of",
     "install",
@@ -50,6 +58,7 @@ __all__ = [
 ]
 
 ARRAY_OPS: list[str] = []
+DLTensor = NewType("DLTensor", Any)  # type: ignore[valid-newtype]  # ty: ignore[invalid-newtype]
 _PROTOCOLS_REGISTERED = threading.Event()
 _PROTOCOLS_LOCK = threading.Lock()
 
@@ -70,6 +79,28 @@ _CONSTRUCTOR_NAMES: Final[tuple[str, ...]] = (
 _SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
 _SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
 _STORE_SERIAL = itertools.count(1)
+
+_BROADCAST_SHAPE_SOURCE: Final = r"""
+:- use_module(library(clpfd)).
+:- metta_extension(petta_arrays_shape, [version('0.1.0')]).
+:- metta_export("(: broadcast-shape (-> Expression Expression Expression Bool))").
+
+'broadcast-shape'(Left, Right, Shape, true) :-
+    reverse(Left, LeftReversed),
+    reverse(Right, RightReversed),
+    petta_broadcast_reversed(LeftReversed, RightReversed, ShapeReversed),
+    reverse(ShapeReversed, Shape).
+
+petta_broadcast_reversed([], Shape, Shape) :- !.
+petta_broadcast_reversed(Shape, [], Shape) :- !.
+petta_broadcast_reversed([Left | Lefts], [Right | Rights], [Out | Outs]) :-
+    petta_broadcast_dimension(Left, Right, Out),
+    petta_broadcast_reversed(Lefts, Rights, Outs).
+
+petta_broadcast_dimension(D2, D1, D) :-
+    D1 #\= 1 #/\ D1 #= D #\ D1 #= 1 #/\ D2 #= D,
+    D2 #\= 1 #/\ D2 #= D #\ D2 #= 1 #/\ D1 #= D.
+"""
 
 
 def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
@@ -198,13 +229,35 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     argument's own namespace, so arrays from any conforming library flow
     through the same MeTTa functions, and a mixed binary call converts the
     right operand into the left's library through from_dlpack.
+
+    Every installed name has one or more arrow declarations. Constructors
+    with optional or variadic dimensions have one arrow per accepted arity.
+
+    broadcast-shape is the CLP(FD) relation over shape expressions. It can
+    compute a result before any tensor exists, infer an unknown input
+    dimension from a required result, or reject incompatible shapes:
+
+        !(let True (broadcast-shape (4 1) (3) $shape) $shape)  ; (4 3)
+        !(let True (broadcast-shape ($d 1) (1 3) (4 3)) $d)   ; 4
+        !(broadcast-shape (2 3) (4 3) (4 3))                  ; no answer
+
+    t-shape remains observation of an existing tensor. Use broadcast-shape
+    when compatibility or inference must happen before materialisation.
     """
     _register_protocols()
     xp_default = _default_namespace(default)
     library = getattr(xp_default, "__name__", str(xp_default)).rsplit(".", 1)[-1]
     registered: list[str] = []
 
-    def op(fn, *, name: str, raw: bool = True, types: list[str] | None = None, **kw):
+    m.register_prolog(_BROADCAST_SHAPE_SOURCE)
+
+    def op(
+        fn,
+        *,
+        name: str,
+        transport: Literal["encoded", "raw"] = "raw",
+        **kw,
+    ):
         if (
             m.is_function(name)
             and name not in _known_ops()
@@ -217,9 +270,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             raise PettaError(
                 msg
             )
-        m.register_op(fn, name=name, raw=raw, typed=False, **kw)
-        if types:
-            m.add(expr(S[":"], S[name], Expr([S["->"], *(S[t] for t in types)])))
+        m.register_op(fn, name=name, transport=transport, **kw)
         registered.append(name)
         return fn
 
@@ -228,8 +279,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         *,
         name: str,
         arities: list[int] | None = None,
-        raw: bool = True,
-        types: list[str] | None = None,
+        transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):
         """A constructor registers per backend as name--library, and THIS
@@ -238,7 +288,24 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         space again with another default replaces its aliases.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         namespaced = f"{name}--{library}"
-        op(fn, name=namespaced, raw=raw, arities=arities, **kw)
+        declarations = [
+            expr(declaration.head, S[namespaced], *declaration.args[1:])
+            if (
+                isinstance(declaration, Expr)
+                and declaration.args
+                and declaration.args[0] == S[name]
+            )
+            else declaration
+            for declaration in kw.pop("declarations", ())
+        ]
+        op(
+            fn,
+            name=namespaced,
+            transport=transport,
+            arities=arities,
+            declarations=declarations,
+            **kw,
+        )
         key = (m.space_name, name)
         previous = _SPACE_CONSTRUCTORS.get(key)
         if previous is not None:
@@ -248,8 +315,17 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         for arity in arities or [1]:
             m.add(_alias_equation(name, library, arity))
         _SPACE_CONSTRUCTORS[key] = (library, list(arities or [1]))
-        if types and previous is None:
-            m.add(expr(S[":"], S[name], Expr([S["->"], *(S[t] for t in types)])))
+        operation = REGISTRY[namespaced]
+        for declaration in operation.declarations:
+            if (
+                declaration.head == S[":"]
+                and declaration.args[0] == S[namespaced]
+                and isinstance(declaration.args[1], Expr)
+                and declaration.args[1].head == S["->"]
+            ):
+                alias_type = expr(S[":"], S[name], declaration.args[1])
+                if alias_type not in m:
+                    m.add(alias_type)
         registered.append(name)
         return fn
 
@@ -268,55 +344,69 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
     # ------------------------------------------------------------ constructors
 
-    def make_tensor(data) -> Any:
+    def make_tensor(data: Any) -> DLTensor:
         raw_data = data_of(data) if isinstance(data, Atom) else data
         if is_array(raw_data):
-            return val(raw_data)
-        return val(xp_default.asarray(raw_data, dtype=xp_default.float32))
+            return DLTensor(val(raw_data))
+        return DLTensor(val(xp_default.asarray(raw_data, dtype=xp_default.float32)))
 
     constructor(
         make_tensor,
         name="tensor",
-        raw=False,
-        pass_atoms=True,
-        types=["%Undefined%", "DLTensor"],
+        transport="encoded",
+        declarations=[expr(S.arguments, S.tensor, S.atoms)],
     )
 
     dims = [1, 2, 3, 4]
-    constructor(
-        lambda *s: xp_default.zeros(tuple(int(d) for d in s)),
-        name="zeros",
-        arities=dims,
-    )
-    constructor(
-        lambda *s: xp_default.ones(tuple(int(d) for d in s)), name="ones", arities=dims
-    )
+
+    def zeros(*shape: int) -> DLTensor:
+        return xp_default.zeros(tuple(int(dimension) for dimension in shape))
+
+    def ones(*shape: int) -> DLTensor:
+        return xp_default.ones(tuple(int(dimension) for dimension in shape))
+
+    def arange_tensor(n: float) -> DLTensor:
+        return xp_default.arange(float(n))
+
+    def identity(n: int) -> DLTensor:
+        return xp_default.eye(int(n))
+
+    constructor(zeros, name="zeros", arities=dims)
+    constructor(ones, name="ones", arities=dims)
     constructor(_randn(xp_default), name="randn", arities=dims)
-    constructor(lambda n: xp_default.arange(float(n)), name="arange-t")
-    constructor(lambda n: xp_default.eye(int(n)), name="eye")
+    constructor(arange_tensor, name="arange-t")
+    constructor(identity, name="eye")
 
     # ---------------------------------------------------------------- algebra
 
-    def binop(fn, name, second="%Undefined%"):
-        def call(a, b):
+    def binop(fn, name: str, second: Any = Any):
+        def call(a: DLTensor, b: Any) -> DLTensor:
             a2, b2, xp = aligned(a, b)
             return fn(xp, a2, b2)
 
-        # The second operand's declared type states what aligned() accepts:
-        # elementwise operations lift a bare number, so their declaration
-        # must not claim DLTensor for it; matmul genuinely needs two arrays.
-        op(call, name=name, types=["DLTensor", second, "DLTensor"])
+        call.__annotations__["b"] = second
+        op(call, name=name)
 
-    binop(lambda xp, a, b: xp.matmul(a, b), "matmul", second="DLTensor")
+    binop(lambda xp, a, b: xp.matmul(a, b), "matmul", second=DLTensor)
     binop(lambda xp, a, b: xp.add(a, b), "t+")
     binop(lambda xp, a, b: xp.subtract(a, b), "t-")
     binop(lambda xp, a, b: xp.multiply(a, b), "t*")
     binop(lambda xp, a, b: xp.divide(a, b), "t/")
-    op(lambda a: namespace_of(a).negative(a), name="t-neg")
-    op(lambda a: namespace_of(a).exp(a), name="t-exp")
-    op(lambda a: namespace_of(a).log(a), name="t-log")
 
-    def power(a, p):
+    def negative(a: DLTensor) -> DLTensor:
+        return namespace_of(a).negative(a)
+
+    def exponential(a: DLTensor) -> DLTensor:
+        return namespace_of(a).exp(a)
+
+    def logarithm(a: DLTensor) -> DLTensor:
+        return namespace_of(a).log(a)
+
+    op(negative, name="t-neg")
+    op(exponential, name="t-exp")
+    op(logarithm, name="t-log")
+
+    def power(a: DLTensor, p: Any) -> DLTensor:
         # Through aligned() like every other binary operation, so a mixed
         # pair (a torch base, a NumPy exponent) converts before the call.
         a2, p2, xp = aligned(a, p)
@@ -326,92 +416,133 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
     # ------------------------------------------------------------------ shape
 
-    op(
-        lambda a, *ds: namespace_of(a).reshape(a, tuple(int(d) for d in ds)),
-        name="reshape",
-        arities=[2, 3, 4, 5],
-    )
-    op(
-        lambda a, d0, d1: _swap(namespace_of(a), a, int(d0), int(d1)),
-        name="t-transpose",
-    )
-    op(lambda a, d: namespace_of(a).expand_dims(a, axis=int(d)), name="unsqueeze")
-    op(lambda a, d: namespace_of(a).squeeze(a, axis=int(d)), name="squeeze")
-    op(lambda a, i: a[int(i)], name="t-index")
+    def reshape(a: DLTensor, *dimensions: int) -> DLTensor:
+        return namespace_of(a).reshape(
+            a,
+            tuple(int(dimension) for dimension in dimensions),
+        )
 
-    def cat_op(tensors, dim=0):
+    def transpose(a: DLTensor, d0: int, d1: int) -> DLTensor:
+        return _swap(namespace_of(a), a, int(d0), int(d1))
+
+    def unsqueeze(a: DLTensor, dimension: int) -> DLTensor:
+        return namespace_of(a).expand_dims(a, axis=int(dimension))
+
+    def squeeze(a: DLTensor, dimension: int) -> DLTensor:
+        return namespace_of(a).squeeze(a, axis=int(dimension))
+
+    def tensor_index(a: DLTensor, index: int) -> Any:
+        return cast(Any, a)[int(index)]
+
+    op(reshape, name="reshape", arities=[2, 3, 4, 5])
+    op(transpose, name="t-transpose")
+    op(unsqueeze, name="unsqueeze")
+    op(squeeze, name="squeeze")
+    op(tensor_index, name="t-index")
+
+    def cat_op(tensors: Expr, dim: int = 0) -> DLTensor:
         parts = [decode(c) for c in tensors]
-        return val(namespace_of(parts[0]).concat(parts, axis=int(decode(dim))))
+        dimension = decode(dim) if isinstance(dim, Atom) else dim
+        return DLTensor(
+            val(namespace_of(parts[0]).concat(parts, axis=int(dimension)))
+        )
 
-    def stack_op(tensors, dim=0):
+    def stack_op(tensors: Expr, dim: int = 0) -> DLTensor:
         parts = [decode(c) for c in tensors]
-        return val(namespace_of(parts[0]).stack(parts, axis=int(decode(dim))))
+        dimension = decode(dim) if isinstance(dim, Atom) else dim
+        return DLTensor(
+            val(namespace_of(parts[0]).stack(parts, axis=int(dimension)))
+        )
 
-    op(cat_op, name="cat", raw=False, pass_atoms=True)
-    op(stack_op, name="stack", raw=False, pass_atoms=True)
+    op(cat_op, name="cat", transport="encoded")
+    op(stack_op, name="stack", transport="encoded")
 
     # ------------------------------------------------------------- reductions
 
-    op(
-        lambda a: namespace_of(a).sum(a),
-        name="t-sum",
-        types=["DLTensor", "%Undefined%"],
-    )
-    op(lambda a: namespace_of(a).mean(a), name="t-mean")
-    op(lambda a: namespace_of(a).max(a), name="t-max")
-    op(lambda a: namespace_of(a).min(a), name="t-min")
+    def tensor_sum(a: DLTensor) -> Any:
+        return namespace_of(a).sum(a)
 
-    def argmax(a, dim=-1):
+    def tensor_mean(a: DLTensor) -> Any:
+        return namespace_of(a).mean(a)
+
+    def tensor_max(a: DLTensor) -> Any:
+        return namespace_of(a).max(a)
+
+    def tensor_min(a: DLTensor) -> Any:
+        return namespace_of(a).min(a)
+
+    op(tensor_sum, name="t-sum")
+    op(tensor_mean, name="t-mean")
+    op(tensor_max, name="t-max")
+    op(tensor_min, name="t-min")
+
+    def argmax(a: DLTensor, dim: int = -1) -> Any:
         xp = namespace_of(a)
         out = xp.argmax(a, axis=int(dim))
-        return int(out) if a.ndim <= 1 else out
+        return int(out) if cast(Any, a).ndim <= 1 else out
+
+    def tensor_norm(a: DLTensor) -> Any:
+        return namespace_of(a).linalg.vector_norm(a)
 
     op(argmax, name="t-argmax")
-    op(lambda a: namespace_of(a).linalg.vector_norm(a), name="t-norm")
+    op(tensor_norm, name="t-norm")
 
     # ------------------------------------------------------------ activations
 
-    def relu(a):
+    def relu(a: DLTensor) -> DLTensor:
         xp = namespace_of(a)
-        return xp.where(a > 0, a, xp.zeros_like(a))
+        raw = cast(Any, a)
+        return xp.where(raw > 0, raw, xp.zeros_like(raw))
 
-    def sigmoid(a):
+    def sigmoid(a: DLTensor) -> DLTensor:
         xp = namespace_of(a)
-        return 1.0 / (1.0 + xp.exp(-a))
+        return 1.0 / (1.0 + xp.exp(-cast(Any, a)))
 
-    def softmax(a, dim=-1):
+    def softmax(a: DLTensor, dim: int = -1) -> DLTensor:
         xp = namespace_of(a)
         shifted = xp.exp(a - xp.max(a, axis=int(dim), keepdims=True))
         return shifted / xp.sum(shifted, axis=int(dim), keepdims=True)
 
-    op(relu, name="relu", types=["DLTensor", "DLTensor"])
+    def hyperbolic_tangent(a: DLTensor) -> DLTensor:
+        return namespace_of(a).tanh(a)
+
+    op(relu, name="relu")
     op(sigmoid, name="sigmoid")
-    op(softmax, name="softmax", types=["DLTensor", "DLTensor"])
-    op(lambda a: namespace_of(a).tanh(a), name="tanh")
+    op(softmax, name="softmax")
+    op(hyperbolic_tangent, name="tanh")
 
     # ------------------------------------------------------------------ exits
 
-    # The input stays undeclared on purpose: a reduction's answer is a 0-d
-    # array in some libraries and a scalar in others (NumPy answers a
-    # float32, which speaks no DLPack), and both read out through float().
-    op(float, name="t-item", types=["%Undefined%", "Number"])
+    # A reduction answers a zero-dimensional array in some libraries and a
+    # scalar in others, so the readout accepts either shape honestly.
+    def item(a: Any) -> float:
+        return float(a)
 
-    def tolist(a) -> Any:
-        data = decode(a)
+    op(item, name="t-item")
+
+    def tolist(a: DLTensor) -> Any:
+        data: Any = decode(a) if isinstance(a, Atom) else a
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
         return expr(*listed) if isinstance(listed, list) else listed
 
-    op(tolist, name="t-tolist", raw=False, types=["DLTensor", "Expression"])
+    op(tolist, name="t-tolist", transport="encoded")
 
-    def shape(a) -> Any:
-        return expr(*[int(d) for d in decode(a).shape])
+    def shape(a: DLTensor) -> Expr:
+        data: Any = decode(a) if isinstance(a, Atom) else a
+        return expr(*[int(dimension) for dimension in data.shape])
 
-    op(shape, name="t-shape", raw=False, types=["DLTensor", "Expression"])
+    op(shape, name="t-shape", transport="encoded")
 
-    op(lambda a: str(a.dtype), name="t-dtype")
-    op(lambda a: str(_compat().device(a)), name="t-device")
+    def dtype(a: DLTensor) -> str:
+        return str(cast(Any, a).dtype)
 
-    def convert(a, lib):
+    def device(a: DLTensor) -> str:
+        return str(_compat().device(a))
+
+    op(dtype, name="t-dtype")
+    op(device, name="t-device")
+
+    def convert(a: DLTensor, lib: str) -> DLTensor:
         """(t-as $x numpy): the same values in another library, via DLPack."""
         target = importlib.import_module(str(lib))
         probe = target.zeros(0) if hasattr(target, "zeros") else target.asarray([0])
@@ -426,7 +557,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 def _randn(xp_default):
     module = xp_default.__name__.rsplit(".", 1)[-1]
 
-    def randn(*shape):
+    def randn(*shape: int) -> DLTensor:
         dims = tuple(int(d) for d in shape)
         if hasattr(xp_default, "randn"):
             return xp_default.randn(*dims)
@@ -486,7 +617,7 @@ class EmbeddingStore:
         self._index = None
         self._width: int | None = None
 
-        def knn(query, k) -> Iterator[Any]:
+        def knn(query, k):
             yield from self._search(decode(query), decode(k))
 
         def embed(key):
@@ -499,9 +630,15 @@ class EmbeddingStore:
         serial = next(_STORE_SERIAL)
         internal_knn = f"{name}--store-{serial}-knn"
         internal_embed = f"{name}--store-{serial}-embed"
-        m.register_op(knn, name=internal_knn, raw=False, typed=False, pass_atoms=True)
         m.register_op(
-            embed, name=internal_embed, raw=False, typed=False, pass_atoms=True
+            knn,
+            name=internal_knn,
+            declarations=[expr(S.arguments, S[internal_knn], S.atoms)],
+        )
+        m.register_op(
+            embed,
+            name=internal_embed,
+            declarations=[expr(S.arguments, S[internal_embed], S.atoms)],
         )
 
         key = (m.space_name, name)

@@ -8,6 +8,10 @@ renderer implements the same law, so one atom has one text in both hosts.
 Computed string operands are refused at every numeric math position before the
 host can reinterpret one character as its code [tested:
 test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code].
+Guarantees:
+  - numeric print probes collect text through a shape-preserving capture scope
+    [tested: test_finite_floats_print_the_arbiters_layout,
+    test_gnd_str_spells_numbers_the_engines_way; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -252,8 +256,9 @@ def test_finite_floats_print_the_arbiters_layout(metta):
         ("5e-324", 5.0e-324),
     ]
     for want, value in pins:
-        _, text = metta.run(f"!(println! {want})", capture=True)
-        assert text.strip() == want, f"{value!r} printed {text.strip()}"
+        with metta.capture() as output:
+            metta.run(f"!(println! {want})")
+        assert output.text.strip() == want, f"{value!r} printed {output.text.strip()}"
         assert metta.run(f"!(min-atom ({want}))") == [[value]], want
 
 
@@ -275,8 +280,9 @@ def test_gnd_str_spells_numbers_the_engines_way(metta):
         7, -3, 9223372036854775808,
     ]
     source = "".join(f"!(println! {value!r})\n" for value in values)
-    _, printed = metta.run(source, capture=True)
-    engine_lines = printed.splitlines()
+    with metta.capture() as output:
+        metta.run(source)
+    engine_lines = output.text.splitlines()
     assert len(engine_lines) == len(values)
     for value, engine_text in zip(values, engine_lines, strict=True):
         assert str(val(value)) == engine_text, (

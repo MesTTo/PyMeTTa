@@ -4,6 +4,9 @@ generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
 classes as declared types), guarded and bounded queries, assumptions,
 prepared queries, general weighted relations, goal-directed soft proving with Proof objects, and
 the &petta reflection space the library describes itself into.
+Guarantees:
+  - an unannotated weighted operation stays untyped without a typed flag
+    [tested: test_a_weighted_relation_is_an_annotated_op; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -255,7 +258,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    m.register_op(mood, name="mood", typed=False)
+    m.register_op(mood, name="mood")
     m.declare_annotations("mood", "prob")
     (classes,) = m.run("!(collapse (mood today))")[0]
     assert [str(c) for c in classes] == ["calm", "tense"]

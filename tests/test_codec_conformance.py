@@ -14,6 +14,10 @@ Guarantees:
   - a renderer refusal is licensed only where the corpus marks the spelling
     as non-invertible [tested:
     test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=53686aed41e7ff02de69052198afdb537536cbdb]
+  - undefined truth has one value-and-delay frame without a residual-program
+    variant [tested:
+    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
+    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
 
 Open Obligations:
   To Do: None
@@ -147,7 +151,6 @@ class JsonWireCodec:
         return {
             "value": undefined.value.to_wire(),
             "why": undefined.why,
-            "residual": undefined.residual,
         }
 
     def host_value(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
@@ -184,8 +187,7 @@ def test_every_corpus_case_runs_for_at_least_one_shipped_codec(codecs):
 def test_the_plan_names_what_each_codec_leaves_out(codecs):
     """The JSON wire's exclusions are declared, not discovered at run time."""
     janus, wire = codecs
-    assert codec_plan(janus)["out_of_profile"] == [("undefined-truth", "frame u"),
-                                                   ("undefined-truth-with-residual", "frame u")]
+    assert codec_plan(janus)["out_of_profile"] == [("undefined-truth", "frame u")]
     left_out = dict(codec_plan(wire)["out_of_profile"])
     assert left_out == {
         "boolean-true": "tags ['b']",

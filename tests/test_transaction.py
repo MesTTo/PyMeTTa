@@ -100,3 +100,18 @@ def test_transactional_is_the_decorator_twin(m):  # noqa: D103  -- pytest discov
         migrate(-1)
     assert m.atoms() == [S.tx(5)]  # the failing call's write rolled back
     assert migrate.__name__ == "migrate"  # functools.wraps preserved it
+
+
+def test_atomic_and_speculative_scopes_refuse_to_compose(m):
+    """One commits each call whole, the other discards its writes.
+
+    The two policies contradict, so entering the second scope refuses by
+    name at the door, before any call could run under both.
+    """
+    with m.atomic():
+        with pytest.raises(ValueError, match="exclusive"), m.speculative():
+            m.run("(tx-both fact) !(+ 1 1)")
+    with m.speculative():
+        with pytest.raises(ValueError, match="exclusive"), m.atomic():
+            m.run("(tx-both fact) !(+ 1 1)")
+    assert m.atoms() == []

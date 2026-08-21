@@ -2,6 +2,9 @@
 inference bounds with their own error classes, engine counters read as a
 stats block, print output captured beside the answers, and rows crossing
 into a DataFrame.
+Guarantees:
+  - capture collects print output without changing the run result shape
+    [tested: test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,8 +47,9 @@ with m.stats() as s:
     m.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
 check("the stats block counts the engine steps spent", s.inferences > 100)
 
-groups, text = m.run("!(println! (hello world)) !(+ 1 2)", capture=True)
-check("captured print output", "(hello world)" in text)
+with m.capture() as output:
+    groups = m.run("!(println! (hello world)) !(+ 1 2)")
+check("captured print output", "(hello world)" in output.text)
 check("the answers still arrive beside it", groups[1], [3])
 
 try:

@@ -9,6 +9,9 @@ Guarantees:
     test_parse_keeps_variable_names]
   - formatter registrations have exact removal counterparts [tested
     test_object_repr_registrations_can_be_removed_exactly]
+  - the immutable operator lowering table is public data [tested:
+    test_the_operator_table_is_generated_from_one_source_with_no_holes;
+    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,6 +42,7 @@ from ._atoms_core import (
     unregister_object_repr,
     unregister_object_repr_protocol,
 )
+from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
 _Namespace = _namespace._Namespace
 _NAMESPACE_CACHE_MAX = _namespace.NAMESPACE_CACHE_MAX
@@ -48,10 +52,12 @@ _WIRE_VARS = _core._WIRE_VARS
 boxed = _core.boxed
 
 __all__ = [
+    "OPERATOR_LOWERINGS",
     "Atom",
     "Expr",
     "Gnd",
     "Handle",
+    "OperatorLowering",
     "S",
     "Sym",
     "Undefined",

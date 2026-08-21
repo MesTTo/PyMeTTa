@@ -36,7 +36,7 @@ def test_a_registered_token_class_parses_like_a_shipped_one(metta):
         assert metta.parse("12kg") == S.mass("12kg")
 
         with pytest.raises(ValueError, match=r"12kg.*another literal"):
-            metta.register_op(lambda value: value, name="12kg", typed=False)
+            metta.register_op(lambda value: value, name="12kg")
 
         metta.run(f'!(register-token! "{metta_pattern}" tagged)')
         assert metta.parse("A7") == S.tagged("A7")

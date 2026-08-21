@@ -54,9 +54,35 @@ def test_every_declared_skip_resolves_and_would_otherwise_run():
 
 def test_example_parity_reports_a_planted_difference():
     """A real difference in ANSWERS survives the value comparison."""
-    engine = parity.Outcome(["((1, 2))"], None)
-    library = parity.Outcome(["((- 1 2))"], None)
+    engine = parity.Outcome(["((1 2))"], None)
+    library = parity.Outcome(["((1 3))"], None)
     assert parity._value(engine.groups[0]) != parity._value(library.groups[0])
+
+
+def test_a_python_tuple_answers_the_same_through_both_doors(metta):
+    """The shared Python-surface example exposes pair and empty tuple answers."""
+    path = REPO / "examples" / "integration" / "py_surface.metta"
+    engine = parity.run_engine(path)
+    library = parity.run_library(path)
+    assert engine.error is None, engine.error
+    assert library.error is None, library.error
+    assert engine.groups[-2:] == ["((1 2))", "(())"]
+    assert library.groups[-2:] == ["((1 2))", "(())"]
+    assert parity.compare(path) is None
+
+    ((grounded,),) = metta.run('!(py-atom "(1, 2)" Grounded)')
+    assert grounded.metatype == "Grounded"
+    assert isinstance(grounded.value, tuple)
+    assert type(grounded.value) is not tuple, "Janus converted the Grounded tuple"
+    assert metta.run(
+        "!(py-dot (py-dot held __class__) __name__)", using={"held": grounded}
+    ) == [["tuple"]]
+    assert metta.run("!(car-atom held)", using={"held": grounded}) == [[1]]
+
+    types = metta.run(
+        '!(let $x (py-atom "(1, 2)" Grounded) (collapse (get-type $x)))'
+    )
+    assert types == [[metta.parse("(tuple Grounded)")]]
 
 
 def test_spelling_is_not_a_difference():

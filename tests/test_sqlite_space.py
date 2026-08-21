@@ -1,7 +1,18 @@
 """Purpose: prove the standalone SQLite example: rows answer MeTTa
 queries under the declared contract, joins cross into native atoms, the
 licensed bound reaches the SQL, writes are transactional, and the
-conformance kit certifies the pushdown claim.
+conformance kit certifies the pushdown claim. The BLOB worked instance proves
+that a context image controls whether a binary value crosses whole.
+Guarantees:
+  - the opaque BLOB image keeps the binary object as a handle, a lazy path
+    reaches one field [tested:
+    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+  - the transparent image costs more engine inferences than the opaque image
+    for the same 4,096-byte value [measured: minimum of three counter samples;
+    command=python -m pytest bindings/python/tests/test_sqlite_space.py -q;
+    fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
+    commit=24532816d8f3987cc56059fadf3666a387ae1156]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -91,6 +102,7 @@ def attached(request):  # noqa: D103  -- pytest discovers or injects this callab
         yield m, name, provider
     finally:
         m.run(f"!(remove-atom &petta (bridge {name} $shape $row))")
+        m.run(f"!(remove-atom &petta (image {name} $type $setting))")
         m.unregister_space(name)
         m.drop()
 
@@ -113,6 +125,68 @@ def test_the_licensed_bound_reaches_the_sql(attached):  # noqa: D103  -- pytest 
     (group,) = m.run(f"!(collapse (take 3 (match {name} (edge $x $y) (edge $x $y))))")
     assert len(group[0]) == 3
     assert any("LIMIT 3" in sql for sql in provider.executed), provider.executed
+
+
+def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
+    attached, monkeypatch
+):
+    """Keep the opaque BLOB behind a handle and reach one field by a lazy path."""
+    import sqlite3
+
+    from petta import S, V, path
+
+    m, name, opaque_provider = attached
+    image = m.parse(f"(image {name} Blob opaque)")
+    assert image in m.space("&petta")
+    assert m.space("&petta").run(f"!(get-type {image})") == [
+        [m.parse("ImageDecl")]
+    ]
+    payload = bytes(range(256)) * 16
+    opaque_provider.connection.execute(
+        "INSERT INTO documents VALUES (?, ?)",
+        ("manual", sqlite3.Binary(payload)),
+    )
+    opaque_space = m.space(name)
+
+    def measured_crossing(space):
+        samples = []
+        rows = None
+        for _sample in range(3):
+            with space.stats() as counted:
+                rows = space.query(S.document(S.manual, V.blob))
+            samples.append(counted.inferences)
+        assert rows is not None
+        return min(samples), rows
+
+    opaque_inferences, opaque_rows = measured_crossing(opaque_space)
+    opaque_blob = opaque_rows[0].blob.value
+    assert type(opaque_blob).__name__ == "Blob"
+    assert opaque_blob.data == payload
+
+    def refuse_whole_projection(_blob):
+        msg = "the opaque BLOB crossed whole"
+        raise AssertionError(msg)
+
+    with monkeypatch.context() as image_guard:
+        image_guard.setattr(
+            type(opaque_blob), "__metta__", refuse_whole_projection
+        )
+        rows = opaque_space.query(
+            S.document(S.manual, path("data", 17, to=V.byte))
+        )
+    assert rows.to_dicts() == [{"byte": 17}]
+
+    m.unregister_space(name)
+    transparent_image = m.declare_image(name, "Blob", "transparent")
+    assert image not in m.space("&petta")
+    assert transparent_image in m.space("&petta")
+    transparent_provider = petta.tables.TableBridge.from_context(
+        m, name, opaque_provider.connection
+    )
+    m.register_space(transparent_provider, name)
+    transparent_inferences, transparent_rows = measured_crossing(m.space(name))
+    assert str(transparent_rows[0].blob).startswith("(Blob 0 1 2 3 ")
+    assert transparent_inferences > opaque_inferences
 
 
 def test_writes_ride_the_engine_transaction(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

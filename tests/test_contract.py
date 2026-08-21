@@ -2,11 +2,19 @@
 readable back as atoms and live and die with the registration, and
 (handles ...) entries route foreign matching, push or withhold the take
 bound, refuse loudly, and stay coherent, down to a SQL backend example.
+Guarantees:
+  - operation facts are typed OpDecl values and callable documentation shares
+    the registration transaction, replacement, ownership, and unregister
+    lifecycle [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+
+import uuid
 
 import pytest
 
@@ -24,7 +32,9 @@ def test_pure_registration_reflects_an_effect_atom(metta):  # noqa: D103  -- pyt
     def add1(x: int) -> int:
         return x + 1
 
-    metta.register_op(add1, name="ct-pure", pure=True)
+    metta.register_op(
+        add1, name="ct-pure", declarations=[_effect_atom("ct-pure")]
+    )
     petta_space = metta.space("&petta")
     assert _effect_atom("ct-pure") in petta_space
     # The op fact and the effect fact are one surface.
@@ -43,7 +53,9 @@ def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):  # noqa: D
     def add1(x: int) -> int:
         return x + 1
 
-    metta.register_op(add1, name="ct-gone", pure=True)
+    metta.register_op(
+        add1, name="ct-gone", declarations=[_effect_atom("ct-gone")]
+    )
     petta_space = metta.space("&petta")
     assert _effect_atom("ct-gone") in petta_space
     metta.unregister_op("ct-gone")
@@ -55,7 +67,9 @@ def test_reregistration_without_pure_retires_the_effect_atom(metta):  # noqa: D1
     def add1(x: int) -> int:
         return x + 1
 
-    metta.register_op(add1, name="ct-flip", pure=True)
+    metta.register_op(
+        add1, name="ct-flip", declarations=[_effect_atom("ct-flip")]
+    )
     petta_space = metta.space("&petta")
     assert _effect_atom("ct-flip") in petta_space
     # The same name re-registered without the claim must not keep it: a claim
@@ -70,7 +84,9 @@ def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytes
     def add1(x: int) -> int:
         return x + 1
 
-    metta.register_op(add1, name="ct-query", pure=True)
+    metta.register_op(
+        add1, name="ct-query", declarations=[_effect_atom("ct-query")]
+    )
     rows = metta.space("&petta").query(parse("(effect ct-query $e)"))
     assert [str(row.e) for row in rows] == ["immutable"]
 
@@ -95,6 +111,98 @@ def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or i
     assert [str(row.t) for row in rows] == ["Type"]
 
 
+def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, monkeypatch):  # noqa: C901  -- test_every_register_op_writes_its_declaration_and_get_doc_answers keeps the four-kind registration and doc lifecycle together so its branches share one state
+    """All four operation kinds are typed; docs follow the full lifecycle."""
+    suffix = uuid.uuid4().hex
+
+    def deterministic(value):
+        """Deterministic operation documentation."""
+        return value
+
+    def nondeterministic(value):
+        """Nondeterministic operation documentation."""
+        yield value
+
+    functions = (
+        (f"p5-det-{suffix}", deterministic, "encoded", "det"),
+        (f"p5-many-{suffix}", nondeterministic, "encoded", "many"),
+        (f"p5-raw-det-{suffix}", deterministic, "raw", "raw_det"),
+        (f"p5-raw-many-{suffix}", nondeterministic, "raw", "raw_many"),
+    )
+    reflection = metta.space("&petta")
+    assert parse("(: OpKind Type)") in reflection
+    assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
+    for name, fn, transport, kind in functions:
+        metta.register_op(fn, name=name, transport=transport)
+        fact = parse(f"(op {name} 1 {kind})")
+        assert fact in reflection
+        assert metta.space("&petta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
+        docs = metta.run(f"!(get-doc {name})")
+        assert len(docs) == 1 and "operation documentation." in str(docs[0][0])
+
+    # Retaining the same documentation during replacement must not remove the
+    # shared atom when the previous registration releases its ownership.
+    stable = f"p5-stable-{suffix}"
+
+    def same(value):
+        """Stable replacement documentation."""
+        return value
+
+    metta.register_op(same, name=stable)
+    metta.register_op(same, name=stable)
+    assert len(metta.run(f"!(get-doc {stable})")) == 1
+
+    replacement = f"p5-replacement-{suffix}"
+
+    def first(value):
+        """First registration documentation."""
+        return value
+
+    def second(value):
+        """Second registration documentation."""
+        return value
+
+    metta.register_op(first, name=replacement)
+    metta.register_op(second, name=replacement)
+    replaced_docs = metta.run(f"!(get-doc {replacement})")
+    assert len(replaced_docs) == 1
+    assert "Second registration documentation." in str(replaced_docs[0][0])
+    assert "First registration documentation." not in str(replaced_docs[0][0])
+
+    # Force the last transactional step to fail. The documentation was
+    # retained already, so its absence proves rollback releases it too.
+    rollback = f"p5-rollback-{suffix}"
+
+    def documented_failure(value):
+        """Documentation which must roll back."""
+        return value
+
+    runtime_type = type(metta.runtime)
+    real_must = runtime_type.must
+    failed = False
+
+    def fail_compile(runtime, goal, **inputs):
+        nonlocal failed
+        if not failed and goal == "petta_py_compile_op(Name)" and inputs.get("Name") == rollback:
+            failed = True
+            msg = "forced registration failure"
+            raise EngineError(msg)
+        return real_must(runtime, goal, **inputs)
+
+    monkeypatch.setattr(runtime_type, "must", fail_compile)
+    with pytest.raises(EngineError, match="forced registration failure"):
+        metta.register_op(documented_failure, name=rollback)
+    assert metta.run(f"!(get-doc {rollback})") == [[]]
+    assert parse(f"(op {rollback} 1 det)") not in reflection
+
+    for name, *_ in functions:
+        metta.unregister_op(name)
+        assert metta.run(f"!(get-doc {name})") == [[]]
+    for name in (stable, replacement):
+        metta.unregister_op(name)
+        assert metta.run(f"!(get-doc {name})") == [[]]
+
+
 def test_the_fidelity_chain_rides_subtype_widening(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     petta_space = metta.space("&petta")
     petta_space.run("!(add-atom &petta (: ct-widen Exact))")
@@ -109,13 +217,13 @@ def test_a_metta_declared_effect_reaches_the_purity_walk(metta):  # noqa: D103  
         calls.append(x)
         return x + 10
 
-    metta.register_op(lookup, name="ct-mdecl")  # deliberately not pure=True
+    metta.register_op(lookup, name="ct-mdecl")  # deliberately no effect atom
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-mwrap $x) (ct-mdecl $x))")
     with pytest.raises(EngineError):
         metta.run("!(tabled (ct-mwrap $x))")
-    # The same claim register_op(pure=True) would have made, declared from
-    # inside the language instead.
+    # The same effect atom could have been supplied at registration; declaring
+    # it from inside the language reaches the same purity walk.
     metta.run("!(add-atom &petta (effect ct-mdecl immutable))")
     assert metta.run("!(tabled (ct-mwrap $x))") == [[True]]
 
@@ -176,8 +284,8 @@ def test_an_explicitly_registered_type_projects_from_an_op(metta):  # noqa: D103
         yield _CtPoint(x, 0)
         yield _CtPoint(0, x)
 
-    metta.register_op(mk, name="ct-mkpt", typed=False)
-    metta.register_op(spray, name="ct-spray", typed=False)
+    metta.register_op(mk, name="ct-mkpt")
+    metta.register_op(spray, name="ct-spray")
     assert [str(a) for a in metta.run("!(ct-mkpt 3 4)")[0]] == ["(CtPoint 3 4)"]
     # The generator path crosses the same encoder, one projection per answer.
     assert [str(a) for a in metta.run("!(collapse (ct-spray 7))")[0]] == [
@@ -202,7 +310,7 @@ def test_a_memoized_default_never_projects_from_an_op(metta):  # noqa: D103  -- 
     def mk(x: int):
         return _CtPlain(x)
 
-    metta.register_op(mk, name="ct-plain", typed=False)
+    metta.register_op(mk, name="ct-plain")
     answers = metta.run("!(ct-plain 5)")
     assert isinstance(answers[0][0], Gnd)
 
@@ -221,7 +329,7 @@ def test_an_explicit_handle_image_stays_opaque(metta):  # noqa: D103  -- pytest 
     def mk(x: int):
         return _CtHandle(x)
 
-    metta.register_op(mk, name="ct-handle", typed=False)
+    metta.register_op(mk, name="ct-handle")
     answers = metta.run("!(ct-handle 5)")
     assert isinstance(answers[0][0], Gnd)
 
@@ -236,7 +344,7 @@ def test_a_metta_hook_projects_from_an_op(metta):  # noqa: D103  -- pytest disco
     def mk():
         return _CtHooked()
 
-    metta.register_op(mk, name="ct-hooked", typed=False)
+    metta.register_op(mk, name="ct-hooked")
     assert [str(a) for a in metta.run("!(ct-hooked)")[0]] == ["(hooked yes)"]
 
 

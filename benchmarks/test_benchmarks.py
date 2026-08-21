@@ -4,6 +4,8 @@ Guarantees:
     [tested benchmark baseline]
   - every mutable engine case receives a fresh space outside its measured
     window [tested benchmark_case]
+  - raw and encoded operation cases select one named transport mode [tested:
+    test_raw_operation, test_encoded_operation; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -164,10 +166,10 @@ def test_eval_arithmetic(benchmark, inference_baseline):
     )
 
 
-def _operation_space(name, *, raw):
+def _operation_space(name, *, transport):
     space = _empty_space()
 
-    @space.register_op(name=name, raw=raw, typed=False)
+    @space.register_op(name=name, transport=transport)
     def addition(left, right):
         return left + right
 
@@ -197,7 +199,7 @@ def test_raw_operation(benchmark, inference_baseline):
         unit="evaluations",
         operations=_ROWS,
         operation=lambda space: _eval_registered(space, name),
-        setup=lambda: _operation_space(name, raw=True),
+        setup=lambda: _operation_space(name, transport="raw"),
         teardown=_drop_operation_space(name),
         engine=lambda space: space,
     )
@@ -212,7 +214,7 @@ def test_encoded_operation(benchmark, inference_baseline):
         unit="evaluations",
         operations=_ROWS,
         operation=lambda space: _eval_registered(space, name),
-        setup=lambda: _operation_space(name, raw=False),
+        setup=lambda: _operation_space(name, transport="encoded"),
         teardown=_drop_operation_space(name),
         engine=lambda space: space,
     )
@@ -547,7 +549,7 @@ def _weighted_space():
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    space.register_op(mood, name="benchmark-mood", typed=False)
+    space.register_op(mood, name="benchmark-mood")
     space.declare_annotations("benchmark-mood", "prob")
     return space
 

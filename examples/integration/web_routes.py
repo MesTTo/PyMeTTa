@@ -11,6 +11,10 @@ a trailing-slash policy and its redirect are a real framework's job and not
 shown; and dispatch scans the method's whole table per request, which is the
 point being made legible rather than a routing index, so it is linear in the
 number of routes.
+Guarantees:
+  - handler registration derives declarations from the callable rather than
+    selecting an untyped boolean mode [tested:
+    test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -59,7 +63,7 @@ class Router:
             # never heard of.
             segments, casters = self.compile(path)
             handler = fn.__name__.replace("_", "-")
-            self._m.register_op(fn, name=handler, typed=False)
+            self._m.register_op(fn, name=handler)
             self.add_route("GET", segments, casters, handler)
             return fn
 

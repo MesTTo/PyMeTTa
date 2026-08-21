@@ -10,6 +10,18 @@ Guarantees:
   - unregister_type removes the exact class, its constructor, and its public
     type-name claim atomically [tested
     test_type_registration_can_be_removed_and_its_name_reclaimed]
+  - TypedDict classes route through their annotation hook rather than the
+    ordinary-class registry path
+    [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - a slots dataclass replacing an already registered class is refused with
+    the decorator order that preserves the new class object
+    [tested: test_a_slots_dataclass_registration_follows_the_new_class_or_refuses;
+     commit=0bfe63082cdc62b9bb09550d563057321ab90bb6]
+  - a dataclass whose required InitVar cannot be reconstructed is refused at
+    registration, while a defaulted InitVar remains reconstructible
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -22,6 +34,7 @@ Open Obligations:
 from __future__ import annotations
 
 import dataclasses
+import inspect
 import sys
 import threading
 import typing
@@ -62,7 +75,11 @@ _REGISTRY_LOCK = threading.RLock()
 
 def _is_plain_class(value: object) -> bool:
     """Whether value is a class rather than a parameterized annotation."""
-    return isinstance(value, type) and typing.get_origin(value) is None
+    return (
+        isinstance(value, type)
+        and typing.get_origin(value) is None
+        and not typing.is_typeddict(value)
+    )
 
 
 def _class_label(cls: type) -> str:
@@ -187,6 +204,18 @@ def _require_stable_type_name(
 def _claim_type_name(cls: type, type_name: str) -> None:
     holder = _TYPE_OWNERS.get(type_name)
     if holder is not None and holder is not cls:
+        if (
+            holder.__module__ == cls.__module__
+            and holder.__qualname__ == cls.__qualname__
+            and dataclasses.is_dataclass(cls)
+            and "__slots__" in cls.__dict__
+        ):
+            msg = (
+                f"dataclass(slots=True) replaced the registered {cls.__qualname__} "
+                "class object; place register_type outside the dataclass "
+                "decorator so it receives the replacement class"
+            )
+            raise ValueError(msg)
         msg = (
             f"the type name {type_name!r} already has a registered class "
             f"({_class_label(holder)}); register {_class_label(cls)} with "
@@ -339,6 +368,26 @@ def _dataclass_registration(cls: type) -> _Registration:
             msg
         )
     names = tuple(field.name for field in data_fields)
+    required_non_fields = tuple(
+        parameter.name
+        for parameter in inspect.signature(cls).parameters.values()
+        if parameter.name not in names
+        and parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+    )
+    if required_non_fields:
+        listed = ", ".join(required_non_fields)
+        msg = (
+            f"{cls.__name__} has required constructor state that dataclass "
+            f"fields() cannot project ({listed}); give each InitVar a default "
+            "or register an explicit conversion"
+        )
+        raise TypeError(msg)
     return _Registration(
         "expression",
         lambda obj: tuple(getattr(obj, name) for name in names),

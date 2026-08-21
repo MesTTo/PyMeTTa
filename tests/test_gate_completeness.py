@@ -45,11 +45,18 @@ RUFF_FAMILY_BURN_DOWN = {
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.
-    "D": 2114,
-    "ARG": 134,
+    # 2114 -> 2119, and ARG 134 -> 139, C90 16 -> 24, TRY 21 -> 23, at the
+    # p5-surface-cluster merge: its twenty-five rows add new modules whose
+    # obligation headers carry the D205 convention, signature-reflection
+    # test doubles whose parameters must stay visible (ARG), registration
+    # and annotation walkers kept whole by design (C901), and two internal
+    # invariant raises that deliberately keep their exception class
+    # (TRY004). Every one is a per-line suppression with its own reason.
+    "D": 2119,
+    "ARG": 139,
     "PERF": 0,
-    "C90": 16,
-    "TRY": 21,
+    "C90": 24,
+    "TRY": 23,
     "EM": 0,
 }
 

@@ -107,13 +107,21 @@ def test_callback_facade_owns_no_state_and_delegates():
             "foreign_transaction": "foreign",
             "is_matchable": "foreign",
             "match_object": "foreign",
+            "path_begin": "paths",
+            "path_step": "paths",
+            "path_value": "paths",
             "atom_added": "subscribe",
             "atom_removed": "subscribe",
         }.items()
     }
     assert sorted(facade.__all__) == sorted(owners)
+    owner_names = {
+        "path_begin": "_path_begin",
+        "path_step": "_path_step",
+        "path_value": "_path_value",
+    }
     for name, owner in owners.items():
-        assert getattr(facade, name) is getattr(owner, name)
+        assert getattr(facade, name) is getattr(owner, owner_names.get(name, name))
 
     exported = set(facade.__all__)
     own_state = {

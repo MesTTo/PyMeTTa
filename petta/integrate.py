@@ -18,6 +18,14 @@ Guarantees:
     test_type_registration_can_be_removed_and_its_name_reclaimed]
   - installation idempotence ends with the lifetime of its space [tested
     test_dropped_space_name_reinstalls_integrations]
+  - discovery refuses duplicate names, missing dependencies, and named
+    dependency cycles, and installs acyclic entries in topological order
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+  - module and reflection helpers express transport and Atom delivery without
+    boolean registration pairs [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -35,16 +43,17 @@ Open Obligations:
 
 from __future__ import annotations
 
-import dataclasses
+import graphlib
 import importlib
 import inspect
 import threading
 from collections.abc import Callable, Iterable
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from . import convert
+from ._object_fields import field_names as _field_names
 from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
@@ -246,11 +255,49 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
 
 
 def discover(m) -> list[str]:
-    """Install every integration installed packages advertise."""
-    return [
-        integrate(m, entry.load())
-        for entry in metadata.entry_points(group=ENTRY_POINT_GROUP)
-    ]
+    """Install advertised integrations after satisfying PETTA_REQUIRES."""
+    advertised = tuple(metadata.entry_points(group=ENTRY_POINT_GROUP))
+    entries: dict[str, Any] = {}
+    for entry in advertised:
+        if entry.name in entries:
+            msg = (
+                f"duplicate {ENTRY_POINT_GROUP} entry point {entry.name!r}; "
+                "integration names must be unique"
+            )
+            raise PettaError(msg)
+        entries[entry.name] = entry
+    targets = {name: entry.load() for name, entry in entries.items()}
+
+    graph: dict[str, tuple[str, ...]] = {}
+    for name, target in targets.items():
+        raw = getattr(target, "PETTA_REQUIRES", ())
+        if isinstance(raw, str) or not isinstance(raw, Iterable):
+            msg = (
+                f"integration {name!r} PETTA_REQUIRES must be an iterable "
+                "of entry-point names"
+            )
+            raise PettaError(msg)
+        dependencies = tuple(raw)
+        invalid = [item for item in dependencies if not isinstance(item, str)]
+        if invalid:
+            msg = f"integration {name!r} PETTA_REQUIRES contains a non-string name"
+            raise PettaError(msg)
+        missing = sorted(set(dependencies) - targets.keys())
+        if missing:
+            msg = (
+                f"integration {name!r} requires missing integration(s): "
+                f"{', '.join(missing)}"
+            )
+            raise PettaError(msg)
+        graph[name] = dependencies
+
+    try:
+        order = tuple(graphlib.TopologicalSorter(graph).static_order())
+    except graphlib.CycleError as exc:
+        cycle = " -> ".join(exc.args[1])
+        msg = f"integration dependency cycle: {cycle}"
+        raise PettaError(msg) from exc
+    return [integrate(m, targets[name]) for name in order]
 
 
 # ----------------------------------------------------------------- operations
@@ -296,19 +343,17 @@ def _register_module_callable(
     target: Callable,
     name: str,
     *,
-    raw: bool,
-    typed: bool,
+    transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
         m.register_op(
             _spread(target),
             name=name,
-            raw=raw,
-            typed=False,
+            transport=transport,
             arities=[0, 1, 2, 3, 4],
         )
         return
-    m.register_op(target, name=name, raw=raw, typed=typed)
+    m.register_op(target, name=name, transport=transport)
 
 
 def module_ops(
@@ -318,8 +363,7 @@ def module_ops(
     *,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
-    raw: bool = True,
-    typed: bool = False,
+    transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.
 
@@ -336,7 +380,7 @@ def module_ops(
     for pyname in names:
         target = _require_callable(module, pyname)
         metta_name = _operation_name(pyname, prefix, rename)
-        _register_module_callable(m, target, metta_name, raw=raw, typed=typed)
+        _register_module_callable(m, target, metta_name, transport=transport)
         registered.append(metta_name)
     return registered
 
@@ -403,7 +447,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     def call(*xs):
         return target(*xs)
 
-    m.register_op(call, name=name, raw=True, typed=False, arities=arities)
+    m.register_op(call, name=name, transport="raw", arities=arities)
     return target
 
 
@@ -559,18 +603,14 @@ def install_reflection_ops(m) -> list[str]:
         for attr in _field_names(target):
             yield expr(Sym(attr), val(getattr(target, attr)))
 
-    m.register_op(py_attr, name="py-attr", raw=False, typed=False, pass_atoms=True)
-    m.register_op(py_field, name="py-field", raw=False, typed=False, pass_atoms=True)
+    m.register_op(
+        py_attr,
+        name="py-attr",
+        declarations=[expr(S.arguments, S["py-attr"], S.atoms)],
+    )
+    m.register_op(
+        py_field,
+        name="py-field",
+        declarations=[expr(S.arguments, S["py-field"], S.atoms)],
+    )
     return ["py-attr", "py-field"]
-
-
-def _field_names(obj: Any) -> list[str]:
-    if dataclasses.is_dataclass(obj):
-        return [f.name for f in dataclasses.fields(obj)]
-    if hasattr(obj, "_fields"):
-        return list(obj._fields)
-    if hasattr(obj, "__dict__"):
-        return [n for n in vars(obj) if not n.startswith("_")]
-    if hasattr(obj, "__slots__"):
-        return [n for n in obj.__slots__ if not n.startswith("_")]
-    return []

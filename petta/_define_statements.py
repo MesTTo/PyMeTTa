@@ -4,6 +4,12 @@ Guarantees:
     test_bindings_become_let_star]
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
+  - an annotated assignment lowers its target as an in-place type claim in
+    ordinary and generator blocks, using an internal marker so source-level
+    colon patterns remain data [tested:
+    test_an_annotated_binding_emits_its_claim,
+    translator_typed_let:a_source_colon_pair_stays_a_pattern;
+    commit=c3c8ea60516dc1f45620bbe4dba3b78993ee22e3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -102,8 +108,8 @@ class StatementCompilerMixin(CompilerContext):
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
     ) -> Expr:
-        variable, value = self._binding(head)
-        return Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), self.block(rest)])
+        pattern, value = self._binding(head)
+        return Expr([Sym("let*"), Expr([Expr([pattern, value])]), self.block(rest)])
 
     def _compound_statement(
         self,
@@ -119,7 +125,10 @@ class StatementCompilerMixin(CompilerContext):
         self._lift_definition(head)
         return self.block(rest)
 
-    def _binding(self, head: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[str, Atom]:
+    def _binding(
+        self,
+        head: ast.Assign | ast.AnnAssign | ast.AugAssign,
+    ) -> tuple[Atom, Atom]:
         """One binding: the MeTTa variable to write and the value term.
 
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
@@ -158,7 +167,11 @@ class StatementCompilerMixin(CompilerContext):
         else:
             target = _single_target(head)
             value = self.expression(head.value)
-        return self._bind(target), value
+        variable: Atom = Var(self._bind(target))
+        if isinstance(head, ast.AnnAssign):
+            claim = Expr([Sym(":"), variable, self.annotation_atom(head.annotation)])
+            variable = Expr([Sym("__petta_typed_binding__"), claim])
+        return variable, value
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
         test = self._truthy(node.test)
@@ -284,9 +297,9 @@ class StatementCompilerMixin(CompilerContext):
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
     ) -> list[Atom]:
-        variable, value = self._binding(head)
+        pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))
-        return [Expr([Sym("let*"), Expr([Expr([Var(variable), value])]), tail])]
+        return [Expr([Sym("let*"), Expr([Expr([pattern, value])]), tail])]
 
     def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
         then = _superpose(self._fork().yield_answers(head.body))

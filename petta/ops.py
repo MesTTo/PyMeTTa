@@ -9,6 +9,38 @@ Guarantees:
     one symbol and refuses before reflecting or registering anything [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
     commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
+  - full annotations become ordinary claims in the declaration space
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=4224c26819d90b9e03efdaef78cb573b91729295]
+  - overload stubs each contribute their declared arrow and annotation claims
+    [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
+     commit=4224c26819d90b9e03efdaef78cb573b91729295]
+  - unreachable **kwargs refuses and a typed zero-parameter operation still
+    emits its return arrow
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+  - callable code flags, through partials, wrappers, bound methods, and
+    callable objects, classify generators and refuse coroutine functions
+    before registration changes any engine or registry state [tested:
+    test_register_op_reads_co_flags_and_refuses_or_awaits;
+    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - every documented operation owns its portable @doc atom in the
+    declaration space, independent of type annotations, under the same transactional
+    lifecycle and reference count as type declarations [tested:
+    test_every_register_op_writes_its_declaration_and_get_doc_answers;
+    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+  - each registered arity owns the arrow for exactly the arguments that call
+    form accepts, including repeated variadic annotations [tested:
+    test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+    commit=e5246578ba61fb5efc9d2282bade50479946e34a]
+  - Annotated MeTTa parameters retain metadata without losing engine
+    injection [tested:
+    test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
+    commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+  - transport, evaluation order, typing, and purity are expressed by op,
+    type, and effect atoms rather than boolean decorator flags [tested:
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
+    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,16 +53,17 @@ from __future__ import annotations
 import functools
 import inspect
 import threading
-from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar
+import typing
+from collections.abc import Callable, Iterable
+from typing import Any, Literal, ParamSpec, TypeVar
 
 from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
+from ._documentation import documentation_atom
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
-    callable_name as _callable_name,
-)
-from ._type_annotations import (
+    annotation_atom_for,
+    annotation_exprs,
     declaration_exprs,
     metta_type_for,
     referenced_classes,
@@ -38,10 +71,20 @@ from ._type_annotations import (
     type_atom_for,
     type_atoms_for,
 )
-from .atoms import Expr, S, expr
+from ._type_annotations import (
+    callable_name as _callable_name,
+)
+from .atoms import Atom, Expr, S, Sym, _to_atom, expr
+
+_CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
+_CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
+_CO_ITERABLE_COROUTINE = getattr(inspect, "CO_ITERABLE_COROUTINE", 0x0100)
+_CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
 
 __all__ = [
     "REFLECTION_SPACE",
+    "annotation_atom_for",
+    "annotation_exprs",
     "class_declarations",
     "declaration_exprs",
     "metta_type_for",
@@ -74,8 +117,7 @@ def _op_facts(op: Operation) -> list[Expr]:
     the effect atom exactly as they treat the op atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
-    if op.pure:
-        facts.append(expr(S.effect, S[op.name], S.immutable))
+    facts.extend(fact for fact in op.catalog if fact not in facts)
     if op.inverse is not None:
         facts.append(expr(S.inverse, S[op.name]))
     return facts
@@ -189,7 +231,10 @@ def _metta_name(fn: Callable, name: str | None) -> MettaName:
     return MettaName(name if name is not None else _callable_name(fn))
 
 
-def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[inspect.Parameter]]:
+def _arities(
+    fn: Callable,
+    explicit: list[int] | None,
+) -> tuple[list[int], list[inspect.Parameter], inspect.Parameter | None]:
     """Every arity the defaults allow, smallest first, plus the parameters.
 
     An explicit arities list overrides the derivation, which is how a
@@ -198,12 +243,16 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
     """
     sig = inspect.signature(fn)
     params = []
-    variadic = False
+    variadic = None
     for p in sig.parameters.values():
         if p.kind is inspect.Parameter.VAR_KEYWORD:
-            continue  # unreachable from MeTTa, harmless to ignore
+            msg = (
+                f"cannot register {_callable_name(fn)}: **{p.name} is "
+                "unreachable from a positional MeTTa call site"
+            )
+            raise TypeError(msg)
         if p.kind is inspect.Parameter.VAR_POSITIONAL:
-            variadic = True
+            variadic = p
             continue
         if p.kind is inspect.Parameter.KEYWORD_ONLY:
             msg = (
@@ -215,8 +264,8 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
             )
         params.append(p)
     if explicit is not None:
-        return sorted(set(explicit)), params
-    if variadic:
+        return sorted(set(explicit)), params, variadic
+    if variadic is not None:
         msg = (
             f"cannot register {_callable_name(fn)}: *args has no single MeTTa call "
             f"form; pass arities=[...] naming the argument counts to serve"
@@ -225,10 +274,16 @@ def _arities(fn: Callable, explicit: list[int] | None) -> tuple[list[int], list[
             msg
         )
     required = sum(1 for p in params if p.default is inspect.Parameter.empty)
-    return list(range(required, len(params) + 1)), params
+    return list(range(required, len(params) + 1)), params, None
 
 
-def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable) -> list[Expr]:
+def _type_declarations(
+    name: str,
+    params: list[inspect.Parameter],
+    variadic: inspect.Parameter | None,
+    arities: list[int],
+    fn: Callable,
+) -> list[Expr]:
     """Everything a signature declares: the (-> ...) arrows over the full
     arity, one per Union combination, plus the declarations of every class
     the annotations reference, so a signature naming Point makes Point a
@@ -237,36 +292,219 @@ def _type_declarations(name: str, params: list[inspect.Parameter], fn: Callable)
     rather than %Undefined%, and TypeVars declare type variables, the
     parametric reading.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    hints = resolved_annotations(fn)
-    annotations = [hints.get(p.name, inspect.Parameter.empty) for p in params]
-    ret = hints.get("return", Any)
-    declared = declaration_exprs(name, annotations, ret)
-    for cls in referenced_classes([*annotations, ret]):
+    declared: list[Expr] = []
+    overloads = typing.get_overloads(fn)
+    signatures = overloads or (fn,)
+    all_annotations: list[Any] = []
+    for signature in signatures:
+        signature_params = (
+            list(inspect.signature(signature).parameters.values())
+            if overloads
+            else params
+        )
+        hints = resolved_annotations(signature)
+        ret = hints.get("return", Any)
+        if overloads:
+            annotation_sets = [
+                [
+                    hints.get(param.name, inspect.Parameter.empty)
+                    for param in signature_params
+                ]
+            ]
+        else:
+            fixed = [
+                hints.get(param.name, inspect.Parameter.empty)
+                for param in signature_params
+            ]
+            repeated = (
+                hints.get(variadic.name, inspect.Parameter.empty)
+                if variadic is not None
+                else inspect.Parameter.empty
+            )
+            annotation_sets = [
+                [*fixed[:arity], *(repeated for _ in range(max(0, arity - len(fixed))))]
+                for arity in arities
+            ]
+        for argument_annotations in annotation_sets:
+            all_annotations.extend((*argument_annotations, ret))
+            for atom in (
+                *declaration_exprs(name, argument_annotations, ret),
+                *annotation_exprs(name, argument_annotations, ret),
+            ):
+                if atom not in declared:
+                    declared.append(atom)
+    for cls in referenced_classes(all_annotations):
         for extra in class_declarations(cls):
             if extra not in declared:
                 declared.append(extra)
     return declared
 
 
-def _operation_kind(fn: Callable, raw: bool) -> str:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
-    many = inspect.isgeneratorfunction(fn)
+def _callable_code(fn: Callable) -> Any:
+    """The Python code object governing one callable, if it has one."""
+    current: Any = fn
+    seen: set[int] = set()
+    while id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, functools.partial):
+            current = current.func
+            continue
+        current = inspect.unwrap(current)
+        if inspect.ismethod(current):
+            current = current.__func__
+            continue
+        code = getattr(current, "__code__", None)
+        if code is not None:
+            return code
+        call = inspect.getattr_static(type(current), "__call__", None)
+        if call is None:
+            break
+        current = call
+    return None
+
+
+def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
+    if transport not in ("encoded", "raw"):
+        msg = f"transport must be 'encoded' or 'raw', got {transport!r}"
+        raise ValueError(msg)
+    code = _callable_code(fn)
+    flags = code.co_flags if code is not None else 0
+    name = _callable_name(fn)
+    if flags & _CO_ASYNC_GENERATOR:
+        msg = (
+            f"cannot register {name}: an async-generator function cannot run "
+            "through synchronous register_op"
+        )
+        raise TypeError(msg)
+    if flags & _CO_COROUTINE:
+        msg = (
+            f"cannot register {name}: a coroutine function cannot run through "
+            "synchronous register_op"
+        )
+        raise TypeError(msg)
+    if flags & _CO_ITERABLE_COROUTINE:
+        msg = (
+            f"cannot register {name}: a generator-based coroutine cannot run "
+            "through synchronous register_op"
+        )
+        raise TypeError(msg)
+    many = bool(flags & _CO_GENERATOR)
     return {
         (False, False): "det",
         (False, True): "many",
         (True, False): "raw_det",
         (True, True): "raw_many",
-    }[(raw, many)]
+    }[(transport == "raw", many)]
+
+
+def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the local/catalog declaration routing together so its branches share one state
+    name: str, declarations: Iterable[Atom]
+) -> tuple[list[Expr], tuple[Expr, ...]]:
+    """Split operation-local declarations from &petta policy facts.
+
+    Type and documentation atoms govern compilation in the operation's own
+    declaration space. Every other atom is catalog policy and therefore lives
+    in &petta. The registration owns both sets for rollback, replacement, and
+    unregistration. `(op ...)` is reserved because arity and transport derive
+    that fact from the callable and cannot safely disagree with it.
+    """
+    local: list[Expr] = []
+    catalog: list[Expr] = []
+    for declaration in declarations:
+        atom = _to_atom(declaration)
+        if not isinstance(atom, Expr) or not atom.children:
+            msg = (
+                "operation declarations must be expression atoms, "
+                f"got {atom!s}"
+            )
+            raise TypeError(msg)
+        head = atom.children[0]
+        if head == Sym("op"):
+            msg = (
+                "(op ...) is derived from transport=, arities=, and the "
+                "callable's generator shape; do not supply it twice"
+            )
+            raise ValueError(msg)
+        if head == Sym("effect"):
+            if len(atom.children) != 3 or atom.children[1] != Sym(name):
+                msg = (
+                    f"an effect declaration for {name!r} must be "
+                    f"(effect {name} immutable|stable|volatile)"
+                )
+                raise ValueError(msg)
+            if atom.children[2] not in (S.immutable, S.stable, S.volatile):
+                msg = (
+                    f"an effect declaration for {name!r} must name "
+                    "immutable, stable, or volatile"
+                )
+                raise ValueError(msg)
+            existing = [fact for fact in catalog if fact.head == S.effect]
+            if existing and atom not in existing:
+                msg = (
+                    f"{name!r} has conflicting effect declarations: "
+                    f"{existing[0]} and {atom}"
+                )
+                raise ValueError(msg)
+            if atom not in catalog:
+                catalog.append(atom)
+            continue
+        if head == Sym("arguments"):
+            if (
+                len(atom.children) != 3
+                or atom.children[1] != Sym(name)
+                or atom.children[2] not in (S.atoms, S.values)
+            ):
+                msg = (
+                    f"an argument declaration for {name!r} must be "
+                    f"(arguments {name} atoms|values)"
+                )
+                raise ValueError(msg)
+            existing = [fact for fact in catalog if fact.head == S.arguments]
+            if existing and atom not in existing:
+                msg = (
+                    f"{name!r} has conflicting argument declarations: "
+                    f"{existing[0]} and {atom}"
+                )
+                raise ValueError(msg)
+            if atom not in catalog:
+                catalog.append(atom)
+            continue
+        target = local if head in (Sym(":"), Sym("@doc")) else catalog
+        if atom not in target:
+            target.append(atom)
+    return local, tuple(catalog)
+
+
+def _is_immutable(name: str, catalog: tuple[Expr, ...]) -> bool:
+    return expr(S.effect, S[name], S.immutable) in catalog
+
+
+def _passes_atoms(name: str, catalog: tuple[Expr, ...]) -> bool:
+    return expr(S.arguments, S[name], S.atoms) in catalog
 
 
 def _operation_declarations(
     name: str,
     params: list[inspect.Parameter],
+    *,
+    variadic: inspect.Parameter | None,
+    arities: list[int],
     fn: Callable,
-    typed: bool,  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
+    supplied: list[Expr],
 ) -> tuple[Expr, ...]:
-    if not typed or not params:
-        return ()
-    return tuple(_type_declarations(name, params, fn))
+    has_annotations = bool(resolved_annotations(fn) or typing.get_overloads(fn))
+    declarations = (
+        _type_declarations(name, params, variadic, arities, fn)
+        if has_annotations
+        else []
+    )
+    for declaration in supplied:
+        if declaration not in declarations:
+            declarations.append(declaration)
+    documentation = documentation_atom(name, fn)
+    if documentation is not None:
+        declarations.append(documentation)
+    return tuple(declarations)
 
 
 def _require_readable_name(runtime: Any, name: MettaName) -> None:
@@ -388,7 +626,14 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
         hints = resolved_annotations(fn)
     except TypeError:
         return []
-    return [i for i, p in enumerate(params) if hints.get(p.name) is MeTTa]
+    positions = []
+    for index, param in enumerate(params):
+        annotation = hints.get(param.name)
+        while typing.get_origin(annotation) is typing.Annotated:
+            annotation = typing.get_args(annotation)[0]
+        if annotation is MeTTa:
+            positions.append(index)
+    return positions
 
 
 def _with_engine(fn: Callable, positions: list[int]) -> Callable:
@@ -418,13 +663,11 @@ def register(
     fn: Callable[_P, _R],
     *,
     name: str | None = None,
-    typed: bool = True,
-    raw: bool = False,
-    pass_atoms: bool = False,
+    transport: Literal["encoded", "raw"] = "encoded",
+    declarations: Iterable[Atom] = (),
     space: str = _DEFAULT_SPACE,
     arities: list[int] | None = None,
     inverse: Callable | None = None,
-    pure: bool = False,
 ) -> Callable[_P, _R]:
     """Make fn callable from MeTTa. Returns fn unchanged.
 
@@ -442,14 +685,19 @@ def register(
     is, so a forward call never reaches it and an operation without one
     compiles exactly what it compiled before.
 
-    pure declares that the operation has no effect a cache could hide, which
-    is what lets it appear in a `(tabled ...)` or memoized body. It is an
-    allow-list on purpose: an operation that does not say so is refused there
-    by name, loudly, rather than cached and quietly wrong.
+    Python annotations derive type atoms and Atom parameters receive syntax
+    before evaluation. `transport="raw"` derives raw_det/raw_many in the
+    operation's `(op ...)` fact. Additional declaration atoms are owned for
+    the operation's complete lifecycle: type atoms live in its declaration
+    space, while `(effect name immutable)` and other policy atoms live in
+    &petta and can be matched there. An immutable effect atom is the explicit
+    allow-list for tabled or memoized bodies.
     """
     metta_name = _metta_name(fn, name)
+    kind = _operation_kind(fn, transport)
+    supplied, catalog = _partition_declarations(metta_name, declarations)
     explicit_arities = arities
-    arities, params = _arities(fn, arities)
+    arities, params, variadic = _arities(fn, arities)
     injected = _engine_positions(params, fn)
     if injected:
         params = [p for i, p in enumerate(params) if i not in injected]
@@ -458,7 +706,6 @@ def register(
             # call site never fills them, so the range re-derives without.
             required = sum(1 for p in params if p.default is inspect.Parameter.empty)
             arities = list(range(required, len(params) + 1))
-    kind = _operation_kind(fn, raw)
     # Everything computable is computed BEFORE the engine changes: a
     # refusing annotation or an over-expanded Union leaves nothing half
     # registered. Then the engine registers every arity in one checked
@@ -469,7 +716,15 @@ def register(
     if inverse is not None and not callable(inverse):
         msg = f"the inverse of {metta_name} is not callable: {inverse!r}"
         raise TypeError(msg)
-    if pure and raw and inspect.isgeneratorfunction(fn):
+    pure = _is_immutable(metta_name, catalog)
+    pass_atoms = _passes_atoms(metta_name, catalog)
+    if pass_atoms and kind.startswith("raw_"):
+        msg = (
+            f"{metta_name} cannot declare atom arguments with raw transport: "
+            "raw calls do not cross the atom codec"
+        )
+        raise ValueError(msg)
+    if pure and kind == "raw_many":
         # A raw generator is the one shape whose answers the engine never
         # sees whole, so "no effect a cache could hide" is not checkable even
         # in principle. Refusing here beats a caller finding out later.
@@ -480,11 +735,19 @@ def register(
         raise ValueError(
             msg
         )
-    declarations = _operation_declarations(metta_name, params, fn, typed)
+    declarations = _operation_declarations(
+        metta_name,
+        params,
+        variadic=variadic,
+        arities=arities,
+        fn=fn,
+        supplied=supplied,
+    )
     # The grammar check is the last read before the registration transaction:
     # every Python-side refusal above remains free, and an unreadable name has
     # not reflected a contract atom or opened a predicate when it is rejected.
     _require_readable_name(runtime, metta_name)
+    conversion_hints = resolved_annotations(fn)
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
@@ -494,9 +757,22 @@ def register(
         pass_atoms=pass_atoms,
         space=SpaceName(space),
         declarations=declarations,
+        catalog=catalog,
         arities=tuple(arities),
         inverse=inverse,
         pure=pure,
+        parameter_annotations=tuple(
+            [conversion_hints.get(param.name, Any) for param in params]
+            + (
+                [
+                    conversion_hints.get(variadic.name, Any)
+                    for _ in range(max(0, max(arities) - len(params)))
+                ]
+                if variadic is not None
+                else []
+            )
+        ),
+        return_annotation=conversion_hints.get("return", Any),
     )
     new_facts, old_facts = _register_transaction(runtime, operation, previous)
     # Committed: the previous life retires, shared pieces surviving. Facts

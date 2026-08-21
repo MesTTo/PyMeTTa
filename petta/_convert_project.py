@@ -5,6 +5,26 @@ Guarantees:
   - handle, symbol, expression, and operations images stay distinct [tested
     test_unregistered_object_stays_a_handle,
     test_enum_projects_to_symbols_with_declarations]
+  - the four builtin containers share MeTTa's bare-expression image and keep
+    reconstruction detail in the full-annotation hook
+    [tested: test_the_four_containers_share_one_parameterised_treatment;
+     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+  - scalar Enum subclasses and composite Flags retain the member and type
+    declarations that distinguish them from their scalar payloads
+    [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
+     commit=49d2fc7b551ad057dfa018c350874bdee0e07cba]
+  - a TypedDict's full annotation selects the same named constructor image
+    and field declaration as its value
+    [tested: test_a_typed_dict_annotation_agrees_with_its_value;
+     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+  - explicit projection discovers __metta__ on the class and never asks an
+    instance proxy whether an arbitrary attribute exists
+    [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
+     commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
+  - an otherwise opaque buffer carries its identity together with shape,
+    format, item size, dimensionality, strides, and access metadata
+    [tested: test_each_remaining_annotation_shape_refuses_or_carries;
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +40,7 @@ from collections.abc import Iterator as IteratorABC
 from enum import Enum, EnumType
 from typing import Any, NamedTuple, cast
 
+from ._atoms_core import explicit_metta_atom
 from ._convert_registry import (
     _default_registration,
     _lookup,
@@ -29,6 +50,8 @@ from ._convert_registry import (
     ensure_registered,
     resolved_hints,
 )
+from ._parameterized import hook_for as _parameterized_hook
+from ._parameterized import runtime_annotation
 from ._type_annotations import type_atoms_for
 from .atoms import Atom, Expr, Gnd, S, Sym, encode, val
 
@@ -44,7 +67,7 @@ class Projected(NamedTuple):
     declarations: tuple[Expr, ...]
 
 
-def project(value: Any) -> Projected:
+def project(value: Any, annotation: Any = None) -> Projected:
     """One Python value into MeTTa, by the image its type chose.
 
     The rule, from what the object is rather than from taste: match on its
@@ -61,34 +84,32 @@ def project(value: Any) -> Projected:
     direct = _project_direct(value)
     if direct is not None:
         return direct
-    if isinstance(value, (list, tuple)) and not hasattr(type(value), "_fields"):
-        return _project_sequence(value)
+    parameterized = annotation if annotation is not None else runtime_annotation(value)
+    hook = _parameterized_hook(parameterized) if parameterized is not None else None
+    if hook is not None:
+        atom, parts = hook.project(value, parameterized, project)
+        nested = [declaration for part in parts for declaration in part.declarations]
+        if hook.declarations is not None:
+            nested.extend(hook.declarations(parameterized, type_atoms_for))
+        return Projected(atom, _dedup(nested))
     return _project_object(value)
 
 
 def _project_direct(value: Any) -> Projected | None:
     if isinstance(value, Atom):
         return Projected(value, ())
+    if isinstance(value, Enum):
+        return None
     if isinstance(value, (bool, int, float, str)):
         return Projected(encode(value), ())
     return None
-
-
-def _project_sequence(value: list[Any] | tuple[Any, ...]) -> Projected:
-    parts = [project(item) for item in value]
-    projected_declarations = [
-        declaration for part in parts for declaration in part.declarations
-    ]
-    return Projected(
-        Expr([part.atom for part in parts]), _dedup(projected_declarations)
-    )
 
 
 def _project_object(value: Any) -> Projected:
     cls = type(value)
     registration = _registration_for(cls)
     if registration is None:
-        return _project_unregistered(value, cls)
+        return _project_unregistered(value)
     return _project_registered(value, cls, registration)
 
 
@@ -104,15 +125,46 @@ def _registration_for(cls: type) -> _Registration | None:
     return registration
 
 
-def _project_unregistered(value: Any, cls: type) -> Projected:
-    hook = getattr(value, "__metta__", None)
-    if hook is None:
-        return Projected(val(value), ())
-    atom = hook()
-    if not isinstance(atom, Atom):
-        msg = f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom"
-        raise TypeError(msg)
-    return Projected(atom, ())
+def _project_unregistered(value: Any) -> Projected:
+    atom = explicit_metta_atom(value)
+    if atom is not None:
+        return Projected(atom, ())
+    buffer = _project_buffer(value)
+    return buffer if buffer is not None else Projected(val(value), ())
+
+
+def _project_buffer(value: Any) -> Projected | None:
+    """Carry one buffer zero-copy, with its public memoryview description."""
+    try:
+        view = memoryview(value)
+    except TypeError:
+        return None
+    shape = () if view.shape is None else view.shape
+    strides = () if view.strides is None else view.strides
+    metadata = (
+        Expr([S.shape, *(encode(size) for size in shape)]),
+        Expr([S.format, encode(view.format)]),
+        Expr([S.itemsize, encode(view.itemsize)]),
+        Expr([S.ndim, encode(view.ndim)]),
+        Expr([S.strides, *(encode(step) for step in strides)]),
+        Expr([S.readonly, encode(view.readonly)]),
+        Expr([S["c-contiguous"], encode(view.c_contiguous)]),
+    )
+    declaration = Expr(
+        [
+            S[":"],
+            S.Buffer,
+            Expr(
+                [
+                    S["->"],
+                    S.Grounded,
+                    *(S.Expression for _item in metadata),
+                    S.Buffer,
+                ]
+            ),
+        ]
+    )
+    return Projected(Expr([S.Buffer, val(value), *metadata]), (declaration,))
 
 
 #Sixteen top-level elements: about 55 inferences of conversion at the
@@ -172,14 +224,7 @@ def explicit_projection(value: Any) -> Atom | None:
     registration = _lookup(cls)
     if registration is not None and registration.explicit:
         return _project_registered(value, cls, registration).atom
-    hook = getattr(value, "__metta__", None)
-    if hook is None:
-        return None
-    atom = hook()
-    if not isinstance(atom, Atom):
-        msg = f"__metta__ on {cls.__name__} returned {type(atom).__name__}, not an Atom"
-        raise TypeError(msg)
-    return atom
+    return explicit_metta_atom(value)
 
 
 def _project_registered(value: Any, cls: type, registration: _Registration) -> Projected:
@@ -220,6 +265,9 @@ def _project_symbol(value: Any, cls: type, registration: _Registration) -> Proje
             Expr([S[":"], Sym(member.name), Sym(type_name)])
             for member in cast(Iterable[Enum], enum_cls)
         )
+        current = Expr([S[":"], Sym(member.name), Sym(type_name)])
+        if current not in decls:
+            decls.append(current)
         return Projected(member, tuple(decls))
     text = str(value)
     return Projected(
@@ -303,6 +351,9 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     declares Number rather than %Undefined%; a Union field superposes one
     arrow per member, the checker's own reading of alternatives.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    hook = _parameterized_hook(cls)
+    if hook is not None and hook.declarations is not None:
+        return hook.declarations(cls, type_atoms_for)
     if issubclass(cls, Enum):
         return _enum_declarations(cls)
     found = _registration_for(cls)

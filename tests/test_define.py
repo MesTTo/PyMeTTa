@@ -1,6 +1,20 @@
 """Purpose: the Python-to-MeTTa compiler: lowerings run against the engine,
 refusals name construct and line, helper-bearing redefinitions replace as a
 unit, and guarded Python twins agree with equations on ground inputs.
+Guarantees:
+  - one source docstring reaches Defined.doc, help(), and the definition
+    space's @doc atom [tested:
+    test_one_docstring_reaches_help_dot_doc_and_get_doc;
+    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+  - a local annotated assignment emits and enforces its in-place type claim
+    without reinterpreting source-level colon data [tested:
+    test_an_annotated_binding_emits_its_claim,
+    translator_typed_let:a_source_colon_pair_stays_a_pattern;
+    commit=c3c8ea60516dc1f45620bbe4dba3b78993ee22e3]
+  - every definition derives source, documentation, captures, and purity from
+    its AST and retires stale reflection on replacement and clear [tested:
+    test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
+    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -11,6 +25,8 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import importlib.util
+import inspect
+import pydoc
 import sys
 import tempfile
 import textwrap
@@ -19,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import CompileError, EngineError, S, expr
+from petta import CompileError, EngineError, S, expr, parse
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -42,6 +58,11 @@ def twin_base_replacement(value):  # noqa: D103  -- pytest discovers or injects 
 
 def twin_user_probe(value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return twin_base_probe(value) * 2
+
+
+def p5_documented_greeting(value: str) -> str:
+    """Return a defined greeting."""
+    return f"Hello, {value}."
 
 
 def test_define_from_two_threads_is_serialized(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -71,6 +92,17 @@ def test_existing_twin_sees_later_redefinition(m):  # noqa: D103  -- pytest disc
         twin_base_replacement.__name__ = original_name
 
     assert twin_user.py(3) == 26
+
+
+def test_one_docstring_reaches_help_dot_doc_and_get_doc(m):
+    """One source docstring reaches Defined.doc, help(), and get-doc."""
+    documented = m.define(p5_documented_greeting)
+    expected = inspect.getdoc(p5_documented_greeting)
+    assert documented.doc == expected
+    assert expected in pydoc.render_doc(documented)
+    docs = m.run(f"!(get-doc {documented.name})")
+    assert len(docs) == 1 and expected in str(docs[0][0])
+    assert expected in pydoc.render_doc(m.fn(documented.name))
 
 
 def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -114,6 +146,146 @@ def test_bindings_become_let_star(m):  # noqa: D103  -- pytest discovers or inje
 
     assert m.run("!(dhyp 3 4)") == [[5.0]]
     assert dhyp.py.__name__ == "dhyp"
+
+
+def test_an_annotated_binding_emits_its_claim(m):
+    """A local annotated assignment emits and enforces its in-place type claim."""
+
+    @m.define
+    def annotated_binding(value):
+        result: int = value
+        return result
+
+    assert "(: $result Number)" in str(annotated_binding.body)
+    assert m.run("!(annotated_binding 7)") == [[7]]
+    assert m.run('!(annotated_binding "nope")') == [[]]
+
+    @m.define
+    def annotated_generator(value):
+        result: int = value
+        yield result
+
+    assert "(: $result Number)" in str(annotated_generator.body)
+    assert m.run("!(annotated_generator 8)") == [[8]]
+
+
+def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
+    """Every AST-derived fact replaces the decorator flag it supersedes."""
+
+    @m.define
+    def ast_helper(value):
+        return value
+
+    def ast_observed(value):
+        """Documentation derived from the parsed function body."""
+        return ast_helper(value)
+
+    ast_observed.__doc__ = "A mutable runtime attribute is not the source fact."
+    observed = m.define(ast_observed)
+
+    assert observed.doc == "Documentation derived from the parsed function body."
+    assert observed.source_span.path == str(Path(__file__).resolve())
+    assert observed.source_span.start_line == inspect.getsourcelines(ast_observed)[1]
+    assert observed.free_variables == ("ast_helper",)
+    assert observed.pure is True
+    assert "pure" not in inspect.signature(m.define).parameters
+
+    reflection = m.space("&petta")
+    source_rows = reflection.query(
+        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+    )
+    assert len(source_rows) == 1
+    source_row = source_rows[0]
+    assert source_row.space == S[m.space_name]
+    assert source_row.path.value == str(Path(__file__).resolve())
+    source_fact = expr(
+        S["source-span"],
+        source_row.space,
+        S.ast_observed,
+        source_row.path,
+        source_row.sl,
+        source_row.sc,
+        source_row.el,
+        source_row.ec,
+    )
+    free_fact = parse(
+        "(free-variable " + m.space_name + " ast_observed ast_helper)"
+    )
+    effect_fact = parse("(effect ast_observed immutable)")
+    assert free_fact in reflection
+    assert effect_fact in reflection
+    assert reflection.run(
+        f"!(get-type (defined {m.space_name} ast_observed))"
+    ) == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl]]
+    assert "Documentation derived from the parsed function body." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    m.run("(= (ast_effect $value) (println! $value))")
+
+    def ast_observed(value):
+        """Replacement documentation from the replacement AST."""
+        return ast_effect(value)  # noqa: F821
+
+    replacement = m.define(ast_observed)
+    assert replacement.pure is False
+    assert effect_fact not in reflection
+    assert len(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    ) == 1
+    assert "Replacement documentation from the replacement AST." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    old_source = list(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    )
+
+    def ast_observed(value):
+        """A fact publication failure must not install this clause."""
+        return value + 1
+
+    runtime_type = type(m.runtime)
+    real_must = runtime_type.must
+    failed = False
+
+    def fail_reflection(runtime, goal, **inputs):
+        nonlocal failed
+        if (
+            not failed
+            and goal == "petta_py_add(Space, W)"
+            and inputs.get("Space") == "&petta"
+        ):
+            failed = True
+            msg = "forced definition-fact failure"
+            raise EngineError(msg)
+        return real_must(runtime, goal, **inputs)
+
+    monkeypatch.setattr(runtime_type, "must", fail_reflection)
+    with pytest.raises(EngineError, match="forced definition-fact failure"):
+        m.define(ast_observed)
+    monkeypatch.setattr(runtime_type, "must", real_must)
+    assert list(
+        reflection.query(
+            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        )
+    ) == old_source
+    assert "Replacement documentation from the replacement AST." in str(
+        m.run("!(get-doc ast_observed)")
+    )
+
+    m.clear()
+    assert not reflection.query(
+        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+    )
+    assert free_fact not in reflection
 
 
 def test_true_division_matches_python_exactly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

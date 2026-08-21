@@ -18,6 +18,9 @@ Guarantees:
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor]
+  - the host query door uses the engine's published pattern-modifier walk
+    [tested: test_a_path_reaches_into_a_handle_without_converting_it;
+    commit=a1b10566194f10c174101fdc05f956b33171613b]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,6 +36,7 @@ import re
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
+    "lift_pattern_modifiers/3",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -118,6 +122,7 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: "host-choice" is a consult whose answer only the host can make.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
+    "lift_pattern_modifiers/3": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

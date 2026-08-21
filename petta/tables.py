@@ -34,10 +34,16 @@ knowledge and the attach is one line.
 
 Guarantees:
   - a database row becomes an atom from its typed cell values; plain text is
-    always a symbol, NULL is Gnd(None), and structured values use the tagged
-    atom wire rather than the source parser [tested:
+    always a symbol, NULL is Gnd(None), and a structured value is one tagged
+    TEXT cell carrying the atom wire rather than the source parser [tested:
     test_a_row_value_becomes_an_atom_without_being_reparsed;
-    commit=09c5ca4528bc3763e94155d5cb00e9e0a662cc95]
+    commit=WORKTREE]
+  - a cell PeTTa wrote reads back as the atom it wrote, whatever the driver
+    and the image catalog do to the database's own values: _is_atom_cell
+    keeps the tag in the text domain, out of reach of a row_factory that
+    adapts binary cells, and _ImageCodec answers it before any image
+    [tested: test_a_nonground_compound_downgrades_and_removal_still_unifies;
+    commit=WORKTREE]
   - the whole pattern family is filtered exactly where SQL can express
     it: ground positions become comparisons, a repeated variable becomes
     the equality it demands (column to column, or column to the declared
@@ -52,6 +58,11 @@ Guarantees:
     [tested test_a_nonground_add_is_refused]
   - an atom every shape refuses, or two shapes admit, is refused naming
     the shapes [tested test_an_ambiguous_add_is_refused_naming_both]
+  - TableBridge.from_context applies `(image <ctx> <Type> <setting>)` to
+    each of the database's own row values before it crosses, keeping opaque
+    objects as handles and projecting transparent objects [tested:
+    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
+    commit=WORKTREE]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -77,21 +88,24 @@ from .atoms import (
     atom_from_wire,
     encode,
     is_ground,
+    substitute,
     unify,
+    val,
 )
+from .convert import auto_image, project
 from .foreign import SpaceProvider
 
-_ATOM_CELL_PREFIX = b"\x00petta-atom-v1\x00"
+_ATOM_CELL_PREFIX = "\x00petta-atom-v1\x00"
 
 
-def _encoded_cell(atom: Atom) -> bytes:
-    """A structured atom in a DB-API scalar, without passing through text."""
+def _encoded_cell(atom: Atom) -> str:
+    """A structured atom in one tagged text cell, never MeTTa source."""
     try:
         payload = json.dumps(
             atom.to_wire(),
             ensure_ascii=False,
             separators=(",", ":"),
-        ).encode("utf-8")
+        )
     except (TypeError, ValueError) as exc:
         msg = (
             f"{atom!r} has no stable table-cell representation; table rows can "
@@ -101,14 +115,26 @@ def _encoded_cell(atom: Atom) -> bytes:
     return _ATOM_CELL_PREFIX + payload
 
 
+def _is_atom_cell(value: Any) -> bool:
+    """Whether PeTTa wrote this cell itself, or the database holds it.
+
+    The tag stays in the text domain because a driver is free to adapt
+    binary values on the way out, as sqlite3's row_factory and psycopg2's
+    memoryview both do, and an adapted cell is no longer recognisable as
+    PeTTa's own. A NUL cannot occur in text a column legitimately carries,
+    so the tag is unambiguous without leaving that domain, and SQLite
+    compares a NUL-bearing TEXT cell byte for byte, which is what lets
+    remove() delete one by equality.
+    """
+    return isinstance(value, str) and value.startswith(_ATOM_CELL_PREFIX)
+
+
 def _atom_from_cell(value: Any) -> Atom:
     """Map one driver value to its atom; text is data, never source code."""
-    binary = bytes(value) if isinstance(value, (bytearray, memoryview)) else value
-    if isinstance(binary, bytes) and binary.startswith(_ATOM_CELL_PREFIX):
+    if _is_atom_cell(value):
         try:
-            wire = json.loads(binary[len(_ATOM_CELL_PREFIX) :].decode("utf-8"))
-            return atom_from_wire(wire)
-        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            return atom_from_wire(json.loads(value[len(_ATOM_CELL_PREFIX) :]))
+        except (TypeError, ValueError) as exc:
             msg = "a table cell starts with PeTTa's atom tag but its payload is corrupt"
             raise ValueError(msg) from exc
     if isinstance(value, str):
@@ -271,13 +297,52 @@ class _Shape:
             if isinstance(shaped, Var)
         ]
 
-    def atom(self, row: Any) -> Atom:
+    def atom(self, cell_atom: Callable[[Any], Atom], row: Any) -> Atom:
         values = iter(row)
-        children = [
-            _atom_from_cell(next(values)) if isinstance(child, Var) else child
+        bindings = {
+            child.name: cell_atom(next(values))
             for child in self.shape.children
-        ]
-        return Expr(children)
+            if isinstance(child, Var)
+        }
+        return substitute(self.shape, bindings)
+
+
+class _ImageCodec:
+    """Turn DB-API cells into atoms under one attached context's catalog."""
+
+    def __init__(self, settings: dict[str, str] | None) -> None:
+        self._settings = settings or {}
+        invalid = set(self._settings.values()) - {
+            "opaque",
+            "transparent",
+            "auto",
+        }
+        if invalid:
+            msg = (
+                "an image setting is opaque, transparent, or auto, not "
+                f"{sorted(invalid)!r}"
+            )
+            raise ValueError(msg)
+
+    def __call__(self, value: Any) -> Atom:
+        if _is_atom_cell(value):
+            # An image declares how one of the DATABASE's values crosses, and
+            # this cell is PeTTa's own atom in transit, so the tag outranks
+            # the catalog: not even a catch-all image may turn a stored atom
+            # into a handle and lose the round trip that add() promised.
+            return _atom_from_cell(value)
+        setting = self._settings.get(type(value).__name__)
+        if setting is None:
+            setting = self._settings.get("_")
+        if setting is None:
+            # No image declaration: the P2.4 contract holds, a row value
+            # becomes its atom directly and is never re-parsed as text.
+            return _atom_from_cell(value)
+        if setting == "auto":
+            setting = auto_image(value)
+        if setting == "opaque":
+            return val(value)
+        return project(value).atom
 
 
 class TableBridge(SpaceProvider):
@@ -290,8 +355,10 @@ class TableBridge(SpaceProvider):
         parse: Callable[[str], Atom],
         connection: Executes,
         declarations: Atom | str | Iterable[Atom | str],
+        *,
+        images: dict[str, str] | None = None,
     ) -> None:
-        self._parse = parse
+        self._cell_atom = _ImageCodec(images)
         self.connection = connection
         self.executed: list[str] = []
         if isinstance(declarations, (str, Atom)):
@@ -323,13 +390,29 @@ class TableBridge(SpaceProvider):
         if not declarations:
             msg = f"&petta declares no (bridge {name} ...) schema"
             raise ValueError(msg)
-        return cls(m.parse, connection, declarations)
+        (image_group,) = m.run(
+            f"!(collapse (match &petta (image {name} $type $setting)"
+            f" ($type $setting)))"
+        )
+        images: dict[str, str] = {}
+        for pair in image_group[0]:
+            if not isinstance(pair, Expr) or len(pair.children) != 2:
+                continue
+            type_name, setting = map(str, pair.children)
+            prior = images.setdefault(type_name, setting)
+            if prior != setting:
+                msg = (
+                    f"{name} declares conflicting images for {type_name}: "
+                    f"{prior} and {setting}"
+                )
+                raise ValueError(msg)
+        return cls(m.parse, connection, declarations, images=images)
 
     # -- the provider surface, all of it derived -----------------------------
 
     def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return (
-            shape.atom(row)
+            shape.atom(self._cell_atom, row)
             for shape in self._shapes
             for row in self._select(shape, [], [])
         )
@@ -338,7 +421,7 @@ class TableBridge(SpaceProvider):
         def answers() -> Iterator[Atom]:
             for shape, (where, arguments, _exact) in self._admitting(pattern):
                 for row in self._select(shape, where, arguments, limit):
-                    yield shape.atom(row)
+                    yield shape.atom(self._cell_atom, row)
 
         return answers()
 
@@ -395,7 +478,7 @@ class TableBridge(SpaceProvider):
             doomed = [
                 shape.values(atom)
                 for row in self._select(shape, where, arguments)
-                for atom in (shape.atom(row),)
+                for atom in (shape.atom(self._cell_atom, row),)
                 if isinstance(atom, Expr) and unify(pattern, atom) is not None
             ]
             for values in doomed:

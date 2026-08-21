@@ -38,6 +38,26 @@ Guarantees:
   - _ENCODE_FAST never disagrees with encode.registry: every entry is
     resolved by asking encode.dispatch, and every registration rebuilds it
     [tested test_the_type_fast_path_precedes_encode_and_survives_a_register]
+  - __metta__ is discovered on the class, so instance fallback and properties
+    cannot run merely because encoding checked for an explicit hook
+    [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
+     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - Box publishes its transport value through the reserved
+    __petta_wire_value__ protocol, so host bridges can remove the wire layer
+    without importing the Python package [tested:
+    test_a_python_tuple_answers_the_same_through_both_doors;
+    commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
+  - Atom operator methods are installed from the immutable 22-entry lowering
+    table, including explicit templates and named refusals [tested:
+    test_the_operator_table_is_generated_from_one_source_with_no_holes;
+    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
+  - symbolic operator rows specialize into direct constructors once at import,
+    so term-operators costs 660489697 instructions:u, 27.86% below its
+    915593600 baseline [measured: minimum of 660489757, 660489704,
+    660489697 on 2026-08-21;
+    command=python -m benchmarks.check_instructions term-operators;
+    fixture=CPython 3.14 controlled perf lane;
+    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -50,6 +70,7 @@ Open Obligations:
 from __future__ import annotations
 
 import contextlib
+import inspect
 import math
 import numbers as _numbers
 import threading
@@ -58,7 +79,9 @@ from abc import ABCMeta
 from collections import deque
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
-from typing import Any, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
+
+from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
 
 def _encodable(value: str) -> str:
@@ -152,6 +175,11 @@ class Box:
 
     def __repr__(self) -> str:
         return f"Box({self.value!r})"
+
+    @property
+    def __petta_wire_value__(self) -> Any:
+        """The host value hidden by this private transport envelope."""
+        return self.value
 
     def __copy__(self) -> Box:
         return self
@@ -362,86 +390,44 @@ class Atom:
         left, right = (encode(other), self) if flipped else (self, encode(other))
         return Expr([Sym(op), left, right])
 
-    def __add__(self, other: Any) -> Expr:
-        return self._build("+", other)
+    # Runtime implementations are generated after Expr is defined. These
+    # signatures keep the dynamic class construction explicit to type
+    # checkers without duplicating any lowering decision.
+    if TYPE_CHECKING:
 
-    def __radd__(self, other: Any) -> Expr:
-        return self._build("+", other, flipped=True)
-
-    def __sub__(self, other: Any) -> Expr:
-        return self._build("-", other)
-
-    def __rsub__(self, other: Any) -> Expr:
-        return self._build("-", other, flipped=True)
-
-    def __mul__(self, other: Any) -> Expr:
-        return self._build("*", other)
-
-    def __rmul__(self, other: Any) -> Expr:
-        return self._build("*", other, flipped=True)
-
-    def __truediv__(self, other: Any) -> Expr:
-        return self._build("/", other)
-
-    def __rtruediv__(self, other: Any) -> Expr:
-        return self._build("/", other, flipped=True)
-
-    def __mod__(self, other: Any) -> Expr:
-        return self._build("%", other)
-
-    def __rmod__(self, other: Any) -> Expr:
-        return self._build("%", other, flipped=True)
-
-    def __pow__(self, other: Any) -> Expr:
-        return self._build("pow-math", other)
-
-    def __rpow__(self, other: Any) -> Expr:
-        return self._build("pow-math", other, flipped=True)
-
-    def __matmul__(self, other: Any) -> Expr:
-        return self._build("matmul", other)
-
-    def __rmatmul__(self, other: Any) -> Expr:
-        return self._build("matmul", other, flipped=True)
-
-    # &, | and ~ build the boolean terms, the query-composition idiom:
-    # (V.age >= 18) & (V.age <= 40) is (and (>= $age 18) (<= $age 40)),
-    # so guards compose the way the engine reads them. Python's own and,
-    # or and not are not overloadable; they hit __bool__, which refuses
-    # loudly on comparison terms.
-
-    def __and__(self, other: Any) -> Expr:
-        return self._build("and", other)
-
-    def __rand__(self, other: Any) -> Expr:
-        return self._build("and", other, flipped=True)
-
-    def __or__(self, other: Any) -> Expr:
-        return self._build("or", other)
-
-    def __ror__(self, other: Any) -> Expr:
-        return self._build("or", other, flipped=True)
-
-    def __xor__(self, other: Any) -> Expr:
-        return self._build("xor", other)
-
-    def __rxor__(self, other: Any) -> Expr:
-        return self._build("xor", other, flipped=True)
-
-    def __invert__(self) -> Expr:
-        return Expr([Sym("not"), self])
-
-    def __lt__(self, other: Any) -> Expr | bool:
-        return self._build("<", other)
-
-    def __le__(self, other: Any) -> Expr | bool:
-        return self._build("<=", other)
-
-    def __gt__(self, other: Any) -> Expr | bool:
-        return self._build(">", other)
-
-    def __ge__(self, other: Any) -> Expr | bool:
-        return self._build(">=", other)
+        def __add__(self, other: Any) -> Expr: ...
+        def __radd__(self, other: Any) -> Expr: ...
+        def __sub__(self, other: Any) -> Expr: ...
+        def __rsub__(self, other: Any) -> Expr: ...
+        def __mul__(self, other: Any) -> Expr: ...
+        def __rmul__(self, other: Any) -> Expr: ...
+        def __truediv__(self, other: Any) -> Expr: ...
+        def __rtruediv__(self, other: Any) -> Expr: ...
+        def __floordiv__(self, other: Any) -> Expr: ...
+        def __rfloordiv__(self, other: Any) -> Expr: ...
+        def __mod__(self, other: Any) -> Expr: ...
+        def __rmod__(self, other: Any) -> Expr: ...
+        def __pow__(self, other: Any) -> Expr: ...
+        def __rpow__(self, other: Any) -> Expr: ...
+        def __matmul__(self, other: Any) -> Expr: ...
+        def __rmatmul__(self, other: Any) -> Expr: ...
+        def __lshift__(self, other: Any) -> Expr: ...
+        def __rlshift__(self, other: Any) -> Expr: ...
+        def __rshift__(self, other: Any) -> Expr: ...
+        def __rrshift__(self, other: Any) -> Expr: ...
+        def __and__(self, other: Any) -> Expr: ...
+        def __rand__(self, other: Any) -> Expr: ...
+        def __or__(self, other: Any) -> Expr: ...
+        def __ror__(self, other: Any) -> Expr: ...
+        def __xor__(self, other: Any) -> Expr: ...
+        def __rxor__(self, other: Any) -> Expr: ...
+        def __invert__(self) -> Expr: ...
+        def __neg__(self) -> Expr: ...
+        def __abs__(self) -> Expr: ...
+        def __lt__(self, other: Any) -> Expr | bool: ...
+        def __le__(self, other: Any) -> Expr | bool: ...
+        def __gt__(self, other: Any) -> Expr | bool: ...
+        def __ge__(self, other: Any) -> Expr | bool: ...
 
     def eq(self, other: Any) -> Expr:
         """The equality TERM, (== self other); == itself compares atoms."""
@@ -771,6 +757,12 @@ class Gnd(Atom):
     def __rtruediv__(self, other: Any) -> Any:
         return self._value_of(other) / self.value
 
+    def __floordiv__(self, other: Any) -> Any:
+        return self.value // self._value_of(other)
+
+    def __rfloordiv__(self, other: Any) -> Any:
+        return self._value_of(other) // self.value
+
     def __mod__(self, other: Any) -> Any:
         return self.value % self._value_of(other)
 
@@ -788,6 +780,18 @@ class Gnd(Atom):
 
     def __rmatmul__(self, other: Any) -> Any:
         return self._value_of(other) @ self.value
+
+    def __lshift__(self, other: Any) -> Any:
+        return self.value << self._value_of(other)
+
+    def __rlshift__(self, other: Any) -> Any:
+        return self._value_of(other) << self.value
+
+    def __rshift__(self, other: Any) -> Any:
+        return self.value >> self._value_of(other)
+
+    def __rrshift__(self, other: Any) -> Any:
+        return self._value_of(other) >> self.value
 
     def __and__(self, other: Any) -> Any:
         return self.value & self._value_of(other)
@@ -809,6 +813,12 @@ class Gnd(Atom):
 
     def __invert__(self) -> Any:
         return ~self.value
+
+    def __neg__(self) -> Any:
+        return -self.value
+
+    def __abs__(self) -> Any:
+        return abs(self.value)
 
     # Grounded primitives order like their values, so answers sort and
     # compare with plain numbers: max(rows["age"]) and Gnd(7) >= 5
@@ -1109,6 +1119,120 @@ class Expr(Atom):
         return self.children[1:]
 
 
+def _operator_form(form: Any, operands: dict[str, Atom]) -> Atom:
+    """Build one immutable lowering template with its operands substituted."""
+    if isinstance(form, tuple):
+        if not form or not isinstance(form[0], str):
+            msg = f"invalid operator template {form!r}"
+            raise RuntimeError(msg)
+        return Expr([Sym(form[0]), *(_operator_form(item, operands) for item in form[1:])])
+    if isinstance(form, str):
+        return operands.get(form, Sym(form))
+    return encode(form)
+
+
+def _apply_operator_lowering(
+    entry: OperatorLowering,
+    atom: Atom,
+    other: Any = None,
+    *,
+    flipped: bool = False,
+) -> Expr:
+    """Apply one table entry; ``taken`` entries never reach this door."""
+    if entry.kind == "absent":
+        msg = (
+            f"{entry.syntax} has no MeTTa lowering: {entry.reason}. "
+            "Operate on grounded Python values or define a named MeTTa function instead."
+        )
+        raise TypeError(msg)
+    if entry.form is None:
+        msg = f"operator lowering {entry.dunder} has no form"
+        raise RuntimeError(msg)
+    if entry.arity == 1:
+        operands = {"$value": atom}
+    else:
+        encoded = encode(other)
+        left, right = (encoded, atom) if flipped else (atom, encoded)
+        operands = {"$left": left, "$right": right}
+    form: Any = (
+        (entry.form, *operands.values())
+        if entry.kind in {"symbol", "provided"}
+        else entry.form
+    )
+    lowered = _operator_form(form, operands)
+    if not isinstance(lowered, Expr):
+        msg = f"operator lowering {entry.dunder} did not build an expression"
+        raise RuntimeError(msg)  # noqa: TRY004  -- a non-Expr means a corrupt lowering-table row, an internal invariant break, not a caller type error
+    return lowered
+
+
+def _operator_method(  # noqa: C901  -- _operator_method keeps every specialization shape together so its branches share one table row
+    entry: OperatorLowering, *, reflected: bool = False
+) -> Callable[..., Expr]:
+    """Specialize one dunder once and retain its table row for inspection."""
+    name = entry.reflected if reflected else entry.dunder
+    if name is None:
+        msg = f"operator lowering {entry.dunder} has no reflected spelling"
+        raise RuntimeError(msg)
+    if entry.kind in {"symbol", "provided"}:
+        if not isinstance(entry.form, str):
+            msg = f"operator lowering {entry.dunder} has no symbol"
+            raise RuntimeError(msg)
+        symbol = Sym(entry.form)
+        if entry.arity == 1:
+
+            def unary_symbol(self: Atom, _symbol: Sym = symbol) -> Expr:
+                return Expr([_symbol, self])
+
+            operator: Callable[..., Expr] = unary_symbol
+        elif reflected:
+
+            def reflected_symbol(
+                self: Atom, other: Any, _symbol: Sym = symbol
+            ) -> Expr:
+                return Expr([_symbol, encode(other), self])
+
+            operator = reflected_symbol
+        else:
+
+            def binary_symbol(
+                self: Atom, other: Any, _symbol: Sym = symbol
+            ) -> Expr:
+                return Expr([_symbol, self, encode(other)])
+
+            operator = binary_symbol
+    elif entry.arity == 1:
+
+        def unary(self: Atom) -> Expr:
+            return _apply_operator_lowering(entry, self)
+
+        operator = unary
+    else:
+
+        def binary(self: Atom, other: Any) -> Expr:
+            return _apply_operator_lowering(entry, self, other, flipped=reflected)
+
+        operator = binary
+    operator.__name__ = name
+    operator.__qualname__ = f"Atom.{name}"
+    operator.__doc__ = f"Lower {entry.syntax} through the {entry.kind} operator-table entry."
+    operator.__dict__["__petta_lowering__"] = entry
+    return operator
+
+
+def _install_operator_lowerings() -> None:
+    """Generate every term-building or refusing dunder from the table."""
+    for entry in OPERATOR_LOWERINGS:
+        if entry.kind == "taken":
+            continue
+        setattr(Atom, entry.dunder, _operator_method(entry))
+        if entry.reflected is not None:
+            setattr(Atom, entry.reflected, _operator_method(entry, reflected=True))
+
+
+_install_operator_lowerings()
+
+
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expr)
 
@@ -1127,17 +1251,32 @@ _set_wire = Expr.__dict__["_wire"].__set__
 # --------------------------------------------------------------------- encoding
 
 
+def explicit_metta_atom(value: Any) -> Atom | None:
+    """Invoke an explicit class-owned ``__metta__`` hook, if one exists."""
+    cls = type(value)
+    descriptor = inspect.getattr_static(cls, "__metta__", None)
+    if descriptor is None or isinstance(descriptor, property):
+        return None
+    getter = getattr(descriptor, "__get__", None)
+    hook = getter(value, cls) if getter is not None else descriptor
+    if not callable(hook):
+        msg = f"__metta__ on {cls.__name__} is not callable"
+        raise TypeError(msg)
+    result = hook()
+    if not isinstance(result, Atom):
+        msg = (
+            f"__metta__ on {cls.__name__} returned "
+            f"{type(result).__name__}, not an Atom"
+        )
+        raise TypeError(msg)
+    return result
+
+
 @singledispatch
 def _encode_value(value: Any) -> Atom:
     """The open dispatch behind encode. See encode for the contract."""
-    hook = getattr(value, "__metta__", None)
-    if hook is not None:
-        result = hook()
-        if not isinstance(result, Atom):
-            msg = f"__metta__ on {type(value).__name__} returned {type(result).__name__}, not an Atom"
-            raise TypeError(
-                msg
-            )
+    result = explicit_metta_atom(value)
+    if result is not None:
         return result
     return Gnd(value)
 

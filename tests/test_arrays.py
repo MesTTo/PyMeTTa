@@ -5,6 +5,15 @@ DLPack, and the embedding store running on NumPy alone.
 Runs before test_pettorch alphabetically; the constructor default is
 process-global, so this suite installs NumPy as the default and the torch
 suite installs torch over it, each self-consistent.
+Guarantees:
+  - each installed array operation has at least one arrow declaration and
+    broadcast-shape works forwards and backwards as a CLP(FD) relation
+    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+     commit=b81a5a5eba27c16f3cdd9d264db442dcf8024db9]
+  - the module fixture retires its process-global operation registrations, so
+    later suites do not inherit array callables [tested: python -m pytest
+    bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
+    commit=f6b5a40f74e386e7cd779c3925da7e4c02000fdb]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,6 +33,7 @@ from petta import (
     expr,
     val,
 )
+from petta.ops import registered
 
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
@@ -31,8 +41,15 @@ pytest.importorskip("array_api_compat")
 
 @pytest.fixture(scope="module")
 def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    before = set(registered())
     arrays.install(metta, default=numpy)
-    return metta
+    installed = set(registered()) - before
+    try:
+        yield metta
+    finally:
+        for name in sorted(installed, reverse=True):
+            if name in registered():
+                metta.unregister_op(name)
 
 
 def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -43,6 +60,32 @@ def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discover
     assert r == [[expr(expr(58.0, 64.0), expr(139.0, 154.0))]]
     assert am.run("!(t-shape (zeros 2 3))") == [[expr(2, 3)]]
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
+
+
+def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
+    """Every installed array op carries an arrow type, and broadcast-shape solves both ways."""
+    assert len(arrays.ARRAY_OPS) == len(set(arrays.ARRAY_OPS)) == 44
+    for name in arrays.ARRAY_OPS:
+        types = [atom for group in am.run(f"!(get-type {name})") for atom in group]
+        assert types, name
+        assert all(type_.head == S["->"] for type_ in types), (name, types)
+
+    assert am.run(
+        "!(let True (broadcast-shape (4 1) (3) $shape) $shape)"
+    ) == [[expr(4, 3)]]
+    assert am.run(
+        "!(let True (broadcast-shape ($d 1) (1 3) (4 3)) $d)"
+    ) == [[4]]
+    assert am.run("!(broadcast-shape (2 3) (4 3) (4 3))") == [[]]
+
+    assert am.run("!(t-shape (reshape (arange-t 4) 2 2))") == [[expr(2, 2)]]
+    tensors = "((tensor ((1 2))) (tensor ((3 4))))"
+    assert am.run(f"!(t-tolist (cat {tensors} 0))") == [
+        [expr(expr(1.0, 2.0), expr(3.0, 4.0))]
+    ]
+    assert am.run(f"!(t-tolist (stack {tensors} 0))") == [
+        [expr(expr(expr(1.0, 2.0)), expr(expr(3.0, 4.0)))]
+    ]
 
 
 def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
