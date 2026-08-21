@@ -1,4 +1,5 @@
 """Purpose: pin expression-named native spaces at the public MeTTa surface.
+
 Guarantees:
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
@@ -17,7 +18,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 import pytest
 

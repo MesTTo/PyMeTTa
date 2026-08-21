@@ -1,4 +1,5 @@
 """Purpose: prove restricted execution modules expose only creation grants.
+
 Guarantees:
   - file, process, and network operations name their missing capability before
     they run [tested:
@@ -10,7 +11,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 import asyncio
 

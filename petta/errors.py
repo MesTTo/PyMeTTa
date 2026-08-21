@@ -1,5 +1,5 @@
-"""Purpose: the error types the petta library raises, and the Decline signal a
-Python-backed operation uses to answer nothing.
+"""Purpose: define PeTTa errors and the operation-decline signal.
+
 Guarantees:
   - every PettaError carries atom, space, operation and capability
     attributes, None by default, the message unchanged for their presence
@@ -17,7 +17,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 

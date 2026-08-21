@@ -130,6 +130,7 @@ if TYPE_CHECKING:
     # `parallel` in an annotation inside the class body resolves to it.
     from .parallel import EnginePool as _EnginePool
 
+from . import algebra as _algebra
 from . import integrate as _integrate
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
@@ -208,14 +209,12 @@ from .vocabularies import (
     DETERMINISM,
     FIDELITY,
     ON_ERROR_MODE,
-    SEMIRING,
     SOURCE_KIND,
     WORLD,
     AnswerPolicy,
     Atomicity,
     Fidelity,
     OnErrorMode,
-    Semiring,
     SourceKind,
     World,
 )
@@ -2569,35 +2568,102 @@ class MeTTa:
     def declare_annotations(
         self,
         name: str,
-        semiring: Semiring,
+        algebra: str,
+        *,
+        capabilities: _abc.Iterable[str] = (),
     ) -> Atom:
-        """Declare the semiring a context's answer annotations live in.
+        """Declare the algebra a context's answer annotations live in.
 
         A context is a space name or an operation name. bool is the
         default at which everything vanishes; ranked admits ordered
-        annotations, which is what (top k ...) consumes. Declaring
-        replaces any earlier declaration for the context, so the reader
-        never meets two disagreeing atoms.
+        annotations, which is what (top k ...) consumes. A custom name must
+        first be introduced with :meth:`declare_algebra`. Capabilities are
+        checked against the algebra's requirements before the catalog write;
+        amplitude programs, for example, must explicitly declare ``finite``,
+        ``contractive`` and ``staged`` [tested:
+        test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
+        commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]. Declaring replaces any earlier row for the
+        context, so the reader never meets two disagreeing atoms.
         """
-        if semiring not in SEMIRING:
-            msg = (
-                f"semiring is one of {', '.join(SEMIRING)}, "
-                f"not {semiring!r}: it decides how annotations combine and "
-                f"compare, so an unknown word would silently declare nothing"
+        declaration = _algebra.require(self, algebra)
+        declared_capabilities = frozenset(capabilities)
+        missing = declaration.requires - declared_capabilities
+        if missing:
+            refusal = (
+                "amplitude_fragment_refused"
+                if algebra == "amplitude"
+                else "algebra_requirements_missing"
             )
-            raise ValueError(
-                msg
+            msg = f"{refusal}({name}, {algebra}, missing={sorted(missing)!r})"
+            raise _algebra.AlgebraRequirementError(msg)
+        catalog = self.space("&petta")
+        for previous in catalog.atoms():
+            if (
+                isinstance(previous, Expr)
+                and len(previous.children) >= 3
+                and previous.children[0] == Sym("annotations")
+                and previous.children[1] == Sym(str(name))
+            ):
+                catalog.remove(previous)
+        children: list[Atom] = [
+            Sym("annotations"),
+            Sym(str(name)),
+            Sym(algebra),
+        ]
+        if declared_capabilities:
+            children.append(
+                Expr(
+                    [
+                        Sym("capabilities"),
+                        *(Sym(capability) for capability in sorted(declared_capabilities)),
+                    ]
+                )
             )
-        previous = Expr([Sym("annotations"), Sym(str(name)), Var("old")])
-        self._rt.once(
-            "petta_py_remove(Space, W, _)",
-            Space="&petta",
-            W=previous.to_wire(),
+        atom = Expr(children)
+        catalog.add(atom)
+        return atom
+
+    def declare_algebra(
+        self,
+        name: str,
+        *,
+        combine: str,
+        extend: str,
+        zero: Any,
+        one: Any,
+        laws: _abc.Iterable[str] = (),
+        carrier: _abc.Iterable[Any] = (),
+        requires: _abc.Iterable[str] = (),
+    ) -> Atom:
+        """Declare operations and checked laws for an arbitrary atom carrier.
+
+        Public laws are certificates, not wishes. When an equational law is
+        named, ``carrier`` must be finite and the operation tables are checked
+        exhaustively before the catalog atom lands. ``contraction`` is the
+        explicit resource-reuse capability and has no equation to sample.
+        """
+        return _algebra.declare(
+            self,
+            name,
+            combine=combine,
+            extend=extend,
+            zero=zero,
+            one=one,
+            laws=laws,
+            carrier=carrier,
+            requires=requires,
         )
-        atom = Expr([Sym("annotations"), Sym(str(name)), Sym(semiring)])
-        self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
-        )
+
+    def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
+        """Store ``(fact tag proposition)``, the normative annotation form."""
+        atom = _algebra.tagged_fact(tag, proposition)
+        self.add(atom)
+        return atom
+
+    def add_tagged_rule(self, tag: Any, head: Any, *premises: Any) -> Atom:
+        """Store one rule generated by the algebra-agnostic tag threader."""
+        atom = _algebra.tagged_rule(tag, head, *premises)
+        self.add(atom)
         return atom
 
     def declare_image(
@@ -2635,6 +2701,31 @@ class MeTTa:
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         return atom
+
+    def evaluate_algebra(
+        self,
+        query: str | Atom,
+        *,
+        algebra: str,
+        max_rounds: int = 64,
+    ) -> _algebra.AlgebraEvaluation:
+        """Evaluate stored tagged facts and rules through one declared algebra."""
+        return _algebra.evaluate(
+            self, query, algebra=algebra, max_rounds=max_rounds
+        )
+
+    def sample_rates(
+        self,
+        query: str | Atom,
+        *,
+        algebra: str,
+        draws: int,
+        seed: int,
+    ) -> tuple[Atom, ...]:
+        """Select tagged alternatives by their nonnegative ``(rate n)`` tags."""
+        return _algebra.sample(
+            self, query, algebra=algebra, draws=draws, seed=seed
+        )
 
     def declare_source(
         self,
