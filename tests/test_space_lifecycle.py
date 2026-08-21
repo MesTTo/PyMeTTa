@@ -55,18 +55,56 @@ def test_a_dropped_name_comes_back(drained):
     second.drop()
 
 
+def _execution_module_owns(metta, space_name):
+    """What a space's execution module still holds, by name and clause count.
+
+    The one query in this file that is not the public surface, and it is here
+    because the contract IS about that module: an equation leaves through the
+    removal funnel and can be checked by asking the space, while a lambda and a
+    specialization have no stored atom behind them and can only be seen here.
+    """
+    row = metta.runtime.once(
+        "atom_string(_S, Space), space_module(_S, _M), "
+        "findall(_T, (current_predicate(_M:_N/_A), functor(_H, _N, _A), "
+        "             \\+ predicate_property(_M:_H, imported_from(_)), "
+        "             predicate_property(_M:_H, number_of_clauses(_C)), "
+        '             format(atom(_T), "~w/~w x~w", [_N, _A, _C])), Owned)',
+        Space=space_name,
+    )
+    return sorted(row["Owned"])
+
+
 # The equation half is what the engine's own clear used to leave standing:
 # storage went, the compiled clauses stayed, and a space holding nothing
 # answered its own functions. The Python door was whole because its clear
 # funnels equations before reaching the engine's, so this is the end-to-end
 # guard over a door that was already right; the engine door's own red is
 # spaces_execution_modules:clearing_a_space_empties_its_execution_module.
+#
+# The GENERATED half is the one that was still leaking on 2026-08-22. A clear
+# takes equations out one per stored (= ...) atom, so a predicate the compiler
+# made with no stored equation behind it was never reached: a compiled lambda
+# kept its clauses and a specialization kept its predicate. Measured on that
+# tree, a dropped space's module still held lambda_2/2 with its clause and
+# twice_Spec_[inc]/3, and the recycled name answered
+# !(callPredicate (Predicate (lambda_2 5 $y))) with True, running a lambda body
+# belonging to a space that no longer existed. Nothing gave a wrong ANSWER,
+# because the lambda counter is process-global and the specialization rebuilds,
+# so the harm was a module that grew by one dead predicate per lambda per life
+# and an escape hatch that reached into a finished one.
 def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = drained.new_space()
     name = first.space_name
     first.add(S.plain(1))
     first.run("(= (past-life) inherited)")
     first.run("(: past-typed (-> Number Number))\n(= (past-typed $x) $x)")
+    # A compiled lambda and a specialization, the two shapes with no stored
+    # equation to leave through.
+    first.run("(= (past-inc $x) (+ $x 1))")
+    first.run("(= (past-twice $f $x) ($f ($f $x)))")
+    assert first.run("!(past-twice past-inc 5)") == [[7]]
+    assert first.run("!((|-> ($x) (* $x 10)) 7)") == [[70]]
+    assert _execution_module_owns(drained, name) != []
     # Tabling instruments the compiled function, so it is declared after the
     # equation and with the call's own shape; `(tabled past-tabled)` on the
     # bare name is refused, loudly, by lib_tabling.
@@ -76,11 +114,21 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
     assert first.run("!(past-typed 1)") == [[1]]
     assert first.run("!(past-tabled 1)") == [[1]]
     first.drop()
+    # Nothing at all, rather than nothing with a stored atom behind it.
+    assert _execution_module_owns(drained, name) == []
 
     second = drained.new_space()
     assert second.space_name == name, "the point of the test is the reused name"
     try:
         assert second.atoms() == []
+        assert second.run("!(past-twice past-inc 5)") == [
+            [S["past-twice"](S["past-inc"], 5)]
+        ]
+        # The raw-Prolog hatch is how a past life's lambda was reachable at
+        # all, its generated name being one no MeTTa program writes. It has to
+        # find nothing now, which for that hatch is a Prolog existence error.
+        with pytest.raises(PettaError, match="lambda_2"):
+            second.run("!(callPredicate (Predicate (lambda_2 5 $y)))")
         # Unreduced, which is what a call to a function nothing defines
         # answers. A past life's value here would be the defect.
         assert second.run("!(past-life)") == [[S["past-life"]()]]
