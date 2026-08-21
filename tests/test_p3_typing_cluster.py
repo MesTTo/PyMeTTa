@@ -12,7 +12,7 @@ Guarantees:
   - pragma! validates bound values before a working setting can change,
     keeps the arbiter's HE spellings accepted and unenforced, and refuses
     only keys outside the closed registry.
-  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=WORKTREE]
+  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=e8270f8551083f236ce5134ca299adf5347d6898]
   - under-applied arrow heads have no type instead of a tuple fallback.
   [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - empty-expression type observers report unit without changing classifiers.
