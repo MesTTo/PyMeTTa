@@ -70,6 +70,34 @@ REFUSING_RULE = """(: strength (-> Atom Atom %Undefined%))
 """
 
 
+# Two equivalent forms and one number deciding which the compiler emits. The
+# same source is run twice, with the cost declaration and without it, and the
+# two runs answer differently for the same call.
+COST_RULE = """(: pow2 (-> Atom %Undefined%))
+(= (pow2 $x) (noeval (mul $x $x)))
+!(add-translator-rule! pow2 ((direction bidirectional){cost}))
+!(pow2 3)
+!(mul (a b c d e f g h i j) (a b c d e f g h i j))
+"""
+
+# Three patterns joined on two variables, which no single head could express.
+CONJUNCTIVE_RULE = """(unit mass kg)
+(unit length m)
+(si kg kilogram)
+(si m metre)
+
+(: unit-of (-> Atom %Undefined%))
+!(add-translator-rule! unit-of
+   ((left ((unit-of $q) (unit $q $u) (si $u $s)))
+    (right (in $s))))
+
+!(unit-of mass)
+!(unit-of length)
+!(collapse (unit-of time))
+!(match &self (= (unit-of $q) $body) (car-atom $body))
+"""
+
+
 def _run_metta(repo_root: Path, path: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["sh", "run.sh", str(path), "silent"],
@@ -275,3 +303,55 @@ def test_a_translator_rule_can_decline_with_its_own_words(repo_root, tmp_path): 
     ).stdout
     assert "are UNCONDITIONAL" in plain
     assert "conclusion: NOT DECIDED." not in plain
+
+
+def test_a_translator_rule_carries_a_cost_and_a_conjunctive_left_side(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    repo_root, tmp_path
+):
+    # A cost is expressible, and it DECIDES. The same two equivalent forms go
+    # opposite ways depending on the one number the rule declares, which is
+    # what an extractor does when it chooses between them.
+    priced = tmp_path / "priced.metta"
+    priced.write_text(COST_RULE.format(cost=" (cost 10)"))
+    unpriced = tmp_path / "unpriced.metta"
+    unpriced.write_text(COST_RULE.format(cost=""))
+
+    with_cost = _answers(_run_metta(repo_root, priced))
+    without_cost = _answers(_run_metta(repo_root, unpriced))
+
+    big = "(a b c d e f g h i j)"
+    # Priced at ten, `(pow2 3)` is the dearer form and gets expanded, while the
+    # doubled big argument is the dearer one and gets collapsed.
+    assert with_cost[1] == "(mul 3 3)"
+    assert with_cost[2] == f"(pow2 {big})"
+    # Unpriced, a head is one node like any other, so the small call collapses
+    # instead of expanding. Same rule, same call, different answer.
+    assert without_cost[1] == "(pow2 3)"
+    assert without_cost[2] == f"(pow2 {big})"
+
+    # A conjunctive left side: three patterns, joined on two variables, which
+    # no single head could express.
+    conjunctive = tmp_path / "conjunctive.metta"
+    conjunctive.write_text(CONJUNCTIVE_RULE)
+    joined = _answers(_run_metta(repo_root, conjunctive))
+    registration, mass, length, missing, body_head = joined
+
+    assert registration == "True"
+    assert mass == "(in kilogram)"
+    assert length == "(in metre)"
+    # Conjuncts that do not match are a rule miss like any other: no answer.
+    assert missing == "()"
+    # And the join is the engine's own conjunctive query. The rule compiles to
+    # the equation an author would have written by hand, with the conjuncts as
+    # a `match` chain, so nothing here canonicalises variables, de-canonicalises
+    # substitutions, tests them for compatibility or merges them the way an
+    # e-graph implementation has to.
+    assert body_head == "match"
+    registry = (repo_root / "engine" / "translator_rules.pl").read_text()
+    assert "conjunctive_body" in registry
+    defined = {
+        line.split("(")[0].split(" ")[0]
+        for line in registry.splitlines()
+        if line[:1].isalpha()
+    }
+    assert not defined & {"merge_subst", "decanonicalize", "compatible"}
