@@ -8,7 +8,7 @@ Guarantees:
     distinct, NaN self-equal), the same split Java makes between == and
     Double.equals so collections of values stay coherent
     [tested: test_python_equality_is_engine_equality,
-    test_atom_equality_is_engine_unification; commit=WORKTREE]
+    test_atom_equality_is_engine_unification; commit=51ec57fd65d2c27e2a07b519a596dd3c1aad3b4d]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expr is a complete immutable Sequence with iterative equality and hashing
@@ -158,7 +158,7 @@ def _ground_identical(mine: Any, theirs: Any) -> bool:
     integer atom never matches a float atom where (== 0 0.0) answers True,
     0.0 and -0.0 are two float values where == answers one, and one NaN
     matches another where == answers False [measured 2026-08-21: space.query
-    over the live engine for each pair; commit=WORKTREE]. Matching,
+    over the live engine for each pair; commit=51ec57fd65d2c27e2a07b519a596dd3c1aad3b4d]. Matching,
     membership, removal and every dict of atoms follow this relation, so a
     Counter of atoms counts what the space stores.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
