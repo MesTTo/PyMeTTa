@@ -8,6 +8,7 @@ Open Obligations:
 import os
 import subprocess
 import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -101,3 +102,32 @@ def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):  # noqa: D1
 
     with pytest.raises(FileNotFoundError, match=r"SWI-Prolog.*swipl.*PATH"):
         cli.main([])
+
+
+def test_the_bare_demo_runs_the_interop_example_and_backend_selftests():
+    """The no-argument launcher is the first thing a human runs, and no lane
+    executed it: the space model moved &self out of user and the demo's bare
+    listing raised across two green batteries, while the MORK selftest had
+    failed silently since add-atom's answer became unit, swallowed by
+    forall/2 over solutions. Exit 0, the printed answer, and the selftest's
+    own output line pin all three, in the bare form and the backends form
+    the packaged launcher passes.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    repo = Path(__file__).resolve().parents[3]
+    mork_built = (
+        repo / "backends" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+    ).exists()
+    for extra in ([], ["--", "backends"]):
+        done = subprocess.run(
+            ["swipl", "-q", "-s", str(repo / "engine" / "main.pl"), *extra],
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=120,
+            check=False,
+            cwd=repo,
+        )
+        assert done.returncode == 0, (extra, done.stdout, done.stderr)
+        assert "mettafunc(30) = 31" in done.stdout, (extra, done.stdout)
+        if extra and mork_built:
+            assert "MORK query result:" in done.stdout, done.stdout
