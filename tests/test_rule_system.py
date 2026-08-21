@@ -98,6 +98,15 @@ CONJUNCTIVE_RULE = """(unit mass kg)
 """
 
 
+# A rule whose right side invents a variable and says nothing about it. The
+# exemption has to be a declaration, not a blanket skip, so this one still
+# reports the precondition it fails.
+UNDECLARED_EXTRA_VARIABLE = """(: p2b-invents (-> Atom %Undefined%))
+(= (p2b-invents $x) (noeval (pair $x $y)))
+!(add-translator-rule! p2b-invents)
+"""
+
+
 def _run_metta(repo_root: Path, path: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["sh", "run.sh", str(path), "silent"],
@@ -355,3 +364,100 @@ def test_a_translator_rule_carries_a_cost_and_a_conjunctive_left_side(  # noqa: 
         if line[:1].isalpha()
     }
     assert not defined & {"merge_subst", "decanonicalize", "compatible"}
+
+
+def _confluence(repo_root: Path, files: list[Path]) -> str:
+    command = [
+        "swipl",
+        "-q",
+        "--on-error=status",
+        "-g",
+        "translator_confluence_main",
+        "-t",
+        "halt(0)",
+        "translator_confluence.pl",
+    ]
+    if files:
+        command += ["--"] + [str(f) for f in files]
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        cwd=repo_root / "tests" / "prolog",
+    ).stdout
+
+
+def test_the_shipped_translator_rules_bind_their_right_hand_variables(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    repo_root, tmp_path
+):
+    # Every rule the shipped libraries register either binds every variable it
+    # writes on the right, or carries an exemption WITH A REASON. Read from
+    # the rules themselves, so a rule added later is covered.
+    survey = subprocess.run(
+        [
+            "swipl",
+            "-q",
+            "--on-error=status",
+            "-g",
+            "load_engine, "
+            "forall(shipped_library(F), load_metta_file(F, _)), "
+            "compile_time_rules('&self', _, _, Space, Prelude), "
+            "append(Space, Prelude, Rules), "
+            "forall(member(Rule, Rules), "
+            "  ( Rule = (L ==> _), functor(L, N, _), "
+            "    ( rhs_vars_in_lhs([Rule]) -> format('BOUND ~w~n', [N]) "
+            "    ; translator_rule_extra_variables_exempt(N, Why) "
+            "      -> format('EXEMPT ~w :: ~w~n', [N, Why]) "
+            "    ; format('UNBOUND ~w~n', [N]) ) ))",
+            "-t",
+            "halt(0)",
+            "translator_confluence.pl",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        cwd=repo_root / "tests" / "prolog",
+    ).stdout
+    lines = [line for line in survey.splitlines() if line.strip()]
+    assert lines, survey
+    assert not [line for line in lines if line.startswith("UNBOUND")], survey
+
+    # Not vacuous: the corpus contains both answers, and every exemption
+    # carries words rather than a bare flag.
+    exemptions = [line for line in lines if line.startswith("EXEMPT")]
+    assert [line for line in lines if line.startswith("BOUND")]
+    assert exemptions
+    for exemption in exemptions:
+        reason = exemption.split(" :: ", 1)[1]
+        assert len(reason.split()) >= 5, exemption
+
+    # The shipped set's termination line has moved, and the exemption it rests
+    # on is printed with its reason rather than silently applied.
+    report = _confluence(repo_root, [])
+    termination = [
+        line for line in report.splitlines() if line.startswith("termination:")
+    ]
+    assert len(termination) == 1, termination
+    assert termination[0].startswith("termination: ESTABLISHED."), termination[0]
+    assert "exempt from the extra-variables precondition: succeedsPredicate" in report
+    assert "binders of the expansion" in report
+    assert "conclusion: CONFLUENT." in report
+
+    # The obstruction that remains is a DIFFERENT one on a different tier, and
+    # the report names it rather than folding it into the line above. It is
+    # the prelude's three identity rules, whose right side contains their left
+    # so no path order can orient them; the compiler terminates on them
+    # because `noeval` stops the expansion going round again, which the
+    # first-order extraction does not model.
+    assert "shipped tier:" in report
+    assert "termination: NOT ESTABLISHED, no_rpo_order" in report
+
+    # And the exemption is a DECLARATION, not a blanket skip: a rule that
+    # invents a variable and says nothing still reports the precondition.
+    planted = tmp_path / "invents.metta"
+    planted.write_text(UNDECLARED_EXTRA_VARIABLE)
+    undeclared = _confluence(repo_root, [planted])
+    assert "termination: NOT ESTABLISHED. extra_variables" in undeclared
