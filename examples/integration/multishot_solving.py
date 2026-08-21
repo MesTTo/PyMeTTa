@@ -9,7 +9,7 @@ classes below are the whole translation; the solve side is the query
 surface the space already has.
 Guarantees:
   - reachability is a relation whose absent horizons fail instead of returning
-    residual calls [tested: integration/multishot_solving; commit=WORKTREE]
+    residual calls [tested: integration/multishot_solving; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None

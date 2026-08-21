@@ -16,11 +16,11 @@
 %   - petta_py_add_strict_declaration/2 refuses a declaration already owned by
 %     source code before Python publishes an operation
 %     [tested: test_a_duplicate_declaration_names_the_first_one;
-%     commit=WORKTREE]
+%     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 %   - derivations descend through the default six-axis dispatch wrapper, so
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;
-%     commit=WORKTREE]
+%     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 %   - petta_py_load/3 loads under the engine's own source-load lifecycle, so
 %     the library's door and import! replace each other's loads of a file and
 %     not only their own [tested 2026-08-19:

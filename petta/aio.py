@@ -27,7 +27,7 @@ Guarantees:
     types [tested test_public_context_types_are_distinct]
   - async declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,

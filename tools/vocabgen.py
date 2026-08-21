@@ -15,12 +15,12 @@ Assumes:
     which is how every gate lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
   - a catalog name that already uses CamelCase keeps that spelling in its
     Python alias [tested: test_generated_alias_preserves_declared_camel_case;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None

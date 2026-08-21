@@ -4,15 +4,15 @@ Guarantees:
   - a user refusal overrides an overlapping shipped acceptance, names its rule
     and reason in the Error value, and removal restores the shipped behavior
     [tested: test_a_user_typing_rule_participates_like_a_shipped_one;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - the analyzer reports user/user and user/shipped intersections involving
     refusal or defer as conditional obligations
     [tested: test_a_user_typing_rule_participates_like_a_shipped_one;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - the shipped reporting family keeps Atom ordinary while the runtime family
     retains Atom's gradual wildcard behavior
     [tested: test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None

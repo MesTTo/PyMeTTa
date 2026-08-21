@@ -8,7 +8,7 @@ Guarantees:
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
-    commit=WORKTREE]
+    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 Open Obligations:
   To Do: None
   Hacks: None
