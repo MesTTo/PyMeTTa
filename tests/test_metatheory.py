@@ -25,7 +25,7 @@ Guarantees:
     ordinary dispatch, and the report says which of its verdict is a decision
     and which a proof obligation because of it
     [tested: test_an_answerless_translator_rule_body_behaves_as_ruled;
-     commit=WORKTREE]
+     commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
 Open Obligations:
   To Do: None
   Hacks: None

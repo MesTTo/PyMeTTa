@@ -10,18 +10,18 @@ Assumes:
 Guarantees:
   - `quote` scopes a pattern exactly as it scopes a body, so a head written to
     match what a body writes does match it.
-  [tested: test_quote_is_a_scope_in_head_position_too; commit=WORKTREE]
+  [tested: test_quote_is_a_scope_in_head_position_too; commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
   - a translator rule's guard, written as a head shape or as a goal in the
     rule's body, cannot instantiate the call it is matched against, so the
     equation holding that call keeps its own head pattern.
   [tested: test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match;
-   commit=WORKTREE]
+   commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
   - the compiler says which head pattern position it decided something about,
     which label, and why, for both decisions it can take there, and says
     nothing where the parameter's evaluation mask makes the decision the one
     the programmer asked for.
   [tested: test_the_compiler_names_a_pattern_position_it_turned_into_a_goal;
-   commit=WORKTREE]
+   commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
 Open Obligations:
   To Do: None
   Hacks: None
