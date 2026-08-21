@@ -1,7 +1,8 @@
 """Purpose: the matching-core cluster's acceptance criteria, run not read.
 
 One compiler means a quoted term in a pattern position holds what a quoted term
-in a body position holds.
+in a body position holds, and a rule's guard decides whether the rule applies
+without rewriting the call it was asked about.
 
 Assumes:
   - a MeTTa program can be evaluated in-process through ``petta.MeTTa``, and
@@ -10,6 +11,11 @@ Guarantees:
   - `quote` scopes a pattern exactly as it scopes a body, so a head written to
     match what a body writes does match it.
   [tested: test_quote_is_a_scope_in_head_position_too; commit=WORKTREE]
+  - a translator rule's guard, written as a head shape or as a goal in the
+    rule's body, cannot instantiate the call it is matched against, so the
+    equation holding that call keeps its own head pattern.
+  [tested: test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match;
+   commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -78,3 +84,43 @@ def test_a_quoted_annotation_pattern_matches_the_annotation_and_not_its_subject(
     assert _answers(metta, "!(h3 (quote (: foo Number)))") == ["matched"]
     assert _answers(metta, "!(h3 (quote (: 7 Number)))") == ["matched"]
     assert _answers(metta, "!(h3 (quote 5))") == ["(h3 (quote 5))"]
+
+
+def test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match():
+    """Two guards are planted, and neither narrows the equation holding the call.
+
+    A translator rule can guard itself two ways: by naming a shape in its head,
+    or by running a goal in its body that binds one of its head variables. Both
+    reach the call through Prolog's ``call/1``, which unifies, so before the
+    match was re-checked both rewrote the ENCLOSING equation's head while they
+    were there. Measured 2026-08-21 on the tip before the change:
+    ``(= (p216-uses-bg $z) (p216-bg $z))`` compiled to ``uses-bg(planted, ...)`` and
+    ``(= (p216-uses-gp $z) (p216-gp $z))`` to ``uses-gp([pair, A, B], ...)``, so a
+    head the programmer wrote to match anything matched one symbol and one
+    shape, and the other calls had no answer and no message.
+    """
+    metta = MeTTa(verbose=False)
+
+    # The body-guard rule, with the fall-through its decline reaches.
+    metta.run("(: p216-bg (-> Atom %Undefined%))")
+    metta.run("(= (p216-bg $a) (let $a p216-planted (noeval (saw $a))))")
+    metta.run("(= (p216-bg $a) (noeval (fell-through $a)))")
+    assert _answers(metta, "!(add-translator-rule! p216-bg)") == ["True"]
+    metta.run("(= (p216-uses-bg $z) (p216-bg $z))")
+
+    assert _answers(metta, "!(p216-uses-bg 5)") == ["(fell-through 5)"]
+    assert _answers(metta, "!(p216-uses-bg p216-planted)") == [
+        "(fell-through p216-planted)"
+    ]
+    # Still a rule, and still fires where the call really is what it names.
+    assert _answers(metta, "!(p216-bg p216-planted)") == ["(saw p216-planted)"]
+
+    # The head-shape guard, which is how the shipped set operations are written.
+    metta.run("(: p216-gp (-> Atom %Undefined%))")
+    metta.run("(= (p216-gp (pair $a $b)) (noeval (got $a $b)))")
+    assert _answers(metta, "!(add-translator-rule! p216-gp)") == ["True"]
+    metta.run("(= (p216-uses-gp $z) (p216-gp $z))")
+
+    assert _answers(metta, "!(p216-uses-gp 5)") == ["(p216-gp 5)"]
+    assert _answers(metta, "!(p216-uses-gp (pair 1 2))") == ["(got 1 2)"]
+    assert _answers(metta, "!(p216-gp (pair 3 4))") == ["(got 3 4)"]
