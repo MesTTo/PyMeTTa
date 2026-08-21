@@ -53,6 +53,23 @@ BIDIRECTIONAL_RULE = """(: unpack (-> Atom %Undefined%))
 """
 
 
+# A rule that inspects its match and declines. The refused call falls through
+# to the next equation, so the program still answers, and the words the rule
+# used are readable afterwards.
+REFUSING_RULE = """(: strength (-> Atom Atom %Undefined%))
+(= (strength (dose $n) (unit mg))
+   (if (> $n 1000)
+       (refuse "a dose above 1000 is not a milligram strength")
+       (noeval (mg $n))))
+(= (strength (dose $n) (unit mg))
+   (noeval (grams (/ $n 1000))))
+!(add-translator-rule! strength)
+!(strength (dose 250) (unit mg))
+!(strength (dose 5000) (unit mg))
+!(match &petta (translator-rule-refusal $rule $why) (refused $rule $why))
+"""
+
+
 def _run_metta(repo_root: Path, path: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["sh", "run.sh", str(path), "silent"],
@@ -185,3 +202,76 @@ def test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_on
     assert "ROW twin [direction(inverse(unpack))]" in probe.stdout
     assert "INVERSE WITHDRAWN" in probe.stdout
     assert "EQUATION WITHDRAWN" in probe.stdout
+
+
+def test_a_translator_rule_can_decline_with_its_own_words(repo_root, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    planted = tmp_path / "refusal.metta"
+    planted.write_text(REFUSING_RULE)
+    finished = _run_metta(repo_root, planted)
+    assert finished.returncode == 0, finished.stderr
+    registration, honoured, declined, recorded = _answers(finished)
+
+    assert registration == "True"
+    # The match the rule can honour is rewritten.
+    assert honoured == "(mg 250)"
+    # The one it declines is NOT rewritten by that equation, and the call
+    # carries on to the next one rather than failing or raising.
+    assert declined == "(grams 5)"
+    # And the words are the rule's own, in the register a program can match.
+    assert recorded == (
+        '(refused strength "a dose above 1000 is not a milligram strength")'
+    )
+
+    # The refusal moves the rule set across the decidability line, and the
+    # report says so instead of going on claiming the fragment it used to sit
+    # in. A guard makes a peak unreachable, so a critical pair stops being a
+    # decision and becomes an obligation.
+    report = subprocess.run(
+        [
+            "swipl",
+            "-q",
+            "--on-error=status",
+            "-g",
+            "translator_confluence_main",
+            "-t",
+            "halt(0)",
+            "translator_confluence.pl",
+            "--",
+            str(planted),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        cwd=repo_root / "tests" / "prolog",
+    ).stdout
+    assert "can refuse, so it is CONDITIONAL" in report
+    assert "undecidable in general" in report
+    assert "conclusion: NOT DECIDED." in report
+    assert "proof obligation" in report
+
+    # An unguarded set still gets a decision, so the conditional verdict is a
+    # property of the rules and not a blanket disclaimer.
+    unguarded = tmp_path / "unguarded.metta"
+    unguarded.write_text(UNPROTECTED_RULE)
+    plain = subprocess.run(
+        [
+            "swipl",
+            "-q",
+            "--on-error=status",
+            "-g",
+            "translator_confluence_main",
+            "-t",
+            "halt(0)",
+            "translator_confluence.pl",
+            "--",
+            str(unguarded),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        cwd=repo_root / "tests" / "prolog",
+    ).stdout
+    assert "are UNCONDITIONAL" in plain
+    assert "conclusion: NOT DECIDED." not in plain
