@@ -14,7 +14,7 @@ Assumes:
     [tested: test_the_twin_set_is_derived_from_the_one_corpus]
   - inferences are deterministic across processes, so one sample decides a
     budget [measured 2026-08-22: examples/basics/factorial.metta answered 4748
-    inferences on three fresh interpreters, 0.0000% spread; commit=WORKTREE]
+    inferences on three fresh interpreters, 0.0000% spread; commit=c7191d87d9cbfce2870e586057168ec9103845ca]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the four source doors and any string that is not a name or val()-marked
@@ -81,12 +81,12 @@ DECLINED = "-"
 #: looser; the overrun itself is priced with its mechanism in
 #: ai-report-p14-coverage.md rather than hidden inside the band
 #: [measured 2026-08-22: `twin_coverage.py --measure`, ai-tmp/p14c-measure.log;
-#: commit=WORKTREE].
+#: commit=c7191d87d9cbfce2870e586057168ec9103845ca].
 BAND_PERCENT = 10.0
 
 #: The tree's own counter allowance, so a budget here reads the way a
 #: benchmark baseline reads [source: bindings/python/petta/benchmarking.py
-#: _COUNTER_TOLERANCE; commit=WORKTREE].
+#: _COUNTER_TOLERANCE; commit=c7191d87d9cbfce2870e586057168ec9103845ca].
 TOLERANCE = 4
 
 #: The four doors that take MeTTa source text. A twin may not use any of them:
@@ -474,7 +474,7 @@ def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
     invites: "matching their text is a far cheaper route to pass the tests
     than implementing the spec" [source:
     https://www.christianfindlay.com/blog/basilisk-conformance-apology,
-    the python/typing conformance suite, 2026-08; commit=WORKTREE]. Inferences
+    the python/typing conformance suite, 2026-08; commit=c7191d87d9cbfce2870e586057168ec9103845ca]. Inferences
     are deterministic across processes here, so pinning both sides costs
     nothing in flakiness and catches a twin that stopped being one.
     """
