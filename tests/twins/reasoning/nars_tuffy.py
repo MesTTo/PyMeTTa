@@ -1,28 +1,37 @@
-"""The Python twin of examples/reasoning/nars_tuffy.metta: the Tuffy smokers KB.
+"""examples/reasoning/nars_tuffy.metta in Python: the Tuffy smokers knowledge base.
+
+Ten NARS sentences say who smokes, who is friends with whom, that friends of
+smokers smoke, and that smokers get cancer. The claim asks NARS what it makes
+of Edward being cancerous, and gets back a truth value and the five premises it
+came from.
 
 The knowledge base is ONE equation whose body is a ten-element expression, so
 it is written as data: a Python tuple of ten `sentence(...)` calls. NARS spells
-four things with punctuation the term door reaches only by name, so each is
-named once and the ten rows then read as the logic they are: `-->` is
-inheritance, `==>` implication, `[] p` the property `p`, and U+00D7 the
-product of two terms. That last head is written as the escape
-`\N{MULTIPLICATION SIGN}` and quoted as `multiplication-sign` in the
-comments, because a bare one is a confusable ruff refuses.
+four things with punctuation, so each gets a named Python function and the ten
+rows then read as the logic they are: `-->` is inheritance, `==>` implication,
+`[] p` the property `p`, and U+00D7 the product of two terms. That last head is
+written as the escape `\N{MULTIPLICATION SIGN}` and called `multiplication-sign`
+in prose, because a bare one is a confusable ruff refuses.
 
 `kb` stays at the container door because its body is DATA rather than a
 computation: a compiled body's free names must be parameters, functions the
 engine knows by exactly that name, or capitalised constructors, and `-->`,
-`==>` and the product head are none of the three.
+`==>` and the product head are none of the three (residue, P14.4).
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, expr
+
+#: The space the import writes.
+SELF = S["&self"]  # rung: no import door hangs off the space handle
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 16271945 across the rewrite: the named NARS constructors
-#: and the tuple rows build the same two atoms the hand-nested `expr` calls
-#: built, which the atom-level differential confirms byte-for-byte. Prior: ADDED
-#: 2026-08-22 at 16271945 by the wave-3 twin baseline.
-BUDGET = 16271945
+#: RE-PINNED 2026-08-22, 16271945 to 16270900, -1045 (-0.0064%), by the twin
+#: contract change: the `test` wrapper left the engine for Python's own
+#: `assert`, which is all that could move; the NARS query is the example.
+#: Against the example's 16284409 the ratio is 0.9992 [measured 2026-08-22
+#: min-of-3: `twin_coverage.py --measure examples/reasoning/nars_tuffy.metta`].
+#: Prior: ADDED 2026-08-22 at 16271945 by the wave-3 twin baseline.
+BUDGET = 16270900
 
 
 def inheritance(subject, predicate):
@@ -65,14 +74,11 @@ def smokes(who):
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """State ten sentences, then ask NARS about one of their consequences."""
+    m.eval(S["import!"](SELF, S.library(S.lib_nars)))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_nars))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_nars)))
-
+    # The knowledge base, as the ten rows it is. `$1` and `$2` in the first two
+    # rows are the rules' variables; everything below them is ground.
     # (= (kb)
     #    ((Sentence ((==> (--> (multiplication-sign $1 $2) friend)
     #                     (==> (--> $1 ([] smokes))
@@ -117,14 +123,8 @@ def twin(m):
         )
     )
 
-    # !(test (NARS.Query (kb)
-    #                    (--> Edward ([] cancerous)))
-    #        ((stv 0.6 0.48941156079382964) (2 5 6 9 10)))
-    yield m.eval(
-        S.test(
-            S["NARS.Query"](
-                S.kb(), inheritance(S.Edward, prop(S.cancerous))
-            ),
-            (S.stv(0.6, 0.48941156079382964), (2, 5, 6, 9, 10)),
-        )
-    )
+    # Edward smokes, so Edward is cancerous, and the answer names the five
+    # sentences the derivation used.
+    assert m.eval(
+        S["NARS.Query"](S.kb(), inheritance(S.Edward, prop(S.cancerous)))
+    ) == [expr(S.stv(0.6, 0.48941156079382964), expr(2, 5, 6, 9, 10))]

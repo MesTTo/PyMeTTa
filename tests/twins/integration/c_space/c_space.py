@@ -1,152 +1,96 @@
-"""The Python twin of examples/integration/c_space/c_space.metta: a C-backed space.
+"""examples/integration/c_space/c_space.metta in Python: a space whose atoms live in C.
 
-`&cstore` is a space whose store is a C hash table reached through the provider
-seam, so `add-atom` and `match` are the ordinary space operations and the C is
-invisible above them. Every runnable half is guarded by `file-exists`, exactly
-as the example guards them, because a C compiler is not one of the engine's
-requirements.
+`cstore.c` holds the atoms and `cstore.pl` puts four clauses on the foreign-space
+seam, so `&cstore` is a space like any other and nothing above it knows there is
+a C backend. That is exactly why this twin reads like the spaces twins: the
+store is a handle, `store += atom` writes, `store[pattern]` matches, and
+`store -= atom` takes one unifying occurrence away, which is what `remove-atom`
+means everywhere.
 
-Everything stays at the term door: the definitions name `add-atom` and match
-against a NAMED space, and a compiled body names a function by exactly its MeTTa
-spelling while a compiled `match()` takes its space as a literal. Both are
-residue entries against P14.4.
+The provider file is consulted through `m.register_prolog(path=)`, the Python
+door for what the example spells `(let "cstore.pl" (consult_global) provider)`.
+
+Two things do not dissolve. `check-space-provider` is the seam's own proof
+harness and the Python compliance kit beside it, `petta.testing`, reaches only
+Python providers, so the C provider is checkable only through the MeTTa door,
+which names the space as a symbol. And the concurrent-writer form is DECLINED:
+`hyperpose` runs its branches on real threads and the completion schedule moves
+the inference count, which the residue records against P14.14.
 """
+
+from pathlib import Path
 
 from petta import S, V, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: The space the imports write, and the C-backed space they are for.
+SELF = S["&self"]  # rung: no import door hangs off the space handle
+CSTORE = S["&cstore"]  # rung: check-space-provider takes the space as a symbol; petta.testing's kit reaches only Python providers
+
+#: The build artefact and the provider that loads it. Marked data because a
+#: twin may not write a bare string; `.value` is the path a Python door takes.
+CSTORE_SO = Path(val("examples/integration/c_space/cstore.so").value)
+CSTORE_PL = Path(val("examples/integration/c_space/cstore.pl").value)
+
+#: What a healthy provider reports about itself.
+REPORT = [
+    val("enumerate: declared, seam:foreign_atoms/2 has clauses"),
+    val("add: declared, seam:foreign_add/2 has clauses"),
+    val("remove: declared, seam:foreign_remove/3 has clauses"),
+    val("clear: declared, seam:foreign_clear/1 has clauses"),
+    val("match: over-approximation holds over 1 atoms"),
+    val("pushdown: 0 of 1 patterns claimed exact, and are"),
+    val("plan: not declared, so a conjunction takes the engine's split"),
+]
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 141295 across the rewrite: `equation(...).to(...)` and the
-#: `(b c)` answer tuple build the same atoms the hand-nested `expr` calls built,
-#: which the atom-level differential confirms byte-for-byte. `cstore.so` is
-#: TRACKED, unlike its two c_extension siblings, so this twin's C path runs in an
-#: isolated worktree without a build step. Prior: ADDED 2026-08-22 at 141295 by
-#: the wave-3 twin baseline.
-BUDGET = 141295
+#: RE-PINNED 2026-08-22, 141295 to 132196, -9099 (-6.44%), by the twin
+#: contract change: five `if`/`file-exists` guards, six `test` wrappers, eight
+#: `collapse`/`match` pairs and three `size-atom` calls left the engine for
+#: Python's own `if`, `Path.exists()`, `assert`, the space handle's `[...]` and
+#: `len()`. The writes, the removals and the C crossings under them did not
+#: move. Against the example's 174913 the ratio is 0.7558, and the
+#: concurrent-writer form stays declined [measured 2026-08-22 min-of-3:
+#: `twin_coverage.py --measure examples/integration/c_space/c_space.metta`].
+#: Prior: ADDED 2026-08-22 at 141295 by the wave-3 twin baseline, which priced
+#: a transliteration.
+BUDGET = 132196
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Write into C, read back out of it, and prove the provider."""
+    for library in (S.lib_import, S.lib_file, S.lib_conformance):
+        m.eval(S["import!"](SELF, S.library(library)))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_import))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_import)))
+    if not CSTORE_SO.exists():
+        # The example prints its skip here. A twin has no door for prose.
+        return
 
-    # !(import! &self (library lib_file))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_file)))
+    m.register_prolog(path=CSTORE_PL)
+    store = m.space(CSTORE.name)
 
-    # !(import! &self (library lib_conformance))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_conformance)))
+    # Writes and reads cross into C; the engine keeps unification for itself.
+    store += S.edge(S.a, S.b)
+    store += S.edge(S.a, S.c)
+    store += S.edge(S.b, S.c)
+    assert list(store[S.edge(S.a, V.x)]["x"]) == [S.b, S.c]
 
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (let "./examples/integration/c_space/cstore.pl" (consult_global) provider)
-    #      (println! "SKIPPED c_space: cstore.so is not built, see the README beside this file"))
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_space/cstore.so")),
-            S.let(val("./examples/integration/c_space/cstore.pl"),
-                S.consult_global(),
-                S.provider),
-            S["println!"](
-                val("SKIPPED c_space: cstore.so is not built, see the README beside this file")
-            ))
-    )
+    # Removal is multiset subtraction: two atoms match `(edge a $any)`, so
+    # clearing them takes two removals rather than one.
+    store -= S.edge(S.a, V.any)
+    assert len(store[S.edge(V.x, V.y)]) == 2
+    store -= S.edge(S.a, V.other)
+    assert [(row.x, row.y) for row in store[S.edge(V.x, V.y)]] == [(S.b, S.c)]
 
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (progn (add-atom &cstore (edge a b))
-    #             (add-atom &cstore (edge a c))
-    #             (add-atom &cstore (edge b c))
-    #             (test (collapse (match &cstore (edge a $x) $x)) (b c)))
-    #      True)
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_space/cstore.so")),
-            S.progn(S["add-atom"](S["&cstore"], S.edge(S.a, S.b)),
-                S["add-atom"](S["&cstore"], S.edge(S.a, S.c)),
-                S["add-atom"](S["&cstore"], S.edge(S.b, S.c)),
-                S.test(S.collapse(S.match(S["&cstore"], S.edge(S.a, V.x), V.x)),
-                    (S.b, S.c))),
-            TRUE)
-    )
+    # Identical copies are where the reading matters most: the count walks
+    # down one at a time rather than clearing to nothing.
+    for _ in range(3):
+        store += S.dup(1)
+    store -= S.dup(1)
+    assert len(store[S.dup(V.n)]) == 2
+    store -= S.dup(1)
+    store -= S.dup(1)
+    assert len(store[S.dup(V.n)]) == 0
 
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (progn (remove-atom &cstore (edge a $any))
-    #             (test (size-atom (collapse (match &cstore (edge $x $y) ($x $y)))) 2)
-    #             (remove-atom &cstore (edge a $other))
-    #             (test (collapse (match &cstore (edge $x $y) ($x $y))) ((b c))))
-    #      True)
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_space/cstore.so")),
-            S.progn(S["remove-atom"](S["&cstore"], S.edge(S.a, V.any)),
-                S.test(S["size-atom"](S.collapse(S.match(S["&cstore"],
-                                S.edge(V.x, V.y),
-                                (V.x, V.y)))),
-                    2),
-                S["remove-atom"](S["&cstore"], S.edge(S.a, V.other)),
-                S.test(S.collapse(S.match(S["&cstore"],
-                            S.edge(V.x, V.y),
-                            (V.x, V.y))),
-                    (S.b(S.c),))),
-            TRUE)
-    )
-
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (progn (add-atom &cstore (dup 1))
-    #             (add-atom &cstore (dup 1))
-    #             (add-atom &cstore (dup 1))
-    #             (remove-atom &cstore (dup 1))
-    #             (test (size-atom (collapse (match &cstore (dup $n) $n))) 2)
-    #             (remove-atom &cstore (dup 1))
-    #             (remove-atom &cstore (dup 1))
-    #             (test (size-atom (collapse (match &cstore (dup $n) $n))) 0))
-    #      True)
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_space/cstore.so")),
-            S.progn(S["add-atom"](S["&cstore"], S.dup(1)),
-                S["add-atom"](S["&cstore"], S.dup(1)),
-                S["add-atom"](S["&cstore"], S.dup(1)),
-                S["remove-atom"](S["&cstore"], S.dup(1)),
-                S.test(S["size-atom"](S.collapse(S.match(S["&cstore"], S.dup(V.n), V.n))),
-                    2),
-                S["remove-atom"](S["&cstore"], S.dup(1)),
-                S["remove-atom"](S["&cstore"], S.dup(1)),
-                S.test(S["size-atom"](S.collapse(S.match(S["&cstore"], S.dup(V.n), V.n))),
-                    0)),
-            TRUE)
-    )
-
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (test (check-space-provider &cstore)
-    #            ("enumerate: declared, seam:foreign_atoms/2 has clauses"
-    #             "add: declared, seam:foreign_add/2 has clauses"
-    #             "remove: declared, seam:foreign_remove/3 has clauses"
-    #             "clear: declared, seam:foreign_clear/1 has clauses"
-    #             "match: over-approximation holds over 1 atoms"
-    #             "pushdown: 0 of 1 patterns claimed exact, and are"
-    #             "plan: not declared, so a conjunction takes the engine's split"))
-    #      True)
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_space/cstore.so")),
-            S.test(S["check-space-provider"](S["&cstore"]),
-                (val("enumerate: declared, seam:foreign_atoms/2 has clauses"),
-                    val("add: declared, seam:foreign_add/2 has clauses"),
-                    val("remove: declared, seam:foreign_remove/3 has clauses"),
-                    val("clear: declared, seam:foreign_clear/1 has clauses"),
-                    val("match: over-approximation holds over 1 atoms"),
-                    val("pushdown: 0 of 1 patterns claimed exact, and are"),
-                    val("plan: not declared, so a conjunction takes the engine's split"))),
-            TRUE)
-    )
-
-    # !(if (file-exists "./examples/integration/c_space/cstore.so")
-    #      (progn (collapse (hyperpose ((add-atom &cstore (row 1))
-    #                                   (add-atom &cstore (row 2))
-    #                                   (add-atom &cstore (row 3))
-    #                                   (add-atom &cstore (row 4)))))
-    #             (test (size-atom (collapse (match &cstore (row $n) $n))) 4))
-    #      True)
-    yield None
+    # Every declared capability has clauses behind it, match over-approximates,
+    # and no pushdown claim overreaches. It raises on a violation.
+    assert list(m.one(S["check-space-provider"](CSTORE))) == REPORT

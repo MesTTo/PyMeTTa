@@ -1,88 +1,58 @@
-"""The Python twin of examples/reasoning/logicprog.metta: a recursive relation.
+"""examples/reasoning/logicprog.metta in Python: a recursive relation over facts.
 
-`successor` is six ground facts, so each is an `equation(head).to(True)` and
-`True` is Python's own `True`, which encodes to the atom the example writes.
+Six successor facts and a transitive closure over them, asked backwards: which
+letters come before `d`. The two dispatch policies go into the reflection space
+through the ordinary write door, `space += atom`, because that is what
+`add-atom` is; `petta.REFLECTION_SPACE` names it so the `&petta` symbol is
+never written.
 
-`later-in-alphabet` stays at the container door for two reasons that both
-matter. Its two clauses are ALTERNATIVES, and stacked Python clauses read as
-first-match, which would make the recursive clause unreachable; and the second
-clause's `$Z` appears in neither head, while a free name in a compiled body is a
-parameter, a known function, or a data constructor, never a fresh variable. So
-the equation is built as the term it is, with `&` for `and`.
-
-The two `!(add-atom &petta ...)` forms are runnable forms of the original, so
-they are evaluated rather than written through the space handle: what the lane
-prices is the evaluation the example performs, and `m.space("&petta") += ...`
-would answer the expected group without running it.
+`successor`'s six clauses are ground facts, so they are a Python loop over
+pairs. `later-in-alphabet` stays at the container door for two reasons that
+both bite. Its two clauses are ALTERNATIVES, and stacked `@m.define` clauses
+read as first-match, which would make the recursive one unreachable; and the
+second clause's `$Z` appears in neither head, while a free name in a compiled
+body is a parameter, a known function or a data constructor, never a fresh
+variable. So the equation is built as the term it is, with `&` for `and`.
 """
 
-from petta import S, V, equation, val
+from petta import REFLECTION_SPACE, S, V, equation, expr, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: MeTTa's true. Named rather than written inline because a bare boolean in an
+#: argument list reads as a Python flag, and this one is an answer.
+TRUE = val(value=True)
+
+#: Six letters, each with the one before it.
+SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 9036 across the term-door rewrite: `equation(...).to(...)`
-#: and `&` build the same atoms the hand-nested `expr` calls built, which the
-#: atom-level differential confirms byte-for-byte. Prior: ADDED 2026-08-22 at
-#: 9036 by the wave-3 twin baseline.
-BUDGET = 9036
+#: RE-PINNED 2026-08-22, 9036 to 7849, -1187 (-13.1%), by the twin contract
+#: change: the `test` wrapper and the `collapse` left the engine for Python's
+#: own `assert` and the answer list `m.eval` already hands back, and the two
+#: `add-atom` forms became `space += atom`. The closure search itself did not
+#: move. Against the example's 16678 the ratio is 0.4706 [measured 2026-08-22
+#: min-of-3: `twin_coverage.py --measure examples/reasoning/logicprog.metta`].
+#: Prior: ADDED 2026-08-22 at 9036 by the wave-3 twin baseline.
+BUDGET = 7849
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """State six facts, close them transitively, and search backwards."""
+    # Reaching either relation's unmatched boundary must FAIL the search rather
+    # than answering the P3 residual-call dispatch value.
+    reflection = m.space(REFLECTION_SPACE)
+    reflection += S["dispatch-policy"](S.successor, S.NoMatchEnum, S.NoMatchFail)
+    reflection += S["dispatch-policy"](S["later-in-alphabet"], S.NoMatchEnum, S.NoMatchFail)
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(add-atom &petta (dispatch-policy successor NoMatchEnum NoMatchFail))
-    yield m.eval(
-        S["add-atom"](
-            S["&petta"],
-            S["dispatch-policy"](S.successor, S.NoMatchEnum, S.NoMatchFail),
-        )
-    )
+    for after, before in SUCCESSORS:
+        m += equation(S.successor(after, before)).to(TRUE)
 
-    # !(add-atom &petta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
-    yield m.eval(
-        S["add-atom"](
-            S["&petta"],
-            S["dispatch-policy"](
-                S["later-in-alphabet"], S.NoMatchEnum, S.NoMatchFail
-            ),
-        )
-    )
-
-    # (= (successor b a) True)
-    m += equation(S.successor(S.b, S.a)).to(TRUE)
-    # (= (successor c b) True)
-    m += equation(S.successor(S.c, S.b)).to(TRUE)
-    # (= (successor d c) True)
-    m += equation(S.successor(S.d, S.c)).to(TRUE)
-    # (= (successor e d) True)
-    m += equation(S.successor(S.e, S.d)).to(TRUE)
-    # (= (successor f e) True)
-    m += equation(S.successor(S.f, S.e)).to(TRUE)
-    # (= (successor g f) True)
-    m += equation(S.successor(S.g, S.f)).to(TRUE)
-
-    # (= (later-in-alphabet $X $Y)
-    #    (successor $X $Y))
     m += equation(S["later-in-alphabet"](V.X, V.Y)).to(S.successor(V.X, V.Y))
-
-    # (= (later-in-alphabet $X $Y)
-    #    (and (successor $X $Z) (later-in-alphabet $Z $Y)))
     m += equation(S["later-in-alphabet"](V.X, V.Y)).to(
         S.successor(V.X, V.Z) & S["later-in-alphabet"](V.Z, V.Y)
     )
 
-    # !(test (collapse ((later-in-alphabet d $1) $1))
-    #        ((True c) (True b) (True a)))
-    yield m.eval(
-        S.test(
-            S.collapse((S["later-in-alphabet"](S.d, V["1"]), V["1"])),
-            ((True, S.c), (True, S.b), (True, S.a)),
-        )
-    )
+    # Asking with the second argument open enumerates every letter before d,
+    # nearest first, each paired with the True its clause answered.
+    assert m.eval((S["later-in-alphabet"](S.d, V.earlier), V.earlier)) == [
+        expr(TRUE, S.c), expr(TRUE, S.b), expr(TRUE, S.a),
+    ]
