@@ -35,6 +35,16 @@ def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103
     assert quadratic["models"]["quadratic"]["nrms"] < 1e-9
 
 
+def test_curve_fit_recognises_a_bounded_linear_cache():  # noqa: D103
+    sizes = [100, 1_000, 10_000, 100_000]
+    entries = [100, 1_000, 10_000, 65_536]
+
+    fitted = fit_curve(sizes, entries)
+
+    assert fitted["best_model"] == "capped_linear"
+    assert fitted["models"]["capped_linear"]["nrms"] < 1e-9
+
+
 def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103
     case = CASES["join-shared"]
     raw = {
@@ -136,3 +146,28 @@ def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103
     pids = [pid for samples in result["worker_pids"].values() for pid in samples]
     assert len(pids) == len(set(pids)) == 2
     assert result["metrics"]["storage_module_bytes"]["representative"][1] > 0
+
+
+def test_memory_scale_cli_gates_object_reclamation(tmp_path):  # noqa: D103
+    output = tmp_path / "objects.json"
+
+    assert benchmark_main(
+        [
+            "--memory-scale",
+            "--memory-quick",
+            "--memory-repetitions",
+            "1",
+            "--timeout",
+            "60",
+            "--json",
+            str(output),
+            "object-reclamation",
+        ]
+    ) == 0
+
+    result = json.loads(output.read_text(encoding="utf-8"))["cases"][
+        "object-reclamation"
+    ]
+    assert result["metrics"]["loaded_box_entries"]["representative"] == [1, 10]
+    assert result["metrics"]["post_drop_box_entries"]["representative"] == [0, 0]
+    assert result["metrics"]["post_drop_live_objects"]["representative"] == [0, 0]

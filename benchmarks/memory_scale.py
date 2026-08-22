@@ -24,7 +24,7 @@ Owns resources:
 Decides:
   - geometric sizes 10 through 10,000 are the standard curve, three fresh
     repetitions are the minimum, and candidate fits are constant, logarithmic,
-    linear, N log N, and quadratic.
+    linear, capped-linear, N log N, and quadratic.
 
 [source: SWI-Prolog predicate and clause size accounting,
 https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-proc.c#L3676-L3678;
@@ -48,13 +48,14 @@ import resource
 import sys
 import tempfile
 import tracemalloc
+import weakref
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import fmean
 from typing import Any, Literal
 
-from petta import MeTTa, S, V
+from petta import MeTTa, S, V, val
 from petta.testing import measure_instructions
 
 STANDARD_SIZES = (10, 100, 1_000, 10_000)
@@ -67,9 +68,11 @@ _MODEL_ORDER = {
     "constant": 0,
     "log_n": 1,
     "linear": 2,
+    "capped_linear": 2,
     "n_log_n": 3,
     "quadratic": 4,
 }
+_WIRE_CACHE_LIMIT = 65_536
 _PROCESS_METRICS = frozenset(
     {
         "private_steady_bytes",
@@ -100,6 +103,10 @@ CASES: dict[str, CurveCase] = {
     "atom-reclamation": CurveCase(
         "atom-reclamation", STANDARD_SIZES, "constant", "post_gc_atom_count",
         "atom_reclamation",
+    ),
+    "object-reclamation": CurveCase(
+        "object-reclamation", WIDE_SIZES, "constant", "post_drop_live_objects",
+        "object_reclamation",
     ),
     "stored-atoms-native": CurveCase(
         "stored-atoms-native", STANDARD_SIZES, "linear", "storage_module_bytes",
@@ -157,6 +164,10 @@ CASES: dict[str, CurveCase] = {
         "mork-join-width", MORK_WIDTH_SIZES, "linear", "inferences",
         "mork_join_width",
     ),
+    "mork-space-reclamation": CurveCase(
+        "mork-space-reclamation", WIDE_SIZES, "constant", "retained_atom_count",
+        "mork_space_reclamation",
+    ),
     "space-reuse": CurveCase(
         "space-reuse", WIDE_SIZES, "constant", "second_cycle_module_delta",
         "space_reuse",
@@ -166,8 +177,12 @@ CASES: dict[str, CurveCase] = {
         "table_reclamation",
     ),
     "wire-intern-symbols": CurveCase(
-        "wire-intern-symbols", (100, 1_000, 10_000, 100_000), "linear",
-        "wire_cache_entries", "wire_intern",
+        "wire-intern-symbols", (100, 1_000, 10_000, 100_000), "capped_linear",
+        "wire_symbol_cache_entries", "wire_intern_symbols",
+    ),
+    "wire-intern-variables": CurveCase(
+        "wire-intern-variables", (100, 1_000, 10_000, 100_000), "capped_linear",
+        "wire_variable_cache_entries", "wire_intern_variables",
     ),
 }
 
@@ -316,8 +331,7 @@ def _stored_mork(size: int) -> dict[str, int]:
     try:
         return _measure(space, lambda: space.add(*atoms))
     finally:
-        for atom in space.atoms():
-            space.remove(atom)
+        space.drop()
 
 
 def _query_answers(size: int, *, stream: bool) -> dict[str, int]:
@@ -357,11 +371,7 @@ def _join_width(size: int, *, projection: bool, mork: bool = False) -> dict[str,
             },
         )
     finally:
-        if mork:
-            for atom in space.atoms():
-                space.remove(atom)
-        else:
-            space.drop()
+        space.drop()
 
 
 def _compiled_predicate_bytes(space: MeTTa) -> dict[str, int]:
@@ -511,6 +521,56 @@ def _atom_reclamation(size: int) -> dict[str, int]:
     return _measure(root, operation, extras=lambda result: result)
 
 
+class _IdentityPayload:
+    pass
+
+
+def _object_reclamation(size: int) -> dict[str, int]:
+    from petta._atoms_core import _BOXES  # noqa: PLC0415  -- this cache is the measurement target
+
+    root = MeTTa()
+    box_floor = len(_BOXES)
+
+    def operation() -> dict[str, int]:
+        space = root.new_space()
+        objects = [_IdentityPayload() for _ in range(size)]
+        references = [weakref.ref(item) for item in objects]
+        atoms = [S.memscale_object(val(item)) for item in objects]
+        space.add(*atoms)
+        loaded_box_entries = len(_BOXES) - box_floor
+        del atoms, objects
+        space.drop()
+        reclamation_cycles = 0
+        for _ in range(5):
+            reclamation_cycles += 1
+            root.runtime.must("garbage_collect_clauses")
+            root.runtime.must("garbage_collect_atoms")
+            root.runtime.must("garbage_collect")
+            # Janus defers a blob's Py_DECREF when atom GC does not hold the
+            # GIL, then drains that queue at the next py_gil_ensure. A
+            # no-output Python call is therefore the observable reclamation
+            # barrier. [source: janus-swi 1.5.3 janus.c,
+            # MyPy_DECREF/py_gil_ensure;
+            # sha256=6fb8941d22a6eb0981ba0ebac60e80bd2a299d0605d5f0b62a47276fcef104da;
+            # commit=WORKTREE]
+            root.runtime.must("py_call(builtins:len([]), _Ignored)")
+            gc.collect()
+            if len(_BOXES) == box_floor and all(
+                reference() is None for reference in references
+            ):
+                break
+        return {
+            "loaded_box_entries": loaded_box_entries,
+            "post_drop_box_entries": len(_BOXES) - box_floor,
+            "post_drop_live_objects": sum(
+                reference() is not None for reference in references
+            ),
+            "reclamation_cycles": reclamation_cycles,
+        }
+
+    return _measure(root, operation, extras=lambda result: result)
+
+
 def _execution_owned_count(root: MeTTa, name: str) -> int:
     row = root.runtime.once(
         "atom_string(_Space, SpaceText), space_module(_Space, _Module),"
@@ -550,6 +610,28 @@ def _space_reuse(size: int) -> dict[str, int]:
             "first_cycle_owned_after_drop": first_owned,
             "second_cycle_owned_after_drop": second_owned,
             "reused_name_count": len(set(first_names) & set(second_names)),
+        }
+
+    return _measure(root, operation, extras=lambda result: result)
+
+
+def _mork_space_reclamation(size: int) -> dict[str, int]:
+    root = MeTTa()
+    names = [f"&mork:memscale-life-{index:08x}" for index in range(size)]
+
+    def operation() -> dict[str, int]:
+        for name in names:
+            space = root.space(name)
+            space.add(S.memscale_mork_life(S.one))
+            space.drop()
+        retained = 0
+        for name in names:
+            recycled = root.space(name)
+            retained += len(recycled.atoms())
+            recycled.drop()
+        return {
+            "retained_atom_count": retained,
+            "reused_name_count": len(names),
         }
 
     return _measure(root, operation, extras=lambda result: result)
@@ -597,32 +679,44 @@ def _table_reclamation(size: int) -> dict[str, int]:
         space.drop()
 
 
-def _wire_intern(size: int) -> dict[str, int]:
+def _wire_intern(size: int, *, variables: bool) -> dict[str, int]:
     from petta._atoms_core import (  # noqa: PLC0415  -- the instrument measures this owned cache
         _WIRE_CACHE_MAX,
         _WIRE_SYMS,
+        _WIRE_VARS,
         _wire_intern_clear,
     )
 
     _wire_intern_clear()
-    space = MeTTa().new_space()
-    space.add(*(S.memscale_wire(_fixed_symbol("msw", index)) for index in range(size)))
+    space = MeTTa()
+    prefix = "$msv" if variables else "mss"
+    batch_size = 1_000
+    sources = [
+        "(memscale-wire "
+        + " ".join(
+            f"{prefix}{index:08x}"
+            for index in range(start, min(start + batch_size, size))
+        )
+        + ")"
+        for start in range(0, size, batch_size)
+    ]
 
-    def operation() -> Any:
-        return space.query(S.memscale_wire(V.value))
+    def operation() -> int:
+        return sum(len(space.parse(source).children) - 1 for source in sources)
 
     try:
         return _measure(
             space,
             operation,
-            extras=lambda rows: {
-                "answer_count": len(rows),
-                "wire_cache_entries": len(_WIRE_SYMS),
+            extras=lambda decoded: {
+                "decoded_child_count": decoded,
+                "wire_symbol_cache_entries": len(_WIRE_SYMS),
+                "wire_variable_cache_entries": len(_WIRE_VARS),
+                "wire_cache_total_entries": len(_WIRE_SYMS) + len(_WIRE_VARS),
                 "wire_cache_limit": _WIRE_CACHE_MAX,
             },
         )
     finally:
-        space.drop()
         _wire_intern_clear()
 
 
@@ -668,6 +762,7 @@ def _save_or_load(
 
 _WORKLOADS: dict[str, Callable[[int], dict[str, int]]] = {
     "atom_reclamation": _atom_reclamation,
+    "object_reclamation": _object_reclamation,
     "stored_native": _stored_native,
     "stored_mork": _stored_mork,
     "query_eager": lambda size: _query_answers(size, stream=False),
@@ -684,9 +779,11 @@ _WORKLOADS: dict[str, Callable[[int], dict[str, int]]] = {
     "save_fast": lambda size: _save_or_load(size, format_name="fast", load=False),
     "load_fast": lambda size: _save_or_load(size, format_name="fast", load=True),
     "mork_join_width": lambda size: _join_width(size, projection=False, mork=True),
+    "mork_space_reclamation": _mork_space_reclamation,
     "space_reuse": _space_reuse,
     "table_reclamation": _table_reclamation,
-    "wire_intern": _wire_intern,
+    "wire_intern_symbols": lambda size: _wire_intern(size, variables=False),
+    "wire_intern_variables": lambda size: _wire_intern(size, variables=True),
 }
 
 
@@ -715,6 +812,8 @@ def _transform(model: str, size: int) -> float:
         return math.log(float(size))
     if model == "linear":
         return float(size)
+    if model == "capped_linear":
+        return float(min(size, _WIRE_CACHE_LIMIT))
     if model == "n_log_n":
         return float(size) * math.log(float(size))
     if model == "quadratic":
