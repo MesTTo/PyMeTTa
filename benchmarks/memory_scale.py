@@ -24,14 +24,14 @@ Decides:
 
 [source: SWI-Prolog predicate and clause size accounting,
 https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-proc.c#L3676-L3678;
-commit=WORKTREE]
+commit=7a4d9e58a6efc1c0bbb59b185af5ba46d6398257]
 [source: Linux proc high-water reset and resident fields,
 https://github.com/torvalds/linux/blob/028ef9c96e96197026887c0f092424679298aae8/Documentation/filesystems/proc.rst#L221-L224;
-commit=WORKTREE]
+commit=7a4d9e58a6efc1c0bbb59b185af5ba46d6398257]
 [source: Google Benchmark complexity fitting with geometric ranges and
 normalized RMS,
 https://github.com/google/benchmark/blob/eddb0241389718a23a42db6af5f0164b6e0139af/docs/user_guide.md#L496-L524;
-commit=WORKTREE]
+commit=7a4d9e58a6efc1c0bbb59b185af5ba46d6398257]
 """
 
 from __future__ import annotations

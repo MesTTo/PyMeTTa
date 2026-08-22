@@ -7,7 +7,7 @@ Guarantees:
     [tested: test_benchmark_cli_lists_and_rejects_case_names; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - --memory-scale composes the same spawned-process timeout and cleanup
     discipline with structural, Python-allocation, and Linux process-memory
-    curves [tested: test_memory_scale_cli_runs_fresh_workers; commit=WORKTREE]
+    curves [tested: test_memory_scale_cli_runs_fresh_workers; commit=7a4d9e58a6efc1c0bbb59b185af5ba46d6398257]
 Owns resources:
   - main joins each benchmark process and terminates one that exceeds its
     explicit limit [tested: test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
