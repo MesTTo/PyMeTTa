@@ -76,7 +76,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # parameter is undocumented ON PURPOSE: that is the case the positional
     # (@param ...) list has to survive, so documenting it would delete the
     # fixture.
-    "D": 2141,
+    # 2141 -> 2145 with the twins lane's idiom check: its four scenario
+    # docstrings carry the one-invariant D205 form. The first two shipped in
+    # ddaa528 WITHOUT this ceiling being raised, which turned the gate red for
+    # every agent working from that commit; raising it is the fix, and the
+    # lesson is that a suppression and its ceiling belong in one commit.
+    "D": 2145,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,
