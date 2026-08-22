@@ -387,7 +387,7 @@
       "missing": "destructuring assignment as a let* pattern binding",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "The equation uses a structural let* target, so the twin writes the body as atoms rather than compiled Python assignment."
+      "detail": "The runnable form's let* pairs DESTRUCTURE, (($x1 $it1) (iter-next $it)), and a compiled body binds plain names only (_name_of: \"a compiled body binds plain names; destructuring and attribute assignment have no let* form\"), so that form stays at the term door. The definitions themselves compile: assignment in iter-next's body IS the let* the original writes."
     },
     {
       "kind": "friction",
