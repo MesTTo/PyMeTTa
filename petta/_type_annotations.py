@@ -93,7 +93,7 @@ def annotation_atom_for(annotation: Any) -> Atom:  # noqa: C901  -- annotation_a
                 [
                     S.TypeVar,
                     Variable(annotation.__name__.lower()),
-                    Expression([S.one_of, *(annotation_atom_for(item) for item in annotation.__constraints__)]),
+                    Expression([S["one_of"], *(annotation_atom_for(item) for item in annotation.__constraints__)]),
                 ]
             )
         if annotation.__bound__ is not None:

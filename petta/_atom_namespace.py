@@ -1,4 +1,4 @@
-"""Purpose: provide bounded attribute and item builders for symbols and variables.
+"""Purpose: provide bounded attribute and exact-item atom namespaces.
 Guarantees:
   - repeated recent names preserve identity and cache growth is bounded
     [tested test_namespace_cache_is_bounded,
@@ -14,9 +14,16 @@ Guarantees:
     [tested test_namespace_completion_surfaces_engine_errors]
   - the cache bound is marked immutable to type checkers [tested
     test_policy_constants_are_final]
+  - attributes use the total underscore-to-hyphen map while item access
+    preserves exact target spelling [tested:
+    test_attribute_factories_apply_the_total_map_and_brackets_stay_exact;
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - hot attribute spellings reuse a separate bounded cache, so the name map
+    stays within the established term-building budget [measured: 659673847
+    instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarded by:
-  - each namespace lock protects its two cache tiers; the fast tier's hit
-    path reads one dict and takes no lock [tested
+  - each namespace lock protects its target and attribute cache tiers; each
+    fast-tier hit path reads one dict and takes no lock [tested
     test_atom_identity_caches_are_thread_safe]
 Open Obligations:
   To Do: None
@@ -31,6 +38,7 @@ import threading
 from typing import Any, Final
 
 from ._atoms_core import Symbol
+from ._name_mapping import generated_aliases
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
@@ -45,12 +53,36 @@ class _Namespace:
     S["car-atom"] reaches names that are not identifiers.
     """
 
-    __slots__ = ("_cache", "_fast", "_kind", "_lock")
+    __slots__ = (
+        "_aliases",
+        "_allowed",
+        "_attrs",
+        "_cache",
+        "_fast",
+        "_kind",
+        "_label",
+        "_lock",
+    )
 
-    def __init__(self, kind: type) -> None:
+    def __init__(
+        self,
+        kind: type,
+        *,
+        allowed: frozenset[str] | None = None,
+        aliases: dict[str, str] | None = None,
+        label: str = "name",
+    ) -> None:
         object.__setattr__(self, "_kind", kind)
+        object.__setattr__(self, "_allowed", allowed)
+        object.__setattr__(
+            self,
+            "_aliases",
+            aliases if aliases is not None else generated_aliases(allowed or ()),
+        )
+        object.__setattr__(self, "_label", label)
         object.__setattr__(self, "_cache", {})
         object.__setattr__(self, "_fast", {})
+        object.__setattr__(self, "_attrs", {})
         object.__setattr__(self, "_lock", threading.RLock())
 
     def __getattr__(self, name: str) -> Any:
@@ -84,6 +116,38 @@ class _Namespace:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if name.startswith("__"):
             raise AttributeError(name)
+        fast = object.__getattribute__(self, "_attrs")
+        try:
+            return fast[name]
+        except KeyError:
+            pass
+        aliases = object.__getattribute__(self, "_aliases")
+        if object.__getattribute__(self, "_allowed") is None:
+            target = name
+            if name != "_" and "_" in name:
+                target = name.replace("_", "-")
+        else:
+            try:
+                target = aliases[name]
+            except KeyError:
+                label = object.__getattribute__(self, "_label")
+                msg = f"no {label} attribute named {name!r} exists in the generated catalog"
+                raise AttributeError(msg) from None
+        hit = self._resolve(target)
+        lock = object.__getattribute__(self, "_lock")
+        with lock:
+            if len(fast) >= NAMESPACE_FAST_MAX:
+                del fast[next(iter(fast))]
+            fast[name] = hit
+        return hit
+
+    def _resolve(self, name: str) -> Any:
+        """Mint one resolved target name through the bounded cache."""
+        allowed = object.__getattribute__(self, "_allowed")
+        if allowed is not None and name not in allowed:
+            label = object.__getattribute__(self, "_label")
+            msg = f"no {label} named {name!r} exists in the generated catalog"
+            raise AttributeError(msg)
         fast = object.__getattribute__(self, "_fast")
         try:
             return fast[name]
@@ -107,7 +171,10 @@ class _Namespace:
             return hit
 
     def __getitem__(self, name: str) -> Any:
-        return self.__getattr__(name)
+        if not isinstance(name, str):
+            msg = f"an exact namespace name is a string, got {type(name).__name__}"
+            raise TypeError(msg)
+        return self._resolve(name)
 
     def __call__(self, name: str) -> Any:
         return self.__getattr__(name)
@@ -117,6 +184,9 @@ class _Namespace:
         raise AttributeError(msg)
 
     def _known(self) -> list[str]:
+        allowed = object.__getattribute__(self, "_allowed")
+        if allowed is not None:
+            return sorted(allowed)
         lock = object.__getattribute__(self, "_lock")
         with lock:
             names = set(object.__getattribute__(self, "_cache"))
@@ -128,7 +198,9 @@ class _Namespace:
         return sorted(names)
 
     def __dir__(self):
-        return [n for n in self._known() if n.isidentifier()]
+        if object.__getattribute__(self, "_allowed") is not None:
+            return list(object.__getattribute__(self, "_aliases"))
+        return list(generated_aliases(self._known()))
 
     def _ipython_key_completions_(self):
         # Most engine names carry a hyphen, so S["<TAB>"] is where they live.

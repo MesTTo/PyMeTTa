@@ -5,6 +5,10 @@ Guarantees:
     test_fstrings_str_round_range_slices]
   - unsupported expressions raise CompileError with their source construct
     [tested test_refusals_name_construct_and_line]
+  - statically bound S, V, and fn builders lower as mentions while bare
+    callees ask for exact, hyphenated, then banged catalog spellings [tested:
+    test_compiled_bodies_reach_all_four_mention_families,
+    test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,6 +21,7 @@ import ast
 from collections.abc import Callable
 
 from ._define_context import CompilerContext
+from ._name_mapping import attribute_name, resolve_known_name
 from .atoms import Atom, Expression, Grounded, Symbol, Variable
 from .errors import CompileError
 
@@ -65,6 +70,8 @@ _MAGIC = ("match", "superpose", "collapse", "empty")
 
 class ExpressionCompilerMixin(CompilerContext):
     def expression(self, node: ast.expr) -> Atom:
+        if isinstance(node, ast.Attribute):
+            return self._attribute(node)
         method = getattr(self, f"_x_{type(node).__name__}", None)
         if method is None:
             msg = f"{type(node).__name__} has no MeTTa equivalent in the compiled subset"
@@ -114,10 +121,9 @@ class ExpressionCompilerMixin(CompilerContext):
             f"the engine knows, and not a capitalized data constructor. "
             f"A compiled body is pure atoms; closing over a host value would "
             f"pin it to this process. Define {node.id!r} first, pass it as an "
-            f"argument, or capitalize it if it is data. Names are matched "
-            f"exactly and nothing is rewritten, so a function registered "
-            f"under a hyphenated name is reached by an alias a body can "
-            f"spell: (= ({node.id} $x) (the-hyphenated-name $x))."
+            f"argument, use fn.{node.id} for a catalog function, or S.{node.id} "
+            f"for data. Bare calls ask for {node.id!r} and then "
+            f"{attribute_name(node.id)!r}; neither exists here."
         )
         raise CompileError(
             msg,
@@ -126,16 +132,87 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _known_symbol(self, identifier: str) -> Symbol | None:
-        # The identifier as written and nothing else. A body used to fall
-        # back to the hyphenated spelling, so sqrt_math reached sqrt-math;
-        # a name the author did not write is a name they cannot see in the
-        # equation the decorator stored, so a hyphenated engine function is
-        # reached by giving the wrapper that name with name= instead.
-        if not self.known(identifier):
+        # Exact catalog names win. A host binding blocks only the fallback:
+        # silently choosing sc-edge-to over a Python sc_edge_to object would
+        # cross the quotation boundary by surprise. The explicit fn door
+        # disambiguates it. This follows CPython's scope-first ordering and
+        # SQLAlchemy's expression-object precedent without copying its open
+        # ended func namespace. [source:
+        # https://docs.python.org/3/reference/executionmodel.html#binding-of-names;
+        # commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+        resolved = resolve_known_name(
+            identifier,
+            self.known,
+            allow_mapped=not self.host(identifier),
+        )
+        if resolved is None:
             return None
         if not self._python_resolvable(identifier):
-            self.hazards.add(f"the engine function {identifier}")
-        return Symbol(identifier)
+            self.hazards.add(f"the engine function {resolved}")
+        return Symbol(resolved)
+
+    def _mention(self, node: ast.expr) -> Atom | None:
+        """Recognize one statically bound S, V, or fn mention from syntax.
+
+        The compiler never calls getattr on the host object. Like Lisp
+        quasiquote and MetaOCaml quotation, the builder marks a staged term;
+        only an explicit variable identity or catalog name enters the IR.
+        [source: https://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm;
+        commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+        """
+        root: ast.Name
+        exact = False
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            root = node.value
+            target = attribute_name(node.attr)
+        elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
+            root = node.value
+            if not (isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)):
+                # policy-inventory-exempt: mechanism-internal; reason=S V and fn are the three fixed quotation-tier builders recognized by compiled-body syntax rather than selectable runtime policy; evidence=bindings/python/petta/_define_expression.py:_mention
+                if root.id in {"S", "V", "fn"}:
+                    msg = f"{root.id}[...] takes a literal exact target name"
+                    raise CompileError(
+                        msg,
+                        construct="exact name",
+                        line=node.lineno,
+                    )
+                return None
+            target = node.slice.value
+            exact = True
+        else:
+            return None
+        if root.id in self.scope or root.id not in self.builders:
+            return None
+        if root.id == "V":
+            return Variable(target)
+        if root.id == "fn":
+            resolved = resolve_known_name(
+                target,
+                self.known,
+                allow_mapped=not exact,
+                allow_bang=not exact,
+            )
+            if resolved is None:
+                spelling = f"fn[{target!r}]" if exact else ast.unparse(node)
+                msg = f"{spelling} names no target function in this space's catalog"
+                raise CompileError(
+                    msg,
+                    construct="function mention",
+                    line=node.lineno,
+                )
+            return Symbol(resolved)
+        return Symbol(target)
+
+    def _attribute(self, node: ast.Attribute) -> Atom:
+        """Lower a quotation-tier attribute and refuse host attributes."""
+        mention = self._mention(node)
+        if mention is not None:
+            return mention
+        msg = (
+            f"{ast.unparse(node)!r} is host attribute access, not a compiled "
+            "atom. Use S, V, or fn without shadowing, or register a plain-name operation."
+        )
+        raise CompileError(msg, construct="attribute", line=node.lineno)
 
     def _constructor_symbol(self, node: ast.Name) -> Symbol:
         if self.host(node.id):
@@ -217,7 +294,9 @@ class ExpressionCompilerMixin(CompilerContext):
             # The chain short-circuits exactly as Python's does.
             folded = Expression([Symbol("if"), link, folded, Grounded(False)])  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         for temp, value in reversed(bindings):
-            folded = Expression([Symbol("let*"), Expression([Expression([Variable(temp), value])]), folded])
+            folded = Expression(
+                [Symbol("let*"), Expression([Expression([Variable(temp), value])]), folded]
+            )
         return folded
 
     def _truthy(self, node: ast.expr) -> Atom:
@@ -275,7 +354,9 @@ class ExpressionCompilerMixin(CompilerContext):
                 chosen = Expression([Symbol("if"), test, folded, Variable(temp)])
             else:
                 chosen = Expression([Symbol("if"), test, Variable(temp), folded])
-            folded = Expression([Symbol("let*"), Expression([Expression([Variable(temp), term])]), chosen])
+            folded = Expression(
+                [Symbol("let*"), Expression([Expression([Variable(temp), term])]), chosen]
+            )
         return folded
 
     def _x_IfExp(self, node: ast.IfExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
@@ -329,7 +410,9 @@ class ExpressionCompilerMixin(CompilerContext):
         source = self.expression(gen.iter)
         inner = self._inner([var])
         for condition in gen.ifs:
-            predicate = Expression([Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)])
+            predicate = Expression(
+                [Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]
+            )
             source = Expression([Symbol("filter-atom"), source, predicate])
         if len(generators) == 1:
             mapper = Expression([Symbol("|->"), Expression([Variable(var)]), inner.expression(elt)])
@@ -358,12 +441,23 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        if node.keywords:
+            msg = (
+                "a call in a compiled body passes positional arguments; MeTTa "
+                "application has no keywords"
+            )
+            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+        mentioned = self._mention(node.func)
+        if mentioned is not None:
+            return Expression([mentioned, *(self.expression(a) for a in node.args)])
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
         if func.id == "superpose":
             # superpose(a, b, c): one expression holding the alternatives.
-            return Expression([Symbol("superpose"), Expression([self.expression(a) for a in node.args])])
+            return Expression(
+                [Symbol("superpose"), Expression([self.expression(a) for a in node.args])]
+            )
         if func.id in self.lifted:
             return self._lifted_call(func.id, node)
         # Python's own builtins, where a name in scope has not shadowed them,
@@ -516,6 +610,9 @@ class ExpressionCompilerMixin(CompilerContext):
         return Expression([Symbol("py-range"), *args])
 
     def _x_Subscript(self, node: ast.Subscript) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        mention = self._mention(node)
+        if mention is not None:
+            return mention
         source = self.expression(node.value)
         if isinstance(node.slice, ast.Slice):
             if node.slice.step is not None:
@@ -659,6 +756,15 @@ class _PatternScope:
         self.bound: list[str] = []
 
     def expression(self, node: ast.expr) -> Atom:
+        mention = self.outer._mention(node)
+        if mention is not None:
+            if (
+                isinstance(mention, Variable)
+                and mention.name not in self.outer.scope
+                and mention.name not in self.bound
+            ):
+                self.bound.append(mention.name)
+            return mention
         if isinstance(node, ast.Name):
             return self._name(node)
         if isinstance(node, ast.Call):
@@ -687,6 +793,12 @@ class _PatternScope:
         return self.outer._x_Name(node)
 
     def _call(self, node: ast.Call) -> Expression:
+        mentioned = self.outer._mention(node.func)
+        if mentioned is not None:
+            if node.keywords:
+                msg = "a pattern call passes positional arguments"
+                raise CompileError(msg, construct="pattern", line=node.lineno)
+            return Expression([mentioned, *(self.expression(argument) for argument in node.args)])
         if not isinstance(node.func, ast.Name):
             msg = "a pattern applies a plain constructor name"
             raise CompileError(
@@ -699,7 +811,9 @@ class _PatternScope:
         # the relation symbol, not a fresh variable. A scoped head remains a
         # variable.
         head_id = node.func.id
-        head: Atom = Variable(self.outer.scope[head_id]) if head_id in self.outer.scope else Symbol(head_id)
+        head: Atom = (
+            Variable(self.outer.scope[head_id]) if head_id in self.outer.scope else Symbol(head_id)
+        )
         return Expression([head, *(self.expression(argument) for argument in node.args)])
 
 

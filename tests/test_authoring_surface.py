@@ -62,8 +62,8 @@ def test_one_name_resolution_rule_across_every_door(metta):
     assert python_spelling(7) == expected
     assert space.eval("(p14-surface-exact 7)") == expected
     assert space.eval(S["p14-surface-exact"](7)) == expected
-    assert space.eval("(python_spelling 7)") == [S.python_spelling(7)]
-    assert space.eval(S.python_spelling(7)) == [S.python_spelling(7)]
+    assert space.eval("(python_spelling 7)") == [S["python_spelling"](7)]
+    assert space.eval(S["python_spelling"](7)) == [S["python_spelling"](7)]
 
 
 def test_a_rules_generator_scopes_its_variables_to_its_parameters(metta):
@@ -143,7 +143,7 @@ def test_a_declared_output_type_takes_effect_through_the_decorator_door(metta):
         return value + 42
 
     argument = S["+"](1, 1)
-    assert space.eval(S.p14_surface_output_typed(argument)) == [S["+"](2, 42)]
+    assert space.eval(S["p14_surface_output_typed"](argument)) == [S["+"](2, 42)]
 
 
 def test_failed_equation_publication_rolls_back_its_early_declaration(
@@ -176,7 +176,7 @@ def test_failed_equation_publication_rolls_back_its_early_declaration(
         space.define(p14_surface_failed)
 
     declaration = S[":"](
-        S.p14_surface_failed,
+        S["p14_surface_failed"],
         S["->"](S.Number, S.Number),
     )
     assert declaration not in space

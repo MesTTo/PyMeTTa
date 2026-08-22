@@ -382,7 +382,7 @@ def test_bound_crosses_and_is_honored_exactly(metta):  # noqa: D103  -- pytest d
     try:
         transport = remote.connect(server.url)
         space = remote.RemoteSpace(transport, scratch.name)
-        pattern = petta.parse("(re_edge a $x)")
+        pattern = petta.parse("(re-edge a $x)")
         assert len(list(space.match(pattern, limit=2))) == 2
         assert len(list(space.match(pattern))) == 3
         assert list(space.match(pattern, limit=0)) == []

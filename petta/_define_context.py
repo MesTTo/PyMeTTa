@@ -7,6 +7,9 @@ Guarantees:
   - statement lowering can resolve a local annotation into an in-place MeTTa
     type claim [tested: test_an_annotated_binding_emits_its_claim;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - namespace-builder roles are explicit compiler state and survive every
+    nested compiler fork [tested:
+    test_compiled_bodies_reach_all_four_mention_families; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -42,6 +45,7 @@ class CompilerContext:
     name: str
     pyname: str
     _builtins: dict[str, Any]
+    builders: frozenset[str]
     host: Callable[[str], bool]
     runtime_ops: set[str]
     hazards: set[str]
@@ -57,6 +61,9 @@ class CompilerContext:
         raise NotImplementedError
 
     def nondet(self, called: str) -> bool:
+        raise NotImplementedError
+
+    def _resolved_call_name(self, called: str) -> str:
         raise NotImplementedError
 
     def _fork(self) -> CompilerContext:
@@ -98,6 +105,9 @@ class CompilerContext:
         raise NotImplementedError
 
     def expression(self, node: ast.expr) -> Atom:
+        raise NotImplementedError
+
+    def _mention(self, node: ast.expr) -> Atom | None:
         raise NotImplementedError
 
     def _truthy(self, node: ast.expr) -> Atom:

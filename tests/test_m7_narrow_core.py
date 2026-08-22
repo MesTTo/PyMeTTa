@@ -41,8 +41,9 @@ BASELINE_METTA_METHODS = 90
 BASELINE_PETTA_EXPORTS = 152
 FINAL_METTA_METHODS = 20
 # 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
-# atoms TRUE, FALSE, UNIT and HERE to root values the twins can name.
-FINAL_PETTA_EXPORTS = 65
+# atoms TRUE, FALSE, UNIT and HERE to root values the twins can name; +1 when
+# R1 exported the static fn namespace at the root.
+FINAL_PETTA_EXPORTS = 66
 
 SATELLITES = {
     "aio",
@@ -163,7 +164,6 @@ REMOVED_FROM_ROOT = {
     "default_engine",
     "encode",
     "expr",
-    "fn",
     "functools",
     "importlib",
     "is_ground",

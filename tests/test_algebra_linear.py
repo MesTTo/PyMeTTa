@@ -65,5 +65,5 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
             S.double_booked(S.alice), algebra="p4-reusable-evidence"
         ).answers
         assert [(str(answer.value), str(answer.tag)) for answer in answers] == [
-            ("(double_booked alice)", "2")
+            ("(double-booked alice)", "2")
         ]

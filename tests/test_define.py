@@ -364,7 +364,7 @@ def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
         return value + 2
 
     assert m.run("!(add-two 5)") == [[7]]
-    assert m.run("!(add_two 5)") == [[S.add_two(5)]]
+    assert m.run("!(add_two 5)") == [[S["add_two"](5)]]
     assert add_two.py(5) == 7
 
 

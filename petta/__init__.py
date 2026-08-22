@@ -17,6 +17,9 @@ Guarantees:
     ``src/main.pl`` tree without widening the curated root [tested:
     test_upstream_python_package_path_is_canonical and
     test_upstream_source_wrapper_binds_verbose_atom; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``fn`` is an inert, generated, statically typed mention namespace and
+    importing it never starts the engine [tested:
+    test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -36,6 +39,7 @@ import os as _os
 from typing import Any as _Any
 
 from ._config import Config, config
+from ._fn import fn
 from ._version import __version__
 from .atoms import (
     FALSE,
@@ -366,6 +370,7 @@ __all__ = [
     "equation",
     "eval",
     "events",
+    "fn",
     "foreign",
     "forms",
     "ground",

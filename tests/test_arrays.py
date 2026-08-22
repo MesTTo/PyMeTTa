@@ -151,7 +151,7 @@ def test_cross_library_conversion_via_dlpack(am):  # noqa: D103  -- pytest disco
     space = am._new_space()
     space.add(S.np_vec(ground(numpy.array([1.0, 2.0], dtype=numpy.float32))))
     (group,) = space.run(
-        "!(t-dtype (t-as (match (context-space) (np_vec $v) $v) torch))"
+        "!(t-dtype (t-as (match (context-space) (np-vec $v) $v) torch))"
     )
     assert "float32" in str(group[0])
 
