@@ -83,7 +83,7 @@ from abc import ABCMeta
 from collections import deque
 from collections.abc import Callable, Iterator, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
@@ -1528,15 +1528,14 @@ _WIRE_SYMS: dict[str, Sym] = {}
 _WIRE_VARS: dict[str, Var] = {}
 _WIRE_SYM_ORDER: deque[str] = deque()
 _WIRE_VAR_ORDER: deque[str] = deque()
-_WireAtom = TypeVar("_WireAtom", Sym, Var)
 
 
-def _wire_intern(
+def _wire_intern[WireAtom: (Sym, Var)](
     name: str,
-    factory: Callable[[str], _WireAtom],
-    cache: dict[str, _WireAtom],
+    factory: Callable[[str], WireAtom],
+    cache: dict[str, WireAtom],
     order: deque[str],
-) -> _WireAtom:
+) -> WireAtom:
     interned = cache.get(name)
     if interned is not None:
         return interned

@@ -43,7 +43,7 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
+from typing import Any, NamedTuple, Self, SupportsIndex, overload
 
 from . import convert
 from ._config import config
@@ -99,7 +99,6 @@ _VALUE_REPR = reprlib.Repr()
 _VALUE_REPR.maxlevel = 4
 _VALUE_REPR.maxstring = 80
 _VALUE_REPR.maxother = 120
-_BuildT = TypeVar("_BuildT")
 
 
 class _QueryContext(NamedTuple):
@@ -393,10 +392,10 @@ class Rows(UserList[Row]):
         )
 
     @overload
-    def build(self, cls: type[_BuildT], /) -> list[_BuildT]: ...
+    def build[BuildT](self, cls: type[BuildT], /) -> list[BuildT]: ...
 
     @overload
-    def build(self, column: str, cls: type[_BuildT]) -> list[_BuildT]: ...
+    def build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
 
     def build(self, column: str | type, cls: type | None = None) -> list:
         """Rebuild constructor atoms through the two-way translator.
@@ -620,7 +619,7 @@ def rows_into(rows: Rows, cls: type) -> list:  # noqa: C901  -- rows_into keeps 
     return built
 
 
-def _constructor_rows(rows: Rows, cls: type[_BuildT]) -> list[_BuildT] | None:
+def _constructor_rows[BuildT](rows: Rows, cls: type[BuildT]) -> list[BuildT] | None:
     """Rebuild a single complete-constructor column, or decline row shaping."""
     if len(rows.columns) != 1 or typing.is_typeddict(cls):
         return None

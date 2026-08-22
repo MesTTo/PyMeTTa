@@ -16,33 +16,32 @@ import contextvars
 import inspect
 import types
 from collections.abc import Callable, Iterator
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from .atoms import Expr, Sym, Var, encode
 
 __all__ = ["equation", "rules"]
 
-_T = TypeVar("_T")
 _STAGING_DEFINED_CALLS: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "petta_staging_defined_calls",
     default=False,
 )
 
 
-class _Equation(Generic[_T]):
+class _Equation[T]:
     """One typed left-hand side waiting for its right-hand side."""
 
     __slots__ = ("_lhs",)
 
-    def __init__(self, lhs: _T):
+    def __init__(self, lhs: T):
         self._lhs = encode(lhs)
 
-    def to(self, rhs: _T) -> Expr:
+    def to(self, rhs: T) -> Expr:
         """Complete ``(= lhs rhs)`` as an ordinary matchable atom."""
         return Expr([Sym("="), self._lhs, encode(rhs)])
 
 
-def equation(lhs: _T) -> _Equation[_T]:
+def equation[T](lhs: T) -> _Equation[T]:
     """Start an equation; derives from ``S["="](lhs, rhs)`` in two typed parts."""
     return _Equation(lhs)
 

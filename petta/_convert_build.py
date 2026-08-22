@@ -28,7 +28,7 @@ import types
 import typing
 from collections import abc
 from enum import Enum
-from typing import Any, TypeVar, overload
+from typing import Any, overload
 
 from ._convert_registry import (
     _class_label,
@@ -44,11 +44,10 @@ from ._parameterized import hook_for as _parameterized_hook
 from .atoms import Atom, Expr, Gnd, Sym, decode
 
 _UNHANDLED = object()
-_BuildT = TypeVar("_BuildT")
 
 
 @overload
-def build(atom: Atom, cls: type[_BuildT]) -> _BuildT: ...
+def build[BuildT](atom: Atom, cls: type[BuildT]) -> BuildT: ...
 
 
 @overload

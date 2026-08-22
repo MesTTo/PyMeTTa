@@ -42,7 +42,7 @@ import inspect
 import textwrap
 import types
 from collections.abc import Callable
-from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, cast
+from typing import Any, NamedTuple, cast
 
 from ._define_expression import ExpressionCompilerMixin
 from ._define_facts import DefinitionFacts, SourceSpan, derive_definition_facts
@@ -58,12 +58,9 @@ from .rules import _defined_calls_are_staged
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
-_T = TypeVar("_T")
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
 
-def _provided(value: _T | None, default: _T) -> _T:
+def _provided[T](value: T | None, default: T) -> T:
     return default if value is None else value
 
 
@@ -214,7 +211,7 @@ def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...
     return tuple(cast(Expr, map_atoms(equation, rename)) for equation in equations)
 
 
-class Defined(Generic[_P, _R]):
+class Defined[**P, R]:
     """A function that exists twice: as MeTTa equations and as Python.
 
     Calling the name evaluates its application and returns every engine
@@ -280,7 +277,7 @@ class Defined(Generic[_P, _R]):
         return self.space.eval(term)
 
     @property
-    def py(self) -> Callable[_P, _R]:
+    def py(self) -> Callable[P, R]:
         """The ordinary Python function, recursion included."""
         return self._py
 
@@ -345,7 +342,7 @@ class Defined(Generic[_P, _R]):
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 
 
-class PrologBacked(Defined[_P, _R]):
+class PrologBacked[**P, R](Defined[P, R]):
     """A function that exists twice, as Prolog and as Python.
 
     The same pair as Defined and for the same reason, with the fast side

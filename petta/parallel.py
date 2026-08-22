@@ -64,15 +64,13 @@ import queue
 import threading
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, as_completed
-from typing import Any, Self, TypeVar
+from typing import Any, Self
 
 from ._engine import engine_thread, runtime
 from .errors import PettaError
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T")
-R = TypeVar("R")
 
 __all__ = ["EnginePool", "pool"]
 
@@ -180,7 +178,7 @@ class EnginePool:
 
     # -------------------------------------------------------------------- submit
 
-    def submit(self, fn: Callable[..., R], /, *args: Any, **kwargs: Any) -> Future[R]:
+    def submit[R](self, fn: Callable[..., R], /, *args: Any, **kwargs: Any) -> Future[R]:
         """Queue one call on a worker and answer its Future."""
         with self._state_lock:
             if self._closed:
@@ -195,7 +193,7 @@ class EnginePool:
         self._work.put((future, fn, args, kwargs))
         return future
 
-    def map(self, fn: Callable[[T], R], items: Iterable[T]) -> list[R]:
+    def map[T, R](self, fn: Callable[[T], R], items: Iterable[T]) -> list[R]:
         """Run fn on every item across the workers, in input order.
 
         Answers a list, not an iterator, because the whole point is that the
@@ -207,11 +205,11 @@ class EnginePool:
         """
         return self._gather([self.submit(fn, item) for item in items])
 
-    def starmap(self, fn: Callable[..., R], items: Iterable[Iterable[Any]]) -> list[R]:
+    def starmap[R](self, fn: Callable[..., R], items: Iterable[Iterable[Any]]) -> list[R]:
         """map() for a callable of several arguments, spelled as itertools does."""
         return self._gather([self.submit(fn, *tuple(item)) for item in items])
 
-    def _gather(self, futures: list[Future[R]]) -> list[R]:
+    def _gather[R](self, futures: list[Future[R]]) -> list[R]:
         """Every future's result, or every failure, in INPUT order.
 
         The loop finishes even after a failure, and that is the point rather
@@ -301,7 +299,7 @@ def pool(workers: int | None = None) -> EnginePool:
     return EnginePool(workers)
 
 
-def imap_unordered(
+def imap_unordered[T, R](
     engine_pool: EnginePool, fn: Callable[[T], R], items: Iterable[T]
 ) -> Iterator[R]:
     """Yield results as they finish rather than in input order.

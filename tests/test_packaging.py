@@ -41,7 +41,12 @@ def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discov
     project = _manifest()["project"]
     assert project["name"] == "petta"
     assert project["dynamic"] == ["version"]
-    assert project["requires-python"] == ">=3.11"
+    # 3.12 is the floor the style guide sets, because that is where the class
+    # shape's own syntax arrives (PEP 695 generics), which the guide's worked
+    # examples write. The library's own code uses nothing newer, so it runs
+    # everywhere it claims [source: ai-python-conventions.md, "Version-gated
+    # spellings"].
+    assert project["requires-python"] == ">=3.12"
     assert project["urls"] == {
         "Homepage": "https://github.com/trueagi-io/PeTTa",
         "Repository": "https://github.com/trueagi-io/PeTTa",

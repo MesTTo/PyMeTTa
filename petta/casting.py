@@ -26,7 +26,7 @@ Open Obligations:
 
 from __future__ import annotations
 
-from typing import Any, TypeVar, overload
+from typing import Any, overload
 
 from ._convert_registry import _is_plain_class
 from .atoms import Atom, Gnd, Sym, atom_from_wire, encode, parse
@@ -34,7 +34,6 @@ from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
 
-_CastT = TypeVar("_CastT")
 
 # Targets the translator compiles no check for; a cast mirrors that.
 _UNCHECKED = {"Atom", "%Undefined%", "_"}
@@ -84,7 +83,7 @@ def _narrow(value: Any) -> Any:
 
 
 @overload
-def cast(space: Any, value: Any, type_: type[_CastT], /) -> _CastT: ...
+def cast[CastT](space: Any, value: Any, type_: type[CastT], /) -> CastT: ...
 
 
 @overload

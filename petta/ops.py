@@ -59,7 +59,7 @@ import inspect
 import threading
 import typing
 from collections.abc import Callable, Iterable
-from typing import Any, Literal, ParamSpec, TypeVar
+from typing import Any, Literal
 
 from . import _engine, convert
 from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
@@ -100,8 +100,6 @@ __all__ = [
     "unregister",
 ]
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
 #: The library's own space. Everything Python registers reflects here as
 #: ordinary atoms: (op name arity kind) per registered arity,
@@ -667,9 +665,9 @@ def _with_engine(fn: Callable, positions: list[int]) -> Callable:
     return woven
 
 
-def register(
+def register[**P, R](
     runtime,
-    fn: Callable[_P, _R],
+    fn: Callable[P, R],
     *,
     name: str | None = None,
     # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
@@ -678,7 +676,7 @@ def register(
     space: str = _DEFAULT_SPACE,
     arities: list[int] | None = None,
     inverse: Callable | None = None,
-) -> Callable[_P, _R]:
+) -> Callable[P, R]:
     """Make fn callable from MeTTa. Returns fn unchanged.
 
     A generator function registers as nondeterministic: each yield is one
