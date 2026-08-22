@@ -1,40 +1,46 @@
-"""The Python twin of examples/functions/invertfunction.metta: functions run backwards.
+"""examples/functions/invertfunction.metta in Python: functions run backwards.
 
-`let` unifies its pattern with what its second argument PRODUCES, so
-destructuring a list with `cons` and destructuring it with an ordinary user
-function are the same act: the call runs backwards and its variables come out
-bound. The last form does it through arithmetic, where `#+` is the constraint
-path, so `(g $X $Y 35)` solves `$X + 35 = 42`.
+Unifying a pattern with what a call PRODUCES makes the call run backwards and
+its variables come out bound, so destructuring a list with `cons` and
+destructuring it with an ordinary user function are the same act. The last
+form does it through arithmetic, where `#+` is the constraint path, so
+`(g $X $Y 35)` solves `$X + 35 = 42`.
 
 `f` is an ordinary Python function: `append((x,), y)` is `(append ($X) $Y)`,
 where the one-element Python tuple is the one-element expression.
 
-`g` takes the `@rules` shape of the definitional decorator, because its body names
-`#+`, which no Python identifier spells; in the equational shape it is the
-ordinary subscripted symbol the subscript form exists for.
+`g` takes the `@rules` shape of the definitional decorator, because its body
+names `#+`, which no Python identifier spells; in the equational shape it is
+the ordinary subscripted symbol the subscript form exists for.
 """
 
-from petta import S, V, equation, rules
+from petta import S, V, equation, expr, rules
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6229 to 8043, +1814 (+29.12%), and ALL of it is one
-#: definition: `f` costs 940 as an equation atom and 2754 through
-#: `@m.define`, +1814. It is the FIRST decorated definition in this process,
-#: so it carries the one-time setup as well as its own compile (2244 against
-#: the atom door's 600 for one equation the first time, 793 against 600
-#: after). `g` costs 1272 either way and the three runnable forms cost 1363
-#: and 1553 unchanged, because both doors land the same two equations. The
-#: lane's parity reads 0.74 of the original. Prior: ADDED 2026-08-22 at 6229
-#: by 7f15dc1's wave-3 baseline.
-BUDGET = 8043
+#: RE-PINNED 2026-08-22, 8043 to 6756, -1287 (-16.0%), by the twin contract
+#: change: three `test` wrappers left the engine for `assert`; the three
+#: backward calls, which are the file, stayed. Against the example's 10800
+#: the ratio is 0.6256 [measured 2026-08-22 min-of-3, `twin_coverage.py
+#: --measure`]. The old figure priced a different program.
+BUDGET = 6756
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Destructure a list three ways, one of them through arithmetic."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    def solve(pattern, subject, answer):
+        """Unify `pattern` with what `subject` produces, then answer `answer`.
+
+        Either side may be the call, which is what makes it run BACKWARDS: the
+        call's own variables come out bound. This is MeTTa's `let`, which
+        dissolves into Python's assignment when the subject is a call and the
+        pattern is a fresh name; the direction used here, a pattern the call
+        has to reach, has no Python spelling at all. The design's name for the
+        door it wants is `solve` (ai-python-first-revamp-discussion.md section
+        9g, idea 1), and the residue table records it against P14.4.
+        """
+        return S.let(pattern, subject, answer)  # rung: relational let
+
     append = m.fn("append")
 
     @m.define
@@ -42,8 +48,7 @@ def twin(m):
         # (= (f $X $Y) (append ($X) $Y))
         return append((x,), y)
 
-    # rung: below the function shape: the body names `#+`, which no Python identifier
-    #   spells (residue, P14.4)
+    # rung: the body names `#+`, which no Python identifier spells (residue, P14.4)
     @rules
     def constrained(x, y, z):
         # (= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))
@@ -51,29 +56,14 @@ def twin(m):
 
     m.add(*constrained)
 
-    # List destructuring:
-    # !(test (let (cons $Head $Tail) (1 2 3 4 5 6) ($Head $Tail)) (1 (2 3 4 5 6)))
-    yield m.eval(
-        S.test(
-            S.let(S.cons(V.Head, V.Tail), (1, 2, 3, 4, 5, 6), (V.Head, V.Tail)),
-            (1, (2, 3, 4, 5, 6)),
-        )
-    )
+    items = (1, 2, 3, 4, 5, 6)
+    split = expr(1, (2, 3, 4, 5, 6))
 
-    # But instead it works for any relational functions:
-    # !(test (let (f $Head $Tail) (1 2 3 4 5 6) ($Head $Tail)) (1 (2 3 4 5 6)))
-    yield m.eval(
-        S.test(
-            S.let(S.f(V.Head, V.Tail), (1, 2, 3, 4, 5, 6), (V.Head, V.Tail)),
-            (1, (2, 3, 4, 5, 6)),
-        )
-    )
-
-    # More complex case:
-    # !(test (let (g $X $Y 35) (42 2 3) ($X $Y 40)) (7 (2 3) 40))
-    yield m.eval(
-        S.test(
-            S.let(S.g(V.X, V.Y, 35), (42, 2, 3), (V.X, V.Y, 40)),
-            (7, (2, 3), 40),
-        )
-    )
+    # List destructuring, through the cons constructor.
+    assert m.one(solve(S.cons(V.Head, V.Tail), items, (V.Head, V.Tail))) == split
+    # And through an ordinary user function, which is the point.
+    assert m.one(solve(S.f(V.Head, V.Tail), items, (V.Head, V.Tail))) == split
+    # A more complex case: the constraint solves 42 = $X + 35.
+    assert m.one(
+        solve(S.g(V.X, V.Y, 35), (42, 2, 3), (V.X, V.Y, 40))
+    ) == expr(7, (2, 3), 40)

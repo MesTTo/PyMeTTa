@@ -1,41 +1,27 @@
-"""The Python twin of examples/basics/string.metta: a string is a value.
+"""examples/basics/string.metta in Python: a string is a value, not structure.
 
-`val(text)` carries the Python string whole, which is how a MeTTa string
-literal is written from Python. The parentheses inside it are characters,
-not structure, which is the whole point of the original.
+The parentheses in the text are characters, which is the whole point of the
+original: evaluating a string literal answers that same string. `val(text)`
+carries the Python string whole, which is how a MeTTa string literal is
+written from Python.
 """
 
-from petta import S, val
+from petta import val
+
+#: The text under test. Its parentheses and its spaces are DATA, and `val`
+#: is what says so: every other string in a twin would be program text.
+TEXT = val("a test (with newlines and parentheses)")
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 445 to 443, -2, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 422 to 445, +23 (+5.45%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 443
-
-TEXT = val("a test (with newlines and parentheses)")
+#: RE-PINNED 2026-08-22, 443 to 141, -302 (-68.2%), by the twin contract
+#: change: the `test` wrapper left the engine for `assert`, so the only
+#: thing the engine is asked is what the string literal reduces to. Against
+#: the example's 1849 the ratio is 0.0763 [measured 2026-08-22 min-of-3,
+#: `twin_coverage.py --measure`]. The old figure priced a different
+#: program.
+BUDGET = 141
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(test "a test (with newlines and parentheses)" "...")
-    yield m.eval(S.test(TEXT, TEXT))
+    """Reduce a string literal, and get the same string back."""
+    assert m.eval(TEXT) == [TEXT]

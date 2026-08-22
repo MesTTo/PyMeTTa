@@ -1,165 +1,125 @@
-"""The Python twin of examples/basics/backward_arithmetic.metta.
+"""examples/basics/backward_arithmetic.metta in Python: arithmetic run backwards.
 
 `+ - * /` are RELATIONS: give any two of the three and the engine solves for
 the third, so a function written forwards reads backwards for free. Past one
-unknown the rearrangement runs out and a constraint begins, which is what the
-`#` family is for.
+unknown the rearrangement runs out and a CONSTRAINT begins, which is what the
+`#` family is for, and past that the engine refuses by name rather than
+guessing.
 
-Nothing here needs a new door, and nothing is spelled with a function that
-Python spells with punctuation. `@m.define` writes the two equations; the
-backward queries are ordinary operators, because an operator over an atom
-BUILDS the term (`V.p + 2` is `(+ $p 2)`) and every backward query has an
-unbound variable in it; and an expected answer is a Python tuple, which
-encodes to the expression the original writes, `(5,)` for `(5)` and
-`((-25, -1), ...)` for a list of pairs.
+Both definitions are ordinary Python functions, and every backward query is
+built with Python's own operators, because an operator over an atom BUILDS
+the term (`V.p + 2` is `(+ $p 2)`) and a backward query always has a variable
+in it. What has no Python spelling is the inversion itself, and `solve` below
+is the one place this file drops a rung: it names the door the design wants
+so the twelve call sites read as Python rather than as `let`.
+
+An expected answer is a Python tuple, which encodes to the expression the
+original writes, and a collapse is the list an evaluation already answers, so
+the original's `(noeval ...)` wrappers have nothing to guard against here: a
+Python list is data and is never evaluated a second time.
 """
 
 from petta import S, V, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
+#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: reads as a Python flag, and this is an answer.
+TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 40672 to 40680, +8, and this one is
-#: UNATTRIBUTED: it reproduces byte-stably across three runs and survives an
-#: A/B of both candidate causes (the lib_json/lib_file/lib_thread counter
-#: change and this file's own comment block each measure identically either
-#: way), and engine/metta.pl is byte-identical to the tree the earlier figure
-#: was taken on. Ten of the eighteen twins moved by exactly eight and
-#: constraint_domains by forty-eight, which is the shape of the +/-8
-#: instruction-layout floor this tree records elsewhere rather than a cost.
-#: Pinned at the reproducible reading. Prior: #: RE-PINNED 2026-08-22, 40698 to 40672, -26, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 40044 to 40698, +654 (+1.63%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 40680
+#: RE-PINNED 2026-08-22, 40680 to 32289, -8391 (-20.6%), by the twin
+#: contract change: the `test` wrapper and eleven `collapse` calls left the
+#: engine for `assert` and the list an evaluation already answers, while
+#: every backward query and both definitions stayed exactly where they
+#: were. Against the example's 53467 the ratio is 0.6039 [measured
+#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
+#: priced a different program.
+BUDGET = 32289
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Run two functions forwards, then run everything backwards."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    def solve(pattern, subject, answer):
+        """Unify `pattern` with what `subject` produces, then answer `answer`.
+
+        Either side may be the call, which is what makes it run BACKWARDS: the
+        call's own variables come out bound. This is MeTTa's `let`, which
+        dissolves into Python's assignment when the subject is a call and the
+        pattern is a fresh name; the direction used here, a pattern the call
+        has to reach, has no Python spelling at all. The design's name for the
+        door it wants is `solve` (ai-python-first-revamp-discussion.md section
+        9g, idea 1), and the residue table records it against P14.4.
+        """
+        return S.let(pattern, subject, answer)  # rung: relational let
 
     @m.define
     def double(x):
         # (= (double $x) (* 2 $x))
         return 2 * x
 
-    # !(test (double 5) 10)
-    yield m.eval(S.test(S.double(5), 10))
-    # !(test (let 10 (double $x) $x) 5)
-    yield m.eval(S.test(S.let(10, S.double(V.x), V.x), 5))
+    assert double(5) == [10]
+    assert m.one(solve(10, S.double(V.x), V.x)) == 5
 
     # Each operator solves for its one unbound slot.
-    # !(test (let 5 (+ $p 2) $p) 3)
-    yield m.eval(S.test(S.let(5, V.p + 2, V.p), 3))
-    # !(test (let 12 (* $q 4) $q) 3)
-    yield m.eval(S.test(S.let(12, V.q * 4, V.q), 3))
-    # !(test (let 6 (- $r 4) $r) 10)
-    yield m.eval(S.test(S.let(6, V.r - 4, V.r), 10))
-    # !(test (let 3 (/ $s 4) $s) 12)
-    yield m.eval(S.test(S.let(3, V.s / 4, V.s), 12))
+    assert m.one(solve(5, V.p + 2, V.p)) == 3
+    assert m.one(solve(12, V.q * 4, V.q)) == 3
+    assert m.one(solve(6, V.r - 4, V.r)) == 10
+    assert m.one(solve(3, V.s / 4, V.s)) == 12
 
-    # No integer answers it, so it FAILS rather than erroring: the empty
-    # collapse IS the answer.
-    # !(test (collapse (let 7 (double $x) $x)) ())
-    yield m.eval(S.test(S.collapse(S.let(7, S.double(V.x), V.x)), ()))
+    # No integer doubles to 7, so the query FAILS rather than erroring: no
+    # answers at all, which is what collapsing it to `()` says.
+    assert m.eval(solve(7, S.double(V.x), V.x)) == []
 
     @m.define
     def square(x):
         # (= (square $x) (* $x $x))
         return x * x
 
-    # A nonlinear inverse is posted to CLP(FD) and labelled, so it answers
-    # every solution rather than one.
-    # !(test (collapse (let 25 (square $x) $x)) (noeval (-5 5)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.let(25, S.square(V.x), V.x)),
-            S.noeval((-5, 5)),
-        )
-    )
-    # !(test (collapse (let 25 (* $x $y) ($x $y))) (noeval ((-25 -1) ...)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.let(25, V.x * V.y, (V.x, V.y))),
-            S.noeval(
-                (
-                    (-25, -1),
-                    (-5, -5),
-                    (-1, -25),
-                    (1, 25),
-                    (5, 5),
-                    (25, 1),
-                )
-            ),
-        )
-    )
+    # Past one unknown a constraint begins: 25 = X*X is nonlinear, so the
+    # engine posts it to CLP(FD) and labels what propagation leaves, which
+    # answers EVERY solution rather than one.
+    assert m.eval(solve(25, S.square(V.x), V.x)) == [-5, 5]
+    assert [tuple(pair) for pair in m.eval(solve(25, V.x * V.y, (V.x, V.y)))] == [
+        (-25, -1), (-5, -5), (-1, -25), (1, 25), (5, 5), (25, 1),
+    ]
 
-    # Bounding the unknown first is what the refusal asks for, and the `#`
-    # family is how a MeTTa program bounds one.
-    # !(test (collapse (let True (#>= $x 0) (let 25 (square $x) $x))) (5))
-    yield m.eval(
-        S.test(
-            S.collapse(S.let(TRUE, S["#>="](V.x, 0), S.let(25, S.square(V.x), V.x))),
-            (5,),
-        )
-    )
+    # A domain the constraint leaves unbounded has nothing finite to search,
+    # so the engine refuses by name. Bounding the unknown first is what the
+    # refusal asks for, and the `#` family is how a MeTTa program bounds one.
+    bounded = solve(TRUE, S["#>="](V.x, 0), solve(25, S.square(V.x), V.x))
+    assert m.eval(bounded) == [5]
 
     # THE LIMIT: ordinary evaluation is inside-out, so a composed backward
-    # query reaches the inner operation with two unknowns. The `#` operators
-    # POST rather than solve, so the inner constraint waits.
-    # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    # query reaches the INNER operation with two unknowns and refuses. The `#`
+    # operators POST rather than solve, so the inner constraint waits for the
+    # outer one to narrow it and the same query answers.
+    composed = solve(20, S["#*"](S["#+"](V.a, 1), 4), V.a)
+    assert m.one(composed) == 4
+
+    divide, modulo = m.fn("#div"), m.fn("#mod")
+    smallest, largest = m.fn("#min"), m.fn("#max")
+    less, greater = m.fn("#<"), m.fn("#>")
+    equal, unequal = m.fn("#="), m.fn(r"#\=")
+    at_most, at_least = m.fn("#=<"), m.fn("#>=")
 
     # Integer division, remainder, and the two extremes.
-    # !(test (#div 13 4) 3)
-    yield m.eval(S.test(S["#div"](13, 4), 3))
-    # !(test (#mod 13 4) 1)
-    yield m.eval(S.test(S["#mod"](13, 4), 1))
-    # !(test (#min 3 7) 3)
-    yield m.eval(S.test(S["#min"](3, 7), 3))
-    # !(test (#max 3 7) 7)
-    yield m.eval(S.test(S["#max"](3, 7), 7))
+    assert divide(13, 4) == 3
+    assert modulo(13, 4) == 1
+    assert smallest(3, 7) == 3
+    assert largest(3, 7) == 7
 
-    # All six comparisons.
-    # !(test (#< 1 2) True)
-    yield m.eval(S.test(S["#<"](1, 2), TRUE))
-    # !(test (#< 2 1) False)
-    yield m.eval(S.test(S["#<"](2, 1), FALSE))
-    # !(test (#> 2 1) True)
-    yield m.eval(S.test(S["#>"](2, 1), TRUE))
-    # !(test (#= 3 3) True)
-    yield m.eval(S.test(S["#="](3, 3), TRUE))
-    # !(test (#\= 3 4) True)
-    yield m.eval(S.test(S[r"#\="](3, 4), TRUE))
-    # !(test (#=< 1 2) True)
-    yield m.eval(S.test(S["#=<"](1, 2), TRUE))
-    # !(test (#=< 2 1) False)
-    yield m.eval(S.test(S["#=<"](2, 1), FALSE))
-    # !(test (#>= 2 1) True)
-    yield m.eval(S.test(S["#>="](2, 1), TRUE))
-    # !(test (#>= 1 2) False)
-    yield m.eval(S.test(S["#>="](1, 2), FALSE))
+    # All six comparisons answer True or False rather than succeeding or
+    # failing, so they compose with `if`.
+    assert less(1, 2) is True
+    assert less(2, 1) is False
+    assert greater(2, 1) is True
+    assert equal(3, 3) is True
+    assert unequal(3, 4) is True
+    assert at_most(1, 2) is True
+    assert at_most(2, 1) is False
+    assert at_least(2, 1) is True
+    assert at_least(1, 2) is False
 
     # Composed, and still solvable backwards through two constraints.
-    # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    assert m.one(composed) == 4

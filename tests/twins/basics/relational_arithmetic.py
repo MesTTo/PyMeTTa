@@ -1,92 +1,83 @@
-"""The Python twin of examples/basics/relational_arithmetic.metta: CLP(FD).
+"""examples/basics/relational_arithmetic.metta in Python: CLP(FD) both ways.
 
 The `#` operators are constraints rather than evaluations, so they run in
-every direction. Python has no `#+`, and it should not: the operators are
-MeTTa names, so they are spelled at the naming door, `S["#+"]`. `S[name]` is
-a NAME, which is why nothing here is a string in the sense the lane refuses.
+every direction: give any two of the three and the engine solves for the
+third, by propagation rather than by search.
+
+Two doors, one per job, and this file uses both deliberately. `m.fn("#+")`
+CALLS the constraint, so `plus(1, 2)` is 3 and reads as Python; `S["#+"]`
+BUILDS the term, which is what a backward query needs, because the thing
+being solved for has to reach the engine unevaluated. Python has no `#+` and
+should not: these are MeTTa names, and the subscript is the door for a name
+Python's own grammar will not take.
+
+Running one backwards is the file's one dropped rung, named once as `solve`,
+the same way examples/basics/backward_arithmetic.metta's twin names it.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11860 to 11839, -21, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 11345 to 11860, +515 (+4.54%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 11839
+#: RE-PINNED 2026-08-22, 11839 to 4728, -7111 (-60.1%), by the twin
+#: contract change: twenty `test` wrappers left the engine for `assert`,
+#: and sixteen forward constraints are now ordinary Python calls through
+#: `m.fn`; the four backward ones still build their `let` term and run in
+#: the engine. Against the example's 19437 the ratio is 0.2432 [measured
+#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
+#: priced a different program.
+BUDGET = 4728
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Run each constraint forwards, then run three of them backwards."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    def solve(pattern, subject, answer):
+        """Unify `pattern` with what `subject` produces, then answer `answer`.
+
+        Either side may be the call, which is what makes it run BACKWARDS: the
+        call's own variables come out bound. This is MeTTa's `let`, which
+        dissolves into Python's assignment when the subject is a call and the
+        pattern is a fresh name; the direction used here, a pattern the call
+        has to reach, has no Python spelling at all. The design's name for the
+        door it wants is `solve` (ai-python-first-revamp-discussion.md section
+        9g, idea 1), and the residue table records it against P14.4.
+        """
+        return S.let(pattern, subject, answer)  # rung: relational let
+
+    plus, times, minus = m.fn("#+"), m.fn("#*"), m.fn("#-")
+    divide, modulo = m.fn("#div"), m.fn("#mod")
+    smallest, largest = m.fn("#min"), m.fn("#max")
+    less, greater = m.fn("#<"), m.fn("#>")
+    equal, unequal = m.fn("#="), m.fn(r"#\=")
+    at_most, at_least = m.fn("#=<"), m.fn("#>=")
+
     # Forwards, the same as ordinary arithmetic.
-    # !(test (#+ 1 2) 3)
-    yield m.eval(S.test(S["#+"](1, 2), 3))
-    # !(test (#* 3 4) 12)
-    yield m.eval(S.test(S["#*"](3, 4), 12))
-    # !(test (#- 10 4) 6)
-    yield m.eval(S.test(S["#-"](10, 4), 6))
+    assert plus(1, 2) == 3
+    assert times(3, 4) == 12
+    assert minus(10, 4) == 6
 
-    # Backwards: `let` binds the RESULT and solves for the unknown.
-    # !(test (let 5 (#+ $x 2) $x) 3)
-    yield m.eval(S.test(S.let(5, S["#+"](V.x, 2), V.x), 3))
-    # !(test (let 12 (#* $y 4) $y) 3)
-    yield m.eval(S.test(S.let(12, S["#*"](V.y, 4), V.y), 3))
-    # !(test (let 6 (#- $z 4) $z) 10)
-    yield m.eval(S.test(S.let(6, S["#-"](V.z, 4), V.z), 10))
+    # Backwards: the result is known and the operand is not.
+    assert m.one(solve(5, S["#+"](V.x, 2), V.x)) == 3
+    assert m.one(solve(12, S["#*"](V.y, 4), V.y)) == 3
+    assert m.one(solve(6, S["#-"](V.z, 4), V.z)) == 10
 
     # Integer division, remainder, and the two extremes.
-    # !(test (#div 13 4) 3)
-    yield m.eval(S.test(S["#div"](13, 4), 3))
-    # !(test (#mod 13 4) 1)
-    yield m.eval(S.test(S["#mod"](13, 4), 1))
-    # !(test (#min 3 7) 3)
-    yield m.eval(S.test(S["#min"](3, 7), 3))
-    # !(test (#max 3 7) 7)
-    yield m.eval(S.test(S["#max"](3, 7), 7))
+    assert divide(13, 4) == 3
+    assert modulo(13, 4) == 1
+    assert smallest(3, 7) == 3
+    assert largest(3, 7) == 7
 
-    # All six comparisons, answering True or False rather than succeeding.
-    # !(test (#< 1 2) True)
-    yield m.eval(S.test(S["#<"](1, 2), TRUE))
-    # !(test (#< 2 1) False)
-    yield m.eval(S.test(S["#<"](2, 1), FALSE))
-    # !(test (#> 2 1) True)
-    yield m.eval(S.test(S["#>"](2, 1), TRUE))
-    # !(test (#= 3 3) True)
-    yield m.eval(S.test(S["#="](3, 3), TRUE))
-    # !(test (#\= 3 4) True)
-    yield m.eval(S.test(S[r"#\="](3, 4), TRUE))
-    # !(test (#=< 1 2) True)
-    yield m.eval(S.test(S["#=<"](1, 2), TRUE))
-    # !(test (#=< 2 1) False)
-    yield m.eval(S.test(S["#=<"](2, 1), FALSE))
-    # !(test (#>= 2 1) True)
-    yield m.eval(S.test(S["#>="](2, 1), TRUE))
-    # !(test (#>= 1 2) False)
-    yield m.eval(S.test(S["#>="](1, 2), FALSE))
+    # All six comparisons answer True or False rather than succeeding or
+    # failing, so they compose with `if`.
+    assert less(1, 2) is True
+    assert less(2, 1) is False
+    assert greater(2, 1) is True
+    assert equal(3, 3) is True
+    assert unequal(3, 4) is True
+    assert at_most(1, 2) is True
+    assert at_most(2, 1) is False
+    assert at_least(2, 1) is True
+    assert at_least(1, 2) is False
 
     # Composed, and still solvable backwards through two constraints.
-    # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    assert m.one(solve(20, S["#*"](S["#+"](V.a, 1), 4), V.a)) == 4

@@ -1,30 +1,39 @@
-"""The Python twin of examples/functions/lambda.metta: two kinds of lambda.
+"""examples/functions/lambda.metta in Python: two kinds of lambda.
 
 The first kind is FAKE, and works in any MeTTa: `(lambda $var $body)` is
 ordinary data that `apply` takes apart, substituting through `let` and then
 evaluating. The second kind is real, `|->`, a first-class compiled function
-that can be mapped over a list, applied directly, passed through a `let`,
-partially applied, and closed over a `let*` binding.
+that can be mapped over a list, applied directly, passed through a binding,
+partially applied, and closed over a preceding binding.
 
-`myfunc` and `myfunc2` are ordinary Python functions; `myfunc2` applies its own
-parameter, which is variable-head application.
+Python's own `lambda` IS the second kind. Inside a compiled body it lowers
+straight to `|->`, so `lambda a: 1 + a` stores `(|-> ($a) (+ 1 $a))`, and a
+`lambda` that reads a name bound above it closes over that name exactly as the
+original's `let*` does. Three of the seven claims are written that way.
 
-The rest take the `@rules` shape of the definitional decorator, because each body
-mints variables that are not parameters: `apply`'s head is a PATTERN that takes
-`(lambda $var $body)` apart, and `applyL1` and `applyL2` build lambda data
-holding `$x` and `$y`, which take their meaning from `apply`'s substitution
-rather than from anything in scope. In the `@rules` shape those are simply the
-generator's parameters, which is what the language calls them too.
+What a compiled body will not do is apply a lambda WHERE IT STANDS: `(lambda
+...)(arg)` is refused, "a compiled body calls a plain name". So the two forms
+that apply an anonymous lambda immediately are built at the term door, where
+`|->` is an ordinary head, and the two claims that only bind one are compiled.
+
+`myfunc` and `myfunc2` are ordinary Python functions; `myfunc2` applies its
+own parameter, which is variable-head application.
+
+The `apply` family takes the `@rules` shape of the definitional decorator,
+because each body mints variables that are not parameters: `apply`'s head is a
+PATTERN that takes `(lambda $var $body)` apart, and `applyL1` and `applyL2`
+build lambda DATA holding `$x` and `$y`, which take their meaning from
+`apply`'s substitution rather than from anything in scope.
 
 Two operator spellings worth naming. `(or (== 1 $e) $acc)` is
-`val(1).eq(V.e) | V.acc`: `|` builds `or` (Python's `or` keyword cannot be
-overloaded, so the operator took the job) and `.eq` builds `==` (the `==`
-operator itself is taken by Python's own equality). And `$lambda` is
-`V["lambda"]`, since `lambda` is a Python keyword, which is exactly what the
-subscript form is for.
+`val(1).eq(V.e) | V.acc`: `|` builds `or`, because Python's `or` keyword
+cannot be overloaded, and `.eq` builds `==`, because the `==` operator is
+taken by Python's own structural equality. And `$lambda` is `V["lambda"]`,
+since `lambda` is a Python keyword, which is exactly what the subscript is
+for.
 """
 
-from petta import S, V, equation, rules, val
+from petta import S, V, equation, expr, rules, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list reads
@@ -32,41 +41,36 @@ from petta import S, V, equation, rules, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 15085 to 17054, +1969 (+13.05%), and the per-step
-#: reading places every inference of it. Installing `myfunc` costs 1814 more
-#: decorated than as an equation atom, nearly all of it the one-time setup
-#: the FIRST decorated definition in a process pays (2244 against the atom
-#: door's 600 for one equation, where every later one costs 793 against 600);
-#: `myfunc2`, the second, costs 133 more. The three `apply` equations now
-#: enter through one `m.add` instead of three `m +=`, +22, the fixed cost of
-#: the many-wire add. The four forms that install nothing cost 833, 1268,
-#: 1667 and 1433 either way, unchanged to the inference. 1814 + 133 + 22 =
-#: 1969, the whole of it. The lane's parity reads 0.70 of the original.
-#: Prior: ADDED 2026-08-22 at 15085 by 7f15dc1's wave-3 baseline.
-BUDGET = 17054
+#: RE-PINNED 2026-08-22, 17054 to 17056, +2 (+0.0%), by the twin contract
+#: change: seven `test` wrappers left the engine for `assert`, and three of
+#: the seven claims ENTERED the compiled subset instead of the term door:
+#: Python's own `lambda` lowers to `|->`, so `maplist`, the
+#: partial-application binding and the closing lambda are now decorated
+#: definitions. The three registrations cost almost exactly what the seven
+#: wrappers saved, which is why this is the one twin in the two folders
+#: that did not get cheaper. Against the example's 24199 the ratio is
+#: 0.7048 [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The
+#: old figure priced a different program.
+BUDGET = 17056
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Apply a lambda that is data, then five that are functions."""
+    cons, maplist = m.fn("cons"), m.fn("maplist")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    cons = m.fn("cons")
-
-    # fake lambda (works in H-E MeTTa too):
     # (: apply (-> Atom %Undefined% %Undefined%))
+    # rung: below the ANNOTATION door: the annotation door needs a decorated
+    #   definition, and `apply` cannot be one (residue, P14.4)
     m += S[":"](S.apply, S["->"](S.Atom, S["%Undefined%"], S["%Undefined%"]))
 
-    # rung: below the function shape: `apply`'s head takes the PATTERN (lambda $var
-    #   $body) apart, and applyL1 and applyL2 build lambda data holding $x and $y,
-    #   variables no parameter supplies. The declaration above follows from the same
-    #   drop, since the annotation door needs a decorated definition (residue, P14.4)
+    # rung: `apply`'s head takes the PATTERN (lambda $var $body) apart, and
+    #   applyL1 and applyL2 build lambda data holding $x and $y, variables no
+    #   parameter supplies (residue, P14.4)
     @rules
     def fake(var, body, arg, x, y):
         # (= (apply (lambda $var $body) $arg) (eval (let $var $arg $body)))
         yield equation(S.apply(S["lambda"](var, body), arg)).to(
-            S.eval(S.let(var, arg, body))
+            S.eval(S.let(var, arg, body))  # rung: let as substitution
         )
         # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
         yield equation(S.applyL1()).to(S.apply(S["lambda"](x, x + 1), 2))
@@ -75,67 +79,49 @@ def twin(m):
 
     m.add(*fake)
 
-    # !(test (applyL1) 3)
-    yield m.eval(S.test(S.applyL1(), 3))
-    # !(test (applyL2) 9)
-    yield m.eval(S.test(S.applyL2(), 9))
+    assert m.eval(S.applyL1()) == [3]
+    assert m.eval(S.applyL2()) == [9]
 
-    # Proper lambdas that act as first-class compiled functions:
-    # !(test (maplist (|-> ($a) (+ 1 $a)) (1 2 3)) (2 3 4))
-    yield m.eval(
-        S.test(S.maplist(S["|->"]((V.a,), 1 + V.a), (1, 2, 3)), (2, 3, 4))
-    )
+    # A real lambda, mapped over a list: Python's own lambda IS `|->`.
+    @m.define
+    def increment_all(items):
+        # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
+        return maplist(lambda a: 1 + a, items)
 
-    # !(test ((|-> ($acc $e) (or (== 1 $e) $acc)) False 1) True)
-    yield m.eval(
-        S.test(
-            (S["|->"]((V.acc, V.e), val(1).eq(V.e) | V.acc), FALSE, 1),
-            TRUE,
-        )
-    )
+    assert increment_all((1, 2, 3)) == [expr(2, 3, 4)]
+
+    # Applied where it stands, which a compiled body will not do.
+    folding = S["|->"]((V.acc, V.e), val(1).eq(V.e) | V.acc)
+    assert m.eval((folding, FALSE, 1)) == [True]
 
     @m.define
     def myfunc(a, b):
         # (= (myfunc $a $b) (cons $a $b))
         return cons(a, b)
 
-    # !(test (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43)) (42 43 2 3))
-    yield m.eval(
-        S.test(
-            S.let(
-                V.f,
-                S.myfunc(42),
-                (S["|->"]((V.x,), (V.f, (V.x, 2, 3))), 43),
-            ),
-            (42, 43, 2, 3),
-        )
-    )
+    # A lambda over a PARTIAL application bound above it.
+    @m.define
+    def through_partial():
+        # (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43))
+        f = myfunc(42)
+        g = lambda x: f((x, 2, 3))  # noqa: E731  -- the binding IS the point: it stores (|-> ($x) ...)
+        return g(43)
 
-    # !(test (((|-> ($x $y) (42 $x $y)) 43) 44) (42 43 44))
-    yield m.eval(
-        S.test(
-            ((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44),
-            (42, 43, 44),
-        )
-    )
+    assert through_partial() == [expr(42, 43, 2, 3)]
+
+    # Partially applied: one argument now, the other later.
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [expr(42, 43, 44)]
 
     @m.define
     def myfunc2(mylambda):
         # (= (myfunc2 $mylambda) ($mylambda 43 44))
         return mylambda(43, 44)
 
-    # !(test (let* (($k 45) ($lambda (|-> ($x $y) (42 $x $y $k))))
-    #              (myfunc2 $lambda))
-    #        (42 43 44 45))
-    yield m.eval(
-        S.test(
-            S["let*"](
-                (
-                    (V.k, 45),
-                    (V["lambda"], S["|->"]((V.x, V.y), (42, V.x, V.y, V.k))),
-                ),
-                S.myfunc2(V["lambda"]),
-            ),
-            (42, 43, 44, 45),
-        )
-    )
+    # A lambda CLOSING over a binding above it, which is the original's let*.
+    @m.define
+    def closed():
+        # (let* (($k 45) ($lambda (|-> ($x $y) (42 $x $y $k)))) (myfunc2 $lambda))
+        k = 45
+        return myfunc2(lambda x, y: (42, x, y, k))
+
+    assert closed() == [expr(42, 43, 44, 45)]

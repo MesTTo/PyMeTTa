@@ -1,59 +1,60 @@
-"""The Python twin of examples/functions/dispatch_policies.metta: a dispatch override.
+"""examples/functions/dispatch_policies.metta in Python: a dispatch override.
 
 `(only-a A)` answers `hit`; `(only-a B)` matches no clause, and the catalogued
 default leaves such a call UNREDUCED, so it answers itself. Adding
-`(dispatch-policy only-a NoMatchEnum NoMatchFail)` to `&petta` overrides that
-for this one function, so the call fails instead and collapses to `()`;
-removing the override restores the default on the same call.
+`(dispatch-policy only-a NoMatchEnum NoMatchFail)` to the reflection space
+overrides that for this one function, so the call fails instead and answers
+nothing; removing the override restores the default on the same call.
 
-The override is an ordinary atom in an ordinary space, so setting it is
-`add-atom` and clearing it is `remove-atom`: the library steers from inside
-MeTTa rather than through a Python knob.
+The override is an ordinary atom in an ordinary space, so setting it is `+=`
+and clearing it is `-=`: the library steers from inside MeTTa rather than
+through a Python knob, and the space handle carries both.
 
-The equation is written at the container door, ONE RUNG BELOW the decorator,
+One wall, measured here 2026-08-22 and filed as friction against P14.4:
+`m.eval` DROPS the not-reducible answer that this example is about. For a
+defined function whose clauses do not match, `!(pick 2)` answers `(pick 2)`
+and `(collapse (pick 2))` holds one answer, while `m.eval(S.pick(2))` answers
+`[]`, which is the other of the two nothings and makes the override
+indistinguishable from the default. So the three claims are read through the
+engine's own reducer, which does apply the policy.
+
+The equation is written at the container door, one rung below the decorator,
 because its head fixes a SYMBOL: `(only-a A)` matches the atom `A`. A stacked
 `@m.define` clause fixes a head position with a literal default, and a literal
-is a bool, int, float or str, never a symbol, so this head has no decorator
-spelling. The residue table records that against P14.4.
+is a bool, int, float or str, never a symbol. The residue table records that
+against P14.4 too.
 """
 
 from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 4594 across the rewrite into the authority's idiom:
-#: the equation became `equation(...).to(...)`, every `expr(S["test"], ...)`
-#: became `S.test(...)`, and the override atom is now named once and reused
-#: instead of built twice. All three are Python-side spellings of the same
-#: atoms, so the five runnable forms cost what they cost before. Prior:
-#: ADDED 2026-08-22 at 4594 by 7f15dc1's wave-3 baseline.
-BUDGET = 4594
+#: RE-PINNED 2026-08-22, 4594 to 2319, -2275 (-49.5%), by the twin contract
+#: change: three `test` wrappers and one `collapse` left the engine for
+#: `assert`, and both `add-atom`/`remove-atom` forms became `+=` and `-=`
+#: on the reflection space handle; the three claims are read through
+#: `m.fn("reduce")` because `m.eval` drops the not-reducible answer this
+#: example is about. Against the example's 8165 the ratio is 0.2840
+#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
+#: figure priced a different program.
+BUDGET = 2319
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    #: The override, written once and used three times: set, then cleared.
-    policy = S["dispatch-policy"](S["only-a"], S.NoMatchEnum, S.NoMatchFail)
+    """Read one call under the default policy, the override, and the default again."""
+    only_a = S["only-a"]
+    reduce = m.fn("reduce")
 
     # (= (only-a A) hit)
-    # rung: below the function shape: the head fixes the SYMBOL A, and a stacked
-    #   clause's literal default is a bool, int, float or str (residue, P14.4)
-    m += equation(S["only-a"](S.A)).to(S.hit)
+    m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
 
-    # !(test (only-a B) (only-a B))
-    yield m.eval(S.test(S["only-a"](S.B), S["only-a"](S.B)))
+    # The catalogued default: a call nothing matches answers itself.
+    assert reduce.all(only_a(S.B)) == [only_a(S.B)]
 
-    # !(add-atom &petta (dispatch-policy only-a NoMatchEnum NoMatchFail))
-    yield m.eval(S["add-atom"](S["&petta"], policy))
+    reflection = m.space("&petta")
+    policy = S["dispatch-policy"](only_a, S.NoMatchEnum, S.NoMatchFail)
 
-    # !(test (collapse (only-a B)) ())
-    yield m.eval(S.test(S.collapse(S["only-a"](S.B)), ()))
+    reflection += policy
+    assert reduce.all(only_a(S.B)) == []
 
-    # !(remove-atom &petta (dispatch-policy only-a NoMatchEnum NoMatchFail))
-    yield m.eval(S["remove-atom"](S["&petta"], policy))
-
-    # !(test (only-a B) (only-a B))
-    yield m.eval(S.test(S["only-a"](S.B), S["only-a"](S.B)))
+    reflection -= policy
+    assert reduce.all(only_a(S.B)) == [only_a(S.B)]
