@@ -129,7 +129,9 @@ def _read(text: str) -> Outcome:
     return Outcome(groups, failure)
 
 
-def _run(command: list[str], cwd: Path) -> tuple[Outcome, str]:
+def _run(
+    command: list[str], cwd: Path, env: dict[str, str] | None = None
+) -> tuple[Outcome, str]:
     """One configuration's run, as the outcome the comparator reads and the
     raw text beside it. The text is returned rather than discarded because a
     runner may emit more than answers on its own marker lines: the twin
@@ -138,7 +140,7 @@ def _run(command: list[str], cwd: Path) -> tuple[Outcome, str]:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     try:
         done = subprocess.run(
-            command, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT
+            command, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, env=env
         )
     except subprocess.TimeoutExpired:
         return Outcome([], f"timed out after {TIMEOUT}s"), ""
