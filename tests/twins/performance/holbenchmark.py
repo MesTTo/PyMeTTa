@@ -1,168 +1,128 @@
-"""The Python twin of examples/performance/holbenchmark.metta.
+"""The Python twin of examples/performance/holbenchmark.metta: four million-step kernels.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+Every definition stays at the container door, and the reasons are the four this
+corpus keeps meeting:
+
+- `map-flat` and `fold-nested` destructure in the HEAD (`(cons $x $xs)`, `()`),
+  and a compiled head pattern must be a literal;
+- `map-flat`, `fold-nested`, `apply-many` and `poly` APPLY a parameter
+  (`($f $x)`), and a compiled body calls a plain name, never a variable;
+- `range`, `deep-nest`, `apply-many` and `poly` test `(== $n 0)` in their inner
+  loop, and Python's `==` in a compiled body lowers to the prelude's `py-eq`
+  rather than MeTTa's `==`, which superpose_primes measures at +71.6% on a
+  search of this shape;
+- `fold-nested` names `is-expr`, which is not a Python identifier either.
+
+Each is a residue entry against P14.4. What the term door does reach is written
+as Python: `V.n.eq(0)` is the equality TERM, `V.n - 1` is `(- $n 1)`, `($f $n)`
+is the tuple `(V.f, V.n)` and `(+ ($f $n) (poly ...))` is that tuple plus the
+call, because a tuple on the left of `+` reflects into the term builder.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
+
+#: `(+ 1)`, the partially applied increment the four kernels are driven with.
+#: A one-argument application has no operator spelling, so it is the tuple MeTTa
+#: writes it as.
+INC = (S["+"], 1)
 
 #: Inferences this twin spends, its own tripwire.
+#: HELD 2026-08-22 at 139184129 across the term-door rewrite: `equation(...).to(...)`,
+#: `.eq`, `-`, the `INC` tuple and the tuple-plus-Expr addition build the same
+#: atoms the hand-nested `expr` calls built, which the atom-level differential
+#: confirms byte-for-byte. Prior: ADDED 2026-08-22 at 139184129 by the wave-3
+#: twin baseline.
 BUDGET = 139184129
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    every other form says its own answer in the comment above it.
+    """
     # (= (map-flat $f ()) ())
-    m += expr(S["="], expr(S["map-flat"], V["f"], expr()), expr())
+    m += equation(S["map-flat"](V.f, ())).to(())
 
     # (= (map-flat $f (cons $x $xs)) (cons ($f $x) (map-flat $f $xs)))
-    m += expr(
-        S["="],
-        expr(S["map-flat"], V["f"], expr(S["cons"], V["x"], V["xs"])),
-        expr(S["cons"], expr(V["f"], V["x"]), expr(S["map-flat"], V["f"], V["xs"])),
+    m += equation(S["map-flat"](V.f, S.cons(V.x, V.xs))).to(
+        S.cons((V.f, V.x), S["map-flat"](V.f, V.xs))
     )
 
     # (= (range $n)
     #    (if (== $n 0) ()
     #        (cons $n (range (- $n 1)))))
-    m += expr(
-        S["="],
-        expr(S["range"], V["n"]),
-        expr(
-            S["if"],
-            expr(S["=="], V["n"], 0),
-            expr(),
-            expr(S["cons"], V["n"], expr(S["range"], expr(S["-"], V["n"], 1))),
-        ),
-    )
+    m += equation(S.range(V.n)).to(S["if"](V.n.eq(0),
+            (),
+            S.cons(V.n, S.range(V.n - 1))))
 
     # !(test (with-pragma! ((max-stack-depth 100000000))
     #                      (let $temp (map-flat (+ 1) (range 1000000))
     #                           (length $temp)))
     #        1000000)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["with-pragma!"],
-                expr(expr(S["max-stack-depth"], 100000000)),
-                expr(
-                    S["let"],
-                    V["temp"],
-                    expr(S["map-flat"], expr(S["+"], 1), expr(S["range"], 1000000)),
-                    expr(S["length"], V["temp"]),
-                ),
-            ),
-            1000000,
-        )
+        S.test(S["with-pragma!"]((S["max-stack-depth"](100000000),),
+                S.let(V.temp,
+                    S["map-flat"](INC, S.range(1000000)),
+                    S.length(V.temp))),
+            1000000)
     )
 
     # (= (fold-nested $f $init ()) $init)
-    m += expr(S["="], expr(S["fold-nested"], V["f"], V["init"], expr()), V["init"])
+    m += equation(S["fold-nested"](V.f, V.init, ())).to(V.init)
 
     # (= (fold-nested $f $init (cons $x $xs))
     #       (if (is-expr $x)
     #         (fold-nested $f (fold-nested $f $init $x) $xs)
     #         (fold-nested $f ($f $init $x) $xs)))
-    m += expr(
-        S["="],
-        expr(S["fold-nested"], V["f"], V["init"], expr(S["cons"], V["x"], V["xs"])),
-        expr(
-            S["if"],
-            expr(S["is-expr"], V["x"]),
-            expr(
-                S["fold-nested"], V["f"], expr(S["fold-nested"], V["f"], V["init"], V["x"]), V["xs"]
-            ),
-            expr(S["fold-nested"], V["f"], expr(V["f"], V["init"], V["x"]), V["xs"]),
-        ),
-    )
+    m += equation(S["fold-nested"](V.f, V.init, S.cons(V.x, V.xs))).to(S["if"](S["is-expr"](V.x),
+            S["fold-nested"](V.f, S["fold-nested"](V.f, V.init, V.x), V.xs),
+            S["fold-nested"](V.f, (V.f, V.init, V.x), V.xs)))
 
     # (= (deep-nest $n)
     #    (if (== $n 0) ()
     #        (cons (range 50) (deep-nest (- $n 1)))))
-    m += expr(
-        S["="],
-        expr(S["deep-nest"], V["n"]),
-        expr(
-            S["if"],
-            expr(S["=="], V["n"], 0),
-            expr(),
-            expr(S["cons"], expr(S["range"], 50), expr(S["deep-nest"], expr(S["-"], V["n"], 1))),
-        ),
-    )
+    m += equation(S["deep-nest"](V.n)).to(S["if"](V.n.eq(0),
+            (),
+            S.cons(S.range(50), S["deep-nest"](V.n - 1))))
 
     # !(test (with-pragma! ((max-stack-depth 100000000))
     #                      (fold-nested + 0 (deep-nest 20000)))
     #        25500000)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["with-pragma!"],
-                expr(expr(S["max-stack-depth"], 100000000)),
-                expr(S["fold-nested"], S["+"], 0, expr(S["deep-nest"], 20000)),
-            ),
-            25500000,
-        )
+        S.test(S["with-pragma!"]((S["max-stack-depth"](100000000),),
+                S["fold-nested"](S["+"], 0, S["deep-nest"](20000))),
+            25500000)
     )
 
     # (= (apply-many $f $n $x)
     #    (if (== $n 0) $x
     #        (apply-many $f (- $n 1) ($f $x))))
-    m += expr(
-        S["="],
-        expr(S["apply-many"], V["f"], V["n"], V["x"]),
-        expr(
-            S["if"],
-            expr(S["=="], V["n"], 0),
-            V["x"],
-            expr(S["apply-many"], V["f"], expr(S["-"], V["n"], 1), expr(V["f"], V["x"])),
-        ),
-    )
+    m += equation(S["apply-many"](V.f, V.n, V.x)).to(S["if"](V.n.eq(0),
+            V.x,
+            S["apply-many"](V.f, V.n - 1, (V.f, V.x))))
 
     # !(test (with-pragma! ((max-stack-depth 100000000))
     #                      (apply-many (+ 1) 100000 0))
     #        100000)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["with-pragma!"],
-                expr(expr(S["max-stack-depth"], 100000000)),
-                expr(S["apply-many"], expr(S["+"], 1), 100000, 0),
-            ),
-            100000,
-        )
+        S.test(S["with-pragma!"]((S["max-stack-depth"](100000000),),
+                S["apply-many"](INC, 100000, 0)),
+            100000)
     )
 
     # (= (poly $f $n)
     #    (if (== $n 0) 0
     #        (+ ($f $n) (poly $f (- $n 1)))))
-    m += expr(
-        S["="],
-        expr(S["poly"], V["f"], V["n"]),
-        expr(
-            S["if"],
-            expr(S["=="], V["n"], 0),
+    m += equation(S.poly(V.f, V.n)).to(S["if"](V.n.eq(0),
             0,
-            expr(S["+"], expr(V["f"], V["n"]), expr(S["poly"], V["f"], expr(S["-"], V["n"], 1))),
-        ),
-    )
+            (V.f, V.n) + S.poly(V.f, V.n - 1)))  # noqa: RUF005  -- not tuple concatenation: the right operand is an Expr, so this is Expr.__radd__ building (+ ($f $n) (poly ...))
 
     # !(test (with-pragma! ((max-stack-depth 100000000))
     #                      (poly (+ 1) 1000000))
     #        500001500000)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["with-pragma!"],
-                expr(expr(S["max-stack-depth"], 100000000)),
-                expr(S["poly"], expr(S["+"], 1), 1000000),
-            ),
-            500001500000,
-        )
+        S.test(S["with-pragma!"]((S["max-stack-depth"](100000000),),
+                S.poly(INC, 1000000)),
+            500001500000)
     )
-
-    yield from ()
