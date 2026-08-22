@@ -3106,6 +3106,69 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "(= (strength (dose $n) (unit mg)) ...) selects on two structures in its head, and both clauses share that head, so the guard lives in the body. A literal default reaches neither structure, so both clauses are stored. Inside the stored bodies the operators still build: V.n > 1000 is (> $n 1000) and V.n / 1000 is (/ $n 1000), because a Python operator on a symbolic operand builds rather than computes."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types.metta",
+      "form": null,
+      "missing": "typed(x, T), the builder for the declaration term (: x T)",
+      "row": "P14.9",
+      "section": "\u00a79e builders promoted from warts",
+      "detail": "The design authority promotes `equation(lhs).to(rhs)` for `(= lhs rhs)` and `typed(x, T)` for `(: x T)` as the two declaration builders, and names the sibling wart explicitly: \"The user then caught the sibling wart S[\\\":\\\"](x, T): the declaration-term builder is typed(x, T), building (: x T), with Python types accepted through the one table\". `equation` is exported from petta.rules and shipped; `typed` does not exist, so every declaration about a bare SYMBOL is written `S[\":\"](x, T)`. That is 45 occurrences across twelve twins in this wave: types/types (11), types_nondet (9), subtyping (6 beside the sibling S[\":<\"]), recursive_types (4), engine_surface (3), recursive_types2 (3), dont_eval_type (2), inplace_annotations (2), types_dependent (2), functiontypes (1), typing_rules (1), and control/letstarcomputed (1). Two twins already name the concept locally rather than repeat the punctuation, `of = S[\":\"]` in inplace_annotations and `below = S[\":<\"]` in subtyping, which is what an imported builder would make unnecessary. The annotation door covers a declaration about a FUNCTION and is used where one exists (parametric_types, outputtype, functiontypes' wu1 and wu2); it cannot carry `(: a A)`, which is a claim about a symbol with no Python signature to hang it on. Each of the eleven twins declares RUNG naming this gap."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/subtyping.metta",
+      "form": null,
+      "missing": "a builder for the subtype edge (:< Sub Super)",
+      "row": "P14.9",
+      "section": "\u00a79e builders promoted from warts",
+      "detail": "The same family as typed(x, T) and filed beside it because the fix is one design decision, not two: `:<` is the third punctuation head a declaration is written with, and the twin reaches it as `S[\":<\"](sub, super)`. The twin names the concept locally, `below = S[\":<\"]`, which is what a reader should be able to import instead. Nine edges in types/subtyping and the widening the whole example is about are written that way."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/forall.metta",
+      "form": null,
+      "missing": "a stacked @m.define spelling for two clauses whose heads are identical",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A literal default is what makes stacked clauses stack (`def fib(n=0)` is the head pattern for that position), so two clauses that fix NOTHING have no `@m.define` spelling at all. Measured on 2026-08-22: rebinding one Python name under one MeTTa name stores only the LAST equation (`@m.define def gg(): return 1` then `def gg(): return 2` leaves `(= (gg) 2)` alone in the space), and two DIFFERENT Python functions carrying one `name=` raise `IndexError: list assignment index out of range` from `petta/_define_twins.py:229` `replace_twin_clause`, because `_space_definitions._store_clause` computes `replaced` against the per-name clause records while the dispatcher is the new function's own empty one. A generator define writes one equation with a superpose body rather than two equations, so it is not the same knowledge either. `@rules` IS the door and these twins now use it: it writes a clause set without deriving a first-match guard, which `examples/basics/time_and_pragmas.metta` needs for `bounded-factorial` and `examples/control/forall.metta`, `examples/control/metta4_streams.metta` and `examples/control/thin_forms.metta` need for their identical-head sets. What remains missing is only the COMPILED half: `@rules` takes built terms, so a clause set whose bodies want to be Python syntax has no door. The crash stands on its own as a defect. [tested: ai-tmp/probe4.py and ai-tmp/probe_rules.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/dont_eval_type.metta",
+      "form": null,
+      "missing": "the metatype accessor inside a compiled body, where Python's own type(a) is the named spelling",
+      "row": "P14.4",
+      "section": "\u00a79d the concept map: the Python CLASS of an atom to its metatype",
+      "detail": "The design authority settles the metatype naming by deletion: \"Python's own builtin `type(a)` answers the METATYPE by construction (the four classes ARE the metatypes, P5.1)\". Inside a compiled body that mapping is absent: `_define_expression._PYBUILTIN_CALLS` bridges len, abs, min, max, sum, sorted, pow, str, repr, round and range, and not `type`, so `(= (inspect-opaque $written) (get-metatype $written))` has no compiled spelling and falls to the general hyphenated-name friction. Adding `type` to that table would close this one equation and give the concept map its compiled half."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/matchtypes.metta",
+      "form": null,
+      "missing": "a definitional-decorator spelling for a program's own equation over a name the engine already answers",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "`@m.define(name=\"match-types\")` refuses before it reads the body: \"'match-types' is already a function this space answers (an engine builtin, an operation, or an equation): defining it would stack a clause onto it\". The container door does the same thing silently, which is what the twin does and what the .metta original does. The refusal is a good default, so the gap is a spelling for the deliberate case rather than a bug: types/matchtypes extends `match-types` and types/types_dependent extends `get-type`, both of which are programs teaching the engine something new about a name it already answers. Measured 2026-08-22: `(match-types a a 1 2)` answers 1 on a fresh engine with no program equation at all. [tested: ai-tmp/probe2.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/identity.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "`@m.define` pays a fixed registration cost that a one-form example cannot absorb. Re-measured 2026-08-22, min of three fresh processes each: examples/basics/identity.metta costs 2577 and its decorated twin 2878, past the band ceiling of 2835 by 43, so the twin stays at the container door; examples/control/empty.metta costs 2508 and its decorated twin 2745, a ratio of 1.0945, so that twin was LIFTED to the decorator in this wave. The two files differ by 43 inferences rather than by kind, which is a band question and not a surface one: the band prices authoring and running together, and a definition's registration is authoring. Both twins now carry the current numbers rather than the +1,561 rule of thumb wave one wrote, which no longer decides either case."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/factorial.metta",
+      "form": null,
+      "missing": "a compiled body that stores the equation the example stores, rather than one that only answers alike",
+      "row": "P14.4",
+      "section": "correction to what the twins lane proves",
+      "detail": "The lane compares ANSWERS up to alpha-equivalence and the SET OF HEADS a (= $head $body) match answers; it never compares the bodies, so a compiled body that lowers to a different equation than the example writes passes silently. Measured 2026-08-22 by dumping (= $h $b) from both sides in fresh processes and matching under alpha-equivalence (ai-tmp/equation_diff.py on the p14-twins-f worktree): SEVEN of the 69 examples in basics/, control/ and types/ store different equations, and only one of them, math_exp_random, had said so. Four lowerings account for all seven. (1) `==` and `!=` in a compiled body are `(py-eq a b)` and `(not (py-eq a b))`, the prelude's Python equality, where the originals write `(== a b)`: basics/factorial, basics/fibsmart, basics/xor and control/tests program3. The operator table calls `==` taken for exactly this reason and the method form `a.eq(b)` builds `(== a b)` at the TERM door, so what is missing is a body spelling, not a design decision. (2) A condition whose syntax is not boolean-valued wraps in `(py-truthy ...)`: basics/xor. (3) An assignment is a one-pair `let*` where the original writes `let`: control/eval and control/tests program1. (4) A generator body is a superposition of its yielded answers, so a single yielded form is wrapped in a ONE-element `(superpose (...))`: control/metta4_streams. That last one is a free elision, since a superposition over one alternative IS that alternative; the non-generator body `return superpose(k, counter(k + 1, n)) if k < n else empty()` stores the original's equation to the atom, and was measured doing so. All seven twins now say which of these they carry. The lane could catch the class by comparing stored bodies under alpha-equivalence as well as heads, which is what the measurement above does in forty lines. [measured: seven of 69 examples store equations that differ under alpha-equivalence; command=ai-tmp/equation_diff.py; fixture=the basics, control and types twins against their .metta originals in fresh processes; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
     }
   ],
   "retired": [
