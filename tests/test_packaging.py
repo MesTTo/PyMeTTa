@@ -191,3 +191,61 @@ def test_integrations_group_is_left_to_third_parties():  # noqa: D103  -- pytest
         "attr": "petta._version.__version__"
     }
     assert __version__ == "0.2.0"
+
+
+def test_every_runtime_resource_reaches_the_source_archive(repo_root):
+    """The sdist carries everything the wheel build reads, or PyPI breaks.
+
+    `python -m build` builds the wheel FROM the sdist, so a resource the sdist
+    drops is one the wheel build cannot find. Measured 2026-08-23: five of the
+    nine `RUNTIME_RESOURCES` entries were absent from `MANIFEST.in` and
+    `python -m build` died on the first of them, `backends/mork/decider.pl`,
+    while `python -m build --wheel` succeeded because it reads the working tree
+    directly. CI ran only the second, so the path every installer takes was the
+    one path never exercised.
+
+    Checked statically against MANIFEST.in rather than by building, because
+    building an archive costs more than the whole pytest lane; the CI wheel job
+    runs the real `python -m build` and installs from the sdist it produces.
+    """
+    import ast
+    import fnmatch
+
+    tree = ast.parse((repo_root / "setup.py").read_text(encoding="utf-8"))
+    mapping = next(
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(getattr(t, "id", None) == "RUNTIME_RESOURCES" for t in node.targets)
+    )
+    resources = [ast.literal_eval(key) for key in mapping.keys]
+
+    directives = [
+        line.split(maxsplit=2)
+        for line in (repo_root / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+    def covered(resource: str) -> bool:
+        # setuptools also ships a package's own declared package-data, which is
+        # why petta/shim.pl needs no directive of its own.
+        if resource.startswith("bindings/python/petta/"):
+            return True
+        for directive in directives:
+            verb = directive[0]
+            if verb == "include" and resource in directive[1:]:
+                return True
+            if verb == "recursive-include" and len(directive) > 1:
+                root = directive[1]
+                if resource == root or resource.startswith(root + "/"):
+                    return True
+                if fnmatch.fnmatch(resource, root + "/*"):
+                    return True
+        return False
+
+    missing = [resource for resource in resources if not covered(resource)]
+    assert not missing, (
+        f"MANIFEST.in does not carry {missing} into the source archive, so "
+        f"`python -m build` cannot build the wheel from it and `pip install` "
+        f"from PyPI fails"
+    )
