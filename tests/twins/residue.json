@@ -8,7 +8,7 @@
       "form": null,
       "missing": "^ inside a compiled body, where the same ^ builds (xor ...) at the term door",
       "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
+      "section": "\u00a74 surface gaps: operator holes",
       "detail": "OPERATOR_LOWERINGS maps __xor__ to the symbol xor, so S-term a ^ b is (xor a b); the same operator inside @m.define raises 'the operator BitXor has no MeTTa function. MeTTa has no bitwise operators'. The twin reaches xor as a free name instead, bound with m.fn so the Python stays valid. & and | diverge the same way and are the reason math_exp_random's equation lowers differently from its original."
     },
     {
@@ -17,7 +17,7 @@
       "form": null,
       "missing": "MeTTa's (and ...) inside a compiled body",
       "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
+      "section": "\u00a74 surface gaps: operator holes",
       "detail": "Python's `and` in a compiled body is Python's `and`: it lowers to (let* ((v A)) (if (py-truthy v) B v)), short-circuiting on truthiness. The original writes (and (<= $lo $x) (<= $x $hi)), MeTTa's own generate-and-test over two values. The operator that would mean it, &, is refused in a body. So the equation stored is not the equation the example stores, and the twin's extra inferences are that lowering."
     },
     {
@@ -26,7 +26,7 @@
       "form": null,
       "missing": "a compiled body naming a hyphenated function it did not define",
       "row": "P14.4",
-      "section": "§4 surface gaps",
+      "section": "\u00a74 surface gaps",
       "detail": "A body resolves a free name EXACTLY (the fallback from sqrt_math to sqrt-math was removed on purpose), and a body may name ITSELF in either spelling. So fib-tr compiles, and fib calling fib-tr does not: 'fib_tr is not a parameter of fib, not a function the engine knows'. The twin writes fib's equation at the container door instead, m += S[\"=\"](S.fib(V.n), S[\"fib-tr\"](V.n, 0, 1))."
     },
     {
@@ -35,7 +35,7 @@
       "form": null,
       "missing": "a lowercase symbol as data inside a compiled body",
       "row": "P14.4",
-      "section": "§4 surface gaps",
+      "section": "\u00a74 surface gaps",
       "detail": "(= (spin $n) (if (> $n 0) (spin (- $n 1)) done)) answers the SYMBOL done. In a compiled body a capitalised free name becomes a constructor and a lowercase one is resolved as a function, so `done` raises and `Done` would store the wrong atom. The twin writes spin at the container door. There is no attribute form either: S.done inside a body is an ast.Attribute, which the compiled subset has no case for."
     },
     {
@@ -44,7 +44,7 @@
       "form": null,
       "missing": "a module name that resolves without an importing file",
       "row": "P14.13",
-      "section": "§4 surface gaps: directives",
+      "section": "\u00a74 surface gaps: directives",
       "detail": "import! has no dedicated Python door, which the term builder covers: m.eval(S[\"import!\"](S[\"&self\"], S.fibsmart)) is a legal zero-string spelling. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
     },
     {
@@ -71,7 +71,7 @@
       "form": null,
       "missing": "Python's `match` statement, which is what a MeTTa `case` is",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "ast.Match has no lowering, so every `case` equation in the corpus is written at the container door. P14.4's row already names this as the single most Pythonic missing construct and pins the lowering (chained unify with guards, as-patterns, `case _` fallback). Derived demand from this wave: control/case, control/case2, control/casecomputed, control/caseempty, control/if_branch_binding, control/ifcasenondet and control/let_superpose_if_case each send at least one equation to the container door for this, seven of the thirty-five files in control/. An eighth, control/caseconstrain, writes a `case` as a bare ! form, which no Python STATEMENT could carry anyway."
     },
     {
@@ -80,7 +80,7 @@
       "form": null,
       "missing": "a destructuring assignment as a `let*` PATTERN binding",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. _define_expression._name_of refuses a tuple target: 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. The one-spelling rule points at let* with a pattern on the left, which the form already supports."
     },
     {
@@ -89,7 +89,7 @@
       "form": null,
       "missing": "a compiled `match()` whose space, pattern and template are PARAMETERS",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "_define_expression._match_call requires the space to be a literal string starting with & and reads the pattern as syntax through _PatternScope, so (= (match-single $space $pat $ret) (once (match $space $pat $ret))) has no compiled spelling: a definition that takes a query APART has to be written at the container door. control/cut and control/once are the same definition twice, and the shape is a common idiom rather than a corner."
     },
     {
@@ -98,7 +98,7 @@
       "form": null,
       "missing": "`superpose` over a BOUND value in expression position",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "superpose(x) in a compiled body is (superpose ($x)), a superposition over ONE alternative that happens to be $x, because _define_expression._x_Call wraps the argument list. (superpose $x), the superposition OF $x, is reachable only in yield position (`yield from x`) or as a for-loop source. So (= (program2 $Y) (let $list ... (superpose $list))) and (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2))))) are written at the container door. P14.4's expression-position rule names superpose(...) as one of the two forms to surface; this is the argument shape it has to admit."
     },
     {
@@ -107,7 +107,7 @@
       "form": 0,
       "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
       "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
+      "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input A is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids. Forms 5-7 remain covered because they begin with ordinary string data and the program itself applies repr before parse."
     },
     {
@@ -116,7 +116,7 @@
       "form": 1,
       "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
       "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
+      "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (R A B) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
     },
     {
@@ -125,7 +125,7 @@
       "form": 2,
       "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
       "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
+      "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (R A (S B C)) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
     },
     {
@@ -134,7 +134,7 @@
       "form": 3,
       "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
       "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
+      "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (* 2 21) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
     },
     {
@@ -143,7 +143,7 @@
       "form": 4,
       "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
       "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
+      "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input \"42\" is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
     },
     {
@@ -170,7 +170,7 @@
       "form": 8,
       "missing": "a budget law for a hyperposed cross-C write whose completion schedule changes the inference count",
       "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
+      "section": "\u00a75 inference budgets at crossings",
       "detail": "With all nine forms active the faithful twin cost 152,035-152,146 over twelve fresh processes. With the concurrent-writer form declined, forms 0-7 cost exactly 141,295 inferences over twelve fresh processes. The form remains residue rather than widening the four-inference allowance."
     },
     {
@@ -188,7 +188,7 @@
       "form": 1,
       "missing": "a point budget for parallel primality branches whose completion schedule changes the inference count",
       "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
+      "section": "\u00a75 inference budgets at crossings",
       "detail": "The full source cost 256,499,809-263,270,075 and the full twin 264,278,475-270,022,219 in fresh processes. Keeping only form 0 and declining forms 1-2 costs 13,588-13,592 over ten runs, within the four-inference allowance."
     },
     {
@@ -197,7 +197,7 @@
       "form": 2,
       "missing": "a point budget for once over racing primality branches",
       "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
+      "section": "\u00a75 inference budgets at crossings",
       "detail": "The expensive race alone spread by 3,059,587 inferences over four fresh processes. The form answers correctly but cannot carry the lane's required point budget."
     },
     {
@@ -233,7 +233,7 @@
       "form": 0,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -242,7 +242,7 @@
       "form": 0,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -287,7 +287,7 @@
       "form": 0,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -296,7 +296,7 @@
       "form": 0,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -314,7 +314,7 @@
       "form": 0,
       "missing": "a stable parity spelling for the Tuffy-style PLN evaluation",
       "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
+      "section": "\u00a75 inference budgets at crossings",
       "detail": "The source cost 714,438-714,558 and the faithful twin 1,146,029-1,146,213. Besides both sides being cost-nondeterministic, the twin is 1.60x the source and exceeds the fixed 10% band, so no point budget or parity claim is available."
     },
     {
@@ -386,7 +386,7 @@
       "form": null,
       "missing": "destructuring assignment as a let* pattern binding",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "The runnable form's let* pairs DESTRUCTURE, (($x1 $it1) (iter-next $it)), and a compiled body binds plain names only (_name_of: \"a compiled body binds plain names; destructuring and attribute assignment have no let* form\"), so that form stays at the term door. The definitions themselves compile: assignment in iter-next's body IS the let* the original writes."
     },
     {
@@ -395,7 +395,7 @@
       "form": null,
       "missing": "one Python declaration source for overloaded function types",
       "row": "P14.9",
-      "section": "§4 the typing front",
+      "section": "\u00a74 the typing front",
       "detail": "The example carries multiple type declarations that cannot be derived from one Python signature, so the twin stores declaration atoms directly."
     },
     {
@@ -404,7 +404,7 @@
       "form": null,
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
       "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
+      "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "The file loader precompiles equations before runnable forms. Six memo examples require the twin to reorder atom insertion ahead of memoize: test_memo_aggregate, test_memo_dependency_invalidation, test_memo_multi_answer, test_memo_per_arity, test_memo_stats and test_memo_variant_nonground."
     },
     {
@@ -413,7 +413,7 @@
       "form": null,
       "missing": "an import path that resolves relative to a Python-authored program",
       "row": "P14.13",
-      "section": "§4 surface gaps: directives",
+      "section": "\u00a74 surface gaps: directives",
       "detail": "A Python twin has no importing file, so relative imports must be rewritten from the repository root. The same friction occurs in import_order_independence, import_relative_nested, import_space_identity and python_import."
     },
     {
@@ -422,7 +422,7 @@
       "form": null,
       "missing": "cross-form bind! state names through repeated m.eval calls",
       "row": "P14.10",
-      "section": "§1b.1 data-shaped knowledge",
+      "section": "\u00a71b.1 data-shaped knowledge",
       "detail": "bind! state is local to the file-reader program. The twin must retain the returned state cell in a Python variable and pass the object directly to later terms."
     },
     {
@@ -431,7 +431,7 @@
       "form": null,
       "missing": "cross-form bind! tokens through repeated m.eval calls",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "The twin uses native Python imports and val(np.object) to carry NumPy callables and the submodule without strings. The file reader's bind! tokens do not persist across separate m.eval calls, so Python variables hold those objects instead."
     },
     {
@@ -440,7 +440,7 @@
       "form": 1,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 1 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -449,7 +449,7 @@
       "form": 2,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 2 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -458,7 +458,7 @@
       "form": 3,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 3 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -467,7 +467,7 @@
       "form": 4,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 4 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -476,7 +476,7 @@
       "form": 5,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 5 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -485,7 +485,7 @@
       "form": 6,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 6 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -494,7 +494,7 @@
       "form": 7,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 7 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -503,7 +503,7 @@
       "form": 8,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 8 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -512,7 +512,7 @@
       "form": 9,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 9 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -521,7 +521,7 @@
       "form": 10,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 10 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -530,7 +530,7 @@
       "form": 11,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 11 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -539,7 +539,7 @@
       "form": 12,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 12 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -548,7 +548,7 @@
       "form": 13,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 13 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -557,7 +557,7 @@
       "form": 14,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 14 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -566,7 +566,7 @@
       "form": 15,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 15 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -575,7 +575,7 @@
       "form": 16,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 16 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
     },
     {
@@ -584,7 +584,7 @@
       "form": 1,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 1 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -593,7 +593,7 @@
       "form": 2,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 2 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -602,7 +602,7 @@
       "form": 3,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 3 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -611,7 +611,7 @@
       "form": 4,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 4 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -620,7 +620,7 @@
       "form": 5,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 5 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -629,7 +629,7 @@
       "form": 6,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 6 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -638,7 +638,7 @@
       "form": 7,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 7 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -647,7 +647,7 @@
       "form": 8,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 8 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -656,7 +656,7 @@
       "form": 9,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 9 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -665,7 +665,7 @@
       "form": 10,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 10 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -674,7 +674,7 @@
       "form": 11,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 11 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -683,7 +683,7 @@
       "form": 12,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 12 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -692,7 +692,7 @@
       "form": 13,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 13 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -701,7 +701,7 @@
       "form": 14,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 14 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -710,7 +710,7 @@
       "form": 15,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 15 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -719,7 +719,7 @@
       "form": 16,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 16 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -728,7 +728,7 @@
       "form": 17,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 17 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -737,7 +737,7 @@
       "form": 18,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 18 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -746,7 +746,7 @@
       "form": 19,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 19 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -755,7 +755,7 @@
       "form": 20,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 20 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -764,7 +764,7 @@
       "form": 21,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 21 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -773,7 +773,7 @@
       "form": 22,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 22 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -782,7 +782,7 @@
       "form": 23,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 23 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -791,7 +791,7 @@
       "form": 24,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 24 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -800,7 +800,7 @@
       "form": 25,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 25 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -809,7 +809,7 @@
       "form": 26,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 26 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -818,7 +818,7 @@
       "form": 27,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 27 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -827,7 +827,7 @@
       "form": 28,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 28 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -836,7 +836,7 @@
       "form": 29,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 29 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -845,7 +845,7 @@
       "form": 30,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 30 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -854,7 +854,7 @@
       "form": 31,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 31 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -863,7 +863,7 @@
       "form": 32,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 32 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -872,7 +872,7 @@
       "form": 33,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 33 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -881,7 +881,7 @@
       "form": 34,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 34 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -890,7 +890,7 @@
       "form": 35,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 35 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -899,7 +899,7 @@
       "form": 36,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 36 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -908,7 +908,7 @@
       "form": 37,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 37 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -917,7 +917,7 @@
       "form": 38,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 38 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -926,7 +926,7 @@
       "form": 39,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 39 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -935,7 +935,7 @@
       "form": 40,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 40 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -944,7 +944,7 @@
       "form": 41,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 41 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -953,7 +953,7 @@
       "form": 42,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 42 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -962,7 +962,7 @@
       "form": 43,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 43 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -971,7 +971,7 @@
       "form": 44,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 44 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -980,7 +980,7 @@
       "form": 45,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 45 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -989,7 +989,7 @@
       "form": 46,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 46 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -998,7 +998,7 @@
       "form": 47,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 47 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -1007,7 +1007,7 @@
       "form": 48,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 48 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -1016,7 +1016,7 @@
       "form": 49,
       "missing": "structured Python object resolution and token binding that do not require Python source strings",
       "row": "P14.15",
-      "section": "§9i the extension seams",
+      "section": "\u00a79i the extension seams",
       "detail": "Form 49 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
     },
     {
@@ -1817,7 +1817,7 @@
       "form": 1,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 1 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1826,7 +1826,7 @@
       "form": 2,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 2 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1835,7 +1835,7 @@
       "form": 3,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 3 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1844,7 +1844,7 @@
       "form": 4,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 4 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1853,7 +1853,7 @@
       "form": 5,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 5 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1862,7 +1862,7 @@
       "form": 6,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 6 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
     },
     {
@@ -1871,7 +1871,7 @@
       "form": 1,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 1 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1880,7 +1880,7 @@
       "form": 2,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 2 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1889,7 +1889,7 @@
       "form": 3,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 3 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1898,7 +1898,7 @@
       "form": 4,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 4 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1907,7 +1907,7 @@
       "form": 5,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 5 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1916,7 +1916,7 @@
       "form": 6,
       "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
-      "section": "§4 the ergonomic tier over the container door",
+      "section": "\u00a74 the ergonomic tier over the container door",
       "detail": "Form 6 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
     },
     {
@@ -1934,7 +1934,7 @@
       "form": 1,
       "missing": "a stable parity spelling for the Tuffy-style PLN evaluation",
       "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
+      "section": "\u00a75 inference budgets at crossings",
       "detail": "Form 1 shares the same file-level blocker. The source cost 714,438-714,558 and the faithful twin 1,146,029-1,146,213. Besides both sides being cost-nondeterministic, the twin is 1.60x the source and exceeds the fixed 10% band, so no point budget or parity claim is available."
     },
     {
@@ -2413,6 +2413,699 @@
       "row": "P14.14",
       "section": "correction to the lane's determinism assumption",
       "detail": "Form 1 shares the same file-level blocker. The source cost 5,531-5,555, the faithful twin 4,190-4,206, and definition installation alone 2,971-3,007. Declining either or both forms cannot produce a stable point budget."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "form": null,
+      "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_fib.metta",
+      "form": null,
+      "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_quad.metta",
+      "form": null,
+      "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_equation_change.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_multi_answer.metta",
+      "form": null,
+      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, a generator body says it (yield x; yield Pair(x, x) compiles to one (superpose ...) equation, which is what test_memo_multi_answer and test_memo_aggregate now do); where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_aggregate.metta",
+      "form": null,
+      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, a generator body says it (yield x; yield Pair(x, x) compiles to one (superpose ...) equation, which is what test_memo_multi_answer and test_memo_aggregate now do); where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_equation_change.metta",
+      "form": null,
+      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, a generator body says it (yield x; yield Pair(x, x) compiles to one (superpose ...) equation, which is what test_memo_multi_answer and test_memo_aggregate now do); where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_per_arity.metta",
+      "form": null,
+      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins write the second arity at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_same_name_multi_arity.metta",
+      "form": null,
+      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins write the second arity at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_spaces.metta",
+      "form": null,
+      "missing": "a redefinition under a fresh Python function name, which addresses the new function's empty twin dispatcher and raises IndexError",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The other face of the multi-arity defect above. This file redefines (= (shipping-cost $w) ...) partway through, which is exactly what re-decorating means, and the twin can only spell it by REUSING the Python function name shipping_cost, since a fresh name gets a fresh dispatcher and the same IndexError. Reusing it costs a `# noqa: F811` the file should not need. The fix is for the replacement index to address the clause list the MeTTa name owns rather than the Python function's."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/crypto_lib.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/derived_forms.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_fib.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_quad.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a conjunction pattern (, p q) inside a compiled match()",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The compiled match() reads its pattern as syntax, where a Python tuple of patterns builds (p q) and `,` is not a name Python can put in head position. So (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z)) is written at the container door while (= (reach $x $y) (match &self (edge $x $y) $y)) beside it is written by the decorator."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a compiled match() whose space, pattern and template are PARAMETERS",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (bypattern $p) (match &self $p $p)) passes its pattern through, and the compiled match() reads its pattern as syntax rather than as a value. Same missing spelling as examples/control/cut and examples/control/once."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_test.metta",
+      "form": null,
+      "missing": "an as-pattern as a let PATTERN",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (mirror $A) (let $A (@ $L (cons $head $tail)) ...)) names the whole and destructures it at once. A compiled body binds plain names, so the as-pattern has no assignment spelling and the equation stays at the container door. Sibling of examples/control/letlet's destructuring entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_assert.metta",
+      "form": null,
+      "missing": "a free MeTTa variable as a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (adder) ($x)) answers a one-element expression holding a variable the head does not bind. A compiled body reads every free name as a parameter, a known function or a constructor, and a fresh variable is none of those, so the equation stays at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_minimalmetta.metta",
+      "form": null,
+      "missing": "a compiled body that emits the chain instruction, where assignment lowers to let*",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "This example IS the instruction tier: its one equation is written in chain, eval and unify, and the 350,000-step run it makes is a measurement of that encoding. A compiled body spells sequencing as assignment, which lowers to let*, so the decorator would write a different program with a different instruction count. The equation stays at the container door deliberately; what is missing is a Python spelling for the instruction tier itself, which \u00a79e keeps unrenamed as deep control."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/doc_lib.metta",
+      "form": null,
+      "missing": "a docstring that can be both a Google-style summary and an exact @desc atom, since pydocstyle's D415 wants a terminal period and the emitter keeps the text verbatim",
+      "row": "P14.8",
+      "section": "\u00a79g idea 3, doctests in both languages: one docstring, both worlds",
+      "detail": "P14.8 shipped @doc emission from Google-style docstrings and this twin is what it looks like in use: `\"\"\"Greets somebody by name\"\"\"` emits (@doc greet (@desc \"Greets somebody by name\")), and a full Args/Returns docstring emits all four parts, so the source's hand-written (@doc ...) forms become the docstrings of the two functions they document. The cost is that the @desc text IS the docstring summary, verbatim (measured 2026-08-22: adding a period to the docstring puts the period in the atom), while the example asserts \"Greets somebody by name\" and \"Adds two numbers\" without one. So the twin carries two narrow `# noqa: D415` suppressions, which the P0.13 burn-down counts. Either resolution clears it: strip a single trailing period from the summary in _documentation.documentation_atom, so a docstring can satisfy both conventions at once, or add D415 to the twins' per-file ignores because a twin's docstring is DATA. BURN-DOWN STATUS, re-measured after merging 598ffea: the D-family count is 2148 against a ceiling of 2145. Exactly 2 of the 2148 are these two suppressions; the other overage is 598ffea's own, whose three new tests in test_twin_coverage.py took that file from 2 D findings to 5 (test_gate_completeness.py is unchanged at 4). The ceiling needs 2148, and the attribution for the last 3 is the harness commit, not this branch."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated engine function",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "matchtrickery's body calls add-atom twice inside a let*. A compiled body resolves a free name EXACTLY as written against the engine's function registry, and Python cannot spell a hyphen, so add-atom has no spelling there: `add_atom` raises \"'add_atom' is not a parameter of ..., not a function the engine knows, and not a capitalized data constructor\". The twin writes the equation at the container door, equation(S.matchtrickery()).to(...). Same family as the basics/fibsmart entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/add_atom_fun_space.metta",
+      "form": null,
+      "missing": "a compiled body answering an &-prefixed space name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "(= (space) &my_space_name) answers a bare space-name symbol. A compiled body reads a capitalised free name as a data constructor and resolves a lowercase one as a function, and `&my_space_name` is not a Python identifier at all, so no body can answer it. The twin writes the equation at the container door, equation(S.space()).to(S[\"&my_space_name\"])."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/add_atom_fun_space.metta",
+      "form": null,
+      "missing": "a space handle for a target the program COMPUTES",
+      "row": "P14.10",
+      "section": "\u00a79c primitive 2, the space wearing Python's container protocols",
+      "detail": "The example's whole subject is that `(add-atom (space) ...)` evaluates its space argument, so the write lands wherever the function answered. `space += atom` needs a HANDLE, and building one would mean evaluating `(space)` on the Python side first, which stops demonstrating the behaviour under test. Both writes therefore stay terms. A handle door that accepts a term to be resolved at the write would close this."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchsingle.metta",
+      "form": null,
+      "missing": "a compiled body naming a translator form, and a compiled match over a space PARAMETER",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Two independent blockers on the same two equations. First, `cut` and `once` are translator forms rather than registry functions, so is_function answers False for both and a body naming either is refused with \"not a function the engine knows\". Second, both equations take the space as a PARAMETER, and the compiled `match(space, pattern, template)` form requires a literal string first argument: \"match with three arguments names its space first, as a string\". The twin writes both equations at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/selfprog.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "(= (function1) OK) compiles, because a capitalised free name in a body IS a data constructor. What it costs is a lint suppression: the name has no Python value by design ('data has no Python value, so the twin cannot run a body that mints it'), so ruff's F821 fires and the twin carries `# noqa: F821` with the reason. Binding it does not help, since a module binding is refused with \"is a module binding, not a data constructor\". Every twin with a constructor-valued body pays the same suppression."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchnested.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "(= (hide $1) (empty)) compiles, because `empty` is one of the compiled subset's magic names and `empty()` lowers to the atom (empty) exactly. It costs the same F821 suppression selfprog pays: the magic names have no Python value. The nearby spelling does NOT work as a substitute: a generator with no yields stores (superpose ()), a different atom."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchnested2.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Same as matchnested: (= (hide $1) (empty)) compiles through the magic name `empty` and pays an F821 suppression for it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "\u00a74 surface gaps: directives",
+      "detail": "import! is a directive rather than a value door, and there is no Python spelling for it; the term builder covers it, m.eval(S[\"import!\"](here, S.library(S.lib_spaces))), which resolves correctly here because a (library ...) name resolves against the library path rather than against an importing file. Same family as the basics/fibsmartimport entry, without its resolution problem."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_succeedspredicate.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "\u00a74 surface gaps: directives",
+      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_removeallatoms.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "\u00a74 surface gaps: directives",
+      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door. It is also where this file's cost lives, on both sides."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_removeallatoms.metta",
+      "form": null,
+      "missing": "a clear() that answers remove-all-atoms' per-atom units",
+      "row": "P14.10",
+      "section": "\u00a79c primitive 2, the space wearing Python's container protocols",
+      "detail": "MEASURED DIVERGENCE, not a missing door. m.clear() empties the same space through the same funnel and is Python's own spelling for emptying a container, but it answers NOTHING, where (remove-all-atoms &self) answers ONE UNIT PER REMOVED ATOM: eleven of them here, so the example's group is ((() () () () () () () () () () ())) and a protocol-door twin answers (()). The form therefore stays a term. Either the protocol spelling gains a cardinality-preserving reading or the docs teach the pair, the way -= and del kb[pattern] are taught side by side."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a compiled body naming with_mutex, transaction, add-atom or remove-atom",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "All three equations are blocked twice over: with_mutex and transaction are not in the engine's function registry, so is_function answers False and a body naming either is refused; add-atom and remove-atom are hyphenated, which a compiled body cannot spell. The twin writes all three at the container door and names the shared read-modify-write body once so the three equations compose it rather than copy it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a term builder for an operator head over GROUND operands",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "Three of this file's terms are arithmetic over two ground operands, (+ 5 5) twice and (+ 1 1) once. On a grounded number Python's operators are that number's own arithmetic, so val(5) + 5 is 10 rather than the term (+ 5 5), and only INSIDE a compiled body does + build one. The head therefore has to be named at the S[\"+\"] door, which basics/math.py records the same way for the same reason. The lane agrees this is the deliberate spelling rather than a drop: since 598ffea its operator rule fires only inside a compiled body and only at the operator's own arity. What is still missing is any way to BUILD such a term with the operator, which is what a reader coming from the compiled subset will reach for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a compiled body answering an &-prefixed space name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "(= (preferred-space) &metric) answers a bare space-name symbol, which no compiled body can spell; the twin writes it at the container door. Same blocker as add_atom_fun_space's (= (space) &my_space_name). The file's two real definitions do go through @<space>.define."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/super.metta",
+      "form": null,
+      "missing": "a compiled body carrying lowercase symbols as data, and naming super or car-atom",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "All three equations carry lowercase symbols as DATA (stored, bad, refused, wrapped). A compiled body reads a capitalised free name as a data constructor and resolves a lowercase one as a function, so `stored` is refused with \"not a function the engine knows\" and `Stored` would store the wrong atom. Two of the three also name `super`, which is not in the function registry, and one heads on the hyphenated car-atom. The twin writes all three at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/restricted_spaces.metta",
+      "form": null,
+      "missing": "a NAMED restricted space",
+      "row": "P14.10",
+      "section": "\u00a79d, the one space-creation door",
+      "detail": "new_space(restricted=True) and new_space(restricted=True, grants=[...]) create the right space but over a name the engine picks (&pyspace_1). The example NAMES its spaces, and the answer of a `!(new-space &locked (restricted))` form IS that name: the group is (&locked). A symbol is not a variable, so the two answers are not alpha-equal and no handle-door spelling can carry these forms; both creations stay terms and the twin takes its handles from m.space(\"&locked\") afterwards. petta.space(name, restricted=, grants=) would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/inherited_spaces.metta",
+      "form": null,
+      "missing": "a NAMED inheriting space",
+      "row": "P14.10",
+      "section": "\u00a79d, the one space-creation door",
+      "detail": "Same shape as restricted_spaces: new_space(inherits=parent) creates the right space over an engine-picked name, while the form's answer is the name it created, (&family-child). The creation stays a term; every one of the six writes around it does go through `space += fact`. petta.space(name, inherits=) would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/parametric_spaces.metta",
+      "form": null,
+      "missing": "a space handle for a space named by a ground EXPRESSION",
+      "row": "P14.10",
+      "section": "\u00a79c primitive 2, the space wearing Python's container protocols",
+      "detail": "This is the one file in the folder where every form stays a term, and one gap causes it. A ground expression is a legal space name, `(cache &primary-kb 100)`, and petta.space() refuses anything that does not begin with & : \"a space name starts with &, as in &self or &kb; got '(cache &primary-kb 100)'\". With no handle there is no +=, no .eval and no [pattern], so all eleven forms are terms. A space door that accepts an ATOM as the name would close it, and would also give evalc's parametric spaces a Python face."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "a compiled body with a nested literal head pattern, and verdict symbols as data",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The four guard clauses head on a nested literal PATTERN, (guard (secret $x)), and the compiled subset spells a head pattern only as a literal default: a symbol default is refused with \"a default here is a head pattern, so it must be a literal\", and a string default stores a String rather than the symbol. Their bodies also answer the verdicts refuse, accept, drop and cooked, lowercase symbols a body resolves as functions. The twin writes all five equations at the container door, in first-match order."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "a Python door for the pre-add hook claim",
+      "row": "P14.10",
+      "section": "\u00a79j, the general pre/post hook",
+      "detail": "declare-pre-add! and undeclare-pre-add! have no Python spelling, so the claim and its release stay terms. \u00a79j designs the door as `@space.pre_add` over an @m.define-compiled handler, with `with m.ops(...)`-shaped scoping for the release. The four ordinary writes in this file DO go through `pool += atom`, which is what proves the hook fires on the write door rather than on a particular spelling of it: the transform, the drop and the plain accept all behave identically under +=."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/match_snapshot.metta",
+      "form": null,
+      "missing": "a compiled body with a literal head argument and remove-atom in its body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The two visit equations head on a literal argument, (visit alpha), which the compiled subset spells only as a literal default, and a string default would store a String where the symbol is meant. Their bodies also call the hyphenated remove-atom and answer bare lowercase symbols. The twin writes both at the container door; the four link facts and both snapshot items do go through the container protocol."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace.metta",
+      "form": null,
+      "missing": "a compiled body naming case, once or add-atom",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "All five equations are blocked. `case` and `once` are translator forms rather than registry functions, so is_function answers False and a body naming either is refused; add-atom is hyphenated; and add-atom-no-duplicate takes the space as a PARAMETER, which the compiled match form cannot carry. The twin writes all five at the container door and holds its budget at 26,324,213 across the rewrite, which is the evidence that the spelling change is not a semantic one."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace2.metta",
+      "form": null,
+      "missing": "a compiled body naming case, once or add-atom",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Same five blockers as matespace, over the interleaved expand-and-mate variant. The twin writes all five equations at the container door and holds its budget at 39,336,332 across the rewrite."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/program_order.metta",
+      "form": null,
+      "missing": "a SYMBOL as a stacked-clause head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (p121-example-respond me) hello)` fixes the symbol `me` in the head. A stacked @m.define clause fixes a head position with a literal DEFAULT, and define._parameters accepts only a bool, int, float or str there ('a default here is a head pattern, so it must be a literal'), so `def respond(x=S.me)` is refused and no decorator spelling exists for a symbol-headed clause. The twin writes `m += equation(S['p121-example-respond'](S.me)).to(S.hello)` instead. This is the single most common reason a definition in functions/ cannot take the decorator's function shape."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/dispatch_policies.metta",
+      "form": null,
+      "missing": "a SYMBOL as a stacked-clause head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (only-a A) hit)` fixes the symbol `A` in the head, which define._parameters cannot express (a literal default is a bool, int, float or str). The twin writes the equation atom through `equation(...).to(...)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/functionhead2.metta",
+      "form": null,
+      "missing": "a SYMBOL as a stacked-clause head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The ten facts `(= (living garfield) True)` and kin each fix a symbol in the head, which define._parameters cannot express. The twin writes them as a Python dict of animal to relations plus one comprehension over `equation(rel(who)).to(TRUE)`, which is denser than the original and preserves its order, but it is the equational shape rather than the function shape."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/invertpeanoplus.metta",
+      "form": null,
+      "missing": "a symbol or a structured subterm as a stacked-clause head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (plus Z $y) $y)` fixes a symbol and `(= (plus (S $x) $y) ...)` fixes a whole subterm that also BINDS a variable inside it. define._parameters accepts a literal default only, so neither head has a function-shape spelling; the twin uses the @rules shape, where `S.plus(S.Z, y)` and `S.plus(S.S(x), y)` are ordinary terms."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specialize.metta",
+      "form": null,
+      "missing": "a structured subterm as a stacked-clause head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Eight of this file's equations fix a head position with `()` or with `(cons $x $xs)` or with a nested pair such as `($v ($f (cons $x $xs)))`, and define._parameters accepts a literal default only. The twin uses the @rules shape for all of them; `p1`, `wrapper2` and `higher-order-fun` are the three that reach the function shape."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specialize.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (wrapper $f $list) (map-flat $f $list))` names `map-flat` in its body. A compiled body resolves a free name EXACTLY (the fallback from sqrt_math to sqrt-math was removed on purpose) and may name ITSELF in either spelling, so `map_flat(f, items)` raises 'map_flat is not a parameter of wrapper, not a function the engine knows'. Same gap as the recorded basics/fibsmart entry; the twin uses the @rules shape."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/functionhead.metta",
+      "form": null,
+      "missing": "a compiled body minting a MeTTa variable that is not a parameter",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (h $A $C) (let $A (myfunc (10) $B) ($B $C)))` needs `$B`, a HOLE for the backwards call's unification to fill. A compiled body has no spelling for one: an assignment binds a fresh minted name to a VALUE (and lowers to `let*`, not `let`), a free lowercase name is a call the body cannot resolve, and `V.b` is an attribute the expression compiler has no case for. In the @rules shape it is simply another generator parameter. The same wall stops `h_old`, whose body also uses `=` as MeTTa's unification, for which Python's `==` is not a spelling (it compiles to py-eq)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/functionhead2.metta",
+      "form": null,
+      "missing": "a compiled body minting a MeTTa variable that is not a parameter",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`only` binds `(let $constraint $C $X)`, a variable it never reads, and `cat` unifies its own argument against `(animal $X)`, where `$X` is the hole. Neither has a function-shape spelling: the decorator's assignment form mints a name and stores `(let* (($constraint-N $C)) $X)` rather than the original's `let`, and `cat`'s hole cannot be introduced at all. Both take the @rules shape, where the variable is a parameter."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/lambda.metta",
+      "form": null,
+      "missing": "a compiled body minting a MeTTa variable that is not a parameter",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (applyL1) (apply (lambda $x (+ $x 1)) 2))` builds lambda DATA holding `$x`, which takes its meaning from `apply`'s substitution rather than from anything in scope, and `apply`'s own head takes `(lambda $var $body)` apart as a pattern. Both are the @rules shape in the twin; `myfunc` and `myfunc2` reach the function shape."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/functionhead3.metta",
+      "form": null,
+      "missing": "a compiled definition whose MeTTa name is a Python KEYWORD",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`in` cannot be the name of a Python function, so `@m.define(name=\"in\")` needs a differently-named function, and then no other body can CALL it either: a compiled body resolves a free name exactly and `in` is unspellable there. `myplus` calls `in`, so the same wall stops it too. `in`'s body also names `is-member`, the hyphenated-name gap recorded on basics/fibsmart. Both definitions take the @rules shape, where `S[\"in\"]` and `S[\"is-member\"]` are ordinary subscripted symbols."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/invertfunction.metta",
+      "form": null,
+      "missing": "a compiled body naming a head that is not a Python identifier",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))` names `#+`, the constraint-arithmetic head. A compiled body calls a plain NAME, so a head that is not a Python identifier is unreachable from one; `S[\"#+\"]` inside a body would be read as a subscript and lower to py-at. The twin uses the @rules shape. Sibling of the keyword gap on functionhead3 and the hyphenated gap on fibsmart: all three are one missing idea, a compiled body naming an engine head whose spelling Python's grammar does not have."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/partialdef.metta",
+      "form": null,
+      "missing": "a compiled body naming a head that is not a Python identifier",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (plus1times2) (.. (* 2) (+ 1)))` calls `..`, which no Python identifier spells, so the definition takes the @rules shape even though `..` ITSELF reaches the function shape through `@m.define(name=\"..\")`. Its body also holds `(* 2)` and `(+ 1)`, partial applications of operator heads, which have no operator spelling because `+` and `*` need both operands to be operators at all; the twin writes those as tuples, `(S[\"*\"], 2)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/smartdispatch.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (g $f $x) (justdata $f $x))` and `(= (datawithnondatacomponent) ((lol (f 42))))` name `justdata` and `lol`, which define nothing: they are data constructors spelled in lowercase. A compiled body reads a lowercase free name as a call it cannot resolve, because capitalisation is the subset's data convention, so both take the @rules shape. Same gap as the recorded basics/time_and_pragmas entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/syntax/test_string_comments.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (test-func) result)` answers the lowercase symbol `result`, which a compiled body reads as a call it cannot resolve. The twin writes `m += equation(S['test-func']()).to(S.result)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/curry.metta",
+      "form": null,
+      "missing": "the ENGINE's `repr` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`(= (show) (repr (f 1)))` cannot be decorated: `repr` is one of the eleven Python builtins the subset bridges (_PYBUILTIN_CALLS), so `repr(f(1))` in a body compiles to `(py-repr (f 1))` and a decorated `show` would store a different equation from the one the original stores. Only a PARAMETER shadows the bridge, and `show` has none. The twin writes the equation atom. Sibling of the recorded `and` and `^` lowerings: a Python spelling that reaches a different engine function from the one the original names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specialize_recursive_wrap.metta",
+      "form": null,
+      "missing": "MeTTa's `==` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "`n == 0` in a compiled body compiles to `(py-eq $n 0)`, Python's equality through the prelude, which _compare_link does deliberately 'so mixed numeric types and containers answer exactly what Python answers'. The original writes MeTTa's `(== $n 0)`. Both answer True here and the twin is alpha-equal, but the equation STORED is not the equation the example stores, and the runnable form costs 3500 against 3495, +5 inferences. Same family as the recorded math_exp_random `and` entry. The operator that would mean MeTTa's `==` is taken by Python's own equality, which is why the term door spells it `.eq(...)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/curry.metta",
+      "form": null,
+      "missing": "two stacked @m.define clauses of one name that fix no literal head, which raise IndexError instead of stacking or refusing",
+      "row": "P14.4",
+      "section": "correction to \u00a79c's definitional decorator: its two shapes are not interchangeable, and the function shape CRASHES where it owes a refusal",
+      "detail": "DEFECT, not a missing spelling, found writing this twin and reproduced in three files. Minimal case: `@m.define(name='oc')\\ndef oc1(a): return a` followed by `@m.define(name='oc')\\ndef oc3(a, b, c): return a + (b + c)` raises `IndexError: list assignment index out of range` at _define_twins.replace_twin_clause. Root cause: _space_definitions._locate_clause answers a replacement index whenever an earlier clause has the SAME patterns (both `{}` here, since neither fixes a literal), and _store_clause then calls replace_twin_clause(dispatcher, that_index, ...) on `twin_dispatcher(fn)`, which is keyed by the PYTHON function name (`oc3`) and is therefore a fresh dispatcher with no clauses. Arity is not consulted, so two clauses of DIFFERENT arity under one name hit it as well. Two consequences: the crash, and the design underneath it, that a second patternless clause is located as a REDEFINITION of the first rather than an alternative beside it, which is P14.3's own note that stacked @define clauses cannot express non-exclusive equations on one head. curry (`overloaded-curry`, two arities), multicall (`mycalc`, two alternatives) and functionremoval/functionremovalspec (`f`, two alternatives) all take the @rules shape because of it. The fix is either to key the twin dispatcher by the METTA name so the clause list and the dispatcher agree, or to refuse the second clause with the sentence _validate_clause_order already writes for the other collisions."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/constanthead.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in a compiled definition",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (h (justdata haha $B) $C) (+ $B $C)) selects on a structure in a head position. A compiled definition spells a head pattern as a LITERAL DEFAULT, def fib(n=0) (define.py _parameters: 'a default here is a head pattern, so it must be a literal'), which reaches a constant IN a position and not a structure AROUND one. The twin writes the clause with m += equation(S.h(S.justdata(S.haha, V.B), V.C)).to(V.B + V.C)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/nestedcons.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in a compiled definition",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (f (cons $a (cons $b $L))) $b) matches two nested cons cells in its head. Same gap as constanthead: a compiled head pattern is a literal default, so nesting has no def spelling. The twin writes m += equation(S.f(S.cons(V.a, S.cons(V.b, V.L)))).to(V.b)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/listhead.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in a compiled definition, and a MeTTa name that is a Python builtin",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (len ()) 0) and (= (len (cons $Head $Tail)) ...) select on () and on a cons cell, neither of which a literal default reaches. The name compounds it: def len(...) shadows Python's builtin, which ruff's A001 family flags, so this clause would need @m.define(name=...) on a differently-spelled def even if the patterns compiled."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/foldall.metta",
+      "form": null,
+      "missing": "a SECOND CLAUSE for a NULLARY head",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (f) 2) and (= (f) 3) are two clauses of one nullary head. Stacked clauses are spelled as repeated defs whose LITERAL DEFAULTS distinguish them, and a nullary head has no argument position to carry one, so a second `def f():` REBINDS the Python name and only the last equation survives (measured: two zero-argument defs leave one equation, (= (zz) 3), where two defs with n=1 and n=2 leave both). The twin writes the generator spelling instead, which stores (= (f) (superpose (2 3))): the same answers as one equation rather than two."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/foldallmatch.metta",
+      "form": null,
+      "missing": "a SECOND CLAUSE for a NULLARY head",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (f) 1) and (= (f) 2), the same gap foldall.metta records: a nullary head has no argument position to carry the literal default that distinguishes stacked clauses, so the twin uses the generator spelling and stores (= (f) (superpose (1 2)))."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/foldallspacecount.metta",
+      "form": null,
+      "missing": "a compiled match(...) whose TEMPLATE names a data relation",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (countitem) (let $x (match &self (foo $1) (foo $1)) 1)) repeats its pattern as its template. The compiled match reads its PATTERN through _PatternScope, where a lowercase head is the relation symbol, but reads its TEMPLATE with the ordinary expression compiler, which resolves a lowercase free name as a FUNCTION: match('&self', foo(n), foo(n)) raises \"'foo' is not a parameter of countitem, not a function the engine knows\". A relation that is data on both sides of a match has no compiled spelling, so the twin writes the clause at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/foldallspacecount.metta",
+      "form": null,
+      "missing": "foldall inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (spacecount $x) (foldall merge (countitem) 0)). A compiled body resolves a free name against the engine's function registry, and foldall is an interpreter form rather than a registered function, so the name is refused. Probed the same way, quote, call, progn, catch, refuse and println are refused while reduce, id, unique, empty, superpose, collapse, append, cons, noeval and not resolve."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/holfunctions.metta",
+      "form": null,
+      "missing": "a hyphenated engine function inside a compiled body, and a call that BINDS variables in its own argument list",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (f1a) (foldl-atom (1 2 3 4) 0 $acc $x (+ $acc $x))) fails twice over. A compiled body resolves a free name EXACTLY, so foldl-atom, map-atom and filter-atom cannot be named from one (the fibsmart entry records the general form). And the template variants BIND $acc and $x inside the call itself, which is not a Python binding position at all: there is no expression form in which a call's argument introduces a name its later arguments see. The four step functions beside them, foldfun/mapfun/filterfun/foldfun2, do compile."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/holfunctions_intrinsicop.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in a compiled definition",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (mymap $f ()) ()) and (= (mymap $f (cons $x $xs)) ...) select on () and on a cons cell in a head position, which a literal default cannot spell. Same gap as constanthead, listhead and nestedcons."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/callquoteevalreduce2.metta",
+      "form": null,
+      "missing": "call and quote inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (call-fib) (call (fib (myfunc)))) and (= (quote-fib) (quote (fib (myfunc)))). eval and reduce ARE functions the engine knows, so eval-fib and reduce-fib compile through @m.define(name=...) and their siblings do not: call and quote are interpreter forms with no registry entry, and a compiled body resolves a free name against that registry. The asymmetry inside one example is the sharpest statement of the gap: two of four wrappers reach the top rung and two cannot."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/myinterpreter.metta",
+      "form": null,
+      "missing": "println! inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (myinterpreter $code) (let $temp (println! (\"Runtime-interpreting code\" $code)) (eval $code))). println! is not a Python identifier, so no free name in a compiled body can spell it, and there is no attribute form either (S.x inside a body is an ast.Attribute the compiled subset has no case for). The declaration goes with it: (: myinterpreter (-> Atom %Undefined%)) would have come from a code: Atom annotation had the body compiled."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule_fib.metta",
+      "form": null,
+      "missing": "MeTTa's (== ...) inside a compiled body, where Python's == lowers to a HOST CROSSING",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "a == b in a compiled body does not lower to (== $a $b): it lowers to (py-eq $a $b), and py-eq is a Python callable registered as an engine operation (_prelude.py: def py_eq(a, b): return pythonic(a) == pythonic(b)). Inside fib-tr's tail-recursive loop that is one callback-lane crossing per comparison, the invisible cliff the design authority names in \u00a79. The twin keeps fib-tr at the container door with V.n.eq(0), which builds the engine's own ==. Measured both ways: the compiled spelling answers correctly and costs 8309 against 7972 for the stored one, and the counter cannot see the host time at all. The missing spelling is a compiled-body form for MeTTa's own == (the surface has the a.eq(b) method, which reaches the term door only)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule_fib.metta",
+      "form": null,
+      "missing": "a hyphenated engine function inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (fib $n) (fib-tr $n 0 1)). fib-tr compiles as its own definition through @m.define(name='fib-tr') and may name ITSELF in either spelling, but fib cannot name it: a body resolves a free name exactly. This is the fibsmart finding reproduced in the translation folder, where it also decides what the translator rule expands."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule_for.metta",
+      "form": null,
+      "missing": "a let whose bound VARIABLE is held in a parameter, and a lowercase symbol as a constructor in a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (for $var $collection $body) (noeval (let $var (superpose $collection) $body))) binds the variable that $var HOLDS. Assignment in a compiled body binds a plain Python NAME, so there is no position to spell that in. And (= (myfun $L) (for $x $L (if ... (even $x) (odd $x)))) passes $x, a variable that is not one of myfun's parameters, and answers (even $x) and (odd $x), lowercase symbols a compiled body looks up as functions; capitalising them would store different atoms."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule_guard.metta",
+      "form": null,
+      "missing": "a STRUCTURAL or SYMBOL head pattern, a hyphenated name in a body, and a lowercase symbol as data",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "Every definition here needs one of the three. add-pairs, hold-pairs and only-a select on (pair $a $b) and on the symbol a, and a compiled head pattern is a LITERAL default, so def pick(x='a') would store the string \"a\" and not the symbol a. holds-a-miss names the hyphenated add-pairs. pick answers (picked $x) and both-ways answers bw-one, lowercase symbols a compiled body resolves as functions. So the whole file is the container door, which is why its budget did not move."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule_refusal.metta",
+      "form": null,
+      "missing": "a STRUCTURAL head pattern in a compiled definition",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "(= (strength (dose $n) (unit mg)) ...) selects on two structures in its head, and both clauses share that head, so the guard lives in the body. A literal default reaches neither structure, so both clauses are stored. Inside the stored bodies the operators still build: V.n > 1000 is (> $n 1000) and V.n / 1000 is (/ $n 1000), because a Python operator on a symbolic operand builds rather than computes."
     }
   ],
   "retired": [

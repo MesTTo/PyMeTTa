@@ -84,7 +84,14 @@ RUFF_FAMILY_BURN_DOWN = {
     # took the count to 2146, so it was computed against the tree as it stood
     # a moment earlier. A suppression and its ceiling belong in one commit AND
     # the count belongs measured after the last edit, not before it.
-    "D": 2146,
+    # 2146 -> 2148 as four twin folders land in the library's own idiom: the
+    # two are doc_lib's D415 suppressions, where the @doc emitter keeps a
+    # docstring summary VERBATIM so a summary MeTTa accepts is one pydocstyle
+    # rejects. That conflict is filed against P14.8 with its decision (the
+    # emitter strips one trailing period, because a docstring is Python's
+    # concept and Python's convention wins), and these two suppressions go
+    # when it lands. Measured on the merged tree, after the last merge.
+    "D": 2148,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,
