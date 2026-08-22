@@ -20,7 +20,7 @@ Guarantees:
     commit=dcfc20be4933c19140ccb5759291401d13058301].
   - check_twin consumes a Defined call's eager answer list exactly once
     [tested: test_the_prolog_twin_is_checked_against_its_reference;
-    commit=WORKTREE].
+    commit=88d2e764c999d89e8919172e5c1455be804b293d].
 Open Obligations:
   To Do: None
   Hacks: None

@@ -23,12 +23,12 @@ Guarantees:
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
-    commit=WORKTREE]
+    commit=88d2e764c999d89e8919172e5c1455be804b293d]
   - calling a Defined object evaluates its application except in a rules
     builder's scope-local staging context [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE]
+    commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Open Obligations:
   To Do: None
   Hacks: None

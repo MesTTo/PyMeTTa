@@ -20,7 +20,7 @@ Guarantees:
     and rolls back if equation publication fails [tested:
     test_a_declared_output_type_takes_effect_through_the_decorator_door,
     test_failed_equation_publication_rolls_back_its_early_declaration;
-    commit=WORKTREE]
+    commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]

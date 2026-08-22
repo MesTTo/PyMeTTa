@@ -1,7 +1,7 @@
 """Purpose: prove check.sh runs the real website snippet auditor as REPORT.
 Guarantees:
   - the auditor's fixed-baseline output reaches the gate log
-    [tested: test_the_snippet_auditor_runs_from_the_gate; commit=WORKTREE]
+    [tested: test_the_snippet_auditor_runs_from_the_gate; commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Open Obligations:
   To Do: None
   Hacks: None

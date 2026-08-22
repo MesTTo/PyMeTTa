@@ -5,7 +5,7 @@ Guarantees:
   - twin views see definitions added after an earlier twin was compiled
     [tested test_existing_twin_sees_later_redefinition]
   - a twin that cannot run names the eager Defined call as the engine door
-    [tested: test_twin_refuses_engine_only_bodies; commit=WORKTREE]
+    [tested: test_twin_refuses_engine_only_bodies; commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Guarded by:
   - _TWIN_LOCK serializes dispatcher creation, view publication, and clause
     replacement [tested test_define_from_two_threads_is_serialized]

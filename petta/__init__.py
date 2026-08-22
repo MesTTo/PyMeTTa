@@ -25,7 +25,7 @@ Guarantees:
     commit=a1b10566194f10c174101fdc05f956b33171613b]
   - equation and rules are public package-level authoring helpers [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE]
+    commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Open Obligations:
   To Do: None
   Hacks: None

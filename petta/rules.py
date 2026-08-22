@@ -4,10 +4,10 @@ Guarantees:
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE].
+    commit=88d2e764c999d89e8919172e5c1455be804b293d].
   - equation halves share one static type parameter [tested:
     env CHECK_PY=/home/user/Dev/.venv-pypetta/bin/python sh check.sh mypy;
-    commit=WORKTREE].
+    commit=88d2e764c999d89e8919172e5c1455be804b293d].
 """
 
 from __future__ import annotations

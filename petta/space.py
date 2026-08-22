@@ -30,7 +30,7 @@ Guarantees:
   - define returns a Defined whose call evaluates in its owning space while
     its Python reference stays available as .py [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself;
-    commit=WORKTREE]
+    commit=88d2e764c999d89e8919172e5c1455be804b293d]
   - query, prepare, and stream preserve distinct variable columns in first
     appearance order [tested test_query_surfaces_share_column_order]
   - public name and save-format annotations distinguish their string
