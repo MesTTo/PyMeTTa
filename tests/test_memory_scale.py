@@ -16,7 +16,7 @@ Guarantees:
   - complete baseline comparison checks more than one pin without confusing the
     pin mapping with an individual pinned value [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=WORKTREE].
+    commit=ba8bbe2c81c23c20e215f453a14b6cc9d04db4a8].
 """
 
 import json

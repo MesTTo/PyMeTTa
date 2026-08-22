@@ -24,7 +24,7 @@ Guarantees:
   - a selected curve run compares only the selected committed pins while a
     complete run still detects any missing pinned case [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=WORKTREE]
+    commit=ba8bbe2c81c23c20e215f453a14b6cc9d04db4a8]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
