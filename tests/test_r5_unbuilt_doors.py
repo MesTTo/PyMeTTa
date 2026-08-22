@@ -6,7 +6,7 @@ Assumes:
 Guarantees:
   - each numbered R5 item has a direct behavioral regression [tested:
     python -m pytest bindings/python/tests/test_r5_unbuilt_doors.py -q;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,6 +32,12 @@ def test_solve_retires_the_five_relational_let_workarounds(metta):
     """R5.1: five corpus sites no longer hand-build relational ``let``."""
     assert metta.solve(4, V.x - 1).x == 5
     assert metta.solve(12, V.y * 4).y == 3
+
+
+def test_solve_refuses_an_anonymous_only_subject(metta):
+    """Anonymous variables stay fresh and never become result columns."""
+    with pytest.raises(ValueError, match="at least one variable"):
+        metta.solve(4, V._ - 1)
 
 
 def test_typed_and_arrow_retire_49_raw_type_symbols():
@@ -69,6 +75,16 @@ def test_take_peek_and_watch_retire_the_thread_linda_fn_strings(metta):
         event = next(changes)
         assert event.n == 7
         changes.close()
+
+
+def test_watch_close_before_first_event_cancels_its_eager_subscription(metta):
+    """Closing a never-started watch releases its standing query."""
+    reflection = metta._at("&petta")
+    descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S.add)
+    changes = metta.watch(S.r5_watch(V.n))
+    assert len(reflection.query(descriptor)) == 1
+    changes.close()
+    assert not reflection.query(descriptor)
 
 
 def test_define_absorbs_class_declaration_and_frees_space_type(metta):
@@ -129,6 +145,57 @@ def test_callable_mentions_share_operator_and_fourteen_math_names(
     assert r5_math_sqrt(9) == [3.0]
 
 
+def test_callable_mentions_require_identity_even_when_equality_is_spoofed():
+    """A user callable equal to a standard one remains a grounded value."""
+    class AddSpoof:
+        def __call__(self, left, right):
+            return left + right
+
+        def __hash__(self):
+            return hash(operator.add)
+
+        def __eq__(self, other):
+            return other is operator.add
+
+    spoof = AddSpoof()
+    assert spoof == operator.add
+    encoded = petta.wire.encode(spoof)
+    assert isinstance(encoded, petta.Grounded)
+    assert encoded.value is spoof
+
+
+def test_compiled_callable_mentions_preserve_python_call_semantics(metta):
+    """Adapters preserve argument order, optional forms, and result kinds."""
+    @metta.define(name="r5-log-base")
+    def log_base(value, base):
+        return math.log(value, base)
+
+    @metta.define(name="r5-log-natural")
+    def log_natural(value):
+        return math.log(value)
+
+    @metta.define(name="r5-fabs")
+    def fabs(value):
+        return math.fabs(value)
+
+    @metta.define(name="r5-round")
+    def round_builtin(value):
+        return builtins.round(value)
+
+    @metta.define(name="r5-true-divide")
+    def true_divide(left, right):
+        return operator.truediv(left, right)
+
+    assert log_base.body == S["log-math"](V.base, V.value)
+    assert log_base(100, 10) == [2.0]
+    assert log_natural(math.e**2)[0].value == pytest.approx(2.0)
+    assert fabs(2) == [2.0]
+    assert type(fabs(2)[0].value) is float
+    assert round_builtin(2.5) == [2]
+    assert true_divide(6, 2) == [3.0]
+    assert type(true_divide(6, 2)[0].value) is float
+
+
 def test_plain_sorted_uses_the_engines_elementwise_order():
     """R5.8: plain sorted fixes the unequal-length divergence in order_key."""
     short = Expression(S.z)
@@ -166,6 +233,19 @@ def test_rules_lower_emits_queryable_declaration_and_registers_the_head(metta):
     )
     assert declaration in metta._at("&petta")
     assert metta.eval(S["r5-lower"](3)) == [S.r5_lowered(3)]
+
+
+def test_rules_lower_refuses_an_empty_rule_set_before_mutating(metta):
+    """A lowering needs a rule head to declare and register."""
+    @petta.rules
+    def empty_rules():
+        if False:
+            yield equation(S.unreachable).to(S.unreachable)
+
+    before = tuple(metta)
+    with pytest.raises(ValueError, match="empty rule set"):
+        empty_rules.lower(S.topdown, requires=S.mork, space=metta)
+    assert tuple(metta) == before
 
 
 def test_transaction_term_uses_empty_answer_rollback_law(metta):

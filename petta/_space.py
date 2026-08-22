@@ -10,10 +10,12 @@ Guarantees:
   - solve, Linda verbs, class define, get-type, bang resolution, and both
     transaction laws are observable through one Space handle [tested:
     test_solve_retires_the_five_relational_let_workarounds,
+    test_solve_refuses_an_anonymous_only_subject,
     test_take_peek_and_watch_retire_the_thread_linda_fn_strings,
+    test_watch_close_before_first_event_cancels_its_eager_subscription,
     test_define_absorbs_class_declaration_and_frees_space_type,
     test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
-    test_transaction_term_uses_empty_answer_rollback_law; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    test_transaction_term_uses_empty_answer_rollback_law; commit=WORKTREE]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -47,7 +49,7 @@ import importlib as _importlib
 import os
 import sys
 from collections import abc as _abc
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
 from pathlib import Path
 from typing import (
@@ -92,6 +94,7 @@ from ._space_objects import (
     ScopedLimits,
     _Assuming,
     _Batch,
+    _column_names,
     _EngineFunction,
     _refuse_in_batch,
     _StatsBlock,
@@ -113,7 +116,6 @@ from .atoms import (
     Variable,
     _atom_from_wire,
     _to_atom,
-    _variables,
     parse,
 )
 from .define import Defined, PrologBacked
@@ -176,6 +178,38 @@ class _BoundValues:
     def __exit__(self, *_exception: object) -> None:
         _RUN_BINDINGS.reset(self._token)
 
+
+class _WatchIterator:
+    """Own one eager subscription and cancel it whenever the iterator closes."""
+
+    __slots__ = ("_events", "_subscription")
+
+    def __init__(self, subscription: Any) -> None:
+        self._subscription = subscription
+        self._events: Iterator[Any] = subscription.events()
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> Any:
+        try:
+            return next(self._events)
+        except StopIteration:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Close the event generator and cancel the eager subscription once."""
+        subscription = self._subscription
+        if subscription is None:
+            return
+        self._subscription = None
+        close = getattr(self._events, "close", None)
+        try:
+            if close is not None:
+                close()
+        finally:
+            subscription.cancel()
 
 def _require_source(source: Any, called: str) -> None:
     """Refuse non-text source here rather than at the engine's reader."""
@@ -1222,7 +1256,7 @@ class Space:
         third hand-written ``let`` argument disappears.
         """
         subject_atom = _to_atom(subject)
-        columns = tuple(_variables(subject_atom))
+        columns = tuple(_column_names([subject_atom]))
         if not columns:
             msg = "solve needs at least one variable in its subject"
             raise ValueError(msg)
@@ -1283,15 +1317,7 @@ class Space:
 
     def watch(self, pattern: Any, *, on: str = "add"):
         """Yield matching change events until the iterator closes."""
-        subscription = self.subscribe(pattern, on=on)
-
-        def changes():
-            try:
-                yield from subscription.events()
-            finally:
-                subscription.cancel()
-
-        return changes()
+        return _WatchIterator(self.subscribe(pattern, on=on))
 
     def limits(
         self,

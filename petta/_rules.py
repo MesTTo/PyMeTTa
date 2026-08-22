@@ -3,8 +3,9 @@
 Guarantees:
   - ``Rules.lower`` stores equations, publishes lowering declarations, and
     registers each symbolic head through the engine seam [tested:
-    test_rules_lower_emits_queryable_declaration_and_registers_the_head;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    test_rules_lower_emits_queryable_declaration_and_registers_the_head,
+    test_rules_lower_refuses_an_empty_rule_set_before_mutating;
+    commit=WORKTREE]
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
@@ -78,6 +79,9 @@ class Rules(list[Expression]):
 
     def lower(self, strategy: Any, *, requires: Any, space: Any = None) -> Any:
         """Store the rules, declare their strategy, and register each head."""
+        if not self:
+            msg = f"cannot lower empty rule set {self.name!r}"
+            raise ValueError(msg)
         if space is None:
             from . import engine  # noqa: PLC0415  -- default context stays lazy
 

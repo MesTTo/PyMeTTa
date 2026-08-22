@@ -2,12 +2,13 @@
 
 Guarantees:
   - encoding and compiled attribute calls consult this one identity table
-    [tested: test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    [tested: test_callable_mentions_share_operator_and_fourteen_math_names,
+    test_callable_mentions_require_identity_even_when_equality_is_spoofed;
+    commit=WORKTREE]
 Decides:
   - the fourteen math names are the declarations in
     ``lib/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
-    [source: lib/lib_builtin_types.metta:45; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    [source: lib/lib_builtin_types.metta:45; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -68,17 +69,42 @@ CALLABLE_MENTIONS: Final[dict[Any, str]] = (
     _SYMBOL_OPERATOR_MENTIONS | MATH_CALLABLE_MENTIONS
 )
 
+_CALLABLE_MENTIONS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
+    id(value): (value, mention) for value, mention in CALLABLE_MENTIONS.items()
+}
+
+_CALLABLE_ARITIES_BY_ID: Final[dict[int, tuple[Any, tuple[int, ...]]]] = {
+    # policy-inventory-exempt: mechanism-internal; reason=abs and invert are the two unary callables in the closed operator mention table and every other mentioned operator is binary; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
+    id(value): (value, (1,) if dunder in {"__abs__", "__invert__"} else (2,))
+    for dunder, value in _OPERATOR_CALLABLES.items()
+    if value in CALLABLE_MENTIONS
+}
+_CALLABLE_ARITIES_BY_ID.update(
+    {
+        # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=bindings/python/petta/_define_expression.py:_adapt_mentioned_call
+        id(value): (value, (1, 2) if value in {math.log, builtins.round} else (2,)
+                    if value is math.pow else (1,))
+        for value in MATH_CALLABLE_MENTIONS
+    }
+)
+
 
 def callable_mention(value: Any) -> str | None:
     """Return the MeTTa symbol named by one exact standard callable."""
     if not callable(value):
         return None
-    try:
-        return CALLABLE_MENTIONS.get(value)
-    except TypeError:
-        # A user callable may deliberately be unhashable; it is not one of
-        # the identity-keyed standard callables this closed table names.
+    entry = _CALLABLE_MENTIONS_BY_ID.get(id(value))
+    if entry is None or entry[0] is not value:
         return None
+    return entry[1]
+
+
+def callable_arities(value: Any) -> tuple[int, ...] | None:
+    """Return accepted positional arities for one exact mentioned callable."""
+    entry = _CALLABLE_ARITIES_BY_ID.get(id(value))
+    if entry is None or entry[0] is not value:
+        return None
+    return entry[1]
 
 
 __all__ = ["CALLABLE_MENTIONS", "MATH_CALLABLE_MENTIONS", "callable_mention"]

@@ -1,9 +1,11 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
   - calls through standard ``math`` and ``operator`` module attributes lower
-    to the shared callable-mention head [tested:
-    test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    through the shared callable mentions while adapters preserve Python call
+    order and result kinds [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names,
+    test_compiled_callable_mentions_preserve_python_call_semantics;
+    commit=WORKTREE]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]
@@ -18,10 +20,13 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import builtins
+import math
+import operator
 import types
 from collections.abc import Callable
 
-from ._callable_mentions import callable_mention
+from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext
 from .atoms import Atom, Expression, Grounded, Symbol, Variable
 from .errors import CompileError
@@ -398,9 +403,32 @@ class ExpressionCompilerMixin(CompilerContext):
         mention = callable_mention(value)
         if mention is None:
             raise self._attribute_call_error(node)
-        return Expression(
-            [Symbol(mention), *(self.expression(argument) for argument in node.args)]
-        )
+        arities = callable_arities(value)
+        if arities is None or len(node.args) not in arities:
+            expected = " or ".join(str(arity) for arity in arities or ())
+            msg = f"{owner_node.id}.{node.func.attr}() compiles with {expected} argument(s)"
+            raise CompileError(msg, construct="call", line=node.lineno)
+        arguments = [self.expression(argument) for argument in node.args]
+        return self._adapt_mentioned_call(value, mention, arguments)
+
+    def _adapt_mentioned_call(
+        self, value: object, mention: str, arguments: list[Atom]
+    ) -> Expression:
+        """Preserve Python semantics where an engine mention orders or types differently."""
+        if value is math.log:
+            arguments = (
+                [Grounded(math.e), arguments[0]]
+                if len(arguments) == 1
+                else [arguments[1], arguments[0]]
+            )
+        elif value is math.fabs:
+            arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
+        elif value is builtins.round:
+            self.runtime_ops.add("py-round")
+            mention = "py-round"
+        elif value is operator.truediv:
+            arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
+        return Expression([Symbol(mention), *arguments])
 
     @staticmethod
     def _attribute_call_error(node: ast.Call) -> CompileError:

@@ -1,13 +1,14 @@
 """Purpose: pin Phase 9 item P9.6: every term-building operator on atoms is
 documented in one table, derived from the class rather than maintained by
-hand, and the one operator that is deliberately NOT symbolic (`==`, whose
-term is spelled `.eq()`) is called out. Before this, `S.x + S.y` built a
+hand, and the two operators that are deliberately NOT symbolic (`==`, whose
+term is spelled `.eq()`, and `<`, whose term is spelled `.lt()`) are called
+out. Before this, `S.x + S.y` built a
 term and no page in website/ showed the form at all [measured 2026-08-19].
 Guarantees:
     - ``Atom.__lt__`` is the standard-order sorting exception and the ``<``
       term remains explicitly buildable [tested:
       test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+      commit=WORKTREE]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;

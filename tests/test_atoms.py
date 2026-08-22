@@ -632,11 +632,10 @@ def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest 
     assert unify(S.pair(V._, V._), S.pair(S.a, S.a)) == {}
 
 
-# A KEY rather than __lt__, because `<` already means something: S.a < S.b
-# builds the term (< a b), which is what the operators are for, so sorted()
-# over atoms raised "(< a c) is a comparison TERM, not a truth value". The
-# message is right and the order it refuses to invent exists in the language
-# underneath.
+# The explicit key and Atom.__lt__ expose the same engine order. Keep this
+# assertion on order_key because callers can pass it to APIs that accept a
+# key; test_plain_sorted_uses_the_engines_elementwise_order covers sorted()
+# without one.
 def test_atoms_sort_in_prologs_standard_order():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atoms = [
         parse(source)
