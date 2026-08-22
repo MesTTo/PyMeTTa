@@ -316,6 +316,13 @@ def _named_strings(tree: ast.Module) -> set[int]:
     """
     permitted: set[int] = set()
     for node in ast.walk(tree):
+        # A raised message is prose for a reader, the same as a docstring.
+        if isinstance(node, ast.Raise):
+            permitted.update(
+                id(inner)
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+            )
         if isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef)):
             head = node.body[0] if node.body else None
             if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
@@ -801,7 +808,8 @@ def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
     )
     findings.extend(differences)
     findings.extend(_visible(relative, left, right))
-    findings.extend(_price(relative, twin, left, right))
+    stated = any(entry["example"] == relative for entry in entries)
+    findings.extend(_price(relative, twin, left, right, stated))
     return Verdict(example, claims, covered, left.cost, right.cost, tuple(findings))
 
 
@@ -823,7 +831,21 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     ]
 
 
-def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
+#: Below this a twin did nothing an engine was needed for. Python's own
+#: structure operations on atoms already held in Python cost NO crossing at
+#: all, which the ladder wants; but a twin that never reaches the engine is
+#: not twinning a MeTTa example, it is only agreeing with it. Pinned from the
+#: two measured ends: a twin doing all of its example's work in Python cost 5
+#: inferences, and the cheapest twin that still queries a space cost 449
+#: [measured 2026-08-22: examples/control/caseconstrain.metta and
+#: examples/spaces/spaces3.metta, `twin_coverage.py --measure`;
+#: commit=WORKTREE].
+ENGINE_FLOOR = 100
+
+
+def _price(
+    relative: str, twin: Path, left: Run, right: Run, stated: bool = False  # noqa: FBT001, FBT002  -- one flag, and the call site reads better positionally than with a keyword
+) -> list[str]:
     """The two cost claims: a pinned budget, and a band against the original.
 
     The budget is TWO-SIDED, which a benchmark baseline is not. A benchmark
@@ -846,6 +868,13 @@ def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
         findings.append(
             f"{relative}: the twin cost {right.cost} inferences, {moved} its "
             f"pinned budget of {budget} by more than the {TOLERANCE} allowance"
+        )
+    if right.cost is not None and right.cost < ENGINE_FLOOR and not stated:
+        findings.append(
+            f"{relative}: the twin cost {right.cost} inferences, under the "
+            f"{ENGINE_FLOOR} floor, so it never reached the engine; doing an "
+            f"example's work in Python where Python does it is right, but an "
+            f"example the library is never asked about is a residue entry"
         )
     if left.cost and right.cost is not None:
         ceiling = left.cost * (1.0 + BAND_PERCENT / 100.0)

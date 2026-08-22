@@ -3394,6 +3394,42 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
       "detail": "The definitions write into &cstore with add-atom and read it back with match against that name. A compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/caseconstrain.metta",
+      "form": null,
+      "missing": "Python's match statement inside a compiled body, so MeTTa's `case` can be reached at all",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: Python's match/case STATEMENT, verified absent 2026-08-21",
+      "detail": "The twin destructures the expression with Python's own match statement, which on an atom already held in Python costs no crossing: 5 inferences against the example's 1745. That is the ladder's own preference, but it means the example's construct never runs, because the define subset's statement dispatch has no ast.Match case and so no compiled body can spell `case`. Until it does, no twin can put this example's own form into the engine."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/multicall.metta",
+      "form": null,
+      "missing": "a space-bound `@m.rules`, so writing the equations and landing them are one act",
+      "row": "P14.4",
+      "section": "\u00a79b: the ledger's own examples write `@m.rules`",
+      "detail": "The shipped door is the free `@rules` decorator plus a separate `m.add(*obj)`. Every worked example in the ledger writes `@m.rules`, one act against the space, the way `@m.define` already reads. Measured 2026-08-22: MeTTa has no `rules` attribute, so the two-step spelling is the only one."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "a one-element expression pattern at the SUBSCRIPT door: `space[(V.x,)]` reads the tuple as a conjunction",
+      "row": "P14.4",
+      "section": "\u00a79b: `kb[p1, p2]` is the conjunction join door, and a tuple is also an expression",
+      "detail": "Python cannot tell `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as a conjunction while `space.query(...)` reads the same tuple as an expression. Measured 2026-08-22: `m[(V.x,)]` answers two rows binding x to whole atoms, `m.query((V.x,))` answers one row binding x to the single child, and neither raises. The twin uses `query` plus `expr(V.x)` because they agree."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "`==` between a Python tuple and the Expression it encodes to",
+      "row": "P14.4",
+      "section": "\u00a79j: a plain Python tuple ENCODES to the same expression through the conversion table",
+      "detail": "A tuple is an expression at every door that takes one, `+=`, patterns and nesting included, but not at the comparison door: measured 2026-08-22, `(S.wu,) == S.wu()` is False in both directions and the hashes disagree, because Expr.__eq__ answers NotImplemented for anything that is not an Expr and the hash carries an 'expr' tag. So an assertion about an expression cannot be written as a tuple. The hazard to respect when closing it: Gnd((1, 2)) is an OPAQUE grounded tuple and must not become equal to the transparent Expr((1, 2))."
     }
   ],
   "retired": [
