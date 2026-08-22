@@ -9,6 +9,8 @@ Guarantees:
     answer shapes before they can publish an instruction sample
     [tested: test_instruction_join_workload_checks_both_projection_shapes;
     commit=ed2f4ffeb55dd524a87e35aac078094924b6994b].
+  - the streaming answer curve measures bounded cursor memory without unique
+    wire names populating the separately measured intern caches.
 """
 
 import json
@@ -24,7 +26,7 @@ from benchmarks.memory_scale import (
 from benchmarks.pure import main as pure_benchmark_main
 
 
-def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103
+def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103 -- pytest discovers this descriptive contract test
     sizes = [10, 100, 1_000, 10_000]
     linear = fit_curve(sizes, [71, 611, 6_011, 60_011])
     quadratic = fit_curve(sizes, [103, 10_003, 1_000_003, 100_000_003])
@@ -35,7 +37,7 @@ def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103
     assert quadratic["models"]["quadratic"]["nrms"] < 1e-9
 
 
-def test_curve_fit_recognises_a_bounded_linear_cache():  # noqa: D103
+def test_curve_fit_recognises_a_bounded_linear_cache():  # noqa: D103 -- pytest discovers this descriptive contract test
     sizes = [100, 1_000, 10_000, 100_000]
     entries = [100, 1_000, 10_000, 65_536]
 
@@ -45,7 +47,7 @@ def test_curve_fit_recognises_a_bounded_linear_cache():  # noqa: D103
     assert fitted["models"]["capped_linear"]["nrms"] < 1e-9
 
 
-def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103
+def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103 -- pytest discovers this descriptive contract test
     case = CASES["join-shared"]
     raw = {
         1: [
@@ -75,7 +77,7 @@ def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103
     assert result["worker_pids"]["10"] == [103, 104]
 
 
-def test_aggregation_accepts_controlled_instruction_samples():  # noqa: D103
+def test_aggregation_accepts_controlled_instruction_samples():  # noqa: D103 -- pytest discovers this descriptive contract test
     case = CASES["join-projection"]
     raw = {
         size: [{"inferences": size, "_worker_pid": size}]
@@ -97,12 +99,12 @@ def test_aggregation_accepts_controlled_instruction_samples():  # noqa: D103
     ]
 
 
-def test_instruction_join_workload_checks_both_projection_shapes():  # noqa: D103
+def test_instruction_join_workload_checks_both_projection_shapes():  # noqa: D103 -- pytest discovers this descriptive contract test
     assert pure_benchmark_main(["memory-join-shared", "--size", "10"]) == 0
     assert pure_benchmark_main(["memory-join-projection", "--size", "10"]) == 0
 
 
-def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa: D103
+def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa: D103 -- pytest discovers this descriptive contract test
     case = CASES["join-shared"]
     raw = {
         size: [{"inferences": size * 10, "_worker_pid": size}]
@@ -122,8 +124,11 @@ def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa
     assert len(failures) == 1
     assert "moved" in failures[0]
 
+    baseline["cases"]["unselected"] = baseline["cases"][case.name]
+    assert compare_baseline(result, baseline, names=[case.name]) == []
 
-def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103
+
+def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103 -- pytest discovers this descriptive contract test
     output = tmp_path / "memory.json"
 
     assert benchmark_main(
@@ -148,7 +153,31 @@ def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103
     assert result["metrics"]["storage_module_bytes"]["representative"][1] > 0
 
 
-def test_memory_scale_cli_gates_object_reclamation(tmp_path):  # noqa: D103
+def test_stream_curve_excludes_wire_cache_growth(tmp_path):  # noqa: D103 -- pytest discovers this descriptive contract test
+    output = tmp_path / "stream.json"
+
+    assert benchmark_main(
+        [
+            "--memory-scale",
+            "--memory-quick",
+            "--memory-repetitions",
+            "1",
+            "--timeout",
+            "60",
+            "--json",
+            str(output),
+            "query-stream",
+        ]
+    ) == 0
+
+    result = json.loads(output.read_text(encoding="utf-8"))["cases"]["query-stream"]
+    peak = result["metrics"]["python_peak_bytes"]
+    assert result["primary_metric"] == "python_peak_bytes"
+    assert result["expected"] == "constant"
+    assert peak["fit"]["models"]["constant"]["nrms"] < 0.10
+
+
+def test_memory_scale_cli_gates_object_reclamation(tmp_path):  # noqa: D103 -- pytest discovers this descriptive contract test
     output = tmp_path / "objects.json"
 
     assert benchmark_main(

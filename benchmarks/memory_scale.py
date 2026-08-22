@@ -17,6 +17,14 @@ Guarantees:
     because SWI does not charge memberchk/2 traversal to its inference counter
     [tested: test_aggregation_accepts_controlled_instruction_samples;
     commit=ed2f4ffeb55dd524a87e35aac078094924b6994b]
+  - query-answer curves use numeric payloads, leaving unique wire-name retention
+    to its own capped-cache curves so streaming peak memory measures the cursor
+    rather than the intern table [tested: test_stream_curve_excludes_wire_cache_growth;
+    commit=WORKTREE]
+  - a selected curve run compares only the selected committed pins while a
+    complete run still detects any missing pinned case [tested:
+    test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
+    commit=WORKTREE]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
@@ -121,7 +129,7 @@ CASES: dict[str, CurveCase] = {
         gate=False,
     ),
     "query-stream": CurveCase(
-        "query-stream", STANDARD_SIZES, "linear", "inferences", "query_stream",
+        "query-stream", STANDARD_SIZES, "constant", "python_peak_bytes", "query_stream",
     ),
     "join-shared": CurveCase(
         "join-shared", WIDE_SIZES, "linear", "inferences", "join_shared",
@@ -336,7 +344,7 @@ def _stored_mork(size: int) -> dict[str, int]:
 
 def _query_answers(size: int, *, stream: bool) -> dict[str, int]:
     space = MeTTa().new_space()
-    space.add(*(S.memscale_row(_fixed_symbol("msq", index)) for index in range(size)))
+    space.add(*(S.memscale_row(index) for index in range(size)))
 
     def operation() -> int:
         if not stream:
@@ -992,12 +1000,23 @@ def baseline_document(results: Mapping[str, Any], *, cause_commit: str) -> dict[
     }
 
 
-def compare_baseline(results: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[str]:
+def compare_baseline(
+    results: Mapping[str, Any],
+    baseline: Mapping[str, Any],
+    *,
+    names: Sequence[str] | None = None,
+) -> list[str]:
     """Return every deterministic pin or growth-shape regression."""
     failures: list[str] = []
     if baseline.get("schema") != SCHEMA_VERSION:
         return [f"memory-scale baseline schema is {baseline.get('schema')}, expected {SCHEMA_VERSION}"]
-    for name, pin in baseline["cases"].items():
+    pinned = baseline["cases"]
+    selected = list(pinned) if names is None else list(names)
+    for name in selected:
+        if name not in pinned:
+            failures.append(f"missing baseline case {name}")
+            continue
+        pin = pinned[name]
         if name not in results["cases"]:
             failures.append(f"missing pinned case {name}")
             continue
@@ -1146,7 +1165,7 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
         print(f"memory-scale baseline is absent: {baseline_path}")
         return int(bool(errors))
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
-    failures = compare_baseline(document, baseline)
+    failures = compare_baseline(document, baseline, names=selected)
     for failure in failures:
         print(f"memory-scale regression: {failure}")
     return int(bool(errors or failures))
