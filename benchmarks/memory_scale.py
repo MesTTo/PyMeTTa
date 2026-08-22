@@ -16,7 +16,7 @@ Guarantees:
   - projection-width curves also use perf's controlled instructions:u window,
     because SWI does not charge memberchk/2 traversal to its inference counter
     [tested: test_aggregation_accepts_controlled_instruction_samples;
-    commit=WORKTREE]
+    commit=ed2f4ffeb55dd524a87e35aac078094924b6994b]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the

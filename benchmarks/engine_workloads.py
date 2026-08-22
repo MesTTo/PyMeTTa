@@ -16,7 +16,7 @@ Guarantees:
   - join_width_case keeps setup outside perf's controlled interval and checks
     the one-row shared and distinct-column results before reporting completion
     [tested: test_instruction_join_workload_checks_both_projection_shapes;
-    commit=WORKTREE]
+    commit=ed2f4ffeb55dd524a87e35aac078094924b6994b]
 Decides:
   - default sizes keep each measured engine operation above 0.1 seconds on
     the gate workstation [measured 2026-08-15: 0.101-0.254 seconds]

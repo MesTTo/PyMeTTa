@@ -8,7 +8,7 @@ Guarantees:
   - controlled projection workloads check both shared and distinct-column
     answer shapes before they can publish an instruction sample
     [tested: test_instruction_join_workload_checks_both_projection_shapes;
-    commit=WORKTREE].
+    commit=ed2f4ffeb55dd524a87e35aac078094924b6994b].
 """
 
 import json
