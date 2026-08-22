@@ -3169,6 +3169,231 @@
       "row": "P14.4",
       "section": "correction to what the twins lane proves",
       "detail": "The lane compares ANSWERS up to alpha-equivalence and the SET OF HEADS a (= $head $body) match answers; it never compares the bodies, so a compiled body that lowers to a different equation than the example writes passes silently. Measured 2026-08-22 by dumping (= $h $b) from both sides in fresh processes and matching under alpha-equivalence (ai-tmp/equation_diff.py on the p14-twins-f worktree): SEVEN of the 69 examples in basics/, control/ and types/ store different equations, and only one of them, math_exp_random, had said so. Four lowerings account for all seven. (1) `==` and `!=` in a compiled body are `(py-eq a b)` and `(not (py-eq a b))`, the prelude's Python equality, where the originals write `(== a b)`: basics/factorial, basics/fibsmart, basics/xor and control/tests program3. The operator table calls `==` taken for exactly this reason and the method form `a.eq(b)` builds `(== a b)` at the TERM door, so what is missing is a body spelling, not a design decision. (2) A condition whose syntax is not boolean-valued wraps in `(py-truthy ...)`: basics/xor. (3) An assignment is a one-pair `let*` where the original writes `let`: control/eval and control/tests program1. (4) A generator body is a superposition of its yielded answers, so a single yielded form is wrapped in a ONE-element `(superpose (...))`: control/metta4_streams. That last one is a free elision, since a superposition over one alternative IS that alternative; the non-generator body `return superpose(k, counter(k + 1, n)) if k < n else empty()` stores the original's equation to the atom, and was measured doing so. All seven twins now say which of these they carry. The lane could catch the class by comparing stored bodies under alpha-equivalence as well as heads, which is what the measurement above does in forty lines. [measured: seven of 69 examples store equations that differ under alpha-equivalence; command=ai-tmp/equation_diff.py; fixture=the basics, control and types twins against their .metta originals in fresh processes; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprogset.metta",
+      "form": null,
+      "missing": "MeTTa's (and ...) inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "(and (member a $M) (member b $M)) is a generate-and-test: the first conjunct BINDS $M for the second, which is the whole point of the example. Python's `and` in a compiled body lowers to (let* ((v A)) (if (py-truthy v) B v)), which short-circuits on truthiness and binds nothing, and the operator that would mean it, &, is refused in a body. So myf is written at the term door with & building (and ...)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprog.metta",
+      "form": null,
+      "missing": "stacked clauses that are ALTERNATIVES rather than first-match, and a body variable that appears in neither head",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "later-in-alphabet has two clauses with the same variable head; stacked Python clauses derive first-match guards, which would make the recursive clause unreachable. Its second clause also binds $Z, which appears in neither head, while a free name in a compiled body must be a parameter, a known function, or a capitalised data constructor, never a fresh variable. Both clauses are written at the term door with & building (and ...)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/newtons_method.metta",
+      "form": null,
+      "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The example writes !(memoize energy) fourth and (= (energy ...)) fifth, and the file loader registers a file's function names before it runs the file's ! forms, so memoize finds energy. A Python program has no such pre-pass: m.eval(S.memoize(S.energy)) on an undefined name raises `Domain error: function_symbol expected`. The twin therefore writes @m.define first, out of the example's order. Same friction as examples/libraries/test_memo_aggregate.metta."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/peano.metta",
+      "form": null,
+      "missing": "a compiled `match()` whose space, pattern and template are PARAMETERS",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "add-atom-no-duplicate matches against a space its CALLER names, and a compiled match() takes its space as a literal \"&name\" string, never a parameter. Same wall as examples/control/cut.metta. expand-once is additionally a `case`, and expandK and demo-peano bind with let and let* over calls to names that are not Python identifiers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/permutations.metta",
+      "form": null,
+      "missing": "a symbol whose name begins with `__` through the S factory",
+      "row": "P14.5",
+      "section": "\u00a79d terminology and the factory doors",
+      "detail": "The example's hole symbol is `___`. S.___ raises AttributeError because _atom_namespace refuses every name starting with `__` to keep Python's own dunder protocol working, and the SUBSCRIPT door, which exists precisely for names attribute access cannot reach, forwards to the same guard: S[\"___\"] raises too. The twin reaches it through sym(\"___\"), the lowercase trio \u00a79d otherwise folds into S/V/G. examples/integration/py_numpy.metta needs the same escape for __class__ and __name__."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntest.metta",
+      "form": null,
+      "missing": "MeTTa's own `/` inside a compiled body, where Python's `/` inserts the (* 1.0 ...) true-division coercion",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "a / b in a compiled body compiles to (/ (* 1.0 $a) $b), because MeTTa's / keeps an exact integer quotient an integer ((/ 6 2) is 3) where Python's answers 3.0. The coercion is right for the Python twin and wrong for a twin of an example that writes MeTTa's own /, so smallest-intersection-probability and largest-intersection-probability stay at the term door. The same body needs MeTTa's (and ...), and the m.fn escape a body normally takes for a name the operators do not reach is closed here because m.fn binds the ENGINE's name and `and` is a Python keyword."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntest.metta",
+      "form": null,
+      "missing": "a structural head pattern, and a SYMBOL as a stacked clause's head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Truth_Deduction destructures five (stv $s $c) arguments in its HEAD and |- destructures two nested pairs; a compiled head pattern must be a LITERAL, so def g(_n=1) writes (= (g 1) ...) and nothing writes (= (g (stv $s $c)) ...). SyllogisticRuleGuard and STV need the same door for a SYMBOL: (= (SyllogisticRuleGuard Inheritance) True) has a literal symbol head, and a default of S.Inheritance is refused with `a default here is a head pattern, so it must be a literal`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntestdirect.metta",
+      "form": null,
+      "missing": "MeTTa's own `/` inside a compiled body, MeTTa's (and ...), a structural head pattern, and a SYMBOL head pattern",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The same four walls as plntest, plus the three `sentence` clauses, whose heads destructure (Inheritance $A $C) and (stv $s $c) and whose bodies are MeTTa's own generate-and-test `and`. Only clamp reaches the compiled subset."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/scallop_readme.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Every definition here but sc-pick-max calls a SIBLING whose MeTTa name is hyphenated (sc-edge-to, sc-path-to, sc-parent-kind, sc-one-color, sc-class-max), and a compiled body names a function by exactly its MeTTa spelling, which none of those is a Python identifier for. Same wall as examples/basics/fibsmart.metta. sc-pick-max lifts because its body names no other sc- function."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nars_tuffy.metta",
+      "form": null,
+      "missing": "a compiled body naming a punctuation-headed constructor",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "(kb)'s body is data built from -->, ==>, the U+00D7 product and ([] p). A free name in a compiled body must be a parameter, a function the engine knows by exactly that name, or a CAPITALISED data constructor, and none of the four is even a Python identifier. The twin names each once at the term door and the ten rows then read as the logic they are."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nilbc.metta",
+      "form": null,
+      "missing": "a compiled body naming a data constructor that collides with the S factory's own name",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "fromNumber's body builds (S (fromNumber (- $n 1))). A capitalised free name in a compiled body IS a data constructor, but _constructor_symbol first refuses any name that is a module binding, to avoid silently dropping a host value, and `S` is a module binding in every twin because `S` is the symbol factory they import. The refusal is right and the collision is real, so the equation is written at the term door. fromNat and every bc clause are separately blocked by literal-symbol and structural head patterns."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/constructive_negation.metta",
+      "form": null,
+      "missing": "MeTTa's (and ...) inside a compiled body, a `case`, and a `match` against a NAMED space",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "flies, unmarried-student, two-but-not-one and pension all use MeTTa's generate-and-test `and`, whose Python spelling short-circuits on truthiness and binds nothing; band is a `case`, which is what Python's `match` statement would spell; has-child matches against &kin, and a compiled match() names its space as a literal, which reaches &kin but leaves the whole body blocked by nothing else it can spell. The two mask-example definitions DO lift: their annotations emit the example's own (: ...) declarations and `10` as a parameter default is the head pattern."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/superpose_primes.metta",
+      "form": null,
+      "missing": "MeTTa's own `==` inside a compiled body, where Python's `==` lowers to the prelude's py-eq",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "a == b in a compiled body always compiles to (py-eq $a $b), never to MeTTa's ==, because Python's equality answers what Python answers across mixed numeric types and containers. That sits in the inner loop of this example's divisor search: the same program through @m.define costs 920726 inferences against the term door's 536577, +71.6%, past the lane's 10% band and a regression in the benchmark the example exists to run [measured 2026-08-22, min of three fresh processes]. prime? is separately blocked because a compiled body names find-divisor by exactly that spelling, which is not a Python identifier. examples/basics/factorial.metta already stores py-eq where its own comment claims ==, so the divergence is corpus-wide and unrecorded until now."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": null,
+      "missing": "MeTTa's own `==` inside a compiled body, where Python's `==` lowers to the prelude's py-eq",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "Same find-divisor and prime? as superpose_primes, and the same measured +71.6% for the compiled spelling. The two definitions stay at the term door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "a compiled body naming `add-atom`, and a lowercase symbol as data inside one",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "expandK WRITES with (add-atom &self ...) and answers the symbol `done` in its base case. A compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for, and a lowercase free name is not read as data. demo-peano DOES lift: its body calls expandK, which the engine knows under that exact name, and Z is a capitalised constructor."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/matespacefast.metta",
+      "form": null,
+      "missing": "a compiled body naming `add-atom`",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "rewriteK and mate-space-demo both WRITE with (add-atom &self ...) inside a let*, and a compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/scale.metta",
+      "form": null,
+      "missing": "a compiled body naming `add-atom` and its own hyphenated siblings",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "addK WRITES with add-atom; q-all, q-first, q-second, q-both and q-rel each collapse a match; and indexing-demo calls all five by hyphenated name. A compiled body names a function by exactly its MeTTa spelling and reaches nothing else."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/holbenchmark.metta",
+      "form": null,
+      "missing": "a compiled body APPLYING a parameter, plus structural head patterns and MeTTa's own `==`",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "map-flat, fold-nested, apply-many and poly all apply a parameter, ($f $x), and a compiled body calls a plain NAME, never a variable; the tutorial's own (apply) shape has no spelling yet. map-flat and fold-nested additionally destructure (cons $x $xs) in the HEAD, fold-nested names is-expr, and the four kernels test (== $n 0) in their inner loop, where Python's == becomes py-eq."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python.metta",
+      "form": null,
+      "missing": "a compiled body naming `py-call`",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "All five definitions wrap py-call, and a compiled body names a function by exactly its MeTTa spelling, which py-call is not a Python identifier for. The @m.op door reaches the same Python objects but through a different seam, and this example's subject IS the MeTTa-side one, so the twin keeps the term."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python_import.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "\u00a74 declarations that are directives",
+      "detail": "The example writes \"_fixtures/python_import_file.py\", relative to its own .metta file. A Python program has no importing file for the engine to resolve against, so the twin writes the repository-relative path instead. Same wall as examples/integration/import_duplicate_cycle.metta."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_relative_nested.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "\u00a74 declarations that are directives",
+      "detail": "Same wall as import_duplicate_cycle: the example's `_fixtures/imports/relative/root` resolves against its own .metta file, and the twin writes the repository-relative path."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "\u00a74 declarations that are directives",
+      "detail": "Same wall as import_duplicate_cycle, for `_fixtures/imports/overhaul/space_payload` imported into two named spaces."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/py_numpy.metta",
+      "form": null,
+      "missing": "a symbol whose name begins with `__` through the S factory",
+      "row": "P14.5",
+      "section": "\u00a79d terminology and the factory doors",
+      "detail": "py-dot reaches __class__ and __name__, and S.__class__ raises AttributeError because _atom_namespace refuses every name starting with `__`; the SUBSCRIPT door forwards to the same guard, so S[\"__class__\"] raises too. The twin reaches them through sym(...). examples/reasoning/permutations.metta needs the same escape for `___`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/handle.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated C-backed function",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "bump-thrice names vector-new and vector-bump, and a compiled body names a function by exactly its MeTTa spelling, which neither is a Python identifier for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": null,
+      "missing": "a compiled body naming `add-atom` and matching against a NAMED space",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "The definitions write into &cstore with add-atom and read it back with match against that name. A compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for."
     }
   ],
   "retired": [
