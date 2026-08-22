@@ -7,7 +7,7 @@ Guarantees:
     test_dropped_space_name_reinstalls_integrations]
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,8 +20,16 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import CastError, PettaError, S, Sym, V, expr, val
+from petta import (
+    Expression,
+    PettaError,
+    S,
+    Symbol,
+    V,
+    ground,
+)
 from petta import integrate as pi
+from petta.casting import CastError
 
 
 def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -86,8 +94,8 @@ def test_register_object_type_makes_protocols_types(metta):  # noqa: D103  -- py
             return "quack"
 
     pi.register_object_type(lambda x: hasattr(x, "quack"), "Duck")
-    space = metta.new_space()
-    space.add(S.pet(val(Quacks())))
+    space = metta._new_space()
+    space.add(S.pet(ground(Quacks())))
     # The match runs first and get-type reads the object it found. get-type
     # does not evaluate its argument, so asking it about an unreduced match
     # would type the match expression rather than the pet.
@@ -105,7 +113,7 @@ def test_register_repr_protocol(metta):  # noqa: ARG001, D103  -- pytest injects
 
     pi.register_repr(lambda x: hasattr(x, "__len__") and type(x).__name__ == "Sized",
                      lambda x: f"<Sized of {len(x)}>")
-    assert "Sized of 7" in repr(val(Sized()))
+    assert "Sized of 7" in repr(ground(Sized()))
 
 
 def test_protocol_and_reflector_registrations_can_be_removed(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -124,14 +132,14 @@ def test_protocol_and_reflector_registrations_can_be_removed(metta):  # noqa: D1
         return "<extension target>"
 
     def reflector(m, name, _value):
-        return pi.facts(m, [S.reflected(Sym(name))])
+        return pi.facts(m, [S.reflected(Symbol(name))])
 
     pi.register_object_type(type_predicate, "ExtensionTargetProtocol")
     pi.register_repr(repr_predicate, formatter)
     pi.register_reflector(type_predicate, reflector)
     try:
         assert metta.cast(target, "ExtensionTargetProtocol") is target
-        assert str(val(target)) == "<extension target>"
+        assert str(ground(target)) == "<extension target>"
         assert pi.reflect(metta, "registered", target) == 1
     finally:
         pi.unregister_reflector(type_predicate, reflector)
@@ -140,7 +148,7 @@ def test_protocol_and_reflector_registrations_can_be_removed(metta):  # noqa: D1
 
     with pytest.raises(CastError):
         metta.cast(target, "ExtensionTargetProtocol")
-    assert str(val(target)) == "<ExtensionTarget>"
+    assert str(ground(target)) == "<ExtensionTarget>"
     with pytest.raises(PettaError, match="no reflector claims ExtensionTarget"):
         pi.reflect(metta, "removed", target)
     with pytest.raises(KeyError, match="ExtensionTargetProtocol"):
@@ -158,8 +166,8 @@ def test_py_field_reasons_in_both_modes(metta):  # noqa: D103  -- pytest discove
         name: str
 
     pi.install_reflection_ops(metta)
-    space = metta.new_space()
-    space.add(S.config(val(Config(3, "deep"))))
+    space = metta._new_space()
+    space.add(S.config(ground(Config(3, "deep"))))
     # Bound mode: fetch one field.
     r = space.run(
         "!(match (context-space) (config $c) (py-field $c depth))"
@@ -187,9 +195,9 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):  # noqa: D103  
 
     pi.install_reflection_ops(metta)
     target = Counted()
-    space = metta.new_space()
+    space = metta._new_space()
     try:
-        space.add(S.target(val(target)))
+        space.add(S.target(ground(target)))
         assert space.run(
             "!(match (context-space) (target $x) (py-attr $x item))"
         ) == [[1]]
@@ -214,8 +222,8 @@ def test_pi_protocol_and_idempotence(metta):  # noqa: D103  -- pytest discovers 
     pi.integrate(metta, fake)
     assert len(calls) == 1  # idempotent per process
     # Installation is per (space, name): a second space installs again.
-    assert (metta.space_name, "fake_integration") in pi.installed()
-    other = metta.new_space()
+    assert (metta.name, "fake_integration") in pi.installed()
+    other = metta._new_space()
     try:
         pi.integrate(other, fake)
         assert len(calls) == 2
@@ -230,12 +238,12 @@ def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- py
         name = "space-reuse-probe"
 
         def install(self, target):
-            calls.append(target.space_name)
+            calls.append(target.name)
             target.add(S.integration_marker(len(calls)))
 
     integration = Reinstallable()
     space_name = "&integration_reuse_probe"
-    first = metta.space(space_name)
+    first = metta._at(space_name)
     first.clear()
     pi.integrate(first, integration)
     assert first.query(S.integration_marker(V.value)).one().value == 1
@@ -243,7 +251,7 @@ def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- py
     first.drop()
     assert (space_name, integration.name) not in pi.installed()
 
-    second = metta.space(space_name)
+    second = metta._at(space_name)
     try:
         pi.integrate(second, integration)
         assert second.query(S.integration_marker(V.value)).one().value == 2
@@ -253,10 +261,10 @@ def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- py
 
 
 def test_facts_bulk_load(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = metta.new_space()
+    space = metta._new_space()
     count = pi.facts(space, [S.n(1), S.n(2), (S.pair, 1, 2)])
     assert count == 3
-    assert space.count() == 3
+    assert len(space) == 3
 
 
 def test_networkx_integrates_in_a_page(metta):
@@ -270,17 +278,17 @@ def test_networkx_integrates_in_a_page(metta):
     graph.add_edge("b", "c", weight=2.0)
     graph.add_edge("a", "c", weight=9.0)
 
-    space = metta.new_space()
+    space = metta._new_space()
     # Structure as facts:
-    pi.facts(space, (expr(S.nx_edge, S[u], S[v], d["weight"]) for u, v, d in graph.edges(data=True)))
+    pi.facts(space, (Expression(S.nx_edge, S[u], S[v], d["weight"]) for u, v, d in graph.edges(data=True)))
     # Behaviour as an operation:
     def shortest_path(a, b):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
-        return expr(*(S[n] for n in names))
+        return Expression(*(S[n] for n in names))
 
-    space.register_op(shortest_path, name="nx-path")
+    space.op(shortest_path, name="nx-path")
     # And both compose with reasoning:
-    assert space.run("!(nx-path a c)") == [[expr(S.a, S.b, S.c)]]
+    assert space.run("!(nx-path a c)") == [[Expression(S.a, S.b, S.c)]]
     rows = space.query(S.nx_edge(S.a, V.to, V.w))
     assert {(str(r.to), float(r.w)) for r in rows} == {("b", 1.0), ("c", 9.0)}
 
@@ -291,19 +299,19 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
     and the catch-all equation is the 404. Clause order plus once is the
     dispatcher; nothing was built to make this work, which is the point.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    app = metta.new_space()
+    app = metta._new_space()
     app.run(
         '(= (route home) (Page 200 "Welcome"))\n'
         '(= (route about) (Page 200 "About us"))\n'
         "(= (route $other) (NotFound 404 $other))\n"
         "(= (handle $request) (once (route $request)))"
     )
-    assert app.run("!(handle home)") == [[expr(S.Page, 200, "Welcome")]]
-    assert app.run("!(handle nowhere)") == [[expr(S.NotFound, 404, S.nowhere)]]
+    assert app.run("!(handle home)") == [[Expression(S.Page, 200, "Welcome")]]
+    assert app.run("!(handle nowhere)") == [[Expression(S.NotFound, 404, S.nowhere)]]
     # And a middleware chain is function composition, for free:
     app.run('(= (logged $req) (let $res (handle $req) (Logged $req $res)))')
     (group,) = app.run("!(logged about)")
-    assert group == [expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]
+    assert group == [Expression(S.Logged, S.about, Expression(S.Page, 200, "About us"))]
 
 
 def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

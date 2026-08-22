@@ -35,7 +35,7 @@ import pytest
 from hypothesis import HealthCheck, Phase, find, given, settings
 from hypothesis import strategies as st
 
-from petta.atoms import Expr, Gnd
+from petta.atoms import Expression, Grounded
 
 _COUNTER = itertools.count()
 
@@ -66,9 +66,9 @@ def _load(tmp_path_factory, source: str, name: str):
 
 def _normalize(value):
     """Engine answers and twin answers into one comparable shape."""
-    if isinstance(value, Gnd):
+    if isinstance(value, Grounded):
         return _normalize(value.value)
-    if isinstance(value, Expr):
+    if isinstance(value, Expression):
         return tuple(_normalize(c) for c in value)
     if isinstance(value, (list, tuple)):
         return tuple(_normalize(v) for v in value)

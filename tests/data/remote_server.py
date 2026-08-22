@@ -12,9 +12,9 @@ import time
 
 from petta import MeTTa, S, remote
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 m.add(S.users(1, "Ada"), S.users(2, "Bob"))
-server = remote.serve(m, spaces=[m.space_name])
-print(json.dumps({"url": server.url, "space": m.space_name}), flush=True)
+server = remote.serve(m, spaces=[m.name])
+print(json.dumps({"url": server.url, "space": m.name}), flush=True)
 while True:
     time.sleep(3600)

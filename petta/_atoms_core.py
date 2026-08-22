@@ -1,21 +1,21 @@
 """Purpose: immutable atom values, Python value encoding, and bounded identity caches.
 Guarantees:
-  - Gnd normalizes the numeric tower to engine-native values [tested
+  - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
-  - Gnd carries the engine's two relations, one per operand kind: against a
+  - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros
     distinct, NaN self-equal), the same split Java makes between == and
     Double.equals so collections of values stay coherent
     [tested: test_python_equality_is_engine_equality,
-    test_atom_equality_is_engine_unification; commit=51ec57fd65d2c27e2a07b519a596dd3c1aad3b4d]
+    test_atom_equality_is_engine_unification; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
-  - Expr is a complete immutable Sequence with iterative equality and hashing
+  - Expression is a complete immutable Sequence with iterative equality and hashing
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
-  - Expr virtual Sequence registration uses 4.00% fewer instructions than
+  - Expression virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
-  - Expr writes its slots through their descriptors rather than
+  - Expression writes its slots through their descriptors rather than
     object.__setattr__, which costs term-operators 6.55% fewer instructions
     and wire-codec 2.24% fewer [measured 2026-08-19: minimum of three
     instructions:u runs, interleaved against the same tree without it]
@@ -30,7 +30,7 @@ Guarantees:
     either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
-  - Expr builds its wire form on the first crossing and never on
+  - Expression builds its wire form on the first crossing and never on
     construction, 10.1x per call flat and 98.1x nested against rebuilding
     it [measured 2026-08-19: 20,000 crossings, minimum of three
     instructions:u runs with the interpreter floor subtracted; tested
@@ -45,23 +45,23 @@ Guarantees:
   - __metta__ is discovered on the class, so instance fallback and properties
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Box publishes its transport value through the reserved
     __petta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,
     660489697 on 2026-08-21;
     command=python -m benchmarks.check_instructions term-operators;
     fixture=CPython 3.14 controlled perf lane;
-    commit=1421a84ee93c9cd2486cbd33a0e1803a96827fa7]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -81,7 +81,7 @@ import threading
 import weakref
 from abc import ABCMeta
 from collections import deque
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, Self, cast
 
@@ -102,7 +102,7 @@ def _encodable(value: str) -> str:
         msg = (
             f"this string cannot cross to the engine: it contains an unpaired "
             f"surrogate at position {exc.start}, which has no UTF-8 encoding. "
-            f"Repair the text, or carry it whole with petta.val(text)."
+            f"Repair the text, or carry it whole with petta.ground(text)."
         )
         raise ValueError(
             msg
@@ -136,7 +136,7 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     False as IEEE does, while the text reader's `!(== NaN NaN)` answers True
     through term identity [measured 2026-08-21, recorded in the ledger as an
     engine seam]; this relation follows the crossed-value door, which is the
-    door a Gnd travels. Two atoms compare by _ground_identical, the engine's
+    door a Grounded travels. Two atoms compare by _ground_identical, the engine's
     unification, which splits the tower and matches NaN atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mine = _normalize_grounded(mine)
@@ -158,7 +158,7 @@ def _ground_identical(mine: Any, theirs: Any) -> bool:
     integer atom never matches a float atom where (== 0 0.0) answers True,
     0.0 and -0.0 are two float values where == answers one, and one NaN
     matches another where == answers False [measured 2026-08-21: space.query
-    over the live engine for each pair; commit=51ec57fd65d2c27e2a07b519a596dd3c1aad3b4d]. Matching,
+    over the live engine for each pair; commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Matching,
     membership, removal and every dict of atoms follow this relation, so a
     Counter of atoms counts what the space stores.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -259,14 +259,12 @@ def boxed(value: Any) -> Box:
         return box
 
 
-# type -> callable(value) -> str, consulted by Gnd.__str__ for object values,
+# type -> callable(value) -> str, consulted by Grounded.__str__ for object values,
 # so a stored tensor prints its shape and dtype rather than an address.
 _OBJECT_REPRS: dict[type, Callable[[Any], str]] = {}
 
-# (predicate, formatter) pairs for protocols rather than classes, so one
-# registration covers every library speaking a protocol such as DLPack.
+# Private protocol dispatch supports the short petta.integrate.repr surface.
 _PROTOCOL_REPRS: list[tuple[Callable[[Any], bool], Callable[[Any], str]]] = []
-
 
 def register_object_repr(kind: type, fn: Callable[[Any], str]) -> None:
     """Teach grounded values of one type how to print."""
@@ -287,18 +285,18 @@ def unregister_object_repr(kind: type) -> None:
         del _OBJECT_REPRS[kind]
 
 
-def register_object_repr_protocol(
+def _register_protocol_repr(
     predicate: Callable[[Any], bool], fn: Callable[[Any], str]
 ) -> None:
-    """Teach grounded values satisfying a predicate how to print."""
+    """Register the implementation behind petta.integrate.register_repr."""
     with _STATE_LOCK:
         _PROTOCOL_REPRS.append((predicate, fn))
 
 
-def unregister_object_repr_protocol(
+def _unregister_protocol_repr(
     predicate: Callable[[Any], bool], fn: Callable[[Any], str]
 ) -> None:
-    """Remove the latest protocol formatter matching both callables."""
+    """Remove the latest private protocol formatter matching both callables."""
     with _STATE_LOCK:
         for index in range(len(_PROTOCOL_REPRS) - 1, -1, -1):
             registered_predicate, registered_fn = _PROTOCOL_REPRS[index]
@@ -365,9 +363,7 @@ def _object_str(value: Any) -> str:
                 return protocol_formatter(value)
         except Exception as exc:
             msg = f"a registered object repr raised on {type(value).__name__}: {exc}"
-            raise RuntimeError(
-                msg
-            ) from exc
+            raise RuntimeError(msg) from exc
     return f"<{type(value).__name__}>"
 
 
@@ -381,14 +377,16 @@ class Atom:
     __slots__ = ()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({str(self)!r})"
+        from .atoms import _pretty  # noqa: PLC0415  -- atoms owns layout
+
+        return _pretty(self)
 
     # Term structure is declared on the base because an engine answer is
-    # typed Atom and a checker cannot know which kind arrived. Expr's
+    # typed Atom and a checker cannot know which kind arrived. Expression's
     # docstring already promises expr[0] and len(expr), and run, eval and
     # query all return Atom, so without these the documented idiom does not
     # type-check: ten of the 41 diagnostics a downstream user saw over the
-    # 16 example programs, across six files [measured 2026-08-17]. Expr
+    # 16 example programs, across six files [measured 2026-08-17]. Expression
     # overrides all four; a leaf refuses at the same point it always did,
     # so the runtime is unchanged and the static story stops being a lie.
     @property
@@ -399,7 +397,7 @@ class Atom:
         raise TypeError(_leaf_refusal_message(self, "has no length"))
 
     # Declaring __len__ above would otherwise route bool() through it and
-    # make every leaf atom raise where it used to be truthy. Expr overrides
+    # make every leaf atom raise where it used to be truthy. Expression overrides
     # this to keep refusing comparison terms.
     def __bool__(self) -> bool:
         return True
@@ -414,60 +412,85 @@ class Atom:
     # order comparisons on symbols, variables and expressions CONSTRUCT the
     # corresponding term, so V.age >= 18 is (>= $age 18) and V.x + 1 is
     # (+ $x 1), guards and bodies written as the Python they look like.
-    # Gnd overrides both families with VALUE semantics (its comparisons
+    # Grounded overrides both families with VALUE semantics (its comparisons
     # answer booleans, engine-exactly), so a grounded number never quietly
     # becomes a program. Equality stays equality everywhere; the term is
     # spelled x.eq(y), since overloading == would cost structural equality.
 
-    def _build(self, op: str, other: Any, flipped: bool = False) -> Expr:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+    def _build(self, op: str, other: Any, flipped: bool = False) -> Expression:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         left, right = (encode(other), self) if flipped else (self, encode(other))
-        return Expr([Sym(op), left, right])
+        return _expression_atoms((Symbol(op), left, right))
 
-    # Runtime implementations are generated after Expr is defined. These
+    # Runtime implementations are generated after Expression is defined. These
     # signatures keep the dynamic class construction explicit to type
     # checkers without duplicating any lowering decision.
     if TYPE_CHECKING:
 
-        def __add__(self, other: Any) -> Expr: ...
-        def __radd__(self, other: Any) -> Expr: ...
-        def __sub__(self, other: Any) -> Expr: ...
-        def __rsub__(self, other: Any) -> Expr: ...
-        def __mul__(self, other: Any) -> Expr: ...
-        def __rmul__(self, other: Any) -> Expr: ...
-        def __truediv__(self, other: Any) -> Expr: ...
-        def __rtruediv__(self, other: Any) -> Expr: ...
-        def __floordiv__(self, other: Any) -> Expr: ...
-        def __rfloordiv__(self, other: Any) -> Expr: ...
-        def __mod__(self, other: Any) -> Expr: ...
-        def __rmod__(self, other: Any) -> Expr: ...
-        def __pow__(self, other: Any) -> Expr: ...
-        def __rpow__(self, other: Any) -> Expr: ...
-        def __matmul__(self, other: Any) -> Expr: ...
-        def __rmatmul__(self, other: Any) -> Expr: ...
-        def __lshift__(self, other: Any) -> Expr: ...
-        def __rlshift__(self, other: Any) -> Expr: ...
-        def __rshift__(self, other: Any) -> Expr: ...
-        def __rrshift__(self, other: Any) -> Expr: ...
-        def __and__(self, other: Any) -> Expr: ...
-        def __rand__(self, other: Any) -> Expr: ...
-        def __or__(self, other: Any) -> Expr: ...
-        def __ror__(self, other: Any) -> Expr: ...
-        def __xor__(self, other: Any) -> Expr: ...
-        def __rxor__(self, other: Any) -> Expr: ...
-        def __invert__(self) -> Expr: ...
-        def __neg__(self) -> Expr: ...
-        def __abs__(self) -> Expr: ...
-        def __lt__(self, other: Any) -> Expr | bool: ...
-        def __le__(self, other: Any) -> Expr | bool: ...
-        def __gt__(self, other: Any) -> Expr | bool: ...
-        def __ge__(self, other: Any) -> Expr | bool: ...
+        def __add__(self, other: Any) -> Expression: ...
+        def __radd__(self, other: Any) -> Expression: ...
+        def __sub__(self, other: Any) -> Expression: ...
+        def __rsub__(self, other: Any) -> Expression: ...
+        def __mul__(self, other: Any) -> Expression: ...
+        def __rmul__(self, other: Any) -> Expression: ...
+        def __truediv__(self, other: Any) -> Expression: ...
+        def __rtruediv__(self, other: Any) -> Expression: ...
+        def __floordiv__(self, other: Any) -> Expression: ...
+        def __rfloordiv__(self, other: Any) -> Expression: ...
+        def __mod__(self, other: Any) -> Expression: ...
+        def __rmod__(self, other: Any) -> Expression: ...
+        def __pow__(self, other: Any) -> Expression: ...
+        def __rpow__(self, other: Any) -> Expression: ...
+        def __matmul__(self, other: Any) -> Expression: ...
+        def __rmatmul__(self, other: Any) -> Expression: ...
+        def __lshift__(self, other: Any) -> Expression: ...
+        def __rlshift__(self, other: Any) -> Expression: ...
+        def __rshift__(self, other: Any) -> Expression: ...
+        def __rrshift__(self, other: Any) -> Expression: ...
+        def __and__(self, other: Any) -> Expression: ...
+        def __rand__(self, other: Any) -> Expression: ...
+        def __or__(self, other: Any) -> Expression: ...
+        def __ror__(self, other: Any) -> Expression: ...
+        def __xor__(self, other: Any) -> Expression: ...
+        def __rxor__(self, other: Any) -> Expression: ...
+        def __invert__(self) -> Expression: ...
+        def __neg__(self) -> Expression: ...
+        def __abs__(self) -> Expression: ...
+        def __lt__(self, other: Any) -> Expression | bool: ...
+        def __le__(self, other: Any) -> Expression | bool: ...
+        def __gt__(self, other: Any) -> Expression | bool: ...
+        def __ge__(self, other: Any) -> Expression | bool: ...
 
-    def eq(self, other: Any) -> Expr:
+    def eq(self, other: Any) -> Expression:
         """The equality TERM, (== self other); == itself compares atoms."""
         return self._build("==", other)
 
-    def ne(self, other: Any) -> Expr:
-        return Expr([Sym("not"), self.eq(other)])
+    def ne(self, other: Any) -> Expression:
+        return _expression_atoms((Symbol("not"), self.eq(other)))
+
+    @property
+    def vars(self) -> tuple[str, ...]:
+        """Variable names in first-appearance order; no names means ground."""
+        from .atoms import _variables  # noqa: PLC0415  -- atoms owns tree traversal
+
+        return tuple(_variables(self))
+
+    def map(self, transform: Callable[[Atom], Atom]) -> Atom:
+        """Transform every node, children before parents, without recursion."""
+        from .atoms import _map_atoms  # noqa: PLC0415  -- atoms owns tree traversal
+
+        return _map_atoms(self, transform)
+
+    def alpha_eq(self, other: Atom) -> bool:
+        """Whether two atoms differ only by consistent variable renaming."""
+        from .atoms import _alpha_eq  # noqa: PLC0415  -- atoms owns equivalence
+
+        return _alpha_eq(self, other)
+
+    def unify(self, other: Atom) -> Mapping[str, Atom] | None:
+        """Unify with another atom, returning bindings or ``None``."""
+        from .atoms import unify  # noqa: PLC0415  -- atoms owns unification
+
+        return unify(self, other)
 
     def __setattr__(self, *_: Any) -> None:
         msg = "atoms are immutable"
@@ -491,7 +514,7 @@ class Atom:
         raise NotImplementedError
 
     # Casting refusals. Nothing here consults the engine: int(x) reads the
-    # datum it was handed and never runs a program. Gnd overrides these for
+    # datum it was handed and never runs a program. Grounded overrides these for
     # the values that genuinely are numbers.
 
     def _not_a_message(self, target: str) -> str:
@@ -517,10 +540,10 @@ class Atom:
         return str(self) if not spec else format(str(self), spec)
 
 
-class Sym(Atom):
+class Symbol(Atom):
     """A symbol: a name that denotes itself. Coffee, likes, &self.
 
-    A symbol is not a string: Sym('foo') == 'foo' is False on purpose,
+    A symbol is not a string: Symbol('foo') == 'foo' is False on purpose,
     because 'foo' the text and foo the name are different atoms in MeTTa,
     and folding them together is the ambiguity the wire encoding removes.
     """
@@ -540,7 +563,7 @@ class Sym(Atom):
             return True
         if not isinstance(other, Atom):
             return NotImplemented
-        return isinstance(other, Sym) and other.name == self.name
+        return isinstance(other, Symbol) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(("sym", self.name))
@@ -566,12 +589,12 @@ class Sym(Atom):
     def metatype(self) -> str:
         return "Symbol"
 
-    def __call__(self, *args: Any) -> Expr:
+    def __call__(self, *args: Any) -> Expression:
         """A symbol applied is an expression headed by it: S.likes(S.Ada)."""
-        return Expr([self, *(encode(a) for a in args)])
+        return _expression_atoms((self, *(encode(a) for a in args)))
 
 
-class Var(Atom):
+class Variable(Atom):
     """A variable: a hole a match may fill. $x in source."""
 
     __slots__ = {
@@ -587,7 +610,7 @@ class Var(Atom):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Atom):
             return NotImplemented
-        return isinstance(other, Var) and other.name == self.name
+        return isinstance(other, Variable) and other.name == self.name
 
     def __hash__(self) -> int:
         return hash(("var", self.name))
@@ -697,7 +720,7 @@ class Handle(Atom):
             self.release()
 
 
-class Gnd(Atom):
+class Grounded(Atom):
     """A grounded value: a host value carried whole.
 
     Strings, numbers and booleans have native PeTTa terms. Anything else
@@ -707,7 +730,7 @@ class Gnd(Atom):
     Equality carries the engine's own two relations, one per operand kind.
     Against a RAW Python value it is the engine's == operator, ergonomic on
     purpose: a grounded primitive compares equal to its raw value, so
-    run("!(+ 1 2)") answers compare with == 3 and Gnd(3.0) == 3 the way
+    run("!(+ 1 2)") answers compare with == 3 and Grounded(3.0) == 3 the way
     (== 3.0 3) answers True. Against ANOTHER ATOM it is the engine's
     unification: an integer atom never equals a float atom, 0.0 and -0.0 are
     two atoms, one NaN atom equals another, so membership, removal and a
@@ -726,10 +749,10 @@ class Gnd(Atom):
     # `any(a for a in answers)` was True and the explicit
     # `any(a == True for a in answers)` was False, so a user tidying away
     # the E712 suppression introduced a silent wrong answer
-    # [measured 2026-08-17]. Expr.__bool__ already guards this class of
-    # mistake for comparison terms; Gnd had no guard for the same one.
+    # [measured 2026-08-17]. Expression.__bool__ already guards this class of
+    # mistake for comparison terms; Grounded had no guard for the same one.
     # Restricted to bool on purpose: a Number 0 is not falsehood in MeTTa,
-    # so Gnd(0) and Gnd("") stay truthy.
+    # so Grounded(0) and Grounded("") stay truthy.
     def __bool__(self) -> bool:
         value = self.value
         return value if isinstance(value, bool) else True
@@ -738,7 +761,7 @@ class Gnd(Atom):
         object.__setattr__(self, "value", _normalize_grounded(value))
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, Gnd):
+        if isinstance(other, Grounded):
             # Atom against atom is the engine's unification, so identity
             # questions (dict keys, membership, remove) answer as the
             # engine's own storage answers them.
@@ -751,7 +774,7 @@ class Gnd(Atom):
 
     def __hash__(self) -> int:
         # Hash agrees with equality: a primitive hashes as its value, so
-        # Gnd(3) and 3 land in the same bucket; an object hashes by identity.
+        # Grounded(3) and 3 land in the same bucket; an object hashes by identity.
         # NaN atoms are all one atom to unification, and CPython hashes each
         # nan float by object identity, so they need one shared bucket.
         if _is_primitive(self.value):
@@ -769,7 +792,7 @@ class Gnd(Atom):
             raise TypeError(
                 msg
             )
-        return Gnd, (self.value,)
+        return Grounded, (self.value,)
 
     # Grounded values are VALUES throughout: comparisons answer booleans
     # (engine-exactly) and arithmetic computes, so an answer post-processes
@@ -777,7 +800,7 @@ class Gnd(Atom):
     # and expressions.
 
     def _value_of(self, other: Any) -> Any:
-        return other.value if isinstance(other, Gnd) else other
+        return other.value if isinstance(other, Grounded) else other
 
     def __add__(self, other: Any) -> Any:
         return self.value + self._value_of(other)
@@ -867,12 +890,12 @@ class Gnd(Atom):
         return abs(self.value)
 
     # Grounded primitives order like their values, so answers sort and
-    # compare with plain numbers: max(rows["age"]) and Gnd(7) >= 5
+    # compare with plain numbers: max(rows["age"]) and Grounded(7) >= 5
     # both mean what they read as. Anything else refuses loudly.
 
     def _ordered(self, other: Any):
         mine = self.value
-        theirs = other.value if isinstance(other, Gnd) else other
+        theirs = other.value if isinstance(other, Grounded) else other
         # Booleans do not order: the engine keeps Bool apart from Number
         # and refuses (< True 5), so Python must not answer it either.
         if isinstance(mine, bool) or isinstance(theirs, bool):
@@ -966,11 +989,11 @@ class Gnd(Atom):
         return format(self.value, spec) if _is_primitive(self.value) else format(str(self), spec)
 
     def __repr__(self) -> str:
-        # Gnd(42) and Gnd('text'), not Gnd('42'): the repr shows the value it
+        # Grounded(42) and Grounded('text'), not Grounded('42'): the repr shows the value it
         # carries, so a number never reads like a string.
         if _is_primitive(self.value):
-            return f"Gnd({self.value!r})"
-        return f"Gnd({_object_str(self.value)})"
+            return f"Grounded({self.value!r})"
+        return f"Grounded({_object_str(self.value)})"
 
     def to_wire(self) -> list:
         v = self.value
@@ -989,7 +1012,7 @@ class Gnd(Atom):
         return "Grounded"
 
 
-class Expr(Atom):
+class Expression(Atom):
     """An expression: an ordered sequence of atoms. (likes Ada Coffee).
 
     Sequence-shaped, so Python's own idioms apply: expr[0] is car-atom,
@@ -1006,16 +1029,34 @@ class Expr(Atom):
     children: tuple[Atom, ...]
     _hash: int | None
 
-    def __init__(self, children: Sequence[Atom]) -> None:
-        _set_children(self, tuple(children))
+    def __init__(self, *children: Any) -> None:
+        """Build an expression from one sequence or positional Python values."""
+        parts: Sequence[Any]
+        if len(children) == 1 and (
+            type(children[0]) in (list, tuple)
+            or (
+                not isinstance(children[0], (str, bytes, Atom))
+                and isinstance(children[0], Sequence)
+            )
+        ):
+            parts = children[0]
+        else:
+            parts = children
+        _set_children(
+            self,
+            tuple(
+                child if isinstance(child, Atom) else encode(child)
+                for child in parts
+            ),
+        )
         _set_hash(self, None)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Expr):
+        if not isinstance(other, Expression):
             return NotImplemented
         # Iterative: nested tuple equality would recurse to the term's
         # depth, and depth is data here.
-        stack: list[tuple[Expr, Expr]] = [(self, other)]
+        stack: list[tuple[Expression, Expression]] = [(self, other)]
         while stack:
             a, b = stack.pop()
             if a is b:
@@ -1025,7 +1066,7 @@ class Expr(Atom):
             for x, y in zip(a.children, b.children, strict=True):
                 if x is y:
                     continue
-                if isinstance(x, Expr) and isinstance(y, Expr):
+                if isinstance(x, Expression) and isinstance(y, Expression):
                     stack.append((x, y))
                 elif x != y:
                     return False
@@ -1036,13 +1077,13 @@ class Expr(Atom):
         cached = self._hash
         if cached is not None:
             return cached
-        order: list[Expr] = []
-        stack: list[Expr] = [self]
+        order: list[Expression] = []
+        stack: list[Expression] = [self]
         while stack:
             node = stack.pop()
             if node._hash is None:
                 order.append(node)
-                stack.extend(c for c in node.children if isinstance(c, Expr) and c._hash is None)
+                stack.extend(c for c in node.children if isinstance(c, Expression) and c._hash is None)
         for node in reversed(order):
             if node._hash is None:
                 value = hash(("expr", tuple(hash(child) for child in node.children)))
@@ -1050,7 +1091,7 @@ class Expr(Atom):
         return cast(int, self._hash)
 
     def __reduce__(self):
-        return Expr, (self.children,)
+        return Expression, (self.children,)
 
     def __rich_repr__(self):
         """rich.pretty expands an expression by its children, so a deep
@@ -1068,7 +1109,7 @@ class Expr(Atom):
             item = stack.pop()
             if isinstance(item, str):
                 parts.append(item)
-            elif isinstance(item, Expr):
+            elif isinstance(item, Expression):
                 parts.append("(")
                 tail: list[Any] = []
                 for i, child in enumerate(item.children):
@@ -1090,7 +1131,7 @@ class Expr(Atom):
         # or `and` chaining terms that wanted &. Refusing here keeps those
         # mistakes loud; every other expression stays truthy like any object.
         head = self.head
-        if isinstance(head, Sym) and head.name in (
+        if isinstance(head, Symbol) and head.name in (
             "<",
             "<=",
             ">",
@@ -1125,7 +1166,7 @@ class Expr(Atom):
         return iter(self.children)
 
     def to_wire(self) -> list:
-        # Memoized lazily, exactly as Sym and Var are: the slot is written
+        # Memoized lazily, exactly as Symbol and Variable are: the slot is written
         # by the first crossing and never on construction, so a term that
         # is built and thrown away pays nothing. Iterative for the same
         # reason __str__ is: depth is data.
@@ -1139,11 +1180,11 @@ class Expr(Atom):
         if wire is not None:
             return wire
         out: list = ["e", []]
-        stack: list[tuple[Expr, list]] = [(self, out[1])]
+        stack: list[tuple[Expression, list]] = [(self, out[1])]
         while stack:
             node, sink = stack.pop()
             for child in node.children:
-                if isinstance(child, Expr):
+                if isinstance(child, Expression):
                     slot: list = ["e", []]
                     sink.append(slot)
                     stack.append((child, slot[1]))
@@ -1171,9 +1212,11 @@ def _operator_form(form: Any, operands: dict[str, Atom]) -> Atom:
         if not form or not isinstance(form[0], str):
             msg = f"invalid operator template {form!r}"
             raise RuntimeError(msg)
-        return Expr([Sym(form[0]), *(_operator_form(item, operands) for item in form[1:])])
+        return _expression_atoms(
+            (Symbol(form[0]), *(_operator_form(item, operands) for item in form[1:]))
+        )
     if isinstance(form, str):
-        return operands.get(form, Sym(form))
+        return operands.get(form, Symbol(form))
     return encode(form)
 
 
@@ -1183,7 +1226,7 @@ def _apply_operator_lowering(
     other: Any = None,
     *,
     flipped: bool = False,
-) -> Expr:
+) -> Expression:
     """Apply one table entry; ``taken`` entries never reach this door."""
     if entry.kind == "absent":
         msg = (
@@ -1207,15 +1250,15 @@ def _apply_operator_lowering(
         else entry.form
     )
     lowered = _operator_form(form, operands)
-    if not isinstance(lowered, Expr):
+    if not isinstance(lowered, Expression):
         msg = f"operator lowering {entry.dunder} did not build an expression"
-        raise RuntimeError(msg)  # noqa: TRY004  -- a non-Expr means a corrupt lowering-table row, an internal invariant break, not a caller type error
+        raise RuntimeError(msg)  # noqa: TRY004  -- a non-Expression means a corrupt lowering-table row, an internal invariant break, not a caller type error
     return lowered
 
 
 def _operator_method(  # noqa: C901  -- _operator_method keeps every specialization shape together so its branches share one table row
     entry: OperatorLowering, *, reflected: bool = False
-) -> Callable[..., Expr]:
+) -> Callable[..., Expression]:
     """Specialize one dunder once and retain its table row for inspection."""
     name = entry.reflected if reflected else entry.dunder
     if name is None:
@@ -1226,38 +1269,38 @@ def _operator_method(  # noqa: C901  -- _operator_method keeps every specializat
         if not isinstance(entry.form, str):
             msg = f"operator lowering {entry.dunder} has no symbol"
             raise RuntimeError(msg)
-        symbol = Sym(entry.form)
+        symbol = Symbol(entry.form)
         if entry.arity == 1:
 
-            def unary_symbol(self: Atom, _symbol: Sym = symbol) -> Expr:
-                return Expr([_symbol, self])
+            def unary_symbol(self: Atom, _symbol: Symbol = symbol) -> Expression:
+                return _expression_atoms((_symbol, self))
 
-            operator: Callable[..., Expr] = unary_symbol
+            operator: Callable[..., Expression] = unary_symbol
         elif reflected:
 
             def reflected_symbol(
-                self: Atom, other: Any, _symbol: Sym = symbol
-            ) -> Expr:
-                return Expr([_symbol, encode(other), self])
+                self: Atom, other: Any, _symbol: Symbol = symbol
+            ) -> Expression:
+                return _expression_atoms((_symbol, encode(other), self))
 
             operator = reflected_symbol
         else:
 
             def binary_symbol(
-                self: Atom, other: Any, _symbol: Sym = symbol
-            ) -> Expr:
-                return Expr([_symbol, self, encode(other)])
+                self: Atom, other: Any, _symbol: Symbol = symbol
+            ) -> Expression:
+                return _expression_atoms((_symbol, self, encode(other)))
 
             operator = binary_symbol
     elif entry.arity == 1:
 
-        def unary(self: Atom) -> Expr:
+        def unary(self: Atom) -> Expression:
             return _apply_operator_lowering(entry, self)
 
         operator = unary
     else:
 
-        def binary(self: Atom, other: Any) -> Expr:
+        def binary(self: Atom, other: Any) -> Expression:
             return _apply_operator_lowering(entry, self, other, flipped=reflected)
 
         operator = binary
@@ -1282,18 +1325,27 @@ _install_operator_lowerings()
 
 
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
-cast(ABCMeta, Sequence).register(Expr)
+cast(ABCMeta, Sequence).register(Expression)
 
 # Atoms refuse assignment, so every slot write goes through a back door.
 # object.__setattr__ resolves the attribute NAME against the type on every
 # call and costs 951 instructions; the slot's own descriptor is resolved
 # already and costs 568 [measured 2026-08-19: minimum of three
-# instructions:u runs over 200,000 writes each]. Expr writes two slots per
-# construction and from_wire builds one Expr per decoded node, so the name
+# instructions:u runs over 200,000 writes each]. Expression writes two slots per
+# construction and from_wire builds one Expression per decoded node, so the name
 # lookup was being paid twice for every node of every answer.
-_set_children = Expr.__dict__["children"].__set__
-_set_hash = Expr.__dict__["_hash"].__set__
-_set_wire = Expr.__dict__["_wire"].__set__
+_set_children = Expression.__dict__["children"].__set__
+_set_hash = Expression.__dict__["_hash"].__set__
+_set_wire = Expression.__dict__["_wire"].__set__
+_new_expression = Expression.__new__
+
+
+def _expression_atoms(children: Iterable[Atom]) -> Expression:
+    """Build from children that have already crossed the conversion boundary."""
+    expression = _new_expression(Expression)
+    _set_children(expression, tuple(children))
+    _set_hash(expression, None)
+    return expression
 
 
 # --------------------------------------------------------------------- encoding
@@ -1326,7 +1378,7 @@ def _encode_value(value: Any) -> Atom:
     result = explicit_metta_atom(value)
     if result is not None:
         return result
-    return Gnd(value)
+    return Grounded(value)
 
 
 @_encode_value.register
@@ -1337,22 +1389,22 @@ def _(value: Atom) -> Atom:
 @_encode_value.register
 def _(value: str) -> Atom:
     # A Python str is a grounded string, never a symbol. Symbols come from S.
-    return Gnd(value)
+    return Grounded(value)
 
 
 @_encode_value.register(bool)
 @_encode_value.register(int)
 @_encode_value.register(float)
 def _(value: Any) -> Atom:
-    return Gnd(value)
+    return Grounded(value)
 
 
 @_encode_value.register(tuple)
 @_encode_value.register(list)
 def _(value: Any) -> Atom:
     # A Python sequence reads as an expression, which is what (1 2 3) is.
-    # To carry a list whole as one opaque value, wrap it: petta.val([1, 2, 3]).
-    return Expr([encode(v) for v in value])
+    # To carry a list whole as one opaque value, wrap it: petta.ground([1, 2, 3]).
+    return _expression_atoms(encode(v) for v in value)
 
 
 # A table keyed on the value's EXACT class, consulted before the dispatch
@@ -1374,7 +1426,7 @@ def _(value: Any) -> Atom:
 # Atom, and an exact-class table cannot find them through it. A class that is
 # in neither list misses and falls through, which is what subclasses and
 # abstract registrations need anyway.
-_ENCODE_DIRECT: tuple[type, ...] = (Sym, Var, Expr, Gnd, Handle)
+_ENCODE_DIRECT: tuple[type, ...] = (Symbol, Variable, Expression, Grounded, Handle)
 _ENCODE_FAST: dict[type, Callable[[Any], Atom]] = {}
 
 
@@ -1441,12 +1493,12 @@ _encode_fast_rebuild()
 def decode(atom: Any) -> Any:
     """Unwrap grounded values to Python, recursively, leaving structure alone.
 
-    A Gnd becomes its value, an Expr becomes an Expr of decoded children
+    A Grounded becomes its value, an Expression becomes an Expression of decoded children
     only when asked (this returns the expression as is), and symbols and
     variables stay atoms. Named for what it does; results already compare
     ergonomically without it, so it is never on a default path.
     """
-    return atom.value if isinstance(atom, Gnd) else atom
+    return atom.value if isinstance(atom, Grounded) else atom
 
 
 # Decoded symbols and variables intern per name: their equality and hash are by
@@ -1524,13 +1576,13 @@ def decode(atom: Any) -> Any:
 # answered without the lock; once the cache itself holds the vocabulary, a
 # small tier in front of it turns lock-free hits into misses plus locked hits.
 _WIRE_CACHE_MAX = 65_536
-_WIRE_SYMS: dict[str, Sym] = {}
-_WIRE_VARS: dict[str, Var] = {}
+_WIRE_SYMS: dict[str, Symbol] = {}
+_WIRE_VARS: dict[str, Variable] = {}
 _WIRE_SYM_ORDER: deque[str] = deque()
 _WIRE_VAR_ORDER: deque[str] = deque()
 
 
-def _wire_intern[WireAtom: (Sym, Var)](
+def _wire_intern[WireAtom: (Symbol, Variable)](
     name: str,
     factory: Callable[[str], WireAtom],
     cache: dict[str, WireAtom],
@@ -1562,9 +1614,9 @@ def _wire_intern_clear() -> None:
             order.clear()
 
 
-def _wire_sym(name: str) -> Sym:
-    return _wire_intern(name, Sym, _WIRE_SYMS, _WIRE_SYM_ORDER)
+def _wire_sym(name: str) -> Symbol:
+    return _wire_intern(name, Symbol, _WIRE_SYMS, _WIRE_SYM_ORDER)
 
 
-def _wire_var(name: str) -> Var:
-    return _wire_intern(name, Var, _WIRE_VARS, _WIRE_VAR_ORDER)
+def _wire_var(name: str) -> Variable:
+    return _wire_intern(name, Variable, _WIRE_VARS, _WIRE_VAR_ORDER)

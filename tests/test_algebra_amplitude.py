@@ -4,30 +4,35 @@ Guarantees:
   - exact opposite paths cancel inside the finite, contractive, staged
     fragment and any missing fence capability is refused by name [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 import pytest
 
-from petta import AlgebraRequirementError, Amplitude, S, decode
+from petta import S, wire
+from petta.algebra import AlgebraRequirementError, Amplitude
 
 
 def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta):
     """Cancel two exact paths only after all three fence claims are present."""
-    metta.register_op(
+    metta.op(
         lambda left, right: left + right,
         name="amplitude-add",
     )
-    metta.register_op(
+    metta.op(
         lambda left, right: left * right,
         name="amplitude-multiply",
     )
-    with metta.new_space() as program:
+    with metta._new_space() as program:
         with pytest.raises(
             AlgebraRequirementError,
             match="amplitude_fragment_refused",
         ):
-            program.declare_annotations(program.space_name, "amplitude")
+            program.declare_annotations(program.name, "amplitude")
         program.add_tagged_fact(Amplitude(1), S.detect(S.dark_port))
         program.add_tagged_fact(Amplitude(-1), S.detect(S.dark_port))
         with pytest.raises(
@@ -37,7 +42,7 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
             program.evaluate_algebra(S.detect(S.dark_port), algebra="amplitude")
 
         program.declare_annotations(
-            program.space_name,
+            program.name,
             "amplitude",
             capabilities=("finite", "contractive", "staged"),
         )
@@ -45,5 +50,5 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
             S.detect(S.dark_port), algebra="amplitude"
         )
         assert len(evaluation.answers) == 1
-        assert decode(evaluation.answers[0].tag) == Amplitude(0)
+        assert wire.decode(evaluation.answers[0].tag) == Amplitude(0)
         assert evaluation.plan[0].applied is True

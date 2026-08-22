@@ -7,9 +7,9 @@ Guarantees:
   - every generated atom either survives the engine writer-reader round trip
     or receives the writer's explicit loss-of-identity refusal [tested:
     test_every_generated_atom_survives_the_write_parse_round_trip;
-    commit=53686aed41e7ff02de69052198afdb537536cbdb]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - booleans use MeTTa's canonical True and False text [tested:
-    test_swrite_writes_mettas_own_boolean_literal; commit=53686aed41e7ff02de69052198afdb537536cbdb]
+    test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,23 +21,21 @@ import sys
 import pytest
 
 from petta import (
-    EngineError,
-    Expr,
-    Gnd,
+    Expression,
+    Grounded,
     S,
-    Sym,
-    Var,
-    alpha_eq,
-    expr,
+    Symbol,
+    Variable,
     parse,
     unify,
+    wire,
 )
 
 # The generators are the library's own public ones: petta.testing carries
 # the engine truths (readable names, boolean canonicalization, printer
 # limits) so users fuzz with exactly what this suite fuzzes with.
 from petta import testing as pt
-from petta.atoms import from_wire, variables
+from petta.errors import EngineError
 
 hypothesis = pytest.importorskip("hypothesis")
 example = hypothesis.example
@@ -63,19 +61,19 @@ _host_tuples = st.one_of(
 )
 _writer_atoms = st.recursive(
     st.one_of(
-        _any_text.map(Sym),
+        _any_text.map(Symbol),
         pt.variables(),
         pt.grounded(),
-        _host_tuples.map(Gnd),
+        _host_tuples.map(Grounded),
     ),
-    lambda inner: st.lists(inner, max_size=4).map(Expr),
+    lambda inner: st.lists(inner, max_size=4).map(Expression),
     max_leaves=10,
 )
 
 
 @given(_atoms())
 def test_python_wire_round_trip(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert from_wire(atom.to_wire()) == atom
+    assert wire.from_wire(atom.to_wire()) == atom
 
 
 @given(_atoms())
@@ -84,11 +82,11 @@ def test_engine_wire_round_trip(metta_session, atom):
     """Across the boundary and back: decode_shared then encode in Prolog."""
     rt = metta_session.runtime
     # _T stays goal-internal: janus cannot convert an unbound variable back
-    # to Python, and a decoded Var is exactly that.
+    # to Python, and a decoded Variable is exactly that.
     row = rt.once(
         "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)", W=atom.to_wire()
     )
-    assert alpha_eq(from_wire(row["W2"]), atom)
+    assert wire.from_wire(row["W2"]).alpha_eq(atom)
 
 
 # Counterexamples this project already paid for, pinned so they run on every
@@ -97,17 +95,17 @@ def test_engine_wire_round_trip(metta_session, atom):
 # splits dumps on newlines, and the fuzz round read that back as corruption.
 # The other four are the rest of hyperon's five string escapes, which the
 # reader decodes and the printer therefore has to emit.
-@example(atom=Sym("$notvar"))
-@example(atom=Sym("has space"))
-@example(atom=Sym("42"))
-@example(atom=Gnd((1, 2)))
-@example(atom=Gnd(()))
-@example(atom=Gnd("line one\nline two"))
-@example(atom=Gnd("a\tb"))
-@example(atom=Gnd('say "hi"'))
-@example(atom=Gnd("back\\slash"))
-@example(atom=Gnd("carriage\rreturn"))
-@example(atom=expr(S.s, Gnd("nested\nnewline")))
+@example(atom=Symbol("$notvar"))
+@example(atom=Symbol("has space"))
+@example(atom=Symbol("42"))
+@example(atom=Grounded((1, 2)))
+@example(atom=Grounded(()))
+@example(atom=Grounded("line one\nline two"))
+@example(atom=Grounded("a\tb"))
+@example(atom=Grounded('say "hi"'))
+@example(atom=Grounded("back\\slash"))
+@example(atom=Grounded("carriage\rreturn"))
+@example(atom=Expression(S.s, Grounded("nested\nnewline")))
 @given(_writer_atoms)
 @settings(max_examples=100, deadline=None)
 def test_every_generated_atom_survives_the_write_parse_round_trip(
@@ -123,7 +121,7 @@ def test_every_generated_atom_survives_the_write_parse_round_trip(
         assert "read back as a different value" in message
         return
     reread = rt.once("petta_py_parse(Src, W2)", Src=printed)["W2"]
-    assert alpha_eq(from_wire(reread), atom)
+    assert wire.from_wire(reread).alpha_eq(atom)
 
 
 def test_swrite_writes_mettas_own_boolean_literal(metta_session):
@@ -137,8 +135,8 @@ def test_swrite_writes_mettas_own_boolean_literal(metta_session):
 
 @given(_atoms(), _atoms())
 def test_alpha_eq_is_an_equivalence(a, b):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert alpha_eq(a, a)
-    assert alpha_eq(a, b) == alpha_eq(b, a)
+    assert a.alpha_eq(a)
+    assert a.alpha_eq(b) == b.alpha_eq(a)
 
 
 @given(_atoms())
@@ -146,21 +144,21 @@ def test_alpha_eq_survives_renaming(atom):  # noqa: D103  -- pytest discovers or
     mapping = {}
 
     def rename(x):
-        if isinstance(x, Var):
+        if isinstance(x, Variable):
             fresh = mapping.setdefault(x.name, f"r{len(mapping)}")
-            return Var(fresh)
-        if isinstance(x, Expr):
-            return Expr([rename(c) for c in x])
+            return Variable(fresh)
+        if isinstance(x, Expression):
+            return Expression([rename(c) for c in x])
         return x
 
-    assert alpha_eq(atom, rename(atom))
+    assert atom.alpha_eq(rename(atom))
 
 
 def _substitute(pattern, bindings):
-    if isinstance(pattern, Var):
+    if isinstance(pattern, Variable):
         return bindings.get(pattern.name, pattern)
-    if isinstance(pattern, Expr):
-        return Expr([_substitute(c, bindings) for c in pattern])
+    if isinstance(pattern, Expression):
+        return Expression([_substitute(c, bindings) for c in pattern])
     return pattern
 
 
@@ -172,8 +170,8 @@ def test_unify_is_sound(atom):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     got = unify(atom, atom)
     assert got is not None
-    if isinstance(atom, Expr) and len(atom) > 0:
-        pattern = Expr([Var("hole"), *atom.children[1:]])
+    if isinstance(atom, Expression) and len(atom) > 0:
+        pattern = Expression([Variable("hole"), *atom.children[1:]])
         bound = unify(pattern, atom)
         assert bound is not None
         assert _substitute(pattern, bound) == atom
@@ -186,16 +184,16 @@ def metta_session(metta):  # noqa: D103  -- pytest discovers or injects this cal
 
 def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     """Engine identification, pinned: the symbol true IS the boolean atom, so
-    a Sym('true') crossing the boundary comes back as the boolean, exactly as
+    a Symbol('true') crossing the boundary comes back as the boolean, exactly as
     a lowercase true in source reads as one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     rt = metta_session.runtime
     row = rt.once(
         "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
-        W=Sym("true").to_wire(),
+        W=Symbol("true").to_wire(),
     )
-    assert from_wire(row["W2"]) == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert parse("true") == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert wire.from_wire(row["W2"]) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert parse("true") == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
 def _kind(value):
@@ -215,29 +213,29 @@ def _kind(value):
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
 )
 def test_python_equality_is_engine_equality(metta, a, b):
-    """Gnd against a RAW value answers exactly what the engine's == answers
+    """Grounded against a RAW value answers exactly what the engine's == answers
     for two values of the same MeTTa type, NaN, negative zero and mixed
     numeric types included.
 
     Across two DIFFERENT types the engine answers its refusal rather than a
     verdict, since `==` is declared `(-> $a $a Bool)` and the question has
     none: the answer is `(Error <call> (BadArgType ...))`. Python still answers
-    False there, and has to: `__eq__` may not raise, or a Gnd could not sit in
+    False there, and has to: `__eq__` may not raise, or a Grounded could not sit in
     a dict beside a value of another kind. So the law is "same kind, same
     verdict; different kind, the engine says so", which is the strongest form
     both sides can hold at once. The raw operand carries the == operator's
     relation; two ATOMS carry unification instead, the next law down.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if _kind(a) != _kind(b):
-        refused = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+        refused = metta.eval(Expression(S["=="], Grounded(a), Grounded(b)))
         assert len(refused) == 1
         assert str(refused[0]).startswith("(Error (==")
         assert "BadArgType" in str(refused[0])
-        assert (Gnd(a) == b) is False
+        assert (Grounded(a) == b) is False
         return
-    engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+    engine = metta.eval(Expression(S["=="], Grounded(a), Grounded(b)))
     assert len(engine) == 1
-    assert engine[0].value is (Gnd(a) == b)
+    assert engine[0].value is (Grounded(a) == b)
 
 
 @settings(max_examples=80, deadline=None)
@@ -246,7 +244,7 @@ def test_python_equality_is_engine_equality(metta, a, b):
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
 )
 def test_atom_equality_is_engine_unification(metta, a, b):
-    """Gnd against another ATOM answers exactly what the engine's matcher
+    """Grounded against another ATOM answers exactly what the engine's matcher
     answers, one universal law with no kind split: an integer atom never
     matches a float atom even where == answers True, 0.0 and -0.0 are two
     atoms, and one NaN atom matches another where == answers False. Java
@@ -255,18 +253,18 @@ def test_atom_equality_is_engine_unification(metta, a, b):
     and hashing follow it. Found by the space state machine: its Counter
     model diverged from storage on exactly the pairs the two relations split.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as space:
-        space.add(Expr([Gnd(b)]))
-        matched = len(list(space.query(Expr([Gnd(a)])))) == 1
-    assert (Gnd(a) == Gnd(b)) is matched
-    assert (unify(Gnd(a), Gnd(b)) is not None) is matched
+    with metta._new_space() as space:
+        space.add(Expression([Grounded(b)]))
+        matched = len(list(space.query(Expression([Grounded(a)])))) == 1
+    assert (Grounded(a) == Grounded(b)) is matched
+    assert (unify(Grounded(a), Grounded(b)) is not None) is matched
     if matched:
-        assert hash(Gnd(a)) == hash(Gnd(b))
+        assert hash(Grounded(a)) == hash(Grounded(b))
 
 
 @given(pt.atoms(ground=True))
 def test_ground_strategy_generates_no_variables(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert list(variables(atom)) == []
+    assert list(atom.vars) == []
 
 
 def test_testing_names_the_need_without_hypothesis(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

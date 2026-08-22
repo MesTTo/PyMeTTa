@@ -10,12 +10,12 @@ Assumes:
       test_example_parity.py derives it
     - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
       to [source: bindings/python/petta/space.py:MeTTa.disassemble;
-      commit=dcfc20be4933c19140ccb5759291401d13058301]
+      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
       evidence rather than decoration
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-      commit=dcfc20be4933c19140ccb5759291401d13058301]
+      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # boolean LITERALS crossing as atom or wire data, not behaviour switches:
     # `m.fn("match-type-or")(True, S.Number, S.Number)` asks the engine about
     # the atom True. Each carries a suppression saying so, and the corpus's own
-    # named-constant convention (`TRUE, FALSE = val(value=True), ...`) is used
+    # named-constant convention (`TRUE, FALSE = ground(value=True), ...`) is used
     # where the value is reused rather than asked about once.
     "FBT": 67,
     "N": 35,
@@ -333,7 +333,7 @@ def test_a_generated_clause_carries_no_cut(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("(= (petta-cut-probe 0) zero)")
     metta.run("(= (petta-cut-probe $x) other)")
-    compiled = metta.disassemble("petta-cut-probe")
+    compiled = metta._disassemble("petta-cut-probe")
     assert "!" not in compiled, f"a generated clause contains a cut:\n{compiled}"
     answers = [str(a) for group in metta.run("!(petta-cut-probe 0)") for a in group]
     assert answers == ["zero", "other"], (

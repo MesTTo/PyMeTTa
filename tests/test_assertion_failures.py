@@ -15,7 +15,8 @@ Open Obligations:
 
 import pytest
 
-from petta import AssertionFailure, EngineError, MeTTa, PettaError
+from petta import MeTTa, PettaError
+from petta.errors import AssertionFailure, EngineError
 
 
 def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
@@ -23,7 +24,7 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
     different events. Before this they were the same Python type, so a
     harness could only tell them apart by parsing the message.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
 
     with pytest.raises(AssertionFailure) as failed_test:
         m.run("!(test (+ 1 1) 3)")
@@ -36,7 +37,7 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
         msg = "the op broke"
         raise RuntimeError(msg)
 
-    m.register_op(boom, name="petta-broken-op")
+    m.op(boom, name="petta-broken-op")
     with pytest.raises(EngineError) as fault:
         m.run("!(petta-broken-op)")
 
@@ -52,7 +53,7 @@ def test_an_assertion_failure_carries_its_parts():
     """The parts arrive as data, so a harness reports them without parsing
     the sentence: which form failed, what it got, what it wanted.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
 
     with pytest.raises(AssertionFailure) as caught:
         m.run("!(test (+ 1 1) 3)")

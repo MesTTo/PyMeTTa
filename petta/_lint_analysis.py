@@ -25,14 +25,14 @@ from difflib import get_close_matches
 from typing import Any, TypeGuard
 
 from ._lint_model import EngineRegistry, Finding
-from .atoms import Atom, Expr, Gnd, Sym, Var, alpha_eq, map_atoms, variables
+from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
 
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
 
 
 def _arrow_inputs(declaration: Atom) -> int | None:
     """Return the input count of an arrow declaration."""
-    if isinstance(declaration, Expr) and len(declaration) >= 2 and declaration[0] == Sym("->"):
+    if isinstance(declaration, Expression) and len(declaration) >= 2 and declaration[0] == Symbol("->"):
         return len(declaration) - 2
     return None
 
@@ -42,9 +42,9 @@ def _walk_heads(atom: Atom):
     stack = [atom]
     while stack:
         current = stack.pop()
-        if not isinstance(current, Expr) or len(current) == 0:
+        if not isinstance(current, Expression) or len(current) == 0:
             continue
-        if isinstance(current[0], Sym):
+        if isinstance(current[0], Symbol):
             yield current
         stack.extend(reversed(current.children))
 
@@ -55,34 +55,34 @@ def _contains_binding_form(atom: Atom) -> bool:
 
 def _alpha_key(atom: Atom) -> Atom:
     """Canonicalize variable names once for equality and hashing."""
-    names: dict[str, Var] = {}
+    names: dict[str, Variable] = {}
 
     def rename(item: Atom) -> Atom:
-        if not isinstance(item, Var):
+        if not isinstance(item, Variable):
             return item
         replacement = names.get(item.name)
         if replacement is None:
-            replacement = Var(f"lint-variable-{len(names)}")
+            replacement = Variable(f"lint-variable-{len(names)}")
             names[item.name] = replacement
         return replacement
 
-    return map_atoms(atom, rename)
+    return _map_atoms(atom, rename)
 
 
-def _is_form(atom: Atom, head: Sym) -> TypeGuard[Expr]:
-    return isinstance(atom, Expr) and len(atom) == 3 and atom[0] == head
+def _is_form(atom: Atom, head: Symbol) -> TypeGuard[Expression]:
+    return isinstance(atom, Expression) and len(atom) == 3 and atom[0] == head
 
 
 def _symbol_head(atom: Atom) -> str | None:
-    if isinstance(atom, Expr) and len(atom) > 0 and isinstance(atom[0], Sym):
+    if isinstance(atom, Expression) and len(atom) > 0 and isinstance(atom[0], Symbol):
         return atom[0].name
     return None
 
 
 def _index_atoms(
     atoms: list[Atom],
-) -> tuple[list[Expr], list[Expr], set[str], set[str]]:
-    equals, colon = Sym("="), Sym(":")
+) -> tuple[list[Expression], list[Expression], set[str], set[str]]:
+    equals, colon = Symbol("="), Symbol(":")
     equations = [atom for atom in atoms if _is_form(atom, equals)]
     declarations = [atom for atom in atoms if _is_form(atom, colon)]
     fact_heads = {
@@ -96,7 +96,7 @@ def _index_atoms(
     return equations, declarations, fact_heads, defined_here
 
 
-def _arrowed_names(declarations: list[Expr]) -> set[str]:
+def _arrowed_names(declarations: list[Expression]) -> set[str]:
     """The names carrying at least one arrow declaration.
 
     Decided over the whole space before any declaration is judged, because one
@@ -105,14 +105,14 @@ def _arrowed_names(declarations: list[Expr]) -> set[str]:
     return {
         name_atom.name
         for declaration in declarations
-        if isinstance(name_atom := declaration[1], Sym)
+        if isinstance(name_atom := declaration[1], Symbol)
         and _arrow_inputs(declaration[2]) is not None
     }
 
 
 def _types_the_symbol(
     space: Any,
-    declaration: Expr,
+    declaration: Expression,
     name: str,
     arrowed: set[str],
     defined_here: set[str],
@@ -124,7 +124,7 @@ def _types_the_symbol(
     space is the only place a name's finished set of declarations can be seen.
     """
     signature = declaration[2]
-    if name in arrowed or signature == Sym("%Undefined%") or isinstance(signature, Var):
+    if name in arrowed or signature == Symbol("%Undefined%") or isinstance(signature, Variable):
         return None
     if name not in defined_here and not space.is_function_here(name):
         return None
@@ -140,7 +140,7 @@ def _types_the_symbol(
 
 def _declaration_findings(
     space: Any,
-    declarations: list[Expr],
+    declarations: list[Expression],
     defined_here: set[str],
     registry: EngineRegistry,
 ) -> list[Finding]:
@@ -148,7 +148,7 @@ def _declaration_findings(
     arrowed = _arrowed_names(declarations)
     for declaration in declarations:
         name_atom, signature = declaration[1], declaration[2]
-        if not isinstance(name_atom, Sym):
+        if not isinstance(name_atom, Symbol):
             continue
         name = name_atom.name
         inputs = _arrow_inputs(signature)
@@ -206,7 +206,7 @@ def _uncanonicalised_collapse(atom: Atom) -> str | None:
     `(car-atom (collapse (f $x)))` answers "f".
     """
     head = _symbol_head(atom)
-    if head is None or head in _CANONICALISERS or not isinstance(atom, Expr):
+    if head is None or head in _CANONICALISERS or not isinstance(atom, Expression):
         return None
     if head == "collapse":
         return _symbol_head(atom[1]) if len(atom) == 2 else None
@@ -214,7 +214,7 @@ def _uncanonicalised_collapse(atom: Atom) -> str | None:
     return next((name for name in found if name is not None), None)
 
 
-def _order_read(equation: Expr, tabled: frozenset[str]) -> str | None:
+def _order_read(equation: Expression, tabled: frozenset[str]) -> str | None:
     """The tabled function this equation reads out of a collapse by position."""
     for call in _walk_heads(equation[2]):
         if call[0].name in _POSITIONAL_READERS and len(call) >= 2:
@@ -224,7 +224,7 @@ def _order_read(equation: Expr, tabled: frozenset[str]) -> str | None:
     return None
 
 
-def _tabling_findings(equations: list[Expr], registry: EngineRegistry) -> list[Finding]:
+def _tabling_findings(equations: list[Expression], registry: EngineRegistry) -> list[Finding]:
     """Report a positional read of a tabled function's collapsed answers.
 
     Tabling preserves the answer SET and not the answer sequence: an untabled
@@ -250,7 +250,7 @@ def _tabling_findings(equations: list[Expr], registry: EngineRegistry) -> list[F
     ]
 
 
-def _duplicate_findings(equations: list[Expr]) -> list[Finding]:
+def _duplicate_findings(equations: list[Expression]) -> list[Finding]:
     keys = [_alpha_key(equation) for equation in equations]
     remaining = Counter(keys)
     findings: list[Finding] = []
@@ -281,14 +281,14 @@ def _instantiates(general: Atom, specific: Atom) -> bool:
     stack: list[tuple[Atom, Atom]] = [(general, specific)]
     while stack:
         into_general, into_specific = stack.pop()
-        if isinstance(into_general, Var):
+        if isinstance(into_general, Variable):
             bound = bindings.get(into_general.name)
             if bound is None:
                 bindings[into_general.name] = into_specific
             elif bound != into_specific:
                 return False
-        elif isinstance(into_general, Expr):
-            if not isinstance(into_specific, Expr) or len(into_general) != len(
+        elif isinstance(into_general, Expression):
+            if not isinstance(into_specific, Expression) or len(into_general) != len(
                 into_specific
             ):
                 return False
@@ -298,7 +298,7 @@ def _instantiates(general: Atom, specific: Atom) -> bool:
     return True
 
 
-def _subsumed_findings(equations: list[Expr]) -> list[Finding]:
+def _subsumed_findings(equations: list[Expression]) -> list[Finding]:
     """Plotkin's reduction step, bounded to pairwise instance subsumption.
 
     Plotkin (1972, theorem 3.3.1.2) reduces a program by dropping any
@@ -312,7 +312,7 @@ def _subsumed_findings(equations: list[Expr]) -> list[Finding]:
     by_head: dict[tuple[str | None, int], list[int]] = {}
     for position, equation in enumerate(equations):
         head = equation[1]
-        arity = len(head) if isinstance(head, Expr) else 0
+        arity = len(head) if isinstance(head, Expression) else 0
         by_head.setdefault((_symbol_head(head), arity), []).append(position)
     findings: list[Finding] = []
     for group in by_head.values():
@@ -339,11 +339,11 @@ def _subsumed_findings(equations: list[Expr]) -> list[Finding]:
     return findings
 
 
-def _unbound_findings(equation: Expr, head: Atom, body: Atom) -> list[Finding]:
+def _unbound_findings(equation: Expression, head: Atom, body: Atom) -> list[Finding]:
     if _contains_binding_form(body):
         return []
-    head_vars = set(variables(head))
-    loose = sorted(name for name in set(variables(body)) if name not in head_vars and name != "_")
+    head_vars = set(_variables(head))
+    loose = sorted(name for name in set(_variables(body)) if name not in head_vars and name != "_")
     if not loose:
         return []
     pretty = ["$" + name for name in loose if not name.startswith("_")]
@@ -384,7 +384,7 @@ def _nothing_carries(
 
 
 def _call_findings(
-    equation: Expr,
+    equation: Expression,
     body: Atom,
     fact_heads: set[str],
     registry: EngineRegistry,
@@ -426,7 +426,7 @@ def _call_findings(
 
 
 def _equation_findings(
-    equations: list[Expr], fact_heads: set[str], registry: EngineRegistry
+    equations: list[Expression], fact_heads: set[str], registry: EngineRegistry
 ) -> list[Finding]:
     findings: list[Finding] = []
     for equation in equations:
@@ -447,12 +447,12 @@ def _is_truth(atom: Atom, value: bool) -> bool:  # noqa: FBT001  -- the boolean 
     engine stores: True and true are one term there, arriving here as a
     ground bool or as the symbol.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(atom, Gnd):
+    if isinstance(atom, Grounded):
         return atom.value is value
-    return atom in (Sym(str(value)), Sym(str(value).lower()))
+    return atom in (Symbol(str(value)), Symbol(str(value).lower()))
 
 
-def _if_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+def _if_simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
     if len(inner) != 4:
         return None
     _, condition, then_branch, else_branch = inner.children
@@ -460,15 +460,15 @@ def _if_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
         return ("constant-if-true", "the condition is literally True; only the then-branch can answer", then_branch)
     if _is_truth(condition, False):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         return ("constant-if-false", "the condition is literally False; only the else-branch can answer", else_branch)
-    if alpha_eq(then_branch, else_branch):
+    if _alpha_eq(then_branch, else_branch):
         return ("if-same-branches", "both branches are the same expression; the condition decides nothing", then_branch)
     if _is_truth(then_branch, True) and _is_truth(else_branch, False):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         return ("if-true-false", "(if c True False) answers exactly what c answers", condition)
     return None
 
 
-def _superpose_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
-    if len(inner) != 2 or not isinstance(inner[1], Expr):
+def _superpose_simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
+    if len(inner) != 2 or not isinstance(inner[1], Expression):
         return None
     branches = inner[1].children
     if not branches:
@@ -478,14 +478,14 @@ def _superpose_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
     return None
 
 
-def _binder_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
-    if len(inner) < 2 or not isinstance(inner[1], Expr):
+def _binder_simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
+    if len(inner) < 2 or not isinstance(inner[1], Expression):
         return None
     seen: set[str] = set()
     for binding in inner[1].children:
-        if not (isinstance(binding, Expr) and binding.children):
+        if not (isinstance(binding, Expression) and binding.children):
             continue
-        for name in variables(binding.children[0]):
+        for name in _variables(binding.children[0]):
             if name in seen:
                 return (
                     "duplicate-binder",
@@ -501,7 +501,7 @@ def _binder_simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
 _SIMPLIFIERS = {"if": _if_simplified, "superpose": _superpose_simplified, "let*": _binder_simplified}
 
 
-def _simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
+def _simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
     """One nested expression's simplification, or None: (kind, detail,
     replacement), replacement None when the finding has no rewrite.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -509,12 +509,12 @@ def _simplified(inner: Expr) -> tuple[str, str, Atom | None] | None:
     return None if simplifier is None else simplifier(inner)
 
 
-def _replaced(stored: Expr, target: Atom, replacement: Atom) -> Atom:
+def _replaced(stored: Expression, target: Atom, replacement: Atom) -> Atom:
     """The stored atom with exactly this occurrence rewritten, by identity."""
-    return map_atoms(stored, lambda a: replacement if a is target else a)
+    return _map_atoms(stored, lambda a: replacement if a is target else a)
 
 
-def _simplification_findings(equations: list[Expr]) -> list[Finding]:
+def _simplification_findings(equations: list[Expression]) -> list[Finding]:
     findings: list[Finding] = []
     for equation in equations:
         for call in _walk_heads(equation[2]):
@@ -536,12 +536,12 @@ def _simplification_findings(equations: list[Expr]) -> list[Finding]:
     return findings
 
 
-def _arities_by_name(equations: list[Expr]) -> dict[str, dict[int, Expr]]:
+def _arities_by_name(equations: list[Expression]) -> dict[str, dict[int, Expression]]:
     """Each defined name's arities, with one witness equation per arity."""
-    by_name: dict[str, dict[int, Expr]] = {}
+    by_name: dict[str, dict[int, Expression]] = {}
     for equation in equations:
         head = equation[1]
-        if isinstance(head, Expr) and head.children and isinstance(head.children[0], Sym):
+        if isinstance(head, Expression) and head.children and isinstance(head.children[0], Symbol):
             by_name.setdefault(head.children[0].name, {}).setdefault(
                 len(head.children) - 1, equation
             )
@@ -549,7 +549,7 @@ def _arities_by_name(equations: list[Expr]) -> dict[str, dict[int, Expr]]:
 
 
 def _inconsistent_arity_findings(
-    equations: list[Expr], declarations: list[Expr]
+    equations: list[Expression], declarations: list[Expression]
 ) -> list[Finding]:
     """Equations for one name at differing arities with no arrow saying so.
 
@@ -583,14 +583,14 @@ _METATYPES = frozenset(
 )
 
 
-def _declared_arrows(declarations: list[Expr]) -> dict[str, tuple[Atom, ...]]:
+def _declared_arrows(declarations: list[Expression]) -> dict[str, tuple[Atom, ...]]:
     """Each declared name's arrow input slots, first declaration winning."""
     arrows: dict[str, tuple[Atom, ...]] = {}
     for declaration in declarations:
         name_atom, signature = declaration[1], declaration[2]
         if (
-            isinstance(name_atom, Sym)
-            and isinstance(signature, Expr)
+            isinstance(name_atom, Symbol)
+            and isinstance(signature, Expression)
             and _symbol_head(signature) == "->"
         ):
             arrows.setdefault(name_atom.name, signature.children[1:-1])
@@ -605,9 +605,9 @@ def _slot_mismatch(
     argument, and an argument answering %Undefined% all pass, keeping the
     check conservative; a nested call is the engine's own hoisted check's.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if not isinstance(slot, Sym) or slot.name in _METATYPES:
+    if not isinstance(slot, Symbol) or slot.name in _METATYPES:
         return None
-    if isinstance(argument, (Var, Expr)):
+    if isinstance(argument, (Variable, Expression)):
         return None
     actual = registry.type_of(argument)
     if actual in ("%Undefined%", slot.name):
@@ -616,12 +616,12 @@ def _slot_mismatch(
 
 
 def _type_findings(
-    equations: list[Expr], declarations: list[Expr], registry: EngineRegistry
+    equations: list[Expression], declarations: list[Expression], registry: EngineRegistry
 ) -> list[Finding]:
     """A ground argument whose engine type contradicts the declared slot.
 
     get-type/2 is total here, so the check is one cached engine question
-    per distinct argument, and only concrete Sym-against-Sym
+    per distinct argument, and only concrete Symbol-against-Symbol
     disagreements report.
     """
     arrows = _declared_arrows(declarations)

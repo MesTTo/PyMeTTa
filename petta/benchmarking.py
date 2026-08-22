@@ -35,7 +35,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-from .atoms import Atom, Expr
+from .atoms import Atom, Expression
 
 _SCHEMA = 1
 _COUNTER_SAMPLES = 3
@@ -59,7 +59,7 @@ def count_atoms(atom: Any) -> int:
     while stack:
         node = stack.pop()
         count += 1
-        if isinstance(node, Expr):
+        if isinstance(node, Expression):
             stack.extend(node.children)
     return count
 

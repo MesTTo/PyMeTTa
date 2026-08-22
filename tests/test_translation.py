@@ -22,12 +22,12 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError
+from petta.errors import EngineError
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 

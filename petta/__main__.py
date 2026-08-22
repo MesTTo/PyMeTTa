@@ -27,9 +27,9 @@ def _print_groups(groups) -> None:
 
 
 def _run(arguments) -> int:
-    from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
 
-    m = MeTTa()
+    m = Space()
     for path in arguments.files:
         _print_groups(m.load(path))
     return 0
@@ -108,14 +108,14 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
 
 
 def _repl(_arguments) -> int:
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
     from .errors import PettaError  # noqa: PLC0415  deferred: --version and help must not boot
-    from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
 
     with contextlib.suppress(ImportError):
         # history and line editing where the platform has readline
         import readline  # noqa: F401, PLC0415  # pylint: disable=unused-import
-    m = MeTTa()
+    m = Space()
     interactive = sys.stdin.isatty()
     if interactive:
         print(f"PeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
@@ -129,9 +129,9 @@ def _repl(_arguments) -> int:
 
 def _serve(arguments) -> int:
     from . import remote  # noqa: PLC0415  deferred: --version and help must not boot
-    from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
 
-    m = MeTTa()
+    m = Space()
     for path in arguments.files:
         _print_groups(m.load(path))
     server = remote.serve(
@@ -171,10 +171,10 @@ def _boot(arguments) -> int:
 
 
 def _lint(arguments) -> int:
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from .lint import lint_file  # noqa: PLC0415  deferred: --version and help must not boot
-    from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
 
-    m = MeTTa()
+    m = Space()
     failed = False
     for path in arguments.files:
         for finding in lint_file(path, m=m):
@@ -188,9 +188,9 @@ def _lint(arguments) -> int:
 
 
 def _doc(arguments) -> int:
-    from .space import MeTTa  # noqa: PLC0415  deferred: --version and help must not boot
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
 
-    m = MeTTa()
+    m = Space()
     for path in arguments.files:
         m.load(path)
     text = m.fn(arguments.name).__doc__

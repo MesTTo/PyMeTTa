@@ -5,7 +5,7 @@ Guarantees:
     one symbol, identifies the conflicting character, and leaves no engine or
     reflection state behind [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
-    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,7 +31,7 @@ def test_register_op_refuses_a_name_metta_cannot_read(metta):
 
     for name, witness in cases.items():
         with pytest.raises(ValueError) as raised:
-            metta.register_op(lambda value: value, name=name)
+            metta.op(lambda value: value, name=name)
 
         message = str(raised.value)
         assert name in message

@@ -19,14 +19,14 @@ about the translation, and one nobody runs rots within a week. Running the
 MeTTa form beside its Python spelling makes each row a DIFFERENTIAL, the same
 instrument the twins lane and `example_parity` use one level up
 [source: bindings/python/tools/twin_coverage.py, the count-against-count
-contract; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
+contract; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 
 The five buckets, and what each CLAIMS:
   - `dissolves`: Python already has the concept, so there is no petta name at
     all and the spelling is Python's own syntax, protocol or standard library
     (`e[0]`, `list()`, `assert`, `max`). Section 9e's first bucket.
   - `method`: the concept is MeTTa's, so it wears a petta name
-    (`m.eval`, `space.query`, `petta.alpha_eq`). Section 9e's second bucket.
+    (`m.eval`, `space.query`, `atom.alpha_eq`). Section 9e's second bucket.
   - `instruction`: deep control that stays instruction-tier and is reached by
     building the term at the `S.` door and reducing it. Section 9e's third
     bucket. Such a row is Python with no MeTTa source text, but it is
@@ -41,25 +41,25 @@ The five buckets, and what each CLAIMS:
 
 Assumes:
   - a fresh space isolates equations, so 377 rows share one engine instead of
-    377 processes [measured 2026-08-22: a definition made in `m.new_space()`
+    377 processes [measured 2026-08-22: a definition made in `m._new_space()`
     is invisible to `&self` and to a sibling space, and fifty fresh spaces
-    with a definition and a call cost 0.007s; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
+    with a definition and a call cost 0.007s; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a second `MeTTa()` in one process is the SAME engine, which is why
     isolation is per space and never per engine [measured 2026-08-22: a
     definition made through a second `MeTTa()` is visible to the first;
-    commit=c6abaad21ab41b32b815b7481edff822b236e69a]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
     keeps the old contents when a bound name is re-bound; on LeaTTa each row
     is its own process, so the written name is used as written [measured
     2026-08-22: re-binding a bound name leaves `(f 1)` in place here, while
     LeaTTa refuses the second `bind!` with
-    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
+    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - LeaTTa lives outside this repository and CI never clones it, so its column
     is frozen into `phrasebook_answers.json` and re-measured only under
     `--learn`, exactly as the upstream parity baseline freezes its numbers
     [source: tests/check_upstream_parity.py; tests/conformance/leatta.py, its
-    Assumes block; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
+    Assumes block; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every LeaTTa stdlib name has exactly one row, so the coverage denominator
     cannot quietly shrink [tested: test_the_phrasebook_covers_every_leatta_name]
@@ -78,7 +78,7 @@ Fails when:
 Decides:
   - the rendering rule, stated once so no row has to explain it: a value is
     rendered as the engine prints it, `str(atom)` for an atom and
-    `str(petta.encode(x))` for anything else. A Python LIST is a multiset of
+    `str(petta.ground(x))` for an opaque value. A Python LIST is a multiset of
     answers, one string per element, because `list()` is collapse; a Python
     TUPLE is one Expression atom, because a tuple encodes to `( )`
     [source: ai-python-first-revamp-discussion.md sections 9e and 9k]
@@ -165,10 +165,9 @@ def _one(value: Any) -> str:
 
     if isinstance(value, petta.Atom):
         return alpha.canonical(str(value))
-    return alpha.canonical(str(petta.encode(value)))
-
-
-
+    if isinstance(value, tuple):
+        return alpha.canonical(str(petta.Expression(value)))
+    return alpha.canonical(str(petta.ground(value)))
 
 
 #: What a row may spend before the lane calls it a runaway. No stdlib row is
@@ -179,7 +178,7 @@ SECONDS = 10.0
 
 def petta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> tuple[str, ...]:
     """The answers of the last `!` form of a row's MeTTa side, on this engine."""
-    space = engine.new_space() if space is None else space
+    space = engine._new_space() if space is None else space
     source = entry.metta.replace(SPACE, f"{SPACE}{index}")
     with engine.limits(inferences=FUEL, timeout=SECONDS):
         groups = space.run(source)
@@ -196,7 +195,7 @@ def leatta_answers(entry: Entry, scratch: Path) -> tuple[str, ...]:
     the oracle reads the directory its file sits in, so a crowded `/tmp`
     makes every row 875 times slower [measured 2026-08-22: `!(+ 1 2)` costs
     0.008s from an empty directory and 7.0s from a `/tmp` holding 829
-    entries, on this box; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
+    entries, on this box; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """
     path = scratch / "row.metta"
     path.write_text(entry.metta if entry.metta.endswith("\n") else entry.metta + "\n")
@@ -249,7 +248,7 @@ def python_value(engine: Any, source: str, space: Any = None) -> Any:
         "m": engine,
         "S": petta.S,
         "V": petta.V,
-        "space": engine.new_space() if space is None else space,
+        "space": engine._new_space() if space is None else space,
     }
     tail = tree.body[-1]
     if isinstance(tail, ast.Expr):
@@ -271,7 +270,7 @@ def quiet() -> Any:
     `redirect_stdout` would catch only one of the two. Swapping the descriptor
     catches both, and both streams are flushed inside the swap so nothing
     buffered arrives after it [measured 2026-08-22: without the flush the
-    engine's `hello` reappears under the report; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
+    engine's `hello` reappears under the report; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """
     sys.stdout.flush()
     saved = os.dup(1)
@@ -668,8 +667,8 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
     # Reading the counter costs a few inferences of its own, and each side
     # needs a space it did not pay for, so both are made outside the block and
     # the floor is subtracted [measured 2026-08-22: an empty `with
-    # m.stats()` block reads 5 inferences and `m.new_space()` costs 35;
-    # commit=c6abaad21ab41b32b815b7481edff822b236e69a].
+    # m.stats()` block reads 5 inferences and `m._new_space()` costs 35;
+    # commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     with engine.stats() as empty:
         pass
     floor = empty.inferences
@@ -677,7 +676,7 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
     for index, entry in enumerate(entries):
         if entry.metta is None or entry.python is None or entry.unrun is not None:
             continue
-        metta_space, python_space = engine.new_space(), engine.new_space()
+        metta_space, python_space = engine._new_space(), engine._new_space()
         # A row that raises still prices its other side; the answer lane is
         # what reports the raise.
         with quiet():
@@ -782,7 +781,7 @@ def main(argv: list[str]) -> int:
 
     import petta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
-    engine = petta.MeTTa(petta_path=str(REPO))
+    engine = petta.MeTTa(petta_path=str(REPO)).self
     answers = json.loads(ANSWERS.read_text(encoding="utf-8")) if ANSWERS.is_file() else {}
 
     if arguments.cost:

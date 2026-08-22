@@ -21,11 +21,11 @@ Guarantees:
   - discovery refuses duplicate names, missing dependencies, and named
     dependency cycles, and installs acyclic entries in topological order
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - module and reflection helpers express transport and Atom delivery without
     boolean registration pairs [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -57,17 +57,17 @@ from ._object_fields import field_names as _field_names
 from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
+    Expression,
+    Grounded,
     S,
-    Sym,
-    Var,
-    decode,
-    encode,
-    expr,
-    register_object_repr_protocol,
-    unregister_object_repr_protocol,
-    val,
+    Symbol,
+    Variable,
+    _decode,
+    _encode,
+    _expr,
+    _register_protocol_repr,
+    _unregister_protocol_repr,
+    ground,
 )
 from .errors import PettaError
 from .foreign import SpaceProvider
@@ -89,6 +89,7 @@ __all__ = [
     "reflect",
     "register_object_type",
     "register_reflector",
+    "register_repr",
     "register_type",
     "unregister_object_type",
     "unregister_reflector",
@@ -155,7 +156,7 @@ def integrate(m, target: Any) -> str:
         raise PettaError(
             msg
         )
-    key = (m.space_name, name)
+    key = (m.name, name)
     with _INSTALLED_LOCK:
         if key not in _INSTALLED:
             installer(m)
@@ -221,7 +222,7 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     """Load one advertised entry point by name, calling a callable target
     with the given arguments, the factory contract:
 
-        m.register_space(integrate.load_entry_point("duck"), "&duck")
+        m._register_space(integrate.load_entry_point("duck"), "&duck")
         m.register_library_path(
             integrate.load_entry_point("nars", group=integrate.LIBRARIES_GROUP),
             "nars",
@@ -347,14 +348,14 @@ def _register_module_callable(
     transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
-        m.register_op(
+        m.op(
             _spread(target),
             name=name,
             transport=transport,
             arities=[0, 1, 2, 3, 4],
         )
         return
-    m.register_op(target, name=name, transport=transport)
+    m.op(target, name=name, transport=transport)
 
 
 def module_ops(
@@ -449,7 +450,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     def call(*xs):
         return target(*xs)
 
-    m.register_op(call, name=name, transport="raw", arities=arities)
+    m.op(call, name=name, transport="raw", arities=arities)
     return target
 
 
@@ -470,7 +471,7 @@ def wrap_object(m, name: str, obj: Any, methods: dict[str, str] | Iterable[str])
     for method_name, metta_name in methods.items():
         bound = getattr(obj, method_name)
         wrap_callable(m, metta_name, _effect(bound))
-    m.add(Expr([S.wrapped, Sym(name), val(obj)]))
+    m.add(Expression([S.wrapped, Symbol(name), ground(obj)]))
     return obj
 
 
@@ -507,14 +508,14 @@ def unregister_object_type(predicate: Callable[[Any], bool], name: str) -> None:
 
 def register_repr(predicate: Callable[[Any], bool], formatter: Callable[[Any], str]) -> None:
     """How objects satisfying a protocol print when stored as atoms."""
-    register_object_repr_protocol(predicate, formatter)
+    _register_protocol_repr(predicate, formatter)
 
 
 def unregister_repr(
     predicate: Callable[[Any], bool], formatter: Callable[[Any], str]
 ) -> None:
     """Remove the latest exact protocol formatter registration."""
-    unregister_object_repr_protocol(predicate, formatter)
+    _unregister_protocol_repr(predicate, formatter)
 
 
 # ----------------------------------------------------------------- reflection
@@ -567,7 +568,7 @@ def facts(m, atoms: Iterable[Any]) -> int:
     """Bulk facts into a space; returns how many."""
     count = 0
     for a in atoms:
-        m.add(encode(a) if not isinstance(a, Atom) else a)
+        m.add(_encode(a) if not isinstance(a, Atom) else a)
         count += 1
     return count
 
@@ -584,35 +585,35 @@ def install_reflection_ops(m) -> list[str]:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def py_attr(obj, name):
-        target = decode(obj) if isinstance(obj, Gnd) else obj
-        attr = name.name if isinstance(name, Sym) else str(decode(name))
+        target = _decode(obj) if isinstance(obj, Grounded) else obj
+        attr = name.name if isinstance(name, Symbol) else str(_decode(name))
         try:
             value = getattr(target, attr)
         except AttributeError:
             return None
-        return val(value)
+        return ground(value)
 
     def py_field(obj, name=None):
-        target = decode(obj) if isinstance(obj, Gnd) else obj
-        if name is not None and not isinstance(name, Var):
-            attr = name.name if isinstance(name, Sym) else str(decode(name))
+        target = _decode(obj) if isinstance(obj, Grounded) else obj
+        if name is not None and not isinstance(name, Variable):
+            attr = name.name if isinstance(name, Symbol) else str(_decode(name))
             try:
                 value = getattr(target, attr)
             except AttributeError:
                 return
-            yield expr(Sym(attr), val(value))
+            yield _expr(Symbol(attr), ground(value))
             return
         for attr in _field_names(target):
-            yield expr(Sym(attr), val(getattr(target, attr)))
+            yield _expr(Symbol(attr), ground(getattr(target, attr)))
 
-    m.register_op(
+    m.op(
         py_attr,
         name="py-attr",
-        declarations=[expr(S.arguments, S["py-attr"], S.atoms)],
+        declarations=[_expr(S.arguments, S["py-attr"], S.atoms)],
     )
-    m.register_op(
+    m.op(
         py_field,
         name="py-field",
-        declarations=[expr(S.arguments, S["py-field"], S.atoms)],
+        declarations=[_expr(S.arguments, S["py-field"], S.atoms)],
     )
     return ["py-attr", "py-field"]

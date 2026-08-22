@@ -6,7 +6,7 @@ answer's annotation. Fuzzy, regex, semantic: all outside the library,
 a few lines each, composing with structural match through evaluation.
 Guarantees:
   - the unannotated ranked operation makes no synthetic type claim [tested:
-    test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,11 +23,11 @@ try:
 except ImportError:
     skip("numpy is not installed")
 
-from petta import Answer, Bindings, MeTTa, S, V, expr
+from petta import Answer, Bindings, MeTTa, S, V, Expression
 from petta.arrays import EmbeddingStore
-from petta.atoms import Gnd
+from petta.atoms import Grounded
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 
 # Crisp lexical closeness: a regex value that matches inside unify. The
 # pattern IS the value; matching succeeds exactly when the operand's
@@ -37,27 +37,27 @@ class Regex:
         self.pattern = re.compile(pattern)
 
     def match_(self, other):
-        text = other.value if isinstance(other, Gnd) else str(other)
+        text = other.value if isinstance(other, Grounded) else str(other)
         if self.pattern.search(str(text)):
             yield other
 
-starts_with_a = Gnd(Regex("^a"))
-(hit,) = m.eval(expr(S.unify, starts_with_a, S.abbey, S.hit, S.miss))
+starts_with_a = Grounded(Regex("^a"))
+(hit,) = m.eval(Expression(S.unify, starts_with_a, S.abbey, S.hit, S.miss))
 check("regex value matches", hit, S.hit)
-(miss,) = m.eval(expr(S.unify, starts_with_a, S.zebra, S.hit, S.miss))
+(miss,) = m.eval(Expression(S.unify, starts_with_a, S.zebra, S.hit, S.miss))
 check("regex value refuses", miss, S.miss)
 
 # Composition with structural match, no new syntax: the matchable gates
 # candidates the pattern produced.
 m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
 (gated,) = m.eval(
-    expr(
+    Expression(
         S.collapse,
-        expr(
+        Expression(
             S.match,
-            expr(S["context-space"]),
+            Expression(S["context-space"]),
             S.person(V.p),
-            expr(S.unify, starts_with_a, V.p, V.p, expr(S.superpose, expr())),
+            Expression(S.unify, starts_with_a, V.p, V.p, Expression(S.superpose, Expression())),
         ),
     )
 )
@@ -72,7 +72,7 @@ def fuzzy(query, candidate=None):
         degree = difflib.SequenceMatcher(None, str(query), word).ratio()
         yield Answer(value=word, k=round(degree, 6))
 
-m.register_op(fuzzy, name="fuzmatch")
+m.op(fuzzy, name="fuzmatch")
 m.declare_annotations("fuzmatch", "ranked")
 (best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
 check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')
@@ -95,7 +95,7 @@ class Nearest:
         yield Bindings({out: key})
 
 (nearest,) = m.eval(
-    expr(S.unify, Gnd(Nearest()), expr(S.espresso, V.k), V.k, S.none)
+    Expression(S.unify, Grounded(Nearest()), Expression(S.espresso, V.k), V.k, S.none)
 )
 check("nearest neighbour", nearest, S.espresso)
 done("custom_matchers")

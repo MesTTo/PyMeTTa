@@ -6,7 +6,7 @@ prepared queries, general weighted relations, goal-directed soft proving with Pr
 the &petta reflection space the library describes itself into.
 Guarantees:
   - an unannotated weighted operation stays untyped without a typed flag
-    [tested: test_a_weighted_relation_is_an_annotated_op; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,14 +19,15 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from petta import REFLECTION_SPACE, Answer, MeTTa, S, V, alpha_eq, expr, val
-from petta.atoms import Expr, Gnd, Var
+from petta import Answer, Expression, S, V, ground
+from petta import reflection as catalog
+from petta.atoms import Grounded, Variable
 from petta.ops import referenced_classes, type_atoms_for
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -35,7 +36,7 @@ def _arrows_of(space, name):
     out = set()
     for atom in space.atoms():
         if (
-            isinstance(atom, Expr)
+            isinstance(atom, Expression)
             and len(atom) == 3
             and atom.head == S[":"]
             and atom[1] == S[name]
@@ -48,33 +49,33 @@ def _arrows_of(space, name):
 
 
 def test_operators_build_terms_on_variables_and_symbols():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert (V.age >= 18) == expr(S[">="], V.age, 18)
-    assert (V.x + 1) == expr(S["+"], V.x, 1)
-    assert (2 * V.x) == expr(S["*"], 2, V.x)
-    assert (V.x + 1 <= V.y) == expr(S["<="], expr(S["+"], V.x, 1), V.y)
-    assert V.x.eq(3) == expr(S["=="], V.x, 3)
-    assert (V.a % 2) == expr(S["%"], V.a, 2)
-    assert (V.x**2) == expr(S["pow-math"], V.x, 2)
-    assert (V.a @ V.b) == expr(S["matmul"], V.a, V.b)
+    assert (V.age >= 18) == Expression(S[">="], V.age, 18)
+    assert (V.x + 1) == Expression(S["+"], V.x, 1)
+    assert (2 * V.x) == Expression(S["*"], 2, V.x)
+    assert (V.x + 1 <= V.y) == Expression(S["<="], Expression(S["+"], V.x, 1), V.y)
+    assert V.x.eq(3) == Expression(S["=="], V.x, 3)
+    assert (V.a % 2) == Expression(S["%"], V.a, 2)
+    assert (V.x**2) == Expression(S["pow-math"], V.x, 2)
+    assert (V.a @ V.b) == Expression(S["matmul"], V.a, V.b)
 
 
 def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     guard = (V.age >= 18) & (V.age <= 40)
-    assert guard == expr(S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40))
-    assert (V.a | V.b) == expr(S["or"], V.a, V.b)
-    assert (V.a ^ V.b) == expr(S["xor"], V.a, V.b)
-    assert ~V.ok == expr(S["not"], V.ok)
+    assert guard == Expression(S["and"], Expression(S[">="], V.age, 18), Expression(S["<="], V.age, 40))
+    assert (V.a | V.b) == Expression(S["or"], V.a, V.b)
+    assert (V.a ^ V.b) == Expression(S["xor"], V.a, V.b)
+    assert ~V.ok == Expression(S["not"], V.ok)
 
 
 def test_grounded_values_keep_value_semantics():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert Gnd(3) + 1 == 4
-    assert Gnd(3) * Gnd(4) == 12
-    assert 10 - Gnd(4) == 6
-    assert Gnd(2) ** 10 == 1024
-    assert Gnd(6) & 3 == 2
-    assert Gnd(5) ^ 1 == 4
-    assert ~Gnd(0) == -1
-    assert (Gnd(7) >= 5) is True  # a boolean, never a term
+    assert Grounded(3) + 1 == 4
+    assert Grounded(3) * Grounded(4) == 12
+    assert 10 - Grounded(4) == 6
+    assert Grounded(2) ** 10 == 1024
+    assert Grounded(6) & 3 == 2
+    assert Grounded(5) ^ 1 == 4
+    assert ~Grounded(0) == -1
+    assert (Grounded(7) >= 5) is True  # a boolean, never a term
 
 
 def test_comparison_terms_refuse_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -97,11 +98,11 @@ def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
     assert not any(answer for answer in answers)
     assert any(answer for answer in m.eval("(adult 21)"))
 
-    assert bool(Gnd(True)) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert bool(Gnd(False)) is False  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert bool(Grounded(True)) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert bool(Grounded(False)) is False  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     # A Number 0 is not falsehood in MeTTa, and neither is an empty string
     # or an empty host container carried whole.
-    assert all(bool(Gnd(value)) for value in (0, 0.0, "", [], None))
+    assert all(bool(Grounded(value)) for value in (0, 0.0, "", [], None))
 
 
 # ------------------------------------------------- generalised declarations
@@ -110,18 +111,18 @@ def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
 def test_typevar_annotations_declare_parametrically(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     A = TypeVar("A")
 
-    @m.register_op(name="first-of")
+    @m.op(name="first-of")
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
-    declaration = expr(S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a")))
-    assert any(alpha_eq(a, declaration) for a in m.atoms())
+    declaration = Expression(S[":"], S["first-of"], Expression(S["->"], S.Expression, Variable("a")))
+    assert any(a.alpha_eq(declaration) for a in m.atoms())
     assert m.run("!(first-of (7 8 9))") == [[7]]
 
 
 def test_union_annotations_superpose_declarations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
 
-    @m.register_op(name="describe")
+    @m.op(name="describe")
     def describe(x: int | str) -> str:
         return f"<{x}>"
 
@@ -142,7 +143,7 @@ def test_union_annotations_superpose_declarations(m):  # noqa: D103  -- pytest d
 
 def test_optional_return_declares_the_value_type(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
 
-    @m.register_op(name="lookup-age")
+    @m.op(name="lookup-age")
     def lookup_age(name: str) -> int | None:
         return {"ada": 36}.get(name)
 
@@ -153,19 +154,19 @@ def test_optional_return_declares_the_value_type(m):  # noqa: D103  -- pytest di
 
 
 def test_callable_and_tuple_annotations_declare_structurally(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.register_op(name="fixed-point-of")
+    @m.op(name="fixed-point-of")
     def fixed_point_of(f: Callable[[int], int]) -> int:
         raise NotImplementedError
 
     assert _arrows_of(m, "fixed-point-of") == {"(-> (-> Number Number) Number)"}
 
-    @m.register_op(name="swap")
+    @m.op(name="swap")
     def swap(pair: tuple[int, str]) -> tuple[str, int]:
         a, b = pair
         return (b, a)
 
     assert _arrows_of(m, "swap") == {"(-> (Number String) (String Number))"}
-    assert m.run('!(swap (7 "x"))') == [[expr("x", 7)]]
+    assert m.run('!(swap (7 "x"))') == [[Expression("x", 7)]]
 
 
 def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -174,7 +175,7 @@ def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discov
         mass: float
         velocity: float
 
-    @m.register_op(name="momentum")
+    @m.op(name="momentum")
     def momentum(p: Particle) -> float:
         return p.mass * p.velocity
 
@@ -182,7 +183,7 @@ def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discov
     # The referenced class became a declared type, constructor arrow typed
     # from its field annotations.
     assert _arrows_of(m, "Particle") == {"(-> Number Number Particle)"}
-    assert m.eval(S.momentum(val(Particle(2.0, 3.0)))) == [6.0]
+    assert m.eval(S.momentum(ground(Particle(2.0, 3.0)))) == [6.0]
 
 
 def test_type_decorator_declares_field_types(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -258,7 +259,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    m.register_op(mood, name="mood")
+    m.op(mood, name="mood")
     m.declare_annotations("mood", "prob")
     (classes,) = m.run("!(collapse (mood today))")[0]
     assert [str(c) for c in classes] == ["calm", "tense"]
@@ -277,9 +278,9 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
 
 
 def test_the_library_reflects_into_its_own_space(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = MeTTa(REFLECTION_SPACE)
+    reflection = catalog
 
-    @m.register_op(name="reflect-probe")
+    @m.op(name="reflect-probe")
     def reflect_probe(x: int) -> int:
         return x
 
@@ -292,24 +293,24 @@ def test_the_library_reflects_into_its_own_space(m):  # noqa: D103  -- pytest di
     def probe_twice(x):
         return x + x
 
-    assert reflection.query(S.defined(S[m.space_name], S["probe-twice"]))
+    assert reflection.query(S.defined(S[m.name], S["probe-twice"]))
 
     sub = m.subscribe(S.road(V.a, V.b))
-    watched = reflection.query(S.subscription(S[m.space_name], V.p, V.on))
+    watched = reflection.query(S.subscription(S[m.name], V.p, V.on))
     assert len(watched) == 1 and str(watched[0].on) == "add"
     sub.cancel()
-    assert not reflection.query(S.subscription(S[m.space_name], V.p, V.on))
+    assert not reflection.query(S.subscription(S[m.name], V.p, V.on))
 
 
 def test_reflection_facts_follow_a_dropped_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = MeTTa(REFLECTION_SPACE)
-    space = metta.new_space()
+    reflection = catalog
+    space = metta._new_space()
 
     @space.define
     def fleeting(x):
         return x
 
-    name = space.space_name
+    name = space.name
     assert reflection.query(S.defined(S[name], S.fleeting))
     space.drop()
     assert not reflection.query(S.defined(S[name], S.fleeting))
@@ -319,7 +320,7 @@ def test_metta_programs_steer_through_the_reflection_space(m):
     """Deeper control without forking: a Python subscription on &petta
     reacts to control atoms a MeTTa program writes there.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    reflection = MeTTa(REFLECTION_SPACE)
+    reflection = catalog
     seen = []
     sub = reflection.subscribe(S.control(V.knob, V.value), lambda e: seen.append(e))
     try:
@@ -333,9 +334,9 @@ def test_metta_programs_steer_through_the_reflection_space(m):
 
 
 def test_drop_cancels_the_spaces_subscriptions(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = MeTTa(REFLECTION_SPACE)
-    space = metta.new_space()
-    name = space.space_name
+    reflection = catalog
+    space = metta._new_space()
+    name = space.name
     seen = []
     subscription = space.subscribe(S.ping(V.x), lambda e: seen.append(e))
     assert reflection.query(S.subscription(S[name], V.p, V.on))
@@ -351,11 +352,11 @@ def test_shared_class_declarations_survive_one_unregister(m):  # noqa: D103  -- 
     class SharedReview:
         stars: float
 
-    @m.register_op(name="rate-one")
+    @m.op(name="rate-one")
     def rate_one(r: SharedReview) -> float:
         return r.stars
 
-    @m.register_op(name="rate-two")
+    @m.op(name="rate-two")
     def rate_two(r: SharedReview) -> float:
         return r.stars * 2
 
@@ -376,8 +377,8 @@ def test_registration_failure_leaves_nothing_half_registered(m):  # noqa: D103  
         return 1
 
     with pytest.raises(TypeError):
-        m.register_op(bad, name="bad-op")
-    reflection = MeTTa(REFLECTION_SPACE)
+        m.op(bad, name="bad-op")
+    reflection = catalog
     assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
     assert _arrows_of(m, "bad-op") == set()
@@ -399,7 +400,7 @@ def test_postponed_annotations_generate_declarations(m):  # noqa: D103  -- pytes
     widen = namespace["widen"]
     assert widen.__annotations__["count"] == "int"
 
-    m.register_op(widen, name="widen-op")
+    m.op(widen, name="widen-op")
     assert _arrows_of(m, "widen-op") == {"(-> Number String String)"}
     assert m.run('!(widen-op 2 "ab")') == [["abab"]]
 
@@ -412,7 +413,7 @@ def test_union_expansion_is_bounded(m):  # noqa: D103  -- pytest discovers or in
         return a
 
     with pytest.raises(TypeError):
-        m.register_op(wide, name="wide-op")
+        m.op(wide, name="wide-op")
     assert not m.is_function("wide-op")
 
 

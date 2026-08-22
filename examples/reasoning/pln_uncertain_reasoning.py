@@ -13,7 +13,7 @@ from petta import MeTTa
 
 # PLN's => writes derived equations into &self by design, so this
 # example lives there, the way the engine's own PLN examples do.
-m = MeTTa()
+m = MeTTa().self
 m.run("!(import! &self (library lib_pln))")
 m.run(
     "(: => (-> Atom Atom %Undefined% %Undefined%))\n"

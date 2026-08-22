@@ -13,7 +13,7 @@ import pytest
 
 @pytest.fixture
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = metta.new_space()
+    space = metta._new_space()
     space.run("!(import! (context-space) (library lib_measure))")
     return space
 

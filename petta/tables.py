@@ -1,7 +1,7 @@
 """Purpose: derive a whole table-backed space provider from MeTTa bridge
 declarations, so the contract is rewrite rules and both directions of
 the boundary fall out of matching them. The module is petta.tables
-because petta.bridge is already the standing bridge RULE between two
+because a subscription bridge is already the standing bridge RULE between two
 spaces (petta.subscribe.bridge); the two are the same idea at two
 boundaries, a declared correspondence the engine keeps live.
 
@@ -34,16 +34,16 @@ knowledge and the attach is one line.
 
 Guarantees:
   - a database row becomes an atom from its typed cell values; plain text is
-    always a symbol, NULL is Gnd(None), and a structured value is one tagged
+    always a symbol, NULL is Grounded(None), and a structured value is one tagged
     TEXT cell carrying the atom wire rather than the source parser [tested:
     test_a_row_value_becomes_an_atom_without_being_reparsed;
-    commit=0c1bd4c2faadc1c4fc97cc9d2caa084907d20072]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a cell PeTTa wrote reads back as the atom it wrote, whatever the driver
     and the image catalog do to the database's own values: _is_atom_cell
     keeps the tag in the text domain, out of reach of a row_factory that
     adapts binary cells, and _ImageCodec answers it before any image
     [tested: test_a_nonground_compound_downgrades_and_removal_still_unifies;
-    commit=0c1bd4c2faadc1c4fc97cc9d2caa084907d20072]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the whole pattern family is filtered exactly where SQL can express
     it: ground positions become comparisons, a repeated variable becomes
     the equality it demands (column to column, or column to the declared
@@ -62,7 +62,7 @@ Guarantees:
     each of the database's own row values before it crosses, keeping opaque
     objects as handles and projecting transparent objects [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=0c1bd4c2faadc1c4fc97cc9d2caa084907d20072]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -76,26 +76,67 @@ Open Obligations:
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
-    Sym,
-    Var,
-    atom_from_wire,
-    encode,
-    is_ground,
+    Expression,
+    Grounded,
+    Symbol,
+    Variable,
+    _atom_from_wire,
+    _encode,
+    _is_ground,
+    ground,
     substitute,
     unify,
-    val,
 )
 from .convert import auto_image, project
 from .foreign import SpaceProvider
 
 _ATOM_CELL_PREFIX = "\x00petta-atom-v1\x00"
+
+
+def _row_values(row: Any, keys: list[Any]) -> Any:
+    """Read a record by values while fixing one stable column order."""
+    if not isinstance(row, Mapping):
+        return row
+    if not keys:
+        keys.extend(row.keys())
+    elif list(row.keys()) != keys:
+        msg = (
+            "every record must carry the same keys in the same order; "
+            f"expected {keys}, got {list(row.keys())}"
+        )
+        raise ValueError(msg)
+    return row.values()
+
+
+def add(space: Any, head: Any, data: Any) -> int:
+    """Add a tabular source to a space as ``(head column...)`` facts."""
+    head_atom = head if isinstance(head, Atom) else Symbol(str(head))
+    keys: list[Any] = []
+    if hasattr(data, "iter_rows"):
+        rows = data.iter_rows()
+    elif hasattr(data, "itertuples"):
+        rows = data.itertuples(index=False)
+    elif isinstance(data, Mapping):
+        rows = zip(*data.values(), strict=True)
+    elif isinstance(data, Iterable):
+        rows = iter(data)
+    else:
+        msg = (
+            "tables.add reads iter_rows(), itertuples(), a mapping of "
+            f"columns, or an iterable of rows; {type(data).__name__} offers none"
+        )
+        raise TypeError(msg)
+    facts = [
+        Expression([head_atom, *(_encode(value) for value in _row_values(row, keys))])
+        for row in rows
+    ]
+    space.add(*facts)
+    return len(facts)
 
 
 def _encoded_cell(atom: Atom) -> str:
@@ -133,20 +174,20 @@ def _atom_from_cell(value: Any) -> Atom:
     """Map one driver value to its atom; text is data, never source code."""
     if _is_atom_cell(value):
         try:
-            return atom_from_wire(json.loads(value[len(_ATOM_CELL_PREFIX) :]))
+            return _atom_from_wire(json.loads(value[len(_ATOM_CELL_PREFIX) :]))
         except (TypeError, ValueError) as exc:
             msg = "a table cell starts with PeTTa's atom tag but its payload is corrupt"
             raise ValueError(msg) from exc
     if isinstance(value, str):
-        return Sym(value)
-    return encode(value)
+        return Symbol(value)
+    return _encode(value)
 
 
 def _cell_from_atom(atom: Atom) -> Any:
     """Map an atom to one DB-API parameter that `_atom_from_cell` inverts."""
-    if isinstance(atom, Sym):
+    if isinstance(atom, Symbol):
         return atom.name
-    if isinstance(atom, Gnd):
+    if isinstance(atom, Grounded):
         value = atom.value
         if value is None or type(value) in (int, float):
             return value
@@ -157,7 +198,7 @@ def _cell_from_atom(atom: Atom) -> Any:
             "database representation"
         )
         raise ValueError(msg)
-    if isinstance(atom, Expr):
+    if isinstance(atom, Expression):
         return _encoded_cell(atom)
     msg = f"{atom!r} cannot be stored in one table column"
     raise ValueError(msg)
@@ -196,26 +237,26 @@ class _Shape:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, declaration: Atom) -> None:
-        if not isinstance(declaration, Expr) or len(declaration.children) != 3:
+        if not isinstance(declaration, Expression) or len(declaration.children) != 3:
             raise _declaration_error(declaration)
         head, atom_shape, row_shape = declaration.children
-        if str(head) != "bridge" or not isinstance(atom_shape, Expr) or not isinstance(row_shape, Expr):
+        if str(head) != "bridge" or not isinstance(atom_shape, Expression) or not isinstance(row_shape, Expression):
             raise _declaration_error(declaration)
         self.shape = atom_shape
         table, *columns = row_shape.children[1:]
         self.table = str(table)
         self.columns: dict[str, str] = {}
         for pair in columns:
-            if not isinstance(pair, Expr) or len(pair.children) != 2:
+            if not isinstance(pair, Expression) or len(pair.children) != 2:
                 msg = f"a row column is (name $var), got {pair}"
                 raise ValueError(msg)
             column, variable = pair.children
-            if not isinstance(variable, Var):
+            if not isinstance(variable, Variable):
                 msg = f"a row column binds a variable, got {pair}"
                 raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
             self.columns[str(variable)] = str(column)
         for child in atom_shape.children:
-            if isinstance(child, Var) and str(child) not in self.columns:
+            if isinstance(child, Variable) and str(child) not in self.columns:
                 msg = f"the atom shape's {child} has no column in {row_shape}"
                 raise ValueError(msg)
 
@@ -228,16 +269,16 @@ class _Shape:
         later occurrence becomes the equality the pattern itself demands;
         the kit's repeated-variable folds probe exactly this.
         """
-        if not isinstance(pattern, Expr) or len(pattern.children) != len(self.shape.children):
+        if not isinstance(pattern, Expression) or len(pattern.children) != len(self.shape.children):
             return None
         where: list[str] = []
         arguments: list[Any] = []
         exact = True
         seen: dict[str, tuple[str, Any]] = {}
         for shaped, given in zip(self.shape.children, pattern.children, strict=True):
-            if not isinstance(shaped, Var):
+            if not isinstance(shaped, Variable):
                 constant = shaped
-                if isinstance(given, Var):
+                if isinstance(given, Variable):
                     name = str(given)
                     prior = seen.get(name)
                     if prior is None:
@@ -257,7 +298,7 @@ class _Shape:
                     return None
                 continue
             column = self.columns[str(shaped)]
-            if isinstance(given, Var):
+            if isinstance(given, Variable):
                 name = str(given)
                 prior = seen.get(name)
                 if prior is None:
@@ -272,7 +313,7 @@ class _Shape:
                         _cell_from_atom(prior[1]),
                     )
                 continue
-            if isinstance(given, Expr) and not is_ground(given):
+            if isinstance(given, Expression) and not _is_ground(given):
                 exact = False
                 continue
             _value_constraint(
@@ -287,14 +328,14 @@ class _Shape:
         return ", ".join(
             self.columns[str(child)]
             for child in self.shape.children
-            if isinstance(child, Var)
+            if isinstance(child, Variable)
         )
 
-    def values(self, atom: Expr) -> list[Any]:
+    def values(self, atom: Expression) -> list[Any]:
         return [
             _cell_from_atom(given)
             for shaped, given in zip(self.shape.children, atom.children, strict=True)
-            if isinstance(shaped, Var)
+            if isinstance(shaped, Variable)
         ]
 
     def atom(self, cell_atom: Callable[[Any], Atom], row: Any) -> Atom:
@@ -302,7 +343,7 @@ class _Shape:
         bindings = {
             child.name: cell_atom(next(values))
             for child in self.shape.children
-            if isinstance(child, Var)
+            if isinstance(child, Variable)
         }
         return substitute(self.shape, bindings)
 
@@ -341,7 +382,7 @@ class _ImageCodec:
         if setting == "auto":
             setting = auto_image(value)
         if setting == "opaque":
-            return val(value)
+            return ground(value)
         return project(value).atom
 
 
@@ -396,7 +437,7 @@ class TableBridge(SpaceProvider):
         )
         images: dict[str, str] = {}
         for pair in image_group[0]:
-            if not isinstance(pair, Expr) or len(pair.children) != 2:
+            if not isinstance(pair, Expression) or len(pair.children) != 2:
                 continue
             type_name, setting = map(str, pair.children)
             prior = images.setdefault(type_name, setting)
@@ -435,7 +476,7 @@ class TableBridge(SpaceProvider):
         fitting = [
             shape
             for shape, _derived in self._admitting(atom)
-            if is_ground(atom)
+            if _is_ground(atom)
         ]
         if not fitting:
             msg = (
@@ -459,7 +500,7 @@ class TableBridge(SpaceProvider):
         self.connection.execute(
             f"INSERT INTO {shape.table} ({shape.column_list()})"  # noqa: S608 - identifiers from the trusted declaration  # nosec B608
             f" VALUES ({holes})",
-            shape.values(cast(Expr, atom)),
+            shape.values(cast(Expression, atom)),
         )
 
     def remove(self, pattern: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -479,7 +520,7 @@ class TableBridge(SpaceProvider):
                 shape.values(atom)
                 for row in self._select(shape, where, arguments)
                 for atom in (shape.atom(self._cell_atom, row),)
-                if isinstance(atom, Expr) and unify(pattern, atom) is not None
+                if isinstance(atom, Expression) and unify(pattern, atom) is not None
             ]
             for values in doomed:
                 clauses: list[str] = []
@@ -539,10 +580,11 @@ def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     and any program can read the schema, and from_context will.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
-    if not isinstance(parsed, Expr):
+    if not isinstance(parsed, Expression):
         raise _declaration_error(parsed)
     _Shape(parsed)  # validated before it is stored, the declare_* discipline
     _, atom_shape, row_shape = parsed.children
     stored = m.parse(f"(bridge {name} {atom_shape} {row_shape})")
-    m.run("!(add-atom &petta decl)", using={"decl": stored})
+    with m.bind(decl=stored):
+        m.run("!(add-atom &petta decl)")
     return stored

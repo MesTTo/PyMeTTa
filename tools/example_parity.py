@@ -24,9 +24,9 @@ Guarantees:
     line [tested test_example_parity_reports_a_planted_difference]
   - answers are compared as VALUES, not as text, so a difference in
     source SPELLING is not a difference in answer: `true` and `True` both
-    parse to Gnd(True), while both shipped writers emit canonical `True`
+    parse to Grounded(True), while both shipped writers emit canonical `True`
     [tested: test_spelling_is_not_a_difference,
-    test_swrite_writes_mettas_own_boolean_literal; commit=53686aed41e7ff02de69052198afdb537536cbdb]
+    test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the
@@ -178,7 +178,7 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
     source = (
         "import sys; sys.path.insert(0, 'bindings/python')\n"
         "from petta import MeTTa\n"
-        f"for group in MeTTa(petta_path='.').load({str(path.relative_to(root))!r}):\n"
+        f"for group in MeTTa(petta_path='.').self.load({str(path.relative_to(root))!r}):\n"
         "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
     return _run([sys.executable, "-c", source], root)[0]
@@ -199,7 +199,7 @@ class Difference:
 def _value(written: str):
     """One written group as a VALUE, so a difference in spelling is not
     reported as a difference in answer: boolean source aliases parse to the
-    same Gnd value. An unparsable group compares as its own text, which keeps
+    same Grounded value. An unparsable group compares as its own text, which keeps
     malformed output visible instead of collapsing it to equal."""
     from petta.atoms import parse
 

@@ -1,17 +1,17 @@
-"""Purpose: public atom construction, parsing, traversal, equivalence, and matching.
+"""Purpose: expose PeTTa atoms, the S/V/G factories, parsing, and matching.
 Guarantees:
   - public atom classes retain the petta.atoms pickle path after internal
     module cuts [tested test_atoms_pickle_by_value,
     test_atoms_cross_a_spawned_process_boundary]
-  - map_atoms transforms trees iteratively and validates replacements [tested
+  - Atom.map transforms trees iteratively and validates replacements [tested
     test_map_atoms_handles_depth_as_data_and_validates_transform_results]
   - parse uses the engine reader and preserves source variable names [tested
     test_parse_keeps_variable_names]
-  - formatter registrations have exact removal counterparts [tested
+  - exact-type formatter registrations have exact removal counterparts [tested
     test_object_repr_registrations_can_be_removed_exactly]
   - the immutable operator lowering table is public data [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,22 +25,22 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from . import _atom_namespace as _namespace
+from . import _atom_wire as _wire
 from . import _atoms_core as _core
-from ._atom_wire import Undefined, atom_from_wire, from_wire
+from ._atom_wire import Undefined
 from ._atoms_core import (
     Atom,
     Box,
-    Expr,
-    Gnd,
+    Expression,
+    Grounded,
     Handle,
-    Sym,
-    Var,
-    decode,
-    encode,
+    Symbol,
+    Variable,
     register_object_repr,
-    register_object_repr_protocol,
     unregister_object_repr,
-    unregister_object_repr_protocol,
+)
+from ._atoms_core import (
+    encode as _encode,
 )
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
@@ -50,83 +50,77 @@ _WIRE_CACHE_MAX = _core._WIRE_CACHE_MAX
 _WIRE_SYMS = _core._WIRE_SYMS
 _WIRE_VARS = _core._WIRE_VARS
 boxed = _core.boxed
+_atom_from_wire = _wire._atom_from_wire
+_decode = _core.decode
+_from_wire = _wire._from_wire
+_expression_atoms = _core._expression_atoms
+_register_protocol_repr = _core._register_protocol_repr
+_unregister_protocol_repr = _core._unregister_protocol_repr
 
 __all__ = [
     "OPERATOR_LOWERINGS",
     "Atom",
-    "Expr",
-    "Gnd",
+    "Expression",
+    "G",
+    "Grounded",
     "Handle",
     "OperatorLowering",
     "S",
-    "Sym",
+    "Symbol",
     "Undefined",
     "V",
-    "Var",
-    "alpha_eq",
-    "atom_from_wire",
-    "decode",
-    "encode",
-    "expr",
-    "from_wire",
-    "is_ground",
-    "map_atoms",
+    "Variable",
+    "ground",
     "order_key",
     "parse",
-    "pretty",
     "register_object_repr",
-    "register_object_repr_protocol",
     "substitute",
-    "sym",
     "unify",
     "unregister_object_repr",
-    "unregister_object_repr_protocol",
-    "val",
-    "var",
-    "variables",
 ]
 
 # Keep the documented and pickled class location stable across internal cuts.
-for _atom_type in (Atom, Box, Expr, Gnd, Handle, Sym, Undefined, Var):
+for _atom_type in (Atom, Box, Expression, Grounded, Handle, Symbol, Undefined, Variable):
     _atom_type.__module__ = __name__
 
 # ----------------------------------------------------------------- constructors
 
 
-def sym(name: str) -> Sym:
-    """A symbol by name, for names that are not Python identifiers."""
-    return Sym(name)
-
-
-def var(name: str) -> Var:
-    """A variable by name."""
-    return Var(name)
-
-
-def val(value: Any) -> Gnd:
+def ground(value: Any) -> Grounded:
     """Carry a Python value whole, whatever it is.
 
-    MeTTa has no list type: encode([1, 2, 3]) is the expression (1 2 3), so
-    petta.val([1, 2, 3]) is how to say this particular list is one grounded
-    value. It crosses by reference, comes back as the same object, and
-    unifies by identity.
+    This is the FFI boxing door. Structural wire conversion lives in
+    :mod:`petta.wire`; ``ground([1, 2, 3])`` therefore carries one list by
+    identity instead of turning it into an expression.
     """
-    return Gnd(value)
+    return Grounded(value)
 
 
-def expr(*children: Any) -> Expr:
-    """An expression from parts, each encoded."""
-    return Expr([encode(c) for c in children])
+class _GroundFactory:
+    """The G(value) spelling of ground(value), parallel to S and V."""
+
+    __slots__ = ()
+
+    def __call__(self, value: Any) -> Grounded:
+        return ground(value)
 
 
-S = _Namespace(Sym)
-V = _Namespace(Var)
+G = _GroundFactory()
+
+
+S = _Namespace(Symbol)
+V = _Namespace(Variable)
+
+
+def _expr(*children: Any) -> Expression:
+    """Internal variadic constructor; public code calls a Symbol or Expression."""
+    return _expression_atoms(_encode(child) for child in children)
 
 
 # -------------------------------------------------------------------- reading
 
 
-def pretty(atom: Any, width: int = 78) -> str:
+def _pretty(atom: Any, width: int = 78) -> str:
     """The atom laid out for reading: a subterm prints inline when it fits
     the remaining width, and otherwise breaks after its head with each
     child on its own line two deeper, the classic s-expression
@@ -136,7 +130,7 @@ def pretty(atom: Any, width: int = 78) -> str:
 
     def render(a: Atom, indent: int) -> str:
         inline = str(a)
-        if len(inline) <= width - indent or not isinstance(a, Expr) or len(a.children) < 2:
+        if len(inline) <= width - indent or not isinstance(a, Expression) or len(a.children) < 2:
             return inline
         joiner = "\n" + " " * (indent + 2)
         parts = [render(child, indent + 2) for child in a.children[1:]]
@@ -150,7 +144,7 @@ def parse(source: str) -> Atom:
 
     Backed by the engine's own reader, with one improvement over sread/2: the
     variable names the DCG collects are kept, so parse("(Parent $x Bob)")
-    contains Var('x') rather than a machine name, and the same pattern built
+    contains Variable('x') rather than a machine name, and the same pattern built
     with V.x compares equal.
 
     Crossed through apply() rather than once(). petta_py_parse/2 already has
@@ -161,7 +155,7 @@ def parse(source: str) -> Atom:
     241.01 and 10.60us for the same term prebuilt].
     """
     engine = importlib.import_module(f"{__package__}._engine")
-    return atom_from_wire(engine.runtime().apply_must("petta_py_parse", source))
+    return _wire._atom_from_wire(engine.runtime().apply_must("petta_py_parse", source))
 
 
 def _to_atom(value: Any) -> Atom:
@@ -170,13 +164,13 @@ def _to_atom(value: Any) -> Atom:
         return value
     if isinstance(value, str):
         return parse(value)
-    return encode(value)
+    return _encode(value)
 
 
 # ------------------------------------------------------------------ inspection
 
 
-def variables(atom: Atom) -> list[str]:
+def _variables(atom: Atom) -> list[str]:
     """Variable names in an atom, in first-appearance order. Iterative:
     depth is data.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -184,20 +178,20 @@ def variables(atom: Atom) -> list[str]:
     stack: list[Atom] = [atom]
     while stack:
         a = stack.pop()
-        if isinstance(a, Var):
+        if isinstance(a, Variable):
             if a.name not in out:
                 out.append(a.name)
-        elif isinstance(a, Expr):
+        elif isinstance(a, Expression):
             stack.extend(reversed(a.children))
     return out
 
 
-def is_ground(atom: Atom) -> bool:
-    """True when the atom carries no variables."""
-    return not variables(atom)
+def _is_ground(atom: Atom) -> bool:
+    """Internal predicate; public code reads ``not atom.vars``."""
+    return not _variables(atom)
 
 
-#: Prolog's standard order of terms: Var < Number < Atom < String < Compound.
+#: Prolog's standard order of terms: Variable < Number < Atom < String < Compound.
 #: A bool is a Python int, so it is ranked with the symbols it reads as rather
 #: than with the numbers it inherits from.
 _ORDER_VAR, _ORDER_NUMBER, _ORDER_SYMBOL = 0, 1, 2
@@ -221,11 +215,11 @@ def order_key(atom: Atom) -> tuple:
     Two atoms that compare equal here are not necessarily the same atom: a key
     orders, `same_atom` decides identity.
     """
-    if isinstance(atom, Var):
+    if isinstance(atom, Variable):
         return (_ORDER_VAR, atom.name)
-    if isinstance(atom, Sym):
+    if isinstance(atom, Symbol):
         return (_ORDER_SYMBOL, atom.name)
-    if isinstance(atom, Expr):
+    if isinstance(atom, Expression):
         children = tuple(order_key(child) for child in atom.children)
         return (_ORDER_EXPR, len(children), children)
     value = getattr(atom, "value", atom)
@@ -241,7 +235,7 @@ def order_key(atom: Atom) -> tuple:
 
 def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:
     """Rebuild one expression only when a mapped child changed identity."""
-    if not isinstance(node, Expr):
+    if not isinstance(node, Expression):
         return node
     width = len(node.children)
     mapped_children = tuple(results[-width:]) if width else ()
@@ -251,34 +245,34 @@ def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:
         mapped is not original
         for mapped, original in zip(mapped_children, node.children, strict=True)
     ):
-        return Expr(mapped_children)
+        return _expression_atoms(mapped_children)
     return node
 
 
-def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
+def _map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
     """Transform every node in an atom tree, children before parents.
 
     The walk is iterative, so nesting depth remains data rather than a Python
-    recursion limit. A no-op transform preserves each unchanged Expr object.
+    recursion limit. A no-op transform preserves each unchanged Expression object.
     Nodes returned by transform are final for this pass and are not walked
     again.
     """
     if not isinstance(atom, Atom):
-        msg = f"map_atoms expects an Atom, got {type(atom).__name__}"
+        msg = f"Atom.map expects an Atom, got {type(atom).__name__}"
         raise TypeError(msg)
 
     stack: list[tuple[Atom, bool]] = [(atom, False)]
     results: list[Atom] = []
     while stack:
         node, expanded = stack.pop()
-        if isinstance(node, Expr) and not expanded:
+        if isinstance(node, Expression) and not expanded:
             stack.append((node, True))
             stack.extend((child, False) for child in reversed(node.children))
             continue
 
         mapped = transform(_mapped_candidate(node, results))
         if not isinstance(mapped, Atom):
-            msg = f"map_atoms transform must return an Atom, got {type(mapped).__name__}"
+            msg = f"Atom.map transform must return an Atom, got {type(mapped).__name__}"
             raise TypeError(msg)
         results.append(mapped)
 
@@ -288,25 +282,25 @@ def map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
 # ----------------------------------------------------------------- equivalence
 
 
-def alpha_eq(a: Atom, b: Atom) -> bool:
+def _alpha_eq(a: Atom, b: Atom) -> bool:
     """Equality up to consistent renaming of variables, PeTTa's =alpha.
 
     A named function rather than ==, because two atoms must not compare
     differently depending on which variable names they happen to carry.
     """
-    return _alpha(encode(a), encode(b), {}, {})
+    return _alpha(_encode(a), _encode(b), {}, {})
 
 
 def _alpha(a: Atom, b: Atom, ab: dict, ba: dict) -> bool:
     stack: list[tuple[Atom, Atom]] = [(a, b)]
     while stack:
         x, y = stack.pop()
-        if isinstance(x, Var) and isinstance(y, Var):
+        if isinstance(x, Variable) and isinstance(y, Variable):
             if ab.setdefault(x.name, y.name) != y.name:
                 return False
             if ba.setdefault(y.name, x.name) != x.name:
                 return False
-        elif isinstance(x, Expr) and isinstance(y, Expr):
+        elif isinstance(x, Expression) and isinstance(y, Expression):
             if len(x.children) != len(y.children):
                 return False
             stack.extend(zip(x.children, y.children, strict=True))
@@ -321,12 +315,12 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     An unbound variable stays itself, so a partial substitution is a
     narrower pattern rather than an error.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    term = encode(atom)
-    if isinstance(term, Var):
+    term = _encode(atom)
+    if isinstance(term, Variable):
         bound = bindings.get(term.name)
         return bound if bound is not None else term
-    if isinstance(term, Expr):
-        return Expr([substitute(child, bindings) for child in term.children])
+    if isinstance(term, Expression):
+        return _expression_atoms(substitute(child, bindings) for child in term.children)
     return term
 
 
@@ -338,7 +332,7 @@ def unify(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:
     and therefore the engine's.
     """
     bindings: dict[str, Atom] = {}
-    if _unify(encode(pattern), encode(atom), bindings):
+    if _unify(_encode(pattern), _encode(atom), bindings):
         return bindings
     return None
 
@@ -347,7 +341,7 @@ def _unify(p: Atom, a: Atom, b: dict) -> bool:
     stack: list[tuple[Atom, Atom]] = [(p, a)]
     while stack:
         x, y = stack.pop()
-        if isinstance(x, Var):
+        if isinstance(x, Variable):
             # `_` is anonymous: it matches anything, binds nothing, and two
             # occurrences never constrain each other, the reader's own rule.
             if x.name == "_":
@@ -357,7 +351,7 @@ def _unify(p: Atom, a: Atom, b: dict) -> bool:
                 b[x.name] = y
             elif seen != y:
                 return False
-        elif isinstance(x, Expr) and isinstance(y, Expr):
+        elif isinstance(x, Expression) and isinstance(y, Expression):
             if len(x.children) != len(y.children):
                 return False
             stack.extend(zip(x.children, y.children, strict=True))

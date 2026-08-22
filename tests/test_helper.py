@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-from petta import EngineError
+from petta.errors import EngineError
 
 
 def _silent_state(runtime):

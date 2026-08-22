@@ -13,19 +13,19 @@ Guarantees:
   - every position the engine's type surface declares strict, on a builtin
     PeTTa defines, refuses an unbound argument and names the MeTTa operation
     [tested: test_every_builtin_refuses_an_unbound_input_by_name;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - no such refusal names a Prolog predicate the MeTTa program never wrote
     [tested: test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - `+ - * /` invert one unbound slot among integers, CLP(FD) solves the
     nonlinear cases past that, and every backward query outside both refuses
     with a named reason rather than a bare instantiation error
     [tested: test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason;
-    commit=51d4c13abb1e443a6f659dff60e606dc2bc4993f]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the four cross-file residual inputs and the already-repaired surface match
     path refuse under their own written names
     [tested: test_the_residual_positions_refuse_by_their_own_names;
-    commit=6a16a43651f469160fcb9b77c134c318fc7b9103]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,8 +71,9 @@ FILLER = {"Expression": "(a b)", "Number": "1", "BigInt": "9223372036854775808",
           "String": '"s"', "Bool": "true",
           "Symbol": "&probe-space", "Variable": "$probe-bound", "other": "a"}
 
-engine = MeTTa()
-rows = engine.runtime.once(TABLE)["Rows"]
+context = MeTTa()
+engine = context.self
+rows = context.runtime.once(TABLE)["Rows"]
 report = {"probed": 0, "unnamed": [], "answered": [], "raised": []}
 for name, position, kinds in rows:
     written = [("$petta-hole" if index + 1 == position else FILLER[kind])
@@ -143,7 +144,7 @@ def test_the_measured_examples_read_as_metta():
     """The four the specification measured, spelled out, because a generated
     probe proves the property and a written-out case proves it reads.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    engine = MeTTa()
+    engine = MeTTa().self
     for source, position in (
         ("!(car-atom $u)", 1),
         ("!(index-atom $u 0)", 1),
@@ -170,7 +171,7 @@ def test_a_relational_position_still_enumerates():
     open tail, which the engine's own prelude writes as (cons Error $_), and
     union-atom splits a list from the right, which a shipped library does.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    engine = MeTTa()
+    engine = MeTTa().self
     answers = lambda query: [  # noqa: E731 - one shape, read three times
         str(a) for g in engine.run(query) for a in g
     ]
@@ -188,7 +189,7 @@ def test_a_surface_match_on_an_unbound_space_answers_the_error(metta):
     direct call answered the refusal [measured 2026-08-19 on the wave-7
     merged tree]. The template and the result are distinct variables now.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         groups = space.run("!(match $u (f 1) matched)")
     assert len(groups) == 1 and len(groups[0]) == 1
     answer = str(groups[0][0])
@@ -202,7 +203,7 @@ def test_the_residual_positions_refuse_by_their_own_names(metta):
     Each operation's unbound-input refusal must carry the MeTTa operation
     name, never the host predicate that happened to raise first.
     """
-    engine = MeTTa()
+    engine = MeTTa().self
     for operation, source, leaked_host_name in (
         ("add-reduct", "!(add-reduct $u a)", "add-atom"),
         ("git-import!", "!(git-import! $u)", "atom_string"),
@@ -215,7 +216,7 @@ def test_the_residual_positions_refuse_by_their_own_names(metta):
         assert operation in message, source
         assert leaked_host_name not in message, source
 
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         groups = space.run("!(match $u (f 1) matched)")
     answer = str(groups[0][0])
     assert answer.startswith("(Error (match ")
@@ -236,7 +237,7 @@ def test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason():
     sufficiently instantiated", which named neither the operation's modes nor
     what to write instead [measured 2026-08-21: every case below raised it].
     """
-    engine = MeTTa()
+    engine = MeTTa().self
     answers = lambda query: [  # noqa: E731 - one shape, read many times
         str(a) for g in engine.run(query) for a in g
     ]

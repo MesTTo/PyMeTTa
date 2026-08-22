@@ -31,23 +31,26 @@ import pytest
 
 import petta.foreign as foreign_module
 from petta import (
-    Adder,
     Atom,
-    Clearer,
-    Enumerable,
-    Expr,
-    Matcher,
+    Expression,
     MeTTa,
     PettaError,
-    Remover,
     S,
     V,
-    Var,
-    expr,
+    Variable,
     parse,
     unify,
 )
-from petta.foreign import SpaceProvider, register_provider, unregister_provider
+from petta.foreign import (
+    Adder,
+    Clearer,
+    Enumerable,
+    Matcher,
+    Remover,
+    SpaceProvider,
+    register_provider,
+    unregister_provider,
+)
 
 
 class ListSpace(SpaceProvider):
@@ -84,9 +87,9 @@ class ListSpace(SpaceProvider):
 def listspace(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = ListSpace([S.edge(S.a, S.b), S.edge(S.b, S.c), S.other(1)])
     name = f"&list{id(provider) % 10000}"
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     yield name, provider, metta
-    metta.unregister_space(name)
+    metta._unregister_space(name)
 
 
 # What the SpaceComplianceSuite already checks, over three providers rather
@@ -101,7 +104,7 @@ def listspace(metta):  # noqa: D103  -- pytest discovers or injects this callabl
 def test_match_answers_exactly_what_the_pattern_names(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, _provider, m = listspace
     r = m.run(f"!(collapse (match {name} (edge $x $y) ($x $y)))")
-    assert r == [[expr(expr(S.a, S.b), expr(S.b, S.c))]]
+    assert r == [[Expression(Expression(S.a, S.b), Expression(S.b, S.c))]]
     # The provider yields (other 1) too, and unification is the engine's.
     assert m.run(f"!(match {name} (edge a $y) $y)") == [[S.b]]
 
@@ -109,12 +112,12 @@ def test_match_answers_exactly_what_the_pattern_names(listspace):  # noqa: D103 
 def test_conjunction_routes_through_the_provider(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     r = m.run(f"!(collapse (match {name} (, (edge $x $y) (edge $y $z)) ($x $z)))")
-    assert r == [[expr(expr(S.a, S.c))]]
+    assert r == [[Expression(Expression(S.a, S.c))]]
 
 
 def test_python_query_api_over_foreign_space(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
-    rows = m.space(name).query(S.edge(V.x, V.y), S.edge(V.y, V.z))
+    rows = m._at(name).query(S.edge(V.x, V.y), S.edge(V.y, V.z))
     assert [(r.x, r.z) for r in rows] == [(S.a, S.c)]
 
 
@@ -128,13 +131,13 @@ def test_writes_reach_the_provider(listspace):  # noqa: D103  -- pytest discover
 
 def test_mixed_native_and_foreign_join(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
-    native = m.new_space()
+    native = m._new_space()
     native.add(S.blessed(S.a))
     r = native.run(
         f"!(collapse (match {name} (edge $x $y) "
         f"(match (context-space) (blessed $x) ($x reaches $y))))"
     )
-    assert r == [[expr(expr(S.a, S.reaches, S.b))]]
+    assert r == [[Expression(Expression(S.a, S.reaches, S.b))]]
 
 
 def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -143,14 +146,14 @@ def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest disco
             return iter([S.fact(1)])
 
     name = "&readonly1"
-    metta.register_space(ReadOnly(), name)
+    metta._register_space(ReadOnly(), name)
     try:
         with pytest.raises(PettaError) as excinfo:
             metta.run(f"!(add-atom {name} (fact 2))")
         assert "does not implement add" in str(excinfo.value)
         assert excinfo.value.capability == "add"
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_capabilities_follow_implemented_methods():
@@ -219,14 +222,14 @@ def test_provider_can_decline_one_request(metta):  # noqa: D103  -- pytest disco
 
     provider = Selective()
     name = "&selective-capability"
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     try:
-        metta.space(name).add(S.allowed(1))
+        metta._at(name).add(S.allowed(1))
         with pytest.raises(PettaError, match="declines this add request"):
-            metta.space(name).add(S.denied(1))
+            metta._at(name).add(S.denied(1))
         assert provider.stored == [S.allowed(1)]
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 # The worked SQL instance lives whole in examples/integration/duckdb_space.py,
@@ -239,14 +242,14 @@ def test_provider_collision_is_refused(metta):  # noqa: D103  -- pytest discover
             return iter(())
 
     first = Empty()
-    metta.register_space(first, "&col")
+    metta._register_space(first, "&col")
     try:
         with pytest.raises(ValueError):
-            metta.register_space(Empty(), "&col")
+            metta._register_space(Empty(), "&col")
         # The same provider again is idempotent, not a collision.
-        metta.register_space(first, "&col")
+        metta._register_space(first, "&col")
     finally:
-        metta.unregister_space("&col")
+        metta._unregister_space("&col")
 
 
 def test_provider_registration_is_transactional():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -308,12 +311,12 @@ def test_a_provider_states_its_own_refusal(metta):  # noqa: D103  -- pytest disc
             return None
 
     name = "&curated-refusal-test"
-    metta.register_space(Curated(), name)
+    metta._register_space(Curated(), name)
     try:
         with pytest.raises(PettaError, match="curated; write to it with the loader"):
-            metta.space(name).add(S.f(S.a))
+            metta._at(name).add(S.f(S.a))
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 # "does not implement" is wrong for a provider that implements and declines,
@@ -335,16 +338,16 @@ def test_declining_and_not_implementing_read_differently(metta):  # noqa: D103  
         def atoms(self):
             return iter(())
 
-    metta.register_space(Declines(), "&declines-add-test")
-    metta.register_space(Absent(), "&absent-add-test")
+    metta._register_space(Declines(), "&declines-add-test")
+    metta._register_space(Absent(), "&absent-add-test")
     try:
         with pytest.raises(PettaError, match="declines this add request"):
-            metta.space("&declines-add-test").add(S.f(S.a))
+            metta._at("&declines-add-test").add(S.f(S.a))
         with pytest.raises(PettaError, match="does not implement add"):
-            metta.space("&absent-add-test").add(S.f(S.a))
+            metta._at("&absent-add-test").add(S.f(S.a))
     finally:
-        metta.unregister_space("&declines-add-test")
-        metta.unregister_space("&absent-add-test")
+        metta._unregister_space("&declines-add-test")
+        metta._unregister_space("&absent-add-test")
 
 
 # The declared capability was enforced where the operation is NAMED and
@@ -365,13 +368,13 @@ def test_a_declined_enumerate_is_not_reached_through_match(metta):  # noqa: D103
             return super().can_run(capability, **request)
 
     name = "&no-enumerate-test"
-    metta.register_space(NoEnumerate(), name)
+    metta._register_space(NoEnumerate(), name)
     try:
         with pytest.raises(PettaError, match="declines this enumerate request"):
             metta.run(f"!(match {name} (edge $a $b) $a)")
         assert not NoEnumerate.called
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 # A provider backing a space with a database or a service can bound its own
@@ -423,29 +426,29 @@ class _Unbounded(_Countable):
 @pytest.mark.parametrize("limit", [1, 3, 10])
 def test_a_bound_reaches_a_provider_that_takes_one(metta, limit):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Bounded(500)
-    metta.register_space(provider, "&bounded-test")
+    metta._register_space(provider, "&bounded-test")
     try:
-        rows = MeTTa("&bounded-test").query(S.fact(V.k, V.v), limit=limit)
+        rows = MeTTa().space("&bounded-test").query(S.fact(V.k, V.v), limit=limit)
         assert len(rows) == limit
         assert provider.asked == [limit]
         # It stopped at the bound rather than at the engine's cut, which is
         # the whole point: the backend did not produce what nobody wanted.
         assert provider.produced == limit
     finally:
-        metta.unregister_space("&bounded-test")
+        metta._unregister_space("&bounded-test")
 
 
 def test_a_provider_without_the_keyword_is_called_as_before(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Unbounded(500)
-    metta.register_space(provider, "&unbounded-test")
+    metta._register_space(provider, "&unbounded-test")
     try:
-        rows = MeTTa("&unbounded-test").query(S.fact(V.k, V.v), limit=3)
+        rows = MeTTa().space("&unbounded-test").query(S.fact(V.k, V.v), limit=3)
         assert len(rows) == 3
         # One past the bound, which is what a lazy pull costs, and nothing
         # like the 500 it holds.
         assert provider.produced == 4
     finally:
-        metta.unregister_space("&unbounded-test")
+        metta._unregister_space("&unbounded-test")
 
 
 class _UnclaimedBounded(_Countable):
@@ -471,13 +474,13 @@ def test_a_bound_is_withheld_from_a_provider_that_claimed_nothing(metta):
     before the option existed, and the engine's own bound still answers 3.
     """
     provider = _UnclaimedBounded(500)
-    metta.register_space(provider, "&unclaimed-test")
+    metta._register_space(provider, "&unclaimed-test")
     try:
-        rows = MeTTa("&unclaimed-test").query(S.fact(V.k, V.v), limit=3)
+        rows = MeTTa().space("&unclaimed-test").query(S.fact(V.k, V.v), limit=3)
         assert len(rows) == 3
         assert provider.asked == [None]
     finally:
-        metta.unregister_space("&unclaimed-test")
+        metta._unregister_space("&unclaimed-test")
 
 
 def test_a_metta_take_pushes_its_bound_to_the_provider(metta):
@@ -489,9 +492,9 @@ def test_a_metta_take_pushes_its_bound_to_the_provider(metta):
     program bounding its own answers enumerated the backend and discarded.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _Bounded(500)
-    metta.register_space(provider, "&take-test")
+    metta._register_space(provider, "&take-test")
     try:
-        space = MeTTa("&take-test")
+        space = MeTTa().space("&take-test")
         answered = space.run(
             "!(collapse (take 3 (match &take-test (fact $k $v) (fact $k $v))))"
         )[-1]
@@ -502,7 +505,7 @@ def test_a_metta_take_pushes_its_bound_to_the_provider(metta):
             "reach it"
         )
     finally:
-        metta.unregister_space("&take-test")
+        metta._unregister_space("&take-test")
 
 
 def test_a_take_over_a_join_keeps_its_bound_to_itself(metta):
@@ -514,9 +517,9 @@ def test_a_take_over_a_join_keeps_its_bound_to_itself(metta):
     makes the pushdown a pure optimisation on top of a correct bound.
     """
     provider = _Bounded(50)
-    metta.register_space(provider, "&take-join")
+    metta._register_space(provider, "&take-join")
     try:
-        space = MeTTa("&take-join")
+        space = MeTTa().space("&take-join")
         answered = space.run(
             "!(collapse (take 2 (match &take-join "
             "(, (fact $k $v) (fact $k2 $v)) ($k $k2))))"
@@ -524,7 +527,7 @@ def test_a_take_over_a_join_keeps_its_bound_to_itself(metta):
         assert len(answered[0]) == 2
         assert provider.asked and set(provider.asked) == {None}, provider.asked
     finally:
-        metta.unregister_space("&take-join")
+        metta._unregister_space("&take-join")
 
 
 def test_a_take_withholds_its_bound_from_a_provider_that_claimed_nothing(metta):
@@ -534,16 +537,16 @@ def test_a_take_withholds_its_bound_from_a_provider_that_claimed_nothing(metta):
     are its answers would truncate at whatever it is told, so it is not told.
     """
     provider = _UnclaimedBounded(500)
-    metta.register_space(provider, "&take-unclaimed")
+    metta._register_space(provider, "&take-unclaimed")
     try:
-        space = MeTTa("&take-unclaimed")
+        space = MeTTa().space("&take-unclaimed")
         answered = space.run(
             "!(collapse (take 3 (match &take-unclaimed (fact $k $v) (fact $k $v))))"
         )[-1]
         assert len(answered[0]) == 3
         assert provider.asked == [None]
     finally:
-        metta.unregister_space("&take-unclaimed")
+        metta._unregister_space("&take-unclaimed")
 
 
 def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
@@ -559,12 +562,12 @@ def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
             return "probably"
 
     provider = _Nonsense(5)
-    metta.register_space(provider, "&nonsense-test")
+    metta._register_space(provider, "&nonsense-test")
     try:
         with pytest.raises(PettaError, match="answered 'probably'"):
-            MeTTa("&nonsense-test").query(S.fact(V.k, V.v), limit=2)
+            MeTTa().space("&nonsense-test").query(S.fact(V.k, V.v), limit=2)
     finally:
-        metta.unregister_space("&nonsense-test")
+        metta._unregister_space("&nonsense-test")
 
 
 def test_a_python_providers_capabilities_reach_the_engine(metta):
@@ -583,14 +586,14 @@ def test_a_python_providers_capabilities_reach_the_engine(metta):
             return iter([S.fact(1)])
 
     name = "&capability-projection-test"
-    metta.register_space(MatchOnly(), name)
+    metta._register_space(MatchOnly(), name)
     try:
         declared = metta._rt.must(
             "findall(_C, seam:foreign_capability(S, _C), L)", S=name
         )["L"]
         assert sorted(str(c) for c in declared) == ["enumerate", "match"]
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
     # And they go with the provider.
     assert not metta._rt.must(
         "findall(_C, seam:foreign_capability(S, _C), L)", S=name
@@ -610,12 +613,12 @@ def test_an_absent_capability_still_carries_the_providers_own_words(metta):
             return "load this space with the importer" if capability == "add" else None
 
     name = "&refusal-seam-test"
-    metta.register_space(Curated(), name)
+    metta._register_space(Curated(), name)
     try:
         with pytest.raises(PettaError, match="load this space with the importer"):
-            metta.space(name).add(S.f(S.a))
+            metta._at(name).add(S.f(S.a))
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
@@ -640,7 +643,7 @@ def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
         "seam:foreign_pushdown('&prolog-only-test', _, exact).\n"
     )
     metta._rt.consult(str(source))
-    space = metta.space("&prolog-only-test")
+    space = metta._at("&prolog-only-test")
     assert len(space.query(S.fact(V.n))) == 3
     assert len(space.query(S.fact(V.n), limit=2)) == 2
 
@@ -651,26 +654,26 @@ def test_a_bound_is_not_pushed_past_a_join(metta):
     which is under-answering, the one thing the contract forbids.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _Bounded(20)
-    metta.register_space(provider, "&join-bound-test")
+    metta._register_space(provider, "&join-bound-test")
     try:
-        rows = MeTTa("&join-bound-test").query(
+        rows = MeTTa().space("&join-bound-test").query(
             S.fact(V.k, V.v), S.fact(V.k, V.w), limit=2
         )
         assert len(rows) == 2
         assert provider.asked and all(asked is None for asked in provider.asked)
     finally:
-        metta.unregister_space("&join-bound-test")
+        metta._unregister_space("&join-bound-test")
 
 
 def test_an_unbounded_query_asks_for_nothing_in_particular(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _Bounded(7)
-    metta.register_space(provider, "&nolimit-test")
+    metta._register_space(provider, "&nolimit-test")
     try:
-        rows = MeTTa("&nolimit-test").query(S.fact(V.k, V.v))
+        rows = MeTTa().space("&nolimit-test").query(S.fact(V.k, V.v))
         assert len(rows) == 7
         assert provider.asked == [None]
     finally:
-        metta.unregister_space("&nolimit-test")
+        metta._unregister_space("&nolimit-test")
 
 
 def test_a_provider_ignoring_the_bound_is_still_bounded_by_the_engine(metta):
@@ -687,13 +690,13 @@ def test_a_provider_ignoring_the_bound_is_still_bounded_by_the_engine(metta):
             return "exact"
 
     provider = Defiant(50)
-    metta.register_space(provider, "&defiant-test")
+    metta._register_space(provider, "&defiant-test")
     try:
-        rows = MeTTa("&defiant-test").query(S.fact(V.k, V.v), limit=2)
+        rows = MeTTa().space("&defiant-test").query(S.fact(V.k, V.v), limit=2)
         assert len(rows) == 2
         assert provider.asked == [2]
     finally:
-        metta.unregister_space("&defiant-test")
+        metta._unregister_space("&defiant-test")
 
 
 class JoiningSpace(SpaceProvider):
@@ -733,10 +736,10 @@ class JoiningSpace(SpaceProvider):
 
 
 def _substitute(atom: Atom, bindings: dict) -> Atom:
-    if isinstance(atom, Var):
+    if isinstance(atom, Variable):
         return bindings.get(atom.name, atom)
-    if isinstance(atom, Expr):
-        return Expr([_substitute(child, bindings) for child in atom.children])
+    if isinstance(atom, Expression):
+        return Expression([_substitute(child, bindings) for child in atom.children])
     return atom
 
 
@@ -756,10 +759,10 @@ _JOIN_ATOMS = [
 def _both_ways(metta, provider, name, *query):
     register_provider(metta.runtime, name, provider)
     try:
-        space = metta.space(name)
+        space = metta._at(name)
         space.add(*_JOIN_ATOMS)
         claimed = sorted(str(row) for row in space.query(*query))
-        with metta.new_space() as native:
+        with metta._new_space() as native:
             native.add(*_JOIN_ATOMS)
             split = sorted(str(row) for row in native.query(*query))
         return claimed, split
@@ -828,8 +831,8 @@ def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or
 
     # Foreign space: per-pattern class with its origin, the conjunction
     # claim, and the bound rule, from the seam's own decisions.
-    metta.register_space(_PlannedPairs(), "&xplan")
-    sp = metta.space("&xplan")
+    metta._register_space(_PlannedPairs(), "&xplan")
+    sp = metta._at("&xplan")
     try:
         pair = sp.prepare(parse("(pe $a $b)"), parse("(pe $b $c)")).explain()
         assert "(pe $a $b)" in pair and "inexact" in pair
@@ -853,12 +856,12 @@ def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or
         assert "REFUSED: the declared entry" in refused
         assert "answers Refuse" in refused
     finally:
-        metta.unregister_space("&xplan")
+        metta._unregister_space("&xplan")
 
 
 def test_a_stream_explains_without_pulling_a_row(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.add(parse("(sedge only)"))
-    with metta.stream(parse("(sedge $x)")) as cursor:
+    with metta._stream(parse("(sedge $x)")) as cursor:
         text = cursor.explain()
         assert "query over &self: (sedge $x)" in text
         assert "stored atoms: engine unification" in text
@@ -883,18 +886,18 @@ def test_an_eager_foreign_match_pulls_each_candidate_once(metta):
         def atoms(self):
             for i in range(2000):
                 self.yields += 1
-                yield expr(S.p, i)
+                yield Expression(S.p, i)
 
     class CountingMatch(CountingEnumerate):
         def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             for i in range(2000):
                 self.yields += 1
-                yield expr(S.p, i)
+                yield Expression(S.p, i)
 
     for name, provider in (("&pull-enumerate", CountingEnumerate()),
                            ("&pull-match", CountingMatch())):
-        with metta.new_space() as m:
-            m.register_space(provider, name)
+        with metta._new_space() as m:
+            m._register_space(provider, name)
             groups = m.run(f"!(collapse (match {name} (p $x) $x))")
             answers = groups[0][0].children
             assert len(answers) == 2000

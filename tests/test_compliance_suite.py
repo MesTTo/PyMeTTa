@@ -18,7 +18,7 @@ Guarantees:
     it was found [tested test_the_suite_leaves_a_writable_provider_as_it_found_it]
   - the engine-native inherited space passes the same compliance suite as an
     external provider [tested: TestNativeInheritedSpaceComplies;
-    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,8 +27,8 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa, SpaceName
-from petta.atoms import S, Sym, Var, expr
+from petta import MeTTa
+from petta.atoms import Expression, S, Symbol, Variable
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider
 from petta.testing import SpaceComplianceSuite
@@ -64,8 +64,8 @@ class NativeInheritedSpace(SpaceProvider):
 
     def __init__(self):
         """Build a parent and an inheriting child seeded with the suite's rows."""
-        self.parent = MeTTa().new_space()
-        self.child = MeTTa().new_space(inherits=self.parent)
+        self.parent = MeTTa().space()
+        self.child = MeTTa().space(inherits=self.parent)
         self.child.add(*ROWS)
 
     def match(self, _pattern):
@@ -192,12 +192,12 @@ def test_a_space_without_rules_says_how_to_hold_one():
     `Unknown error term: petta_foreign_space_holds_no_rules(...)`, which names
     the capability without saying it is one or how to opt in.
     """
-    engine = MeTTa().new_space()
-    name = SpaceName("&ruleless")
-    engine.register_space(ListSpace([]), name)
+    engine = MeTTa().space()
+    name = "&ruleless"
+    engine._register_space(ListSpace([]), name)
     try:
-        space = engine.space(name)
-        rule = expr(Sym("="), expr(Sym("rl-double"), Var("x")), expr(Sym("*"), 2, Var("x")))
+        space = engine._at(name)
+        rule = Expression(Symbol("="), Expression(Symbol("rl-double"), Variable("x")), Expression(Symbol("*"), 2, Variable("x")))
         with pytest.raises(PettaError) as refused:
             space.add(rule)
         message = str(refused.value)
@@ -205,7 +205,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
         assert "declare the rules capability" in message, message
         assert "Unknown error term" not in message, message
     finally:
-        engine.unregister_space(name)
+        engine._unregister_space(name)
 
 
 def test_the_suite_leaves_a_writable_provider_as_it_found_it():

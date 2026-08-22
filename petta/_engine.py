@@ -25,7 +25,7 @@ Guarantees:
   - the restricted-space formal maps to SpaceCapabilityError before the
     generic operation and engine classifiers [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -53,7 +53,6 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
 
-from . import _callbacks, _contract, _prelude
 from ._config import config
 from .errors import (
     AssertionFailure,
@@ -418,9 +417,10 @@ class Runtime:
         """Load shim.pl next to this file, and expose the ops module to janus."""
         if _SHIM_LOADED.is_set():
             return
+        callbacks = importlib.import_module(f"{__package__}._callbacks")
         # janus reaches Python operations by importing petta_ops; the alias
         # makes that import resolve to the registry module.
-        sys.modules.setdefault("petta_ops", _callbacks)
+        sys.modules.setdefault("petta_ops", callbacks)
         shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
@@ -430,11 +430,13 @@ class Runtime:
         _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
-        _prelude.install(self)
+        prelude = importlib.import_module(f"{__package__}._prelude")
+        prelude.install(self)
         logger.debug("installed the Python bridge prelude")
         # The contract ontology: the typed vocabulary seam declarations are
         # stated in, present before any user declaration can reference it.
-        _contract.install(self)
+        contract = importlib.import_module(f"{__package__}._contract")
+        contract.install(self)
         logger.debug("installed the contract ontology")
 
     # -------------------------------------------------------------------- calls

@@ -4,11 +4,15 @@ Guarantees:
   - Annotated values of one base type retain distinct matchable metadata
     claims without changing their arrow slots [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - container annotation acceptance selects its own callable's declarations
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=5bdbd59f32e078187c9adf5bb3a507affd84852b]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 import types
@@ -29,20 +33,20 @@ from typing import (
 
 import pytest
 
-from petta import Atom, Expr, Gnd, MeTTa, S, Sym, Var, encode, val
+from petta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
 from petta import integrate as pi
 from petta.convert import build, project, register_type, unregister_type
 from petta.ops import annotation_atom_for, type_atoms_for
 
 
 def test_the_four_metatypes_stay_distinct_across_the_seam():
-    """Prove Atom, Sym, Var, Expr, and Gnd map to five distinct MeTTa metatype symbols."""
+    """Prove Atom, Symbol, Variable, Expression, and Grounded map to five distinct MeTTa metatype symbols."""
     expected = {
         Atom: "Atom",
-        Sym: "Symbol",
-        Var: "Variable",
-        Expr: "Expression",
-        Gnd: "Grounded",
+        Symbol: "Symbol",
+        Variable: "Variable",
+        Expression: "Expression",
+        Grounded: "Grounded",
     }
 
     assert {
@@ -67,7 +71,7 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
         )
         assert str(type_atoms_for(annotation)[0]) == expected_metta_type
         assert str(annotation_atom_for(annotation)) == type_image
-        assert isinstance(projected.atom, Expr)
+        assert isinstance(projected.atom, Expression)
         assert build(projected.atom, annotation) == value
 
     def container_probe(
@@ -78,13 +82,13 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
     ) -> set[int]:
         return members
 
-    metta.register_op(container_probe)
+    metta.op(container_probe)
     claims = {
         str(atom)
         for atom in metta.atoms()
-        if isinstance(atom, Expr)
-        and atom.head == Sym("annotation")
-        and atom.args[0] == Sym("container_probe")
+        if isinstance(atom, Expression)
+        and atom.head == Symbol("annotation")
+        and atom.args[0] == Symbol("container_probe")
     }
     assert claims == {
         "(annotation container_probe (param 1 (tuple Number String)))",
@@ -114,7 +118,7 @@ def test_int_str_and_flag_enums_each_project_with_their_declarations():
         (Capability.read | Capability.write, "read|write", "Capability"),
     ):
         projected = project(value)
-        assert projected.atom == Sym(symbol)
+        assert projected.atom == Symbol(symbol)
         declarations = set(map(str, projected.declarations))
         assert f"(: {type_name} Type)" in declarations
         assert f"(: {symbol} {type_name})" in declarations
@@ -129,8 +133,8 @@ def test_a_typed_dict_annotation_agrees_with_its_value(metta):
 
     value: Config = {"retries": 3, "label": "fast"}
     projected = project(value, Config)
-    assert projected.atom == Expr([Sym("Config"), Gnd(3), Gnd("fast")])
-    assert type_atoms_for(Config) == [Sym("Config")]
+    assert projected.atom == Expression([Symbol("Config"), Grounded(3), Grounded("fast")])
+    assert type_atoms_for(Config) == [Symbol("Config")]
     assert "(: Config (-> Number String Config))" in set(
         map(str, projected.declarations)
     )
@@ -139,8 +143,8 @@ def test_a_typed_dict_annotation_agrees_with_its_value(metta):
     def echo_config(config: Config) -> Config:
         return config
 
-    metta.register_op(echo_config)
-    assert metta.eval(Expr([S.echo_config, projected.atom])) == [projected.atom]
+    metta.op(echo_config)
+    assert metta.eval(Expression([S.echo_config, projected.atom])) == [projected.atom]
     claims = {str(atom) for atom in metta.atoms()}
     assert "(annotation echo_config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
     assert "(annotation echo_config (return (TypedDict Config (field retries Number) (field label String))))" in claims
@@ -177,7 +181,7 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     def overloaded(value):
         return value
 
-    metta.register_op(overloaded)
+    metta.op(overloaded)
     declarations = {str(atom) for atom in metta.atoms()}
     assert "(: overloaded (-> Number Number))" in declarations
     assert "(: overloaded (-> String String))" in declarations
@@ -193,7 +197,7 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     ) -> Never:
         raise AssertionError((mode, user, bounded, choice, guard, owner, number))
 
-    metta.register_op(advanced)
+    metta.op(advanced)
     claims = {str(atom) for atom in metta.atoms() if "advanced" in str(atom)}
     assert "(annotation advanced (param 1 (Literal \"on\" \"off\")))" in claims
     assert "(annotation advanced (param 2 (NewType UserId Number)))" in claims
@@ -221,7 +225,7 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
     ) -> int:
         return metres + feet
 
-    metta.register_op(convert_units)
+    metta.op(convert_units)
     declarations = {str(atom) for atom in metta.atoms()}
     assert "(: convert_units (-> Number Number Number))" in declarations
     assert (
@@ -236,11 +240,11 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
     def current_space(engine: Annotated[MeTTa, "engine"]):
         return engine
 
-    metta.register_op(current_space, name="annotated-engine")
+    metta.op(current_space, name="annotated-engine")
     ((answer,),) = metta.run("!(annotated-engine)")
-    assert isinstance(answer, Gnd)
+    assert isinstance(answer, Grounded)
     assert isinstance(answer.value, MeTTa)
-    assert answer.value.space_name == metta.space_name
+    assert answer.value.self.name == metta.name
 
 
 def test_dunder_metta_is_read_off_the_class_not_the_instance():
@@ -253,8 +257,8 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
             return lambda: S.wrong
 
     proxy = Proxy()
-    assert project(proxy).atom == val(proxy)
-    assert encode(proxy) == val(proxy)
+    assert project(proxy).atom == ground(proxy)
+    assert wire.encode(proxy) == ground(proxy)
     assert looked_up == []
 
     class Tagged:
@@ -262,7 +266,7 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
             return S.tagged
 
     assert project(Tagged()).atom == S.tagged
-    assert encode(Tagged()) == S.tagged
+    assert wire.encode(Tagged()) == S.tagged
 
     class PropertyTrap:
         @property
@@ -271,8 +275,8 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
             return S.wrong
 
     trapped = PropertyTrap()
-    assert project(trapped).atom == val(trapped)
-    assert encode(trapped) == val(trapped)
+    assert project(trapped).atom == ground(trapped)
+    assert wire.encode(trapped) == ground(trapped)
     assert looked_up == []
 
 
@@ -306,23 +310,23 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     class BareSequence:
         items: list
 
-    sequence = BareSequence([Expr([S.item, Gnd(1)])])
+    sequence = BareSequence([Expression([S.item, Grounded(1)])])
     sequence_atom = project(sequence).atom
     assert build(sequence_atom, BareSequence) == sequence
     assert build(project([1, 2], Sequence[int]).atom, Sequence[int]) == [1, 2]
 
     payload = bytearray(b"abc")
     buffer_atom = project(payload).atom
-    assert isinstance(buffer_atom, Expr) and buffer_atom.head == S.Buffer
+    assert isinstance(buffer_atom, Expression) and buffer_atom.head == S.Buffer
     metadata = {child.head: child.args for child in buffer_atom.args[1:]}
     assert metadata == {
-        S.shape: (Gnd(3),),
-        S.format: (Gnd("B"),),
-        S.itemsize: (Gnd(1),),
-        S.ndim: (Gnd(1),),
-        S.strides: (Gnd(1),),
-        S.readonly: (Gnd(False),),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-        S["c-contiguous"]: (Gnd(True),),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        S.shape: (Grounded(3),),
+        S.format: (Grounded("B"),),
+        S.itemsize: (Grounded(1),),
+        S.ndim: (Grounded(1),),
+        S.strides: (Grounded(1),),
+        S.readonly: (Grounded(False),),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        S["c-contiguous"]: (Grounded(True),),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     }
     assert build(buffer_atom) is payload
     assert build(project(memoryview(payload)).atom).obj is payload
@@ -347,7 +351,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
         return value + len(options)
 
     with pytest.raises(TypeError, match=r"\*\*options.*unreachable"):
-        metta.register_op(kwargs)
+        metta.op(kwargs)
 
     class Choice(Enum):
         first = 1
@@ -355,7 +359,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     def choose() -> Choice:
         return Choice.first
 
-    metta.register_op(choose)
+    metta.op(choose)
     assert "(: choose (-> Choice))" in {str(atom) for atom in metta.atoms()}
 
     installed: list[str] = []

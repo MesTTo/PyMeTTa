@@ -7,20 +7,20 @@ Guarantees:
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
-     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - source spans, AST documentation, free variables, and derived purity
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an annotation-derived declaration lands before the equation it governs
     and rolls back if equation publication fails [tested:
     test_a_declared_output_type_takes_effect_through_the_decorator_door,
     test_failed_equation_publication_rolls_back_its_early_declaration;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -33,6 +33,7 @@ Open Obligations:
 from __future__ import annotations
 
 import builtins as _builtins
+import importlib as _importlib
 import inspect as _inspect
 import os
 import threading
@@ -41,7 +42,6 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
-from . import convert as _convert
 from . import ops as _ops_module
 from ._define_twins import (
     append_twin_clause,
@@ -51,7 +51,7 @@ from ._define_twins import (
 )
 from ._documentation import documentation_atom
 from ._ops import REGISTRY
-from .atoms import Atom, Expr, Gnd, S, Sym, Var, alpha_eq, encode, expr
+from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode, _expr
 from .define import (
     Compiled,
     Defined,
@@ -70,24 +70,29 @@ from .ops import (
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
-_DEFINE_DOCUMENTATION: dict[tuple[str, str], Expr] = {}
-_DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expr, ...]] = {}
+_DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
+_DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expression, ...]] = {}
 _DEFINE_FACT_REFS: dict[str, int] = {}
 _DEFINE_LOCK = threading.RLock()
+
+
+def _convert_api():
+    """Load structural conversion only for class-backed definitions."""
+    return _importlib.import_module(f"{__package__}.convert")
 
 
 def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions."""
     with _DEFINE_LOCK:
-        space.runtime.must("petta_py_clear(Space)", Space=space.space_name)
-        for key in [key for key in _DEFINE_REFLECTION if key[0] == space.space_name]:
+        space.runtime.must("petta_py_clear(Space)", Space=space.name)
+        for key in [key for key in _DEFINE_REFLECTION if key[0] == space.name]:
             for fact in _DEFINE_REFLECTION.pop(key):
                 _release_definition_fact(space, fact)
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
-            for key in [key for key in registry if key[0] == space.space_name]:
+            for key in [key for key in registry if key[0] == space.name]:
                 del registry[key]
         _DEFINED_GENERATORS.difference_update(
-            {key for key in _DEFINED_GENERATORS if key[0] == space.space_name}
+            {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
 
 
@@ -154,7 +159,7 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
     operation = REGISTRY.get(called)
     if operation is not None and operation.kind in ("many", "raw_many"):
         return True
-    return (space.space_name, called) in _DEFINED_GENERATORS
+    return (space.name, called) in _DEFINED_GENERATORS
 
 
 def _is_pure(space: Any, called: str) -> bool:
@@ -208,18 +213,18 @@ def _validate_clause_order(
             )
 
 
-def _same_clause(clause: dict[str, Any], canonical: tuple[Expr, ...], name: str) -> bool:
+def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name: str) -> bool:
     old_equations = (clause["equation"], *clause.get("aux", ()))
     old_canonical = canonical_aux_set(old_equations, name)
     return len(old_canonical) == len(canonical) and all(
-        alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
+        _alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
     )
 
 
 def _locate_clause(
     earlier: list[dict[str, Any]],
     patterns: dict[str, Atom],
-    canonical: tuple[Expr, ...],
+    canonical: tuple[Expression, ...],
     name: str,
 ) -> tuple[bool, int | None]:
     """Return whether the clause is identical and which matching head it replaces."""
@@ -256,20 +261,20 @@ def _store_clause(
     earlier: list[dict[str, Any]],
     *,
     patterns: dict[str, Atom],
-    equation: Expr,
+    equation: Expression,
     compiled: Compiled,
     dispatcher: Any,
     clause_twin: Any,
     replaced: int | None,
 ) -> None:
     record = _clause_record(patterns, equation, compiled)
-    previous_atoms: list[Expr] = []
+    previous_atoms: list[Expression] = []
     if replaced is not None:
         previous = earlier[replaced]
         previous_atoms = [*previous.get("aux", ()), previous["equation"]]
         for atom in previous_atoms:
             space.remove(atom)
-    added: list[Expr] = []
+    added: list[Expression] = []
     try:
         for atom in (*compiled.aux, equation):
             space.add(atom)
@@ -289,7 +294,7 @@ def _store_clause(
 
 
 def _clause_record(
-    patterns: dict[str, Atom], equation: Expr, compiled: Compiled
+    patterns: dict[str, Atom], equation: Expression, compiled: Compiled
 ) -> dict[str, Any]:
     return {
         "patterns": patterns.copy(),
@@ -299,33 +304,33 @@ def _clause_record(
     }
 
 
-def _definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> tuple[Expr, ...]:
+def _definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> tuple[Expression, ...]:
     """The aggregate reflection of every live clause under one name."""
-    facts: list[Expr] = [Expr([Sym("defined"), Sym(space.space_name), Sym(name)])]
+    facts: list[Expression] = [Expression([Symbol("defined"), Symbol(space.name), Symbol(name)])]
     for clause in clauses:
         derived = clause["facts"]
         span = derived.source_span
         facts.append(
-            Expr(
+            Expression(
                 [
-                    Sym("source-span"),
-                    Sym(space.space_name),
-                    Sym(name),
-                    Gnd(span.path),
-                    Gnd(span.start_line),
-                    Gnd(span.start_column),
-                    Gnd(span.end_line),
-                    Gnd(span.end_column),
+                    Symbol("source-span"),
+                    Symbol(space.name),
+                    Symbol(name),
+                    Grounded(span.path),
+                    Grounded(span.start_line),
+                    Grounded(span.start_column),
+                    Grounded(span.end_line),
+                    Grounded(span.end_column),
                 ]
             )
         )
     facts.extend(
-        Expr(
+        Expression(
             [
-                Sym("free-variable"),
-                Sym(space.space_name),
-                Sym(name),
-                Sym(free_variable),
+                Symbol("free-variable"),
+                Symbol(space.name),
+                Symbol(name),
+                Symbol(free_variable),
             ]
         )
         for free_variable in sorted(
@@ -333,30 +338,30 @@ def _definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> t
         )
     )
     if clauses and all(clause["facts"].pure for clause in clauses):
-        facts.append(Expr([Sym("effect"), Sym(name), Sym("immutable")]))
+        facts.append(Expression([Symbol("effect"), Symbol(name), Symbol("immutable")]))
     return tuple(dict.fromkeys(facts))
 
 
-def _retain_definition_fact(space: Any, fact: Expr) -> None:
+def _retain_definition_fact(space: Any, fact: Expression) -> None:
     key = str(fact)
     count = _DEFINE_FACT_REFS.get(key, 0)
     if count == 0:
         space.runtime.must(
             "petta_py_add(Space, W)",
-            Space=_ops_module.REFLECTION_SPACE,
+            Space=_ops_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )
     _DEFINE_FACT_REFS[key] = count + 1
 
 
-def _release_definition_fact(space: Any, fact: Expr) -> None:
+def _release_definition_fact(space: Any, fact: Expression) -> None:
     key = str(fact)
     count = _DEFINE_FACT_REFS.get(key, 0)
     if count <= 1:
         _DEFINE_FACT_REFS.pop(key, None)
         space.runtime.once(
             "petta_py_remove(Space, W, _)",
-            Space=_ops_module.REFLECTION_SPACE,
+            Space=_ops_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )
     else:
@@ -365,11 +370,11 @@ def _release_definition_fact(space: Any, fact: Expr) -> None:
 
 def _sync_definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> None:
     """Replace a definition's reflected facts, restoring the old set on error."""
-    key = (space.space_name, name)
+    key = (space.name, name)
     previous = _DEFINE_REFLECTION.get(key, ())
     current = _definition_facts(space, name, clauses)
-    retained: list[Expr] = []
-    released: list[Expr] = []
+    retained: list[Expression] = []
+    released: list[Expression] = []
     try:
         for fact in current:
             if fact not in previous:
@@ -390,7 +395,7 @@ def _sync_definition_facts(space: Any, name: str, clauses: list[dict[str, Any]])
 
 def _document_definition(space: Any, name: str, dispatcher: Any) -> None:
     """Publish the dispatcher's canonical first-clause documentation."""
-    key = (space.space_name, name)
+    key = (space.name, name)
     previous = _DEFINE_DOCUMENTATION.get(key)
     current = documentation_atom(name, dispatcher)
     if current == previous:
@@ -409,9 +414,9 @@ def _declare_definition(
     fn: types.FunctionType,
     name: str,
     params: list[str],
-) -> tuple[Expr, ...]:
+) -> tuple[Expression, ...]:
     annotated = resolved_annotations(fn)
-    key = (space.space_name, name)
+    key = (space.name, name)
     if not any(label != "return" for label in annotated) or _DECLARED_DEFINES.get(key):
         return ()
     annotations = [annotated.get(param, _inspect.Parameter.empty) for param in params]
@@ -419,7 +424,7 @@ def _declare_definition(
     declarations = [*declaration_exprs(name, annotations, ret_annotation)]
     for cls in referenced_classes([*annotations, ret_annotation]):
         declarations.extend(class_declarations(cls))
-    added: list[Expr] = []
+    added: list[Expression] = []
     try:
         for declaration in declarations:
             space.add(declaration)
@@ -477,15 +482,15 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     params, patterns, body = compiled.params, compiled.patterns, compiled.body
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.
-    earlier = _DEFINE_CLAUSES.setdefault((space.space_name, name), [])
+    earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
     _validate_clause_order(space, name, patterns, earlier)
     # MeTTa equations are alternatives, and a Python author stacking
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
     # is ordinary MeTTa, visible in .source(), never a hidden rule.
     body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns)
-    head = Expr([Sym(name), *(patterns.get(p, Var(p)) for p in params)])
-    equation = Expr([Sym("="), head, body])
+    head = Expression([Symbol(name), *(patterns.get(p, Variable(p)) for p in params)])
+    equation = Expression([Symbol("="), head, body])
     dispatcher = twin_dispatcher(fn)
     # Idempotence compares the main equation and all helper equations with
     # auxiliary names canonicalized. A loop-body-only or lifted-body-only
@@ -522,7 +527,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     else:
         prospective[replaced] = record
     _sync_definition_facts(space, name, prospective)
-    declared: tuple[Expr, ...] = ()
+    declared: tuple[Expression, ...] = ()
     try:
         declared = _declare_definition(space, fn, name, params)
         _store_clause(
@@ -539,13 +544,13 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         for declaration in reversed(declared):
             space.remove(declaration)
         if declared:
-            _DECLARED_DEFINES.pop((space.space_name, name), None)
+            _DECLARED_DEFINES.pop((space.name, name), None)
         _sync_definition_facts(space, name, earlier)
         raise
     defined = _defined_result(space, name, compiled, body, dispatcher)
     _document_definition(space, name, dispatcher)
     if compiled.generator:
-        _DEFINED_GENERATORS.add((space.space_name, name))
+        _DEFINED_GENERATORS.add((space.name, name))
     return defined
 
 
@@ -584,21 +589,22 @@ def install_type(
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def apply(target: _builtins.type) -> _builtins.type:
-        registration = _convert.ensure_registered(target)
-        for declaration in _convert.declarations(target):
+        convert = _convert_api()
+        registration = convert.ensure_registered(target)
+        for declaration in convert.declarations(target):
             space.add(declaration)
         if accessors and registration.image == "expression" and registration.fields:
             constructor = registration.type_name
             fields = registration.fields
-            variables = [Var(f"f{i}") for i in range(1, len(fields) + 1)]
+            _variables = [Variable(f"f{i}") for i in range(1, len(fields) + 1)]
             for position, field_name in enumerate(fields):
-                head = Expr(
+                head = Expression(
                     [
-                        Sym(f"{constructor}-{field_name}"),
-                        Expr([Sym(constructor), *variables]),
+                        Symbol(f"{constructor}-{field_name}"),
+                        Expression([Symbol(constructor), *_variables]),
                     ]
                 )
-                space.add(Expr([Sym("="), head, variables[position]]))
+                space.add(Expression([Symbol("="), head, _variables[position]]))
         if methods:
             _register_methods(space, target, registration.type_name)
         return target
@@ -615,26 +621,26 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
 
     def projectable(value: Any) -> Any:
         try:
-            _convert.ensure_registered(type(value))
+            _convert_api().ensure_registered(type(value))
         except TypeError:
             return value
-        return _convert.project(value).atom
+        return _convert_api().project(value).atom
 
     def wrapper_for(fn):
         def call(instance, *args):
             subject = (
-                _convert.build(instance, target)
-                if isinstance(instance, Expr)
-                else (instance.value if isinstance(instance, Gnd) else instance)
+                _convert_api().build(instance, target)
+                if isinstance(instance, Expression)
+                else (instance.value if isinstance(instance, Grounded) else instance)
             )
-            values = [a.value if isinstance(a, Gnd) else a for a in args]
+            values = [a.value if isinstance(a, Grounded) else a for a in args]
             result = fn(subject, *values)
             if result is None:
                 return None
             if isinstance(result, Atom):
                 return result
             if isinstance(result, (bool, int, float, str)):
-                return encode(result)
+                return _encode(result)
             return projectable(result)
 
         return call
@@ -646,11 +652,11 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
         arities = list(range(1 + required, len(parameters) + 2))
         operation_name = f"{type_name}-{method_name}"
-        space.register_op(
+        space.op(
             wrapper_for(fn),
             name=operation_name,
             declarations=[
-                expr(S.arguments, S[operation_name], S.atoms)
+                _expr(S.arguments, S[operation_name], S.atoms)
             ],
             arities=arities,
         )
@@ -676,9 +682,9 @@ def _guard_against(body: Atom, earlier: list, patterns: dict) -> Atom:
         if not overlapping or not contested:
             continue
         first, *remaining = contested
-        condition: Atom = Expr([Sym("=="), Var(first), earlier_patterns[first]])
+        condition: Atom = Expression([Symbol("=="), Variable(first), earlier_patterns[first]])
         for p in remaining:
-            test = Expr([Sym("=="), Var(p), earlier_patterns[p]])
-            condition = Expr([Sym("and"), condition, test])
-        body = Expr([Sym("if"), condition, Expr([Sym("empty")]), body])
+            test = Expression([Symbol("=="), Variable(p), earlier_patterns[p]])
+            condition = Expression([Symbol("and"), condition, test])
+        body = Expression([Symbol("if"), condition, Expression([Symbol("empty")]), body])
     return body

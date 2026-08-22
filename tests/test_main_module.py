@@ -90,7 +90,7 @@ def _complete_form(text: str) -> bool:
     return not in_string and depth <= 0
 
 
-def _engine_stops_reading(petta_module, text: str) -> bool:
+def _engine_stops_reading(runtime, text: str) -> bool:
     """Whether the ENGINE considers this text bracket-finished.
 
     command_wants_more/1 is the question both readers ask: could further input
@@ -101,10 +101,10 @@ def _engine_stops_reading(petta_module, text: str) -> bool:
 
     Nothing compound crosses the boundary: the goal answers an atom.
     """
-    answer = petta_module.janus.query_once(
+    answer = runtime.once(
         "atom_codes(T, Codes),"
         " ( command_wants_more(Codes) -> Verdict = keep ; Verdict = stop )",
-        {"T": text},
+        T=text,
     )
     return answer["Verdict"] == "stop"
 
@@ -122,19 +122,21 @@ _READER_CORPUS = [
 ]
 
 
-def test_the_cli_reader_agrees_with_the_engine_on_when_to_stop(petta_instance, petta_module):  # noqa: ARG001, D103  -- pytest injects this fixture to boot the engine the goal runs in; pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_cli_reader_agrees_with_the_engine_on_when_to_stop(petta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    runtime = petta_module.MeTTa().runtime
     for text in _READER_CORPUS:
-        assert _complete_form(text) is _engine_stops_reading(petta_module, text), repr(text)
+        assert _complete_form(text) is _engine_stops_reading(runtime, text), repr(text)
 
 
-def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(petta_instance, petta_module):  # noqa: ARG001, D103  -- pytest injects this fixture to boot the engine the goal runs in; pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(petta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Seeded rather than generated afresh, so a disagreement reproduces from the
     # failure message alone.
     generator = random.Random(20260823)
     alphabet = ["(", ")", '"', ";", "\\", "a", " ", "\n"]
+    runtime = petta_module.MeTTa().runtime
     for _ in range(200):
         text = "".join(generator.choice(alphabet) for _ in range(generator.randrange(12)))
-        assert _complete_form(text) is _engine_stops_reading(petta_module, text), repr(text)
+        assert _complete_form(text) is _engine_stops_reading(runtime, text), repr(text)
 
 
 def test_lint_gates_on_findings(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

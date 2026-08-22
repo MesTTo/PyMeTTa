@@ -23,7 +23,7 @@ Open Obligations:
 import pytest
 
 from petta import testing
-from petta.atoms import Expr, Var, parse
+from petta.atoms import Expression, Variable, parse
 from petta.foreign import SpaceProvider
 
 ROWS = [parse("(edge a b)"), parse("(edge b c)")]
@@ -69,9 +69,9 @@ class FalselyExact(SpaceProvider):
 
 
 def _ground(atom):
-    if isinstance(atom, Var):
+    if isinstance(atom, Variable):
         return False
-    if isinstance(atom, Expr):
+    if isinstance(atom, Expression):
         return all(_ground(child) for child in atom.children)
     return True
 
@@ -109,12 +109,12 @@ class RepeatedVariableLiar(SpaceProvider):
 
     def match(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         def hit(row):
-            if not isinstance(pattern, Expr) or not isinstance(row, Expr):
+            if not isinstance(pattern, Expression) or not isinstance(row, Expression):
                 return row == pattern
             if len(row.children) != len(pattern.children):
                 return False
             return all(
-                isinstance(want, Var) or want == got
+                isinstance(want, Variable) or want == got
                 for want, got in zip(pattern.children, row.children, strict=True)
             )
 

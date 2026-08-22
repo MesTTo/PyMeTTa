@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-import petta
-from petta import S, V, remote
-from petta.atoms import atom_from_wire
+from petta import S, V, remote, wire
 from petta.errors import PettaError
+from petta.subscribe import bridge
 
 
 def _store_transport(store: list):
@@ -21,10 +20,10 @@ def _store_transport(store: list):
 
     def transport(operation: str, payload: dict) -> dict:
         if operation == "add":
-            store.append(atom_from_wire(payload["atom"]))
+            store.append(wire.atom_from_wire(payload["atom"]))
             return {}
         if operation == "remove":
-            atom = atom_from_wire(payload["atom"])
+            atom = wire.atom_from_wire(payload["atom"])
             if atom not in store:
                 return {"removed": False}
             store.remove(atom)
@@ -71,7 +70,7 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
 
         # And the refusal says what is missing, not just that it is missing.
         with pytest.raises(PettaError, match="no event") as caught:
-            metta.space(space).subscribe(S.fact(V.x), lambda _event: None)
+            metta._at(space).subscribe(S.fact(V.x), lambda _event: None)
         assert "bridge" in str(caught.value), "the refusal names no way forward"
 
         # Withdrawing it is surgical: what the wire does carry still works.
@@ -83,8 +82,8 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
 
         # bridge() the other way round is the supported route across, and it
         # only ever needed add and remove on the target.
-        local = metta.new_space()
-        rule = petta.bridge(local, S.alarm(V.zone), metta.space(space), S.fact(V.zone))
+        local = metta._new_space()
+        rule = bridge(local, S.alarm(V.zone), metta._at(space), S.fact(V.zone))
         try:
             local.add(S.alarm(S.kitchen))
             assert S.fact(S.kitchen) in store
@@ -92,4 +91,4 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
             rule.cancel()
             local.drop()
     finally:
-        metta.unregister_space(space)
+        metta._unregister_space(space)

@@ -23,7 +23,7 @@ from petta import PettaError
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = metta.new_space()
+    space = metta._new_space()
     space.run("(: fp-inc (-> Number Number))")
     space.run("(= (fp-inc $x) (+ $x 1))")
     space.run(
@@ -36,7 +36,7 @@ def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its d
 def test_name_and_qualname_mirror_methods(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     f = m.fn("fp-inc")
     assert f.__name__ == "fp-inc"
-    assert f.__qualname__ == f"{m.space_name}.fp-inc"
+    assert f.__qualname__ == f"{m.name}.fp-inc"
     # The class's own name is untouched by the instance attributes.
     assert type(f).__name__ == "_EngineFunction"
 
@@ -95,10 +95,10 @@ def test_help_answers_from_mettas_own_documentation(m):  # noqa: D103  -- pytest
 
 def test_compiled_and_disassemble_show_the_prolog(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text = m.fn("fp-inc").compiled
-    assert text == m.disassemble("fp-inc")
+    assert text == m._disassemble("fp-inc")
     assert "'fp-inc'(" in text  # the translator's clause head, Prolog-quoted
     with pytest.raises(PettaError, match="no compiled clauses"):
-        m.disassemble("fp-never-compiled")
+        m._disassemble("fp-never-compiled")
 
 
 def test_partial_composes_with_stdlib_machinery(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

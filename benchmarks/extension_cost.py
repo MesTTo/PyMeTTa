@@ -24,7 +24,7 @@ Guarantees:
     test_a_moved_tier_fails_the_gate]
   - raw operation measurements select the reflected transport kind without a
     boolean registration pair [tested: test_extension_cost_rows_are_marginal;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,7 +40,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from petta import MeTTa
+from petta import MeTTa, Space
 from petta.testing import BenchmarkBaseline
 
 CALLS = 3_000
@@ -72,17 +72,17 @@ class Row:
     operations: int = CALLS
 
 
-def _drive(space: MeTTa, prefix: str, name: str, calls: int) -> tuple[int, float]:
+def _drive(space: Space, prefix: str, name: str, calls: int) -> tuple[int, float]:
     source = f"({prefix}-{name} {calls})"
-    space.one(source)  # warm the compiled path
+    space._one(source)  # warm the compiled path
     start = time.perf_counter()
     with space.stats() as counted:
-        space.one(source)
+        space._one(source)
     return counted.inferences, time.perf_counter() - start
 
 
 def _measure(
-    space: MeTTa, prefix: str, name: str, calls: int, rounds: int
+    space: Space, prefix: str, name: str, calls: int, rounds: int
 ) -> tuple[float, float, tuple[int, ...]]:
     """The minimum over rounds, which is the standard defence against a
     scheduler that took the process away mid-measurement. The samples come
@@ -96,7 +96,7 @@ def _measure(
     )
 
 
-def _install_drivers(space: MeTTa, prefix: str, bodies: dict[str, str]) -> None:
+def _install_drivers(space: Space, prefix: str, bodies: dict[str, str]) -> None:
     """One driver per tier, plus an empty one whose cost is the loop itself.
 
     A driver per tier rather than one taking the body as an argument: an Atom
@@ -123,7 +123,7 @@ def _install_drivers(space: MeTTa, prefix: str, bodies: dict[str, str]) -> None:
 
 def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     """Every tier, measured in one process."""
-    space = MeTTa()
+    space = MeTTa().self
 
     space.run("(= (ec-metta $x) (+ $x 1))")
     space.run(
@@ -155,11 +155,11 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     def ec_plain(x):
         return x + 1
 
-    @space.register_op(name="ec-op-encoded")
+    @space.op(name="ec-op-encoded")
     def _encoded(x):
         return x + 1
 
-    @space.register_op(name="ec-op-raw", transport="raw")
+    @space.op(name="ec-op-raw", transport="raw")
     def _raw(x):
         return x + 1
 
@@ -235,7 +235,7 @@ def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]
     the pool already holds; the drives run in a fixed order over fixed
     counts, so the committed samples stay deterministic run to run.
     """
-    space = MeTTa()
+    space = MeTTa().self
 
     space.run("(= (hk-accept-all $incoming) (accept))")
     space.run("!(declare-pre-add! &hk-guard hk-accept-all)")
@@ -318,13 +318,13 @@ def encoding_rows(calls: int = ENCODING_CALLS, rounds: int = ROUNDS) -> list[tup
     the engine out of stack. Inferences are exact rather than sampled, so 200
     calls settle these rows as firmly as 3000 would.
     """
-    space = MeTTa()
+    space = MeTTa().self
 
-    @space.register_op(name="ec-size-encoded")
+    @space.op(name="ec-size-encoded")
     def _encoded(x):
         return 1
 
-    @space.register_op(name="ec-size-raw", transport="raw")
+    @space.op(name="ec-size-raw", transport="raw")
     def _raw(x):
         return 1
 

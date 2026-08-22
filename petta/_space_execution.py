@@ -5,13 +5,13 @@ Guarantees:
   - capture never changes an answer shape, and atomic, speculative, and
     strict execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,7 +27,16 @@ from typing import Any, Self
 
 from ._engine import Runtime
 from ._space_objects import EngineProfile, FunctionCost, _limits
-from .atoms import Atom, Gnd, Undefined, _to_atom, atom_from_wire, decode, encode, from_wire
+from .atoms import (
+    Atom,
+    Grounded,
+    Undefined,
+    _atom_from_wire,
+    _decode,
+    _encode,
+    _from_wire,
+    _to_atom,
+)
 from .errors import EngineError
 
 _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
@@ -104,7 +113,7 @@ def strict_enabled() -> bool:
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
     if not using:
         return "petta_py_run", [source, space]
-    pairs = [[name, encode(value).to_wire()] for name, value in using.items()]
+    pairs = [[name, _encode(value).to_wire()] for name, value in using.items()]
     return "petta_py_run_using", [source, space, pairs]
 
 
@@ -147,7 +156,7 @@ def _controlled_run(
 
 
 def _decode_groups(wires: Any) -> list[list[Atom]]:
-    return [[atom_from_wire(wire) for wire in group] for group in wires]
+    return [[_atom_from_wire(wire) for wire in group] for group in wires]
 
 
 def run_source(
@@ -310,7 +319,7 @@ def evaluate(
         predicate = "petta_py_eval_using_all"
         inputs = [
             *inputs,
-            [[name, encode(value).to_wire()] for name, value in using.items()],
+            [[name, _encode(value).to_wire()] for name, value in using.items()],
         ]
     limits = _limits(timeout, inferences)
     captured = _CAPTURED_OUTPUT.get()
@@ -324,9 +333,9 @@ def evaluate(
         if captured is not None:
             wires, text = output
             captured._append(str(text))
-            return [from_wire(wire) for wire in wires]
+            return [_from_wire(wire) for wire in wires]
         wires = output
-    return [from_wire(wire) for wire in wires]
+    return [_from_wire(wire) for wire in wires]
 
 
 def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:
@@ -348,7 +357,7 @@ def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:
         raise EngineError(
             msg
         )
-    return decode(answer) if isinstance(answer, Gnd) else answer
+    return _decode(answer) if isinstance(answer, Grounded) else answer
 
 
 def evaluate_status(
@@ -368,7 +377,7 @@ def evaluate_status(
         [space, _to_atom(target).to_wire()],
     )
     return [
-        (str(status), None if status == "empty" else from_wire(wire))
+        (str(status), None if status == "empty" else _from_wire(wire))
         for status, wire in rows
     ]
 
@@ -387,7 +396,7 @@ def run_status(
     )
     return [
         [
-            (str(status), None if status == "empty" else from_wire(wire))
+            (str(status), None if status == "empty" else _from_wire(wire))
             for status, wire in group
         ]
         for group in groups

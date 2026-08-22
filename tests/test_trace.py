@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import S, Sym
+from petta import S, Symbol
 
 _C_EXTENSION = (
     Path(__file__).resolve().parents[3] / "examples" / "integration" / "c_extension"
@@ -21,7 +21,7 @@ _C_EXTENSION = (
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -46,12 +46,12 @@ def test_trace_answers_the_atom_run_answers(m):  # noqa: D103  -- pytest discove
     # the term at the comment it starts.
     m.run("(= (tr-echo $x) $x)")
     for name in ("$notvar", "semi;colon", "42", "True"):
-        m.add(S["tr-holds"](Sym(name)))
+        m.add(S["tr-holds"](Symbol(name)))
         source = "!(match &self (tr-holds $v) (tr-echo $v))"
         answered = m.run(source)
         exits = [e for e in m.trace(source) if e.kind == "exit"]
         assert [e.answer for e in exits] == answered[0], name
-        m.remove(S["tr-holds"](Sym(name)))
+        m.remove(S["tr-holds"](Symbol(name)))
 
 
 def test_trace_names_variables_by_first_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

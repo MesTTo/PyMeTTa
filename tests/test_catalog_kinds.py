@@ -10,7 +10,7 @@ Assumes:
 Guarantees:
   - generated vocabulary aliases preserve declared CamelCase names
     [tested: test_generated_alias_preserves_declared_camel_case;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,7 +21,8 @@ import sys
 
 import pytest
 
-from petta import EngineError, MeTTa, S, V
+from petta import MeTTa, S, V
+from petta.errors import EngineError
 from petta.foreign import SpaceProvider
 from petta.vocabularies import FIDELITY, SEMIRING
 
@@ -64,12 +65,12 @@ seam:route_cap(Space, Pattern, refuse, freshness(stale)) :-
 def test_a_third_party_declaration_kind_changes_routing_through_published_seams(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tmp_path,
 ):
-    m = MeTTa()
+    m = MeTTa().self
     provider = _Recording()
-    m.register_space(provider, "&fr-rows")
+    m._register_space(provider, "&fr-rows")
     m.declare_handles("&fr-rows", "(edge $a $b)", "Exact")
 
-    rows = m.space("&fr-rows").query(S.edge(V.x, V.y), limit=2)
+    rows = m._at("&fr-rows").query(S.edge(V.x, V.y), limit=2)
     assert len(rows) == 2
     assert provider.asked[-1] == 2, "the declared Exact route pushes the bound"
 
@@ -84,7 +85,7 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
 
     assert m.run("!(freshness-of &fr-rows (edge x y))") == [[S.cached]]
 
-    rows = m.space("&fr-rows").query(S.edge(V.x, V.y), limit=2)
+    rows = m._at("&fr-rows").query(S.edge(V.x, V.y), limit=2)
     assert len(rows) == 2
     assert provider.asked[-1] is None, (
         "a cached context is demoted: the bound stays with the engine and "
@@ -95,11 +96,11 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
     m.run("!(add-atom &petta (freshness &fr-rows (edge $a $b) stale))")
 
     with pytest.raises(EngineError, match="refuses"):
-        m.space("&fr-rows").query(S.edge(V.x, V.y), limit=2)
+        m._at("&fr-rows").query(S.edge(V.x, V.y), limit=2)
 
 
 def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    m = MeTTa()
+    m = MeTTa().self
     m.run("!(add-atom &petta (vocabulary mood-level calm tense))")
     m.run("!(add-atom &petta (kind mood symbol (one-of mood-level)))")
     with pytest.raises(EngineError, match="does not fit its declared kind"):
@@ -133,7 +134,7 @@ def test_the_binding_refuses_by_the_generated_vocabulary():
     """The runtime checks read the generated tuples, so the refusal names
     exactly the values the engine's checker enforces.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
     with pytest.raises(ValueError, match=", ".join(FIDELITY)):
         m.declare_handles("&vg-rows", "(edge $a $b)", "Exactly")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match=", ".join(SEMIRING)):

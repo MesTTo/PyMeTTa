@@ -25,10 +25,10 @@ Guarantees:
     test_removing_an_equation_from_a_named_space_stops_its_answers]
   - eval returns a non-reducible term directly and exposes no residual flag
     [tested: test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
-    test_eval_using_carries_identity; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,34 +39,37 @@ import copy
 import inspect
 import re
 
+import janus_swi
 import pytest
 
 import petta
 from petta import (
-    EngineError,
+    Expression,
     MeTTa,
-    MettaOperationError,
-    MettaSyntaxError,
     PettaError,
     S,
-    StrictError,
-    TimeLimitError,
     V,
     _engine,
-    alpha_eq,
-    decode,
-    expr,
+    ground,
     parse,
-    val,
+    tables,
+    wire,
 )
-from petta.atoms import Gnd, Var
+from petta.atoms import Grounded, Variable
+from petta.errors import (
+    EngineError,
+    MettaOperationError,
+    MettaSyntaxError,
+    StrictError,
+    TimeLimitError,
+)
 from petta.foreign import SpaceProvider, register_provider, unregister_provider
 
 
 @pytest.fixture()
 def m(metta):
     """A fresh anonymous space per test, on the shared engine."""
-    return metta.new_space()
+    return metta._new_space()
 
 
 def test_run_groups_answers_per_directive(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -266,19 +269,19 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
     expected = ("first", "second", "third")
     assert m.query(*patterns).columns == expected
     assert m.prepare(*patterns).columns == expected
-    with m.stream(*patterns) as cursor:
+    with m._stream(*patterns) as cursor:
         assert cursor.columns == expected
 
 
 def test_atoms_count_contains_remove_clear(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.item(1), S.item(2))
-    assert m.count() == 2 and len(m) == 2
+    assert len(m) == 2
     assert S.item(1) in m
     assert S.item(3) not in m
     m.remove(S.item(1))
-    assert m.count() == 1
+    assert len(m) == 1
     m.clear()
-    assert m.count() == 0
+    assert len(m) == 0
 
 
 def test_clear_removes_equations_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -286,13 +289,13 @@ def test_clear_removes_equations_too(m):  # noqa: D103  -- pytest discovers or i
     assert m.run("!(clr-f)") == [[77]]
     m.clear()
     # The equation is gone: the call no longer reduces, it stays inert.
-    assert m.run("!(clr-f)") == [[expr(S["clr-f"])]]
+    assert m.run("!(clr-f)") == [[Expression(S["clr-f"])]]
 
 
 def test_empty_space_is_still_true(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The trap __bool__ exists for: without it bool() falls to __len__
     # and `if space:` skips an empty space it was handed on purpose.
-    assert m.count() == 0
+    assert len(m) == 0
     assert bool(m) is True
     assert m
 
@@ -323,7 +326,7 @@ def test_delitem_removes_every_unifying_occurrence(m):  # noqa: D103  -- pytest 
 
 
 def test_ior_merges_a_space_equations_included(metta, m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    src = metta.new_space()
+    src = metta._new_space()
     src.add(parse("(= (ior-double $x) (* 2 $x))"), S.edge(S.a, S.b))
     m |= src
     assert S.edge(S.a, S.b) in m
@@ -339,21 +342,21 @@ def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
     the public removal funnel must retract both, leaving the call as data.
     """
     equation = parse("(= (p1-named-gone $x) (+ $x 1))")
-    with metta.new_space() as named:
+    with metta._new_space() as named:
         named.add(equation)
         assert named.run("!(p1-named-gone 41)") == [[42]]
         assert named.remove(equation) is True
         assert equation not in named
         assert named.run("!(p1-named-gone 41)") == [
-            [expr(S["p1-named-gone"], 41)]
+            [Expression(S["p1-named-gone"], 41)]
         ]
 
 
 def test_ior_merges_an_iterable_and_a_registered_name(metta, m):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     m |= [S.note(1), "(note 2)"]
-    assert m.count() == 2
-    m |= m.space_name
-    assert m.count() == 4  # a space is a multiset: self-merge doubles
+    assert len(m) == 2
+    m |= m.name
+    assert len(m) == 4  # a space is a multiset: self-merge doubles
     with pytest.raises(KeyError, match="space_names"):
         m |= "&never-written-space"
 
@@ -369,7 +372,7 @@ def test_ior_refuses_the_operands_add_would_lift(m):  # noqa: D103  -- pytest di
         m |= 3.5
     # += keeps add()'s lifted reading: one expression atom, not two.
     m += [1, 2]
-    assert m.atoms() == [expr(1, 2)]
+    assert m.atoms() == [Expression(1, 2)]
 
 
 def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -379,15 +382,15 @@ def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- py
     assert "&named-but-never-written" not in names
     # Registration happens on WRITE, not on naming: a fresh new_space is
     # absent until its first atom lands.
-    assert m.space_name not in names
+    assert m.name not in names
     m.add(S.mark(1))
-    assert m.space_name in metta.space_names()
+    assert m.name in metta.space_names()
 
 
 def test_eval(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert metta.eval(S["car-atom"](expr(1, 2, 3))) == [1]
-    assert metta.eval(S.superpose(expr(S.x, S.y))) == [S.x, S.y]
-    assert metta.eval(expr(S["+"], 20, 22)) == [42]
+    assert metta.eval(S["car-atom"](Expression(1, 2, 3))) == [1]
+    assert metta.eval(S.superpose(Expression(S.x, S.y))) == [S.x, S.y]
+    assert metta.eval(Expression(S["+"], 20, 22)) == [42]
 
 
 def test_source_strings_are_parsed_where_atoms_are_expected(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -421,7 +424,7 @@ def test_a_source_target_evaluates_as_its_parsed_term_does(m, source):
     )
     from_text, from_term = m.eval(source), m.eval(parse(source))
     # Fresh variables carry machine names, so the answers agree up to renaming.
-    assert [alpha_eq(a, b) for a, b in zip(from_text, from_term, strict=True)] == [
+    assert [a.alpha_eq(b) for a, b in zip(from_text, from_term, strict=True)] == [
         True
     ] * len(from_text)
 
@@ -441,7 +444,7 @@ def test_a_malformed_wire_target_is_refused(m):
     empty answer list no caller could tell from a real one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with pytest.raises(EngineError, match="petta_py_wire_term"):
-        m._rt.apply_must("petta_py_eval_all", m.space_name, ["n", 1, "extra"])
+        m._rt.apply_must("petta_py_eval_all", m.name, ["n", 1, "extra"])
 
 
 def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -450,8 +453,8 @@ def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or inj
 
 
 def test_parse_reads_booleans_the_way_the_engine_does():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert parse("True") == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert parse("(a False)") == expr(S.a, False)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert parse("True") == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert parse("(a False)") == Expression(S.a, False)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
 def test_live_object_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -459,27 +462,27 @@ def test_live_object_identity(m):  # noqa: D103  -- pytest discovers or injects 
         pass
 
     model = Model()
-    m.add(S.model(S.main, val(model)))
+    m.add(S.model(S.main, ground(model)))
     back = m.query(S.model(S.main, V.m))[0].m
-    assert decode(back) is model
+    assert wire.decode(back) is model
 
 
 def test_boxed_container_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     payload = {"weights": [1, 2]}
-    m.add(S.blob(val(payload)))
-    assert decode(m.query(S.blob(V.d))[0].d) is payload
+    m.add(S.blob(ground(payload)))
+    assert wire.decode(m.query(S.blob(V.d))[0].d) is payload
 
 
 def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    a, b = metta.new_space(), metta.new_space()
+    a, b = metta._new_space(), metta._new_space()
     a.add(S.fact(S.here))
-    assert a.count() == 1
-    assert b.count() == 0
+    assert len(a) == 1
+    assert len(b) == 0
     assert len(b.query(S.fact(V.x))) == 0
 
 
 def test_default_metta_handles_share_the_self_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    first, second = MeTTa(), MeTTa()
+    first, second = MeTTa().self, MeTTa().self
     shared = S["shared-default-handle"](S.value)
     first.add(shared)
     try:
@@ -490,7 +493,7 @@ def test_default_metta_handles_share_the_self_space():  # noqa: D103  -- pytest 
 
 def test_space_name_validation():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
-        MeTTa("kb")
+        MeTTa().space("kb")
 
 
 def test_load_runs_a_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -514,7 +517,7 @@ def test_load_adds_to_existing_space(m, tmp_path):
     m.load(first)
     m.load(second)
 
-    assert m.count() == 3
+    assert len(m) == 3
     assert len(m.query(S["loaded-copy"](V.value))) == 1
     assert len(m.query(S["other-copy"](V.value))) == 1
 
@@ -539,7 +542,7 @@ def test_match_patterns_are_structural(m):
     assert m.run("!(let $s (sz-here) (match (context-space) (pair $s $v) $v))") == [[S.yes]]
     # The literal idiom: the pattern (pair (sz-here) $v) matches nothing,
     # because no stored atom is literally shaped that way.
-    assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[expr()]]
+    assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[Expression()]]
 
 
 def test_bare_atoms_are_refused_loudly(m):
@@ -551,9 +554,9 @@ def test_bare_atoms_are_refused_loudly(m):
     with pytest.raises(TypeError):
         m.add(7)
     with pytest.raises(TypeError, match="non-empty expression"):
-        m.add(expr())
+        m.add(Expression())
     with pytest.raises(TypeError, match="non-empty expression"):
-        m.remove(expr())
+        m.remove(Expression())
 
 
 def test_a_bare_runnable_atom_answers_a_group(m):
@@ -572,7 +575,7 @@ def test_a_bare_runnable_atom_answers_a_group(m):
     assert m.run('! "text"') == [["text"]]
     variable_groups = m.run("! $free")
     assert len(variable_groups) == 1 and len(variable_groups[0]) == 1
-    assert isinstance(variable_groups[0][0], Var)
+    assert isinstance(variable_groups[0][0], Variable)
 
 
 def test_variable_names_survive_to_the_printer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -583,11 +586,11 @@ def test_variable_names_survive_to_the_printer(m):  # noqa: D103  -- pytest disc
         "! (sealed ($x) (triple $x $y $y))"
     )
 
-    assert free == [Var("free")]
-    assert repeated == [expr(S.pair, Var("left"), Var("left"))]
-    assert first_epoch == [expr(S.pair, Var("x#0"), Var("x#0"))]
+    assert free == [Variable("free")]
+    assert repeated == [Expression(S.pair, Variable("left"), Variable("left"))]
+    assert first_epoch == [Expression(S.pair, Variable("x#0"), Variable("x#0"))]
     assert second_epoch == [
-        expr(S.triple, Var("x"), Var("y#1"), Var("y#1"))
+        Expression(S.triple, Variable("x"), Variable("y#1"), Variable("y#1"))
     ]
     assert str(free[0]) == "$free"
     assert str(repeated[0]) == "(pair $left $left)"
@@ -601,7 +604,7 @@ def test_remove_reports_presence_and_subtracts_one_duplicate(m):  # noqa: D103  
     # Multiset subtraction: the first removal leaves the second copy, so the
     # atom is still there and the count is one, not zero.
     assert m.remove(atom) is True
-    assert atom in m and m.count() == 1
+    assert atom in m and len(m) == 1
     assert m.remove(atom) is True
     assert atom not in m
     assert m.remove(atom) is False
@@ -613,12 +616,12 @@ def test_object_identity_survives_the_boundary(m):
         pass
 
     thing = Thing()
-    m.add(S.holds(val(thing)))
-    assert S.holds(val(thing)) in m
+    m.add(S.holds(ground(thing)))
+    assert S.holds(ground(thing)) in m
     rows = m.query(S.holds(V.x))
     assert rows[0].x.value is thing
-    assert m.remove(S.holds(val(thing))) is True
-    assert S.holds(val(thing)) not in m
+    assert m.remove(S.holds(ground(thing))) is True
+    assert S.holds(ground(thing)) not in m
 
 
 def test_anonymous_variables_do_not_join(m):
@@ -633,15 +636,15 @@ def test_new_spaces_drop_and_names_recycle(metta):
     """A dropped space's name returns to the pool, so churn does not grow
     the engine's module table; the with-block is the drop.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as scratch:
-        first = scratch.space_name
+    with metta._new_space() as scratch:
+        first = scratch.name
         scratch.add(S.noted(S.here))
         assert len(scratch) == 1
-    with metta.new_space() as again:
-        assert again.space_name == first
+    with metta._new_space() as again:
+        assert again.name == first
         assert len(again) == 0
-    with pytest.raises(TypeError), metta:
-        pass
+    with metta:
+        assert petta.current_space() == metta.name
 
 
 def test_load_restores_the_working_directory(metta, tmp_path):
@@ -650,9 +653,9 @@ def test_load_restores_the_working_directory(metta, tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     inner = tmp_path / "prog.metta"
     inner.write_text("!(+ 1 1)\n")
-    before = petta.janus.query_once("working_dir(D)")
+    before = janus_swi.query_once("working_dir(D)")
     metta.load(str(inner))
-    after = petta.janus.query_once("working_dir(D)")
+    after = janus_swi.query_once("working_dir(D)")
     assert (before or {}).get("D") == (after or {}).get("D")
 
 
@@ -664,15 +667,15 @@ def test_runtime_refuses_a_second_tree(metta):  # noqa: ARG001, D103  -- pytest 
 def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # new_space() pools names, so a live handle to a dropped space would
     # otherwise write into whatever space took the name next.
-    dead = metta.new_space()
-    released = dead.space_name
+    dead = metta._new_space()
+    released = dead.name
     dead.drop()
-    reused = metta.new_space()
-    assert reused.space_name == released
+    reused = metta._new_space()
+    assert reused.name == released
     with pytest.raises(PettaError) as failure:
         dead.add(S.ghost(1))
     assert "was dropped" in str(failure.value)
-    assert reused.count() == 0
+    assert len(reused) == 0
     dead.drop()  # idempotent, as closing twice is
     assert "dropped" in repr(dead)
 
@@ -680,18 +683,18 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
 def test_add_table_reads_records_by_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a, S.b))
     rows = m.query(S.p(V.x, V.y))
-    records = m.new_space()
-    records.add_table(S.p, rows.to_dicts())
+    records = m._new_space()
+    tables.add(records, S.p, rows.to_dicts())
     # Iterating a mapping yields keys, so this once stored ("x" "y").
     assert [str(atom) for atom in records.atoms()] == ['(p "a" "b")']
-    lossless = m.new_space()
-    lossless.add_table(S.p, {c: rows[c] for c in rows.columns})
+    lossless = m._new_space()
+    tables.add(lossless, S.p, {c: rows[c] for c in rows.columns})
     assert lossless.digest() == m.digest()
 
 
 def test_add_table_refuses_records_whose_key_order_drifts(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="same keys in the same order"):
-        m.add_table(S.p, [{"x": 1, "y": 2}, {"y": 3, "x": 4}])
+        tables.add(m, S.p, [{"x": 1, "y": 2}, {"y": 3, "x": 4}])
 
 
 def test_the_empty_symbol_is_refused_rather_than_written_unreadably(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -717,7 +720,7 @@ def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discov
     with pytest.raises(TypeError, match="inferences must be"):
         m.run("!(+ 1 2)", inferences="x")
     with pytest.raises(TypeError, match="space name is a string"):
-        MeTTa(123)
+        MeTTa().space(123)
 
 
 def test_a_reserved_limit_does_not_leak_janus_framing(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -748,7 +751,7 @@ def test_a_provider_error_is_not_a_system_error(metta):  # noqa: D103  -- pytest
     register_provider(_engine.runtime(), "&exploding_probe", Exploding())
     try:
         with pytest.raises(EngineError) as failure:
-            metta.space("&exploding_probe").atoms()
+            metta._at("&exploding_probe").atoms()
         # A generator body runs at the first pull, inside py_iter, where an
         # exception surfaces as SystemError naming apply_once.
         assert not isinstance(failure.value, SystemError)
@@ -803,7 +806,7 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: 
     m.add(parse("(rt-fact (f $x) $x)"))
     assert len(m.query(parse("(rt-fact $y $y)"))) == 0
     assert m.run("!(collapse (match (context-space) (rt-fact $y $y) hit))") == [
-        [expr()]
+        [Expression()]
     ]
     # The acyclic twin still answers through both doors.
     m.add(parse("(rt-fact ok ok)"))
@@ -811,18 +814,18 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: 
 
 
 def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as original:
+    with metta._new_space() as original:
         original.run("(= (cp-double $x) (* $x 2))")
         original.add(parse("(cp-fact one)"))
         clone = original.copy()
         try:
             # equations copy as equations: the clone's function RUNS
             assert list(clone.eval("(cp-double 21)")) == [42]
-            assert clone.count() == original.count()
+            assert len(clone) == len(original)
             assert clone.digest() == original.digest()
             # and the spaces are independent after the clone
             clone.add(parse("(cp-fact extra)"))
-            assert clone.count() == original.count() + 1
+            assert len(clone) == len(original) + 1
         finally:
             clone.drop()
         protocol = copy.copy(original)
@@ -841,16 +844,16 @@ def test_eval_using_carries_identity(m):  # noqa: D103  -- pytest discovers or i
             self.n = n
 
     blob = Blob(7)
-    m.register_op(lambda o: o.n, name="blob-n", transport="raw")
+    m.op(lambda o: o.n, name="blob-n", transport="raw")
     m.run("(= (describe $o) (Seen (blob-n $o)))")
     try:
-        assert str(m.one("(describe o)", using={"o": blob})) == "(Seen 7)"
+        assert str(m.eval("(describe o)", using={"o": blob})[0]) == "(Seen 7)"
         assert m.eval("(describe o)", using={"o": blob}) == [parse("(Seen 7)")]
-        assert str(m.first("(describe o)", using={"o": blob})) == "(Seen 7)"
+        assert str(m.eval("(describe o)", using={"o": blob})[0]) == "(Seen 7)"
         # a built atom is the same door
-        assert str(m.one(parse("(describe o)"), using={"o": blob})) == "(Seen 7)"
+        assert str(m.eval(parse("(describe o)"), using={"o": blob})[0]) == "(Seen 7)"
         # and the object arrived itself, not a copy
-        assert m.one("(blob-n o)", using={"o": blob}) == 7
+        assert m.eval("(blob-n o)", using={"o": blob}) == [7]
     finally:
         m.unregister_op("blob-n")
 
@@ -868,7 +871,7 @@ def test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag(m):
 
     assert m.eval_status("(Point item)")[0][0] == "not-reducible"
     (answer,) = m.eval("(Point item)", using={"item": blob})
-    assert isinstance(answer, petta.Expr)
+    assert isinstance(answer, petta.Expression)
     assert answer.args[0].value is blob
 
 
@@ -913,10 +916,10 @@ def test_run_using_registers_signatures_over_the_forms_that_will_run(metta):
     what will actually run rather than the text it was read from.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("!(import! &self (library lib_reflect))")
-    groups = metta.run(
-        "!(engine-knows p111-scaled)\n(= (p111-scaled $x) (* $x factor))\n",
-        using={"factor": 3},
-    )
+    with metta.bind(factor=3):
+        groups = metta.run(
+            "!(engine-knows p111-scaled)\n(= (p111-scaled $x) (* $x factor))\n"
+        )
     assert groups == [[True]]
     assert metta.run("!(p111-scaled 4)") == [[12]]
 
@@ -1003,7 +1006,7 @@ def test_adding_in_one_space_never_removes_atoms_from_another(metta):
 
     # The direct form, with no copy in it: two spaces defining one name, and
     # neither losing atoms to the other.
-    with metta.new_space() as other:
+    with metta._new_space() as other:
         other.run("(= (p6-map $f $x) ($f $x))")
         assert _atom_multiset(metta) == before
         other_before = _atom_multiset(other)
@@ -1034,7 +1037,7 @@ def test_a_system_predicate_survives_an_equation_for_its_name(metta):
         # A form the engine has to translate still translates.
         assert metta.run("!(+ 1 2)") == [[3]]
         # And a named space still runs, which is with_metta_module/2 working.
-        with metta.new_space() as other:
+        with metta._new_space() as other:
             assert other.run("!(+ 1 2)") == [[3]]
     finally:
         metta.run("!(remove-atom &self (= (b_setval $a) clash))")
@@ -1054,7 +1057,7 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
     The specializer owns the names it generates, so an equation arriving for a
     name this module already derived carries nothing new.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as source:
+    with metta._new_space() as source:
         source.run("(= (cp-inc $x) (+ $x 1))")
         source.run("(= (cp-map $f $x) ($f $x))")
         source.run("(= (cp-use $z) (cp-map cp-inc $z))")
@@ -1064,7 +1067,7 @@ def test_a_copy_reproduces_the_space_it_copied(metta):
 
         clone = source.copy()
         try:
-            assert clone.count() == source.count()
+            assert len(clone) == len(source)
             assert clone.digest() == source.digest()
             assert clone.run("!(cp-use 1)") == source.run("!(cp-use 1)")
         finally:
@@ -1082,7 +1085,7 @@ def test_a_variable_headed_pattern_answers_through_every_door(metta):
     silently became ':='; the shim's path-at clause did the same at three
     elements and raised out of paths.py.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run("(p230-f 1)")
         space.run("(p230-g 2 3)")
         space.run("(p230-h 4 5 6)")
@@ -1092,13 +1095,13 @@ def test_a_variable_headed_pattern_answers_through_every_door(metta):
             4: ("p230-h", "4", "5", "6"),
         }
         for width, expected in widths.items():
-            pattern = petta.Expr([getattr(V, f"p230v{i}") for i in range(width)])
+            pattern = petta.Expression([getattr(V, f"p230v{i}") for i in range(width)])
             rows = list(space.query(pattern))
             assert [tuple(str(cell) for cell in row) for row in rows] == [expected]
     # The match door runs inside a fresh space's own context, because &self
     # is shared process-wide at the root and a variable-headed pattern would
     # legitimately match every sibling test's stored equation there.
-    with metta.new_space() as ctx:
+    with metta._new_space() as ctx:
         ctx.run("(p230-qf 1)")
         ctx.run("(p230-qg 2 3)")
         two = ctx.run("!(match &self ($p230a $p230b) (p230-m2 $p230a $p230b))")
@@ -1116,9 +1119,9 @@ def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
     matches another, and the raw-value comparison keeps the == operator's
     numeric tower so answers still compare with == 3.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    stored = petta.Expr([Gnd(0.0)])
-    pattern = petta.Expr([Gnd(0)])
-    with metta.new_space() as space:
+    stored = petta.Expression([Grounded(0.0)])
+    pattern = petta.Expression([Grounded(0)])
+    with metta._new_space() as space:
         space.add(stored)
         assert list(space.query(pattern)) == []
         assert pattern not in space
@@ -1126,9 +1129,9 @@ def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
         assert space.remove(pattern) is False
         assert space.remove(stored) is True
     assert petta.unify(pattern, stored) is None
-    assert Gnd(0) != Gnd(0.0)
-    assert Gnd(0.0) != Gnd(-0.0)
-    assert petta.unify(Gnd(float("nan")), Gnd(float("nan"))) is not None
+    assert Grounded(0) != Grounded(0.0)
+    assert Grounded(0.0) != Grounded(-0.0)
+    assert petta.unify(Grounded(float("nan")), Grounded(float("nan"))) is not None
     # The raw-value arm keeps the engine's == tower untouched.
-    assert Gnd(0) == 0.0
-    assert Gnd(3.0) == 3
+    assert Grounded(0) == 0.0
+    assert Grounded(3.0) == 3

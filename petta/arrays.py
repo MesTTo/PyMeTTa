@@ -19,11 +19,11 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - array transport and Atom-delivery choices use the same declaration
     surface as every registered operation [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -44,7 +44,7 @@ from typing import Any, Final, Literal, NewType, cast
 from . import integrate as _integrate
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
-from .atoms import Atom, Expr, Gnd, S, Var, decode, expr, val
+from .atoms import Atom, Expression, Grounded, S, Variable, _decode, _expr, ground
 from .errors import PettaError
 
 __all__ = [
@@ -128,20 +128,20 @@ def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
     return sorted(candidates, key=lambda index: (-float(scores[index]), index))
 
 
-def _alias_equation(name: str, library: str, arity: int) -> Expr:
-    variables = [Var(f"a{i}") for i in range(1, arity + 1)]
-    return Expr(
+def _alias_equation(name: str, library: str, arity: int) -> Expression:
+    _variables = [Variable(f"a{i}") for i in range(1, arity + 1)]
+    return Expression(
         [
             S["="],
-            Expr([S[name], *variables]),
-            Expr([S[f"{name}--{library}"], *variables]),
+            Expression([S[name], *_variables]),
+            Expression([S[f"{name}--{library}"], *_variables]),
         ]
     )
 
 
-def _route_equation(alias: str, target: str, arity: int) -> Expr:
-    variables = [Var(f"a{i}") for i in range(1, arity + 1)]
-    return Expr([S["="], Expr([S[alias], *variables]), Expr([S[target], *variables])])
+def _route_equation(alias: str, target: str, arity: int) -> Expression:
+    _variables = [Variable(f"a{i}") for i in range(1, arity + 1)]
+    return Expression([S["="], Expression([S[alias], *_variables]), Expression([S[target], *_variables])])
 
 
 def is_array(x: Any) -> bool:
@@ -211,10 +211,10 @@ def _register_protocols() -> None:
 
 def data_of(a: Any) -> Any:
     """Nested expression of numbers to nested lists; grounded values unwrap."""
-    if isinstance(a, Expr):
+    if isinstance(a, Expression):
         return [data_of(c) for c in a]
-    if isinstance(a, Gnd):
-        return decode(a)
+    if isinstance(a, Grounded):
+        return _decode(a)
     if isinstance(a, Atom):
         msg = f"tensor data may not contain {a.metatype}: {a}"
         raise TypeError(msg)
@@ -271,7 +271,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             raise PettaError(
                 msg
             )
-        m.register_op(fn, name=name, transport=transport, **kw)
+        m.op(fn, name=name, transport=transport, **kw)
         registered.append(name)
         return fn
 
@@ -291,9 +291,9 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         namespaced = f"{name}--{library}"
         declarations = [
-            expr(declaration.head, S[namespaced], *declaration.args[1:])
+            _expr(declaration.head, S[namespaced], *declaration.args[1:])
             if (
-                isinstance(declaration, Expr)
+                isinstance(declaration, Expression)
                 and declaration.args
                 and declaration.args[0] == S[name]
             )
@@ -308,7 +308,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             declarations=declarations,
             **kw,
         )
-        key = (m.space_name, name)
+        key = (m.name, name)
         previous = _SPACE_CONSTRUCTORS.get(key)
         if previous is not None:
             old_library, old_arities = previous
@@ -322,10 +322,10 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             if (
                 declaration.head == S[":"]
                 and declaration.args[0] == S[namespaced]
-                and isinstance(declaration.args[1], Expr)
+                and isinstance(declaration.args[1], Expression)
                 and declaration.args[1].head == S["->"]
             ):
-                alias_type = expr(S[":"], S[name], declaration.args[1])
+                alias_type = _expr(S[":"], S[name], declaration.args[1])
                 if alias_type not in m:
                     m.add(alias_type)
         registered.append(name)
@@ -349,14 +349,14 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def make_tensor(data: Any) -> DLTensor:
         raw_data = data_of(data) if isinstance(data, Atom) else data
         if is_array(raw_data):
-            return DLTensor(val(raw_data))
-        return DLTensor(val(xp_default.asarray(raw_data, dtype=xp_default.float32)))
+            return DLTensor(ground(raw_data))
+        return DLTensor(ground(xp_default.asarray(raw_data, dtype=xp_default.float32)))
 
     constructor(
         make_tensor,
         name="tensor",
         transport="encoded",
-        declarations=[expr(S.arguments, S.tensor, S.atoms)],
+        declarations=[_expr(S.arguments, S.tensor, S.atoms)],
     )
 
     dims = [1, 2, 3, 4]
@@ -442,18 +442,18 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     op(squeeze, name="squeeze")
     op(tensor_index, name="t-index")
 
-    def cat_op(tensors: Expr, dim: int = 0) -> DLTensor:
-        parts = [decode(c) for c in tensors]
-        dimension = decode(dim) if isinstance(dim, Atom) else dim
+    def cat_op(tensors: Expression, dim: int = 0) -> DLTensor:
+        parts = [_decode(c) for c in tensors]
+        dimension = _decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(
-            val(namespace_of(parts[0]).concat(parts, axis=int(dimension)))
+            ground(namespace_of(parts[0]).concat(parts, axis=int(dimension)))
         )
 
-    def stack_op(tensors: Expr, dim: int = 0) -> DLTensor:
-        parts = [decode(c) for c in tensors]
-        dimension = decode(dim) if isinstance(dim, Atom) else dim
+    def stack_op(tensors: Expression, dim: int = 0) -> DLTensor:
+        parts = [_decode(c) for c in tensors]
+        dimension = _decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(
-            val(namespace_of(parts[0]).stack(parts, axis=int(dimension)))
+            ground(namespace_of(parts[0]).stack(parts, axis=int(dimension)))
         )
 
     op(cat_op, name="cat", transport="encoded")
@@ -523,15 +523,15 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     op(item, name="t-item")
 
     def tolist(a: DLTensor) -> Any:
-        data: Any = decode(a) if isinstance(a, Atom) else a
+        data: Any = _decode(a) if isinstance(a, Atom) else a
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
-        return expr(*listed) if isinstance(listed, list) else listed
+        return _expr(*listed) if isinstance(listed, list) else listed
 
     op(tolist, name="t-tolist", transport="encoded")
 
-    def shape(a: DLTensor) -> Expr:
-        data: Any = decode(a) if isinstance(a, Atom) else a
-        return expr(*[int(dimension) for dimension in data.shape])
+    def shape(a: DLTensor) -> Expression:
+        data: Any = _decode(a) if isinstance(a, Atom) else a
+        return _expr(*[int(dimension) for dimension in data.shape])
 
     op(shape, name="t-shape", transport="encoded")
 
@@ -620,30 +620,30 @@ class EmbeddingStore:
         self._width: int | None = None
 
         def knn(query, k):
-            yield from self._search(decode(query), decode(k))
+            yield from self._search(_decode(query), _decode(k))
 
         def embed(key):
             atom = key if isinstance(key, Atom) else S[str(key)]
             for stored, vector in zip(self._keys, self._vectors, strict=True):
                 if stored == atom:
-                    return val(vector)
+                    return ground(vector)
             return None
 
         serial = next(_STORE_SERIAL)
         internal_knn = f"{name}--store-{serial}-knn"
         internal_embed = f"{name}--store-{serial}-embed"
-        m.register_op(
+        m.op(
             knn,
             name=internal_knn,
-            declarations=[expr(S.arguments, S[internal_knn], S.atoms)],
+            declarations=[_expr(S.arguments, S[internal_knn], S.atoms)],
         )
-        m.register_op(
+        m.op(
             embed,
             name=internal_embed,
-            declarations=[expr(S.arguments, S[internal_embed], S.atoms)],
+            declarations=[_expr(S.arguments, S[internal_embed], S.atoms)],
         )
 
-        key = (m.space_name, name)
+        key = (m.name, name)
         previous = _SPACE_STORES.get(key)
         if previous is not None:
             m.remove(_route_equation(f"{name}-knn", previous[0], 2))
@@ -665,12 +665,12 @@ class EmbeddingStore:
         else:
             old = self._vectors[index]
             if self._mirror:
-                self._m.remove(Expr([S.embedding, atom, val(old)]))
+                self._m.remove(Expression([S.embedding, atom, ground(old)]))
             self._vectors[index] = vector
         self._matrix = None
         self._index = None
         if self._mirror:
-            self._m.add(Expr([S.embedding, atom, val(vector)]))
+            self._m.add(Expression([S.embedding, atom, ground(vector)]))
 
     def _checked_vector(self, vector: Any, *, copy: bool = False) -> Any:
         if not is_array(vector):
@@ -787,7 +787,7 @@ class EmbeddingStore:
 
     def _search(self, query: Any, k: int):
         for key, score in self.ranked(query, k):
-            yield expr(key, score)
+            yield _expr(key, score)
 
     def _resolve(self, query: Any) -> Any:
         """A query as a vector: an array or sequence stands as itself, a

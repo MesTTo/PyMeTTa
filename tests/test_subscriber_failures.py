@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from petta import EngineError, PettaError, S, SubscriberError, V
+from petta import PettaError, S, V
+from petta.errors import EngineError, SubscriberError
 from petta.foreign import Adder, Enumerable, SpaceProvider
 
 
@@ -49,16 +50,16 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
     """
     read_only = _ReadOnly()
     refusing = "&read-only-store"
-    metta.register_space(read_only, refusing)
+    metta._register_space(read_only, refusing)
     try:
         with pytest.raises(EngineError) as refused:
             metta.run(f"!(add-atom {refusing} (fact one))")
         assert not isinstance(refused.value, SubscriberError)
         assert read_only.store == []
     finally:
-        metta.unregister_space(refusing)
+        metta._unregister_space(refusing)
 
-    space = metta.new_space()
+    space = metta._new_space()
     try:
 
         def angry(event):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
@@ -75,7 +76,7 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
         failure = caught.value
         assert failure.subscription is watcher
         assert failure.atom == S.fact(S.one)
-        assert failure.space == space.space_name
+        assert failure.space == space.name
         assert failure.action == "add"
         assert isinstance(failure.__cause__, ValueError)
         assert "the watcher is broken" in str(failure)

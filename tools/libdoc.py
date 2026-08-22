@@ -29,7 +29,7 @@ import sys
 _REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "bindings" / "python"))
 
-from petta import Expr, Gnd, Sym, parse  # noqa: E402
+from petta import Expression, Grounded, Symbol, parse  # noqa: E402
 from petta._source_forms import positioned_forms  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
@@ -57,15 +57,15 @@ def _forms(source: str) -> list[tuple]:
 
 def _named(atom) -> str | None:
     """The name a (= ...) or (: ...) form defines or declares."""
-    if not isinstance(atom, Expr) or len(atom.children) < 3:
+    if not isinstance(atom, Expression) or len(atom.children) < 3:
         return None
     head, subject = atom.children[0], atom.children[1]
-    if head == Sym("="):
-        if isinstance(subject, Expr) and subject.children and isinstance(subject.children[0], Sym):
+    if head == Symbol("="):
+        if isinstance(subject, Expression) and subject.children and isinstance(subject.children[0], Symbol):
             return subject.children[0].name
-        if isinstance(subject, Sym):
+        if isinstance(subject, Symbol):
             return subject.name
-    if head == Sym(":") and isinstance(subject, Sym):
+    if head == Symbol(":") and isinstance(subject, Symbol):
         return subject.name
     return None
 
@@ -73,12 +73,12 @@ def _named(atom) -> str | None:
 def _text(atom) -> str:
     """The prose inside a doc part: a string value decodes, anything else
     renders as written."""
-    if isinstance(atom, Gnd) and isinstance(atom.value, str):
+    if isinstance(atom, Grounded) and isinstance(atom.value, str):
         return atom.value
     return str(atom)
 
 
-def _entry(doc: Expr, declared: dict[str, str], where: str) -> list[str]:
+def _entry(doc: Expression, declared: dict[str, str], where: str) -> list[str]:
     """One @doc atom as markdown: heading, source line, declared type,
     description, parameters, and return, parts absent when unwritten."""
     name = doc.children[1]
@@ -86,19 +86,19 @@ def _entry(doc: Expr, declared: dict[str, str], where: str) -> list[str]:
     if str(name) in declared:
         lines += [f"```metta\n(: {name} {declared[str(name)]})\n```", ""]
     for part in doc.children[2:]:
-        if not (isinstance(part, Expr) and part.children):
+        if not (isinstance(part, Expression) and part.children):
             continue
         head, *rest = part.children
-        if head == Sym("@desc") and rest:
+        if head == Symbol("@desc") and rest:
             lines += [_text(rest[0]), ""]
-        elif head == Sym("@params") and rest and isinstance(rest[0], Expr):
+        elif head == Symbol("@params") and rest and isinstance(rest[0], Expression):
             for position, parameter in enumerate(rest[0].children, start=1):
                 detail = parameter.children[1] if (
-                    isinstance(parameter, Expr) and len(parameter.children) > 1
+                    isinstance(parameter, Expression) and len(parameter.children) > 1
                 ) else parameter
                 lines.append(f"{position}. {_text(detail)}")
             lines.append("")
-        elif head == Sym("@return") and rest:
+        elif head == Symbol("@return") and rest:
             lines += [f"Returns: {_text(rest[0])}", ""]
     return lines
 
@@ -109,13 +109,13 @@ def _library(path: pathlib.Path) -> tuple[str, int, int, list[str]]:
     docs = [
         (f, line)
         for f, line in forms
-        if isinstance(f, Expr) and f.children and f.children[0] == Sym("@doc")
+        if isinstance(f, Expression) and f.children and f.children[0] == Symbol("@doc")
     ]
     declared = {
         str(f.children[1]): str(f.children[2])
         for f, _line in forms
-        if isinstance(f, Expr) and len(f.children) == 3 and f.children[0] == Sym(":")
-        and isinstance(f.children[1], Sym)
+        if isinstance(f, Expression) and len(f.children) == 3 and f.children[0] == Symbol(":")
+        and isinstance(f.children[1], Symbol)
     }
     names = {name for form, _line in forms if (name := _named(form)) is not None}
     documented = {str(d.children[1]) for d, _line in docs if len(d.children) > 1}

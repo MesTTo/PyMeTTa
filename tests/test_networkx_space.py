@@ -40,7 +40,7 @@ def _module():
 
 @pytest.fixture
 def scratch(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 

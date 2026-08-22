@@ -8,7 +8,8 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError, S, expr
+from petta import Expression, S
+from petta.errors import EngineError
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'
@@ -18,7 +19,7 @@ def _format_date_clause_count(metta) -> int:
     row = metta.runtime.once(
         "space_module(Space, _M), functor(_H, 'format-date', 3), "
         "aggregate_all(count, clause(_M:_H, _), N)",
-        Space=metta.space_name,
+        Space=metta.name,
     )
     return row["N"]
 
@@ -27,13 +28,13 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
     free_count = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
-    parked = [metta.new_space() for _ in range(free_count)]
+    parked = [metta._new_space() for _ in range(free_count)]
     try:
         names = []
         for _ in range(2):
-            with metta.new_space() as scratch:
-                names.append(scratch.space_name)
-                assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+            with metta._new_space() as scratch:
+                names.append(scratch.name)
+                assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
                 assert _format_date_clause_count(scratch) == 1
                 assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
@@ -44,19 +45,19 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
 
 
 def test_same_life_double_import_is_a_no_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as scratch:
-        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+    with metta._new_space() as scratch:
+        assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
         clauses_before = _format_date_clause_count(scratch)
-        atoms_before = scratch.count()
+        atoms_before = len(scratch)
 
-        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+        assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
         assert _format_date_clause_count(scratch) == clauses_before == 1
-        assert scratch.count() == atoms_before
+        assert len(scratch) == atoms_before
         assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
 
 def test_import_translation_leaves_variable_heads_dynamic(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as scratch:
+    with metta._new_space() as scratch:
         assert scratch.run(
             "(= (apply-two $function $left $right) "
             "($function $left $right)) !(apply-two + 20 22)"
@@ -74,7 +75,7 @@ def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -
         "(= (partial-import $number) (+ $number 1))\n!(unbalanced\n"
     )
 
-    with metta.new_space() as scratch:
+    with metta._new_space() as scratch:
         with pytest.raises(EngineError) as caught:
             scratch.run(f'!(import! (context-space) "{broken}")')
 
@@ -95,20 +96,20 @@ def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -
         clauses = scratch.runtime.once(
             "space_module(Space, _M), functor(_H, 'partial-import', 2), "
             "aggregate_all(count, clause(_M:_H, _), N)",
-            Space=scratch.space_name,
+            Space=scratch.name,
         )["N"]
         assert clauses == 0
 
         broken.write_text("(= (recovered-import) recovered)\n")
         # import! answers the unit value, the way add-atom and pragma! do.
-        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[expr()]]
+        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[Expression()]]
         assert scratch.run("!(recovered-import)") == [[S.recovered]]
 
 
 def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     missing = tmp_path / "missing-import.metta"
 
-    with metta.new_space() as scratch, pytest.raises(EngineError) as caught:
+    with metta._new_space() as scratch, pytest.raises(EngineError) as caught:
         scratch.run(f'!(import! (context-space) "{missing}")')
 
     assert str(missing) in str(caught.value)
@@ -129,23 +130,23 @@ def test_an_import_into_a_named_space_registers_its_equations_there(
     """
     module = tmp_path / "scoped-import.metta"
     module.write_text("(= (scoped-swap (Pair $a $b)) (Pair $b $a))\n")
-    with metta.new_space() as importer:
+    with metta._new_space() as importer:
         assert importer.run(f'!(import! (context-space) "{module}")') == [
-            [expr()]
+            [Expression()]
         ]
         assert importer.run("!(scoped-swap (Pair a b))") == [
-            [expr(S.Pair, S.b, S.a)]
+            [Expression(S.Pair, S.b, S.a)]
         ]
         # While the importer holds it, the top level still never imported
         # it, so there the name stays data, whole call handed back.
         stayed = metta.run("!(scoped-swap (Pair c d))")
-        assert stayed == [[expr(S["scoped-swap"], expr(S.Pair, S.c, S.d))]]
+        assert stayed == [[Expression(S["scoped-swap"], Expression(S.Pair, S.c, S.d))]]
 
     # The arbiter's own spelling, a built-in module under an alias.
     bound = metta.run("!(bind! &scoped-skel (new-space))")
-    assert bound == [[expr()]]
-    assert metta.run("!(import! &scoped-skel skel)") == [[expr()]]
+    assert bound == [[Expression()]]
+    assert metta.run("!(import! &scoped-skel skel)") == [[Expression()]]
     alias_probe = metta.run("!(skel-swap-pair (Pair a b))")
     assert alias_probe == [
-        [expr(S["skel-swap-pair"], expr(S.Pair, S.a, S.b))]
+        [Expression(S["skel-swap-pair"], Expression(S.Pair, S.a, S.b))]
     ]

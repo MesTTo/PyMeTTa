@@ -17,10 +17,10 @@ Guarantees:
     repeated-variable, judged by two-way unifiability [tested:
     test_a_repeated_variable_liar_is_caught_by_the_folded_pattern,
     test_a_ground_only_matcher_is_caught_by_the_open_pattern;
-    commit=dcfc20be4933c19140ccb5759291401d13058301].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - check_twin consumes a Defined call's eager answer list exactly once
     [tested: test_the_prolog_twin_is_checked_against_its_reference;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,7 +33,7 @@ from types import GeneratorType
 
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
 from ._optional import require_module
-from .atoms import Expr, Gnd, Sym, Var, alpha_eq, encode
+from .atoms import Expression, Grounded, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
     BenchmarkBaseline,
@@ -132,13 +132,13 @@ def names():
 
 
 def symbols():
-    """Sym atoms with engine-readable names."""
-    return names().map(Sym)
+    """Symbol atoms with engine-readable names."""
+    return names().map(Symbol)
 
 
 def variables():
-    """Var atoms with engine-readable names."""
-    return names().map(Var)
+    """Variable atoms with engine-readable names."""
+    return names().map(Variable)
 
 
 def numbers():
@@ -185,9 +185,9 @@ def grounded():
     """Grounded atoms over numbers, booleans and strings."""
     st = _st()
     return st.one_of(
-        numbers().map(Gnd),
-        st.booleans().map(Gnd),
-        texts().map(Gnd),
+        numbers().map(Grounded),
+        st.booleans().map(Grounded),
+        texts().map(Grounded),
     )
 
 
@@ -209,7 +209,7 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
         leaves.insert(1, variables())
     return st.recursive(
         st.one_of(*leaves),
-        lambda inner: st.lists(inner, max_size=4).map(Expr),
+        lambda inner: st.lists(inner, max_size=4).map(Expression),
         max_leaves=max_leaves,
     )
 
@@ -217,7 +217,7 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
 def expressions(max_leaves: int = 8, *, ground: bool = False):
     """Non-empty expression-rooted atoms, the shape spaces store."""
     st = _st()
-    return st.lists(atoms(max_leaves, ground=ground), min_size=1, max_size=4).map(Expr)
+    return st.lists(atoms(max_leaves, ground=ground), min_size=1, max_size=4).map(Expression)
 
 
 def ground_atoms(max_leaves: int = 8):
@@ -236,7 +236,7 @@ def patterns(max_leaves: int = 8):
 
     def weave(parts):
         before, variable, after = parts
-        return Expr([*before, variable, *after])
+        return Expression([*before, variable, *after])
 
     return st.tuples(
         st.lists(atoms(max_leaves, ground=False), max_size=2),
@@ -349,7 +349,7 @@ def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
     if atoms_to_store is None:
         return []
     for atom in atoms_to_store:
-        if not any(alpha_eq(atom, held) for held in stored):
+        if not any(_alpha_eq(atom, held) for held in stored):
             msg = (
                 f"{name} stored {atom} and its enumeration does not answer "
                 f"it back: add then enumerate must be identity on the "
@@ -395,23 +395,23 @@ def _claim_patterns(atom):
     variant is a query a caller can actually send.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     yield atom
-    if not isinstance(atom, Expr) or len(atom.children) < 2:
+    if not isinstance(atom, Expression) or len(atom.children) < 2:
         return
     children = list(atom.children)
     positions = range(len(children))
     for index in positions:
         opened = children.copy()
-        opened[index] = Var(f"petta-check-{index}")
-        yield Expr(opened)
+        opened[index] = Variable(f"petta-check-{index}")
+        yield Expression(opened)
     if len(children) > 2:
-        yield Expr([children[0], *(Var(f"petta-check-{i}") for i in positions if i)])
+        yield Expression([children[0], *(Variable(f"petta-check-{i}") for i in positions if i)])
     for low in positions:
         for high in positions:
             if high <= low:
                 continue
             folded = children.copy()
-            folded[low] = folded[high] = Var("petta-check-fold")
-            yield Expr(folded)
+            folded[low] = folded[high] = Variable("petta-check-fold")
+            yield Expression(folded)
 
 
 def _unifiable(left, right) -> bool:
@@ -439,33 +439,33 @@ def _joined(pattern, atom):
     $petta-check-* variable.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     bindings: dict = {}
-    stack = [(encode(pattern), encode(atom))]
+    stack = [(_encode(pattern), _encode(atom))]
     while stack:
         x, y = (_walk(term, bindings) for term in stack.pop())
         if _anonymous(x) or _anonymous(y):
             continue
         if not _unify_pair(x, y, bindings, stack):
             return None
-    return _resolve(encode(pattern), bindings)
+    return _resolve(_encode(pattern), bindings)
 
 
 def _resolve(term, bindings):
     """The term with every variable walked to its binding, recursively."""
     term = _walk(term, bindings)
-    if isinstance(term, Expr):
-        return Expr([_resolve(child, bindings) for child in term.children])
+    if isinstance(term, Expression):
+        return Expression([_resolve(child, bindings) for child in term.children])
     return term
 
 
 def _walk(term, bindings):
     """Resolve a variable through its bindings, miniKanren's walk."""
-    while isinstance(term, Var) and term.name != "_" and term.name in bindings:
+    while isinstance(term, Variable) and term.name != "_" and term.name in bindings:
         term = bindings[term.name]
     return term
 
 
 def _anonymous(term) -> bool:
-    return isinstance(term, Var) and term.name == "_"
+    return isinstance(term, Variable) and term.name == "_"
 
 
 def _occurs(name, term, bindings) -> bool:
@@ -476,29 +476,29 @@ def _occurs(name, term, bindings) -> bool:
     stack = [term]
     while stack:
         walked = _walk(stack.pop(), bindings)
-        if isinstance(walked, Var):
+        if isinstance(walked, Variable):
             if walked.name == name:
                 return True
-        elif isinstance(walked, Expr):
+        elif isinstance(walked, Expression):
             stack.extend(walked.children)
     return False
 
 
 def _unify_pair(x, y, bindings, stack) -> bool:
     """One walked pair: bind a variable, descend an expression, or compare."""
-    if isinstance(x, Var):
-        if isinstance(y, Var) and y.name == x.name:
+    if isinstance(x, Variable):
+        if isinstance(y, Variable) and y.name == x.name:
             return True
         if _occurs(x.name, y, bindings):
             return False
         bindings[x.name] = y
         return True
-    if isinstance(y, Var):
+    if isinstance(y, Variable):
         if _occurs(y.name, x, bindings):
             return False
         bindings[y.name] = x
         return True
-    if isinstance(x, Expr) and isinstance(y, Expr):
+    if isinstance(x, Expression) and isinstance(y, Expression):
         if len(x.children) != len(y.children):
             return False
         stack.extend(zip(x.children, y.children, strict=True))
@@ -575,7 +575,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                 # answers instantiations): both preserve this pattern's
                 # answer set exactly, which is what soundness is about.
                 if not any(
-                    _same_atom(found, entry) or alpha_eq(found, joined) for found in answered
+                    _same_atom(found, entry) or _alpha_eq(found, joined) for found in answered
                 ):
                     msg = (
                         f"{name}.match({pattern!r}) answered neither "
@@ -695,7 +695,7 @@ def check_minted_handles(provider, registered=()) -> list[str]:
     minted = [
         f"{symbol} in {atom}"
         for atom in provider.atoms()
-        for symbol in _space_symbols(encode(atom))
+        for symbol in _space_symbols(_encode(atom))
         if symbol not in known
     ]
     if minted:
@@ -711,9 +711,9 @@ def check_minted_handles(provider, registered=()) -> list[str]:
 
 
 def _space_symbols(atom):
-    if isinstance(atom, Sym) and atom.name.startswith("&"):
+    if isinstance(atom, Symbol) and atom.name.startswith("&"):
         yield atom.name
-    elif isinstance(atom, Expr):
+    elif isinstance(atom, Expression):
         for child in atom.children:
             yield from _space_symbols(child)
 
@@ -735,12 +735,12 @@ def _same_atom(left, right) -> bool:
 def _comparable(value):
     """An engine answer and a twin answer in one shape.
 
-    A Gnd holds its Python value, an Expr and a Python sequence are both a
+    A Grounded holds its Python value, an Expression and a Python sequence are both a
     tuple of comparable parts, and everything else compares as itself.
     """
-    if isinstance(value, Gnd):
+    if isinstance(value, Grounded):
         return _comparable(value.value)
-    if isinstance(value, Expr):
+    if isinstance(value, Expression):
         return tuple(_comparable(child) for child in value)
     if isinstance(value, (list, tuple)):
         return tuple(_comparable(item) for item in value)

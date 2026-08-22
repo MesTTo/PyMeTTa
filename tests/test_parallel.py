@@ -1,16 +1,16 @@
 """Purpose: MeTTa.parallel, the Python spelling of the engine's hyperpose.
 Guarantees:
   - parallel answers the same set as the sequential superpose twin
-    [tested: test_parallel_answers_the_same_set_as_superpose; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_parallel_answers_the_same_set_as_superpose; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - branches really overlap at an in-branch rendezvous
-    [tested: test_parallel_runs_branches_concurrently; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_parallel_runs_branches_concurrently; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the call takes a timeout and does not take an inference bound, because
     the engine's inference limit counts only the calling thread
     [tested: test_parallel_takes_a_timeout_and_has_no_inference_bound;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a dual built for the first time by several threads at once is built ONCE,
     which is the property a check-then-act did not have
-    [tested: test_a_dual_is_built_once_under_concurrency; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_a_dual_is_built_once_under_concurrency; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +22,7 @@ import threading
 import pytest
 
 from petta import S
-from petta.atoms import expr
+from petta.atoms import Expression
 from petta.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
@@ -31,45 +31,45 @@ SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
 
 def test_parallel_answers_the_same_set_as_superpose(metta):
     """Same branches, same answers; hyperpose only changes the order."""
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run(SQUARE)
-        branches = [expr(S["par-sq"], n) for n in (1, 2, 3, 4)]
+        branches = [Expression(S["par-sq"], n) for n in (1, 2, 3, 4)]
         parallel = sorted(str(a) for a in space.parallel(*branches))
         sequential = sorted(
-            str(a) for a in space.eval(expr(S.superpose, expr(*branches)))
+            str(a) for a in space.eval(Expression(S.superpose, Expression(*branches)))
         )
         assert parallel == sequential == ["1", "16", "4", "9"]
 
 
 def test_parallel_accepts_text_and_atoms(metta):
     """A target is a term or its source text, as everywhere else."""
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run(SQUARE)
-        answers = space.parallel(expr(S["par-sq"], 5), "(par-sq 6)")
+        answers = space.parallel(Expression(S["par-sq"], 5), "(par-sq 6)")
         assert sorted(str(a) for a in answers) == ["25", "36"]
 
 
 def test_parallel_without_targets_answers_nothing(metta):
     """No branches is no answers, and no engine call to find that out."""
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         assert space.parallel() == []
 
 
 def test_parallel_runs_branches_concurrently(metta):
     """Four branches must all enter a rendezvous before any can return."""
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         rendezvous = threading.Barrier(4, timeout=15)
         worker_threads: set[int] = set()
         worker_threads_lock = threading.Lock()
 
-        @space.register_op(name="parallel-rendezvous")
+        @space.op(name="parallel-rendezvous")
         def meet(branch: int) -> int:
             with worker_threads_lock:
                 worker_threads.add(threading.get_ident())
             rendezvous.wait()
             return branch
 
-        branches = [expr(S["parallel-rendezvous"], branch) for branch in range(4)]
+        branches = [Expression(S["parallel-rendezvous"], branch) for branch in range(4)]
         answers = space.parallel(*branches, timeout=20)
 
         assert sorted(int(answer.value) for answer in answers) == list(range(4))
@@ -78,16 +78,16 @@ def test_parallel_runs_branches_concurrently(metta):
 
 def test_parallel_takes_a_timeout_and_has_no_inference_bound(metta):
     """Timeout bounds the call; inferences is deliberately not a parameter."""
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run(SPIN)
-        forever = expr(S["par-spin"], 200_000_000)
+        forever = Expression(S["par-spin"], 200_000_000)
         with pytest.raises(TimeLimitError):
             space.parallel(forever, forever, timeout=0.1)
 
         # An inference bound would count only the calling thread, so it is
         # refused rather than accepted and silently not enforced.
         with pytest.raises(TypeError):
-            space.parallel(expr(S["par-spin"], 1), inferences=1000)
+            space.parallel(Expression(S["par-spin"], 1), inferences=1000)
 
 
 def test_parallel_reports_a_failing_branch(metta):
@@ -95,10 +95,10 @@ def test_parallel_reports_a_failing_branch(metta):
     typed operand and integer division by zero answer `(Error ...)` rather
     than raising now, so the branch uses a HOST instantiation error.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run(SQUARE)
         with pytest.raises(EngineError):
-            space.parallel(expr(S["par-sq"], 2), "(+ $left $right)")
+            space.parallel(Expression(S["par-sq"], 2), "(+ $left $right)")
 
 
 def test_a_dual_is_built_once_under_concurrency(metta):

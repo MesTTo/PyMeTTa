@@ -39,7 +39,7 @@ def _memo_inspection(metta: MeTTa) -> None:
 
 def test_a_doubly_branching_recursion_is_tabled_automatically_and_a_tail_recursion_is_not() -> None:
     """Select repeated SCC recursion and decline a single recursive call."""
-    metta = MeTTa("&p14-auto-basic")
+    metta = MeTTa().space("&p14-auto-basic")
     metta.run(
         """
         (= (p14-auto-doub $n)
@@ -70,7 +70,7 @@ def test_a_doubly_branching_recursion_is_tabled_automatically_and_a_tail_recursi
 
 def test_an_impure_function_is_never_cached_automatically() -> None:
     """Keep the effect walk's impurity refusal stronger than force."""
-    metta = MeTTa("&p14-auto-impure")
+    metta = MeTTa().space("&p14-auto-impure")
     declaration = "(cache p14-auto-impure force)"
     try:
         metta.run(f"!(add-atom &petta {declaration})")
@@ -95,7 +95,7 @@ def test_an_impure_function_is_never_cached_automatically() -> None:
 
 def test_automatic_cache_force_and_refuse_overrides() -> None:
     """Apply and withdraw both profitability overrides through the catalog."""
-    metta = MeTTa("&p14-auto-overrides")
+    metta = MeTTa().space("&p14-auto-overrides")
     force = "(cache p14-auto-forced force)"
     refuse = "(cache p14-auto-refused refuse)"
     metta.run(
@@ -139,7 +139,7 @@ def test_automatic_cache_force_and_refuse_overrides() -> None:
 
 def test_automatic_caching_preserves_multiplicity_and_answer_limit() -> None:
     """Preserve bags, exact floats, and full answers past the manual limit."""
-    metta = MeTTa("&p14-auto-bag")
+    metta = MeTTa().space("&p14-auto-bag")
     refuse = "(cache p14-bag-plain refuse)"
     _memo_inspection(metta)
     metta.run(f"!(add-atom &petta {refuse})")
@@ -184,7 +184,7 @@ def test_automatic_caching_preserves_multiplicity_and_answer_limit() -> None:
 
 def test_scc_profitability_is_per_rhs_and_selects_a_mutual_component() -> None:
     """Count per body, select a mutual SCC, and ignore calls held as data."""
-    metta = MeTTa("&p14-auto-scc")
+    metta = MeTTa().space("&p14-auto-scc")
     metta.run(
         """
         (= (p14-separate Z) 0)
@@ -220,7 +220,7 @@ def test_scc_profitability_is_per_rhs_and_selects_a_mutual_component() -> None:
 
 def test_bounded_left_recursive_search_is_not_cached_automatically() -> None:
     """Decline bounded search whose pruning conflicts with eager collection."""
-    metta = MeTTa("&p14-auto-variant")
+    metta = MeTTa().space("&p14-auto-variant")
     metta.run(
         """
         (= (p14-path a b) (once True))
@@ -240,7 +240,7 @@ def test_bounded_left_recursive_search_is_not_cached_automatically() -> None:
 
 def test_explicit_tabling_takes_precedence_over_automatic_memoization() -> None:
     """Disable automatic bag caching while an explicit answer trie is live."""
-    metta = MeTTa("&p14-auto-explicit-table")
+    metta = MeTTa().space("&p14-auto-explicit-table")
     metta.run(
         """
         (= (p14-explicit-table $n)
@@ -268,7 +268,7 @@ def test_explicit_tabling_takes_precedence_over_automatic_memoization() -> None:
 def test_automatic_decisions_follow_source_replacement(tmp_path) -> None:
     """Recompute the SCC decision when one source replaces another."""
     source = tmp_path / "automatic-reload.metta"
-    metta = MeTTa("&p14-auto-reload")
+    metta = MeTTa().space("&p14-auto-reload")
     _memo_inspection(metta)
     source.write_text(
         "(= (p14-auto-reload $n) "
@@ -298,8 +298,8 @@ def test_automatic_decisions_follow_source_replacement(tmp_path) -> None:
 
 def test_automatic_decisions_are_isolated_between_same_name_spaces() -> None:
     """Key decisions by execution module as well as function name."""
-    branching = MeTTa("&p14-auto-isolated-branching")
-    tail = MeTTa("&p14-auto-isolated-tail")
+    branching = MeTTa().space("&p14-auto-isolated-branching")
+    tail = MeTTa().space("&p14-auto-isolated-tail")
     branching.run(
         "(= (p14-auto-same $n) "
         "(if (< $n 1) 1 (+ (p14-auto-same (- $n 1)) "

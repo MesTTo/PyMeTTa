@@ -16,6 +16,12 @@ Guarantees:
     private security address and its window, the gate command, the alpha
     status, and issue forms GitHub can parse
     [tested 2026-08-19: test_the_repository_ships_its_governance_documents]
+  - reference generation follows the public Space handle even though its
+    implementation lives in the private petta._space module, and neither
+    reference generator can restore the deleted DAS or persistent module doors
+    [tested: test_an_overloaded_method_is_documented_once,
+    test_the_legacy_reference_generator_tracks_the_narrow_public_modules;
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +31,7 @@ Open Obligations:
 import ast
 import importlib.util
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,6 +53,25 @@ def _load_reference():
 
 
 _reference = _load_reference()
+
+
+def _load_site_reference_generator():
+    """Load the earlier site generator without making website a package."""
+    spec = importlib.util.spec_from_file_location(
+        "petta_site_reference_generator",
+        _REPO / "website" / "scripts" / "generate_reference.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(spec.name, None)
+    return module
+
+
+_site_reference_generator = _load_site_reference_generator()
 _ROOT = _REPO
 _SEAMS = _REPO / "engine" / "ext_points.pl"
 _PAGE = _REPO / "EXTENDING.md"
@@ -117,11 +143,25 @@ def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
 
 
 def test_an_overloaded_method_is_documented_once():
-    """@overload declares a type, not a definition. All four gave MeTTa.run
+    """@overload declares a type, not a definition. All four gave Space.run
     four identical reference entries.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    page = _reference.page_for("bindings/python/petta/space.py", "petta.space")
-    assert page.count("### `MeTTa.run`") == 1
+    page = _reference.page_for("bindings/python/petta/_space.py", "petta.Space")
+    assert page.count("### `Space.run`") == 1
+
+
+def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
+    """Both checked-in generators must agree on deleted and private doors."""
+    modules = {spec.name: spec.source for spec in _site_reference_generator.MODULES}
+    assert modules["petta.Space"] == "bindings/python/petta/_space.py"
+    assert "petta.space" not in modules
+    assert "petta.das" not in modules
+    assert "petta.persistent" not in modules
+    assert "petta.matching" not in modules
+    assert "petta.measure" not in modules
+    assert not (_REPO / "website" / "reference" / "petta-das.md").exists()
+    assert not (_REPO / "website" / "reference" / "petta-persistent.md").exists()
+    assert not (_REPO / "website" / "live" / "das.md").exists()
 
 
 def test_a_tag_shaped_word_in_prose_is_escaped_and_code_is_not():
@@ -142,6 +182,18 @@ def test_a_tag_shaped_word_in_prose_is_escaped_and_code_is_not():
     assert _reference.escape_tags("    # <mylib-join/3 prolog: 1 call>") == (
         "    # <mylib-join/3 prolog: 1 call>"
     )
+
+
+def test_an_indented_prose_continuation_escapes_tags():
+    """List-item continuation indentation is prose unless a blank line starts
+    an indented code block.
+    """  # noqa: D205 -- one generator distinction is explained continuously
+    quoted = _reference.quote(
+        '- a failure once used the message\n    "Python \'<Type>\': <text>"'
+    )
+    assert "&lt;Type>" in quoted and "&lt;text>" in quoted
+    code = _reference.quote("Example:\n\n    # <mylib-join/3 prolog: 1 call>")
+    assert "    # <mylib-join/3 prolog: 1 call>" in code
 
 
 def _load_libdoc():

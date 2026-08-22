@@ -3,10 +3,10 @@ Guarantees:
   - a path keeps its root opaque and reads only the named attributes or keys
     after the engine has matched that root [tested:
     test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=a1b10566194f10c174101fdc05f956b33171613b]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repeated object identities terminate the path as a non-match [tested:
     test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=a1b10566194f10c174101fdc05f956b33171613b]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ._atoms_core import Box
-from .atoms import Expr, Gnd, Sym, atom_from_wire, encode
+from .atoms import Expression, Grounded, Symbol, _atom_from_wire, _encode
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,15 +54,15 @@ class Path:
             msg = "a lazy path needs at least one segment"
             raise ValueError(msg)
 
-    def to(self, target: Any) -> Expr:
+    def to(self, target: Any) -> Expression:
         """Build the query marker that binds the reached value to *target*."""
-        encoded_segments = Expr(
-            [Sym("segments"), *(_segment_atom(segment) for segment in self.segments)]
+        encoded_segments = Expression(
+            [Symbol("segments"), *(_segment_atom(segment) for segment in self.segments)]
         )
-        return Expr([Sym("path-at"), encoded_segments, encode(target)])
+        return Expression([Symbol("path-at"), encoded_segments, _encode(target)])
 
 
-def path(*segments: str | int | Attr | Key, to: Any) -> Expr:
+def path(*segments: str | int | Attr | Key, to: Any) -> Expression:
     """Reach through an opaque query value and bind only the final field.
 
     Strings name attributes. Integers name subscription keys. Use ``Key``
@@ -81,10 +81,10 @@ def _normalize_segment(segment: str | int | Attr | Key) -> Attr | Key:
     return Key(segment)
 
 
-def _segment_atom(segment: Attr | Key) -> Expr:
+def _segment_atom(segment: Attr | Key) -> Expression:
     if isinstance(segment, Attr):
-        return Expr([Sym("attr"), Gnd(segment.name)])
-    return Expr([Sym("key"), encode(segment.value)])
+        return Expression([Symbol("attr"), Grounded(segment.name)])
+    return Expression([Symbol("key"), _encode(segment.value)])
 
 
 class _PathCursor:
@@ -113,15 +113,15 @@ def _path_begin(root: Any) -> _PathCursor:
 
 def _path_step(cursor: _PathCursor, segment_wire: Any) -> bool:
     """Engine callback: resolve exactly one path segment."""
-    segment = atom_from_wire(segment_wire)
-    if not isinstance(segment, Expr) or len(segment.children) != 2:
+    segment = _atom_from_wire(segment_wire)
+    if not isinstance(segment, Expression) or len(segment.children) != 2:
         msg = f"invalid lazy path segment {segment!r}"
         raise ValueError(msg)
     head, value_atom = segment.children
-    if not isinstance(head, Sym):
+    if not isinstance(head, Symbol):
         msg = f"invalid lazy path segment {segment!r}"
         raise ValueError(msg)  # noqa: TRY004  -- a non-symbol head is malformed wire data, a ValueError like its sibling guards, not a caller typing mistake
-    value = value_atom.value if isinstance(value_atom, Gnd) else value_atom
+    value = value_atom.value if isinstance(value_atom, Grounded) else value_atom
     try:
         if head.name == "attr" and isinstance(value, str):
             reached = getattr(cursor.current, value)
@@ -140,7 +140,7 @@ def _path_step(cursor: _PathCursor, segment_wire: Any) -> bool:
 
 def _path_value(cursor: _PathCursor) -> list[Any]:
     """Engine callback: encode only the final value a path reached."""
-    return encode(cursor.current).to_wire()
+    return _encode(cursor.current).to_wire()
 
 
 __all__ = ["Attr", "Key", "Path", "path"]

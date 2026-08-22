@@ -5,7 +5,8 @@ behind it, decoding arguments to atoms-or-values and encoding results back.
 Importable as petta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
-    [tested test_public_context_types_are_distinct]
+    [tested: test_canonical_context_types_replace_public_newtypes;
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - protocol type registrations can be removed by exact identity [tested
     test_protocol_and_reflector_registrations_can_be_removed]
   - a release that FAILS reaches the caller. Left to the deallocator,
@@ -16,16 +17,16 @@ Guarantees:
   - resolved parameter and return annotations select conversion in both
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-    commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - type_names removes every __petta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -56,12 +57,12 @@ from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
 
-from ._api_types import MettaName, SpaceName
+from ._api_types import _OperationName, _SpaceId
 from ._convert_build import build
 from ._convert_project import explicit_projection, project
 from .answer import Answer
-from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, decode, encode
-from .errors import Decline, PettaError, is_transport_failure
+from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _decode, _encode
+from .errors import NotReducible, PettaError, is_transport_failure
 
 __all__ = [
     "REGISTRY",
@@ -83,12 +84,12 @@ _DECLINED = ["x", "declined"]
 class Operation:
     """One registered MeTTa function backed by Python."""
 
-    name: MettaName
+    name: _OperationName
     fn: Callable[..., Any]
     kind: str  # det | many | raw_det | raw_many
     arity: int
     pass_atoms: bool = False  # derived from (arguments name atoms)
-    space: SpaceName | None = None  # where the type declarations were added
+    space: _SpaceId | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
     catalog: tuple = ()  # policy atoms owned in &petta
     arities: tuple = ()  # every registered arity, for reflection facts
@@ -102,14 +103,14 @@ REGISTRY: dict[str, Operation] = {}
 
 
 def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
-    atom = atom_from_wire(wire)
+    atom = _atom_from_wire(wire)
     if pass_atoms or _receives_atom(annotation):
         return atom
     if annotation is not Any and annotation is not inspect.Parameter.empty:
         return build(atom, annotation)
     # Grounded values unwrap to Python; symbols, variables and expressions
     # stay atoms, which is the structure an operation may want to inspect.
-    return decode(atom) if isinstance(atom, Gnd) else atom
+    return _decode(atom) if isinstance(atom, Grounded) else atom
 
 
 def _receives_atom(annotation: Any) -> bool:
@@ -130,7 +131,7 @@ def _encode_result(value: Any, annotation: Any = Any) -> list:
         return value.to_wire()
     if value is None:
         # None is not a MeTTa value. A deterministic operation returning it
-        # answers nothing, the semidet reading; return petta.expr() for unit.
+        # answers nothing, the semidet reading; return Expression() for unit.
         return _DECLINED
     if isinstance(value, Atom):
         return value.to_wire()
@@ -144,7 +145,7 @@ def _encode_result(value: Any, annotation: Any = Any) -> list:
     projected = explicit_projection(value)
     if projected is not None:
         return projected.to_wire()
-    return encode(value).to_wire()
+    return _encode(value).to_wire()
 
 
 def dispatch(name: str, tagged_args: list) -> list:
@@ -157,7 +158,7 @@ def dispatch(name: str, tagged_args: list) -> list:
     ]
     try:
         return _encode_result(op.fn(*args), op.return_annotation)
-    except Decline:
+    except NotReducible:
         return _DECLINED
 
 
@@ -166,7 +167,7 @@ def dispatch_inverse(name: str, tagged_result: Any):
 
     The inverse is a relation, not a function, so this always enumerates: a
     plain callable's single answer is yielded once and a generator's answers
-    are yielded in turn. Returning None or raising Decline means the result
+    are yielded in turn. Returning None or raising NotReducible means the result
     has no preimage, which is failure rather than an error, exactly as it is
     forwards.
 
@@ -193,7 +194,7 @@ def dispatch_inverse_raw(name: str, result: Any):
     An operation registered raw takes those conversions forwards, so its
     inverse takes them backwards. Sending the inverse through the wire
     encoding instead gave one function pair two value conventions: `str` for a
-    symbol going out and `Sym` coming back.
+    symbol going out and `Symbol` coming back.
     """
     for arguments in _preimages(name, _unbox(result)):
         yield [_rebox(argument) for argument in arguments]
@@ -214,7 +215,7 @@ def _preimages(name: str, result: Any):
         raise PettaError(msg)
     try:
         answers = op.inverse(result)
-    except Decline:
+    except NotReducible:
         return
     if answers is None:
         return
@@ -263,17 +264,17 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
         if mode == "abort" or is_transport_failure(error):
             raise
         if mode == "keep":
-            call = Expr(
+            call = Expression(
                 [
-                    Sym(name),
+                    Symbol(name),
                     *(
-                        encode(_decode_arg(a, True, Atom))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+                        _encode(_decode_arg(a, True, Atom))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
                         for a in tagged_args
                     ),
                 ]
             )
             reason = f"{type(error).__name__}: {error}"
-            yield Expr([Sym("Error"), call, Gnd(reason)]).to_wire()
+            yield Expression([Symbol("Error"), call, Grounded(reason)]).to_wire()
 
 
 def _unbox(value: Any) -> Any:
@@ -306,11 +307,11 @@ def dispatch_raw(name: str, args: list) -> Any:
     janus values here; use an encoded operation when that fidelity matters.
     Boxed arguments unbox on the way in and opaque results box on the way
     out, so an operation body only ever sees real objects. None crosses as
-    janus @none, which the shim reads as no answer; Decline maps onto it.
+    janus @none, which the shim reads as no answer; NotReducible maps onto it.
     """
     try:
         return _rebox(_refuse_raw_answer(REGISTRY[name].fn(*[_unbox(a) for a in args])))
-    except Decline:
+    except NotReducible:
         return None
 
 

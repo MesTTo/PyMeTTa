@@ -30,7 +30,7 @@ import importlib
 import threading
 from typing import Any, Final
 
-from ._atoms_core import Sym
+from ._atoms_core import Symbol
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
@@ -120,7 +120,7 @@ class _Namespace:
         lock = object.__getattribute__(self, "_lock")
         with lock:
             names = set(object.__getattribute__(self, "_cache"))
-        if object.__getattribute__(self, "_kind") is Sym:
+        if object.__getattribute__(self, "_kind") is Symbol:
             engine = importlib.import_module(f"{__package__}._engine")
 
             if engine.started():

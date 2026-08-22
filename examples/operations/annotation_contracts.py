@@ -11,9 +11,9 @@ facts:
 
 Guarantees:
   - Atom parameters preserve written terms while ordinary parameters receive
-    reduced values [tested: annotation_contracts example; commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    reduced values [tested: annotation_contracts example; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - local type claims and source-derived definition facts are visible through
-    the public API [tested: annotation_contracts example; commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    the public API [tested: annotation_contracts example; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,14 +24,14 @@ from _common import check, done
 
 import petta
 
-m = petta.MeTTa().new_space()
+m = petta.MeTTa().space()
 
 
-@m.register_op
+@m.op
 def anyatom(term: petta.Atom) -> petta.Atom:
     return term
 
-@m.register_op
+@m.op
 def anyval(term):
     return term
 

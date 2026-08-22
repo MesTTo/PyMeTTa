@@ -17,13 +17,13 @@ import pickle
 
 import pytest
 
-from petta import Expr, PettaError, S
+from petta import Expression, PettaError, S
 from petta.lint import Finding, lint
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -55,7 +55,7 @@ def test_declared_but_undefined(m):  # noqa: D103  -- pytest discovers or inject
 
 
 def test_definition_in_another_space_does_not_satisfy_a_local_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as defining, metta.new_space() as declaring:
+    with metta._new_space() as defining, metta._new_space() as declaring:
         defining.run("(= (cross-space-only $x) $x)")
         declaring.run("(: cross-space-only (-> Number Number))")
 
@@ -218,8 +218,8 @@ def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):  # noq
 def test_lint_walks_deep_expression_trees_iteratively(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     body = S.leaf
     for _ in range(2_000):
-        body = Expr([S.nested, body])
-    m.add(Expr([S["="], Expr([S.deep_lint]), body]))
+        body = Expression([S.nested, body])
+    m.add(Expression([S["="], Expression([S.deep_lint]), body]))
     findings = m.lint()
     assert any(finding.subject == "nested" for finding in findings)
 
@@ -229,7 +229,7 @@ def test_a_declaration_that_cannot_type_its_function(m):  # noqa: D103  -- pytes
     # What reaches the linter is the route that builds one atom at a time,
     # where refusing would refuse a program that is about to add its arrow.
     m.run("(= (bare-fn $x) (+ $x 1))")
-    m.add(Expr([S[":"], S["bare-fn"], S.Number]))
+    m.add(Expression([S[":"], S["bare-fn"], S.Number]))
     findings = m.lint()
     assert "declaration-types-the-symbol" in _kinds(findings)
     detail = next(
@@ -241,7 +241,7 @@ def test_a_declaration_that_cannot_type_its_function(m):  # noqa: D103  -- pytes
 
 def test_one_arrow_among_several_declarations_satisfies_the_linter(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(: paired-fn (-> Number Number)) (= (paired-fn $x) (+ $x 1))")
-    m.add(Expr([S[":"], S["paired-fn"], S.Number]))
+    m.add(Expression([S[":"], S["paired-fn"], S.Number]))
     assert "declaration-types-the-symbol" not in _kinds(m.lint())
 
 
@@ -306,7 +306,7 @@ def test_findings_carry_the_lsp_diagnostic_fields(m):  # noqa: D103  -- pytest d
     # applying the fix is remove-then-add, no positions needed
     assert m.remove(simplification.atom)
     m.add(simplification.autofix)
-    assert m.one("(q1-f 7)") == 7
+    assert m._one("(q1-f 7)") == 7
     typo = findings["possibly-undefined-reference"]
     assert typo.severity == "hint"
     assert typo.suggestion == "car-atom"

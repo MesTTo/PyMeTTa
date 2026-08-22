@@ -6,17 +6,17 @@ query that happens to be fully consumed.
 Guarantees:
   - a conjunctive match answers every row it found, through templates that
     remove the atoms the later conjuncts would have read
-    [tested: test_match_snapshots_rows_before_template_effects; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_match_snapshots_rows_before_template_effects; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a single pattern gets the same guarantee from the logical update view and
     keeps streaming, so a first answer off a large space does not walk it
-    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a CONJUNCTION under `once` or `take N` stops at the bound instead of
     walking the join, and stops only where nothing between the row and the
     answer could fail
-    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=54dec4e6de76f3adfd3c6cb941a8f6b04e594fa2]
+    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the bounded forms keep match/4's answer-shaped refusal, which the fused
     template-and-result spelling had lost
-    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=54dec4e6de76f3adfd3c6cb941a8f6b04e594fa2]
+    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,12 +25,12 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, expr
+from petta import Expression, S, V
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space()
+    return metta._new_space()
 
 
 # Upstream's own graph-rewriting example, and the place the divergence was
@@ -49,7 +49,7 @@ def test_match_snapshots_rows_before_template_effects(m):  # noqa: D103  -- pyte
         "                                (add-atom &self (link $y $x)))))"
     )
     # Three loop rotations, one unit each. One unit is what a lazy match gives.
-    assert rewrites[0] == expr(expr(), expr(), expr())
+    assert rewrites[0] == Expression(Expression(), Expression(), Expression())
     assert sorted(str(atom) for atom in m.atoms()) == [
         "(link A C)",
         "(link B A)",
@@ -67,12 +67,12 @@ def test_a_single_pattern_keeps_the_row_its_sibling_removed(m):  # noqa: D103  -
         "(= (visit beta) (let () (remove-atom &self (item alpha)) beta))"
     )
     (answers,) = m.run("!(collapse (match &self (item $x) (visit $x)))")
-    assert answers[0] == expr(S.alpha, S.beta)
+    assert answers[0] == Expression(S.alpha, S.beta)
     # Both templates ran, so both items are gone: each removed the other.
     # The two equations are atoms of this space too, so the items are counted
     # rather than the whole space.
     (left,) = m.run("!(collapse (match &self (item $x) $x))")
-    assert left[0] == expr()
+    assert left[0] == Expression()
 
 
 def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
@@ -86,7 +86,7 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
     allowance for counter noise.
     """
     def first_answer_cost(size):
-        space = metta.new_space()
+        space = metta._new_space()
         try:
             space.add(*[S.bulk(n) for n in range(size)])
             with metta.stats() as spent:
@@ -109,7 +109,7 @@ def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
 
 def _bounded_join_cost(metta, size, source):
     """What one bounded query over a `size`-edge chain self-join costs."""
-    space = metta.new_space()
+    space = metta._new_space()
     try:
         space.add(*[S.edge(n, n + 1) for n in range(size)])
         with metta.stats() as spent:
@@ -149,7 +149,7 @@ def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
         metta, 10, unbounded
     )
 
-    space = metta.new_space()
+    space = metta._new_space()
     try:
         space.add(*[S.edge(n, n + 1) for n in range(6)])
         space.run("(= (only-late $n) (if (> $n 2) (late $n) (empty)))")
@@ -160,11 +160,11 @@ def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
         (answers,) = space.run(
             "!(once (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
         )
-        assert answers == [expr(S.late, 3)]
+        assert answers == [Expression(S.late, 3)]
         (bounded,) = space.run(
             "!(take 2 (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
         )
-        assert bounded == [expr(S.late, 3), expr(S.late, 4)]
+        assert bounded == [Expression(S.late, 3), Expression(S.late, 4)]
     finally:
         space.drop()
 
@@ -201,7 +201,7 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
     rides a backtrackable global that a findall undoes. Reading it per row is
     what proves the snapshot did not drop the channel on the floor.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    space = metta.new_space()
+    space = metta._new_space()
     try:
         space.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
         (paired,) = space.run(
@@ -209,7 +209,7 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
             "            (pair $p (annotation))))"
         )
         # Unannotated atoms read the semiring's 1, once per row.
-        assert paired[0] == expr(expr(S.pair, expr(S.path, S.a, S.c), 1))
+        assert paired[0] == Expression(Expression(S.pair, Expression(S.path, S.a, S.c), 1))
     finally:
         space.drop()
 
@@ -242,7 +242,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
 
     provider = ListSpace([S.step(S.a, S.b), S.step(S.b, S.c), S.step(S.c, S.a)])
     name = f"&snapshot{id(provider) % 100000}"
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     try:
         (rows,) = metta.run(
             f"!(collapse (match {name} (, (step $x $y) (step $y $z))"
@@ -253,7 +253,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
         assert len(rows[0]) == 3
         assert provider.stored == []
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):

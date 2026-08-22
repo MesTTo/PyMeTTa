@@ -16,7 +16,7 @@ Guarantees:
   - an inherited space reads its own multiset before its ancestors, joins
     across those layers, and mutates only its own store
     [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;
-    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,7 +37,7 @@ def drained(metta):
     back" becomes true only by accident of test order.
     """
     free = metta.runtime.once("aggregate_all(count, petta_py_free_space(_), N)")["N"]
-    parked = [metta.new_space() for _ in range(free)]
+    parked = [metta._new_space() for _ in range(free)]
     yield metta
     for space in parked:
         space.drop()
@@ -47,11 +47,11 @@ def test_a_dropped_name_comes_back(drained):
     """The premise. Without name reuse there is nothing to inherit, and a
     test that never recycled would pass while proving nothing.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    first = drained.new_space()
-    name = first.space_name
+    first = drained._new_space()
+    name = first.name
     first.drop()
-    second = drained.new_space()
-    assert second.space_name == name
+    second = drained._new_space()
+    assert second.name == name
     second.drop()
 
 
@@ -93,8 +93,8 @@ def _execution_module_owns(metta, space_name):
 # so the harm was a module that grew by one dead predicate per lambda per life
 # and an escape hatch that reached into a finished one.
 def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    first = drained.new_space()
-    name = first.space_name
+    first = drained._new_space()
+    name = first.name
     first.add(S.plain(1))
     first.run("(= (past-life) inherited)")
     first.run("(: past-typed (-> Number Number))\n(= (past-typed $x) $x)")
@@ -117,8 +117,8 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
     # Nothing at all, rather than nothing with a stored atom behind it.
     assert _execution_module_owns(drained, name) == []
 
-    second = drained.new_space()
-    assert second.space_name == name, "the point of the test is the reused name"
+    second = drained._new_space()
+    assert second.name == name, "the point of the test is the reused name"
     try:
         assert second.atoms() == []
         assert second.run("!(past-twice past-inc 5)") == [
@@ -149,14 +149,14 @@ def test_a_recycled_name_can_reimport_what_its_past_life_imported(tmp_path, drai
     source = tmp_path / "life.metta"
     source.write_text("(imported-fact payload)\n")
 
-    first = drained.new_space()
-    name = first.space_name
+    first = drained._new_space()
+    name = first.name
     first.run(f'!(import! &self "{source}")')
     assert first.atoms() == [S["imported-fact"](S.payload)]
     first.drop()
 
-    second = drained.new_space()
-    assert second.space_name == name
+    second = drained._new_space()
+    assert second.name == name
     try:
         assert second.atoms() == []
         second.run(f'!(import! &self "{source}")')
@@ -172,16 +172,16 @@ def test_a_recycled_name_can_reimport_what_its_past_life_imported(tmp_path, drai
 # registering space is still alive, so their surviving its drop is that same
 # fact rather than a past life reaching through a name.
 def test_a_recycled_name_still_sees_process_wide_registrations(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    sibling = drained.new_space()
-    first = drained.new_space()
-    name = first.space_name
-    first.register_op(lambda: 3, name="lifecycle-py")
+    sibling = drained._new_space()
+    first = drained._new_space()
+    name = first.name
+    first.op(lambda: 3, name="lifecycle-py")
     try:
         assert sibling.run("!(lifecycle-py)") == [[3]]
         assert drained.run("!(lifecycle-py)") == [[3]]
         first.drop()
-        second = drained.new_space()
-        assert second.space_name == name
+        second = drained._new_space()
+        assert second.name == name
         assert second.run("!(lifecycle-py)") == [[3]]
         second.drop()
     finally:
@@ -193,7 +193,7 @@ def test_a_dropped_handle_refuses_rather_than_writing_into_the_next_life(metta):
     """The other half of name reuse: the dead handle must not reach the
     engine, because its name may already belong to somebody else.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    first = metta.new_space()
+    first = metta._new_space()
     first.drop()
     with pytest.raises(Exception, match="dropped"):
         first.add(S.late(1))
@@ -201,11 +201,11 @@ def test_a_dropped_handle_refuses_rather_than_writing_into_the_next_life(metta):
 
 def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
     """Inheritance is a child-first read union and a front-only mutation."""
-    with metta.new_space() as parent:
+    with metta._new_space() as parent:
         parent.add(
             S.edge(S.a, S.b), S.parent_only(1), S.copy(S.same), S.layer(S.parent)
         )
-        with metta.new_space(inherits=parent) as child:
+        with metta._new_space(inherits=parent) as child:
             child.add(
                 S.edge(S.b, S.c), S.child_only(2), S.copy(S.same), S.layer(S.child)
             )
@@ -227,7 +227,7 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
             assert [(row.x, row.z) for row in child.query(
                 S.edge(V.x, V.y), S.edge(V.y, V.z)
             )] == [(S.a, S.c)]
-            assert child.count() == 8
+            assert len(child) == 8
             assert child.run("!(space-atom-count (context-space))") == [[4]]
             assert not parent.query(S.child_only(V.x))
 
@@ -245,7 +245,7 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
             assert child.query(S.parent_only(1))
             assert child.run("!(layer-answer)") == [[S.parent]]
             child.clear()
-            assert child.count() == 5
+            assert len(child) == 5
             assert child.run("!(space-atom-count (context-space))") == [[0]]
             assert child.query(S.parent_only(1))
             assert parent.query(S.parent_only(1))
@@ -255,8 +255,8 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
 
 def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
     """A parent refuses to drop while a live child inherits from its name."""
-    parent = metta.new_space()
-    child = metta.new_space(inherits=parent)
+    parent = metta._new_space()
+    child = metta._new_space(inherits=parent)
     try:
         with pytest.raises(PettaError, match="live child"):
             parent.drop()
@@ -269,20 +269,20 @@ def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
 
 def test_a_recycled_child_name_may_choose_a_different_parent(drained):
     """A recycled child name may declare a different parent in its next life."""
-    first_parent = drained.new_space()
-    second_parent = drained.new_space()
+    first_parent = drained._new_space()
+    second_parent = drained._new_space()
     first_parent.add(S.from_parent(S.first))
     second_parent.add(S.from_parent(S.second))
     first_parent.run("(= (parent-answer) first)")
     second_parent.run("(= (parent-answer) second)")
-    first_child = drained.new_space(inherits=first_parent)
-    name = first_child.space_name
+    first_child = drained._new_space(inherits=first_parent)
+    name = first_child.name
     assert first_child.run("!(parent-answer)") == [[S.first]]
     first_child.drop()
 
-    second_child = drained.new_space(inherits=second_parent)
+    second_child = drained._new_space(inherits=second_parent)
     try:
-        assert second_child.space_name == name
+        assert second_child.name == name
         assert not second_child.query(S.from_parent(S.first))
         assert second_child.query(S.from_parent(S.second))
         assert second_child.run("!(parent-answer)") == [[S.second]]

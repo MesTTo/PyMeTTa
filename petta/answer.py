@@ -23,21 +23,21 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from .atoms import Atom, Var, encode
+from .atoms import Atom, Variable, _encode
 
 _SCALAR = (int, float, str, bool)
 
 
 def _binding_name(key: Any) -> str:
     """A theta key as the bare variable name the wire carries."""
-    if isinstance(key, Var):
+    if isinstance(key, Variable):
         return key.name
     if isinstance(key, str):
         name = key.removeprefix("$")
         if name:
             return name
     msg = (
-        f"a theta key names a query variable, as 'x', '$x' or a Var, "
+        f"a theta key names a query variable, as 'x', '$x' or a Variable, "
         f"not {key!r}"
     )
     raise TypeError(
@@ -110,12 +110,12 @@ class Answer:
         self.k = k
 
     def to_wire(self) -> list:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        theta = [[name, encode(value).to_wire()] for name, value in self.theta.items()]
-        residue = True if self.residue is None else encode(self.residue).to_wire()
-        k = encode(self.k).to_wire() if isinstance(self.k, Atom) else self.k
+        theta = [[name, _encode(value).to_wire()] for name, value in self.theta.items()]
+        residue = True if self.residue is None else _encode(self.residue).to_wire()
+        k = _encode(self.k).to_wire() if isinstance(self.k, Atom) else self.k
         wire = ["a", theta, residue, k]
         if self.value is not None:
-            wire.append(encode(self.value).to_wire())
+            wire.append(_encode(self.value).to_wire())
         return wire
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract

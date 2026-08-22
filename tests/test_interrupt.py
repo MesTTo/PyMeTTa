@@ -24,7 +24,7 @@ def test_sigint_interrupts_a_running_evaluation():  # noqa: D103  -- pytest disc
 
         from petta import MeTTa
 
-        m = MeTTa("&sigint-probe")
+        m = MeTTa().space("&sigint-probe")
         m.run("(= (spin $n) (if (== $n 0) done (spin (- $n 1))))")
         print("READY", flush=True)
         try:

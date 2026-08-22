@@ -16,13 +16,13 @@ Open Obligations:
 
 from __future__ import annotations
 
+import importlib as _importlib
 from difflib import get_close_matches
 from typing import Any
 
 from ._engine import Runtime
 from ._space_objects import _limits
-from .atoms import Atom, Expr, Sym, _to_atom, atom_from_wire
-from .derivation import Derivation
+from .atoms import Atom, Expression, Symbol, _atom_from_wire, _to_atom
 
 
 def derivations(
@@ -33,7 +33,7 @@ def derivations(
     *,
     timeout: float | None,
     inferences: int | None,
-) -> list[Derivation]:
+) -> list[Any]:
     """Return each guarded derivation for one target."""
     _validate_depth(depth)
     seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
@@ -43,7 +43,10 @@ def derivations(
         Steps=steps,
         Ins=[space, _to_atom(target).to_wire(), -1 if depth is None else depth],
     )
-    return [Derivation.from_atom(atom_from_wire(row["Tree"])) for row in rows]
+    derivation_type = _importlib.import_module(
+        f"{__package__}.derivation"
+    ).Derivation
+    return [derivation_type.from_atom(_atom_from_wire(row["Tree"])) for row in rows]
 
 
 def _validate_depth(depth: int | None) -> None:
@@ -52,15 +55,15 @@ def _validate_depth(depth: int | None) -> None:
         raise ValueError(msg)
 
 
-def _stored_with_head(space: Any, name: str) -> list[Expr]:
+def _stored_with_head(space: Any, name: str) -> list[Expression]:
     return [
         atom
         for atom in space.atoms()
-        if isinstance(atom, Expr) and isinstance(atom.head, Sym) and atom.head.name == name
+        if isinstance(atom, Expression) and isinstance(atom.head, Symbol) and atom.head.name == name
     ]
 
 
-def _stored_explanation(atom: Expr, name: str, stored: list[Expr]) -> str:
+def _stored_explanation(atom: Expression, name: str, stored: list[Expression]) -> str:
     sizes = sorted({len(candidate) for candidate in stored})
     if len(atom) not in sizes:
         # One observed size reads as a number, not a set: "[3] elements" looks
@@ -87,10 +90,10 @@ def _unstored_explanation(space: Any, name: str) -> str:
 def explain_no_match(space: Any, pattern: Any) -> str:
     """Explain the first cheap reason one pattern cannot match."""
     atom: Atom = _to_atom(pattern)
-    if not isinstance(atom, Expr) or not atom.children:
+    if not isinstance(atom, Expression) or not atom.children:
         return f"{atom} is not an expression pattern"
     head = atom.head
-    if not isinstance(head, Sym):
+    if not isinstance(head, Symbol):
         return f"the pattern head {head} is not a symbol"
     stored = _stored_with_head(space, head.name)
     if stored:

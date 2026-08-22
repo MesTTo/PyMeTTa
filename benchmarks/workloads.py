@@ -10,8 +10,8 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from petta import S, V, expr
-from petta.atoms import from_wire
+from petta import S, V, Expression
+from petta.wire import from_wire
 from petta.testing import count_atoms
 
 TERM_COUNT = 20_000
@@ -21,9 +21,9 @@ JSON_TRIPS = 2_000
 
 def wire_atom():
     """Build the fixed tree used by the wire codec workload."""
-    return expr(
+    return Expression(
         S.deep,
-        *(expr(S.node, index, float(index), S.leaf) for index in range(50)),
+        *(Expression(S.node, index, float(index), S.leaf) for index in range(50)),
     )
 
 
@@ -32,7 +32,7 @@ def wire_codec(atom, trips: int = WIRE_TRIPS) -> int:
 
     Each trip encodes the atom the PREVIOUS trip decoded, never the same
     object twice, so encoding stays cold. Re-encoding one long-lived atom
-    would answer Expr's memoized wire slot from the second trip on, and this
+    would answer Expression's memoized wire slot from the second trip on, and this
     would stop being a codec measurement at all: measured 2026-08-19, that
     shape reported -31.61% for a change that adds a cache and encodes once.
     """
@@ -88,20 +88,30 @@ def term_operators(terms: int = TERM_COUNT) -> int:
 def structures_dispatch(patterns: int = 200, probes: int = 2_000) -> int:
     """Route ground probes through PatternMap and MatchIndex, returning
     hits: the pure-Python structures priced at their dispatch job."""
-    from petta.atoms import Expr, Gnd, Sym, Var
+    from petta.atoms import Grounded, Symbol, Variable, _expression_atoms
     from petta.structures import MatchIndex, PatternMap
 
     routing = PatternMap()
     index = MatchIndex()
     for n in range(patterns):
-        pattern = Expr([Sym(f"topic{n % 20}"), Var("x"), Gnd(n)])
+        pattern = _expression_atoms(
+            (Symbol(f"topic{n % 20}"), Variable("x"), Grounded(n))
+        )
         routing[pattern] = n
         index.add(pattern, n)
-        ground = Expr([Sym(f"topic{n % 20}"), Sym("fixed"), Gnd(n)])
+        ground = _expression_atoms(
+            (Symbol(f"topic{n % 20}"), Symbol("fixed"), Grounded(n))
+        )
         routing[ground] = n
     hits = 0
     for n in range(probes):
-        probe = Expr([Sym(f"topic{n % 20}"), Sym("fixed"), Gnd(n % patterns)])
+        probe = _expression_atoms(
+            (
+                Symbol(f"topic{n % 20}"),
+                Symbol("fixed"),
+                Grounded(n % patterns),
+            )
+        )
         hits += sum(1 for _ in routing.matching(probe))
         hits += sum(1 for _ in index.matches(probe))
     if not hits:

@@ -6,12 +6,16 @@ Guarantees:
   - a grounded tensor tag retains DLPack storage and its autograd graph through
     two declared rules and one pettorch module call [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 import pytest
 
-from petta import S, V, decode, val
+from petta import S, V, ground, wire
 
 
 def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation(
@@ -43,12 +47,12 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
         zero=torch.tensor(0.0),
         one=one,
     )
-    with metta.new_space() as program:
-        program.add_tagged_fact(val(leaf), S.source(S.a))
-        program.add_tagged_fact(val(scale), S.scale(S.a))
-        program.add_tagged_rule(val(one), S.middle(V.x), S.source(V.x))
+    with metta._new_space() as program:
+        program.add_tagged_fact(ground(leaf), S.source(S.a))
+        program.add_tagged_fact(ground(scale), S.scale(S.a))
+        program.add_tagged_rule(ground(one), S.middle(V.x), S.source(V.x))
         program.add_tagged_rule(
-            val(one),
+            ground(one),
             S.output(V.x),
             S.middle(V.x),
             S.scale(V.x),
@@ -57,7 +61,7 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
             S.output(S.a), algebra="p4-gradient"
         )
         assert len(evaluation.answers) == 1
-        result = decode(evaluation.answers[0].tag)
+        result = wire.decode(evaluation.answers[0].tag)
         assert result.item() == pytest.approx(6.0)
         assert hasattr(result, "__dlpack__")
         assert result.grad_fn is not None
@@ -66,7 +70,7 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
         # below for pettorch and backward().
         assert torch.from_dlpack(result.detach()).data_ptr() == result.data_ptr()
 
-        program.register_op(
+        program.op(
             lambda: result,
             name="p4-gradient-result",
         )

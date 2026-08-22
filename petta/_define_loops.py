@@ -16,7 +16,7 @@ import ast
 
 from ._define_context import CompilerContext, next_aux_serial
 from ._define_expression import _name_of
-from .atoms import Atom, Expr, Sym, Var
+from .atoms import Atom, Expression, Symbol, Variable
 from .errors import CompileError
 
 
@@ -30,8 +30,8 @@ def _recursion_closer(helper: str, state: list[str]):
     the inner loop, so a nested for resumed the outer loop on its own tail.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def recur(compiler: CompilerContext) -> Expr:
-        return Expr([Sym(helper), *(Var(compiler.scope[n]) for n in state)])
+    def recur(compiler: CompilerContext) -> Expression:
+        return Expression([Symbol(helper), *(Variable(compiler.scope[n]) for n in state)])
 
     return recur
 
@@ -89,9 +89,9 @@ class LoopCompilerMixin(CompilerContext):
         test = equation_compiler._truthy(node.test)
         body = body_compiler.block(node.body)
         exit_branch = exit_compiler.block(rest)
-        head = Expr([Sym(helper), *(Var(n) for n in state)])
-        self.aux.append(Expr([Sym("="), head, Expr([Sym("if"), test, body, exit_branch])]))
-        return Expr([Sym(helper), *(Var(self.scope[n]) for n in state)])
+        head = Expression([Symbol(helper), *(Variable(n) for n in state)])
+        self.aux.append(Expression([Symbol("="), head, Expression([Symbol("if"), test, body, exit_branch])]))
+        return Expression([Symbol(helper), *(Variable(self.scope[n]) for n in state)])
 
     def _for_statement(self, node: ast.For, rest: list[ast.stmt]) -> Atom:
         """For x in e: the same equation over the remaining elements,
@@ -131,20 +131,20 @@ class LoopCompilerMixin(CompilerContext):
         exit_compiler = equation_compiler._fork()
         exit_compiler.closer = self.closer
 
-        body = Expr(
+        body = Expression(
             [
-                Sym("let"),
-                Expr([Var(variable), Var(tail)]),
-                Expr([Sym("decons-atom"), Var(sequence)]),
+                Symbol("let"),
+                Expression([Variable(variable), Variable(tail)]),
+                Expression([Symbol("decons-atom"), Variable(sequence)]),
                 body_compiler.block(node.body),
             ]
         )
         exit_branch = exit_compiler.block(rest)
-        head = Expr([Sym(helper), Var(sequence), *(Var(n) for n in state)])
-        test = Expr([Sym("=="), Var(sequence), Expr([])])
-        self.aux.append(Expr([Sym("="), head, Expr([Sym("if"), test, exit_branch, body])]))
+        head = Expression([Symbol(helper), Variable(sequence), *(Variable(n) for n in state)])
+        test = Expression([Symbol("=="), Variable(sequence), Expression([])])
+        self.aux.append(Expression([Symbol("="), head, Expression([Symbol("if"), test, exit_branch, body])]))
         source = self._materialized(node.iter)
-        return Expr([Sym(helper), source, *(Var(self.scope[n]) for n in state)])
+        return Expression([Symbol(helper), source, *(Variable(self.scope[n]) for n in state)])
 
     def _materialized(self, iter_node: ast.expr) -> Atom:
         """An iterable as one expression value: a nondeterministic call's
@@ -155,5 +155,5 @@ class LoopCompilerMixin(CompilerContext):
             and isinstance(iter_node.func, ast.Name)
             and self.nondet(iter_node.func.id)
         ):
-            return Expr([Sym("collapse"), self.expression(iter_node)])
+            return Expression([Symbol("collapse"), self.expression(iter_node)])
         return self.expression(iter_node)

@@ -16,8 +16,9 @@ import sqlite3
 
 import pytest
 
-from petta import Answer, EngineError, S, expr
-from petta.atoms import Expr, Var, parse
+from petta import Answer, Expression, S
+from petta.atoms import Variable, parse
+from petta.errors import EngineError
 from petta.foreign import SpaceProvider
 from petta.testing import check_space_provider
 
@@ -42,9 +43,9 @@ class SqlEdges(SpaceProvider):
 
     def match(self, pattern, *, limit=None):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         where, arguments = [], []
-        if isinstance(pattern, Expr) and len(pattern.children) == 3:
+        if isinstance(pattern, Expression) and len(pattern.children) == 3:
             for column, child in zip(("a", "b"), pattern.children[1:], strict=True):
-                if not isinstance(child, Var):
+                if not isinstance(child, Variable):
                     where.append(f"{column} = ?")
                     arguments.append(str(child))
         sql = "SELECT a, b FROM edges"
@@ -76,14 +77,14 @@ class SqlEdges(SpaceProvider):
 def sql(metta, request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sql-{request.node.name[-18:].replace('_', '')}"
     provider = SqlEdges()
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     metta.declare_context(name, "closed-world")
     metta.declare_annotations(name, "bag")
     metta.declare_handles(name, "(edge $x $y)", "Exact")
     metta.declare_handles(name, "(edge $x $x)", "Sound")
     metta.declare_writes(name, "transactional")
     yield name, provider
-    metta.unregister_space(name)
+    metta._unregister_space(name)
 
 
 def test_sql_context_passes_the_conformance_kit():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -169,13 +170,13 @@ class CosineIndex(SpaceProvider):
             scored = scored[:limit]
         for key, cosine in scored:
             yield Answer(
-                value=expr(S.near, S[query], S[key]), k=cosine
+                value=Expression(S.near, S[query], S[key]), k=cosine
             )
 
 
 def _vec_context(metta, name, *, best_first=True):
     provider = CosineIndex(emit_in_order=best_first)
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     metta.declare_context(name, "open-world")
     metta.declare_annotations(name, "ranked")
     metta.declare_source(name, "repeated")

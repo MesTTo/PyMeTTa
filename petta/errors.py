@@ -1,4 +1,4 @@
-"""Purpose: define PeTTa errors and the operation-decline signal.
+"""Purpose: define PeTTa errors and the operation non-reduction signal.
 
 Guarantees:
   - every PettaError carries atom, space, operation and capability
@@ -12,7 +12,7 @@ Guarantees:
   - SpaceCapabilityError carries the refused space, operation, and capability
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,16 +22,15 @@ Open Obligations:
 from __future__ import annotations
 
 __all__ = [
-    "DECLINE",
     "AssertionFailure",
     "CompileError",
-    "Decline",
     "EngineError",
     "InferenceLimitError",
     "Interrupted",
     "MettaOperationError",
     "MettaResultError",
     "MettaSyntaxError",
+    "NotReducible",
     "PettaError",
     "ResourceLimitError",
     "SourceNotFound",
@@ -319,14 +318,10 @@ def is_transport_failure(error: BaseException) -> bool:
     )
 
 
-class Decline(Exception):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+class NotReducible(Exception):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """Raised inside an operation to answer nothing at all.
 
-    A deterministic operation that raises Decline makes the call fail rather
+    A deterministic operation that raises NotReducible makes the call fail rather
     than error, which is how a semi-deterministic MeTTa function says no. A
     generator operation needs no signal: yielding nothing already is one.
     """
-
-
-#: Sentinel with the same meaning as raising Decline, for expression-shaped code.
-DECLINE = Decline

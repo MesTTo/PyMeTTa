@@ -6,7 +6,7 @@ Guarantees:
   - each expression names one intentional dynamic use, so the 60 percent
     confidence floor remains actionable instead of globally suppressing a
     name pattern [tested: the GATE vulture lane;
-    commit=3ae4e6b08bc82d8b9cbdf934afc92ada7cf7a19e].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,6 +26,8 @@ _.cache_info
 _.load_metta_file
 _.process_metta_string
 __dir__
+_.alpha_eq
+_.info
 _._ipython_key_completions_
 _.ne
 _wire_intern_clear
@@ -58,6 +60,11 @@ _.reachable
 # Subscription.drain is the queue spelling of Fold.take, documented as the
 # sugar it is; the general name is what the library calls internally now.
 _.drain
+
+# singledispatch reaches path traversal handlers through registered types.
+_path_begin
+_path_step
+_path_value
 
 # Protocol fields and methods read by getattr, a framework, or the wire.
 # PlanDecision is the algebra evaluator's law-gate answer; callers read the

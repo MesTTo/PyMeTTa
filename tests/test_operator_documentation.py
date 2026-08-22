@@ -7,7 +7,7 @@ Guarantees:
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -25,7 +25,14 @@ from pathlib import Path
 
 import pytest
 
-from petta import OPERATOR_LOWERINGS, Atom, Gnd, MeTTa, S, V
+from petta import (
+    Atom,
+    Grounded,
+    MeTTa,
+    S,
+    V,
+)
+from petta.atoms import OPERATOR_LOWERINGS
 
 DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 
@@ -119,19 +126,19 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
         S.x >> 2
 
-    metta = MeTTa().new_space()
-    assert metta.eval(Atom.__floordiv__(Gnd(7), 2)) == [3]
-    assert metta.eval(Atom.__neg__(Gnd(7))) == [-7]
-    assert metta.eval(Atom.__abs__(Gnd(-7))) == [7]
-    provided = Atom.__matmul__(Gnd(6), 7)
+    metta = MeTTa().space()
+    assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
+    assert metta.eval(Atom.__neg__(Grounded(7))) == [-7]
+    assert metta.eval(Atom.__abs__(Grounded(-7))) == [7]
+    provided = Atom.__matmul__(Grounded(6), 7)
     assert metta.eval(provided) == [provided]
     metta.run("(= (matmul $left $right) (* $left $right))")
     assert metta.eval(provided) == [42]
 
-    assert Gnd(7) // 2 == 3
-    assert -Gnd(7) == -7
-    assert abs(Gnd(-7)) == 7
-    assert Gnd(3) << 2 == 12
-    assert Gnd(12) >> 2 == 3
+    assert Grounded(7) // 2 == 3
+    assert -Grounded(7) == -7
+    assert abs(Grounded(-7)) == 7
+    assert Grounded(3) << 2 == 12
+    assert Grounded(12) >> 2 == 3
     assert (S.x == S.x) is True
     assert str(S.x.eq(S.y)) == "(== x y)"

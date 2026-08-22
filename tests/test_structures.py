@@ -18,7 +18,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import S, V, expr, val
+from petta import Expression, S, V, ground
 from petta.atoms import unify
 from petta.structures import AlphaSet, MatchIndex, PatternMap
 from petta.testing import atoms as atom_strategy
@@ -75,13 +75,13 @@ def test_matchindex_routes_and_removes():  # noqa: D103  -- pytest discovers or 
     inbox = MatchIndex()
     inbox.add(S.order(V.id, S.express), "rush")
     inbox.add(S.order(V.id, S.standard), "slow")
-    inbox.add(S.order(val(7), V.tier), "seven")
+    inbox.add(S.order(ground(7), V.tier), "seven")
     assert len(inbox) == 3
-    hits = [value for _, value in inbox.matches(S.order(val(7), S.express))]
+    hits = [value for _, value in inbox.matches(S.order(ground(7), S.express))]
     assert hits == ["rush", "seven"]
     assert inbox.remove(S.order(V.id, S.express), "rush") is True
     assert inbox.remove(S.order(V.id, S.express), "rush") is False
-    assert [v for _, v in inbox.matches(S.order(val(7), S.express))] == ["seven"]
+    assert [v for _, v in inbox.matches(S.order(ground(7), S.express))] == ["seven"]
 
 
 def test_matchindex_nonlinear_patterns_are_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -98,9 +98,9 @@ def test_matchindex_matches_grounded_numbers_by_unification():
     answer True, because matching follows atom identity, not the tower.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     index = MatchIndex()
-    index.add(val(0), "int")
-    assert list(index.matches(val(0.0))) == []
-    assert list(index.matches(val(0))) == [(val(0), "int")]
+    index.add(ground(0), "int")
+    assert list(index.matches(ground(0.0))) == []
+    assert list(index.matches(ground(0))) == [(ground(0), "int")]
 
 
 @given(
@@ -122,9 +122,9 @@ def test_matchindex_agrees_with_brute_force(patterns, probe):  # noqa: D103  -- 
 
 def test_alphaset_is_alpha_membership():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rules = AlphaSet()
-    rules.add(expr(S["="], S.inc(V.x), expr(S["+"], V.x, 1)))
-    assert expr(S["="], S.inc(V.n), expr(S["+"], V.n, 1)) in rules
-    rules.add(expr(S["="], S.inc(V.q), expr(S["+"], V.q, 1)))
+    rules.add(Expression(S["="], S.inc(V.x), Expression(S["+"], V.x, 1)))
+    assert Expression(S["="], S.inc(V.n), Expression(S["+"], V.n, 1)) in rules
+    rules.add(Expression(S["="], S.inc(V.q), Expression(S["+"], V.q, 1)))
     assert len(rules) == 1  # the renamed twin is the same element
     rules.add(S.pair(V.x, V.y))
     rules.add(S.pair(V.x, V.x))
@@ -137,10 +137,8 @@ def test_alphaset_is_alpha_membership():  # noqa: D103  -- pytest discovers or i
 @given(members=st.lists(atom_strategy(max_leaves=5), max_size=8),
        probe=atom_strategy(max_leaves=5))
 def test_alphaset_matches_pairwise_alpha_eq(members, probe):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import alpha_eq
-
     held = AlphaSet(members)
-    assert (probe in held) == any(alpha_eq(probe, member) for member in members)
+    assert (probe in held) == any(probe.alpha_eq(member) for member in members)
 
 
 def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -148,12 +146,12 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
     code = (
         "import sys\n"
         "from petta.structures import PatternMap, MatchIndex, AlphaSet\n"
-        "from petta.atoms import Sym, Var, Expr\n"
-        "pm = PatternMap(); pm[Expr([Sym('r'), Var('x')])] = 1\n"
-        "assert list(pm.matching(Expr([Sym('r'), Sym('a')])))\n"
-        "mi = MatchIndex(); mi.add(Expr([Sym('r'), Var('x')]), 'h')\n"
-        "assert list(mi.matches(Expr([Sym('r'), Sym('a')])))\n"
-        "s = AlphaSet([Var('x')]); assert Var('y') in s\n"
+        "from petta.atoms import Symbol, Variable, Expression\n"
+        "pm = PatternMap(); pm[Expression([Symbol('r'), Variable('x')])] = 1\n"
+        "assert list(pm.matching(Expression([Symbol('r'), Symbol('a')])))\n"
+        "mi = MatchIndex(); mi.add(Expression([Symbol('r'), Variable('x')]), 'h')\n"
+        "assert list(mi.matches(Expression([Symbol('r'), Symbol('a')])))\n"
+        "s = AlphaSet([Variable('x')]); assert Variable('y') in s\n"
         "assert 'janus_swi' not in sys.modules, 'the engine was imported'\n"
         "print('engine-free ok')\n"
     )
@@ -181,11 +179,11 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
 def test_tabledmap_caches_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import TabledMap
 
-    kb = metta.new_space()
+    kb = metta._new_space()
     kb.add(S.price(S.apple, 3), S.price(S.pear, 4))
     kb.run(
         f"(= (tm-cheapest) (min-atom (collapse "
-        f"(match {kb.space_name} (price $i $p) $p))))"
+        f"(match {kb.name} (price $i $p) $p))))"
     )
     prices = TabledMap(kb, "tm-cheapest", arity=0)
     assert prices[()] == 3
@@ -207,7 +205,7 @@ def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or i
     from petta import PettaError
     from petta.structures import TabledMap
 
-    m = metta.new_space()
+    m = metta._new_space()
     m.run("(= (tm-half $x) (if (== (% $x 2) 0) (/ $x 2) (empty)))")
     halves = TabledMap(m, "tm-half")
     assert halves[4] == 2
@@ -221,26 +219,26 @@ def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or i
 def test_liveview_mirrors_the_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import LiveView
 
-    sp = metta.new_space()
+    sp = metta._new_space()
     with LiveView(sp, S.alert(V.level)) as alerts:
         sp.add(S.alert(S.red), S.alert(S.red), S.alert(S.amber))
-        assert len(alerts) == 3 == sp.count()
+        assert len(alerts) == 3 == len(sp)
         assert alerts.count(S.alert(S.red)) == 2
         # One removal OPERATION takes ONE occurrence, multiset subtraction,
         # and the view decrements rather than dropping the atom: a ground
         # removal names the occurrence that left.
         sp.remove(S.alert(S.red))
         assert alerts.count(S.alert(S.red)) == 1
-        assert len(alerts) == 2 == sp.count()
+        assert len(alerts) == 2 == len(sp)
         # A PATTERN removal does not name it. The event carries `(alert $q)`
         # and the space keeps whichever copy the engine did not take, so the
         # view re-reads instead of guessing; this is the case that used to
         # empty it.
         sp.remove(S.alert(V.q))
-        assert len(alerts) == 1 == sp.count()
+        assert len(alerts) == 1 == len(sp)
         assert list(alerts) == list(sp.atoms())
         sp.remove(S.alert(V.q))
-        assert len(alerts) == 0 == sp.count()
+        assert len(alerts) == 0 == len(sp)
         sp.add(S.other(1))  # a non-matching write is not the view's business
         assert len(alerts) == 0
 
@@ -263,7 +261,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
         # property itself always held. The floor is deterministic.
         costs = []
         for _ in range(3):
-            with metta.new_space() as sp:
+            with metta._new_space() as sp:
                 sp.add(*[S.alert(S.red) for _ in range(size)])
                 with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
                     sp.remove(atom)
@@ -279,7 +277,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
 def test_closureview_terminates_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from petta.structures import ClosureView
 
-    g = metta.new_space()
+    g = metta._new_space()
     g.add(S.linkage(S.a, S.b), S.linkage(S.b, S.c), S.linkage(S.c, S.a))
     # A node that NAMES a defined function, deliberately: the specializer
     # once cloned the tabled closure for such an argument and the clone

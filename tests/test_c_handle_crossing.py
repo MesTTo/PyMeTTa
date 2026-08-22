@@ -14,6 +14,7 @@ import pytest
 
 import petta
 from petta import Handle
+from petta.errors import EngineError
 
 _LIBRARY = (
     Path(__file__).resolve().parents[3]
@@ -28,7 +29,7 @@ _LIBRARY = (
 def vectors():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _LIBRARY.is_file():
         pytest.skip("handle.so is not built; see examples/integration/c_extension/README.md")
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     m.register_foreign_library(
         _LIBRARY,
         entry="install_handle",
@@ -45,10 +46,11 @@ def unpack_vector(m, handle: Handle) -> list[int]:
     extension's own accessors read the native structure out element by
     element. Nothing in this function knows what a vector is inside.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    (row,) = m.run("!(vector-length h)", using={"h": handle})
+    with m.bind(h=handle):
+        (row,) = m.run("!(vector-length h)")
     length = int(str(row[0]))
     return [
-        int(str(m.run("!(vector-nth h i)", using={"h": handle, "i": i})[0][0]))
+        int(str(m.eval("(vector-nth h i)", using={"h": handle, "i": i})[0]))
         for i in range(length)
     ]
 
@@ -62,7 +64,8 @@ def test_a_c_object_crosses_by_identity_and_unpacks_in_python(vectors):  # noqa:
 
     # Identity, not a copy: a mutation made through the handle is visible
     # on the next read through the same handle.
-    m.run("!(vector-bump h 3)", using={"h": handle})
+    with m.bind(h=handle):
+        m.run("!(vector-bump h 3)")
     assert unpack_vector(m, handle) == [0, 1, 2, 4, 4]
 
 
@@ -81,8 +84,8 @@ def test_a_released_handle_raises_by_id(vectors):  # noqa: D103  -- pytest disco
     handle = row[0]
     handle.release()
     handle.release()  # idempotent
-    with pytest.raises(petta.EngineError, match="petta_native_handle"):
-        m.run("!(vector-length h)", using={"h": handle})
+    with pytest.raises(EngineError, match="petta_native_handle"), m.bind(h=handle):
+        m.run("!(vector-length h)")
 
 
 def test_a_handle_refuses_pickling(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -99,5 +102,5 @@ def test_a_handle_is_a_context_manager(vectors):  # noqa: D103  -- pytest discov
     (row,) = m.run("!(vector-new 2)")
     with row[0] as handle:
         assert unpack_vector(m, handle) == [0, 1]
-    with pytest.raises(petta.EngineError, match="petta_native_handle"):
-        m.run("!(vector-length h)", using={"h": handle})
+    with pytest.raises(EngineError, match="petta_native_handle"), m.bind(h=handle):
+        m.run("!(vector-length h)")

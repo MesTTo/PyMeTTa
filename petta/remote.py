@@ -79,13 +79,14 @@ from typing import Any, Self
 from . import _json
 from ._engine import bridge
 from ._network import HTTPEndpoint, validated_timeout
+from ._space import Space as MeTTa
 from ._space_objects import Cursor
-from .atoms import Atom, Expr, Var, atom_from_wire, substitute
+from .atoms import Atom, Expression, Variable, _atom_from_wire, substitute
 from .errors import PettaError
 from .foreign import SpaceProvider
-from .space import MeTTa
 
 logger = logging.getLogger(__name__)
+logging.getLogger("petta").addHandler(logging.NullHandler())
 
 __all__ = [
     "Gateway",
@@ -297,7 +298,7 @@ class RemoteCursor:
                 msg
             )
         self._token = token
-        self._buffer.extend(atom_from_wire(wire) for wire in atoms)
+        self._buffer.extend(_atom_from_wire(wire) for wire in atoms)
 
     def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
@@ -457,7 +458,7 @@ class RemoteSpace(SpaceProvider):
             payload["bound"] = limit
         answer = self._transport("match", payload)
         for wire in answer["atoms"]:
-            yield atom_from_wire(wire)
+            yield _atom_from_wire(wire)
 
     def stream(
         self,
@@ -520,7 +521,7 @@ class RemoteSpace(SpaceProvider):
     def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         answer = self._transport("atoms", {"space": self._space})
         for wire in answer["atoms"]:
-            yield atom_from_wire(wire)
+            yield _atom_from_wire(wire)
 
     def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
@@ -673,7 +674,7 @@ def attach(
     """
     transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
     provider = RemoteSpace(transport, remote_space, batch=batch)
-    m.register_space(provider, name)
+    m._register_space(provider, name)
     return provider
 
 
@@ -697,7 +698,7 @@ def _atom_of(payload: dict, name: str) -> Atom:
     if wire is None:
         msg = f"this operation needs the `{name}` field, holding a wire atom"
         raise PettaError(msg)
-    return atom_from_wire(wire)
+    return _atom_from_wire(wire)
 
 
 def _atoms_of(payload: dict, name: str) -> list[Atom]:
@@ -708,7 +709,7 @@ def _atoms_of(payload: dict, name: str) -> list[Atom]:
         raise PettaError(
             msg
         )
-    return [atom_from_wire(wire) for wire in wires]
+    return [_atom_from_wire(wire) for wire in wires]
 
 
 def _bound_of(payload: dict) -> int | None:
@@ -929,7 +930,11 @@ class Gateway:
         if self._allowed is not None and name not in self._allowed:
             msg = f"space {name!r} is not served"
             raise PettaError(msg)
-        return self._metta if name == self._metta.space_name else self._metta.space(name)
+        return (
+            self._metta
+            if name == self._metta.name
+            else MeTTa(name, _runtime=self._metta.runtime)
+        )
 
     def _match(self, payload: dict) -> dict:
         """The eager door: one reply carrying the whole answer set.
@@ -952,15 +957,13 @@ class Gateway:
                 for row in rows
             ]
             return {"atoms": [a.to_wire() for a in atoms]}
-        groups = space.run(
-            "!(collapse (match (context-space) pat pat))",
-            using={"pat": pattern},
-        )
+        with space.bind(pat=pattern):
+            groups = space.run("!(collapse (match (context-space) pat pat))")
         if len(groups) != 1 or len(groups[0]) != 1:
             msg = f"remote match returned an invalid collapse result: {groups!r}"
             raise PettaError(msg)
         group = groups[0][0]
-        if not isinstance(group, Expr):
+        if not isinstance(group, Expression):
             msg = f"remote match returned a non-expression collapse: {group!r}"
             raise PettaError(msg)
         return {"atoms": [a.to_wire() for a in group]}
@@ -1004,7 +1007,7 @@ class Gateway:
         bound = _bound_of(payload)
         if bound == 0:
             return self._reply([], None)
-        entry = _OpenCursor(space.stream(pattern), pattern, space.space_name, bound)
+        entry = _OpenCursor(space._stream(pattern), pattern, space.name, bound)
         try:
             atoms, done = self._pull(entry, batch)
             token = None if done else self._cursors.open(entry)
@@ -1037,7 +1040,7 @@ class Gateway:
 
     def _remove(self, payload: dict) -> dict:
         pattern = _atom_of(payload, "atom")
-        if not isinstance(pattern, (Expr, Var)):
+        if not isinstance(pattern, (Expression, Variable)):
             # A stored atom is always an expression; a symbol or a
             # grounded value can unify with none of them.
             return {"removed": False}
@@ -1048,7 +1051,7 @@ class Gateway:
     def _health(self) -> dict:
         return {
             "ok": True,
-            "atoms": self._metta.count(),
+            "atoms": len(self._metta),
             "protocol": 3,
             # The reflection the in-process seam has: what this server
             # admits, so a client can ask before writing.
@@ -1395,7 +1398,7 @@ def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifec
                 held = gateway.cursor_space(payload.get("cursor"))
                 if held is not None:
                     return held
-            return str(payload.get("space", m.space_name))
+            return str(payload.get("space", m.name))
 
         def do_GET(self) -> None:
             operation = self.path.strip("/")
@@ -1406,7 +1409,7 @@ def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifec
             if not _has_credential(headers, token):
                 self._refuse_unauthorized(operation)
                 return
-            request = Request(operation, m.space_name, headers)
+            request = Request(operation, m.name, headers)
             if authorize is not None and not authorize(request):
                 self._refuse_unauthorized(operation)
                 return

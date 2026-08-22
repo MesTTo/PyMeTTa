@@ -2,10 +2,10 @@
 Guarantees:
   - startup settings freeze after a successful consult while presentation
     settings remain live [tested: test_runtime_settings_freeze_after_startup,
-    test_live_limits_control_declarations_and_rows; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    test_live_limits_control_declarations_and_rows; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - MORK startup never changes the host process working directory [tested
     test_backend_startup_does_not_change_process_working_directory;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,9 +15,10 @@ Open Obligations:
 import pytest
 
 import petta
-from petta import Rows, _engine
+from petta import _engine
 from petta._config import Config
 from petta._type_annotations import _bounded_product
+from petta.results import Rows
 
 
 def test_configuration_reads_and_validates_environment():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

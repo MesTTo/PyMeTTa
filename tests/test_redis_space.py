@@ -19,7 +19,7 @@ import uuid
 
 import pytest
 
-from petta import S, V, expr
+from petta import Expression, S, V
 
 _CONTAINER = f"petta-redis-test-{uuid.uuid4().hex[:12]}"
 
@@ -81,7 +81,7 @@ def redis_address(metta):  # noqa: D103  -- pytest discovers or injects this cal
 @pytest.fixture()
 def shared(metta, redis_address):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run(f'!(redis-attach &shared-test "{redis_address}")')
-    space = metta.space("&shared-test")
+    space = metta._at("&shared-test")
     space.clear()
     yield space
     space.clear()
@@ -93,7 +93,8 @@ def _other_process(redis_address: str, program: str) -> str:
     env["PYTHONPATH"] = os.pathsep.join(sys.path)
     source = (
         "from petta import MeTTa, S\n"
-        "m = MeTTa()\n"
+        "context = MeTTa()\n"
+        "m = context.self\n"
         "m.run('!(import! &self (library lib_redis))')\n"
         f"m.run('!(redis-attach &shared-test \"{redis_address}\")')\n"
         + program
@@ -110,7 +111,7 @@ def test_shared_space_serves_one_process(shared):  # noqa: D103  -- pytest disco
     shared.add(S.stock(S.widget, 5), S.stock(S.gadget, 7))
     rows = shared.query(S.stock(V.item, V.n))
     assert sorted(str(row.item) for row in rows) == ["gadget", "widget"]
-    assert shared.count() == 2
+    assert len(shared) == 2
     assert shared.remove(S.stock(S.widget, 5)) is True
     assert [str(atom) for atom in shared.atoms()] == ["(stock gadget 7)"]
 
@@ -118,7 +119,7 @@ def test_shared_space_serves_one_process(shared):  # noqa: D103  -- pytest disco
 def test_writes_in_another_process_are_this_processs_facts(shared, redis_address):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _other_process(
         redis_address,
-        "m.space('&shared-test').add(S.remote(S.fact, 1), S.remote(S.fact, 2))\n",
+        "context.space('&shared-test').add(S.remote(S.fact, 1), S.remote(S.fact, 2))\n",
     )
     rows = shared.query(S.remote(S.fact, V.n))
     assert sorted(int(row.n.value) for row in rows) == [1, 2]
@@ -132,7 +133,7 @@ def test_shared_facts_join_native_facts(shared, metta):  # noqa: D103  -- pytest
             "!(match &shared-test (lives $who $city)"
             " (match &self (capital $city $land) ($who $land)))"
         )
-        assert groups == [[expr(S.ann, S.france)]]
+        assert groups == [[Expression(S.ann, S.france)]]
     finally:
         metta.remove(S.capital(S.paris, S.france))
 
@@ -145,7 +146,7 @@ def test_subscriptions_fire_across_processes(shared, redis_address):  # noqa: D1
     try:
         _other_process(
             redis_address,
-            "m.space('&shared-test').add(S.alert(S.red), S.other(S.noise))\n",
+            "context.space('&shared-test').add(S.alert(S.red), S.other(S.noise))\n",
         )
         deadline = time.monotonic() + 10.0
         while not seen and time.monotonic() < deadline:

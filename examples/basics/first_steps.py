@@ -8,9 +8,9 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V, expr
+from petta import MeTTa, S, V, Expression
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 
 # Source runs through the engine's own reader and compiler; one answer list
 # per ! directive, grounded values arriving as Python values.
@@ -24,7 +24,7 @@ check("join count", len(rows), 2)
 check("first grandparent", (rows[0].gp, rows[0].gc), (S.Tom, S.Ann))
 
 # Evaluation is what ! runs, nondeterminism included.
-check("eval", m.eval(S.superpose(expr(1, 2, 3))), [1, 2, 3])
+check("eval", m.eval(S.superpose(Expression(1, 2, 3))), [1, 2, 3])
 
 # And an answer can explain itself: the proof names equations and facts.
 m.run("(= (anc $x $y) (match (context-space) (Parent $x $y) $y))\n"

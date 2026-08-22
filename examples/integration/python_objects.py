@@ -12,11 +12,11 @@ from enum import Enum
 
 from _common import check, done
 
-from petta import MeTTa, S, V, val
+from petta import MeTTa, S, V, ground
 from petta.convert import build, project
 from petta.integrate import install_reflection_ops
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 
 
 class Mood(Enum):
@@ -43,7 +43,7 @@ check("rebuild", isinstance(rebuilt, Robot) and rebuilt.mood, Mood.calm)
 
 # Reflection: fields of any live object become a two-mode relation.
 install_reflection_ops(m)
-m.add(S.config(val(Robot("Probe", Mood.calm))))
+m.add(S.config(ground(Robot("Probe", Mood.calm))))
 (fields,) = m.run("!(collapse (match (context-space) (config $c) (py-field $c $f)))")
 check("enumerated fields", {str(pair[0]) for pair in fields[0]}, {"name", "mood"})
 done("python_objects")

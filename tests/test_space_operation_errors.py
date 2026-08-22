@@ -27,7 +27,7 @@ from petta import MeTTa, S
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space()
+    return metta._new_space()
 
 
 def error_text(answer):
@@ -114,7 +114,7 @@ def test_a_fresh_ampersand_name_is_created_by_writing_to_it(m):  # noqa: D103  -
 
 def test_a_fresh_engine_refuses_an_unbound_read_the_same_way():
     """The refusal is the engine's, not a fixture's, so a fresh one agrees."""
-    fresh = MeTTa().new_space()
+    fresh = MeTTa().space()
     (answer,) = fresh.run("!(get-atoms $u)")
     assert "get-atoms expects a space as its argument" in error_text(answer[0])
 

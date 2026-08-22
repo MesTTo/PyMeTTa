@@ -20,7 +20,7 @@ from petta import MeTTa, parse
 
 
 def test_the_doc_family_answers_what_upstream_answers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as m:
+    with metta._new_space() as m:
         m.run(
             """
             (: scoped-atom Number)
@@ -149,4 +149,4 @@ def test_get_doc_params_preserves_every_generated_position(parameter_count):  # 
         f'(({formal_params}) (@return (@type ReturnType) (@desc "result")))'
     )
 
-    assert MeTTa().run(source) == [[expected]]
+    assert MeTTa().self.run(source) == [[expected]]

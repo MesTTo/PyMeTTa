@@ -9,7 +9,7 @@ Open Obligations:
 
 from __future__ import annotations
 
-from petta import S, V, val
+from petta import S, V, ground
 from petta.atoms import unify
 
 
@@ -54,8 +54,8 @@ def test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_or
         watching removals only, so the filters compose;
       - a NON-ground atom, which a tree walk cannot read literally.
     """
-    space = metta.new_space()
-    other = metta.new_space()
+    space = metta._new_space()
+    other = metta._new_space()
     delivered: list[str] = []
     registered: list[tuple] = []
 
@@ -84,7 +84,7 @@ def test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_or
         probes = [
             S.topic(S.k, S.v),
             S.topic(S.k, S.other),
-            S.topic(val(1), val(2.5)),
+            S.topic(ground(1), ground(2.5)),
             S.topic(S.k, V.free),
             S.other(S.k),
             S.unrelated(S.k, S.v, S.w),

@@ -56,7 +56,7 @@ Guarantees:
   - the cross-space join witness carries the shared value and inspects the
     collapse result's children, so one joined row cannot look like no answer
     [tested: test_the_provider_joins_with_a_native_space;
-    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns: one registered space name per test, unregistered in the fixture's
   teardown whatever the test did
 Decides: which of the engine's expectations are general enough to hold of ANY
@@ -73,12 +73,12 @@ from __future__ import annotations
 import itertools
 from typing import Any
 
-from ._api_types import SpaceName
+from ._api_types import _SpaceId
 from ._optional import require_module
-from .atoms import Expr, Sym, Var, expr
+from ._space import MeTTa
+from .atoms import Expression, Symbol, Variable, _expr
 from .errors import PettaError
 from .foreign import Enumerable
-from .space import MeTTa
 
 pytest = require_module(
     "pytest",
@@ -90,7 +90,7 @@ CAPABILITIES = (
     "match", "enumerate", "add", "add-many", "remove", "clear", "subscribe",
     "plan", "rules",
 )
-MARKER = Sym("petta-compliance-marker")
+MARKER = Symbol("petta-compliance-marker")
 
 _NAMES = itertools.count()
 
@@ -100,7 +100,7 @@ def _same_shape(stored, atom):
     return [
         other
         for other in stored
-        if isinstance(other, Expr)
+        if isinstance(other, Expression)
         and other.head == atom.head
         and len(other.args) == len(atom.args)
     ]
@@ -114,8 +114,8 @@ def open_pattern(atom: Any, ground_prefix: int = 0) -> Any:
     `(edge a $c1)` has `a` in that position, whatever the backend is.
     """
     kept = list(atom.args[:ground_prefix])
-    free = [Var(f"c{index}") for index in range(ground_prefix, len(atom.args))]
-    return Expr([atom.head, *kept, *free])
+    free = [Variable(f"c{index}") for index in range(ground_prefix, len(atom.args))]
+    return Expression([atom.head, *kept, *free])
 
 
 def shaped_atom(stored: list) -> Any:
@@ -127,7 +127,7 @@ def shaped_atom(stored: list) -> Any:
     answer.
     """
     for atom in stored:
-        if isinstance(atom, Expr) and isinstance(atom.head, Sym) and atom.args:
+        if isinstance(atom, Expression) and isinstance(atom.head, Symbol) and atom.args:
             return atom
     return None
 
@@ -244,13 +244,13 @@ class SpaceComplianceSuite:
     def space(self, provider, exercised):
         """The provider registered on a fresh engine, under its own name."""
         del exercised
-        engine = MeTTa().new_space()
-        name = SpaceName(f"&compliance{next(_NAMES)}")
-        engine.register_space(provider, name)
+        engine = MeTTa().space()
+        name = _SpaceId(f"&compliance{next(_NAMES)}")
+        engine._register_space(provider, name)
         try:
-            yield engine.space(name)
+            yield engine._at(name)
         finally:
-            engine.unregister_space(name)
+            engine._unregister_space(name)
 
     # ------------------------------------------------------------- helpers
 
@@ -300,7 +300,7 @@ class SpaceComplianceSuite:
         """get-atoms and count read the provider, not a cache of it."""
         self.requires(provider, exercised, "enumerate")
         assert len(space.atoms()) == len(stored)
-        assert space.count() == len(stored)
+        assert len(space) == len(stored)
 
     def test_a_stored_atom_matches_itself(self, provider, exercised, space, stored):
         """Driven through the ENGINE rather than by calling match directly,
@@ -349,7 +349,7 @@ class SpaceComplianceSuite:
         )
         held = {str(other) for other in stored}
         for row in rows:
-            rebuilt = Expr([atom.head, atom.args[0], *row])
+            rebuilt = Expression([atom.head, atom.args[0], *row])
             assert str(rebuilt) in held, (
                 f"{pattern!r} answered {rebuilt!r}, which the provider does "
                 f"not hold, so the engine did not filter what it yielded"
@@ -369,9 +369,9 @@ class SpaceComplianceSuite:
         atom = self.shape_or_skip(stored)
         if len(atom.args) < 2:
             pytest.skip("the shape has one argument, so nothing can repeat")
-        fold = Var("pcfold")
+        fold = Variable("pcfold")
         tail = open_pattern(atom).args[2:]
-        pattern = Expr([atom.head, fold, fold, *tail])
+        pattern = Expression([atom.head, fold, fold, *tail])
         rows = space.query(pattern)
         wanted = [
             other
@@ -385,7 +385,7 @@ class SpaceComplianceSuite:
         held = {str(other) for other in wanted}
         for row in rows:
             values = list(row)
-            rebuilt = Expr([atom.head, values[0], values[0], *values[1:]])
+            rebuilt = Expression([atom.head, values[0], values[0], *values[1:]])
             assert str(rebuilt) in held, (
                 f"{pattern!r} answered {rebuilt!r}, which is not a held atom "
                 f"with equal positions, so a repeated variable did not "
@@ -401,7 +401,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
-        assert space.query(left, Expr([atom.head, *left.args]))
+        assert space.query(left, Expression([atom.head, *left.args]))
 
     def test_a_claimed_join_answers_what_the_split_answers(
         self, provider, exercised, space, stored
@@ -420,9 +420,9 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "plan")
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
-        right = Expr([atom.head, *left.args])
+        right = Expression([atom.head, *left.args])
         claimed = sorted(str(row) for row in space.query(left, right))
-        with space.new_space() as native:
+        with space._new_space() as native:
             native.add(*stored)
             split = sorted(str(row) for row in native.query(left, right))
         assert claimed == split, (
@@ -448,13 +448,13 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "remove")
         self.restore_or_skip(provider, exercised, "add")
         atom = self.restorable_or_skip(stored)[0]
-        before = space.count() if provider.can_run("enumerate") else None
+        before = len(space) if provider.can_run("enumerate") else None
         space.remove(atom)
         assert not space.query(atom), "a removed atom still matched"
         space.add(atom)
         assert space.query(atom), "an added atom did not match"
         if before is not None:
-            assert space.count() == before
+            assert len(space) == before
 
     def test_a_batch_add_stores_every_atom(
         self, provider, exercised, space, stored
@@ -469,7 +469,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "add-many")
         self.restore_or_skip(provider, exercised, "remove")
         batch = self.restorable_or_skip(stored, needed=2)[:4]
-        before = space.count() if provider.can_run("enumerate") else None
+        before = len(space) if provider.can_run("enumerate") else None
         for atom in batch:
             space.remove(atom)
             assert not space.query(atom), f"{atom!r} still matched after removal"
@@ -479,7 +479,7 @@ class SpaceComplianceSuite:
                 f"{atom!r} went in as part of a batch and did not match"
             )
         if before is not None:
-            assert space.count() == before, (
+            assert len(space) == before, (
                 "a batch add left a different number of atoms than the "
                 "per-atom removes took out"
             )
@@ -502,8 +502,8 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "rules")
         if not provider.can_run("add"):
             pytest.skip("a space that cannot be added to cannot be given a rule")
-        doubled = expr(Sym("*"), 2, Var("x"))
-        rule = expr(Sym("="), expr(MARKER, Var("x")), doubled)
+        doubled = _expr(Symbol("*"), 2, Variable("x"))
+        rule = _expr(Symbol("="), _expr(MARKER, Variable("x")), doubled)
         space.add(rule)
         try:
             if provider.can_run("match"):
@@ -517,7 +517,7 @@ class SpaceComplianceSuite:
                     f"an equation it drops is one no later reader can find"
                 )
             answered = space.run(
-                f"!(metta ({MARKER.name} 21) %Undefined% {space.space_name})"
+                f"!(metta ({MARKER.name} 21) %Undefined% {space.name})"
             )
             assert answered and answered[-1] == [42], (
                 f"the space declares rules and {rule!r} did not fire: "
@@ -535,7 +535,7 @@ class SpaceComplianceSuite:
             pytest.skip("set destructive = True to exercise clear")
         self.requires(provider, exercised, "clear")
         space.clear()
-        assert space.count() == 0
+        assert len(space) == 0
 
     def test_an_undeclared_write_refuses_rather_than_answering_nothing(
         self, provider, exercised, space
@@ -552,7 +552,7 @@ class SpaceComplianceSuite:
         if not absent:
             pytest.skip("the provider declares every write capability")
         exercised["skipped"].update(absent)
-        marker = Expr([MARKER, Sym("refused")])
+        marker = Expression([MARKER, Symbol("refused")])
         for capability in absent:
             with pytest.raises(PettaError):
                 if capability == "add":
@@ -575,10 +575,10 @@ class SpaceComplianceSuite:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
-        with space.new_space() as native:
-            native.add(Expr([Sym("petta-compliance-native"), atom.args[0]]))
+        with space._new_space() as native:
+            native.add(Expression([Symbol("petta-compliance-native"), atom.args[0]]))
             answered = native.run(
-                f"!(collapse (match {space.space_name} {open_pattern(atom)} "
+                f"!(collapse (match {space.name} {open_pattern(atom)} "
                 f"(match (context-space) "
                 f"(petta-compliance-native $shared) (reached $shared))))"
             )

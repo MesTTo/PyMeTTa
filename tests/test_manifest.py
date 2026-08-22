@@ -30,9 +30,9 @@ def _free_port() -> int:
 
 def test_boot_is_reachable_lazily():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert "boot" in dir(petta)
-    assert "Boot" in dir(petta)
+    assert "Boot" not in dir(petta)
     assert petta.boot is petta.manifest.boot
-    assert petta.Boot is petta.manifest.Boot
+    assert petta.manifest.Boot.__module__ == "petta.manifest"
 
 
 def test_load_and_serve_assemble_and_record(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -97,7 +97,7 @@ def test_attach_registers_the_remote_space(metta, tmp_path):  # noqa: D103  -- p
     (tmp_path / "app.metta").write_text('(boot (attach &mhq "http://127.0.0.1:9" &their))\n')
     with petta.boot(tmp_path / "app.metta", m=metta):
         assert "&mhq" in metta.space_names()
-    metta.unregister_space("&mhq")
+    metta._unregister_space("&mhq")
 
 
 def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

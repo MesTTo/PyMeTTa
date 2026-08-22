@@ -3,20 +3,24 @@ Python annotations, project matching values, and rebuild those values.
 Guarantees:
   - tuple, list, dict, and set hooks receive the full parameterized type on
     every route [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - TypedDict fields drive both its constructor declaration and its value
     image, with optional or mismatched keys refused before data is lost
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-    commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - bare and abstract sequence, mapping, and set annotations select the same
     full-annotation hooks as their builtin concrete forms
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
     reproducibility. The distinct Python origin and parameters remain in the
     annotation claim and choose reconstruction on the return route.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .atoms import Atom, Expr, S, order_key
+from .atoms import Atom, Expression, S, order_key
 
 
 @dataclass(frozen=True)
@@ -38,8 +42,8 @@ class ParameterizedHook:
     type_atom: Callable[[Any, Callable[[Any], list[Atom]]], Atom]
     annotation_atom: Callable[[Any, Callable[[Any], Atom]], Atom]
     project: Callable[[Any, Any, Callable[[Any, Any], Any]], Any]
-    build: Callable[[Expr, Any, Callable[[Atom, Any], Any]], Any]
-    declarations: Callable[[Any, Callable[[Any], list[Atom]]], tuple[Expr, ...]] | None = None
+    build: Callable[[Expression, Any, Callable[[Atom, Any], Any]], Any]
+    declarations: Callable[[Any, Callable[[Any], list[Atom]]], tuple[Expression, ...]] | None = None
 
 
 def _arguments(annotation: Any) -> tuple[Any, ...]:
@@ -50,7 +54,7 @@ def _container_type(annotation: Any, recurse: Callable[[Any], list[Atom]]) -> At
     origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     if origin is tuple and arguments and arguments[-1] is not Ellipsis:
-        return Expr([recurse(argument)[0] for argument in arguments])
+        return Expression([recurse(argument)[0] for argument in arguments])
     return S.Expression
 
 
@@ -65,7 +69,7 @@ def _container_annotation(
             children.append(S["..."])
         else:
             children.append(recurse(argument))
-    return Expr(children)
+    return Expression(children)
 
 
 def _sequence_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
@@ -86,7 +90,7 @@ def _sequence_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
         recurse(item, item_type)
         for item, item_type in zip(value, item_types, strict=True)
     ]
-    return Expr([part.atom for part in parts]), parts
+    return Expression([part.atom for part in parts]), parts
 
 
 def _mapping_project(value: dict, annotation: Any, recurse: Callable) -> tuple:
@@ -98,18 +102,18 @@ def _mapping_project(value: dict, annotation: Any, recurse: Callable) -> tuple:
         projected_key = recurse(key, key_type)
         projected_value = recurse(item, value_type)
         parts.extend((projected_key, projected_value))
-        pairs.append(Expr([S.entry, projected_key.atom, projected_value.atom]))
-    return Expr(pairs), parts
+        pairs.append(Expression([S.entry, projected_key.atom, projected_value.atom]))
+    return Expression(pairs), parts
 
 
 def _set_project(value: set, annotation: Any, recurse: Callable) -> tuple:
     element_type = _arguments(annotation)[0] if _arguments(annotation) else Any
     parts = [recurse(item, element_type) for item in value]
     atoms = sorted((part.atom for part in parts), key=order_key)
-    return Expr(atoms), parts
+    return Expression(atoms), parts
 
 
-def _sequence_build(atom: Expr, annotation: Any, recurse: Callable) -> Any:
+def _sequence_build(atom: Expression, annotation: Any, recurse: Callable) -> Any:
     origin = _container_origin(annotation)
     arguments = _arguments(annotation)
     children = atom.children
@@ -129,13 +133,13 @@ def _sequence_build(atom: Expr, annotation: Any, recurse: Callable) -> Any:
     return tuple(built) if origin is tuple else built
 
 
-def _mapping_build(atom: Expr, annotation: Any, recurse: Callable) -> dict:
+def _mapping_build(atom: Expression, annotation: Any, recurse: Callable) -> dict:
     padded = (*_arguments(annotation), Any, Any)
     key_type, value_type = padded[:2]
     entries = atom.children
     result = {}
     for entry in entries:
-        if not isinstance(entry, Expr) or entry.head != S.entry or len(entry.args) != 2:
+        if not isinstance(entry, Expression) or entry.head != S.entry or len(entry.args) != 2:
             msg = f"{atom} is not a dict of (entry key value) expressions"
             raise TypeError(msg)
         key, value = entry.args
@@ -143,7 +147,7 @@ def _mapping_build(atom: Expr, annotation: Any, recurse: Callable) -> dict:
     return result
 
 
-def _set_build(atom: Expr, annotation: Any, recurse: Callable) -> set:
+def _set_build(atom: Expression, annotation: Any, recurse: Callable) -> set:
     element_type = _arguments(annotation)[0] if _arguments(annotation) else Any
     return {recurse(child, element_type) for child in atom.children}
 
@@ -168,8 +172,8 @@ def _typed_dict_type(annotation: Any, _recurse: Callable) -> Atom:
 
 
 def _typed_dict_annotation(annotation: Any, recurse: Callable[[Any], Atom]) -> Atom:
-    fields = [Expr([S.field, S[name], recurse(kind)]) for name, kind in _typed_dict_fields(annotation)]
-    return Expr([S.TypedDict, S[annotation.__name__], *fields])
+    fields = [Expression([S.field, S[name], recurse(kind)]) for name, kind in _typed_dict_fields(annotation)]
+    return Expression([S.TypedDict, S[annotation.__name__], *fields])
 
 
 def _typed_dict_project(value: Any, annotation: Any, recurse: Callable) -> tuple:
@@ -187,10 +191,10 @@ def _typed_dict_project(value: Any, annotation: Any, recurse: Callable) -> tuple
         )
         raise TypeError(msg)
     parts = [recurse(value[name], kind) for name, kind in fields]
-    return Expr([S[annotation.__name__], *(part.atom for part in parts)]), parts
+    return Expression([S[annotation.__name__], *(part.atom for part in parts)]), parts
 
 
-def _typed_dict_build(atom: Expr, annotation: Any, recurse: Callable) -> dict:
+def _typed_dict_build(atom: Expression, annotation: Any, recurse: Callable) -> dict:
     fields = _typed_dict_fields(annotation)
     if atom.head != S[annotation.__name__]:
         msg = f"expected a ({annotation.__name__} ...) image, got {atom}"
@@ -207,11 +211,11 @@ def _typed_dict_build(atom: Expr, annotation: Any, recurse: Callable) -> dict:
     }
 
 
-def _typed_dict_declarations(annotation: Any, recurse: Callable) -> tuple[Expr, ...]:
+def _typed_dict_declarations(annotation: Any, recurse: Callable) -> tuple[Expression, ...]:
     fields = _typed_dict_fields(annotation)
     field_types = [recurse(kind)[0] for _name, kind in fields]
     name = S[annotation.__name__]
-    return (Expr([S[":"], name, Expr([S["->"], *field_types, name])]),)
+    return (Expression([S[":"], name, Expression([S["->"], *field_types, name])]),)
 
 
 TYPED_DICT_HOOK = ParameterizedHook(

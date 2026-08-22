@@ -2,14 +2,15 @@
 Guarantees:
   - path markers join stored facts to current object fields and stop at cycles
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from petta import Key, S, V, path, val
+from petta import S, V, ground
+from petta.paths import Key, path
 
 
 def test_a_path_reaches_into_a_handle_without_converting_it(metta):
@@ -25,11 +26,11 @@ def test_a_path_reaches_into_a_handle_without_converting_it(metta):
             raise AssertionError(msg)
 
     profile = Profile(31)
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.add(
-            S.manager(S.ada, val(profile)),
+            S.manager(S.ada, ground(profile)),
             S.band(31, S.senior),
-            S.record(val({"score": 7})),
+            S.record(ground({"score": 7})),
         )
 
         rows = space.query(

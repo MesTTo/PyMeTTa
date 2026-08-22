@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import threading
 
-from ._api_types import SpaceName
-from .space import MeTTa
+from ._api_types import _SpaceId
+from ._space import Space as MeTTa
 
 
 class _MagicSession:
@@ -61,7 +61,7 @@ def load_ipython_extension(ipython) -> None:
         target = (
             _current()
             if not line.strip()
-            else _current().space(SpaceName(line.strip()))
+            else _current()._at(_SpaceId(line.strip()))
         )
         groups = target.run(cell)
         # One printed line per directive, the way the CLI prints, and the

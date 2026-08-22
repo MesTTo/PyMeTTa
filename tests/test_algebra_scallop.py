@@ -5,7 +5,11 @@ Guarantees:
     neighboring table maps every fixed Scallop feature to a general PeTTa seam
     or an explicit filed gap [tested:
     test_the_scallop_readme_examples_answer_identically_through_the_seams;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 
@@ -15,8 +19,8 @@ def test_the_scallop_readme_examples_answer_identically_through_the_seams(
     """Run the pinned path, animal, negation, count, and argmax oracles."""
     example = repo_root / "examples" / "reasoning" / "scallop_readme.metta"
     mapping = example.with_suffix(".md")
-    with metta.new_space() as program:
-        program.declare_annotations(program.space_name, "set")
+    with metta._new_space() as program:
+        program.declare_annotations(program.name, "set")
         results = program.load(example)
     assert [[str(answer) for answer in group] for group in results] == [
         ["True"],

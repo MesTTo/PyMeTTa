@@ -1,13 +1,8 @@
-"""Purpose: name the closed and context-sensitive string types in the API.
+"""Purpose: keep implementation-only identifier types out of the public API.
 Guarantees:
-  - type checkers distinguish space names from MeTTa function names [tested
-    test_public_context_types_are_distinct]
-  - SaveFormat admits exactly the two formats save() implements [tested
-    test_public_context_types_are_distinct]
-  - SaveFormat is generated from the runtime save-format vocabulary rather
-    than repeated as an API-local closed list [tested:
-    test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=42b5d28232e75c32b20a1d5bf1f740fec134938d]
+  - type checkers distinguish engine space identifiers from operation names
+    without exporting either implementation detail [tested:
+    test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,10 +11,8 @@ Open Obligations:
 
 from typing import Final, NewType
 
-from .vocabularies import SaveFormat
+_SpaceId = NewType("_SpaceId", str)
+_OperationName = NewType("_OperationName", str)
+_DEFAULT_SPACE: Final[_SpaceId] = _SpaceId("&self")
 
-SpaceName = NewType("SpaceName", str)
-MettaName = NewType("MettaName", str)
-_DEFAULT_SPACE: Final[SpaceName] = SpaceName("&self")
-
-__all__ = ["MettaName", "SaveFormat", "SpaceName"]
+__all__: list[str] = []

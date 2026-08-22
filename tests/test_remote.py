@@ -18,7 +18,7 @@ Guarantees:
   - lazy enumeration measurements vary only the atom count in one space and
     use the minimum of three samples [tested:
     test_two_answers_cross_the_wire_without_the_third_being_computed;
-    commit=88f8730f4a68bd426503b2a0e463405f7399ad78]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,6 +30,7 @@ import threading
 import time
 from http.client import HTTPConnection, HTTPException
 
+import janus_swi
 import pytest
 
 import petta
@@ -158,14 +159,14 @@ def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):  # noq
         msg = "injected remote attach failure"
         raise RuntimeError(msg)
 
-    monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
+    monkeypatch.setattr(janus_swi, "attach_engine", fail_attach)
 
     with pytest.raises(PettaError, match="injected remote attach failure"):
         remote.serve(metta)
 
 
 def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    original = petta.janus.detach_engine
+    original = janus_swi.detach_engine
     detach_started = threading.Event()
     release_detach = threading.Event()
     detached = threading.Event()
@@ -176,7 +177,7 @@ def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103
         original()
         detached.set()
 
-    monkeypatch.setattr(petta.janus, "detach_engine", delayed_detach)
+    monkeypatch.setattr(janus_swi, "detach_engine", delayed_detach)
     server = remote.serve(metta)
     failures = []
 
@@ -249,9 +250,9 @@ def test_remote_server_rejects_malformed_request_bodies(  # noqa: D103  -- pytes
 def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The hook saw the headers alone, so it could not tell a read from a
     # write and read-only was inexpressible.
-    served = metta.new_space()
+    served = metta._new_space()
     served.add(S.stock(S.apple))
-    name = served.space_name
+    name = served.name
     seen = []
 
     def read_only(request):
@@ -375,12 +376,12 @@ def test_server_capabilities_refuses_a_health_less_transport():  # noqa: D103  -
 
 
 def test_bound_crosses_and_is_honored_exactly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(S.re_edge(S.a, S.b), S.re_edge(S.a, S.c), S.re_edge(S.a, S.d))
     server = remote.serve(metta)
     try:
         transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, scratch.space_name)
+        space = remote.RemoteSpace(transport, scratch.name)
         pattern = petta.parse("(re_edge a $x)")
         assert len(list(space.match(pattern, limit=2))) == 2
         assert len(list(space.match(pattern))) == 3
@@ -411,10 +412,10 @@ def test_the_seam_pushes_the_callers_bound_onto_the_wire():  # noqa: D103  -- py
 def test_add_many_lands_through_our_own_server(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The client always sent add_many; the server refused it as unknown
     # until the projection work, so bulk adds against serve() failed.
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     server = remote.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         space.add_many([petta.parse(f"(re_bulk {n})") for n in range(4)])
         assert len(list(space.match(petta.parse("(re_bulk $n)")))) == 4
     finally:
@@ -466,7 +467,7 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
     SWI, so the server's own worker thread is what these numbers count.
     """
     server = remote.serve(metta)
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     lazy, eager, crossings = {}, {}, {}
     try:
         calls: list[str] = []
@@ -476,7 +477,7 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
             _calls.append(operation)
             return _inner(operation, payload)
 
-        space = remote.RemoteSpace(counting, scratch.space_name)
+        space = remote.RemoteSpace(counting, scratch.name)
         pattern = petta.parse("(re_lazy $n)")
         populated = 0
         for size in (10, 10_000):
@@ -543,7 +544,7 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
     over the same space pulls every one.
     """
     provider = _CountingProvider(10_000)
-    metta.register_space(provider, "&re-counted")
+    metta._register_space(provider, "&re-counted")
     server = remote.serve(metta)
     try:
         space = remote.RemoteSpace(remote.connect(server.url), "&re-counted")
@@ -559,7 +560,7 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
         drained = provider.yielded
     finally:
         server.close()
-        metta.unregister_space("&re-counted")
+        metta._unregister_space("&re-counted")
     assert pulled < 10, f"two answers pulled {pulled} candidates of 10,000"
     assert drained >= 10_000
 
@@ -568,11 +569,11 @@ def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
     """Chunking is a CHUNK and not a cut: every answer still crosses,
     whatever batch carries it.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_chunk {n})") for n in range(7)])
     server = remote.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         pattern = petta.parse("(re_chunk $n)")
         whole = sorted(str(a) for a in space.match(pattern))
         assert len(whole) == 7
@@ -589,7 +590,7 @@ def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
         transport = remote.connect(server.url)
         opened = transport(
             "ask",
-            {"space": scratch.space_name, "pattern": pattern.to_wire(), "batch": 1},
+            {"space": scratch.name, "pattern": pattern.to_wire(), "batch": 1},
         )
         widened = transport("next", {"cursor": opened["cursor"], "batch": 4})
         rest = transport("next", {"cursor": widened["cursor"], "batch": 100})
@@ -606,11 +607,11 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
     crosses. The cap is lowered here rather than the answer set raised,
     which measures the same thing without moving 16 MiB.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_big {n})") for n in range(200)])
     server = remote.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         pattern = petta.parse("(re_big $n)")
         monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 1024)
         with pytest.raises(PettaError, match="response body exceeds"):
@@ -626,11 +627,11 @@ def test_a_gateway_is_a_drop_in_transport(metta):
     """The two halves of the wire carry one signature, so a Gateway goes
     wherever a connected transport goes, health reflection included.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(petta.parse("(re_drop a)"))
     gateway = remote.Gateway(metta)
     try:
-        space = remote.RemoteSpace(gateway, scratch.space_name)
+        space = remote.RemoteSpace(gateway, scratch.name)
         advertised = space.server_capabilities()
         assert advertised["protocol"] == 3
         assert "stream" in advertised["capabilities"]
@@ -638,9 +639,9 @@ def test_a_gateway_is_a_drop_in_transport(metta):
         # Both doors name the field a request left out, rather than
         # answering a KeyError whose whole message is 'pattern'.
         with pytest.raises(PettaError, match="needs the `pattern` field"):
-            gateway("ask", {"space": scratch.space_name})
+            gateway("ask", {"space": scratch.name})
         with pytest.raises(PettaError, match="needs the `pattern` field"):
-            gateway("match", {"space": scratch.space_name})
+            gateway("match", {"space": scratch.name})
     finally:
         gateway.close()
         scratch.drop()
@@ -650,14 +651,14 @@ def test_a_finished_stream_needs_no_stop(metta):
     """Exhaustion releases the server's cursor, so the reply that ends a
     stream carries a null continuation and a later stop finds nothing.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(petta.parse("(re_short a)"))
     gateway = remote.Gateway(metta)
     try:
         opened = gateway(
             "ask",
             {
-                "space": scratch.space_name,
+                "space": scratch.name,
                 "pattern": petta.parse("(re_short $x)").to_wire(),
                 "batch": 4,
             },
@@ -673,14 +674,14 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
     """Answering nothing would say the enumeration ended, and
     under-answering is the one thing this protocol forbids.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_gone {n})") for n in range(4)])
     gateway = remote.Gateway(metta)
     try:
         opened = gateway(
             "ask",
             {
-                "space": scratch.space_name,
+                "space": scratch.name,
                 "pattern": petta.parse("(re_gone $n)").to_wire(),
                 "batch": 1,
             },
@@ -698,14 +699,14 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
 
 @pytest.mark.parametrize("batch", [0, -1, 1.5, True, "two"])
 def test_a_malformed_batch_is_refused(metta, batch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     gateway = remote.Gateway(metta)
     try:
         with pytest.raises(PettaError, match="batch must be a positive integer"):
             gateway(
                 "ask",
                 {
-                    "space": scratch.space_name,
+                    "space": scratch.name,
                     "pattern": petta.parse("(re_bad $n)").to_wire(),
                     "batch": batch,
                 },
@@ -720,7 +721,7 @@ def test_an_idle_cursor_is_released(metta):
     cursor nobody pulls from is released after its idle deadline; the
     engine count is the oracle.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_idle {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_idle=0.05)
     try:
@@ -728,7 +729,7 @@ def test_an_idle_cursor_is_released(metta):
         token = gateway(
             "ask",
             {
-                "space": scratch.space_name,
+                "space": scratch.name,
                 "pattern": petta.parse("(re_idle $n)").to_wire(),
                 "batch": 1,
             },
@@ -748,11 +749,11 @@ def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
     engine, so an unbounded table of them is an unbounded resource on an
     open port.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_many {n})") for n in range(4)])
     gateway = remote.Gateway(metta, cursor_limit=2)
     ask = {
-        "space": scratch.space_name,
+        "space": scratch.name,
         "pattern": petta.parse("(re_many $n)").to_wire(),
         "batch": 1,
     }
@@ -773,12 +774,12 @@ def test_closing_the_server_releases_open_cursors(metta):
     behind them rather than waiting on an idle deadline that no longer
     has a server to fire on.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_owned {n})") for n in range(4)])
     before = _live_engines(metta)
     server = remote.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         answers = space.stream(petta.parse("(re_owned $n)"), batch=1)
         assert str(next(answers)) == "(re_owned 0)"
         assert _live_engines(metta) == before + 1
@@ -793,9 +794,9 @@ def test_authorize_sees_the_cursors_own_space(metta):
     is handed the space the ANSWERS come from; reading the absent field's
     default would have judged the wrong one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    served = metta.new_space()
+    served = metta._new_space()
     served.add(*[petta.parse(f"(re_auth {n})") for n in range(4)])
-    name = served.space_name
+    name = served.name
     seen = []
 
     def watch(request):
@@ -824,9 +825,9 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
     waiting on it, while a Gateway runs on the calling thread.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _CountingProvider(2_000)
-    metta.register_space(provider, "&re-lazy-attached")
+    metta._register_space(provider, "&re-lazy-attached")
     gateway = remote.Gateway(metta)
-    client = metta.new_space()
+    client = metta._new_space()
     try:
         remote.attach(client, "&hq", gateway, "&re-lazy-attached", batch=1)
         provider.yielded = 0
@@ -838,10 +839,10 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
         assert len(whole[0]) == 2_000
         drained = provider.yielded
     finally:
-        client.unregister_space("&hq")
+        client._unregister_space("&hq")
         client.drop()
         gateway.close()
-        metta.unregister_space("&re-lazy-attached")
+        metta._unregister_space("&re-lazy-attached")
     assert stopped_early < 10, (
         f"once over a lazily attached space pulled {stopped_early} of 2,000 "
         f"candidates; the wire did not stop when the engine did"
@@ -868,11 +869,11 @@ def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):  # noqa: AR
 
 
 def test_a_closed_remote_cursor_refuses_further_pulls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.add(*[petta.parse(f"(re_closed {n})") for n in range(4)])
     server = remote.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.space_name)
+        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         answers = space.stream(petta.parse("(re_closed $n)"), batch=1)
         next(answers)
         assert "open" in repr(answers)

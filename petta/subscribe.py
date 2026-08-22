@@ -41,11 +41,11 @@ import threading
 from collections.abc import Callable, Mapping
 from typing import Any, Final, Self
 
-from .atoms import Atom, Expr, Sym, Var, _to_atom, map_atoms
+from .atoms import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
 from .errors import EngineError, PettaError
 from .events import _REGISTRY, STATELESS, Event, Fold
 from .foreign import require_capability
-from .ops import REFLECTION_SPACE, _reflect_add, _reflect_remove
+from .ops import _REFLECTION_SPACE, _reflect_add, _reflect_remove
 from .vocabularies import SUBSCRIPTION_EDGE
 
 __all__ = ["Event", "Subscription", "bridge", "subscribe"]
@@ -84,7 +84,7 @@ class Subscription(Fold):
         )
         self.callback = callback
         self.queue_max = queue_max
-        self._fact: Expr | None = None  # the reflection atom in &petta, if any
+        self._fact: Expression | None = None  # the reflection atom in &petta, if any
 
     def _step_over(self, held: list[Event], event: Event) -> list[Event]:
         """Deliver, or queue. The two shipped delivery disciplines, as one
@@ -175,7 +175,7 @@ class Subscription(Fold):
 _TRANSACTION_LOCK = threading.RLock()
 
 
-def _has_fact(fact: Expr) -> bool:
+def _has_fact(fact: Expression) -> bool:
     """Whether another live subscription still owns this reflection atom."""
     return any(
         isinstance(fold, Subscription) and fold._fact == fact
@@ -183,11 +183,11 @@ def _has_fact(fact: Expr) -> bool:
     )
 
 
-def _reflection_contains(runtime: Any, fact: Expr) -> bool:
-    return runtime.do("petta_py_contains", REFLECTION_SPACE, fact.to_wire())
+def _reflection_contains(runtime: Any, fact: Expression) -> bool:
+    return runtime.do("petta_py_contains", _REFLECTION_SPACE, fact.to_wire())
 
 
-def _ensure_reflection_present(runtime: Any, fact: Expr) -> None:
+def _ensure_reflection_present(runtime: Any, fact: Expression) -> None:
     if not _reflection_contains(runtime, fact):
         _reflect_add(runtime, fact)
     if not _reflection_contains(runtime, fact):
@@ -195,7 +195,7 @@ def _ensure_reflection_present(runtime: Any, fact: Expr) -> None:
         raise EngineError(msg)
 
 
-def _ensure_reflection_absent(runtime: Any, fact: Expr) -> None:
+def _ensure_reflection_absent(runtime: Any, fact: Expression) -> None:
     if _reflection_contains(runtime, fact):
         _reflect_remove(runtime, fact)
     if _reflection_contains(runtime, fact):
@@ -230,7 +230,7 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     # cancel, so MeTTa programs see what Python is watching. The fact goes
     # in before the subscription activates: a watcher of &petta sees other
     # subscriptions arrive, never its own birth.
-    subscription._fact = Expr([Sym("subscription"), Sym(space), pattern, Sym(on)])
+    subscription._fact = Expression([Symbol("subscription"), Symbol(space), pattern, Symbol(on)])
     with _TRANSACTION_LOCK:
         try:
             _ensure_reflection_present(runtime, subscription._fact)
@@ -259,9 +259,9 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
 
 
 def _instantiate(template: Atom, bindings: Mapping[str, Atom]) -> Atom:
-    return map_atoms(
+    return _map_atoms(
         template,
-        lambda atom: bindings.get(atom.name, atom) if isinstance(atom, Var) else atom,
+        lambda atom: bindings.get(atom.name, atom) if isinstance(atom, Variable) else atom,
     )
 
 
@@ -272,7 +272,7 @@ def bridge(source, pattern, target, template=None, on: str = "add") -> Subscript
     on="both" a removal in source removes the instantiation from target,
     the mirrored rule.
 
-        rule = petta.bridge(src, S.alarm(V.zone), dst, S.notify(V.zone))
+        rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone))
         src.add(S.alarm(S.kitchen))        # dst now holds (notify kitchen)
         rule.cancel()
 

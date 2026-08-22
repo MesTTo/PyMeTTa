@@ -7,16 +7,9 @@ Open Obligations:
 
 import pytest
 
-from petta import (
-    Builtin,
-    Derivation,
-    Fact,
-    InferenceLimitError,
-    S,
-    Truncated,
-    V,
-    expr,
-)
+from petta import Expression, S, V
+from petta.derivation import Builtin, Derivation, Fact, Truncated
+from petta.errors import InferenceLimitError
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -168,38 +161,38 @@ def test_html_rendering(metta):  # noqa: D103  -- pytest discovers or injects th
 @pytest.mark.parametrize(
     ("tree", "message"),
     [
-        (expr(S.derivation), "malformed derivation"),
-        (expr(S.derivation, expr(S.wrong, S.call, S.out)), "answer node"),
-        (expr(S.derivation, expr(S.answer, S.call)), "answer node"),
+        (Expression(S.derivation), "malformed derivation"),
+        (Expression(S.derivation, Expression(S.wrong, S.call, S.out)), "answer node"),
+        (Expression(S.derivation, Expression(S.answer, S.call)), "answer node"),
         (
-            expr(
+            Expression(
                 S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.step, expr(S.wrong, S.call, S.out), S.equation),
+                Expression(S.answer, S.call, S.out),
+                Expression(S.step, Expression(S.wrong, S.call, S.out), S.equation),
             ),
             "call node",
         ),
         (
-            expr(
+            Expression(
                 S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.fact, S.space),
+                Expression(S.answer, S.call, S.out),
+                Expression(S.fact, S.space),
             ),
             "fact node",
         ),
         (
-            expr(
+            Expression(
                 S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.builtin, S.one, S.two),
+                Expression(S.answer, S.call, S.out),
+                Expression(S.builtin, S.one, S.two),
             ),
             "builtin node",
         ),
         (
-            expr(
+            Expression(
                 S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.truncated),
+                Expression(S.answer, S.call, S.out),
+                Expression(S.truncated),
             ),
             "truncated node",
         ),
@@ -211,11 +204,11 @@ def test_malformed_derivation_nodes_are_named(tree, message):  # noqa: D103  -- 
 
 
 def test_derivation_facts_deduplicate_in_first_seen_order():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    fact_a = expr(S.fact, S["&self"], S.a(1))
-    fact_b = expr(S.fact, S["&self"], S.b(2))
-    tree = expr(
+    fact_a = Expression(S.fact, S["&self"], S.a(1))
+    fact_b = Expression(S.fact, S["&self"], S.b(2))
+    tree = Expression(
         S.derivation,
-        expr(S.answer, S.call, S.out),
+        Expression(S.answer, S.call, S.out),
         fact_a,
         fact_b,
         fact_a,

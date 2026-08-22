@@ -19,20 +19,20 @@ import pickle
 
 import pytest
 
-from petta import Rows, S, V, parse
-from petta.results import _row_class
+from petta import S, V, parse, tables
+from petta.results import Rows, _row_class
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
 def test_rows_to_pl_builds_the_polars_frame(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     pytest.importorskip("polars")
 
-    m.add_table("score", [("ada", 3), ("bob", 5)])
+    tables.add(m, "score", [("ada", 3), ("bob", 5)])
     rows = m.query(S.score(V.who, V.points))
     frame = rows.to_pl()
     assert frame.columns == ["who", "points"]
@@ -41,7 +41,7 @@ def test_rows_to_pl_builds_the_polars_frame(m):  # noqa: D103  -- pytest discove
 
 
 def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("score", [("ada", 3)])
+    tables.add(m, "score", [("ada", 3)])
     rows = m.query(S.score(V.who, V.points))
     if importlib.util.find_spec("pandas") is None:
         with pytest.raises(ImportError, match="pandas"):
@@ -51,7 +51,7 @@ def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discov
 
 
 def test_rows_to_dicts_returns_plain_records(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("score", [("ada", 3), ("bob", 5)])
+    tables.add(m, "score", [("ada", 3), ("bob", 5)])
     rows = m.query(S.score(V.who, V.points))
     assert rows.to_dicts() == [
         {"who": "ada", "points": 3},

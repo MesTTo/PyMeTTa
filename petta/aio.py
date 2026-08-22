@@ -24,31 +24,32 @@ Guarantees:
   - interpreter shutdown without live workers does not initialize the
     optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
   - async names and save formats retain the synchronous surface's contextual
-    types [tested test_public_context_types_are_distinct]
+    types [tested: test_canonical_context_types_replace_public_newtypes;
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
     test_cast_target_is_positional_only]
-  - async new_space forwards inheritance, restriction, and grants on the
-    owning worker [tested test_async_new_space_forwards_restriction_and_grants;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
+  - async space forwards anonymous-space inheritance, restriction, and grants
+    on the owning worker [tested:
+    test_async_space_forwards_restriction_and_grants; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
-    test_aio_plain_methods_forward_on_the_worker; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
+    test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - declare_image reaches the synchronous declaration owner on the engine
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -79,12 +80,12 @@ import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
-from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
+from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
+from ._space import Space as MeTTa
 from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
-from .space import MeTTa
 from .subscribe import SUBSCRIPTION_QUEUE_MAX
 from .vocabularies import (
     AgendaPolicy,
@@ -94,6 +95,7 @@ from .vocabularies import (
     EventOrder,
     Fidelity,
     OnErrorMode,
+    SaveFormat,
     SourceKind,
     World,
 )
@@ -557,8 +559,17 @@ class AsyncMeTTa:
         return shared
 
     @property
-    def space_name(self) -> SpaceName:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        return self._m.space_name
+    def name(self) -> _SpaceId:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        return self._m.name
+
+    def bind(
+        self,
+        values: Mapping[str, Any] | None = None,
+        /,
+        **named: Any,
+    ) -> Any:
+        """Scope host values copied into subsequent worker requests."""
+        return self._m.bind(values, **named)
 
     @property
     def metta(self) -> MeTTa:
@@ -608,19 +619,13 @@ class AsyncMeTTa:
     async def run(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> list[list[Atom]]:
         """Run MeTTa source on the worker and return its result groups."""
         return await self.call(
-            lambda m: m.run(
-                source,
-                using,
-                timeout=timeout,
-                inferences=inferences,
-            )
+            lambda m: m.run(source, timeout=timeout, inferences=inferences)
         )
 
     async def load(
@@ -643,10 +648,6 @@ class AsyncMeTTa:
         """Add atoms to this space on the worker."""
         return await self.call(lambda m: m.add(*atoms))
 
-    async def add_table(self, head: Any, data: Any) -> int:
-        """Add rows from a tabular value and return the number added."""
-        return await self.call(lambda m: m.add_table(head, data))
-
     async def remove(self, atom: Any) -> bool:
         """Remove one matching atom and report whether one existed."""
         return await self.call(lambda m: m.remove(atom))
@@ -657,7 +658,7 @@ class AsyncMeTTa:
 
     async def count(self) -> int:
         """Return the number of atoms in this space."""
-        return await self.call(lambda m: m.count())
+        return await self.call(len)
 
     async def atoms(self) -> list:
         """Return a snapshot of every atom in this space."""
@@ -714,35 +715,13 @@ class AsyncMeTTa:
     ) -> Any:
         """Evaluate a term that must produce exactly one value."""
         return await self.call(
-            lambda m: m.one(
+            lambda m: m._one(
                 target,
                 using=using,
                 timeout=timeout,
                 inferences=inferences,
             )
         )
-
-    async def new_space(
-        self,
-        *,
-        inherits: AsyncMeTTa | None = None,
-        restricted: bool = False,
-        grants: Sequence[str] = (),
-    ) -> AsyncMeTTa:
-        """Return an isolated space that borrows this connection's worker."""
-        if inherits is not None and inherits._worker is not self._worker:
-            msg = "an inherited async space must share this engine worker"
-            raise ValueError(msg)
-        parent = None if inherits is None else inherits._m
-        requested_grants = tuple(grants)
-        fresh = await self.call(
-            lambda m: m.new_space(
-                inherits=parent,
-                restricted=restricted,
-                grants=requested_grants,
-            )
-        )
-        return AsyncMeTTa._sharing(fresh, self._worker)
 
     async def copy(self) -> AsyncMeTTa:
         """This space's contents in a new anonymous space; MeTTa.copy,
@@ -806,8 +785,6 @@ class AsyncMeTTa:
         """Remove every registered operation overload under a name."""
         return await self.call(lambda m: m.unregister_op(name))
 
-    unregister = unregister_op
-
     async def builtins(self) -> list[str]:
         """Return the names of engine builtins."""
         return await self.call(lambda m: m.builtins())
@@ -846,13 +823,44 @@ class AsyncMeTTa:
         """Explain why a pattern is not currently reducible."""
         return await self.call(lambda m: m.why(pattern))
 
-    async def space(self, name: str) -> AsyncMeTTa:
-        """Another space through the same engine thread. The connection
-        owns the thread; spaces borrow it, so closing a borrowed space is
-        a no-op and closing the owner ends them all.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        named = await self.call(lambda m: m.space(name))
-        return AsyncMeTTa._sharing(named, self._worker)
+    async def space(
+        self,
+        name: str | None = None,
+        backing: Any = None,
+        *,
+        inherits: AsyncMeTTa | None = None,
+        restricted: bool = False,
+        grants: Sequence[str] = (),
+    ) -> AsyncMeTTa:
+        """Create or open one space through this connection's worker.
+
+        An omitted name creates an anonymous space. A provider supplied as
+        ``backing`` is attached to the resulting handle. The connection owns
+        the worker; returned spaces borrow it, so closing one does not stop
+        the connection.
+        """
+        if inherits is not None and inherits._worker is not self._worker:
+            msg = "an inherited async space must share this engine worker"
+            raise ValueError(msg)
+        if name is not None and (inherits is not None or restricted or grants):
+            msg = "inherits, restricted, and grants apply only to anonymous space()"
+            raise TypeError(msg)
+        if name is None:
+            parent = None if inherits is None else inherits._m
+            requested_grants = tuple(grants)
+            handle = await self.call(
+                lambda m: m._new_space(
+                    inherits=parent,
+                    restricted=restricted,
+                    grants=requested_grants,
+                )
+            )
+        else:
+            handle = await self.call(lambda m: m._at(name))
+        if backing is not None:
+            await self.call(lambda m: m._register_space(backing, str(handle.name)))
+            handle._backing = backing
+        return AsyncMeTTa._sharing(handle, self._worker)
 
     # ----------------------------------------------------- parity delegations
     # One worker round trip each, the synchronous surface's own docstrings
@@ -872,7 +880,7 @@ class AsyncMeTTa:
     ) -> Any:
         """The first answer decoded, or None for no answers."""
         return await self.call(
-            lambda m: m.first(
+            lambda m: m._first(
                 target, using=using, timeout=timeout, inferences=inferences
             )
         )
@@ -938,10 +946,6 @@ class AsyncMeTTa:
     async def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted."""
         return await self.call(lambda m: m.space_names())
-
-    async def disassemble(self, name: str) -> str:
-        """The Prolog clauses a function name compiled to."""
-        return await self.call(lambda m: m.disassemble(name))
 
     async def declare_admits(self, name: str, type_name: str) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.declare_admits(name, type_name))
@@ -1071,7 +1075,7 @@ class AsyncMeTTa:
         self,
         name: str,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/petta/space.py:declare_image
+        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/petta/_space.py:declare_image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         return await self.call(
@@ -1120,34 +1124,6 @@ class AsyncMeTTa:
     ) -> Atom:
         return await self.call(lambda m: m.declare_writes(name, atomicity))
 
-    async def register_op(
-        self,
-        fn: Callable,
-        /,
-        *,
-        name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = "encoded",
-        declarations: Iterable[Atom] = (),
-        arities: list[int] | None = None,
-        inverse: Callable | None = None,
-    ) -> Callable:
-        """Register a Python callable as a MeTTa function. The engine
-        calls it synchronously on the worker thread, exactly as the
-        synchronous surface does; the decorator spelling stays with the
-        synchronous surface, since decoration cannot await.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(
-            lambda m: m.register_op(
-                fn,
-                name=name,
-                transport=transport,
-                declarations=declarations,
-                arities=arities,
-                inverse=inverse,
-            )
-        )
-
     async def op(
         self,
         fn: Callable,
@@ -1160,7 +1136,7 @@ class AsyncMeTTa:
         arities: list[int] | None = None,
         inverse: Callable | None = None,
     ) -> Callable:
-        """register_op under its short name."""
+        """Register a callable through the single short operation door."""
         return await self.call(
             lambda m: m.op(
                 fn,
@@ -1240,12 +1216,6 @@ class AsyncMeTTa:
             lambda m: m.register_prolog(source, path=path, names=names)
         )
 
-    async def register_space(self, provider: Any, name: str) -> Any:
-        """Register a Python-backed space. Its methods run on whichever
-        thread the engine is answering from, exactly as in sync use.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(lambda m: m.register_space(provider, name))
-
     async def register_foreign_library(
         self,
         path: str | os.PathLike[str],
@@ -1264,9 +1234,6 @@ class AsyncMeTTa:
 
     async def unregister_prolog(self, extension: str) -> tuple[str, ...]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return await self.call(lambda m: m.unregister_prolog(extension))
-
-    async def unregister_space(self, name: str) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        return await self.call(lambda m: m.unregister_space(name))
 
     def limits(
         self,
@@ -1434,7 +1401,7 @@ class AsyncMeTTa:
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else self._worker.state
-        return f"AsyncMeTTa({self._m.space_name!r}, {state})"
+        return f"AsyncMeTTa({self._m.name!r}, {state})"
 
 
 _EXHAUSTED: Final = object()
@@ -1518,7 +1485,7 @@ class _AsyncPrepared:
         return await self._am.call(lambda _m: prepared.explain())
 
     def __repr__(self) -> str:
-        return f"<async prepared query {self.columns} on {self._am.space_name}>"
+        return f"<async prepared query {self.columns} on {self._am.name}>"
 
 
 class _AsyncCursor:
@@ -1542,7 +1509,7 @@ class _AsyncCursor:
             patterns, where = self._patterns, self._where
             timeout, inferences = self._timeout, self._inferences
             self._cursor = await self._am.call(
-                lambda m: m.stream(
+                lambda m: m._stream(
                     *patterns, where=where, timeout=timeout, inferences=inferences
                 )
             )
@@ -1726,7 +1693,7 @@ class _AsyncEngineFunction:
         self._am = am
         self._name = name
         self.__name__ = name
-        self.__qualname__ = f"{am.space_name}.{name}"
+        self.__qualname__ = f"{am.name}.{name}"
 
     async def __call__(self, *args: Any) -> Any:
         return await self.one(*args)
@@ -1744,7 +1711,7 @@ class _AsyncEngineFunction:
         return await self._am.call(lambda m: m.fn(name).all(*args))
 
     def __repr__(self) -> str:
-        return f"<async engine function {self._name} on {self._am.space_name}>"
+        return f"<async engine function {self._name} on {self._am.name}>"
 
 
 async def connect(

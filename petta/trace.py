@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ._atom_wire import atom_from_wire
+from ._atom_wire import _atom_from_wire
 from .atoms import Atom
 
 __all__ = ["TraceEvent", "trace"]
@@ -55,7 +55,7 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
     row = space.runtime.once(
         "petta_py_trace(Src, Space, Max, Events)",
         Src=source,
-        Space=space.space_name,
+        Space=space.name,
         Max=int(max_events),
     )
     # Events cross as terms on the ordinary wire. Read back from their own
@@ -69,8 +69,8 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
             TraceEvent(
                 int(depth),
                 str(kind),
-                atom_from_wire(term),
-                atom_from_wire(answer[0]) if answer else None,
+                _atom_from_wire(term),
+                _atom_from_wire(answer[0]) if answer else None,
             )
         )
     return events

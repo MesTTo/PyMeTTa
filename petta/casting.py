@@ -29,7 +29,7 @@ from __future__ import annotations
 from typing import Any, overload
 
 from ._convert_registry import _is_plain_class
-from .atoms import Atom, Gnd, Sym, atom_from_wire, encode, parse
+from .atoms import Atom, Grounded, Symbol, _atom_from_wire, _encode, parse
 from .errors import PettaError
 
 __all__ = ["CastError", "cast"]
@@ -62,8 +62,8 @@ def _type_atom(type_: Any) -> Atom:
     if _is_plain_class(type_):
         for spelled, name in _PYTHON_SPELLINGS:
             if type_ is spelled:
-                return Sym(name)
-        return Sym(type_.__name__)
+                return Symbol(name)
+        return Symbol(type_.__name__)
     msg = (
         "a cast target must be an Atom, MeTTa source text, or a Python "
         f"type, got {type_!r}"
@@ -77,7 +77,7 @@ def _narrow(value: Any) -> Any:
     """The Python-most spelling of an admitted value: a ground atom
     unwraps to its Python value, everything else answers itself.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(value, Gnd):
+    if isinstance(value, Grounded):
         return value.value
     return value
 
@@ -99,15 +99,15 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         assert m.cast(3, int) == 3
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     target = _type_atom(type_)
-    if isinstance(target, Sym) and str(target) in _UNCHECKED:
+    if isinstance(target, Symbol) and str(target) in _UNCHECKED:
         return _narrow(value)
-    atom = value if isinstance(value, Atom) else encode(value)
+    atom = value if isinstance(value, Atom) else _encode(value)
     answered = space.runtime.apply_must(
         "petta_py_cast", space._space, atom.to_wire(), target.to_wire()
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)
-    candidates = ", ".join(str(atom_from_wire(t)) for t in answered[1])
+    candidates = ", ".join(str(_atom_from_wire(t)) for t in answered[1])
     msg = (
         f"{atom} does not admit type {target} in {space._space}: "
         f"its types are {candidates}"

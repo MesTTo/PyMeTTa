@@ -6,7 +6,7 @@ Guarantees:
   - operations returning explicit bindings request evaluated Atom wrappers
     through `(arguments name atoms)` declarations [tested:
     test_a_generator_op_answers_bindings,
-    test_a_det_op_answers_bindings_with_a_value; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_a_det_op_answers_bindings_with_a_value; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,8 +15,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Answer, Bindings, S, expr, parse
-from petta.atoms import Expr, Gnd, Sym, Var
+from petta import Answer, Bindings, Expression, S, parse
+from petta.atoms import Grounded, Symbol, Variable
 from petta.errors import EngineError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
 
@@ -24,14 +24,14 @@ from petta.foreign import SpaceProvider
 def test_answer_wire_form_is_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     wire = Answer({"x": 3}).to_wire()
     assert wire == ["a", [["x", ["n", 3]]], True, None]
-    wire = Answer({"$y": Sym("b")}, value=Sym("v"), k=2).to_wire()
+    wire = Answer({"$y": Symbol("b")}, value=Symbol("v"), k=2).to_wire()
     assert wire == ["a", [["y", ["s", "b"]]], True, 2, ["s", "v"]]
     residue = parse("(check $z)")
     wire = Answer({}, residue=residue).to_wire()
     assert wire[:2] == ["a", []]
     assert wire[2] == residue.to_wire()
-    # Var keys normalize like string keys.
-    assert Bindings({Var("q"): 1}).to_wire() == ["a", [["q", ["n", 1]]], True, None]
+    # Variable keys normalize like string keys.
+    assert Bindings({Variable("q"): 1}).to_wire() == ["a", [["q", ["n", 1]]], True, None]
 
 
 def test_answer_validates_eagerly():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -57,16 +57,16 @@ class _AnswerProvider(SpaceProvider):
 
 
 def _pattern_vars(pattern):
-    return [child for child in pattern.children if isinstance(child, Var)]
+    return [child for child in pattern.children if isinstance(child, Variable)]
 
 
 def test_a_provider_answers_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        yield Bindings({y: Sym("b")})
-        yield Bindings({y: Sym("c")})
+        yield Bindings({y: Symbol("b")})
+        yield Bindings({y: Symbol("c")})
 
-    metta.register_space(_AnswerProvider(answer), "&ap-bind")
+    metta._register_space(_AnswerProvider(answer), "&ap-bind")
     out = metta.run("!(collapse (match &ap-bind (edge a $y) (got $y)))")
     assert str(out[0][0]) == "((got b) (got c))"
 
@@ -75,9 +75,9 @@ def test_plain_atoms_and_answers_mix_in_one_stream(metta):  # noqa: D103  -- pyt
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         yield parse("(edge a plain)")
-        yield Bindings({y: Sym("bound")})
+        yield Bindings({y: Symbol("bound")})
 
-    metta.register_space(_AnswerProvider(answer), "&ap-mix")
+    metta._register_space(_AnswerProvider(answer), "&ap-mix")
     out = metta.run("!(collapse (match &ap-mix (edge a $y) $y))")
     assert str(out[0][0]) == "(plain bound)"
 
@@ -87,13 +87,13 @@ def test_an_explicit_value_unifies_under_theta(metta):  # noqa: D103  -- pytest 
         (y,) = _pattern_vars(pattern)
         # The candidate-with-bindings form: the value is the answer atom,
         # and theta must agree with it.
-        yield Answer({y: Sym("b")}, value=parse("(edge a b)"))
+        yield Answer({y: Symbol("b")}, value=parse("(edge a b)"))
         # A value that CONTRADICTS theta is one failed unification: that
         # answer drops, the stream continues.
-        yield Answer({y: Sym("clash")}, value=parse("(edge a other)"))
-        yield Bindings({y: Sym("after")})
+        yield Answer({y: Symbol("clash")}, value=parse("(edge a other)"))
+        yield Bindings({y: Symbol("after")})
 
-    metta.register_space(_AnswerProvider(answer), "&ap-val")
+    metta._register_space(_AnswerProvider(answer), "&ap-val")
     out = metta.run("!(collapse (match &ap-val (edge a $y) $y))")
     assert str(out[0][0]) == "(b after)"
 
@@ -103,33 +103,33 @@ def test_theta_aliases_query_variables(metta):  # noqa: D103  -- pytest discover
         x, y = _pattern_vars(pattern)
         yield Bindings({y: x})
 
-    metta.register_space(_AnswerProvider(answer), "&ap-alias")
+    metta._register_space(_AnswerProvider(answer), "&ap-alias")
     out = metta.run("!(collapse (match &ap-alias (edge $x $y) (pair $x $y)))")
     (answers,) = out[0]
     (pair,) = answers.children
-    assert isinstance(pair.children[1], Var)
+    assert isinstance(pair.children[1], Variable)
     assert pair.children[1].name == pair.children[2].name
 
 
 def test_fresh_variables_in_theta_values_stay_open(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        yield Bindings({y: Expr([Sym("f"), Var("fresh")])})
+        yield Bindings({y: Expression([Symbol("f"), Variable("fresh")])})
 
-    metta.register_space(_AnswerProvider(answer), "&ap-open")
+    metta._register_space(_AnswerProvider(answer), "&ap-open")
     out = metta.run("!(collapse (match &ap-open (edge a $y) $y))")
     (answers,) = out[0]
     (value,) = answers.children
     assert str(value.children[0]) == "f"
-    assert isinstance(value.children[1], Var)
+    assert isinstance(value.children[1], Variable)
 
 
 def test_an_annotation_is_refused_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        yield Answer({y: Sym("b")}, k=0.5)
+        yield Answer({y: Symbol("b")}, k=0.5)
 
-    metta.register_space(_AnswerProvider(answer), "&ap-k")
+    metta._register_space(_AnswerProvider(answer), "&ap-k")
     with pytest.raises(EngineError, match="annotation"):
         metta.run("!(collapse (match &ap-k (edge a $y) $y))")
 
@@ -139,7 +139,7 @@ def test_an_enumeration_refuses_answers(metta):  # noqa: D103  -- pytest discove
         def atoms(self):
             yield Bindings({"x": 1})
 
-    metta.register_space(_Wrong(), "&ap-enum")
+    metta._register_space(_Wrong(), "&ap-enum")
     # The seam raises its own PettaError, and the boundary re-raises
     # the original object rather than an EngineError transcript.
     with pytest.raises(PettaError, match="enumeration has no query"):
@@ -151,10 +151,10 @@ def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discov
         yield Bindings({x: 1})
         yield Bindings({x: 2})
 
-    metta.register_op(
+    metta.op(
         relate,
         name="ap-rel",
-        declarations=[expr(S.arguments, S["ap-rel"], S.atoms)],
+        declarations=[Expression(S.arguments, S["ap-rel"], S.atoms)],
     )
     metta.run("(= (ap-probe $x) (let $r (ap-rel $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-probe $q))")
@@ -163,12 +163,12 @@ def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discov
 
 def test_a_det_op_answers_bindings_with_a_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def solve(x):
-        return Answer({x: Sym("found")}, value=Sym("done"))
+        return Answer({x: Symbol("found")}, value=Symbol("done"))
 
-    metta.register_op(
+    metta.op(
         solve,
         name="ap-solve",
-        declarations=[expr(S.arguments, S["ap-solve"], S.atoms)],
+        declarations=[Expression(S.arguments, S["ap-solve"], S.atoms)],
     )
     metta.run("(= (ap-sprobe $x) (let $r (ap-solve $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-sprobe $q))")
@@ -179,7 +179,7 @@ def test_a_raw_op_refuses_answers(metta):  # noqa: D103  -- pytest discovers or 
     def wrong(x):
         return Answer({"x": x})
 
-    metta.register_op(wrong, name="ap-raw", transport="raw")
+    metta.op(wrong, name="ap-raw", transport="raw")
     with pytest.raises(EngineError, match="raw"):
         metta.run("!(ap-raw 1)")
 
@@ -195,12 +195,12 @@ def test_a_residue_condition_filters_answers(metta):
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        keeps = Expr([Sym(">"), y, Gnd(3)])
+        keeps = Expression([Symbol(">"), y, Grounded(3)])
         yield Answer({y: 5}, residue=keeps)
         yield Answer({y: 2}, residue=keeps)
         yield Answer({y: 9}, residue=keeps)
 
-    metta.register_space(_AnswerProvider(answer), "&ap-cond")
+    metta._register_space(_AnswerProvider(answer), "&ap-cond")
     out = metta.run("!(collapse (match &ap-cond (edge a $y) $y))")
     assert str(out[0][0]) == "(5 9)"
 
@@ -214,11 +214,11 @@ def test_a_residue_match_form_composes_across_contexts(metta):
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
         check = parse("(match &ap-kb (allowed $v) ok)")
-        (v,) = [c for c in check.children[2].children if isinstance(c, Var)]
-        yield Answer({y: Sym("b")}, residue=Expr([check.children[0], check.children[1], Expr([check.children[2].children[0], y]), Sym("ok")]))
-        yield Answer({y: Sym("c")}, residue=Expr([check.children[0], check.children[1], Expr([check.children[2].children[0], y]), Sym("ok")]))
+        (v,) = [c for c in check.children[2].children if isinstance(c, Variable)]
+        yield Answer({y: Symbol("b")}, residue=Expression([check.children[0], check.children[1], Expression([check.children[2].children[0], y]), Symbol("ok")]))
+        yield Answer({y: Symbol("c")}, residue=Expression([check.children[0], check.children[1], Expression([check.children[2].children[0], y]), Symbol("ok")]))
 
-    metta.register_space(_AnswerProvider(answer), "&ap-cross")
+    metta._register_space(_AnswerProvider(answer), "&ap-cross")
     out = metta.run("!(collapse (match &ap-cross (edge a $y) $y))")
     assert str(out[0][0]) == "(b)"
 
@@ -230,9 +230,9 @@ def test_a_nonreducing_residue_holds(metta):
 
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        yield Answer({y: Sym("kept")}, residue=parse("(ap-no-equation q w)"))
+        yield Answer({y: Symbol("kept")}, residue=parse("(ap-no-equation q w)"))
 
-    metta.register_space(_AnswerProvider(answer), "&ap-hold")
+    metta._register_space(_AnswerProvider(answer), "&ap-hold")
     out = metta.run("!(collapse (match &ap-hold (edge a $y) $y))")
     assert str(out[0][0]) == "(kept)"
 
@@ -240,9 +240,9 @@ def test_a_nonreducing_residue_holds(metta):
 def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def answer(pattern):
         (y,) = _pattern_vars(pattern)
-        yield Answer({y: 5}, residue=Expr([Sym(">"), y, Gnd(3)]))
+        yield Answer({y: 5}, residue=Expression([Symbol(">"), y, Grounded(3)]))
 
-    metta.register_space(_AnswerProvider(answer), "&ap-bound")
+    metta._register_space(_AnswerProvider(answer), "&ap-bound")
     metta.declare_handles("&ap-bound", "(edge a $y)", "Exact")
     with pytest.raises(EngineError, match="Sound"):
         metta.run("!(collapse (take 2 (match &ap-bound (edge a $y) $y)))")
@@ -253,20 +253,20 @@ def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):  # noqa: D103
 
 def test_an_op_residue_closes_through_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def pick(x):
-        return Answer({x: 2}, value=Sym("small"), residue=Expr([Sym("<"), x, Gnd(10)]))
+        return Answer({x: 2}, value=Symbol("small"), residue=Expression([Symbol("<"), x, Grounded(10)]))
 
     def pickbig(x):
-        return Answer({x: 50}, value=Sym("big"), residue=Expr([Sym("<"), x, Gnd(10)]))
+        return Answer({x: 50}, value=Symbol("big"), residue=Expression([Symbol("<"), x, Grounded(10)]))
 
-    metta.register_op(
+    metta.op(
         pick,
         name="ap-pick",
-        declarations=[expr(S.arguments, S["ap-pick"], S.atoms)],
+        declarations=[Expression(S.arguments, S["ap-pick"], S.atoms)],
     )
-    metta.register_op(
+    metta.op(
         pickbig,
         name="ap-pickbig",
-        declarations=[expr(S.arguments, S["ap-pickbig"], S.atoms)],
+        declarations=[Expression(S.arguments, S["ap-pickbig"], S.atoms)],
     )
     out = metta.run("!(collapse (ap-pick $x))")
     assert str(out[0][0]) == "(small)"
@@ -302,14 +302,14 @@ def test_planner_rows_may_be_bindings(metta):
                 [],
                 iter(
                     [
-                        Answer({x: Sym("a"), y: Sym("b"), z: Sym("c")}),
+                        Answer({x: Symbol("a"), y: Symbol("b"), z: Symbol("c")}),
                         [parse("(edge b c)"), parse("(edge c d)")],
                     ]
                 ),
             )
 
     provider = _JoinProvider()
-    metta.register_space(provider, "&ap-plan")
+    metta._register_space(provider, "&ap-plan")
     out = metta.run(
         "!(collapse (match &ap-plan (, (edge $x $y) (edge $y $z)) (path $x $z)))"
     )
@@ -331,7 +331,7 @@ def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D
         for word, degree in lexicon.items():
             yield Answer(value=word, k=degree)
 
-    metta.register_op(ap_lex, name="ap-lex")
+    metta.op(ap_lex, name="ap-lex")
     metta.declare_annotations("ap-lex", "ranked")
     out = metta.run('!(collapse (top 2 (ap-lex "q" $c)))')
     assert str(out[0][0]) == '("beta" "delta")'
@@ -352,10 +352,10 @@ def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):  # noqa
     # the ISO standard order where every float precedes every integer, so
     # this pin protects top against any engine where that differs.
     def mixed(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
-        yield Answer(value=Sym("intone"), k=1)
-        yield Answer(value=Sym("floathigh"), k=2.5)
+        yield Answer(value=Symbol("intone"), k=1)
+        yield Answer(value=Symbol("floathigh"), k=2.5)
 
-    metta.register_op(mixed, name="ap-mixed-k")
+    metta.op(mixed, name="ap-mixed-k")
     metta.declare_annotations("ap-mixed-k", "ranked")
     (best,) = metta.run("!(collapse (top 1 (ap-mixed-k q)))")[0]
     assert [str(a) for a in best.children] == ["floathigh"]
@@ -368,7 +368,7 @@ def test_top_refuses_an_unordered_context(metta):  # noqa: D103  -- pytest disco
         calls.append(pattern)
         yield parse("(edge a b)")
 
-    metta.register_space(_AnswerProvider(answer), "&ap-topfloor")
+    metta._register_space(_AnswerProvider(answer), "&ap-topfloor")
     with pytest.raises(EngineError, match="ranked"):
         metta.run("!(collapse (top 2 (match &ap-topfloor (edge $x $y) $y)))")
     assert calls == []
@@ -392,7 +392,7 @@ def test_top_pushes_the_bound_under_three_declarations(metta):  # noqa: D103  --
                 yield Answer(value=parse(f"(scored {name})"), k=k)
 
     provider = _Ranked()
-    metta.register_space(provider, "&ap-vec")
+    metta._register_space(provider, "&ap-vec")
     metta.declare_annotations("&ap-vec", "ranked")
     # Two of the three declarations: the bound stays here.
     metta.declare_handles("&ap-vec", "(scored $x)", "Exact")
@@ -409,12 +409,12 @@ def test_top_pushes_the_bound_under_three_declarations(metta):  # noqa: D103  --
 
 def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def scorer(x):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
-        yield Answer(value=Sym("v"), k=0.5)
+        yield Answer(value=Symbol("v"), k=0.5)
 
-    metta.register_op(
+    metta.op(
         scorer,
         name="ap-undeclared",
-        declarations=[expr(S.arguments, S["ap-undeclared"], S.atoms)],
+        declarations=[Expression(S.arguments, S["ap-undeclared"], S.atoms)],
     )
     with pytest.raises(EngineError, match="annotations ap-undeclared ranked"):
         metta.run("!(collapse (ap-undeclared 1))")
@@ -425,7 +425,7 @@ def test_declare_annotations_validates_and_replaces(metta):  # noqa: D103  -- py
         metta.declare_annotations("&ap-v", "sorta")
     metta.declare_annotations("&ap-v", "ranked")
     metta.declare_annotations("&ap-v", "prob")
-    rows = metta.space("&petta").query(parse("(annotations &ap-v $s)"))
+    rows = metta._at("&petta").query(parse("(annotations &ap-v $s)"))
     assert [str(row.s) for row in rows] == ["prob"]
 
 
@@ -433,7 +433,7 @@ def test_declare_emits_validates(metta):  # noqa: D103  -- pytest discovers or i
     with pytest.raises(ValueError, match="best-first"):
         metta.declare_emits("&ap-v", "fastest")
     metta.declare_emits("&ap-v", "best-first")
-    rows = metta.space("&petta").query(parse("(emits &ap-v $p)"))
+    rows = metta._at("&petta").query(parse("(emits &ap-v $p)"))
     assert [str(row.p) for row in rows] == ["best-first"]
 
 
@@ -455,10 +455,10 @@ def test_the_residue_honesty_differential_over_the_pattern_family(metta):
             for atom in stored:
                 yield Answer(
                     value=atom,
-                    residue=Expr([Sym(">"), atom.children[2], Gnd(3)]),
+                    residue=Expression([Symbol(">"), atom.children[2], Grounded(3)]),
                 )
 
-    metta.register_space(_Conditional(), "&ap-diff")
+    metta._register_space(_Conditional(), "&ap-diff")
     checked = 0
     for base in stored:
         for pattern in _claim_patterns(base):
@@ -490,13 +490,13 @@ class _FlakyProvider(SpaceProvider):
 
 
 def test_the_undeclared_floor_aborts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-abort")
+    metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-abort")
     with pytest.raises(EngineError, match="fell over"):
         metta.run("!(collapse (match &oe-abort (edge $x $y) $y))")
 
 
 def test_keep_delivers_the_failure_as_an_answer(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-keep")
+    metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-keep")
     metta.declare_on_error("&oe-keep", "(edge $x $y)", "keep")
     out = metta.run("!(collapse (match &oe-keep (edge $x $y) $y))")
     answers = out[0][0].children
@@ -508,14 +508,14 @@ def test_keep_delivers_the_failure_as_an_answer(metta):  # noqa: D103  -- pytest
 
 
 def test_empty_ends_the_stream_by_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-empty")
+    metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-empty")
     metta.declare_on_error("&oe-empty", "(edge $x $y)", "empty")
     out = metta.run("!(collapse (match &oe-empty (edge $x $y) $y))")
     assert str(out[0][0]) == "(b)"
 
 
 def test_the_mode_routes_by_shape_most_specific_first(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_FlakyProvider(ValueError("fell over")), "&oe-shape")
+    metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-shape")
     metta.declare_on_error("&oe-shape", "(edge $x $y)", "keep")
     metta.declare_on_error("&oe-shape", "(edge a $y)", "empty")
     # The narrower shape empties; the general one keeps.
@@ -526,7 +526,7 @@ def test_the_mode_routes_by_shape_most_specific_first(metta):  # noqa: D103  -- 
 
 
 def test_a_transport_failure_always_aborts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_FlakyProvider(OSError("router gone")), "&oe-transport")
+    metta._register_space(_FlakyProvider(OSError("router gone")), "&oe-transport")
     metta.declare_on_error("&oe-transport", "(edge $x $y)", "keep")
     # The original TransportFailure re-arrives as itself, so the
     # trichotomy is testable by class rather than by transcript text.
@@ -541,7 +541,7 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):  # noqa: D103  -- pyt
             raise ValueError(msg)
         return x // 2
 
-    metta.register_op(half, name="oe-half")
+    metta.op(half, name="oe-half")
     metta.declare_on_error("oe-half", "(oe-half $x)", "keep")
     out = metta.run("!(collapse (oe-half 8))")
     assert str(out[0][0]) == "(4)"
@@ -556,7 +556,7 @@ def test_an_op_empty_answers_nothing(metta):  # noqa: D103  -- pytest discovers 
         msg = "always broken"
         raise RuntimeError(msg)
 
-    metta.register_op(quarter, name="oe-quarter")
+    metta.op(quarter, name="oe-quarter")
     metta.declare_on_error("oe-quarter", "(oe-quarter $x)", "empty")
     out = metta.run("!(collapse (oe-quarter 8))")
     assert str(out[0][0]) == "()"
@@ -574,7 +574,7 @@ def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- p
         msg = "stream died"
         raise ValueError(msg)
 
-    metta.register_op(counting, name="oe-gen")
+    metta.op(counting, name="oe-gen")
     metta.declare_on_error("oe-gen", "(oe-gen $x)", "keep")
     out = metta.run("!(collapse (oe-gen 0))")
     answers = out[0][0].children
@@ -616,7 +616,7 @@ class _TxStore(SpaceProvider):
 
 def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-un")
+    metta._register_space(store, "&tx-un")
     with pytest.raises(EngineError, match="declares nothing about its"):
         metta.run("!(transaction (add-atom &tx-un (edge a b)))")
     assert store.rows == []
@@ -624,7 +624,7 @@ def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):  # noqa: D
 
 def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-be")
+    metta._register_space(store, "&tx-be")
     metta.declare_writes("&tx-be", "best-effort")
     metta.run(
         "!(transaction (let $t (add-atom &tx-be (edge a b))"
@@ -637,7 +637,7 @@ def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest
 
 def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-ok")
+    metta._register_space(store, "&tx-ok")
     metta.declare_writes("&tx-ok", "transactional")
     metta.run("!(add-atom &self (tx-native base))")
     metta.run(
@@ -652,7 +652,7 @@ def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103 
 
 def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-rb")
+    metta._register_space(store, "&tx-rb")
     metta.declare_writes("&tx-rb", "transactional")
     metta.run(
         "!(transaction (let $t1 (add-atom &tx-rb (edge a b))"
@@ -667,7 +667,7 @@ def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- p
 
 def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-throw")
+    metta._register_space(store, "&tx-throw")
     metta.declare_writes("&tx-throw", "transactional")
     with pytest.raises(EngineError):
         metta.run(
@@ -680,7 +680,7 @@ def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -
 
 def test_atomic_single_refuses_transactional_writes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
-    metta.register_space(store, "&tx-as")
+    metta._register_space(store, "&tx-as")
     metta.declare_writes("&tx-as", "atomic-single")
     with pytest.raises(EngineError, match="atomic-single"):
         metta.run("!(transaction (add-atom &tx-as (edge a b)))")
@@ -700,7 +700,7 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa
         def add(self, atom):
             self.rows.append(atom)
 
-    metta.register_space(_Plain(), "&tx-nm")
+    metta._register_space(_Plain(), "&tx-nm")
     metta.declare_writes("&tx-nm", "transactional")
     with pytest.raises(PettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
@@ -726,15 +726,15 @@ class _NamedRows(SpaceProvider):
 
 
 def test_the_undeclared_multi_context_merge_is_depth(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(row a1)", "(row a2)"]), "&mg-a")
-    metta.register_space(_NamedRows(["(row b1)", "(row b2)"]), "&mg-b")
+    metta._register_space(_NamedRows(["(row a1)", "(row a2)"]), "&mg-a")
+    metta._register_space(_NamedRows(["(row b1)", "(row b2)"]), "&mg-b")
     out = metta.run("!(collapse (match (superpose (&mg-a &mg-b)) (row $x) $x))")
     assert str(out[0][0]) == "(a1 a2 b1 b2)"
 
 
 def test_a_declared_fair_merge_interleaves(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(frow a1)", "(frow a2)", "(frow a3)"]), "&mg-fa")
-    metta.register_space(_NamedRows(["(frow b1)", "(frow b2)"]), "&mg-fb")
+    metta._register_space(_NamedRows(["(frow a1)", "(frow a2)", "(frow a3)"]), "&mg-fa")
+    metta._register_space(_NamedRows(["(frow b1)", "(frow b2)"]), "&mg-fb")
     metta.declare_merge("(frow $x)", "fair")
     out = metta.run("!(collapse (match (superpose (&mg-fa &mg-fb)) (frow $x) $x))")
     assert str(out[0][0]) == "(a1 b1 a2 b2 a3)"
@@ -752,8 +752,8 @@ def test_a_best_first_merge_orders_across_contexts(metta):  # noqa: D103  -- pyt
             for name, k in self.rows:
                 yield Answer(value=parse(f"(srow {name})"), k=k)
 
-    metta.register_space(_Scored([("a1", 0.9), ("a2", 0.4)]), "&mg-sa")
-    metta.register_space(_Scored([("b1", 0.7), ("b2", 0.1)]), "&mg-sb")
+    metta._register_space(_Scored([("a1", 0.9), ("a2", 0.4)]), "&mg-sa")
+    metta._register_space(_Scored([("b1", 0.7), ("b2", 0.1)]), "&mg-sb")
     metta.declare_annotations("&mg-sa", "ranked")
     metta.declare_annotations("&mg-sb", "ranked")
     metta.declare_merge("(srow $x)", "best-first")
@@ -767,8 +767,8 @@ def test_a_best_first_merge_orders_across_contexts(metta):  # noqa: D103  -- pyt
 
 
 def test_the_merge_routes_by_shape(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(rrow a1)", "(rrow a2)"]), "&mg-ra")
-    metta.register_space(_NamedRows(["(rrow b1)", "(rrow b2)"]), "&mg-rb")
+    metta._register_space(_NamedRows(["(rrow a1)", "(rrow a2)"]), "&mg-ra")
+    metta._register_space(_NamedRows(["(rrow b1)", "(rrow b2)"]), "&mg-rb")
     metta.declare_merge("(rrow $x)", "fair")
     metta.declare_merge("(rrow a1)", "depth")
     # The narrower shape keeps depth; the general one interleaves.
@@ -912,9 +912,9 @@ def test_a_replayed_provider_registers_like_any_other(metta):  # noqa: D103  -- 
             return iter([parse("(tick 1)"), parse("(tick 2)")])
 
     recording, replay = testing.record_replay(_Feed())
-    metta.register_space(recording, "&rp-live")
+    metta._register_space(recording, "&rp-live")
     live = metta.run("!(collapse (get-atoms &rp-live))")
-    metta.register_space(replay(), "&rp-replay")
+    metta._register_space(replay(), "&rp-replay")
     replayed = metta.run("!(collapse (get-atoms &rp-replay))")
     assert str(replayed[0][0]) == str(live[0][0])
 
@@ -923,7 +923,7 @@ def test_a_replayed_provider_registers_like_any_other(metta):  # noqa: D103  -- 
 
 
 def test_negation_refuses_an_undeclared_foreign_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(fact a)"]), "&cw-open")
+    metta._register_space(_NamedRows(["(fact a)"]), "&cw-open")
     metta.run("(= (cw-ohas $x) (match &cw-open (fact $x) True))")
     # Positive queries are untouched, the floor.
     out = metta.run("!(collapse (match &cw-open (fact $x) $x))")
@@ -933,7 +933,7 @@ def test_negation_refuses_an_undeclared_foreign_world(metta):  # noqa: D103  -- 
 
 
 def test_negation_runs_over_a_declared_closed_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(fact a)"]), "&cw-closed")
+    metta._register_space(_NamedRows(["(fact a)"]), "&cw-closed")
     metta.declare_context("&cw-closed", "closed-world")
     metta.run("(= (cw-chas $x) (match &cw-closed (fact $x) True))")
     absent = metta.run("!(not-provable (cw-chas b))")
@@ -971,7 +971,7 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):  # noqa: D103
             yield from self.rows[: limit if limit is not None else None]
 
     provider = _Rec()
-    metta.register_space(provider, "&ex-s")
+    metta._register_space(provider, "&ex-s")
     metta.declare_handles("&ex-s", "(erow $x)", "Exact")
     metta.declare_source("&ex-s", "repeated")
     metta.declare_context("&ex-s", "closed-world")
@@ -989,7 +989,7 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):  # noqa: D103
 
 
 def test_explain_says_none_where_nothing_routes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(frow a)"]), "&ex-floor")
+    metta._register_space(_NamedRows(["(frow a)"]), "&ex-floor")
     out = metta.run("!(explain (match &ex-floor (frow $x) $x))")
     explained = {str(item.children[0]): item for item in out[0][0].children}
     assert str(explained["handles"].children[1]) == "none"
@@ -1001,7 +1001,7 @@ def test_explain_covers_operations(metta):  # noqa: D103  -- pytest discovers or
     def ex_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="x", k=1.0)
 
-    metta.register_op(ex_lex, name="ex-lex")
+    metta.op(ex_lex, name="ex-lex")
     metta.declare_annotations("ex-lex", "ranked")
     out = metta.run('!(explain (ex-lex "q" $c))')
     explained = {str(item.children[0]): item for item in out[0][0].children}
@@ -1026,7 +1026,7 @@ def test_prov_annotations_carry_source_terms(metta):  # noqa: D103  -- pytest di
             yield Answer(value=parse("(fact rain)"), k=parse("(src weather-db)"))
             yield Answer(value=parse("(fact wet)"), k=parse("(src rules)"))
 
-    metta.register_space(_Sourced(), "&pv-s")
+    metta._register_space(_Sourced(), "&pv-s")
     metta.declare_annotations("&pv-s", "prov")
     out = metta.run(
         "!(collapse (let $r (match &pv-s (fact $x) $x) (pair $r (annotation))))"
@@ -1054,7 +1054,7 @@ def test_a_join_multiplies_provenance(metta):  # noqa: D103  -- pytest discovers
             else:
                 yield Answer(value=parse("(link b c)"), k=parse("(src l1)"))
 
-    metta.register_space(_Twice(), "&pv-j")
+    metta._register_space(_Twice(), "&pv-j")
     metta.declare_annotations("&pv-j", "prov")
     out = metta.run(
         "!(collapse (let $p (match &pv-j (, (edge $x $y) (link $y $z)) (path $x $z))"
@@ -1067,7 +1067,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
     def pv_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="hit", k=0.75)
 
-    metta.register_op(pv_lex, name="pv-lex")
+    metta.op(pv_lex, name="pv-lex")
     metta.declare_annotations("pv-lex", "ranked")
     out = metta.run(
         '!(collapse (let $r (pv-lex "q" $c) (pair $r (annotation))))'
@@ -1076,7 +1076,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
 
 
 def test_top_still_refuses_the_unordered_prov(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.register_space(_NamedRows(["(prow a)"]), "&pv-t")
+    metta._register_space(_NamedRows(["(prow a)"]), "&pv-t")
     metta.declare_annotations("&pv-t", "prov")
     with pytest.raises(EngineError, match="no order"):
         metta.run("!(collapse (top 1 (match &pv-t (prow $x) $x)))")
@@ -1110,15 +1110,15 @@ def test_hyperpose_is_parallel_under_the_languages_name(metta):  # noqa: D103  -
 
 def test_fn_decodes_exactly_as_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-seven) 7)")
-    assert metta.one("(ic-seven)") == 7
+    assert metta._one("(ic-seven)") == 7
     assert metta.fn("ic-seven")() == 7
-    assert type(metta.fn("ic-seven")()) is type(metta.one("(ic-seven)"))
+    assert type(metta.fn("ic-seven")()) is type(metta._one("(ic-seven)"))
 
 
 def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-many) (superpose (1 2 3)))")
     # first(): the first answer decoded, or None.
-    assert metta.first("(ic-many)") == 1
+    assert metta._first("(ic-many)") == 1
     assert metta.fn("ic-many").first() == 1
     rows = metta.query(parse("(ic-no-such-fact $x)"))
     assert rows.first() is None

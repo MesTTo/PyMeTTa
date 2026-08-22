@@ -7,14 +7,14 @@ Guarantees:
   - inspect.getdoc supplies one cleaned description, or no atom when the
     source has no documentation [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - compiled definitions use the same portable atom and cleaned text [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an Args section becomes one (@param ...) per PARAMETER OF THE SIGNATURE, in
     signature order, and a Returns section becomes (@return ...), which is the
     engine's own shape [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: a docstring documents a parameter the signature does not have. The
   signature decides the list and its order, so the stray entry is dropped
   rather than shifting every later parameter's description onto the wrong one.
@@ -30,7 +30,7 @@ import inspect
 import re
 from typing import Any
 
-from .atoms import Expr, S, expr
+from .atoms import Expression, S, _expr
 
 __all__ = ["documentation_atom"]
 
@@ -102,13 +102,13 @@ def _paragraph(text: str) -> str:
     return " ".join(inspect.cleandoc(text).split())
 
 
-def documentation_atom(name: str, source: object) -> Expr | None:
+def documentation_atom(name: str, source: object) -> Expression | None:
     """Return the source's docstring as the engine's own @doc vocabulary."""
     documentation = inspect.getdoc(source)
     if not documentation:
         return None
     summary, sections = _sections(documentation)
-    fields: list[Any] = [expr(S["@desc"], summary or documentation)]
+    fields: list[Any] = [_expr(S["@desc"], summary or documentation)]
 
     described = {}
     for heading in _ARGUMENT_SECTIONS:
@@ -121,15 +121,15 @@ def documentation_atom(name: str, source: object) -> Expr | None:
         # nth argument, so a docstring that names a parameter the function does
         # not take must not shift the rest.
         ordered = [
-            expr(S["@param"], described.get(parameter, ""))
+            _expr(S["@param"], described.get(parameter, ""))
             for parameter in _parameter_names(source)
         ]
         if ordered:
-            fields.append(expr(S["@params"], expr(*ordered)))
+            fields.append(_expr(S["@params"], _expr(*ordered)))
 
     for heading in _RETURN_SECTIONS:
         if heading in sections:
-            fields.append(expr(S["@return"], _paragraph(sections[heading])))
+            fields.append(_expr(S["@return"], _paragraph(sections[heading])))
             break
 
-    return expr(S["@doc"], S[name], *fields)
+    return _expr(S["@doc"], S[name], *fields)

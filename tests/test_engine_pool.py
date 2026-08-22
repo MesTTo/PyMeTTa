@@ -35,7 +35,7 @@ st = hypothesis.strategies
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space()
+    return metta._new_space()
 
 
 @pytest.fixture()
@@ -52,7 +52,7 @@ def test_each_worker_holds_a_distinct_engine(p):
     """The whole design rests on per-worker engines, so assert the engine ids
     differ rather than inferring it from a timing win.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    # petta.bridge is subscribe.bridge(source, pattern, target); the janus
+    # petta.subscribe.bridge is the space-to-space bridge; the Janus
     # bridge is the one in _engine.
     from petta._engine import bridge
 
@@ -100,10 +100,10 @@ def test_pool_agrees_with_the_home_engine(m, p):
     m.add(S.pool_kind(S.rock, S.mineral))
 
     cases = {
-        "value": lambda: m.one("(pool-double 21)"),
-        "arith": lambda: m.one("(+ 1 (* 2 3))"),
+        "value": lambda: m._one("(pool-double 21)"),
+        "arith": lambda: m._one("(+ 1 (* 2 3))"),
         "query": lambda: sorted(str(r) for r in m.query(S.pool_kind(V.x, V.k))),
-        "count": lambda: m.count(),
+        "count": lambda: len(m),
         "eval": lambda: sorted(str(a) for a in m.eval("(superpose (1 2 3))")),
     }
     home = {name: run() for name, run in cases.items()}
@@ -115,10 +115,10 @@ def test_pool_agrees_with_the_home_engine(m, p):
 @given(st.lists(st.integers(min_value=-500, max_value=500), min_size=1, max_size=12))
 def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values):
     """Property: whatever the home engine answers, a worker answers too."""
-    space = metta.new_space()
-    home = [space.one(f"(* {v} 3)") for v in values]
+    space = metta._new_space()
+    home = [space._one(f"(* {v} 3)") for v in values]
     with pool(workers=3) as engine_pool:
-        worker = engine_pool.map(lambda v: space.one(f"(* {v} 3)"), values)
+        worker = engine_pool.map(lambda v: space._one(f"(* {v} 3)"), values)
     assert worker == home
 
 
@@ -133,7 +133,7 @@ def test_a_worker_sees_what_the_home_engine_compiled(m, p):
     inherits them; only global-variable state is per-engine.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("(= (pool-later $x) (+ $x 100))")
-    assert p.map(lambda n: m.one(f"(pool-later {n})"), [1, 2]) == [101, 102]
+    assert p.map(lambda n: m._one(f"(pool-later {n})"), [1, 2]) == [101, 102]
 
 
 def test_pool_composes_with_in_engine_parallel(m, p):
@@ -169,7 +169,7 @@ def test_map_answers_in_input_order(p):
 
 
 def test_starmap_spreads_the_arguments(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert p.starmap(lambda a, b: m.one(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
+    assert p.starmap(lambda a, b: m._one(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
 
 
 def test_imap_unordered_yields_every_result(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -238,7 +238,7 @@ def test_the_context_manager_closes_on_an_exception():  # noqa: D103  -- pytest 
 def test_metta_pool_is_the_same_pool(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with m.pool(workers=2) as engine_pool:
         assert isinstance(engine_pool, EnginePool)
-        assert engine_pool.map(lambda n: m.one(f"(+ {n} 1)"), [1, 2]) == [2, 3]
+        assert engine_pool.map(lambda n: m._one(f"(+ {n} 1)"), [1, 2]) == [2, 3]
 
 
 def test_several_failures_raise_together_one_raises_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

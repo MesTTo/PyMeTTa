@@ -11,11 +11,14 @@ Assumes:
 Guarantees:
   - the checked-in pages equal what this produces, gated on every run
     [tested test_the_reference_pages_are_up_to_date]
+  - prose continuations indented beneath a list item still escape HTML-shaped
+    words, while true indented code blocks remain literal
+    [tested: test_an_indented_prose_continuation_escapes_tags; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - only public module-level classes and functions, and public methods of
     those classes, are documented, which is the set the pages already carried
     [source: bindings/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
-    commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing
@@ -41,14 +44,23 @@ LINE_LENGTH = 100
 
 def quote(text: str) -> str:
     """A docstring as a markdown blockquote, keeping its own line breaks."""
-    lines = [escape_tags(line.rstrip()) for line in text.strip().splitlines()]
+    lines = []
+    in_indented_code = False
+    previous_blank = False
+    for raw_line in text.strip().splitlines():
+        line = raw_line.rstrip()
+        indented = line.startswith("    ")
+        is_code = indented and (previous_blank or in_indented_code)
+        lines.append(escape_tags(line, preserve_indented_code=is_code))
+        in_indented_code = is_code
+        previous_blank = not line
     return "\n".join(f"> {line}".rstrip() for line in lines)
 
 
 CODE_SPAN = re.compile(r"(`+[^`]*`+)")
 
 
-def escape_tags(line: str) -> str:
+def escape_tags(line: str, *, preserve_indented_code: bool = True) -> str:
     """`<` in PROSE, so a docstring is not read as HTML.
 
     CommonMark parses `<obj>` as a raw HTML tag and the browser renders an
@@ -60,7 +72,7 @@ def escape_tags(line: str) -> str:
     cannot open a tag; markdown-it escapes both code spans and indented code
     blocks by itself, so escaping those too would display the escape.
     """
-    if line.startswith("    "):
+    if preserve_indented_code and line.startswith("    "):
         return line
     return "".join(
         part if index % 2 else part.replace("<", "&lt;")

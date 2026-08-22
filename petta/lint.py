@@ -1,9 +1,7 @@
 """Purpose: expose diagnostics for declarations, equations, and calls.
 Guarantees:
-  - lint() refuses spaces that cannot enumerate their contents [tested
-    test_das_space_refuses_unsupported_composed_operations_at_entry]
-  - public Finding records retain the petta.lint pickle identity [tested
-    test_finding_retains_public_pickle_identity]
+  - public Finding records retain the petta.lint pickle identity [tested:
+    test_finding_retains_public_pickle_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,13 +11,14 @@ Open Obligations:
 from __future__ import annotations
 
 import dataclasses
+import importlib as _importlib
 import os
 import pathlib
 
 from ._lint_analysis import analyze
 from ._lint_model import EngineRegistry, Finding
 from ._source_forms import positioned_forms
-from .atoms import alpha_eq, parse
+from .atoms import _alpha_eq, parse
 from .foreign import require_capability
 
 __all__ = ["Finding", "lint", "lint_file"]
@@ -34,7 +33,7 @@ def lint(space) -> list[Finding]:
     class; rows.why() explains one empty answer, and the guide's
     observability page maps the family.
     """
-    require_capability(space.space_name, "enumerate", "lint")
+    require_capability(space.name, "enumerate", "lint")
     return analyze(space, space.atoms(), EngineRegistry(space.runtime))
 
 
@@ -49,8 +48,6 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
     finding about an atom no single form wrote, or one a form computed,
     stays unanchored rather than guessed.
     """
-    from .space import MeTTa  # noqa: PLC0415  space.py imports lint at top; the cycle breaks here
-
     source = os.fspath(path)
     text = pathlib.Path(source).read_text(encoding="utf-8")
     anchors = [
@@ -58,8 +55,12 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
         for form in positioned_forms(text)
         if form.kind != "runnable"
     ]
-    engine = MeTTa() if m is None else m
-    with engine.new_space() as scratch:
+    engine = (
+        _importlib.import_module(f"{__package__}._space").Space()
+        if m is None
+        else m
+    )
+    with engine._new_space() as scratch:
         scratch.load(source)
         found = lint(scratch)
     anchored = []
@@ -68,7 +69,7 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
             (
                 (line, column)
                 for atom, line, column in anchors
-                if alpha_eq(atom, finding.atom)
+                if _alpha_eq(atom, finding.atom)
             ),
             None,
         )

@@ -9,9 +9,9 @@ classes below are the whole translation; the solve side is the query
 surface the space already has.
 Guarantees:
   - grounding scopes each template run atomically without a call-shape flag
-    [tested: test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    [tested: test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - reachability is a relation whose absent horizons fail instead of returning
-    residual calls [tested: integration/multishot_solving; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    residual calls [tested: integration/multishot_solving; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,7 +20,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V
+from petta import MeTTa, S, V, tables
 
 
 class External:
@@ -81,11 +81,11 @@ class Part:
         self.grounded.add(args)
 
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 m.run("!(add-atom &petta (dispatch-policy reach NoMatchEnum NoMatchFail))")
 
 # The base part: a graph as tabular facts, and step zero of reachability.
-m.add_table("edge", [(S.a, S.b), (S.b, S.c), (S.c, S.d)])
+tables.add(m, "edge", [(S.a, S.b), (S.b, S.c), (S.c, S.d)])
 m.run("(= (reach a 0) True)")
 
 # The step part, clingo's #program step(t): reach $x at t if some edge

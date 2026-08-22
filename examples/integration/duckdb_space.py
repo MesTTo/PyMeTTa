@@ -24,14 +24,15 @@ try:
 except ImportError:
     skip("duckdb is not installed")
 
-from petta import MeTTa, S, V, expr
-from petta.atoms import Atom, Expr, Gnd, Sym, Var, decode
+from petta import MeTTa, S, V, Expression
+from petta import wire
+from petta.atoms import Atom, Expression, Grounded, Symbol, Variable
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider
 
 # SQL NULL as an atom: the symbol NULL, SQL's own name for it. A string
 # "NULL" stays a string; only the symbol means the absent value.
-NULL = Sym("NULL")
+NULL = Symbol("NULL")
 
 
 def _identifier(name: str) -> str:
@@ -46,15 +47,15 @@ def _to_atom_value(value: Any) -> Atom:
     if value is None:
         return NULL
     if isinstance(value, (bool, int, float, str)):
-        return Gnd(value)
-    return Gnd(str(value))
+        return Grounded(value)
+    return Grounded(str(value))
 
 
 def _to_sql_value(atom: Atom) -> Any:
     """One pattern or row position as a SQL parameter; None for NULL."""
-    if isinstance(atom, Sym):
+    if isinstance(atom, Symbol):
         return None if atom == NULL else atom.name
-    return decode(atom)
+    return wire.decode(atom)
 
 
 class DuckDBSpace(SpaceProvider):
@@ -96,7 +97,7 @@ class DuckDBSpace(SpaceProvider):
     # ---------------------------------------------------------------- matching
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
-        if not (isinstance(pattern, Expr) and pattern.children and isinstance(pattern.head, Sym)):
+        if not (isinstance(pattern, Expression) and pattern.children and isinstance(pattern.head, Symbol)):
             # A shapeless pattern falls back to full enumeration; the engine
             # unifies, so this stays correct.
             yield from self.atoms()
@@ -109,7 +110,7 @@ class DuckDBSpace(SpaceProvider):
             return
         where, parameters = [], []
         for column, arg in zip(columns, pattern.args, strict=True):
-            if isinstance(arg, Gnd) or (isinstance(arg, Sym) and arg == NULL):
+            if isinstance(arg, Grounded) or (isinstance(arg, Symbol) and arg == NULL):
                 # A ground position states its value; IS NOT DISTINCT FROM
                 # is SQL equality that also finds NULL when NULL is asked.
                 where.append(f"{_identifier(column)} IS NOT DISTINCT FROM ?")
@@ -121,7 +122,7 @@ class DuckDBSpace(SpaceProvider):
         if where:
             sql += " where " + " and ".join(where)
         for row in self._conn.execute(sql, parameters).fetchall():
-            yield Expr([Sym(table), *(_to_atom_value(v) for v in row)])
+            yield Expression([Symbol(table), *(_to_atom_value(v) for v in row)])
 
     def pushdown(self, pattern: Atom) -> str:
         """Exact when the WHERE clause covers everything the pattern constrains.
@@ -138,9 +139,9 @@ class DuckDBSpace(SpaceProvider):
         otherwise loses answers, which is what check_space_provider catches.
         """
         if not (
-            isinstance(pattern, Expr)
+            isinstance(pattern, Expression)
             and pattern.children
-            and isinstance(pattern.head, Sym)
+            and isinstance(pattern.head, Symbol)
         ):
             return "inexact"
         table = pattern.head.name
@@ -151,9 +152,9 @@ class DuckDBSpace(SpaceProvider):
         unfiltered = (
             arg
             for arg in pattern.args
-            if not isinstance(arg, Gnd)
-            and not (isinstance(arg, Sym) and arg == NULL)
-            and not isinstance(arg, Var)
+            if not isinstance(arg, Grounded)
+            and not (isinstance(arg, Symbol) and arg == NULL)
+            and not isinstance(arg, Variable)
         )
         return "inexact" if next(unfiltered, None) is not None else "exact"
 
@@ -162,7 +163,7 @@ class DuckDBSpace(SpaceProvider):
             for row in self._conn.execute(
                 f"select * from {_identifier(table)}"
             ).fetchall():
-                yield Expr([Sym(table), *(_to_atom_value(v) for v in row)])
+                yield Expression([Symbol(table), *(_to_atom_value(v) for v in row)])
 
     # ------------------------------------------------------------------ writes
 
@@ -206,7 +207,7 @@ class DuckDBSpace(SpaceProvider):
             self._conn.close()
 
     def _row_of(self, atom: Atom, verb: str) -> tuple[str, list[Any]]:
-        if not (isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)):
+        if not (isinstance(atom, Expression) and atom.children and isinstance(atom.head, Symbol)):
             raise PettaError(f"cannot {verb} {atom}: a row is (table values...)")
         table = atom.head.name
         columns = self.columns(table)
@@ -216,7 +217,7 @@ class DuckDBSpace(SpaceProvider):
             )
         values = []
         for arg in atom.args:
-            if isinstance(arg, (Gnd, Sym)):
+            if isinstance(arg, (Grounded, Symbol)):
                 values.append(_to_sql_value(arg))
             else:
                 raise PettaError(f"cannot {verb} {atom}: {arg} is not a value")
@@ -233,7 +234,7 @@ def attach(m, name: str, database: Any = ":memory:", tables: list[str] | None = 
     else:
         provider = DuckDBSpace(duckdb.connect(database), tables)
         provider._owns_connection = True
-    m.register_space(provider, name)
+    m._register_space(provider, name)
     return provider
 
 
@@ -242,7 +243,7 @@ def demo() -> None:
     IMPORTED. A module that connects and queries at import time cannot be
     pointed at by a test, and petta.testing.SpaceComplianceSuite is pointed at
     DuckDBSpace in bindings/python/tests/test_compliance_duckdb.py."""
-    m = MeTTa().new_space()
+    m = MeTTa().space()
     conn = duckdb.connect(":memory:")
     conn.execute("create table users (id integer, name text)")
     conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")
@@ -251,7 +252,7 @@ def demo() -> None:
     provider = attach(m, "&crm", conn)
 
     check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
-          [[expr("Ada", "Bob", "Cy")]])
+          [[Expression("Ada", "Bob", "Cy")]])
     check("pushdown filter", m.run("!(match &crm (users 2 $n) $n)"), [["Bob"]])
 
     # The filter genuinely ran in SQL: a spy connection sees the WHERE clause.
@@ -273,7 +274,7 @@ def demo() -> None:
 
     # Provider-level match answers atoms directly.
     check("provider-level match", list(provider.match(S.users(2, V.n))),
-          [expr(S.users, 2, "Bob")])
+          [Expression(S.users, 2, "Bob")])
 
     # One match joins SQL tables with each other and with native facts.
     m.run("(nickname 1 the-countess)")
@@ -281,7 +282,7 @@ def demo() -> None:
         "!(collapse (match &crm (, (vips $id) (users $id $n)) "
         "(match (context-space) (nickname $id $nick) ($n $nick))))"
     )
-    check("SQL joined with native facts", group, [expr(expr("Ada", S["the-countess"]))])
+    check("SQL joined with native facts", group, [Expression(Expression("Ada", S["the-countess"]))])
 
     # Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
     m.run('!(add-atom &crm (users 4 "Dee"))')
@@ -305,9 +306,9 @@ def demo() -> None:
           m.run('!(match &crm (logs "2026-08-13" $n) $n)'), [["shipped"]])
     provider.clear()
     check("clear empties, schema stays",
-          m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
+          m.run("!(collapse (match &crm (logs $d $n) x))"), [[Expression()]])
 
-    m.unregister_space("&crm")
+    m._unregister_space("&crm")
     done("duckdb_space")
 
 

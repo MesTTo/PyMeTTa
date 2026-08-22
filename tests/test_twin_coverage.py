@@ -101,8 +101,8 @@ def test_the_source_scan_catches_a_planted_string(tmp_path):
     findings = "\n".join(coverage.scan(planted))
     assert "calls run(), which takes MeTTa source" in findings
     assert "calls parse(), which takes MeTTa source" in findings
-    assert "'(+ 1 2)' is neither a name nor val() data" in findings
-    assert "'(f a)' is neither a name nor val() data" in findings
+    assert "'(+ 1 2)' is neither a name nor ground() data" in findings
+    assert "'(f a)' is neither a name nor ground() data" in findings
     # The docstring says (f a) too, and a docstring is documentation.
     assert findings.count("'(f a)'") == 2, findings
 
@@ -117,17 +117,17 @@ def test_the_source_scan_passes_the_shipped_twins():
 def test_a_name_and_marked_data_are_not_programs(tmp_path):
     """The four positions a string is allowed in, and nothing else.
 
-    `val()` is the whole escape: it says "this is a Python value carried
+    `ground()` is the whole escape: it says "this is a Python value carried
     whole", which is what a MeTTa string literal is.
     """
     allowed = tmp_path / "allowed.py"
     allowed.write_text(
         '"""Allowed."""\n'
-        "from petta import S, sym, val\n"
+        "from petta import S, Symbol, ground\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        '    yield m.eval(S["sread-command"](val("(f a)")))\n'
-        '    yield m.eval(sym("#>=")(1, 2))\n'
+        '    yield m.eval(S["sread-command"](ground("(f a)")))\n'
+        '    yield m.eval(Symbol("#>=")(1, 2))\n'
         '    yield m.eval(m.fn("xor")(True, False))\n'
         "    @m.define(name='math-string')\n"
         "    def math_string():\n"
@@ -380,16 +380,16 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "def twin(m):\n"
-        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n',
+        '    m += Expression(S["="], Expression(S["f"], V["x"]), 1)\n',
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
     joined = " ".join(coverage.idiom(planted))
     assert 'S["f"] is S.f' in joined
     assert 'V["x"] is V.x' in joined
-    assert "expr(...) builds what calling the head builds" in joined
+    assert "Expression(...) builds what calling the head builds" in joined
 
 
 def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_path):
@@ -435,9 +435,9 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
     planted = tmp_path / "head.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, val\n"
+        "from petta import S, ground\n"
         "def twin(m):\n"
-        "    assert m.eval(S.parse(val('(f a)'))) == []\n",
+        "    assert m.eval(S.parse(ground('(f a)'))) == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
@@ -460,10 +460,10 @@ def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     body = (
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "%s"
         "def twin(m):\n"
-        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n'
+        '    m += Expression(S["="], Expression(S["f"], V["x"]), 1)\n'
     )
     silent = tmp_path / "silent.py"
     silent.write_text(body % "", encoding="utf-8")
@@ -552,17 +552,17 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
 
 
 def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
-    """`expr(V.x)` builds ($x) and nothing shorter reaches it.
+    """`Expression(V.x)` builds ($x) and nothing shorter reaches it.
 
-    `Var` is not callable, so the expr() rule must fire on a SYMBOL head
+    `Variable` is not callable, so the Expression() rule must fire on a SYMBOL head
     only; firing on a variable would demand a spelling that does not exist.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "def twin(m):\n"
-        "    assert list(m.query(expr(V.x))) == []\n"
+        "    assert list(m.query(Expression(V.x))) == []\n"
         "    assert list(m.query(V.x)['x']) == []\n",
         encoding="utf-8",
     )

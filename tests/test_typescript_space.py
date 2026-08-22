@@ -81,7 +81,7 @@ def mettascript_server():  # noqa: D103  -- pytest discovers or injects this cal
 
 
 def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
         remote.attach(m, "&ts-basics", ts_server)
         m.run("!(add-atom &ts-basics (edge a b))")
@@ -92,7 +92,7 @@ def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- py
         (group,) = m.run("!(collapse (match &ts-basics (edge $x $y) ($x $y)))")
         assert [str(atom) for atom in group[0]] == ["(a c)"]
     finally:
-        m.unregister_space("&ts-basics")
+        m._unregister_space("&ts-basics")
         m.drop()
 
 
@@ -106,7 +106,7 @@ def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):  # no
 
 
 def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
         remote.attach(m, "&ts-threads", ts_server)
 
@@ -122,13 +122,13 @@ def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103 
             counts = list(pool.map(read, range(8)))
         assert all(count == 32 for count in counts)
     finally:
-        m.unregister_space("&ts-threads")
+        m._unregister_space("&ts-threads")
         m.drop()
 
 
 def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def drive() -> list:
-        m = petta.MeTTa().new_space()
+        m = petta.MeTTa().space()
         try:
             remote.attach(m, "&async-ts", ts_server)
             async with await aio.connect(metta=m) as engine:
@@ -140,7 +140,7 @@ def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- 
                 ]
                 return await asyncio.gather(*waits)
         finally:
-            m.unregister_space("&async-ts")
+            m._unregister_space("&async-ts")
             m.drop()
 
     answers = asyncio.run(drive())
@@ -164,7 +164,7 @@ def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):  # noqa: D103 
 
 
 def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
         remote.attach(m, "&ms", mettascript_server)
         m.run("!(add-atom &ms (edge a b))")
@@ -178,7 +178,7 @@ def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D1
         )
         assert any("over-approximation holds over" in line for line in report)
     finally:
-        m.unregister_space("&ms")
+        m._unregister_space("&ms")
         m.drop()
 
 
@@ -190,16 +190,16 @@ def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest dis
         operations.append(operation)
         return inner(operation, payload)
 
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
         remote.attach(m, "&ts-batch", counting)
-        m.space("&ts-batch").add(S.row(1), S.row(2), S.row(3))
+        m._at("&ts-batch").add(S.row(1), S.row(2), S.row(3))
         assert operations.count("add_many") == 1
         assert operations.count("add") == 0
         (group,) = m.run("!(collapse (match &ts-batch (row $n) $n))")
         assert sorted(str(atom) for atom in group[0]) == ["1", "2", "3"]
     finally:
-        m.unregister_space("&ts-batch")
+        m._unregister_space("&ts-batch")
         m.drop()
 
 

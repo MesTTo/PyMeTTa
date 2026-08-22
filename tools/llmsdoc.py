@@ -9,19 +9,19 @@ without being verified.
 
 Assumes:
   - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
-    so it can run without janus. Builtin names come from the running engine
-    and there is no static inventory exposed to this checker
-    [assumed: the supported builtin inventory is runtime-defined; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    so it can run without janus. Builtin names come from the running self-space
+    handle and there is no static inventory exposed to this checker
+    [assumed: the supported builtin inventory is runtime-defined; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a backticked token containing a slash and ending in a known extension is
     a path claim, and nothing else in the file is shaped that way
-    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every petta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, and the two modules it says
     are gone really are gone
-    [tested: GATE_ONLY=1 sh check.sh llms; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: GATE_ONLY=1 sh check.sh llms; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all failures are reported at once, not just the first
-    [source: bindings/python/tools/llmsdoc.py:check and main; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check
@@ -92,7 +92,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     sys.path.insert(0, str(ROOT / "bindings" / "python"))
     from petta import MeTTa
 
-    builtins = set(MeTTa().builtins())
+    builtins = set(MeTTa().self.builtins())
     special = set()
     for source in sorted((ROOT / "engine").glob("*.pl")):
         body = source.read_text()
@@ -194,13 +194,13 @@ def check() -> list[str]:
 
     sys.path.insert(0, str(ROOT / "bindings" / "python"))
     import petta
-    from petta import MeTTa
+    from petta import MeTTa, Space
 
     for name in sorted(set(METHOD.findall(text))):
         if name.endswith("_"):        # m.declare_*, a family rather than a method
             continue
-        if not hasattr(MeTTa, name):
-            bad.append(f"MeTTa has no method m.{name}")
+        if not hasattr(MeTTa, name) and not hasattr(Space, name):
+            bad.append(f"neither MeTTa nor Space has method m.{name}")
 
     gone = {"matching", "measure"}
     groups = {petta.integrate.ENTRY_POINT_GROUP, petta.integrate.SPACES_GROUP, petta.integrate.LIBRARIES_GROUP}
@@ -303,7 +303,7 @@ def check() -> list[str]:
     # list is the same rot this whole lane exists to catch.
     lazy = paragraph(parts["Apps, from source"], r"\w+ submodules")
     listed = {name for name in BACKTICK.findall(lazy) if name != "import petta"}
-    real = set(petta._LAZY_MODULES) | set(petta._LAZY_ATTRIBUTES)
+    real = set(petta._SATELLITES) | set(petta._LAZY_ATTRIBUTES)
     if listed != real - {"Boot"}:
         bad.append(f"lazy submodules differ: missing {sorted(real - {'Boot'} - listed)}, extra {sorted(listed - real)}")
     if not inspect.getsource(petta).count("def __getattr__"):

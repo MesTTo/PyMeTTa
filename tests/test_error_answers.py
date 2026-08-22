@@ -17,15 +17,8 @@ Open Obligations:
 
 import pytest
 
-from petta import (
-    EngineError,
-    MettaOperationError,
-    MettaResultError,
-    PettaError,
-    S,
-    V,
-    decode,
-)
+from petta import PettaError, S, V, wire
+from petta.errors import EngineError, MettaOperationError, MettaResultError
 from petta.foreign import SpaceProvider
 
 SAFE_DIV = (
@@ -36,7 +29,7 @@ SAFE_DIV = (
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = metta.new_space()
+    space = metta._new_space()
     space.run(SAFE_DIV)
     return space
 
@@ -60,12 +53,12 @@ def test_operation_error_operation_is_the_base_field():  # noqa: D103  -- pytest
 
 def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError) as failure:
-        m.one("(err-div 1 0)")
+        m._one("(err-div 1 0)")
     error = failure.value
     assert str(error.atom) == '(Error (err-div 1 0) "division by zero")'
     assert str(error.culprit) == "(err-div 1 0)"
-    assert decode(error.reason) == "division by zero"
-    assert error.space == m.space_name
+    assert wire.decode(error.reason) == "division by zero"
+    assert error.space == m.name
     # The call rides as a note, so the message stays one sentence.
     assert any("err-div" in note for note in error.__notes__)
     # It is the program's own error value, not an engine throw.
@@ -74,15 +67,15 @@ def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- 
 
 
 def test_one_still_answers_plain_values(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m.one("(err-div 8 2)") == 4
+    assert m._one("(err-div 8 2)") == 4
 
 
 def test_first_raises_on_an_error_first_answer_only(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError):
-        m.first("(err-div 1 0)")
+        m._first("(err-div 1 0)")
     # Tolerance covers absence and later members, not the returned answer.
-    assert m.first("(superpose (7 (Error x y)))") == 7
-    assert m.first("(empty)") is None
+    assert m._first("(superpose (7 (Error x y)))") == 7
+    assert m._first("(empty)") is None
 
 
 def test_aggregation_doors_keep_errors_as_data(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -153,9 +146,9 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noq
             return capability != "add"
 
     name = "&moody-fields"
-    metta.register_space(Moody(), name)
+    metta._register_space(Moody(), name)
     try:
-        space = metta.space(name)
+        space = metta._at(name)
         with pytest.raises(PettaError) as failure:
             space.add(S.fact(1))
         error = failure.value
@@ -168,7 +161,7 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noq
         )
         assert "declines this add request" in str(error)
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -176,7 +169,7 @@ def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest 
         msg = "nope"
         raise ValueError(msg)
 
-    metta.register_op(moodyop)
+    metta.op(moodyop)
     try:
         with pytest.raises(EngineError):
             metta.run("!(moodyop 1)")
@@ -193,7 +186,7 @@ def test_case_dual_refusal_names_the_unarrived_cases(metta):
     refusal, which names a true fact about case and the wrong reason for
     this equation.
     """
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run("(= (cdrf-key) 1)")
         space.run("(= (cdrf-handed $cs) (case (cdrf-key) $cs))")
         with pytest.raises(EngineError) as caught:

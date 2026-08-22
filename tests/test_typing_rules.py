@@ -4,15 +4,15 @@ Guarantees:
   - a user refusal overrides an overlapping shipped acceptance, names its rule
     and reason in the Error value, and removal restores the shipped behavior
     [tested: test_a_user_typing_rule_participates_like_a_shipped_one;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the analyzer reports user/user and user/shipped intersections involving
     refusal or defer as conditional obligations
     [tested: test_a_user_typing_rule_participates_like_a_shipped_one;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the shipped reporting family keeps Atom ordinary while the runtime family
     retains Atom's gradual wildcard behavior
     [tested: test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     planted for the analyzer: it is a guarded/conditional rule, not a negative
     unconditional confluence result.
     """
-    metta = MeTTa()
+    metta = MeTTa().self
     metta.run("(: p37-rule-target (-> P37Payload Atom))")
     metta.run("(= (p37-rule-target $value) (seen $value))")
 
@@ -143,7 +143,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
 
 
 def test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa()
+    metta = MeTTa().self
     metta.run("(: p37-r Type)")
     metta.run("(: p37-a Type)")
     metta.run("(: p37-value p37-a)")

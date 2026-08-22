@@ -6,7 +6,7 @@ Guarantees:
   - every valid callable declaration combination compiles the expected clause
     and invalid raw-Atom and immutable-raw-generator combinations are absent
     [tested: test_every_cube_point_compiles_the_expected_clause;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -114,9 +114,9 @@ def test_every_cube_point_compiles_the_expected_clause(cube):  # noqa: D103  -- 
             "declarations": declarations,
             "inverse": _inverse if inverse else None,
         }
-        cube.register_op(fn, name=name, **kwargs)
+        cube.op(fn, name=name, **kwargs)
         try:
-            verdict = cube.one(f'(cube_check "{name}" 1 "{kind}")')
+            verdict = cube._one(f'(cube_check "{name}" 1 "{kind}")')
             assert str(verdict) == "match", (name, kind, kwargs, str(verdict))
         finally:
             cube.unregister_op(name)
@@ -126,10 +126,10 @@ def test_multi_arity_compiles_every_declared_clause(cube):  # noqa: D103  -- pyt
     def spread(*args):
         return len(args)
 
-    cube.register_op(spread, name="cube-multi", arities=[1, 2, 3])
+    cube.op(spread, name="cube-multi", arities=[1, 2, 3])
     try:
         for arity in (1, 2, 3):
-            verdict = cube.one(f'(cube_check "cube-multi" {arity} "det")')
+            verdict = cube._one(f'(cube_check "cube-multi" {arity} "det")')
             assert str(verdict) == "match", (arity, str(verdict))
     finally:
         cube.unregister_op("cube-multi")
@@ -139,9 +139,9 @@ def test_the_lane_can_fail(cube):  # noqa: D103  -- pytest discovers or injects 
     # CalDar's law: a lane that cannot fail is a defect. The planted
     # mismatch compares a det registration against the many builder and
     # must NOT answer match.
-    cube.register_op(_plain_untyped, name="cube-planted")
+    cube.op(_plain_untyped, name="cube-planted")
     try:
-        verdict = cube.one('(cube_check "cube-planted" 1 "many")')
+        verdict = cube._one('(cube_check "cube-planted" 1 "many")')
         assert str(verdict) != "match"
         assert "mismatch" in str(verdict)
     finally:

@@ -52,9 +52,8 @@ def test_the_tree_partitions_by_seam():
     )
     assert "bindings/python/decider.pl" in deciders
 
-    # The legacy python.petta alias was removed deliberately (the user broke
-    # that compatibility); a reintroduced shim would be a partition change,
-    # which is this test's subject.
-    assert not (REPO / "python" / "__init__.py").exists(), (
-        "the removed legacy python.petta alias is back"
+    # Upstream's conftest imports python.petta, so this package-identity shim
+    # is the one retained compatibility boundary.
+    assert (REPO / "python" / "__init__.py").exists(), (
+        "the upstream python.petta entry point is missing"
     )

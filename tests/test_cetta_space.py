@@ -52,16 +52,16 @@ def cetta_space():  # noqa: D103  -- pytest discovers or injects this callable; 
 
 
 def test_metta_reaches_atoms_matched_by_cetta(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
-        m.register_space(cetta_space, "&cetta")
+        m._register_space(cetta_space, "&cetta")
         m.run("!(add-atom &cetta (edge a b))")
         m.run("!(add-atom &cetta (edge a c))")
         m.run("!(add-atom &cetta (edge b c))")
         (group,) = m.run("!(collapse (match &cetta (edge a $x) $x))")
         assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
     finally:
-        m.unregister_space("&cetta")
+        m._unregister_space("&cetta")
         m.drop()
 
 
@@ -105,10 +105,10 @@ def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
-    from petta import expr
-    from petta.atoms import Gnd
+    from petta import Expression
+    from petta.atoms import Grounded
 
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     try:
         module = _cetta_space_module()
         matcher = module.CettaMatch(
@@ -117,7 +117,7 @@ def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest
             m.parse,
             cetta=binary,
         )
-        rows = m.eval(expr(S.unify, Gnd(matcher), expr(S.sol, V.x), V.x, S.none))
+        rows = m.eval(Expression(S.unify, Grounded(matcher), Expression(S.sol, V.x), V.x, S.none))
         assert sorted(str(atom) for atom in rows) == ["-2", "2"]
     finally:
         m.drop()
