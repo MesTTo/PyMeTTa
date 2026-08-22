@@ -10,6 +10,7 @@ Open Obligations:
 
 import json
 import os
+import random
 import signal
 import subprocess
 import sys
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from petta.__main__ import _complete_form
+from petta.__main__ import _scan_line
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[1])
 
@@ -71,6 +72,69 @@ def test_complete_form_reads_strings_and_comments():  # noqa: D103  -- pytest di
     assert not _complete_form('(f ")')
     assert not _complete_form("(f ; )\n")
     assert _complete_form("plain-symbol")
+
+
+def _complete_form(text: str) -> bool:
+    """Fold the reader's line scan over a whole text.
+
+    The CLI never asks this of a whole buffer, which is the point: it carries
+    the pair from line to line so a form is read in time linear in its length.
+    Folding it here is how a test states the same question in one call.
+    """
+    depth = 0
+    in_string = False
+    for line in text.split("\n"):
+        depth, in_string = _scan_line(line, depth, in_string=in_string)
+        if depth < 0:
+            return True
+    return not in_string and depth <= 0
+
+
+def _engine_stops_reading(petta_module, text: str) -> bool:
+    """Whether the ENGINE considers this text bracket-finished.
+
+    command_wants_more/1 is the question both readers ask: could further input
+    still close what this opens. sread_command/2 asks a second one on top of it,
+    whether the text has any CONTENT at all, because a blank or comment-only
+    line should re-prompt rather than be submitted; the CLI asks that one in
+    _forms instead, so the comparison here is on the bracket question alone.
+
+    Nothing compound crosses the boundary: the goal answers an atom.
+    """
+    answer = petta_module.janus.query_once(
+        "atom_codes(T, Codes),"
+        " ( command_wants_more(Codes) -> Verdict = keep ; Verdict = stop )",
+        {"T": text},
+    )
+    return answer["Verdict"] == "stop"
+
+
+_READER_CORPUS = [
+    "(f a)", "(f", "(f))", '(f "a)b" ; c)\n)', '(f "a)b"', '(f ")',
+    "(f ; )\n", "; only a comment", '"', '"\\""', '(f "a\nb")',
+    '; ")"\n(f)', '(f ; "a)', '"a" ; ")"', "((()))", "(()",
+    # The case the regex got wrong: a backslash escaping a LINE BREAK inside a
+    # string. `\\.` in that pattern does not match a newline, so it read the
+    # string as unterminated and the CLI kept prompting for a close that had
+    # already happened, where the engine's escaped state takes any character
+    # including the break.
+    '"\\\n"', '(f "a\\\nb")',
+]
+
+
+def test_the_cli_reader_agrees_with_the_engine_on_when_to_stop(petta_instance, petta_module):  # noqa: ARG001, D103  -- pytest injects this fixture to boot the engine the goal runs in; pytest discovers or injects this callable; its descriptive name states the contract
+    for text in _READER_CORPUS:
+        assert _complete_form(text) is _engine_stops_reading(petta_module, text), repr(text)
+
+
+def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(petta_instance, petta_module):  # noqa: ARG001, D103  -- pytest injects this fixture to boot the engine the goal runs in; pytest discovers or injects this callable; its descriptive name states the contract
+    # Seeded rather than generated afresh, so a disagreement reproduces from the
+    # failure message alone.
+    generator = random.Random(20260823)
+    alphabet = ["(", ")", '"', ";", "\\", "a", " ", "\n"]
+    for _ in range(200):
+        text = "".join(generator.choice(alphabet) for _ in range(generator.randrange(12)))
+        assert _complete_form(text) is _engine_stops_reading(petta_module, text), repr(text)
 
 
 def test_lint_gates_on_findings(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
