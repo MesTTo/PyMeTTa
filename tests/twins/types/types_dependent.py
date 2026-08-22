@@ -1,94 +1,61 @@
-"""The Python twin of examples/types/types_dependent.metta: a computed type.
+"""examples/types/types_dependent.metta in Python: a type computed by a program.
 
-`get-type` is an ordinary function, so a program may add equations to it and
-give itself types no declaration states: an even number is an `EvenNumber`,
-and a list whose elements are all even is an `EvenNumberList`. The declared
-signatures of `f` and `g` then accept exactly those values, without the engine
-learning a new rule.
+`get-type` is an ordinary function, so a program may add equations to it, and
+these two compute a type from the VALUE: an even number is an `EvenNumber`, and
+an expression of them is an `EvenNumberList`. The declared parameter types of
+`f` and `g` then accept arguments nothing declared, because the computed
+answer is what the check reads.
 
-The two `get-type` extensions are written at the container door. `get-type` is
-hyphenated and a compiled body resolves a free name EXACTLY, so it cannot be
-reached from one (wave one recorded that against P14.4 for `fibsmart`); the
-second extension also matches a CONSTRUCTOR in its head, `(get-type (cons
-$head $tail))`, where a compiled head takes plain parameters. `=alpha` is not
-a Python identifier either, so no alias reaches it.
+Both extensions are written as equations because the head IS `get-type`: no
+decorator can name a function the space already answers, and stacking a clause
+onto one is the whole point here. `EvenNumber` and `EvenNumberList` are Python
+classes so that `f` and `g` say their signatures as annotations.
 
-`f` and `g` are computations and are written as ones. Their declarations stay
-atoms because `EvenNumber` and `EvenNumberList` are computed MeTTa refinement
-types, not sound Python annotations for the host functions. Annotation-derived
-declarations now publish before their equations; outputtype.py exercises that
-door directly.
+The comparison is `=alpha` and not `==` throughout, for the example's own
+reason: each comparison crosses KNOWN and different types, which `==` refuses
+by name, and `=alpha` is the comparison that takes anything.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V, equation, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 18937 to 20711, +1774, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 18937 by 47554fc's control/types twin baseline.
-BUDGET = 20711
+#: RE-PINNED 2026-08-22, 20711 to 19483, -1228 (-5.93%), by the twin-shape
+#: rewrite: the two `test` wrappers left the engine for `assert`; the
+#: computed-type walk over `(cons ...)` is unchanged and is nearly the whole
+#: cost. Against the example's 25435 the ratio is 0.7660 [measured 2026-08-22
+#: min-of-3: `twin_coverage.py --measure
+#: examples/types/types_dependent.metta`]. Prior: RE-PINNED at 20711 by
+#: P14.8's m.eval fuel-scope alignment.
+BUDGET = 19483
+
+
+class EvenNumber:
+    """The computed type of an even number, named for `f`'s signature."""
+
+
+class EvenNumberList:
+    """The computed type of an expression of even numbers."""
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    kind = S["get-type"]
+    """Teach get-type two new answers, then use them as declared types."""
     alpha = S["=alpha"]
 
-    # =alpha throughout, not ==: each comparison crosses KNOWN and different
-    # types, which == refuses by name.
-    # (= (get-type $x) (catch (if (=alpha (% $x 2) 0) EvenNumber)))
-    m += equation(kind(V.x)).to(S.catch(S["if"](alpha(V.x % 2, 0), S.EvenNumber)))
-
-    # (: f (-> EvenNumber EvenNumber EvenNumber))
-    m += S[":"](
-        S.f,
-        S["->"](S.EvenNumber, S.EvenNumber, S.EvenNumber),
-    )
+    even = S["if"](alpha(V.x % 2, 0), S.EvenNumber)  # rung: the body belongs to a clause OF get-type, so it is a term (P14.4)
+    m += equation(S["get-type"](V.x)).to(S.catch(even))  # rung: the head is the engine's own get-type, which the program extends (P14.4)
 
     @m.define
-    def f(x, y):
-        # (= (f $x $y) (+ $x $y))
+    def f(x: EvenNumber, y: EvenNumber) -> EvenNumber:
         return x + y
 
-    # !(test (f 2 4) 6)
-    yield m.eval(S.test(S.f(2, 4), 6))
+    assert f(2, 4) == [6]
 
-    # (= (get-type (cons $head $tail))
-    #    (if (=alpha (get-type $head) EvenNumber)
-    #        (if (=alpha $tail ())
-    #            EvenNumberList
-    #            (get-type $tail))))
-    m += equation(kind(S.cons(V.head, V.tail))).to(
-        S["if"](
-            alpha(kind(V.head), S.EvenNumber),
-            S["if"](
-                alpha(V.tail, ()),
-                S.EvenNumberList,
-                kind(V.tail),
-            ),
-        )
-    )
-
-    # (: g (-> EvenNumberList Bool))
-    m += S[":"](S.g, S["->"](S.EvenNumberList, S.Bool))
+    ends = S["if"](alpha(V.tail, expr()), S.EvenNumberList, S["get-type"](V.tail))  # rung: same clause, same reason
+    walk = S["if"](alpha(S["get-type"](V.head), S.EvenNumber), ends)  # rung: same clause, same reason
+    m += equation(S["get-type"](S.cons(V.head, V.tail))).to(walk)  # rung: the head is get-type again, over a cons cell
 
     @m.define
-    def g(_li):
-        # (= (g $L) True)
-        # The parameter is a head variable the body never reads, and the
-        # underscore says so to a Python reader.
+    def g(items: EvenNumberList) -> bool:  # noqa: ARG001  -- the parameter is what the signature declares; the body answers a constant
         return True
 
-    # !(test (g (2 4 6)) True)
-    yield m.eval(S.test(S.g((2, 4, 6)), TRUE))
+    assert g(expr(2, 4, 6)) == [True]

@@ -1,72 +1,44 @@
-"""The Python twin of examples/data/iter.metta: an iterator that is a number.
+"""examples/data/iter.metta in Python: an iterator whose state is a number.
 
-`iter-next` answers a PAIR of the current value and the next state, so the
-whole iterator protocol is one equation over a number. Both definitions are
-computations and are written as ones: assignment in a compiled body IS
-MeTTa's `let`, so `x = n` and `nxt = n + 1` are the two bindings the
-original's `let*` writes, compiled as nested one-pair `let*`s, and the
-returned Python tuple `(x, nxt)` is the expression `($X $Next)`.
+`make-nat-iter` answers the state, and `iter-next` answers a pair of the value
+and the next state, so stepping it three times gives 0, 1, 2. Both are ordinary
+compiled functions: the `let*` chain in the original IS the two assignments in
+`iter_next`'s body, and the pair it answers is a Python tuple.
 
-The runnable form stays at the container door because its `let*` pairs
-DESTRUCTURE: `(($x1 $it1) (iter-next $it))` binds two names from one answer,
-and a compiled body binds plain names only, which the residue table already
-records against P14.4.
+Stepping is where the twin reads better than the original. The example's own
+`let*` DESTRUCTURES each answer, `(($x1 $it1) (iter-next $it))`, which a
+compiled body cannot spell today (filed as friction); out here the answer is an
+expression and Python unpacks it, which is the same act with no construct to
+learn.
 """
 
-from petta import S, V
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3922 to 5783, +1861 (+47.45%), by the wave-4 idiom
-#: rewrite moving both definitions onto @m.define, in two separable parts.
-#: COMPILING a definition costs more than STORING one, and the difference is
-#: paid once per process plus a little per definition, never per call: four
-#: trivial one-parameter definitions in a fresh process measured
-#: 2221 / 2986 / 3751 / 4516 inferences through @m.define against
-#: 592 / 1164 / 1736 / 2308 through `m += equation(...).to(...)`, so the first
-#: compiled definition costs 1,629 more and each one after it 193 more.
-#: Two definitions here is 1629 + 193 = 1822 of it. The other 39 is the BODY
-#: SHAPE: two assignments compile to nested one-pair `let*`s where the
-#: original writes one `let*` with two pairs, measured 3961 against 3922 by
-#: storing the nested shape at the container door.
-BUDGET = 5783
+#: RE-PINNED 2026-08-22, 5783 to 3546, -2237 (-38.68%), by the twin-shape
+#: rewrite: the `test` wrapper left the engine for `assert`, and the `let*`
+#: chain that destructured each answer left it too: out here the answer is an
+#: expression and Python unpacks it. Against the example's 7823 the ratio is
+#: 0.4533 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/data/iter.metta`]. Prior: RE-PINNED at 5783 by the wave-4 idiom
+#: rewrite.
+BUDGET = 3546
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
+    """Step a natural-number iterator three times and read off the values."""
 
     @m.define(name="make-nat-iter")
     def make_nat_iter():
-        # iterator state is just a number
-        # (= (make-nat-iter) 0)
         return 0
 
     @m.define(name="iter-next")
     def iter_next(n):
-        # (= (iter-next $N) (let* (($X $N) ($Next (+ $N 1))) ($X $Next)))
-        x = n
-        nxt = n + 1
-        return (x, nxt)
+        value = n
+        following = n + 1
+        return (value, following)
 
-    # !(test (let* (($it (make-nat-iter))
-    #               (($x1 $it1) (iter-next $it))
-    #               (($x2 $it2) (iter-next $it1))
-    #               (($x3 $it3) (iter-next $it2)))
-    #              ($x1 $x2 $x3))
-    #        (0 1 2))
-    yield m.eval(
-        S.test(
-            S["let*"](
-                (
-                    (V.it, S["make-nat-iter"]()),
-                    ((V.x1, V.it1), S["iter-next"](V.it)),
-                    ((V.x2, V.it2), S["iter-next"](V.it1)),
-                    ((V.x3, V.it3), S["iter-next"](V.it2)),
-                ),
-                (V.x1, V.x2, V.x3),
-            ),
-            (0, 1, 2),
-        )
-    )
+    start = make_nat_iter()[0]
+    first, after_first = iter_next(start)[0]
+    second, after_second = iter_next(after_first)[0]
+    third, _ = iter_next(after_second)[0]
+
+    assert (first, second, third) == (0, 1, 2)

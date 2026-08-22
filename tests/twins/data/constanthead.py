@@ -1,29 +1,27 @@
-"""The Python twin of examples/data/constanthead.metta: a constant in a head.
+"""examples/data/constanthead.metta in Python: a structure in a head.
 
-`h` expects a STRUCTURE in its first argument, `(justdata haha $B)`, so the
-head both selects on the constant `haha` and binds `$B` out of the same term.
-
-The clause stays at the container door because that head argument is a
-PATTERN. A compiled definition spells a head pattern as a literal default,
-`def fib(n=0)`, which reaches a constant in a position and not a structure
-around one, so the residue table records the missing spelling against P14.4.
+`h` matches when its first argument IS `(justdata haha $B)`, binding `$B` out
+of the middle of it, and adds that to its second. Selecting on a structure in a
+head position is what the clause does, and it is why the clause is written as
+an equation: a compiled parameter list carries plain names, and a default there
+is a head pattern that must be a LITERAL, a constant IN a position rather than
+a structure around one.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 1593
+#: RE-PINNED 2026-08-22, 1593 to 1448, -145 (-9.10%), by the twin-shape
+#: rewrite: the `test` wrapper left the engine for `assert`; the structural
+#: clause and the one call over it are unchanged. Against the example's 3616
+#: the ratio is 0.4004 [measured 2026-08-22 min-of-3: `twin_coverage.py
+#: --measure examples/data/constanthead.metta`]. Prior: the file's first pin,
+#: uncommented.
+BUDGET = 1448
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # h just expects a structure:
-    # (= (h (justdata haha $B) $C) (+ $B $C))
+    """Define the structural clause, then feed it the structure it wants."""
     m += equation(S.h(S.justdata(S.haha, V.B), V.C)).to(V.B + V.C)
 
-    # just structure matching (check out listhead.metta for list structure matching)
-    # !(test (h (justdata haha 30) 40) 70)
-    yield m.eval(S.test(S.h(S.justdata(S.haha, 30), 40), 70))
+    assert m.fn("h")(S.justdata(S.haha, 30), 40) == 70

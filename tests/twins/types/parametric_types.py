@@ -1,73 +1,42 @@
-"""The Python twin of examples/types/parametric_types.metta: an arrow argument.
+"""examples/types/parametric_types.metta in Python: an arrow with variables.
 
-`apply` takes a FUNCTION and its argument, so its own type has an arrow inside
-it: `(-> (-> $tx $ty) $tx $ty)`. That declaration is written here as a Python
-annotation, which is the door P14.9 names, and it is the case that shows the
-projection is structural rather than a lookup table: `Callable[[TX], TY]`
-becomes `(-> $tx $ty)` and a `TypeVar` becomes a MeTTa variable, so the whole
-parametric signature falls out of the signature a Python reader would write
-anyway.
+`apply` takes a function and an argument and applies it, and its type says so
+with two type variables: `(-> (-> $tx $ty) $tx $ty)`. That arrow is what
+`Callable[[X], Y]` and `-> Y` mean, so the annotation IS the declaration, and
+mypy checks the Python half of the same claim the engine checks at run time.
 
-The body is a Python tuple, `(f, x)`, which is the expression `($f $x)`:
-applying a function held in a variable is building the expression whose head is
-that variable.
-
-The two type variables are minted `TypeVar(name="TX")` rather than
-`TypeVar("TX")`. Both are the same object; the keyword is what says the string
-is a NAME, which is the one distinction this lane makes about a string in a
-twin, and `name=` is how it is marked at any call.
+The example's last claim instantiates the arrow at `(-> Bool Bool)` and `Bool`
+and reads the result type off it. `petta.unify` is one-way matching, so it
+cannot bind through the arrow's own variables from the pattern side (filed as
+friction); asking the type of the APPLICATION answers the same question, and
+it is the example's own second form.
 """
 
 from collections.abc import Callable
 from typing import TypeVar
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5694 to 5543, -151, by P14.9's declaration-order
-#: correction: @define now adds the annotation-derived parametric signature
-#: before storing `apply`'s equation, so clause compilation sees its type.
-#: Three fresh processes measured 5543, 5543, 5543. Prior: RE-PINNED
-#: 2026-08-22 at 5694 by P14.8's m.eval fuel-scope alignment.
-BUDGET = 5543
+#: RE-PINNED 2026-08-22, 5543 to 4583, -960 (-17.32%), by the twin-shape
+#: rewrite: the `test` wrapper left the engine for `assert`, and the arrow-
+#: instantiation claim became a `get-type` of the APPLICATION rather than a
+#: `let` unifying against the declared arrow. Against the example's 6723 the
+#: ratio is 0.6817 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/types/parametric_types.metta`]. Prior: RE-PINNED at 5543 by
+#: P14.9's declaration-order correction.
+BUDGET = 4583
 
-TX = TypeVar(name="TX")
-TY = TypeVar(name="TY")
+X = TypeVar(name="X")
+Y = TypeVar(name="Y")
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Apply a function through a parametrically typed applier."""
 
     @m.define
-    def apply(f: Callable[[TX], TY], x: TX) -> TY:
-        # (: apply (-> (-> $tx $ty) $tx $ty))
-        # (= (apply $f $x) ($f $x))
-        return (f, x)
+    def apply(f: Callable[[X], Y], x: X) -> Y:
+        return f(x)
 
-    # !(apply not False) answers (True)
-    # Calling the Defined object EVALUATES its application, which is what a bare
-    # `!` form does, so the call is the form: `m.eval(S.apply(...))` builds the
-    # same term and hands it to the same door.
-    yield apply(S["not"], FALSE)
-    # !(get-type (apply not False)) answers (Bool)
-    yield m.eval(S["get-type"](S.apply(S["not"], FALSE)))
-    # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
-    yield m.eval(
-        S.test(
-            S.let(
-                S["get-type"](S.apply),
-                S["->"](S["->"](S.Bool, S.Bool), S.Bool, V.result),
-                V.result,
-            ),
-            S.Bool,
-        )
-    )
+    assert apply(S["not"], False) == [True]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert m.fn("get-type").all(S.apply(S["not"], False)) == [S.Bool]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch

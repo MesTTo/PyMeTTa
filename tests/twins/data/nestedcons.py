@@ -1,28 +1,25 @@
-"""The Python twin of examples/data/nestedcons.metta: a nested head pattern.
+"""examples/data/nestedcons.metta in Python: two cons cells in one head.
 
-`f` reads the SECOND element of a list by matching two cons cells in its head,
-which is the whole example: `(a b c d)` is `(cons a (cons b (c d)))` and the
-pattern names `$b`.
-
-The clause stays at the container door because its head argument is a
-PATTERN. A compiled definition spells a head pattern as a literal default,
-`def fib(n=0)`, so a structural one has no `def` spelling, and the residue
-table records that against P14.4.
+`(cons $a (cons $b $L))` takes an expression apart twice over and answers the
+second element. The head is nested structure, which a compiled parameter list
+cannot spell, so the clause is written as the equation it is; the call then
+reads `(a b c d)` as head `a`, then `(b c d)` as head `b`, and answers `b`.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 1252
+#: RE-PINNED 2026-08-22, 1252 to 1124, -128 (-10.22%), by the twin-shape
+#: rewrite: the `test` wrapper left the engine for `assert`; the doubly-
+#: nested clause and the one call over it are unchanged. Against the
+#: example's 2778 the ratio is 0.4046 [measured 2026-08-22 min-of-3:
+#: `twin_coverage.py --measure examples/data/nestedcons.metta`]. Prior: the
+#: file's first pin, uncommented.
+BUDGET = 1124
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # (= (f (cons $a (cons $b $L))) $b)
+    """Define the doubly-nested clause and take the second element with it."""
     m += equation(S.f(S.cons(V.a, S.cons(V.b, V.L)))).to(V.b)
 
-    # !(test (f (a b c d)) b)
-    yield m.eval(S.test(S.f((S.a, S.b, S.c, S.d)), S.b))
+    assert m.fn("f")(S.a(S.b, S.c, S.d)) == S.b

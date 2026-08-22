@@ -1,128 +1,89 @@
-"""The Python twin of examples/types/builin_types.metta: the library's own types.
+"""examples/types/builin_types.metta in Python: the library's declared types.
 
-Thirty-six declarations imported from `lib_builtin_types` and read back with
-`get-type`. There is nothing to define here, only to ask, so every form is a
-term: `S["get-type"]` applied to the engine name whose type is in question, and
-the answer compared against the arrow the library declares.
+Thirty-six names, imported from `lib_builtin_types` and read back. Nothing is
+defined here, only asked, so every claim is one line: the declared type of a
+NAME is a property of its function object, and the arrow it should be is an
+ordinary expression built once and reused, because MeTTa's numeric surface is
+one shape said many times.
 
-The arrow itself is an ordinary expression, `S["->"](S.Number, S.Number,
-S.Number)`, and a type VARIABLE in one is an ordinary variable, `V.a`, which is
-what makes `(-> $a $a Bool)` say that `==` compares two things of one type.
+Two of the arrows carry a type VARIABLE, `(-> $a $a Bool)` for `==` and `!=`,
+which is what says both arguments share one type. A variable's identity is
+fresh on every answer, so those two are compared with `alpha_eq`, the relation
+the law itself uses for answer equivalence, rather than with `==`.
 """
 
-from petta import S, V
+from petta import S, V, alpha_eq
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 142406 to 146130, +3724, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 142406 by 47554fc's control/types twin baseline.
-BUDGET = 146130
-
-#: The arrows this file asks about, named once each because most of them
-#: repeat: MeTTa's numeric surface is one shape said many times.
-BINARY_NUMBER = S["->"](S.Number, S.Number, S.Number)
-UNARY_NUMBER = S["->"](S.Number, S.Number)
-COMPARISON = S["->"](S.Number, S.Number, S.Bool)
-PREDICATE = S["->"](S.Number, S.Bool)
+#: RE-PINNED 2026-08-22, 146130 to 136493, -9637 (-6.59%), by the twin-shape
+#: rewrite: the thirty-six `test` wrappers left the engine for Python's own
+#: `assert`, and each question is now the function object's `type` property
+#: rather than a `(get-type name)` term the engine has to reduce. The import
+#: is most of what remains. Against the example's 161661 the ratio is 0.8443
+#: [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/types/builin_types.metta`]. Prior: RE-PINNED at 142406 then
+#: 146130 by P14.8's m.eval fuel-scope alignment.
+BUDGET = 136493
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Import the library, then read every arrow it declares."""
+    arrow = S["->"]
+    binary = arrow(S.Number, S.Number, S.Number)
+    unary = arrow(S.Number, S.Number)
+    compare = arrow(S.Number, S.Number, S.Bool)
+    predicate = arrow(S.Number, S.Bool)
+    one_type = arrow(V.a, V.a, S.Bool)
+    over_expression = arrow(V.a, S.Number)
+    logical = arrow(S.Bool, S.Bool, S.Bool)
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    kind = S["get-type"]
+    m.eval(S["import!"](S["&self"], (S.library, S.lib_builtin_types)))  # rung: import! is a directive with no Python door, and its space sits in a term position (P14.13)
 
-    # !(import! &self (library lib_builtin_types)) answers (())
-    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_builtin_types)))
+    # Arithmetic.
+    assert m.fn("+").type == binary
+    assert m.fn("-").type == binary
+    assert m.fn("*").type == binary
+    assert m.fn("/").type == binary
+    assert m.fn("%").type == binary
 
-    # Type definitions of arithmetic operators.
-    # !(test (get-type +) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["+"]), BINARY_NUMBER))
-    # !(test (get-type -) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["-"]), BINARY_NUMBER))
-    # !(test (get-type *) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["*"]), BINARY_NUMBER))
-    # !(test (get-type /) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["/"]), BINARY_NUMBER))
-    # !(test (get-type %) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["%"]), BINARY_NUMBER))
+    # Comparison.
+    assert m.fn("<").type == compare
+    assert m.fn("<=").type == compare
+    assert m.fn(">").type == compare
+    assert m.fn(">=").type == compare
 
-    # Type definitions of comparison operators.
-    # !(test (get-type <) (-> Number Number Bool))
-    yield m.eval(S.test(kind(S["<"]), COMPARISON))
-    # !(test (get-type <=) (-> Number Number Bool))
-    yield m.eval(S.test(kind(S["<="]), COMPARISON))
-    # !(test (get-type >) (-> Number Number Bool))
-    yield m.eval(S.test(kind(S[">"]), COMPARISON))
-    # !(test (get-type >=) (-> Number Number Bool))
-    yield m.eval(S.test(kind(S[">="]), COMPARISON))
+    # ONE type variable, twice: == compares two things of one type, and
+    # refuses two of different KNOWN types.
+    assert alpha_eq(m.fn("==").type, one_type)
+    assert alpha_eq(m.fn("!=").type, one_type)
 
-    # ONE type variable, twice: == compares two things of one type and
-    # refuses two of different KNOWN types, which is upstream's own
-    # signature for it.
-    same_type = S["->"](V.a, V.a, S.Bool)
-    # !(test (get-type ==) (-> $a $a Bool))
-    yield m.eval(S.test(kind(S["=="]), same_type))
-    # !(test (get-type !=) (-> $a $a Bool))
-    yield m.eval(S.test(kind(S["!="]), same_type))
+    # Mathematics.
+    assert m.fn("pow-math").type == binary
+    assert m.fn("sqrt-math").type == unary
+    assert m.fn("abs-math").type == unary
+    assert m.fn("log-math").type == binary
+    assert m.fn("trunc-math").type == unary
+    assert m.fn("ceil-math").type == unary
+    assert m.fn("floor-math").type == unary
+    assert m.fn("round-math").type == unary
+    assert m.fn("sin-math").type == unary
+    assert m.fn("asin-math").type == unary
+    assert m.fn("cos-math").type == unary
+    assert m.fn("acos-math").type == unary
+    assert m.fn("tan-math").type == unary
+    assert m.fn("atan-math").type == unary
+    assert alpha_eq(m.fn("min-atom").type, over_expression)
+    assert alpha_eq(m.fn("max-atom").type, over_expression)
+    assert m.fn("min").type == binary
+    assert m.fn("max").type == binary
+    assert m.fn("exp").type == unary
 
-    # Type definitions of common mathematical functions.
-    # !(test (get-type pow-math) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["pow-math"]), BINARY_NUMBER))
-    # !(test (get-type sqrt-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["sqrt-math"]), UNARY_NUMBER))
-    # !(test (get-type abs-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["abs-math"]), UNARY_NUMBER))
-    # !(test (get-type log-math) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["log-math"]), BINARY_NUMBER))
-    # !(test (get-type trunc-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["trunc-math"]), UNARY_NUMBER))
-    # !(test (get-type ceil-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["ceil-math"]), UNARY_NUMBER))
-    # !(test (get-type floor-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["floor-math"]), UNARY_NUMBER))
-    # !(test (get-type round-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["round-math"]), UNARY_NUMBER))
-    # !(test (get-type sin-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["sin-math"]), UNARY_NUMBER))
-    # !(test (get-type asin-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["asin-math"]), UNARY_NUMBER))
-    # !(test (get-type cos-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["cos-math"]), UNARY_NUMBER))
-    # !(test (get-type acos-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["acos-math"]), UNARY_NUMBER))
-    # !(test (get-type tan-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["tan-math"]), UNARY_NUMBER))
-    # !(test (get-type atan-math) (-> Number Number))
-    yield m.eval(S.test(kind(S["atan-math"]), UNARY_NUMBER))
-    # !(test (get-type min-atom) (-> $a Number))
-    yield m.eval(S.test(kind(S["min-atom"]), S["->"](V.a, S.Number)))
-    # !(test (get-type max-atom) (-> $a Number))
-    yield m.eval(S.test(kind(S["max-atom"]), S["->"](V.a, S.Number)))
-    # !(test (get-type min) (-> Number Number Number))
-    yield m.eval(S.test(kind(S.min), BINARY_NUMBER))
-    # !(test (get-type max) (-> Number Number Number))
-    yield m.eval(S.test(kind(S.max), BINARY_NUMBER))
-    # !(test (get-type exp) (-> Number Number))
-    yield m.eval(S.test(kind(S.exp), UNARY_NUMBER))
+    # The float predicates.
+    assert m.fn("isnan-math").type == predicate
+    assert m.fn("isinf-math").type == predicate
 
-    # Type definitions of isnan and isinf predicates.
-    # !(test (get-type isnan-math) (-> Number Bool))
-    yield m.eval(S.test(kind(S["isnan-math"]), PREDICATE))
-    # !(test (get-type isinf-math) (-> Number Bool))
-    yield m.eval(S.test(kind(S["isinf-math"]), PREDICATE))
-
-    # Type definitions of boolean operators.
-    boolean = S["->"](S.Bool, S.Bool, S.Bool)
-    # !(test (get-type and) (-> Bool Bool Bool))
-    yield m.eval(S.test(kind(S["and"]), boolean))
-    # !(test (get-type or) (-> Bool Bool Bool))
-    yield m.eval(S.test(kind(S["or"]), boolean))
-    # !(test (get-type not) (-> Bool Bool))
-    yield m.eval(S.test(kind(S["not"]), S["->"](S.Bool, S.Bool)))
-    # !(test (get-type xor) (-> Bool Bool Bool))
-    yield m.eval(S.test(kind(S.xor), boolean))
+    # The boolean operators.
+    assert m.fn("and").type == logical
+    assert m.fn("or").type == logical
+    assert m.fn("not").type == arrow(S.Bool, S.Bool)
+    assert m.fn("xor").type == logical

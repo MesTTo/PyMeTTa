@@ -1,54 +1,76 @@
-"""The Python twin of examples/data/multiset_operations.metta: the -atom family.
+"""examples/data/multiset_operations.metta in Python: Counter is the algebra.
 
-Every form is one call over two expressions, so the whole twin is the term
-door: a symbol calls to build, and a plain Python TUPLE is the expression its
-arguments are. `(a b c d d)` reads `(a, b, c, d, d)`, and `()` reads `()`.
+Every one of these operations is MULTISET, not set: `(a a a)` minus `(a)` is
+`(a a)`, and an intersection keeps as many copies as both sides can afford.
+`collections.Counter` is exactly that algebra, `&` and `-` included, so the
+Python spelling of each operation is one line over it, plus a walk that renders
+the result in the left side's own order, which is the order the answers come
+back in.
 
-The names are hyphenated engine functions, which is why they are subscripted:
-`unique-atom` is not a Python identifier, so `S["unique-atom"]` is the only
-spelling for it and not a drop from `S.unique_atom`, which would name a
-different symbol.
-
-These are MULTISET operations, which is what the answers show: `union-atom`
-concatenates rather than deduplicating, and `intersection-atom` keeps the
-lower of the two multiplicities.
+Each claim says two things at once: what the operation answers, and that the
+Python spelling and the engine's own `-atom` operation agree on it. The second
+half is why the dissolution is safe to teach.
 """
 
-from petta import S
+from collections import Counter
 
-#: The symbols these expressions are built from, bound once so a line reads as
-#: the multiset it is rather than as five repetitions of the factory.
-a, b, c, d = S.a, S.b, S.c, S.d
+from petta import S, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6152 to 6152, +0, by the wave-4 idiom rewrite: the
-#: forms are the same terms built at the same door, so the rewrite is a
-#: SPELLING change and the counter says so.
-BUDGET = 6152
+#: RE-PINNED 2026-08-22, 6152 to 4320, -1832 (-29.78%), by the twin-shape
+#: rewrite: eight `test` wrappers left the engine for `assert`, and each
+#: claim now computes its answer in Python with `collections.Counter`, which
+#: is the multiset algebra these operations implement, and holds it against
+#: the engine's own `-atom` answer. Against the example's 10222 the ratio is
+#: 0.4226 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/data/multiset_operations.metta`]. Prior: RE-PINNED at 6152 by the
+#: wave-4 idiom rewrite.
+BUDGET = 4320
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Run each multiset operation both ways and hold them to one answer."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(test (unique-atom (a b c d d)) (a b c d))
-    yield m.eval(S.test(S["unique-atom"]((a, b, c, d, d)), (a, b, c, d)))
-    # !(test (union-atom (a b b c) (b c c d)) (a b b c b c c d))
-    yield m.eval(
-        S.test(S["union-atom"]((a, b, b, c), (b, c, c, d)), (a, b, b, c, b, c, c, d))
-    )
-    # !(test (intersection-atom (a b c c) (b c c c d)) (b c c))
-    yield m.eval(
-        S.test(S["intersection-atom"]((a, b, c, c), (b, c, c, c, d)), (b, c, c))
-    )
-    # !(test (subtraction-atom (a b b c) (b c c d)) (a b))
-    yield m.eval(S.test(S["subtraction-atom"]((a, b, b, c), (b, c, c, d)), (a, b)))
-    # !(test (intersection-atom (a b c c) (b c d)) (b c))
-    yield m.eval(S.test(S["intersection-atom"]((a, b, c, c), (b, c, d)), (b, c)))
-    # !(test (intersection-atom (a a a) (a)) (a))
-    yield m.eval(S.test(S["intersection-atom"]((a, a, a), (a,)), (a,)))
-    # !(test (subtraction-atom (a a a) (a)) (a a))
-    yield m.eval(S.test(S["subtraction-atom"]((a, a, a), (a,)), (a, a)))
-    # !(test (intersection-atom (a b) ()) ())
-    yield m.eval(S.test(S["intersection-atom"]((a, b), ()), ()))
+    def kept(left, budget):
+        """`left`'s atoms in their own order, while the budget for each lasts."""
+        out = []
+        for atom in left:
+            if budget[atom]:
+                budget[atom] -= 1
+                out.append(atom)
+        return expr(*out)
+
+    def common(left, right):
+        """Multiset intersection: Counter's `&`, in the left side's order."""
+        return kept(left, Counter(left) & Counter(right))
+
+    def without(left, right):
+        """Multiset difference: Counter's `-`, in the left side's order."""
+        return kept(left, Counter(left) - Counter(right))
+
+    def joined(left, right):
+        """Multiset union: every copy from both sides, which is concatenation."""
+        return expr(*left, *right)
+
+    def once_each(items):
+        """Duplicates dropped, first occurrence kept: dict.fromkeys is that."""
+        return expr(*dict.fromkeys(items))
+
+    assert once_each(S.a(S.b, S.c, S.d, S.d)) == S.a(S.b, S.c, S.d) == m.fn(
+        "unique-atom")(S.a(S.b, S.c, S.d, S.d))
+    assert joined(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d)) == S.a(
+        S.b, S.b, S.c, S.b, S.c, S.c, S.d) == m.fn("union-atom")(
+        S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d))
+    assert common(S.a(S.b, S.c, S.c), S.b(S.c, S.c, S.c, S.d)) == S.b(
+        S.c, S.c) == m.fn("intersection-atom")(
+        S.a(S.b, S.c, S.c), S.b(S.c, S.c, S.c, S.d))
+    assert without(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d)) == S.a(
+        S.b) == m.fn("subtraction-atom")(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d))
+    assert common(S.a(S.b, S.c, S.c), S.b(S.c, S.d)) == S.b(S.c) == m.fn(
+        "intersection-atom")(S.a(S.b, S.c, S.c), S.b(S.c, S.d))
+    assert common(S.a(S.a, S.a), S.a()) == S.a() == m.fn(
+        "intersection-atom")(S.a(S.a, S.a), S.a())
+    assert without(S.a(S.a, S.a), S.a()) == S.a(S.a) == m.fn(
+        "subtraction-atom")(S.a(S.a, S.a), S.a())
+    assert common(S.a(S.b), expr()) == expr() == m.fn(
+        "intersection-atom")(S.a(S.b), expr())
