@@ -102,13 +102,2317 @@
       "detail": "superpose(x) in a compiled body is (superpose ($x)), a superposition over ONE alternative that happens to be $x, because _define_expression._x_Call wraps the argument list. (superpose $x), the superposition OF $x, is reachable only in yield position (`yield from x`) or as a for-loop source. So (= (program2 $Y) (let $list ... (superpose $list))) and (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2))))) are written at the container door. P14.4's expression-position rule names superpose(...) as one of the two forms to surface; this is the argument shape it has to admit."
     },
     {
-      "kind": "friction",
-      "example": "examples/types/recursive_types2.metta",
-      "form": null,
-      "missing": "a STRUCTURAL head pattern in an equation written from Python",
+      "kind": "declined",
+      "example": "examples/syntax/parse.metta",
+      "form": 0,
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The input A is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids. Forms 5-7 remain covered because they begin with ordinary string data and the program itself applies repr before parse."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/syntax/parse.metta",
+      "form": 1,
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The input (R A B) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/syntax/parse.metta",
+      "form": 2,
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The input (R A (S B C)) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/syntax/parse.metta",
+      "form": 3,
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The input (* 2 21) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/syntax/parse.metta",
+      "form": 4,
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The input \"42\" is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/functions/specializecyclic.metta",
+      "form": 0,
+      "missing": "a budget law for cyclic specialization whose definition installation is itself cost-nondeterministic",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "A faithful twin answers correctly but cannot carry a point budget. Across twelve fresh processes the source cost 28,014-28,050 inferences and the faithful twin 26,575-26,671. Declining both runnable forms still leaves definition installation at 16,884-16,936, a spread of 52 against the four-inference allowance. The file therefore has no twin until the budget law can state a distribution rather than a point."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/functions/specializecyclic.metta",
+      "form": 1,
+      "missing": "a budget law for cyclic specialization whose definition installation is itself cost-nondeterministic",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The second runnable form shares the same unavoidable nondeterministic definition-installation cost: source 28,014-28,050, faithful twin 26,575-26,671, and definitions alone 16,884-16,936 over twelve fresh processes, all outside the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": 8,
+      "missing": "a budget law for a hyperposed cross-C write whose completion schedule changes the inference count",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "With all nine forms active the faithful twin cost 152,035-152,146 over twelve fresh processes. With the concurrent-writer form declined, forms 0-7 cost exactly 141,295 inferences over twelve fresh processes. The form remains residue rather than widening the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/import_order_independence.metta",
+      "form": 0,
+      "missing": "a budget law for an import whose generated identities make its inference count nondeterministic",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Across three fresh processes the source cost 8,822-8,862 and the faithful path-adjusted twin 7,568-7,592, both beyond the four-inference allowance. Declining the sole form costs exactly 5 inferences."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": 1,
+      "missing": "a point budget for parallel primality branches whose completion schedule changes the inference count",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "The full source cost 256,499,809-263,270,075 and the full twin 264,278,475-270,022,219 in fresh processes. Keeping only form 0 and declining forms 1-2 costs 13,588-13,592 over ten runs, within the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": 2,
+      "missing": "a point budget for once over racing primality branches",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "The expensive race alone spread by 3,059,587 inferences over four fresh processes. The form answers correctly but cannot carry the lane's required point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 1,
+      "missing": "a point budget for five mutex-protected branches scheduled by hyperpose",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The faithful five-form twin cost 16,501-16,507 over three fresh processes. Keeping only the deterministic initial write and rollback form costs exactly 5,311 over twelve fresh processes, so the hyperpose form is declined rather than loosening the allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 2,
+      "missing": "the state established by the declined hyperpose form under a point-budget law",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "This assertion observes the count produced by form 1. It is declined with that nondeterministic producer because evaluating the assertion without the producer would test a different program."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 4,
+      "missing": "the post-transaction state established by the declined hyperpose form under a point-budget law",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The final assertion depends on the count produced by form 1. The rollback operation itself remains covered as form 3; only the assertion whose premise was declined is residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 0,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 0,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 0,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 0,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 0,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 0,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 0,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
       "row": "P14.3",
       "section": "§4 the ergonomic tier over the container door",
-      "detail": "define()'s _parameters reads a literal default as the head pattern for that position and refuses anything else, so `def g(n=0)` writes (= (g 0) ...) and there is no spelling for (= (Greater (S $x) Z) True). The container door writes it, m += S[\"=\"](S.Greater(SUCC(V.x), S.Z), TRUE), which wave one established is a working door; the gap is the taught form P14.3 ships. Derived demand from this wave: types/recursive_types2 (3 equations), types/inplace_annotations (6), types/types (testf), control/take's edge facts and every case-based equation above."
+      "detail": "Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 0,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_roman.metta",
+      "form": 0,
+      "missing": "a point budget for PLN inference over Roman-numeral rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 3,024,999-3,025,031 and the faithful twin 3,286,731-3,286,765, both outside the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_tuffy.metta",
+      "form": 0,
+      "missing": "a stable parity spelling for the Tuffy-style PLN evaluation",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "The source cost 714,438-714,558 and the faithful twin 1,146,029-1,146,213. Besides both sides being cost-nondeterministic, the twin is 1.60x the source and exceeds the fixed 10% band, so no point budget or parity claim is available."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 0,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/tilepuzzle.metta",
+      "form": 0,
+      "missing": "a distribution budget for the tile-puzzle search",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "After spelling the dunder placeholder with sym(), the source still cost 55,267,004-55,267,060 and the faithful twin 55,047,408-55,047,432. The answers agree but no point budget fits."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 0,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/callquoteevalreduce.metta",
+      "form": 0,
+      "missing": "a distribution budget for runtime quote/eval/reduce translation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 50,108-50,216 and the faithful twin 32,042-32,082 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 0,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 0,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/twostage.metta",
+      "form": 0,
+      "missing": "a distribution budget for two-stage definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 5,531-5,555, the faithful twin 4,190-4,206, and definition installation alone 2,971-3,007. Declining either or both forms cannot produce a stable point budget."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/iter.metta",
+      "form": null,
+      "missing": "destructuring assignment as a let* pattern binding",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "The equation uses a structural let* target, so the twin writes the body as atoms rather than compiled Python assignment."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specializefunctiontypes.metta",
+      "form": null,
+      "missing": "one Python declaration source for overloaded function types",
+      "row": "P14.9",
+      "section": "§4 the typing front",
+      "detail": "The example carries multiple type declarations that cannot be derived from one Python signature, so the twin stores declaration atoms directly."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_aggregate.metta",
+      "form": null,
+      "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "The file loader precompiles equations before runnable forms. Six memo examples require the twin to reorder atom insertion ahead of memoize: test_memo_aggregate, test_memo_dependency_invalidation, test_memo_multi_answer, test_memo_per_arity, test_memo_stats and test_memo_variant_nonground."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_duplicate_cycle.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "A Python twin has no importing file, so relative imports must be rewritten from the repository root. The same friction occurs in import_order_independence, import_relative_nested, import_space_identity and python_import."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/state.metta",
+      "form": null,
+      "missing": "cross-form bind! state names through repeated m.eval calls",
+      "row": "P14.10",
+      "section": "§1b.1 data-shaped knowledge",
+      "detail": "bind! state is local to the file-reader program. The twin must retain the returned state cell in a Python variable and pass the object directly to later terms."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/py_numpy.metta",
+      "form": null,
+      "missing": "cross-form bind! tokens through repeated m.eval calls",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "The twin uses native Python imports and val(np.object) to carry NumPy callables and the submodule without strings. The file reader's bind! tokens do not persist across separate m.eval calls, so Python variables hold those objects instead."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 1,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 1 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 2,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 2 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 3,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 3 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 4,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 4 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 5,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 5 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 6,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 6 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 7,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 7 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 8,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 8 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 9,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 9 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 10,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 10 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 11,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 11 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 12,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 12 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 13,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 13 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 14,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 14 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 15,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 15 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/prologimport.metta",
+      "form": 16,
+      "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 16 shares the same file-level blocker. The example reads examples/basics/fib.metta as text, edits that MeTTa source with a regex, and passes it to process_metta_string. A twin using that crossing would violate the zero-source law. Independently, its source cost 28,354,719-28,354,743, the faithful container twin 28,335,070-28,335,088, and definition installation alone 9,376-9,388, all beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 1,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 1 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 2,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 2 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 3,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 3 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 4,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 4 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 5,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 5 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 6,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 6 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 7,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 7 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 8,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 8 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 9,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 9 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 10,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 10 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 11,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 11 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 12,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 12 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 13,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 13 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 14,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 14 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 15,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 15 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 16,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 16 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 17,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 17 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 18,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 18 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 19,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 19 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 20,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 20 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 21,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 21 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 22,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 22 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 23,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 23 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 24,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 24 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 25,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 25 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 26,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 26 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 27,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 27 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 28,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 28 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 29,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 29 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 30,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 30 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 31,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 31 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 32,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 32 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 33,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 33 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 34,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 34 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 35,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 35 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 36,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 36 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 37,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 37 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 38,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 38 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 39,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 39 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 40,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 40 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 41,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 41 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 42,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 42 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 43,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 43 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 44,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 44 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 45,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 45 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 46,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 46 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 47,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 47 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 48,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 48 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/integration/py_surface.metta",
+      "form": 49,
+      "missing": "structured Python object resolution and token binding that do not require Python source strings",
+      "row": "P14.15",
+      "section": "§9i the extension seams",
+      "detail": "Form 49 shares the same file-level blocker. The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 1,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 2,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 3,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 4,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 5,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 6,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 7,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 8,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 9,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 10,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 11,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 12,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 13,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 13 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 14,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 14 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": 15,
+      "missing": "a distribution budget for loading the fingertree library",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 15 shares the same file-level blocker. Across fresh processes the source cost 442,281-442,313 and the faithful twin 428,508-428,626. The required import form alone cost 200,532-200,588. Declining the import makes every fingertree assertion a different program, so the whole example remains residue."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 1,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 2,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 3,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 4,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 5,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 6,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 7,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 8,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 9,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 10,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 11,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 12,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 13,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 13 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 14,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 14 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 15,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 15 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 16,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 16 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 17,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 17 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 18,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 18 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 19,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 19 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 20,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 20 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 21,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 21 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 22,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 22 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 23,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 23 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 24,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 24 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 25,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 25 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 26,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 26 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 27,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 27 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 28,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 28 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 29,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 29 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": 30,
+      "missing": "a distribution budget for loading the minimal-MeTTa interpreter",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 30 shares the same file-level blocker. Across fresh processes the source cost 227,027-227,139, the faithful twin 200,971-201,015, and the required import form 119,880-119,920. The import supplies the interpreter every later assertion exercises, so it cannot be declined independently."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 1,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 2,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 3,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 4,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 5,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 6,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 7,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 8,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 9,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 10,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 11,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 12,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 13,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 13 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 14,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 14 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 15,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 15 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 16,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 16 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 17,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 17 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 18,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 18 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 19,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 19 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 20,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 20 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 21,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 21 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 22,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 22 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 23,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 23 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 24,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 24 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 25,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 25 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 26,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 26 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": 27,
+      "missing": "a distribution budget for the thread, race, future, timer, channel and pool examples",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 27 shares the same file-level blocker. The source cost 3,833,307-3,835,049 and the faithful twin 3,811,490-3,812,678. Individual parallel forms and their interactions exceed the four-inference allowance, so a point budget would flake by construction."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 1,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 2,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 3,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 4,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 5,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 6,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 7,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 8,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 9,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 10,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 11,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 12,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 13,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 13 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 14,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 14 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 15,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 15 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/measure.metta",
+      "form": 16,
+      "missing": "a distribution budget for probabilistic measure evaluation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 16 shares the same file-level blocker. Fresh source processes cost 111,235-111,349 and faithful twins 99,116-99,163. The example's own probabilistic evaluation invalidates a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 1,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 1 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 2,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 2 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 3,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 3 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 4,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 4 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 5,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 5 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/nars_direct.metta",
+      "form": 6,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 6 shares the same file-level blocker. Rebuilding every equation and implication as atoms leaves them matchable, but sequential m += and m.eval changes the NARS revision result and its test fails. Pre-installing every non-runnable form also fails, so the container door has no spelling for the file loader's exact phase and clause-order semantics."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 1,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 1 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 2,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 2 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 3,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 3 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 4,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 4 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 5,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 5 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_direct.metta",
+      "form": 6,
+      "missing": "a Python batch-loading door with the file loader's definition and runnable phase ordering",
+      "row": "P14.3",
+      "section": "§4 the ergonomic tier over the container door",
+      "detail": "Form 6 shares the same file-level blocker. The faithful atom spelling leaves definitions visible but changes the PLN revision result under both source-order and definitions-first insertion. No current Python batch door reproduces the loader's phase and clause ordering without reading source."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_roman.metta",
+      "form": 1,
+      "missing": "a point budget for PLN inference over Roman-numeral rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 3,024,999-3,025,031 and the faithful twin 3,286,731-3,286,765, both outside the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/pln_tuffy.metta",
+      "form": 1,
+      "missing": "a stable parity spelling for the Tuffy-style PLN evaluation",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 714,438-714,558 and the faithful twin 1,146,029-1,146,213. Besides both sides being cost-nondeterministic, the twin is 1.60x the source and exceeds the fixed 10% band, so no point budget or parity claim is available."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 1,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 2,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 3,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 4,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 5,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 6,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 7,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 8,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 9,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 10,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 11,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 12,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 13,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 13 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 14,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 14 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 15,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 15 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 16,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 16 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 17,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 17 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 18,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 18 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 19,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 19 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 20,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 20 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/soft.metta",
+      "form": 21,
+      "missing": "a distribution budget for soft unification",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 21 shares the same file-level blocker. The source cost 224,016-224,048 and the faithful twin 212,639-212,657 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/reasoning/tilepuzzle.metta",
+      "form": 1,
+      "missing": "a distribution budget for the tile-puzzle search",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. After spelling the dunder placeholder with sym(), the source still cost 55,267,004-55,267,060 and the faithful twin 55,047,408-55,047,432. The answers agree but no point budget fits."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 1,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 2,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 3,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 4,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 5,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 6,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 7,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 8,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 9,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 10,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 11,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 12,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/callquoteevalreduce.metta",
+      "form": 1,
+      "missing": "a distribution budget for runtime quote/eval/reduce translation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 50,108-50,216 and the faithful twin 32,042-32,082 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/callquoteevalreduce.metta",
+      "form": 2,
+      "missing": "a distribution budget for runtime quote/eval/reduce translation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 50,108-50,216 and the faithful twin 32,042-32,082 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/callquoteevalreduce.metta",
+      "form": 3,
+      "missing": "a distribution budget for runtime quote/eval/reduce translation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 50,108-50,216 and the faithful twin 32,042-32,082 across fresh processes, beyond the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 1,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 2,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 3,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 4,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 5,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 6,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_cost.metta",
+      "form": 7,
+      "missing": "a distribution budget for costed translator-rule execution",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 20,219-20,236 and the faithful twin 10,000-10,017 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 1,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 2,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 3,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 4,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 5,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 6,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 7,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/translatorrule_direction.metta",
+      "form": 8,
+      "missing": "a distribution budget for directional translator rules",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. The source cost 21,444-21,456 and the faithful twin 11,817-11,829 across fresh processes."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/translation/twostage.metta",
+      "form": 1,
+      "missing": "a distribution budget for two-stage definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 5,531-5,555, the faithful twin 4,190-4,206, and definition installation alone 2,971-3,007. Declining either or both forms cannot produce a stable point budget."
     }
   ],
   "retired": [
