@@ -1,54 +1,60 @@
-"""The Python twin of examples/integration/git_import.metta: a repository as a library.
+"""examples/integration/git_import.metta in Python: a repository as a library.
 
-Four services in a row, each named as a term because each names an engine
-service rather than a computation: `lib_import` is loaded, a Prolog file exports
-one predicate, `git-import!` clones the fixture repository into `./repos`, and
-the cloned library is imported by name. The two file paths cross as `val(...)`,
-the marked-data door.
+Four acts, then one question. A fixture Prolog file answers a clone URL,
+`git-import!` clones that repository into `./repos`, the clone is imported as an
+ordinary named library, and the function it ships answers.
+
+The Prolog step is Python's own door: `m.register_prolog(path=, names=)` is what
+`import_prolog_functions_from_file` names in MeTTa, and it takes the file and
+the predicates to export in the same order. The other three stay terms because
+`import!` and `git-import!` have no Python spelling; the space they write is
+therefore named as a symbol, which the residue records.
+
+One wart the lane forces and the surface should not: a twin may write a string
+constant only as an atom's name or as `val()` data, so a path bound for a
+PYTHON door has to be carried as marked data and unwrapped at the call.
 """
 
 from petta import S, val
 
+#: The space every import writes.
+SELF = S["&self"]  # rung: no import door hangs off the space handle
+
+#: The fixture's Prolog file and the directory `git-import!` clones into.
+#: Marked data rather than bare strings, which is the only spelling a twin has
+#: for a path; `.value` is where one is handed to a Python parameter.
+FIXTURE_PL = val("examples/integration/_fixtures/git_fixture.pl")
+REPOS = val("./repos")
+
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 48286 to 48663, +377 (+0.78%), and NOT by this rewrite:
-#: the pre-rewrite twin measures the same figures on this tree, so the old
-#: number is stale against the engine rather than moved by anything here.
-#: This twin has TWO reproducible costs and the difference is the PATH the lane
-#: runs under. `sh check.sh` prepends the virtualenv's `bin` to PATH before the
-#: lane, and under that PATH the twin costs 48663 and the example 52069; with an
-#: unmodified PATH they cost 48587 and 51993. Each figure is stable across three
-#: fresh processes, the gap is exactly 76 on BOTH sides so the ratio does not
-#: move, and VIRTUAL_ENV alone does not cause it, only PATH. The pin is the
-#: figure the GATE produces, since `sh check.sh twins` is what judges this file
-#: [measured 2026-08-22: `env PATH=<venv>/bin:$PATH twin_coverage.py --measure`
-#: against the same command without it]. Prior: ADDED 2026-08-22 at 48286 by the
-#: wave-3 twin baseline.
-BUDGET = 48663
+#: RE-PINNED 2026-08-22, 48663 to 47921, -742 (-1.52%), by the twin contract
+#: change: the `test` wrapper left the engine for Python's own `assert`, and
+#: `import_prolog_functions_from_file` left it for `m.register_prolog`, which
+#: registers the same one predicate through the Python door. Against the
+#: example's 52069 the ratio is 0.9203. This file still has TWO reproducible
+#: costs and the variable is still PATH, re-measured today: with the
+#: virtualenv's `bin` prepended, as `sh check.sh` prepends it, the twin costs
+#: 47921 and the example 52069; with an unmodified PATH they cost 47845 and
+#: 51993. The gap is exactly 76 on BOTH sides, so the ratio does not move. The
+#: pin is the figure the GATE produces, since `sh check.sh twins` is what judges
+#: this file [measured 2026-08-22 min-of-3: `env PATH=<venv>/bin:$PATH
+#: twin_coverage.py --measure examples/integration/git_import.metta`, against
+#: the same command without it]. Prior: RE-PINNED at 48663, +377, when the same
+#: PATH difference was first isolated; ADDED 2026-08-22 at 48286 by the wave-3
+#: twin baseline.
+BUDGET = 47921
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Build a repository, clone it, import it, ask it a question."""
+    m.eval(S["import!"](SELF, S.library(S.lib_import)))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_import))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_import)))
+    # The URL comes from Prolog, which register_prolog installs as a MeTTa
+    # function of one argument: the base directory in, the clone URL out.
+    m.register_prolog(path=FIXTURE_PL.value, names=[S.git_fixture_url.name])
+    m.eval(S["git-import!"](S.git_fixture_url(REPOS)))
 
-    # !(import_prolog_functions_from_file "./examples/integration/_fixtures/git_fixture.pl"
-    #                                     (git_fixture_url))
-    yield m.eval(
-        S.import_prolog_functions_from_file(val("./examples/integration/_fixtures/git_fixture.pl"),
-            S.git_fixture_url())
-    )
+    # The clone is now an ordinary named library.
+    m.eval(S["import!"](SELF, S.library(S.petta_fixture_lib, S.fixture)))
 
-    # !(git-import! (git_fixture_url "./repos"))
-    yield m.eval(S["git-import!"](S.git_fixture_url(val("./repos"))))
-
-    # !(import! &self (library petta_fixture_lib fixture))
-    yield m.eval(
-        S["import!"](S["&self"], S.library(S.petta_fixture_lib, S.fixture))
-    )
-
-    # !(test (fixture-answer 14) 42)
-    yield m.eval(S.test(S["fixture-answer"](14), 42))
+    assert m.fn("fixture-answer")(14) == 42

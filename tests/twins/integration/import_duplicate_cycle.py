@@ -1,52 +1,44 @@
-"""The Python twin of examples/integration/import_duplicate_cycle.metta.
+"""examples/integration/import_duplicate_cycle.metta in Python: importing twice, and in a circle.
 
-The same file imported twice, once by a path with `./` and `.` segments in it,
-loads once; and a two-file import cycle terminates with both halves defined.
+One file imported under two spellings of its path loads ONCE, so the marker it
+adds is there once and not twice; and two files that import each other both
+finish, so both of their functions answer.
 
-The imported paths are ABSOLUTE where the original writes them relative to the
-`.metta` file, which also flattens the `./` and `.` segments the second form
-exists to exercise: an import written by a Python program has no importing file
-to resolve against. The residue records that against P14.13.
+The paths are written from the repository root, which also flattens the `./`
+and `.` segments the example's second form exists to exercise: a Python program
+has no importing file to resolve a relative import against. That, and `import!`
+naming its space as a symbol, are the residue this file carries.
 """
 
 from petta import S
 
+#: The space every import writes, and the same file twice: once by module name
+#: and once with its suffix. Written from the repository root, where the lane
+#: runs.
+SELF = S["&self"]  # rung: no import door hangs off the space handle
+DUPLICATE = S["examples/integration/_fixtures/imports/overhaul/duplicate"]
+DUPLICATE_METTA = S["examples/integration/_fixtures/imports/overhaul/duplicate.metta"]
+CYCLE = S["examples/integration/_fixtures/imports/overhaul/cycle_a"]
+
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 8602
+#: RE-PINNED 2026-08-22, 8602 to 6920, -1682 (-19.6%), by the twin contract
+#: change: three `test` wrappers and a `collapse` left the engine for Python's
+#: own `assert` and list comparison; the three imports did not move. Against
+#: the example's 11911 the ratio is 0.5810 [measured 2026-08-22 min-of-3:
+#: `twin_coverage.py --measure
+#: examples/integration/import_duplicate_cycle.metta`]. Prior: ADDED 2026-08-22
+#: at 8602 by the wave-3 twin baseline, which priced a transliteration.
+BUDGET = 6920
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Import one file twice and a cycle once, then read all three."""
+    for target in (DUPLICATE, DUPLICATE_METTA, CYCLE):
+        m.eval(S["import!"](SELF, target))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self _fixtures/imports/overhaul/duplicate)
-    yield m.eval(
-        S["import!"](S["&self"],
-            S["examples/integration/_fixtures/imports/overhaul/duplicate"])
-    )
+    # Loaded once, so the marker answers once.
+    assert m.eval(S["duplicate-import-result"]()) == [S["loaded-once"]]
 
-    # !(import! &self ./_fixtures/imports/overhaul/./duplicate.metta)
-    yield m.eval(
-        S["import!"](S["&self"],
-            S["examples/integration/_fixtures/imports/overhaul/duplicate.metta"])
-    )
-
-    # !(import! &self _fixtures/imports/overhaul/cycle_a)
-    yield m.eval(
-        S["import!"](S["&self"],
-            S["examples/integration/_fixtures/imports/overhaul/cycle_a"])
-    )
-
-    # !(test (collapse (duplicate-import-result)) (loaded-once))
-    yield m.eval(
-        S.test(S.collapse(S["duplicate-import-result"]()),
-            (S["loaded-once"],))
-    )
-
-    # !(test (cycle-a) a)
-    yield m.eval(S.test(S["cycle-a"](), S.a))
-
-    # !(test (cycle-b) b)
-    yield m.eval(S.test(S["cycle-b"](), S.b))
+    # Both halves of the cycle finished loading.
+    assert m.fn("cycle-a")() == S.a
+    assert m.fn("cycle-b")() == S.b

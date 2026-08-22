@@ -1,73 +1,55 @@
-"""The Python twin of examples/integration/python_booleans.metta: booleans crossing.
+"""examples/integration/python_booleans.metta in Python: booleans crossing.
 
-Nothing here is a definition: every form is a `py-call` whose answer states one
-half of the boolean conversion. The booleans are the named `TRUE`/`FALSE` atoms
-rather than bare `True`/`False`, which is the corpus convention for a boolean in
-an argument list and is right twice over here, since the whole file is about
-which booleans are MeTTa's and which are Python's.
+MeTTa's `true` and `false` become Python's `True` and `False` on the way in, in
+argument position and inside lists, and Python's booleans come back as MeTTa's.
+Every claim runs through `m.fn("py-call")`, the host-call door read as an
+ordinary Python callable, because the crossing IS this example's subject:
+calling `str` or `sorted` from Python directly would test nothing.
 
-MeTTa's `(true false)` argument lists are Python tuples, and the string answers
-cross as `val(...)`, the marked-data door.
+The example asserts its string answers through `repr` because a MeTTa program
+has no other way to look at a symbol. Here the answer is an atom in hand, so
+each claim names the atom: `py(...) == S["True"]` says both that the text is
+"True" and that it came back as a SYMBOL rather than a String, which is the
+conversion the file is about.
 """
 
-from petta import S, val
+from petta import S, expr, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
+#: MeTTa's boolean atoms. Named rather than written inline because a bare
+#: `True` in an argument list reads as a Python flag, and these are data.
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 5917
+#: RE-PINNED 2026-08-22, 5917 to 4036, -1881 (-31.8%), by the twin contract
+#: change: nine `test` wrappers and nine `repr` calls left the engine for
+#: Python's own `assert` and atom equality; the nine crossings themselves did
+#: not move. Against the example's 11267 the ratio is 0.3582 [measured
+#: 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/integration/python_booleans.metta`]. Prior: ADDED 2026-08-22 at
+#: 5917 by the wave-3 twin baseline, which priced a transliteration.
+BUDGET = 4036
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Nine crossings of the boolean, and what each one answers."""
+    py = m.fn("py-call")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(test (repr (py-call (str true))) "True")
-    yield m.eval(
-        S.test(S.repr(S["py-call"](S.str(TRUE))),
-            val("True"))
-    )
+    # str() sees a Python bool, and its text returns as a symbol.
+    assert py(S.str(TRUE)) == S["True"]
+    assert py(S.str(FALSE)) == S["False"]
 
-    # !(test (repr (py-call (str false))) "False")
-    yield m.eval(
-        S.test(S.repr(S["py-call"](S.str(FALSE))),
-            val("False"))
-    )
+    # A list argument converts its booleans in, and a list answer converts
+    # them back out, elementwise.
+    assert py(S.sorted((TRUE, FALSE))) == expr(FALSE, TRUE)
+    assert py(S.len((TRUE, FALSE, TRUE))) == 3
 
-    # !(test (py-call (sorted (true false))) (false true))
-    yield m.eval(
-        S.test(S["py-call"](S.sorted((TRUE, FALSE))),
-            (FALSE, TRUE))
-    )
+    # Python sees bool all the way down, so isinstance and bool() agree.
+    assert py(S.isinstance(TRUE, S["py-call"](S.type(FALSE)))) is True
+    assert py(S.bool(1)) is True
+    assert py(S.bool(0)) is False
 
-    # !(test (py-call (len (true false true))) 3)
-    yield m.eval(
-        S.test(S["py-call"](S.len((TRUE, FALSE, TRUE))),
-            3)
-    )
+    # A boolean RECEIVER dispatches on bool, not on the text "true".
+    assert py(S[".bit_length"](TRUE)) == 1
 
-    # !(test (py-call (isinstance true (py-call (type false)))) true)
-    yield m.eval(
-        S.test(S["py-call"](S.isinstance(TRUE,
-                    S["py-call"](S.type(FALSE)))),
-            TRUE)
-    )
-
-    # !(test (py-call (bool 1)) true)
-    yield m.eval(S.test(S["py-call"](S.bool(1)), TRUE))
-
-    # !(test (py-call (bool 0)) false)
-    yield m.eval(S.test(S["py-call"](S.bool(0)), FALSE))
-
-    # !(test (py-call (.bit_length true)) 1)
-    yield m.eval(S.test(S["py-call"](S[".bit_length"](TRUE)), 1))
-
-    # !(test (repr (py-call (.upper abc))) "ABC")
-    yield m.eval(
-        S.test(S.repr(S["py-call"](S[".upper"](S.abc))), val("ABC"))
-    )
+    # Only the boolean atoms convert; every other symbol stays text.
+    assert py(S[".upper"](S.abc)) == S.ABC

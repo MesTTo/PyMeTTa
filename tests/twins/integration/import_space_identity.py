@@ -1,75 +1,52 @@
-"""The Python twin of examples/integration/import_space_identity.metta.
+"""examples/integration/import_space_identity.metta in Python: one identity per space.
 
-Two spaces import the same payload, and the file's point is that each importing
-space runs its own copy exactly once while the CALLER imported nothing, so the
-name stays data there.
+Two spaces import the same file. Each gets its own copy of what the file
+defines, exactly once, and the space that did the importing gets nothing: in
+`&self` the imported name stays data, an unreduced term answering itself.
 
-`bind!` is evaluated rather than replaced by a Python name binding, because what
-is being bound is a fresh SPACE the later forms address by name, and the forms
-that address it are `m.eval` terms in the same space. The imported paths are
-absolute for the P14.13 reason the sibling import twins record.
+`bind!` and `new-space` are a Python name binding, which is what a token was
+for. Everything the claims ask goes through the space handle: `space[pattern]`
+matches it and `space.eval(term)` evaluates in it, which is what the example
+spells `(metta term %Undefined% &space)`. Only `import!` still needs the space
+NAMED, because no import door hangs off the handle; that is the residue, and
+the handles are built from the atoms so the name is written once.
 """
 
 from petta import S
 
+#: The two importing spaces, and the file they both import.
+A, B = S["&import-space-a"], S["&import-space-b"]  # rung: import! has no handle door, so it takes the space as a symbol
+PAYLOAD = S["examples/integration/_fixtures/imports/overhaul/space_payload"]
+
+#: What the payload puts in an importing space, and what it defines there.
+MARKER = S["import-space-marker"]()
+FUNCTION = S["import-space-function"]()
+
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 9672
+#: RE-PINNED 2026-08-22, 9672 to 5390, -4282 (-44.3%), by the twin contract
+#: change: five `test` wrappers, five `collapse` calls, two `bind!`/`new-space`
+#: forms and four `match`/`metta` forms left the engine for `assert`, `len()`,
+#: a Python name binding and the space handle's own `[...]` and `.eval`. The
+#: two imports did not move. Against the example's 16442 the ratio is 0.3278
+#: [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/integration/import_space_identity.metta`]. Prior: ADDED 2026-08-22
+#: at 9672 by the wave-3 twin baseline, which priced a transliteration.
+BUDGET = 5390
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Import one payload into two spaces, and ask all three what they hold."""
+    a, b = m.space(A.name), m.space(B.name)
+    for space in (A, B):
+        m.eval(S["import!"](space, PAYLOAD))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(bind! &import-space-a (new-space))
-    yield m.eval(S["bind!"](S["&import-space-a"], S["new-space"]()))
+    # Each importing space holds the marker, once.
+    assert len(a[MARKER]) == 1
+    assert len(b[MARKER]) == 1
 
-    # !(bind! &import-space-b (new-space))
-    yield m.eval(S["bind!"](S["&import-space-b"], S["new-space"]()))
+    # And each ran its own copy of the definition, once.
+    assert a.eval(FUNCTION) == [S["one-result"]]
+    assert b.eval(FUNCTION) == [S["one-result"]]
 
-    # !(import! &import-space-a _fixtures/imports/overhaul/space_payload)
-    yield m.eval(
-        S["import!"](S["&import-space-a"],
-            S["examples/integration/_fixtures/imports/overhaul/space_payload"])
-    )
-
-    # !(import! &import-space-b _fixtures/imports/overhaul/space_payload)
-    yield m.eval(
-        S["import!"](S["&import-space-b"],
-            S["examples/integration/_fixtures/imports/overhaul/space_payload"])
-    )
-
-    # !(test (collapse (match &import-space-a (import-space-marker) present)) (present))
-    yield m.eval(
-        S.test(S.collapse(S.match(S["&import-space-a"], S["import-space-marker"](), S.present)),
-            (S.present,))
-    )
-
-    # !(test (collapse (match &import-space-b (import-space-marker) present)) (present))
-    yield m.eval(
-        S.test(S.collapse(S.match(S["&import-space-b"], S["import-space-marker"](), S.present)),
-            (S.present,))
-    )
-
-    # !(test (collapse (metta (import-space-function) %Undefined% &import-space-a)) (one-result))
-    yield m.eval(
-        S.test(S.collapse(S.metta(S["import-space-function"](),
-                    S["%Undefined%"],
-                    S["&import-space-a"])),
-            (S["one-result"],))
-    )
-
-    # !(test (collapse (metta (import-space-function) %Undefined% &import-space-b)) (one-result))
-    yield m.eval(
-        S.test(S.collapse(S.metta(S["import-space-function"](),
-                    S["%Undefined%"],
-                    S["&import-space-b"])),
-            (S["one-result"],))
-    )
-
-    # !(test (collapse (import-space-function)) ((import-space-function)))
-    yield m.eval(
-        S.test(S.collapse(S["import-space-function"]()),
-            (S["import-space-function"](),))
-    )
+    # The caller imported nothing, so here the name is still data.
+    assert m.eval(FUNCTION) == [FUNCTION]

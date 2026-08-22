@@ -1,63 +1,57 @@
-"""The Python twin of examples/integration/c_extension/c_extension.metta.
+"""examples/integration/c_extension/c_extension.metta in Python: C, called directly.
 
-A C foreign predicate called from MeTTa with nothing in between. Both runnable
-halves are guarded by `file-exists`, exactly as the example guards them, because
-a C compiler is not one of the engine's requirements and the example says so
-when it skips rather than passing quietly.
+`cbump.so` holds one foreign predicate, `loader.pl` loads it, and MeTTa calls
+it with nothing in between. From Python the loading step is
+`m.register_prolog(path=, names=)`, which is what
+`import_prolog_functions_from_file` names in MeTTa, and the call is
+`m.fn("c-bump")(41)`.
 
-The import has to be its own runnable form. A runnable is compiled just before
-it runs, so a call written in the SAME form as its import compiles while the
-name is still unregistered and stays unreduced; the twin keeps that split, and
-that is why the two `m.eval` calls are not merged.
+The example splits its import and its call into two runnables because a
+runnable is compiled just before it runs, so a call written beside its own
+import compiles while the name is still unregistered. A Python program has no
+runnables and no such ordering hazard: the registration is a statement and the
+call is the next one.
+
+The skip stays, because a C compiler is not one of the engine's requirements
+and `check.sh` builds this artefact before any tier runs. What a twin cannot do
+is SAY it skipped: the lane admits a string constant only as an atom's name or
+as `val()` data, so the example's `println!` has no image here.
 """
+
+from pathlib import Path
 
 from petta import S, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: The space the imports write.
+SELF = S["&self"]  # rung: no import door hangs off the space handle
+
+#: The build artefact and the Prolog file that loads it. Marked data because a
+#: twin may not write a bare string; `.value` is the path a Python door takes.
+CBUMP_SO = Path(val("examples/integration/c_extension/cbump.so").value)
+LOADER_PL = Path(val("examples/integration/c_extension/loader.pl").value)
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 99523 across the rewrite, and the baseline finding against
-#: it was the WORKTREE, not the twin: `cbump.so` is a gitignored build artefact,
-#: so an isolated checkout takes the example's own skip branch and costs less.
-#: Built here with the README's `swipl-ld` line, the C path runs and the figure
-#: is the pinned one. Prior: ADDED 2026-08-22 at 99523 by the wave-3 twin
-#: baseline.
-BUDGET = 99523
+#: RE-PINNED 2026-08-22, 99523 to 98204, -1319 (-1.33%), by the twin contract
+#: change: two `if`/`file-exists` guards and a `test` wrapper left the engine
+#: for Python's own `if`, `Path.exists()` and `assert`, and
+#: `import_prolog_functions_from_file` left it for `m.register_prolog`. The two
+#: library imports are most of the cost and the C call itself did not move,
+#: which is why the drop is small. Against the example's 105081 the ratio is
+#: 0.9346 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/integration/c_extension/c_extension.metta`, with cbump.so built by
+#: check.sh's own `swipl-ld` line]. Prior: ADDED 2026-08-22 at 99523 by the
+#: wave-3 twin baseline, which priced a transliteration.
+BUDGET = 98204
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Load the C predicate, then call it."""
+    m.eval(S["import!"](SELF, S.library(S.lib_import)))
+    m.eval(S["import!"](SELF, S.library(S.lib_file)))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_import))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_import)))
+    if not CBUMP_SO.exists():
+        # The example prints its skip here. A twin has no door for prose.
+        return
 
-    # !(import! &self (library lib_file))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_file)))
-
-    # !(if (file-exists "./examples/integration/c_extension/cbump.so")
-    #      (import_prolog_functions_from_file
-    #         "./examples/integration/c_extension/loader.pl" (c-bump))
-    #      (println! "SKIPPED c_extension: cbump.so is not built, see the README beside this file"))
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_extension/cbump.so")),
-            S.import_prolog_functions_from_file(val("./examples/integration/c_extension/loader.pl"),
-                S["c-bump"]()),
-            S["println!"](
-                val("SKIPPED c_extension: cbump.so is not built, see the README beside this file")
-            ))
-    )
-
-    # !(if (file-exists "./examples/integration/c_extension/cbump.so")
-    #      (test (eval (c-bump 41)) 42)
-    #      True)
-    yield m.eval(
-        S["if"](S["file-exists"](val("./examples/integration/c_extension/cbump.so")),
-            S.test(S.eval(S["c-bump"](41)), 42),
-            TRUE)
-    )
+    m.register_prolog(path=LOADER_PL, names=[S["c-bump"].name])
+    assert m.fn("c-bump")(41) == 42

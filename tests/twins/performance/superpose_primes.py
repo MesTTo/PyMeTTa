@@ -1,81 +1,70 @@
-"""The Python twin of examples/performance/superpose_primes.metta: four searches.
+"""examples/performance/superpose_primes.metta in Python: four divisor searches.
 
-`find-divisor` and `prime?` stay at the container door, and this file is where
-that decision was MEASURED rather than argued. Python's `==` inside a compiled
-body lowers to the prelude's `py-eq`, which answers what Python answers across
-mixed numeric types, and never to MeTTa's own `==`. That sits in the inner loop
-of a divisor search: the same program through `@m.define` costs 920,726
-inferences against the term door's 536,577, +71.6%, which is past the lane's own
-10% band and a regression in the very benchmark the example exists to run
-[measured 2026-08-22, ai-tmp/probe/primes_ab.py, min of three fresh processes].
-So the equation is built as the term it is, and the missing spelling is filed
-against P14.4. `prime?` has a second reason on top: a compiled body names a
-function by exactly its MeTTa spelling, and `find-divisor` is not a Python
-identifier.
+Four eight-digit primes, each found by trial division, sharing one branch
+budget. The two equations are what the benchmark IS, so they stay in the engine
+and only the claim moves to Python.
 
-Every operator that CAN build the term does: `d * d > n` is
-`(> (* $test-divisor $test-divisor) $n)`, `n % d` is `(% $n $test-divisor)`,
-`d + 1` is `(+ $test-divisor 1)` and `V.n.eq(...)` is the equality TERM, since
-`==` between atoms is structural equality. `(== 0 (% $n $d))` is the tuple
-`(EQ, 0, ...)`, because Python has no way to put a ground operand on the LEFT of
-a comparison term: `0 == x` compares, and `0 < x` reflects into `(> $x 0)`.
+Neither equation can be compiled, and the second reason is the interesting one.
+`find-divisor` recurses, and a compiled body names a callee by exactly its MeTTa
+spelling, which no Python identifier writes with a hyphen. On top of that,
+Python's `==` inside a compiled body always lowers to the prelude's `py-eq`, a
+host crossing, never to MeTTa's own `==`; here that sits in the inner loop of a
+divisor search. RE-MEASURED 2026-08-22 on this tree, on the same program with
+Python-spellable names so both routes were reachable: the compiled route cost
+913,809 inferences against the term door's 531,461, +71.96%, three runs each,
+identical every time, and the compiled equation reads
+`(if (py-eq (% $n $d) 0) ...)` where the example writes `(== 0 (% $n $d))`
+[ai-tmp/probe/f_primes_ab.py]. That is a regression in the very benchmark this
+example exists to run, so the equations are built as the terms they are and both
+walls are filed as friction.
+
+`with-pragma!` stays too: the four searches overflow the evaluator's default
+stack depth without it, measured here, and `m.limits` bounds inferences and
+time but not stack depth.
 """
 
-from petta import S, V, equation, val
+from petta import S, V, equation, expr, val
+
+#: Why this file sits below the top rung: both equations ARE the benchmark and
+#: neither can be compiled, so their MeTTa bodies stay MeTTa. `find-divisor`
+#: recurses under a hyphenated name no Python identifier writes, and `==` in a
+#: compiled body lowers to the prelude's `py-eq`, re-measured at +71.96% on this
+#: very search (see the docstring above).
+RUNG = "both equations are the benchmark and neither compiles: a hyphenated recursive callee, and `==` lowering to py-eq at +71.96%"
 
 #: The equality head, needed with a GROUND left operand, which is the one shape
-#: Python's own operators cannot build.
+#: Python's own operators cannot build: `0 == x` compares rather than building.
 EQ = S["=="]
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: MeTTa's true, named rather than written inline because a bare boolean in an
+#: argument list reads as a Python flag and this one is an answer.
+TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 536577 across the term-door rewrite: `equation(...).to(...)`,
-#: the operators and the `(EQ, 0, ...)` tuple build the same atoms the hand-nested
-#: `expr` calls built, which the atom-level differential confirms byte-for-byte.
-#: The @m.define alternative was measured and REJECTED at 920726, +71.6%.
-#: Prior: ADDED 2026-08-22 at 536577 by the wave-3 twin baseline.
-BUDGET = 536577
+#: RE-PINNED 2026-08-22, 536577 to 536319, -258 (-0.048%), by the twin contract
+#: change: the `test` wrapper left the engine for Python's own `assert`, which
+#: is all that could move here. The two equations and the four searches under
+#: them are the benchmark. Against the example's 542340 the ratio is 0.9889
+#: [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/performance/superpose_primes.metta`]. Prior: ADDED 2026-08-22 at
+#: 536577 by the wave-3 twin baseline.
+BUDGET = 536319
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # (= (find-divisor $n $test-divisor)
-    #    (if (> (* $test-divisor $test-divisor) $n)
-    #        $n
-    #        (if (== 0 (% $n $test-divisor))
-    #            $test-divisor
-    #            (find-divisor $n (+ $test-divisor 1)))))
+    """Define trial division, then ask it about four primes."""
     m += equation(S["find-divisor"](V.n, V["test-divisor"])).to(
-        S["if"](
-            V["test-divisor"] * V["test-divisor"] > V.n,
-            V.n,
-            S["if"]((EQ, 0, V.n % V["test-divisor"]),
-                V["test-divisor"],
-                S["find-divisor"](V.n, V["test-divisor"] + 1))))
-
-    # (= (prime? $n)
-    #    (== $n (find-divisor $n 2)))
+        S["if"](V["test-divisor"] * V["test-divisor"] > V.n,
+                V.n,
+                S["if"]((EQ, 0, V.n % V["test-divisor"]),
+                        V["test-divisor"],
+                        S["find-divisor"](V.n, V["test-divisor"] + 1))))
     m += equation(S["prime?"](V.n)).to(V.n.eq(S["find-divisor"](V.n, 2)))
 
-    # !(test (with-pragma! ((max-stack-depth 1000000))
-    #          ((prime? 53537257)
-    #           (prime? 53781811)
-    #           (prime? 54218443)
-    #           (prime? 54734431)))
-    #        (True True True True))
-    yield m.eval(
-        S.test(S["with-pragma!"]((S["max-stack-depth"](1000000),),
-                (S["prime?"](53537257),
-                    S["prime?"](53781811),
-                    S["prime?"](54218443),
-                    S["prime?"](54734431))),
-            (TRUE, TRUE, TRUE, TRUE))
-    )
+    # Four searches share one branch budget, so the benchmark states a finite
+    # allowance above the evaluator's 100000 default.
+    searches = (S["prime?"](53537257), S["prime?"](53781811),
+                S["prime?"](54218443), S["prime?"](54734431))
+    assert m.eval(
+        S["with-pragma!"]((S["max-stack-depth"](1000000),), searches)
+    ) == [expr(TRUE, TRUE, TRUE, TRUE)]
