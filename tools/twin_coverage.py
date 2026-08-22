@@ -186,9 +186,13 @@ DISSOLVED = {
     "trace!": "print(), or logging",
     "format-args": "an f-string",
     "bind!": "a Python name binding",
-    "get-type": "space.type(atom)",
-    "get-doc": "help(), or space.doc(atom)",
-    "new-space": "space()",
+    "new-space": "space.new_space()",
+    # NOT here, though section 9e assigns them: `get-type` and `get-doc`. The
+    # ledger DESIGNS `space.type(atom)` and `space.doc(atom)`; the surface has
+    # not shipped either, so naming the head is the only spelling a twin has
+    # and demanding another would be demanding a door that does not exist
+    # [measured 2026-08-22: `MeTTa.type` is the class-declaration decorator
+    # and `MeTTa` has no `doc`; P14.25 is the row that closes them].
 }
 
 
@@ -355,7 +359,16 @@ def _named_strings(tree: ast.Module) -> set[int]:
             permitted.add(id(node.slice))
         elif isinstance(node, ast.Call):
             if _callee(node) in NAMING_CALLS:
-                permitted.update(id(argument) for argument in node.args)
+                # Every argument, keyword and nested container included: a
+                # naming call takes names and marked data wherever they sit,
+                # and `new_space(grants=["file"])` names capabilities
+                # [found 2026-08-22 by the spaces agent, which had to write
+                # `S.file.name` to get past this].
+                permitted.update(
+                    id(inner)
+                    for inner in ast.walk(node)
+                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                )
             permitted.update(
                 id(keyword.value) for keyword in node.keywords if keyword.arg == "name"
             )
