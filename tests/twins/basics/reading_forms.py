@@ -18,6 +18,10 @@ import that form needed goes with it.
 from petta import EngineError, S, val
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 3782 to 3730, -52, by the p14-tabling merge, the sole
+#: change between the two readings: the define-path saving seen corpus-wide.
+#: Ratio 3730/22552 = 0.1654 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 14305 to 3782, -10523 (-73.6%), by the twin
 #: contract change: twelve `test` wrappers left the engine for `assert`,
 #: and the last claim dropped the `lib_he` import with its
@@ -25,7 +29,7 @@ from petta import EngineError, S, val
 #: so a try/except says it. Against the example's 22567 the ratio is 0.1676
 #: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
 #: figure priced a different program.
-BUDGET = 3782
+BUDGET = 3730
 
 
 def twin(m):

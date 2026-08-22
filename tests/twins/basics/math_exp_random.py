@@ -18,6 +18,10 @@ equation compares, and the residue table records the hole against P14.4.
 E = 2.718281828459045
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 4065 to 4261, +196, by the p14-tabling merge, the
+#: sole change between the two readings: admission analysis on its
+#: definitions. Ratio 4261/14622 = 0.2914 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 10704 to 4065, -6639 (-62.0%), by the twin
 #: contract change: seven `test` wrappers left the engine for `assert`, and
 #: the two float-tolerance claims moved their subtraction, absolute value
@@ -25,7 +29,7 @@ E = 2.718281828459045
 #: themselves crossing. Against the example's 14535 the ratio is 0.2797
 #: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
 #: figure priced a different program.
-BUDGET = 4065
+BUDGET = 4261
 
 
 def twin(m):

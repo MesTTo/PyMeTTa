@@ -20,6 +20,10 @@ own `min` and `max` read it with no engine crossing at all.
 from petta import S, expr, val
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 6383 to 5991, -392, by the p14-tabling merge, the
+#: sole change between the two readings: the define-path saving seen corpus-
+#: wide. Ratio 5991/33601 = 0.1783 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 21852 to 6383, -15469 (-70.8%), by the twin
 #: contract change: thirty-one `test` wrappers left the engine for
 #: `assert`, `min-atom` and `max-atom` left it for Python's own `min` and
@@ -28,7 +32,7 @@ from petta import S, expr, val
 #: stayed, reached through `m.fn`. Against the example's 33807 the ratio is
 #: 0.1888 [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The
 #: old figure priced a different program.
-BUDGET = 6383
+BUDGET = 5991
 
 #: The six numbers `min-atom` and `max-atom` are asked about.
 NUMBERS = expr(2, 6, 7, 4, 9, 3)

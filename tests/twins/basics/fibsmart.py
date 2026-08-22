@@ -15,13 +15,18 @@ body's `==` lowers to the prelude's `py-eq` where the original writes MeTTa's
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 8050 to 9103, +1053, by the p14-tabling merge, the
+#: sole change between the two readings: admission analysis on a definition
+#: that was already linear, so the analysis is pure overhead here. Ratio
+#: 9103/9210 = 0.9884 [measured 2026-08-23 min-of-3 via tools/twin_coverage.py
+#: --measure]. Prior:
 #: RE-PINNED 2026-08-22, 8679 to 8050, -629 (-7.2%), by the twin contract
 #: change: the `test` wrapper left the engine for `assert`, and the call
 #: goes through `m.fn("fib")` rather than a built `(test ...)` term.
 #: Against the example's 8505 the ratio is 0.9465 [measured 2026-08-22
 #: min-of-3, `twin_coverage.py --measure`]. The old figure priced a
 #: different program.
-BUDGET = 8050
+BUDGET = 9103
 
 
 def twin(m):

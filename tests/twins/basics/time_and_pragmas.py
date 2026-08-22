@@ -33,6 +33,10 @@ TRUE = val(value=True)
 UNIT = expr()
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 33675 to 34881, +1206, by the p14-tabling merge, the
+#: sole change between the two readings: admission analysis across its pragma-
+#: heavy load. Ratio 34881/65328 = 0.5339 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 43549 to 33675, -9874 (-22.7%), by the twin
 #: contract change: twenty-four `test` wrappers left the engine for
 #: `assert`, two `collapse` calls and one `car-atom` left it for the answer
@@ -43,7 +47,7 @@ UNIT = expr()
 #: example's 64046 the ratio is 0.5258 [measured 2026-08-22 min-of-3,
 #: `twin_coverage.py --measure`]. The old figure priced a different
 #: program.
-BUDGET = 33675
+BUDGET = 34881
 
 
 def twin(m):

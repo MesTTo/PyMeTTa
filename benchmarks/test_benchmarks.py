@@ -6,6 +6,9 @@ Guarantees:
     window [tested benchmark_case]
   - raw and encoded operation cases select one named transport mode [tested:
     test_raw_operation, test_encoded_operation; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - automatic bag-preserving memoization changes a doubly recursive family's
+    inference growth from exponential to linear [tested:
+    test_automatic_tabling_growth; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -51,6 +54,75 @@ from petta import Answer, MeTTa, S, V, expr
 from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
+
+# RE-PINNED 2026-08-22, plain/automatic
+# 86935/5499, 689071/6570, 5506159/7641, 22021891/8355 to
+# 86892/5458, 689055/6529, 5506173/7600, 22021937/8314, at P14.17 lazy
+# cache-handler activation: dispatch and removal handlers now exist only while
+# a cache is live, removing the unused-hook cost from the automatic samples;
+# re-measured min-of-three fresh-process.
+# RE-PINNED 2026-08-22, plain n=15/18/20 689055/5506173/22021937 to
+# 689040/5506143/22021892, at P14.17 per-function invalidation: indexed ground
+# removal clauses replace the shared guarded handler, shifting the refused
+# function's compiled runtime floor by -15/-30/-45 while n=12 and every
+# automatic sample stay identical; re-measured min-of-three fresh-process.
+_AUTOMATIC_TABLING_PINS = {
+    12: {"plain": 86_892, "automatic": 5_458},
+    15: {"plain": 689_040, "automatic": 6_529},
+    18: {"plain": 5_506_143, "automatic": 7_600},
+    20: {"plain": 22_021_892, "automatic": 8_314},
+}
+
+
+def _automatic_tabling_sample(n: int, mode: str) -> int:
+    name = f"benchmark-tabling-{mode}"
+    declaration = f"(cache {name} refuse)"
+    space = MeTTa()
+    try:
+        space.run("!(pragma! max-stack-depth 100000000)")
+        if mode == "plain":
+            space.run(f"!(add-atom &petta {declaration})")
+        space.run(
+            f"""
+            (= ({name} $n)
+               (if (< $n 1)
+                   1
+                   (+ ({name} (- $n 1))
+                      ({name} (- $n 1)))))
+            """
+        )
+        with space.stats() as stats:
+            answer = space.run(f"!({name} {n})")
+        if answer != [[2**n]]:
+            raise AssertionError(f"{name}({n}) answered {answer!r}")
+        return stats.inferences
+    finally:
+        if mode == "plain":
+            space.run(f"!(remove-atom &petta {declaration})")
+        space.drop()
+
+
+def _automatic_tabling_observations() -> dict[int, dict[str, int]]:
+    return {
+        n: {
+            mode: min(_automatic_tabling_sample(n, mode) for _ in range(3))
+            for mode in ("plain", "automatic")
+        }
+        for n in _AUTOMATIC_TABLING_PINS
+    }
+
+
+def test_automatic_tabling_growth() -> None:
+    observed = _automatic_tabling_observations()
+    for n, modes in observed.items():
+        for mode, inferences in modes.items():
+            assert inferences <= _AUTOMATIC_TABLING_PINS[n][mode] + 4, observed
+
+    assert observed[15]["plain"] >= 7 * observed[12]["plain"]
+    assert observed[18]["plain"] >= 7 * observed[15]["plain"]
+    assert observed[20]["plain"] >= 3 * observed[18]["plain"]
+    assert observed[20]["automatic"] - observed[12]["automatic"] < 5_000
+    assert observed[20]["plain"] >= 2_500 * observed[20]["automatic"]
 
 
 def _empty_space():

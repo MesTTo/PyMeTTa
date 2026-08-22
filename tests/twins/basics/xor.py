@@ -17,13 +17,17 @@ residue table records the divergence against P14.4.
 """
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 4226 to 4454, +228, by the p14-tabling merge, the
+#: sole change between the two readings: admission analysis on its
+#: definitions. Ratio 4454/6311 = 0.7058 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 5500 to 4226, -1274 (-23.2%), by the twin contract
 #: change: two `test` wrappers left the engine for `assert`, and both calls
 #: go through the decorated function rather than through a built `(test
 #: ...)` term. Against the example's 5984 the ratio is 0.7062 [measured
 #: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
 #: priced a different program.
-BUDGET = 4226
+BUDGET = 4454
 
 
 def twin(m):

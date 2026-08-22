@@ -6,7 +6,14 @@ is Python's own `assert`.
 """
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 2289 to 2226, -63, by two changes with separate
+#: RE-PINNED 2026-08-23, 2226 to 2210, -16, by the p14-tabling merge, the sole
+#: change between the two readings. The movement has opposite signs on the two
+#: sides: the Python-define path this twin uses nets -16 even though admission
+#: runs on it (a fresh engine already holds an automatic (cache f ...) row, so
+#: declaring one collides), while the example's file-load side prices the SCC
+#: admission analysis at +51, 2577 to 2628. Ratio now 2210/2628 = 0.8409
+#: [measured 2026-08-23 min-of-3 via tools/twin_coverage.py --measure].
+#: Prior: RE-PINNED 2026-08-23, 2289 to 2226, -63, by two changes with separate
 #: causes that partly cancel. The lane now hands the child a BUILT measurement
 #: environment rather than inheriting the caller's, which is worth -91 to any
 #: twin that compiles a definition and nothing to one that does not; and the
@@ -18,7 +25,7 @@ is Python's own `assert`.
 #: Prior: RE-PINNED 2026-08-22 at 2289 by the twin contract change, when the
 #: definition moved to `@m.define`; the figure before that priced a different
 #: program.
-BUDGET = 2226
+BUDGET = 2210
 
 
 def twin(m):

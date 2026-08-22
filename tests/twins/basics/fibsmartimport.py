@@ -14,13 +14,17 @@ table records both against P14.13.
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 9942 to 10647, +705, by the p14-tabling merge, the
+#: sole change between the two readings: admission analysis on the imported
+#: definitions. Ratio 10647/12674 = 0.8401 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 10566 to 9942, -624 (-5.9%), by the twin contract
 #: change: the `test` wrapper left the engine for `assert`; the import
 #: itself, which runs the imported file's own claim, is most of what is
 #: left. Against the example's 11976 the ratio is 0.8302 [measured
 #: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
 #: priced a different program.
-BUDGET = 9942
+BUDGET = 10647
 
 
 def twin(m):

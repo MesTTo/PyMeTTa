@@ -27,6 +27,10 @@ from petta import S, V, val
 TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-23, 32289 to 32229, -60, by the p14-tabling merge, the
+#: sole change between the two readings: the define-path saving seen corpus-
+#: wide. Ratio 32229/53606 = 0.6012 [measured 2026-08-23 min-of-3 via
+#: tools/twin_coverage.py --measure]. Prior:
 #: RE-PINNED 2026-08-22, 40680 to 32289, -8391 (-20.6%), by the twin
 #: contract change: the `test` wrapper and eleven `collapse` calls left the
 #: engine for `assert` and the list an evaluation already answers, while
@@ -34,7 +38,7 @@ TRUE = val(value=True)
 #: were. Against the example's 53467 the ratio is 0.6039 [measured
 #: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
 #: priced a different program.
-BUDGET = 32289
+BUDGET = 32229
 
 
 def twin(m):
