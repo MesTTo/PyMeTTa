@@ -11,7 +11,13 @@ equation with no string anywhere.
 from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8872 to 8880, +8, and this one is
+#: RE-PINNED 2026-08-22, 8880 to 8679, -201 (-2.26%), by
+#: INLINING the fuel charge into the compiled clause instead of calling a
+#: shared petta_fuel_step/2. The cost of a charged reduction is a
+#: compile-time constant, so the charge is BUILT where the call used to be
+#: emitted and the constant lands as a literal in the subtraction: six
+#: inferences per charged reduction become four, and the drop tracks each
+#: twin's charged-reduction count rather than its size. Prior: #: RE-PINNED 2026-08-22, 8872 to 8880, +8, and this one is
 #: UNATTRIBUTED: it reproduces byte-stably across three runs and survives an
 #: A/B of both candidate causes (the lib_json/lib_file/lib_thread counter
 #: change and this file's own comment block each measure identically either
@@ -37,7 +43,7 @@ from petta import S, V
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 8880
+BUDGET = 8679
 
 
 def twin(m):

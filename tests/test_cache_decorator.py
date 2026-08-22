@@ -6,6 +6,10 @@ Guarantees:
     recursion becomes linear, and its counters and clear are reachable under
     functools.lru_cache's own names.
   [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  - a table normalises duplicate answers away, which the arbiter SPECIFIES for
+    an untabled function, so the decorator is where a program asks for that
+    trade rather than something it discovers.
+  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=WORKTREE]
 Fails when: read as a fixed-size cache. A table holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.
@@ -67,3 +71,34 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
 
     assert metta.eval(cachedec_named(20)) == [6765]
     assert cachedec_named.cache_info()["answers"] == 21
+
+
+def test_a_cached_definition_normalises_duplicate_answers_away() -> None:
+    """A table is a SET of answers, and the arbiter specifies multiplicity.
+
+    "Result order within one directive's list is unspecified; result
+    multiplicity is specified" [source: LeaTTa wiki/Specification.md:22], and
+    lib_tabling says the same thing from the other side: tabling normalises
+    "answer ORDER and DUPLICATES" away. So a function with non-exclusive
+    equations means something different once cached, and this is where a
+    program asks for that. lib_memo's `(memoized ...)` is the door that keeps
+    the bag.
+    """
+    plain = MeTTa("&cachedup-plain")
+    plain.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
+    assert sorted(str(atom) for atom in plain.run("!(cachedup)")[0]) == ["a", "a", "b"]
+
+    tabled = MeTTa("&cachedup-tabled")
+    tabled.run("!(import! &self (library lib_tabling))")
+    tabled.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
+    assert tabled.run("!(tabled (cachedup))") == [[True]]
+    assert sorted(str(atom) for atom in tabled.run("!(cachedup)")[0]) == ["a", "b"]
+
+    # lib_memo keeps the bag, which is why it is the other door rather than a
+    # slower spelling of this one.
+    memoized = MeTTa("&cachedup-memo")
+    memoized.run("!(import! &self (library lib_memo))")
+    memoized.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
+    memoized.run("!(memoized (cachedup))")
+    answers = sorted(str(atom) for atom in memoized.run("!(cachedup)")[0])
+    assert answers == ["a", "a", "b"]

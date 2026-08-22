@@ -2510,6 +2510,16 @@ class MeTTa:
         `answers`, `complete-call`, `invalidated` and `reevaluated` rather
         than lru_cache's hits and misses
         [tested: test_a_cached_definition_tables_and_answers_from_its_trie].
+
+        WHAT THIS CHANGES, and lru_cache does not: a table normalises answer
+        ORDER and DUPLICATES away. `(= (f) a) (= (f) a) (= (f) b)` answers the
+        bag `a a b` and answers `a b` once tabled. The arbiter leaves order
+        unspecified and SPECIFIES multiplicity, so dropping the repeat is a
+        real change to what the function means and this decorator is the place
+        that asks for it. Cache a function whose equations are exclusive, or
+        one whose callers only ever ask whether an answer is there. lib_memo's
+        `(memoized ...)` keeps the bag and is the door for everything else
+        [tested: test_a_cached_definition_normalises_duplicate_answers_away].
         """
         if fn is None:
             return lambda function: self._cache_define(function, name, unchecked=unchecked)

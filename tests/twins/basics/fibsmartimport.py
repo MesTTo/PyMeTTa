@@ -9,7 +9,13 @@ the path instead; the residue table records that against P14.13.
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10971 to 10969, -2, by reading the fuel
+#: RE-PINNED 2026-08-22, 10969 to 10566, -403 (-3.67%), by
+#: INLINING the fuel charge into the compiled clause instead of calling a
+#: shared petta_fuel_step/2. The cost of a charged reduction is a
+#: compile-time constant, so the charge is BUILT where the call used to be
+#: emitted and the constant lands as a literal in the subtraction: six
+#: inferences per charged reduction become four, and the drop tracks each
+#: twin's charged-reduction count rather than its size. Prior: #: RE-PINNED 2026-08-22, 10971 to 10969, -2, by reading the fuel
 #: balance with the deterministic b_getval/2 instead of the nondeterministic
 #: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
 #: reduction, which is what the spread says: this lane's one-form twins move by
@@ -27,7 +33,7 @@ from petta import S
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 10969
+BUDGET = 10566
 
 
 def twin(m):
