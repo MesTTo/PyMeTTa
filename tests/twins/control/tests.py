@@ -1,51 +1,33 @@
-"""The Python twin of examples/control/tests.metta: four programs composed.
+"""examples/control/tests.metta in Python: four programs, one answer set.
 
-`program4` collapses a three-element expression whose elements each answer
-nondeterministically, so the answer is the CROSS PRODUCT: three answers, one
-per answer of `program2`, each carrying `program1`'s single collapsed tuple and
-`program3`'s single collapsed pair.
+`program4` collapses a three-element expression whose middle element answers
+three times, so the whole thing answers three times and the collapse gathers
+all three. The other three programs are the ways a `let` and a superposition
+can be stacked, and each has a Python statement that means it: `let` is
+assignment, `superpose` over written-out alternatives is the form itself, and
+`superpose` over a BOUND expression is `yield from`.
 
-Three of the four are computations and are written as ones.
-
-- `program1`: `x = y` is the `let`, and `superpose(12, x + 4)` spells
-  `(superpose (12 (+ $x 4)))`, alternatives written out.
-- `program3`: `superpose(...)` with ONE argument is `(superpose (...))`,
-  a superposition over a single alternative, which is exactly what the
-  original writes twice over.
-- `program4`: a Python tuple is the expression whose elements are collapsed.
-
-`program2` is written at the container door. Its inner form is
-`(superpose $L)`, a superposition over a BOUND value, and `superpose(l)` in a
-compiled body means `(superpose ($l))` instead; the residue table records that
-against P14.4.
-
-Two of the compiled equations are stored differently from the original's, both
-by lowering rather than by choice: an assignment is a one-pair `let*` where the
-original writes `let`, and `x == 2` is `(py-eq $x 2)` where it writes
-`(== $x 2)`. `program3`'s else arm is a source choice, `return 4` for the
-original's `(let $z 4 $z)`, which binds a constant and answers it.
+`collapse` and `superpose` are bound from `m.fn` so that names a compiled body
+reads as MeTTa are names Python can see too; `list()` does not lower to
+`collapse` inside a compiled body, which supercollapse records against P14.4.
 """
 
-from petta import S, V, equation
+from petta import expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10073 to 10668, +595, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 10073 by 47554fc's control/types twin baseline.
-BUDGET = 10668
+#: RE-PINNED 2026-08-22, 10668 to 8999, -1669 (-15.6%), by the twin contract
+#: change: `program2` ENTERED the engine as a compiled generator where it was
+#: a container-door equation, and the `test` wrapper LEFT for `assert`; the
+#: collapse inside `program4` still runs there, which is the file's subject.
+#: Measured min-of-3 over fresh processes with the MORK backend linked in,
+#: which the artefact-free worktree omits and which moves a compiled twin by
+#: about 10 inferences per definition; against the example's 15006 the ratio
+#: is 0.5997. Prior: 10668, the transliterated twin this replaces.
+BUDGET = 8999
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # `collapse` and `superpose` are two of the four names a compiled body
-    # reads as MeTTa rather than as Python. Binding them here is what keeps
-    # the module readable and runnable as Python as well.
+    """Stack lets and superpositions four ways, then collapse the lot."""
     collapse, superpose = m.fn("collapse"), m.fn("superpose")
 
     @m.define
@@ -54,20 +36,14 @@ def twin(m):
         x = y
         return collapse(superpose(12, x + 4))
 
-    # (= (program2 $Y)
-    #    (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
-    m += equation(S.program2(V.y)).to(
-        S.let(
-            V.answers,
-            S.let(
-                V.source,
-                (1, 2, 3),
-                S.collapse(S.superpose(V.source)),
-            ),
-            S.superpose(V.answers),
-        )
-    )
-    program2 = m.fn("program2")
+    @m.define
+    def program2(_y):
+        # (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
+        # Fanning an expression out and gathering it back gives that same
+        # expression, so the inner `let` is an ordinary binding and the outer
+        # `(superpose $list)` is `yield from`.
+        answers = (1, 2, 3)
+        yield from answers
 
     @m.define
     def program3(x):
@@ -84,17 +60,9 @@ def twin(m):
         # (= (program4) (collapse ((program1 42) (program2 42) (program3 2))))
         return collapse((program1(42), program2(42), program3(2)))
 
+    first = expr(12, 46)
+    last = expr(42, 43)
+
     # !(test (program4)
     #        (((12 46) 1 (42 43)) ((12 46) 2 (42 43)) ((12 46) 3 (42 43))))
-    first = (12, 46)
-    last = (42, 43)
-    yield m.eval(
-        S.test(
-            S.program4(),
-            (
-                (first, 1, last),
-                (first, 2, last),
-                (first, 3, last),
-            ),
-        )
-    )
+    assert program4() == [expr(*(expr(first, n, last) for n in (1, 2, 3)))]

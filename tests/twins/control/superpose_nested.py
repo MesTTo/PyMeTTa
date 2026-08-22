@@ -1,60 +1,56 @@
-"""The Python twin of examples/control/superpose_nested.metta: nesting flattens.
+"""examples/control/superpose_nested.metta in Python: a superposition flattens.
 
-A `superpose` whose elements are themselves superpositions answers every
-answer of every element, so `((superpose (a b c)) (superpose (x y z)))`
-collapses to six, and mixing superpositions with plain elements works the same
-way. That is the whole file: nesting is not a second construct.
+Four collapses of the same three answers, differing only in how deeply the
+superposition is nested, and all four give the answers back flat: nesting a
+superposition inside a superposition adds no structure, and mixing nested and
+bare alternatives adds none either.
 
-`progme` is written at the container door because every answer in it is a
-lowercase SYMBOL. A compiled body resolves a lowercase free name as a function
-and reads a capitalised one as a constructor, so `a` raises and `A` would
-store the wrong atom; wave one recorded that against P14.4 for
-`time_and_pragmas`.
+Inside a compiled body `superpose(a, b, c)` is the form itself, one expression
+holding the alternatives, so the four lines below are the four lines of the
+original. `collapse` is bound from `m.fn` because the dissolution table's
+`list()` does not lower inside a compiled body, which supercollapse records.
+
+The six tags are capitalised. A compiled body reads a lowercase free name as a
+function and a capitalised one as data, so `a` raises where `A` is data; the
+spelling gap case2 records against P14.4.
 """
 
-from petta import S, equation
+from petta import S, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4844 to 4872, +28, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 4844 by 47554fc's control/types twin baseline.
-BUDGET = 4872
+#: RE-PINNED 2026-08-22, 4872 to 5431, +559 (+11.5%), by the twin contract
+#: change: `progme` ENTERED the engine as a compiled body whose four lines
+#: are the original's four, and pays `@m.define`'s fixed registration; the
+#: `test` wrapper LEFT for `assert`. Measured min-of-3 over fresh processes
+#: with the MORK backend linked in, which the artefact-free worktree omits
+#: and which moves a compiled twin by about 10 inferences per definition;
+#: against the example's 9074 the ratio is 0.5985. Prior: 4872, the
+#: transliterated twin this replaces.
+BUDGET = 5431
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Collapse the same three answers out of four different nestings."""
+    collapse, superpose = m.fn("collapse"), m.fn("superpose")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    letters = (S.a, S.b, S.c)
-    tail = (S.x, S.y, S.z)
-
-    # (= (progme)
-    #    ((collapse (superpose ((superpose (a b c)) (superpose (x y z)))))
-    #     (collapse (superpose (a b c)))
-    #     (collapse (superpose ((superpose (a b c)))))
-    #     (collapse (superpose ((superpose (a b c)) x y z )))))
-    m += equation(S.progme()).to(
-        (
-            S.collapse(S.superpose((S.superpose(letters), S.superpose(tail)))),
-            S.collapse(S.superpose(letters)),
-            S.collapse(S.superpose((S.superpose(letters),))),
-            S.collapse(S.superpose((S.superpose(letters), S.x, S.y, S.z))),
+    @m.define
+    def progme():
+        # (= (progme)
+        #    ((collapse (superpose ((superpose (a b c)) (superpose (x y z)))))
+        #     (collapse (superpose (a b c)))
+        #     (collapse (superpose ((superpose (a b c)))))
+        #     (collapse (superpose ((superpose (a b c)) x y z )))))
+        return (
+            collapse(superpose(superpose(A, B, C), superpose(X, Y, Z))),  # noqa: F821  -- capitalised free names in a compiled body are MeTTa data, which has no Python value to bind
+            collapse(superpose(A, B, C)),  # noqa: F821  -- the same three tags
+            collapse(superpose(superpose(A, B, C))),  # noqa: F821  -- the same three tags, nested once more
+            collapse(superpose(superpose(A, B, C), X, Y, Z)),  # noqa: F821  -- nested and bare alternatives side by side
         )
-    )
+
+    # Calling a symbol builds the expression headed by it, which is how a
+    # fact is written too: `(a b c)` is `S.A(S.B, S.C)`.
+    letters = S.A(S.B, S.C)
+    both = S.A(S.B, S.C, S.X, S.Y, S.Z)
 
     # !(test (progme) ((a b c x y z) (a b c) (a b c) (a b c x y z)))
-    yield m.eval(
-        S.test(
-            S.progme(),
-            (
-                (S.a, S.b, S.c, S.x, S.y, S.z),
-                letters,
-                letters,
-                (S.a, S.b, S.c, S.x, S.y, S.z),
-            ),
-        )
-    )
+    assert progme() == [expr(both, letters, letters, both)]

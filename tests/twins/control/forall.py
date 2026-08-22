@@ -1,31 +1,22 @@
-r"""The Python twin of examples/control/forall.metta: a bounded check over a stream.
+"""examples/control/forall.metta in Python: a check over every answer.
 
-`forall` compiles to Prolog's own `forall/2`, `\+ (Gen, \+ Test)`, so it STOPS
-the generator at the first answer the check refuses. That is what makes a
-bounded take writable in MeTTa, and it is why the generator and the check are
-both first-class here: either may be a function name or a lambda, and a lambda
-may arrive through a `let`, through a `let*`, written inline, or wrapped in an
-`if` that answers one.
+`forall` runs its check on every answer its generator gives and stops at the
+first one that fails. Both slots take a function name, a call with an unbound
+argument, or a lambda, and the file walks every combination of the two.
 
-`g` uses the stacked-clause door, which is the Python spelling of literal head
-patterns: a literal default is not a Python default there, it is the
-equation's head pattern, so `def g_one(n=1)` writes `(= (g 1) 1)`. The two
-clauses are two Python functions carrying one `name=`, because two functions
-of one name in one module is a redefinition to every Python reader and to
-ruff.
+The generator and the check are ordinary definitions and are written as ones:
+`g`'s two clauses stack, because a literal default IS the head pattern for
+that position, and `f`'s two clauses fix nothing at all, which stacking reads
+as redefinition, so `f` goes through `@rules` instead. `P` is a computation
+and compiles.
 
-`f` cannot use that door: its two clauses fix nothing, so there is no literal
-default to tell them apart, and a literal default is the whole of what makes
-clauses stack. Measured 2026-08-22, two `@m.define` decorations under one name
-with identical heads do not stack: rebinding one Python name replaces the first
-equation, and two different Python functions raise `IndexError` out of
-`_define_twins.replace_twin_clause`. So `f` uses `@rules`, the definitional
-door that writes a clause set and derives no guard over it; that is the same
-choice `basics/time_and_pragmas` makes for `bounded-factorial`, where the
-guard would prune the branch the example exists to show.
-
-`P` is written `name="P"` over a lowercase Python function, because a
-capitalised Python function name is not a Python spelling at all.
+The lambdas are terms. A Python lambda inside a compiled body does lower to
+the engine's own `|->`, but a definition whose BODY is a lambda cannot hand
+one out as data: the lambda's parameter folds into the head's arity, so
+`(below 2)` answers `(partial below (2))`, and a nullary one answers a lifted
+closure symbol. Measured 2026-08-22; filed as residue against P14.4. So the
+two lambdas are built at the term door, once each, and the `let` and `let*`
+that bind them are Python name bindings, which is what a `let` is.
 """
 
 from petta import S, V, equation, rules, val
@@ -33,42 +24,38 @@ from petta import S, V, equation, rules, val
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+TRUE = val(value=True)
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 27964 to 27983, +19, by lifting the 2-clause equation set from
-#: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the
-#: increase is the multi-atom add path, not the decorator: `rules` builds its equations in
-#: Python and spends nothing on the engine, and one `m.add` of n atoms costs 13 + 3n inferences
-#: more than n separate `m +=` calls (measured over three fresh processes each: 673 against 692
-#: at two atoms, 1042 against 1064 at three, 0.0000% spread). Prior: #: RE-PINNED 2026-08-22, 26188 to 27964, +1776, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 26188 by 47554fc's control/types twin baseline.
-BUDGET = 27983
-
-#: (|-> ($x) (g $x)), the generator as a lambda, and the application of one.
+#: `(|-> ($x) (g $x))`, the generator lambda the original writes inline.
 GENERATOR = S["|->"]((V.x,), S.g(V.x))
 
+#: `(|-> ($x) (* 100 (g $x)))`, the generator that scales what it gives.
+SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 
-def _check(bound):
-    """(|-> ($v) (< $v <bound>)), the check as a lambda."""
-    return S["|->"]((V.v,), V.v < bound)
+#: Inferences this twin spends, its own tripwire.
+#: RE-PINNED 2026-08-22, 27983 to 24004, -3979 (-14.2%), by the twin contract
+#: change: twelve `test` wrappers LEFT the engine for twelve `assert`s; every
+#: `forall` still runs there, which is the file's subject, and the two
+#: lambdas are still terms because a definition whose body is a lambda
+#: answers a partial application rather than the lambda. Measured min-of-3
+#: over fresh processes with the MORK backend linked in, which the artefact-
+#: free worktree omits and which moves a compiled twin by about 10 inferences
+#: per definition; against the example's 39434 the ratio is 0.6087. Prior:
+#: 27983, the transliterated twin this replaces.
+BUDGET = 24004
+
+
+def below(limit):
+    """`(|-> ($v) (< $v <limit>))`, the check the original writes inline."""
+    return S["|->"]((V.v,), V.v < limit)
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-
+    """Check every answer of a generator, nine ways of naming the two."""
     @rules
     def f():
-        # (= (f) 1)
+        # (= (f) 1) (= (f) 2)
         yield equation(S.f()).to(1)
-        # (= (f) 2)
         yield equation(S.f()).to(2)
 
     m.add(*f)
@@ -93,108 +80,46 @@ def twin(m):
 
     # Arg-free generator function plus check function.
     # !(test (forall (f) P) false)
-    yield m.eval(S.test(S.forall(S.f(), S.P), FALSE))
+    assert m.eval(S.forall(S.f(), S.P)) == [False]
 
     # Arg-ful generator function plus check function.
     # !(test (forall (g $x) P) false)
-    yield m.eval(S.test(S.forall(S.g(V.x), S.P), FALSE))
+    assert m.eval(S.forall(S.g(V.x), S.P)) == [False]
 
-    # Arg-ful generator lambda plus check function.
+    # Arg-ful generator lambda plus check function. The `let` that names the
+    # lambda is a Python name binding, which is what a `let` is.
     # !(test (let $genlambda (|-> ($x) (g $x)) (forall ($genlambda $z) P)) false)
-    yield m.eval(
-        S.test(
-            S.let(
-                V.genlambda,
-                GENERATOR,
-                S.forall((V.genlambda, V.z), S.P),
-            ),
-            FALSE,
-        )
-    )
+    genlambda = GENERATOR
+    assert m.eval(S.forall((genlambda, V.z), S.P)) == [False]
 
     # Arg-ful generator function plus check lambda.
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 2) $checklambda)) false)
-    yield m.eval(
-        S.test(
-            S.let(
-                V.checklambda,
-                _check(2),
-                S.forall(S.g(2), V.checklambda),
-            ),
-            FALSE,
-        )
-    )
+    checklambda = below(2)
+    assert m.eval(S.forall(S.g(2), checklambda)) == [False]
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 1) $checklambda)) true)
-    yield m.eval(
-        S.test(
-            S.let(
-                V.checklambda,
-                _check(2),
-                S.forall(S.g(1), V.checklambda),
-            ),
-            TRUE,
-        )
-    )
+    assert m.eval(S.forall(S.g(1), checklambda)) == [True]
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 2) $checklambda)) false)
-    yield m.eval(
-        S.test(
-            S.let(
-                V.checklambda,
-                _check(2),
-                S.forall(S.g(2), V.checklambda),
-            ),
-            FALSE,
-        )
-    )
+    assert m.eval(S.forall(S.g(2), below(2))) == [False]
 
-    # Arg-ful generator lambda plus check lambda.
+    # Arg-ful generator lambda plus check lambda; a `let*` is two bindings.
     # !(test (let* (($checklambda (|-> ($v) (< $v 2)))
     #               ($genlambda (|-> ($x) (g $x))))
     #              (forall ($genlambda $z) $checklambda))
     #        false)
-    yield m.eval(
-        S.test(
-            S["let*"](
-                (
-                    (V.checklambda, _check(2)),
-                    (V.genlambda, GENERATOR),
-                ),
-                S.forall((V.genlambda, V.z), V.checklambda),
-            ),
-            FALSE,
-        )
-    )
+    assert m.eval(S.forall((genlambda, V.z), checklambda)) == [False]
 
     # Lambdas as arguments directly.
     # !(test (forall ((|-> ($x) (g $x)) $z) (|-> ($v) (< $v 2))) false)
-    yield m.eval(S.test(S.forall((GENERATOR, V.z), _check(2)), FALSE))
+    assert m.eval(S.forall((GENERATOR, V.z), below(2))) == [False]
     # !(test (forall ((|-> ($x) (g $x)) $z) (|-> ($v) (< $v 20))) true)
-    yield m.eval(S.test(S.forall((GENERATOR, V.z), _check(20)), TRUE))
+    assert m.eval(S.forall((GENERATOR, V.z), below(20))) == [True]
 
     # A lambda wrapped in a syntactic construct is still a lambda.
+    wrapped_2 = S["if"](TRUE, below(2), 42)  # rung: the wrapper IS the claim, so the `if` has to be the form the claim is about
+    wrapped_20 = S["if"](TRUE, below(20), 42)  # rung: the same wrapper, with the other bound
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 2)) 42)) false)
-    yield m.eval(
-        S.test(
-            S.forall((GENERATOR, V.z), S["if"](TRUE, _check(2), 42)),
-            FALSE,
-        )
-    )
+    assert m.eval(S.forall((GENERATOR, V.z), wrapped_2)) == [False]
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 20)) 42)) true)
-    yield m.eval(
-        S.test(
-            S.forall((GENERATOR, V.z), S["if"](TRUE, _check(20), 42)),
-            TRUE,
-        )
-    )
-    # !(test (forall ((|-> ($x) (* 100 (g $x))) $z)
-    #                (if True (|-> ($v) (< $v 20)) 42))
-    #        false)
-    yield m.eval(
-        S.test(
-            S.forall(
-                (S["|->"]((V.x,), 100 * S.g(V.x)), V.z),
-                S["if"](TRUE, _check(20), 42),
-            ),
-            FALSE,
-        )
-    )
+    assert m.eval(S.forall((GENERATOR, V.z), wrapped_20)) == [True]
+    # !(test (forall ((|-> ($x) (* 100 (g $x))) $z) (if True (|-> ($v) (< $v 20)) 42)) false)
+    assert m.eval(S.forall((SCALED, V.z), wrapped_20)) == [False]

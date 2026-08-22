@@ -1,64 +1,63 @@
-"""The Python twin of examples/control/supercollapse.metta: concatenating tuples.
+"""examples/control/supercollapse.metta in Python: appending through answer sets.
 
-`TupleConcat` superposes two collapsed tuples back apart and collapses the
-result, which is how a program written entirely in answer sets appends. `range`
-then builds 1..9 out of nothing but that.
+`TupleConcat` takes two expressions apart into answers and gathers the answers
+back into one expression, which is how a program written entirely in answer
+sets appends. `range` then builds 1..9 out of nothing but that.
 
-`range` is a computation and is written as one, with two things to notice. The
-Python function is `count_from` because `range` is a Python BUILTIN and a
-compiled body lowers a call to one before it looks for the definition's own
-name, so a function actually called `range` would compile its own recursion to
-`py-range`; `name="range"` puts the MeTTa name on the equation and recursion
-resolves to it. And `()` is Python's empty tuple, which is the empty
-expression, so the base case needs no spelling of its own.
+Taking an expression apart into answers is `yield from` and nothing else, so
+`fanout` is the superposition of the two superpositions and the collapse
+around it is what makes the result one expression again. The collapse is
+spelled `collapse(...)` rather than `list(...)`: the dissolution table says
+`list()` is `collapse`, and a compiled body refuses `list` outright, which is
+filed as residue against P14.4. `collapse` is bound from `m.fn` so the name a
+compiled body reads as MeTTa is a name Python can see too.
 
-`TupleConcat` is written at the container door: its body is
-`(superpose ((superpose $Ev1) (superpose $Ev2)))`, and `superpose(ev1)` in a
-compiled body means `(superpose ($ev1))`, one alternative that happens to be
-`$ev1`, not the superposition OF `$ev1`. The residue table records that
-against P14.4.
-
-The name is bound at module level, `TupleConcat = S.TupleConcat`, and it
-has to be that exact spelling: a compiled body resolves a free name EXACTLY,
-so `tuple_concat` would reach nothing. Binding it as the symbol rather than as
-`m.fn(...)` keeps it at module scope, where CapWords is ordinary Python and
-needs no naming suppression, and calling the symbol builds the same term the
-equation stores.
+`range` is `count_from` on the Python side because `range` is a Python BUILTIN
+that a compiled body lowers to `py-range` before it looks for the definition's
+own name; `name="range"` puts the MeTTa name on the equation and the recursion
+resolves to it. `()` is the empty tuple, which is the empty expression, so the
+base case needs no spelling of its own.
 """
 
-from petta import S, V, equation
+from petta import S, expr
+
+#: The equation's own name, so a compiled body and a Python reader see the
+#: same spelling. A compiled body resolves a free name EXACTLY, so
+#: `tuple_concat` would reach nothing.
+TupleConcat = S.TupleConcat
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6633 to 7810, +1177, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 6633 by 47554fc's control/types twin baseline.
-BUDGET = 7810
-
-#: The MeTTa name, kept verbatim, so the compiled body below can spell it.
-TupleConcat = S.TupleConcat
+#: RE-PINNED 2026-08-22, 7810 to 8116, +306 (+3.9%), by the twin contract
+#: change: `TupleConcat` ENTERED the engine as two compiled definitions, a
+#: `yield from` pair and the collapse around it, where it was a container-
+#: door equation, so two fixed registrations arrive; the `test` wrapper LEFT
+#: for `assert`. Measured min-of-3 over fresh processes with the MORK backend
+#: linked in, which the artefact-free worktree omits and which moves a
+#: compiled twin by about 10 inferences per definition; against the example's
+#: 9648 the ratio is 0.8412. Prior: 7810, the transliterated twin this
+#: replaces.
+BUDGET = 8116
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Append two expressions, then count to nine with nothing else."""
+    collapse = m.fn("collapse")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # (= (TupleConcat $Ev1 $Ev2)
-    #    (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
-    m += equation(TupleConcat(V.first, V.second)).to(
-        S.collapse(S.superpose((S.superpose(V.first), S.superpose(V.second))))
-    )
+    @m.define
+    def fanout(first, second):
+        # (superpose ((superpose $Ev1) (superpose $Ev2)))
+        yield from first
+        yield from second
+
+    @m.define(name="TupleConcat")
+    def concat(first, second):
+        # (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
+        return collapse(fanout(first, second))
 
     @m.define(name="range")
     def count_from(k, n):
-        # (= (range $K $N)
-        #    (if (< $K $N)
-        #        (TupleConcat ($K) (range (+ $K 1) $N))
-        #        ()))
+        # (= (range $K $N) (if (< $K $N) (TupleConcat ($K) (range (+ $K 1) $N)) ()))
         return TupleConcat((k,), count_from(k + 1, n)) if k < n else ()
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
-    yield m.eval(S.test(S.range(1, 10), (1, 2, 3, 4, 5, 6, 7, 8, 9)))
+    assert count_from(1, 10) == [expr(1, 2, 3, 4, 5, 6, 7, 8, 9)]

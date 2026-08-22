@@ -1,76 +1,57 @@
-"""The Python twin of examples/control/let_superpose_if_case.metta: all four.
+"""examples/control/let_superpose_if_case.metta in Python: four forms at once.
 
-One `let` over a four-way `superpose`, an `if` inside it, a `case` inside that,
-and the whole thing collapsed: four answers, one per branch of the superpose,
-in the superpose's own order.
+One equation binds a superposition, tests each answer, dispatches the ones
+that pass, and answers a default for the one that fails. Every layer has a
+Python statement that means it: a `for` loop over the argument IS
+`(superpose (2 3 4 5))` bound by a `let`, the `if` is Python's `if`, and the
+`case` over `(1 $y)` fixes its first element on both sides, so what it really
+asks is which of 3, 4 or anything else `$y` is, which an `if`/`elif` chain
+asks in Python's own words.
 
-`f` is a computation and is written as one. `progme` is written at the
-container door: its `case` is Python's `match` statement, which the compiled
-subset has no lowering for (P14.4), and its answers `answertoeverything` and
-the pairs are lowercase data a compiled body has no spelling for.
+`answertoeverything` is capitalised: a compiled body reads a lowercase free
+name as a function and a capitalised one as data, the gap case2 records
+against P14.4.
 """
 
-from petta import S, V, equation
+from petta import S, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5625 to 5934, +309, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 5625 by 47554fc's control/types twin baseline.
-BUDGET = 5934
+#: RE-PINNED 2026-08-22, 5934 to 7063, +1129 (+19.0%), by the twin contract
+#: change: `progme` ENTERED the engine as a compiled `for` loop with an
+#: `if`/`elif` chain inside, which is what its `let`, `if` and `case` are,
+#: and pays `@m.define`'s fixed registration; the `test` wrapper and the
+#: collapse LEFT for `assert` and a list. Measured min-of-3 over fresh
+#: processes with the MORK backend linked in, which the artefact-free
+#: worktree omits and which moves a compiled twin by about 10 inferences per
+#: definition; against the example's 9333 the ratio is 0.7568. Prior: 5934,
+#: the transliterated twin this replaces.
+BUDGET = 7063
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-
+    """Fan out four numbers, filter them, and dispatch what survives."""
     @m.define
     def f(_x):
-        # (= (f $x) 42)
-        # The parameter is a head variable the body never reads, and the
-        # underscore says so to a Python reader.
+        # (= (f $x) 42): the head variable the body never reads
         return 42
 
-    # (= (progme)
-    #    (let $y (superpose (2 3 4 5))
-    #                   (if (> $y 2)
-    #                       (case (1 $y) (((1 3) (f 0))
-    #                                     ((1 4) (42 42))
-    #                                     ($else (42 42 42))))
-    #                       answertoeverything)))
-    m += equation(S.progme()).to(
-        S.let(
-            V.y,
-            S.superpose((2, 3, 4, 5)),
-            S["if"](
-                V.y > 2,
-                S.case(
-                    (1, V.y),
-                    (
-                        ((1, 3), S.f(0)),
-                        ((1, 4), (42, 42)),
-                        (V.otherwise, (42, 42, 42)),
-                    ),
-                ),
-                S.answertoeverything,
-            ),
-        )
-    )
+    @m.define
+    def progme():
+        # (= (progme)
+        #    (let $y (superpose (2 3 4 5))
+        #            (if (> $y 2)
+        #                (case (1 $y) (((1 3) (f 0)) ((1 4) (42 42)) ($else (42 42 42))))
+        #                answertoeverything)))
+        for y in (2, 3, 4, 5):
+            if y > 2:
+                if y == 3:
+                    yield f(0)
+                elif y == 4:
+                    yield 42, 42
+                else:
+                    yield 42, 42, 42
+            else:
+                yield Answertoeverything  # noqa: F821  -- a capitalised free name in a compiled body is MeTTa data, which has no Python value to bind
 
-    # !(test (collapse (progme))
-    #        (answertoeverything 42 (42 42) (42 42 42)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.progme()),
-            (
-                S.answertoeverything,
-                42,
-                (42, 42),
-                (42, 42, 42),
-            ),
-        )
-    )
+    # !(test (collapse (progme)) (answertoeverything 42 (42 42) (42 42 42)))
+    assert progme() == [S.Answertoeverything, 42, expr(42, 42), expr(42, 42, 42)]
