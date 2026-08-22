@@ -144,7 +144,7 @@ class MettaResultError(PettaError):
 
     In MeTTa an error is a result: `(Error culprit reason)` is one
     element of the answer multiset, which is why the aggregation doors,
-    eval(), run(), fn.all() and the streams, keep it as data. A door
+    eval(), run(), function iteration and the streams, keep it as data. A door
     that answers exactly one value has no multiset for the error to be
     data in, so one(), first() and calling a function raise it instead.
     `atom` carries the whole `(Error ...)` expression, `culprit` the

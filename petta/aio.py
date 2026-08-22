@@ -43,6 +43,9 @@ Guarantees:
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - async function handles consume the synchronous Answers surface on their
+    owning worker [tested: test_aio_structural_surface_behaves;
+    commit=WORKTREE]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -1700,15 +1703,15 @@ class _AsyncEngineFunction:
 
     async def one(self, *args: Any) -> Any:
         name = self._name
-        return await self._am.call(lambda m: m.fn(name).one(*args))
+        return await self._am.call(lambda m: m.fn[name](*args).one())
 
     async def first(self, *args: Any) -> Any:
         name = self._name
-        return await self._am.call(lambda m: m.fn(name).first(*args))
+        return await self._am.call(lambda m: m.fn[name](*args).first())
 
     async def all(self, *args: Any) -> list:
         name = self._name
-        return await self._am.call(lambda m: m.fn(name).all(*args))
+        return await self._am.call(lambda m: list(m.fn[name](*args)))
 
     def __repr__(self) -> str:
         return f"<async engine function {self._name} on {self._am.name}>"

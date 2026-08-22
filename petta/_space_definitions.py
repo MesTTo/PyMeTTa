@@ -21,6 +21,9 @@ Guarantees:
     test_a_declared_output_type_takes_effect_through_the_decorator_door,
     test_failed_equation_publication_rolls_back_its_early_declaration;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - every flat-yield equation is stored and replaced as one atomic clause
+    unit [tested: test_same_head_redefinition_replaces_the_whole_yield_unit;
+    commit=WORKTREE]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -214,7 +217,7 @@ def _validate_clause_order(
 
 
 def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name: str) -> bool:
-    old_equations = (clause["equation"], *clause.get("aux", ()))
+    old_equations = (*clause["equations"], *clause.get("aux", ()))
     old_canonical = canonical_aux_set(old_equations, name)
     return len(old_canonical) == len(canonical) and all(
         _alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
@@ -241,9 +244,10 @@ def _defined_result(
     space: Any,
     name: str,
     compiled: Compiled,
-    body: Atom,
+    bodies: tuple[Atom, ...],
     dispatcher: Any,
 ) -> Defined:
+    body = bodies[0] if len(bodies) == 1 else Expression([Symbol("superpose"), Expression(bodies)])
     return Defined(
         name,
         compiled.params,
@@ -253,6 +257,7 @@ def _defined_result(
         patterns=compiled.patterns,
         runtime_ops=compiled.runtime_ops,
         facts=compiled.facts,
+        bodies=bodies,
     )
 
 
@@ -261,22 +266,22 @@ def _store_clause(
     earlier: list[dict[str, Any]],
     *,
     patterns: dict[str, Atom],
-    equation: Expression,
+    equations: tuple[Expression, ...],
     compiled: Compiled,
     dispatcher: Any,
     clause_twin: Any,
     replaced: int | None,
 ) -> None:
-    record = _clause_record(patterns, equation, compiled)
+    record = _clause_record(patterns, equations, compiled)
     previous_atoms: list[Expression] = []
     if replaced is not None:
         previous = earlier[replaced]
-        previous_atoms = [*previous.get("aux", ()), previous["equation"]]
+        previous_atoms = [*previous.get("aux", ()), *previous["equations"]]
         for atom in previous_atoms:
             space.remove(atom)
     added: list[Expression] = []
     try:
-        for atom in (*compiled.aux, equation):
+        for atom in (*compiled.aux, *equations):
             space.add(atom)
             added.append(atom)
     except BaseException:
@@ -294,11 +299,11 @@ def _store_clause(
 
 
 def _clause_record(
-    patterns: dict[str, Atom], equation: Expression, compiled: Compiled
+    patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: Compiled
 ) -> dict[str, Any]:
     return {
         "patterns": patterns.copy(),
-        "equation": equation,
+        "equations": equations,
         "aux": tuple(compiled.aux),
         "facts": compiled.facts,
     }
@@ -479,7 +484,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         pure=partial(_is_pure, space),
         metta_name=name,
     )
-    params, patterns, body = compiled.params, compiled.patterns, compiled.body
+    params, patterns = compiled.params, compiled.patterns
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
@@ -488,15 +493,17 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
     # is ordinary MeTTa, visible in .source(), never a hidden rule.
-    body = _guard_against(body, [clause["patterns"] for clause in earlier], patterns)
+    bodies = tuple(
+        _guard_against(body, [clause["patterns"] for clause in earlier], patterns)
+        for body in compiled.equation_bodies
+    )
     head = Expression([Symbol(name), *(patterns.get(p, Variable(p)) for p in params)])
-    equation = Expression([Symbol("="), head, body])
+    equations = tuple(Expression([Symbol("="), head, body]) for body in bodies)
     dispatcher = twin_dispatcher(fn)
     # Idempotence compares the main equation and all helper equations with
     # auxiliary names canonicalized. A loop-body-only or lifted-body-only
     # change must replace the old clause and its old helpers.
-    equations = (equation, *compiled.aux)
-    canonical = canonical_aux_set(equations, name)
+    canonical = canonical_aux_set((*equations, *compiled.aux), name)
     clause_twin = select_clause_twin(
         name,
         compiled.twin,
@@ -519,9 +526,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         earlier[replaced]["facts"] = compiled.facts
         replace_twin_clause(dispatcher, replaced, clause_twin)
         _document_definition(space, name, dispatcher)
-        return _defined_result(space, name, compiled, body, dispatcher)
+        return _defined_result(space, name, compiled, bodies, dispatcher)
     prospective = earlier.copy()
-    record = _clause_record(patterns, equation, compiled)
+    record = _clause_record(patterns, equations, compiled)
     if replaced is None:
         prospective.append(record)
     else:
@@ -534,7 +541,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
             space,
             earlier,
             patterns=patterns,
-            equation=equation,
+            equations=equations,
             compiled=compiled,
             dispatcher=dispatcher,
             clause_twin=clause_twin,
@@ -547,7 +554,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
             _DECLARED_DEFINES.pop((space.name, name), None)
         _sync_definition_facts(space, name, earlier)
         raise
-    defined = _defined_result(space, name, compiled, body, dispatcher)
+    defined = _defined_result(space, name, compiled, bodies, dispatcher)
     _document_definition(space, name, dispatcher)
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.name, name))

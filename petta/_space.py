@@ -21,6 +21,11 @@ Guarantees:
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Space.answers`` and bound ``Space.fn`` expose lazy, replayable
+    evaluation, with unknown function attributes rejected at access [tested:
+    test_bound_function_namespace_validates_at_access,
+    test_function_calls_pull_engine_answers_only_as_demanded;
+    commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -56,6 +61,8 @@ from typing import (
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime, started
+from ._rules import _RuleBundle
+from ._rules import rules as _collect_rules
 from ._space_definitions import (
     clear_definitions,
     install_define,
@@ -67,6 +74,7 @@ from ._space_execution import (
     ScopedExecution,
     capture_output,
     evaluate,
+    evaluate_answers,
     evaluate_status,
     execution_scope,
     profile_extension,
@@ -85,7 +93,7 @@ from ._space_objects import (
     ScopedLimits,
     _Assuming,
     _Batch,
-    _EngineFunction,
+    _FunctionNamespace,
     _refuse_in_batch,
     _StatsBlock,
     guard_atom,
@@ -110,7 +118,7 @@ from .atoms import (
 )
 from .define import Defined, PrologBacked
 from .errors import EngineError, PettaError, SourceNotFound, StrictError
-from .results import Rows, raise_error_answers, rows_into
+from .results import Answers, Rows, raise_error_answers, rows_into
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
 
@@ -951,7 +959,10 @@ class Space:
         does, so the two spellings never read one operand two ways. The
         bulk spelling is |=, whose operand has no lifted reading.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        self.add(atom)
+        if isinstance(atom, _RuleBundle):
+            self.add(*atom)
+        else:
+            self.add(atom)
         return self
 
     def __isub__(self, atom: Any) -> Self:
@@ -1333,6 +1344,31 @@ class Space:
         `capture()` scope collects printed text without changing the list.
         """
         return evaluate(
+            self._rt,
+            self._space,
+            target,
+            timeout,
+            inferences,
+            using=using,
+        )
+
+    def answers(
+        self,
+        target: Any,
+        *,
+        using: dict[str, Any] | None = None,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Answers[Any]:
+        """Evaluate lazily as an immutable, cached and replayable view.
+
+        Creating the view performs no engine work. Existence pulls at most
+        one answer, ``one()`` at most two, and ordinary iteration resumes the
+        same held evaluation [tested:
+        test_function_calls_pull_engine_answers_only_as_demanded;
+        commit=WORKTREE].
+        """
+        return evaluate_answers(
             self._rt,
             self._space,
             target,
@@ -1752,7 +1788,7 @@ class Space:
         space's module. What the engine RUNS for a call, which is the
         debuggability bytecode has and homoiconicity alone does not
         give, since (= ...) atoms are the source, not the compilation.
-        Also reachable as m.fn(name).compiled.
+        Also reachable as m.fn[name].compiled.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _require_name(name, "disassemble")
         row = self._rt.once(
@@ -2332,6 +2368,12 @@ class Space:
         # [tested test_define_refuses_callable_objects].
         return install_define(self, fn, name)
 
+    def rules(self, fn: Callable[..., Any]) -> _RuleBundle:
+        """Collect and land a non-exclusive equation bundle in this space."""
+        bundle = _collect_rules(fn)
+        self += bundle
+        return bundle
+
     @overload
     def cache(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
 
@@ -2411,6 +2453,7 @@ class Space:
                 f"guarantee; cache(unchecked=True) accepts that staleness."
             )
             raise EngineError(msg)
+        defined._uses_main_engine = True
         return defined
 
     def type(
@@ -2448,17 +2491,19 @@ class Space:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return install_type(self, cls, accessors=accessors, methods=methods)
 
-    def fn(self, name: str) -> _EngineFunction:
-        """Any engine function as an ordinary Python callable.
+    @property
+    def fn(self) -> _FunctionNamespace:
+        """Functions visible here, as bound attribute or exact-name handles.
 
-            car = m.fn("car-atom")
-            car(m.parse("(1 2 3)"))     # 1
-            m.fn("superpose").all(Expression(1, 2, 3))   # [1, 2, 3]
+            car = m.fn.car_atom
+            car(m.parse("(1 2 3)"))     # [1]
+            m.fn["=="](1, 1).one()      # True
 
-        Calling expects exactly one answer and raises otherwise, the loud
-        reading; .all returns every answer, nondeterminism included.
+        Underscores transliterate to hyphens. Brackets preserve exact
+        punctuation, and an unknown name raises at access rather than
+        becoming a later empty evaluation.
         """
-        return _EngineFunction(self, name)
+        return _FunctionNamespace(self)
 
     # ---------------------------------------------------------- integrations
 

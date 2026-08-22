@@ -103,7 +103,7 @@ def test_one_docstring_reaches_help_dot_doc_and_get_doc(m):
     assert expected in pydoc.render_doc(documented)
     docs = m.run(f"!(get-doc {documented.name})")
     assert len(docs) == 1 and expected in str(docs[0][0])
-    assert expected in pydoc.render_doc(m.fn(documented.name))
+    assert expected in pydoc.render_doc(m.fn[documented.name])
 
 
 def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -299,14 +299,16 @@ def test_true_division_matches_python_exactly(m):  # noqa: D103  -- pytest disco
     assert m.run("!(dratio 6 2)") == [[3.0]]  # Python answers 3.0, never 3
 
 
-def test_generator_is_superposition(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_flat_generator_emits_one_equation_per_yield(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    def dchoices(n):
-        yield n
-        yield n + 1
-        yield n * 10
+    def mycalc(x, y):
+        yield x + y
+        yield x - y
 
-    assert m.run("!(collapse (dchoices 5))") == [[Expression(5, 6, 50)]]
+    equations = m.fn.mycalc.equations
+    assert len(equations) == 2
+    assert all(equation.children[0] == S["="] for equation in equations)
+    assert mycalc(1, 2) == [3, -1]
 
 
 def test_generator_with_branches(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -320,6 +322,19 @@ def test_generator_with_branches(m):  # noqa: D103  -- pytest discovers or injec
 
     assert m.run("!(collapse (dbranch 3))") == [[Expression(S.Pos, S.Always)]]
     assert m.run("!(collapse (dbranch -3))") == [[Expression(S.Neg, S.Always)]]
+    (equation,) = m.fn.dbranch.equations
+    assert "superpose" in str(equation.children[2])
+
+
+def test_loop_yields_remain_one_superpose_equation(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
+    def dloop(values):
+        for value in values:  # noqa: UP028 -- the explicit loop is the compiler shape under test
+            yield value
+
+    (equation,) = m.fn.dloop.equations
+    assert "superpose" in str(equation.children[2])
+    assert dloop((1, 2, 3)) == [1, 2, 3]
 
 
 def test_lambda_is_first_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -635,11 +650,11 @@ def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest disc
 
 def test_engine_functions_feel_like_python(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (dtriple $x) (* $x 3))")
-    triple = m.fn("dtriple")
-    assert triple(14) == 42
-    assert m.fn("superpose").all(Expression(1, 2)) == [1, 2]
+    triple = m.fn.dtriple
+    assert triple(14) == [42]
+    assert m.fn.superpose(Expression(1, 2)) == [1, 2]
     with pytest.raises(EngineError):
-        m.fn("superpose")(Expression(1, 2))  # two answers is not one
+        m.fn.superpose(Expression(1, 2)).one()
 
 
 def test_boolean_operators_answer_the_operand(m):
@@ -776,6 +791,24 @@ def test_same_head_redefinition_replaces(m):  # noqa: D103  -- pytest discovers 
     # The notebook reading: one head, the newest body, exactly one answer.
     assert m.run("!(collapse (dvalue))") == [[Expression(2)]]
     assert dvalue.py() == 2
+
+
+def test_same_head_redefinition_replaces_the_whole_yield_unit(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
+    def dyield_unit(value):
+        yield value
+        yield value + 1
+
+    assert dyield_unit(3) == [3, 4]
+    assert len(m.fn["dyield_unit"].equations) == 2
+
+    @m.define
+    def dyield_unit(value):
+        yield value * 10
+        yield value * 100
+
+    assert dyield_unit(3) == [30, 300]
+    assert len(m.fn["dyield_unit"].equations) == 2
 
 
 def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

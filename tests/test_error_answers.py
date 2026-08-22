@@ -86,15 +86,14 @@ def test_aggregation_doors_keep_errors_as_data(m):  # noqa: D103  -- pytest disc
 
 
 def test_fn_doors_split_the_same_way(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    f = m.fn("err-div")
+    f = m.fn.err_div
+    failed = f(1, 0)
+    assert str(failed[0]).startswith("(Error ")
     with pytest.raises(MettaResultError):
-        f(1, 0)
+        failed.one()
     with pytest.raises(MettaResultError):
-        f.one(1, 0)
-    with pytest.raises(MettaResultError):
-        f.first(1, 0)
-    assert str(f.all(1, 0)[0]).startswith("(Error ")
-    assert f(8, 2) == 4
+        failed.first()
+    assert f(8, 2) == [4]
 
 
 def test_rows_keep_stored_errors_and_offer_the_bridge(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

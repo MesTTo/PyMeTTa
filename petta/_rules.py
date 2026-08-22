@@ -7,6 +7,10 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - equation halves share one static type parameter [tested:
     sh check.sh mypy ty; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+  - bare rules are immutable bundles accepted by Space.__iadd__, while
+    Space.rules lands the same bundle immediately [tested:
+    test_a_rules_generator_scopes_its_variables_to_its_parameters;
+    commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -65,12 +69,21 @@ def _stage_defined_calls() -> Iterator[None]:
         _STAGING_DEFINED_CALLS.reset(token)
 
 
-def rules(fn: Callable[..., Iterator[Expression]]) -> list[Expression]:
-    """Collect equations; derives from ``V`` parameters plus ``list`` and ``m.add``.
+class _RuleBundle(tuple[Expression, ...]):
+    """An immutable set of laws recognized by Space's one write door."""
 
-    The decorated generator becomes a list of ordinary equation atoms. Add
-    them with ``m.add(*laws)`` or ``m += laws[0]``; the longhand remains
-    ``m += S["="](lhs, rhs)``.
+    __slots__ = ()
+
+    def __new__(cls, equations: Iterator[Expression] | list[Expression]):
+        return tuple.__new__(cls, equations)
+
+
+def rules(fn: Callable[..., Iterator[Expression]]) -> _RuleBundle:
+    """Collect equations as an immutable bundle accepted by ``space += bundle``.
+
+    A bare decorator builds but does not choose a destination. The receiving
+    space lands the complete bundle through its ordinary write operator; the
+    bound ``@space.rules`` spelling performs both acts.
     """
     if not isinstance(fn, types.FunctionType) or not inspect.isgeneratorfunction(fn):
         msg = f"rules expects a generator function, got {type(fn).__name__}"
@@ -99,7 +112,7 @@ def rules(fn: Callable[..., Iterator[Expression]]) -> list[Expression]:
         ):
             msg = f"rules yield {index} is not equation(lhs).to(rhs): {atom!r}"
             raise TypeError(msg)
-    return yielded
+    return _RuleBundle(yielded)
 
 
 if TYPE_CHECKING:

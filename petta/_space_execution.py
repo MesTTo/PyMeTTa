@@ -12,6 +12,11 @@ Guarantees:
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - lazy evaluation preserves caller-variable rows and held-engine inference
+    accounting across progressive pulls [tested:
+    test_answers_project_caller_variables_and_slices_stay_answers,
+    test_a_cached_definition_tables_and_answers_from_its_trie;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,12 +26,19 @@ Open Obligations:
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
+import threading
+from collections.abc import Iterable, Iterator, Sequence
 from contextvars import ContextVar
 from typing import Any, Self
 
 from ._engine import Runtime
-from ._space_objects import EngineProfile, FunctionCost, _limits
+from ._space_objects import (
+    EngineProfile,
+    FunctionCost,
+    _column_names,
+    _limits,
+    _record_engine_inferences,
+)
 from .atoms import (
     Atom,
     Grounded,
@@ -38,10 +50,57 @@ from .atoms import (
     _to_atom,
 )
 from .errors import EngineError
+from .results import Answers, _row_class, error_answer
 
 _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
     "petta_scoped_execution", default=frozenset()
 )
+
+_ANSWERS_SHIM = r"""
+petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+    (   Target = [_, _]
+    ->  petta_py_decode_shared(Target, Term0, Bindings)
+    ;   \+ is_list(Target)
+    ->  petta_py_read_form(Target, Read, Bindings),
+        (   Space == '&self'
+        ->  Term0 = Read
+        ;   atom(Target), sub_atom(Target, _, _, _, '&self')
+        ->  metta_substitute_self(Space, Read, Term0)
+        ;   string(Target), sub_string(Target, _, _, _, "&self")
+        ->  metta_substitute_self(Space, Read, Term0)
+        ;   Term0 = Read
+        )
+    ;   throw(error(domain_error(petta_py_wire_term, Target), none))
+    ),
+    (   Pairs == []
+    ->  Term = Term0
+    ;   maplist(petta_py_using_pair, Pairs, Substitutions),
+        metta_host_substitute(Substitutions, Term0, Term)
+    ),
+    Goal = ( statistics(inferences, Before),
+             petta_py_eval_term_bounded(Space, Term, Encoded),
+             petta_py_row(VarNames, Bindings, Row),
+             statistics(inferences, Now), Used is Now - Before ),
+    ( Inf < 0 -> Bounded = Goal
+    ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
+                  ( Result == inference_limit_exceeded
+                    -> petta_py_raise(inference_limit, Inf)
+                  ; true ) )
+    ),
+    engine_create([Encoded, Row, Used], Bounded, Engine).
+"""
+_ANSWERS_SHIM_LOCK = threading.Lock()
+_ANSWERS_SHIM_LOADED = threading.Event()
+
+
+def _ensure_answers_shim(rt: Runtime) -> None:
+    """Install the held evaluation cursor once, on the first answer pull."""
+    if _ANSWERS_SHIM_LOADED.is_set():
+        return
+    with _ANSWERS_SHIM_LOCK:
+        if not _ANSWERS_SHIM_LOADED.is_set():
+            rt.consult("petta-answers", data=_ANSWERS_SHIM)
+            _ANSWERS_SHIM_LOADED.set()
 _CAPTURED_OUTPUT: ContextVar[CapturedOutput | None]
 
 
@@ -336,6 +395,79 @@ def evaluate(
             return [_from_wire(wire) for wire in wires]
         wires = output
     return [_from_wire(wire) for wire in wires]
+
+
+def evaluate_answers(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
+) -> Answers[Any]:
+    """Return evaluation as a cached lazy answer sequence.
+
+    The SWI engine is opened on the first pull. Its inference budget spans
+    every resume, while the wall limit wraps each individual resume, matching
+    the established query-cursor economics [tested:
+    test_function_calls_pull_engine_answers_only_as_demanded;
+    commit=WORKTREE].
+    """
+    encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
+    columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))
+    pairs = (
+        None
+        if not using
+        else [[name, _encode(value).to_wire()] for name, value in using.items()]
+    )
+    limits = _limits(timeout, inferences)
+    seconds = None if limits is None or limits[0] < 0 else limits[0]
+    steps = -1 if limits is None else limits[1]
+
+    def stream() -> Iterator[Any]:
+        _ensure_answers_shim(rt)
+        handle = rt.apply_must(
+            "petta_py_eval_cursor_open", space, encoded_target, pairs or [], columns, steps
+        )
+        row_cls = _row_class(tuple(columns))
+        reported_inferences = 0
+        try:
+            while True:
+                captured = _CAPTURED_OUTPUT.get()
+                predicate = "petta_py_cursor_next"
+                inputs: list[Any] = [handle]
+                if captured is not None:
+                    predicate, inputs = "petta_py_captured", [predicate, inputs]
+                if seconds is None:
+                    output = rt.apply_must(predicate, *inputs)
+                else:
+                    output = rt.apply_must(
+                        "petta_py_limited", seconds, -1, predicate, inputs
+                    )
+                if captured is not None:
+                    output, text = output
+                    captured._append(str(text))
+                if not output:
+                    return
+                value_wire, row_wires, cumulative_inferences = output[0]
+                current_inferences = int(cumulative_inferences)
+                _record_engine_inferences(
+                    max(0, current_inferences - reported_inferences)
+                )
+                reported_inferences = current_inferences
+                value = _from_wire(value_wire)
+                # A failed branch is still its Error/Undefined answer. An
+                # ordinary relational answer is represented by exactly the
+                # caller variables, in first-appearance order.
+                if columns and error_answer(value) is None and not isinstance(value, Undefined):
+                    yield row_cls(_atom_from_wire(wire) for wire in row_wires)
+                else:
+                    yield value
+        finally:
+            rt.do("petta_py_cursor_close", handle)
+
+    return Answers(stream(), columns=columns, space=space, target=target)
 
 
 def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:

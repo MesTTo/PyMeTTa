@@ -38,7 +38,7 @@ def test_module_tier_is_sugar_over_one_default_engine():  # noqa: D103  -- pytes
     # The module functions and the instance touch the same engine.
     petta.run("(= (ml-fn $x) (+ $x 1))")
     assert petta.eval("(ml-fn 4)") == [5]
-    assert petta.engine().self.fn("ml-fn").one(9) == 10
+    assert petta.engine().self.fn.ml_fn(9).one() == 10
     assert petta.space("&ml-named").name == "&ml-named"
     assert importlib.util.find_spec("petta.space") is None
     assert callable(petta.space)
