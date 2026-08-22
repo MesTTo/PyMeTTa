@@ -552,7 +552,7 @@ def _object_reclamation(size: int) -> dict[str, int]:
             # barrier. [source: janus-swi 1.5.3 janus.c,
             # MyPy_DECREF/py_gil_ensure;
             # sha256=6fb8941d22a6eb0981ba0ebac60e80bd2a299d0605d5f0b62a47276fcef104da;
-            # commit=WORKTREE]
+            # commit=b5874e82a70c64897412a778563d87179e84c58b]
             root.runtime.must("py_call(builtins:len([]), _Ignored)")
             gc.collect()
             if len(_BOXES) == box_floor and all(
