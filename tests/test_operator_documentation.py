@@ -1,9 +1,14 @@
 """Purpose: pin Phase 9 item P9.6: every term-building operator on atoms is
 documented in one table, derived from the class rather than maintained by
-hand, and the one operator that is deliberately NOT symbolic (`==`, whose
-term is spelled `.eq()`) is called out. Before this, `S.x + S.y` built a
+hand, and the two operators that are deliberately NOT symbolic (`==`, whose
+term is spelled `.eq()`, and `<`, whose term is spelled `.lt()`) are called
+out. Before this, `S.x + S.y` built a
 term and no page in website/ showed the form at all [measured 2026-08-19].
 Guarantees:
+    - ``Atom.__lt__`` is the standard-order sorting exception and the ``<``
+      term remains explicitly buildable [tested:
+      test_every_operator_is_documented_including_non_symbolic_comparisons;
+      commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
@@ -39,7 +44,7 @@ DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.m
 BINARY_DUNDERS = [
     "__add__", "__sub__", "__mul__", "__truediv__", "__mod__", "__pow__",
     "__matmul__", "__and__", "__or__", "__xor__",
-    "__lt__", "__le__", "__gt__", "__ge__",
+    "__le__", "__gt__", "__ge__",
     "__floordiv__", "__lshift__", "__rshift__",
 ]
 
@@ -48,7 +53,7 @@ def _head(expr) -> str:
     return str(next(iter(expr)))
 
 
-def test_every_operator_is_documented_including_the_non_symbolic_one():
+def test_every_operator_is_documented_including_non_symbolic_comparisons():
     """Build each operator's term live and require its MeTTa symbol in the
     doc's table, so the table cannot drift from the class: an operator
     added tomorrow is in Python's fixed dunder universe, builds a term
@@ -70,6 +75,7 @@ def test_every_operator_is_documented_including_the_non_symbolic_one():
     # The unary forms and the two spelled methods.
     for dunder in ("__invert__", "__neg__", "__abs__"):
         built[dunder] = _head(getattr(type(S.x), dunder)(S.x))
+    built["lt"] = _head(S["<"](S.x, V.y))
     built["eq"] = _head(S.x.eq(V.y))
     built["ne"] = _head(S.x.ne(V.y))
 
@@ -114,6 +120,9 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
             assert callable(getattr(Atom, entry.method))
             continue
         method = getattr(Atom, entry.dunder)
+        if entry.dunder == "__lt__":
+            assert method(S.a, S.b) is True
+            continue
         assert method.__petta_lowering__ == entry
         if entry.reflected is not None:
             assert getattr(Atom, entry.reflected).__petta_lowering__ == entry

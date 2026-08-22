@@ -4,6 +4,9 @@
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - an empty direct eval preserves a guarded head with no matching clause
+%     as a not-reducible answer while a matched empty body stays empty [tested:
+%     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
 %     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]
@@ -1577,7 +1580,12 @@ petta_py_call_goals(Module, [G|Gs]) :-
 %open, so m.eval from inside a runnable spends the runnable's fuel rather than
 %opening a second budget.
 petta_py_eval_all(Space, Tagged, Encoded) :-
-    findall(E, petta_py_eval_bounded(Space, Tagged, E), Encoded).
+    findall(E, petta_py_eval_bounded(Space, Tagged, E), Answers),
+    ( Answers == [],
+      petta_py_target_term(Space, Tagged, Term),
+      petta_py_preserve_unmatched(Space, Term, Original)
+      -> Encoded = [Original]
+      ;  Encoded = Answers ).
 
 petta_py_eval_bounded(Space, Tagged, Encoded) :-
     petta_run_with_fuel(petta_py_answer(Raw), Answer,
@@ -1602,7 +1610,22 @@ petta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
     %wrong: a substituted host value is a boxed reference, and a round
     %trip through the encoder is exactly the copy `using` exists to
     %avoid.
-    findall(E, petta_py_eval_term_bounded(Space, Term, E), Encoded).
+    findall(E, petta_py_eval_term_bounded(Space, Term, E), Answers),
+    ( Answers == [], petta_py_preserve_unmatched(Space, Term, Original)
+      -> Encoded = [Original]
+      ;  Encoded = Answers ).
+
+%A direct compiled predicate that fails can mean either that its written head
+%did not match or that a matching body's answer set was empty. Only the first
+%is an unreduced original. Classify after an empty aggregate so the successful
+%hot path retains the old direct goal and its exact inference cost.
+petta_py_preserve_unmatched(Space, [F|Args], Encoded) :-
+    atom(F),
+    petta_py_module(Space, Module),
+    translator:fun_meta_module(Module, F, _),
+    \+ translator:dispatch_any_head_matches(Module, F, Args),
+    translator:dispatch_no_match_result(F, Args, Out),
+    petta_py_encode(Out, Encoded).
 
 petta_py_eval_term_bounded(Space, Term, Encoded) :-
     petta_run_with_fuel(petta_py_answer(Raw), Answer,
@@ -1644,10 +1667,23 @@ petta_py_eval_term(Space, Term, Encoded) :-
 petta_py_eval_status_all(Space, Tagged, Results) :-
     petta_py_decode_shared(Tagged, Term, _),
     petta_py_module(Space, Module),
-    ( metta_reducible_head(Module, Term) -> Status = value
-                                          ; Status = 'not-reducible' ),
+    petta_py_eval_status(Module, Term, Status),
     findall([Status, E], petta_py_eval_bounded(Space, Tagged, E), Answers),
-    ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
+    ( Answers == []
+      -> ( Status == 'not-reducible',
+           petta_py_preserve_unmatched(Space, Term, Original)
+           -> Results = [[Status, Original]]
+           ;  Results = [[empty, none]] )
+      ;  Results = Answers ).
+
+petta_py_eval_status(Module, [F|Args], 'not-reducible') :-
+    atom(F),
+    translator:fun_meta_module(Module, F, _),
+    \+ translator:dispatch_any_head_matches(Module, F, Args),
+    !.
+petta_py_eval_status(Module, Term, Status) :-
+    ( metta_reducible_head(Module, Term) -> Status = value
+                                          ; Status = 'not-reducible' ).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %

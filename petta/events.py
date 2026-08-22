@@ -29,6 +29,9 @@ a changelog of a table, where each data record in the stream captures a
 state change of the table", and that "aggregating data records in a stream
 ... will return a table" [source: Apache Kafka, Streams Core Concepts].
 Guarantees:
+  - event attributes project named pattern bindings and unknown names fail as
+    attributes [tested: test_take_peek_and_watch_retire_the_thread_linda_fn_strings;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - registry snapshots, fold state and delivery accounting are locked for
     free-threaded Python [tested test_subscription_queue_is_thread_safe,
     test_subscription_cancel_is_thread_safe]
@@ -84,6 +87,14 @@ class Event:
     space: str
     atom: Atom
     bindings: Mapping[str, Atom]
+
+    def __getattr__(self, name: str) -> Atom:
+        """Project a watching pattern's binding, as query rows do."""
+        try:
+            return self.bindings[name]
+        except KeyError:
+            msg = f"no event binding {name!r}; bindings are {list(self.bindings)}"
+            raise AttributeError(msg) from None
 
 
 #: The step a fold runs per event. It receives the accumulated state and the

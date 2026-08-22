@@ -3,6 +3,10 @@ default engine (M1), scoped limits (M3), into= row shaping (M4), the batch
 block (M5), the shipped pytest fixtures (M6), and the exported strategies
 (L4). Every rung is tested as sugar for the rung below.
 Guarantees:
+  - class declarations are context-relative through ``Space.define`` and the
+    retired root ``record`` door is not used [tested:
+    test_define_wires_the_declarative_dance and
+    test_define_refuses_an_unregistrable_class; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
   - query(into=) and Rows.build rebuild a complete constructor expression,
@@ -92,7 +96,7 @@ def test_query_into_shapes_rows(metta):  # noqa: D103  -- pytest discovers or in
 def test_a_constructor_expression_rebuilds_through_the_query_door(metta):
     """Rows.build and into= rebuild the constructor expression; cast returns the admitted atom."""
 
-    @petta.record
+    @metta.define
     @dataclass
     class P5Constructor:
         label: str
@@ -258,12 +262,10 @@ class _Count(NamedTuple):
     n: int
 
 
-def test_record_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # In-process: the classes declare on the next engine touch (the
-    # engine exists here already, so immediately).
+def test_define_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from dataclasses import dataclass
 
-    @petta.record
+    @metta.define
     @dataclass
     class LadderEdge:
         a: str
@@ -284,44 +286,9 @@ def test_record_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest dis
     assert sp.query("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
 
 
-def test_record_before_any_engine_defers_without_booting():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    import os
-    import subprocess
-
-    code = (
-        "import sys\n"
-        "from dataclasses import dataclass\n"
-        "import petta\n"
-        "@petta.record\n"
-        "@dataclass\n"
-        "class PreBoot:\n"
-        "    n: int\n"
-        "assert 'janus_swi' not in sys.modules, 'record booted the engine'\n"
-            "m = petta.MeTTa().self\n"
-        "rows = m.query('(: PreBoot $t)')\n"
-        "assert [str(r[0]) for r in rows] == ['(-> Number PreBoot)'], rows\n"
-        "print('deferred ok')\n"
-    )
-    environment = dict(os.environ)
-    package_root = str(Path(__file__).resolve().parents[1])
-    existing = environment.get("PYTHONPATH")
-    environment["PYTHONPATH"] = (
-        f"{package_root}{os.pathsep}{existing}" if existing else package_root
-    )
-    done = subprocess.run(
-        [sys.executable, "-c", code],
-        capture_output=True,
-        text=True,
-        timeout=240,
-        env=environment,
-    )
-    assert done.returncode == 0, done.stdout + done.stderr
-    assert "deferred ok" in done.stdout
-
-
-def test_record_refuses_an_unregistrable_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="default image"):
 
-        @petta.record
+        @metta.define
         class Plain:
             pass

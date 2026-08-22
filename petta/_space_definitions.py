@@ -1,5 +1,8 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - ``install_type`` is the class branch behind ``Space.define`` [tested:
+    test_define_absorbs_class_declaration_and_frees_space_type;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - install_define keeps stacked clauses in Python first-match order [tested
     test_literal_defaults_are_head_patterns_and_clauses_stack]
   - clear_definitions removes process bookkeeping with the equations it
@@ -574,7 +577,7 @@ def install_type(
     field, and its own METHODS register as MeTTa functions, so the
     class crosses with its behavior, not only its structure.
 
-        @m.type
+        @m.define
         @dataclass
         class Point:
             x: float

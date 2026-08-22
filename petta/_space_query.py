@@ -1,5 +1,8 @@
 """Purpose: plan and decode eager conjunctive queries for one named space.
 Guarantees:
+  - relational solve answers retain variable columns and expose one-answer
+    attribute projection [tested:
+    test_solve_retires_the_five_relational_let_workarounds; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - conjunctive patterns preserve first-appearance column order [tested
     test_query_surfaces_share_column_order]
   - guards and limits are sent to the engine rather than applied after
@@ -19,9 +22,40 @@ from __future__ import annotations
 from typing import Any
 
 from ._engine import Runtime
+from ._name_mapping import resolve_known_name
 from ._space_objects import _column_names, _limits, guard_atom
-from .atoms import Atom, _atom_from_wire, _to_atom
+from .atoms import Atom, Expression, _atom_from_wire, _to_atom
 from .results import Rows, _QueryContext
+
+
+class SolveRows(Rows):
+    """Bindings produced by relational solve, with one-answer projection."""
+
+    def __getattr__(self, name: str) -> Any:
+        # One resolver rule everywhere: attribute access carries the factories'
+        # total underscore-to-hyphen map, so row.async_x reads column async-x
+        # exactly as V.async_x wrote it. Bracket access stays exact.
+        resolved = resolve_known_name(name, self.columns.__contains__, allow_bang=False)
+        if resolved is None:
+            msg = f"no solution variable {name!r}; variables are {list(self.columns)}"
+            raise AttributeError(msg)
+        values = self[resolved]
+        return values[0] if len(values) == 1 else values
+
+
+def solve_rows(columns: tuple[str, ...], answers: list[Atom]) -> SolveRows:
+    """Shape evaluated answer templates back into caller-named bindings."""
+    rows: list[tuple[Atom, ...]]
+    if len(columns) == 1:
+        rows = [(answer,) for answer in answers]
+    else:
+        rows = []
+        for answer in answers:
+            if not isinstance(answer, Expression) or len(answer) != len(columns):
+                msg = f"solve answer {answer!r} does not carry {len(columns)} bindings"
+                raise TypeError(msg)
+            rows.append(tuple(answer))
+    return SolveRows(columns, rows)
 
 
 def _query_target(

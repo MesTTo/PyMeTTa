@@ -9,6 +9,9 @@ evaluation through the engine's own thread_signal, the sqlite3 reading,
 and a cancelled task fires it on its own call, so asyncio timeouts stop
 the engine instead of abandoning it.
 Guarantees:
+  - async solve, Linda verbs, watch, class/type dispatch, and the two
+    transaction laws execute on the owning worker [tested:
+    test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - interrupt_if_running throws the same reserved structured exception as
     shim resource guards [tested test_aio_interrupt_stops_the_running_evaluation]
   - close refuses new work, interrupts a running request, rejects queued
@@ -701,6 +704,10 @@ class AsyncMeTTa:
             )
         )
 
+    async def solve(self, pattern: Any, subject: Any) -> Any:
+        """Solve a relation backwards and return caller-named bindings."""
+        return await self.call(lambda m: m.solve(pattern, subject))
+
     async def eval(
         self,
         target: Any,
@@ -1168,13 +1175,21 @@ class AsyncMeTTa:
         /,
         *,
         prolog: str | os.PathLike[str] | None = None,
+        accessors: bool = True,
+        methods: bool = True,
     ) -> Any:
         """Compile a Python function into equations on the worker. The
         returned handle's own calls are synchronous doors; evaluate
         through fn(name) or run() from async code.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None:
-            return await self.call(lambda m: m.define(fn))
+            return await self.call(
+                lambda m: (
+                    m.define(fn, accessors=accessors, methods=methods)
+                    if isinstance(fn, type)
+                    else m.define(fn)
+                )
+            )
         if prolog is None:
             msg = "define takes a function or prolog= source"
             raise TypeError(msg)
@@ -1203,20 +1218,9 @@ class AsyncMeTTa:
             lambda m: m.cache(name=name, unchecked=unchecked)(function)
         )
 
-    async def type(
-        self,
-        cls: _builtins.type,
-        /,
-        *,
-        accessors: bool = True,
-        methods: bool = True,
-    ) -> _builtins.type:
-        """Declare a Python class into this space. A call, not a
-        decorator: decoration cannot await.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(
-            lambda m: m.type(cls, accessors=accessors, methods=methods)
-        )
+    async def type(self, atom: Any, /) -> Atom:
+        """Return this space's first get-type answer on the worker."""
+        return await self.call(lambda m: m.type(atom))
 
     async def register_prolog(
         self,
@@ -1286,17 +1290,22 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncBatch(self)
 
-    async def transaction(self, fn: Callable[[MeTTa], Any], /) -> Any:
-        """Run fn inside one engine transaction on the worker thread,
-        answering its return value. fn receives the worker's own
+    async def transaction(self, target: Callable[[MeTTa], Any] | Atom | str, /) -> Any:
+        """Run a callable or term inside one engine transaction on the worker.
+
+        A callable receives the worker's own
         synchronous MeTTa, because a transaction body is a closed
         synchronous goal (SWI's transaction/1 takes one), which is also
         why there is no async body and no transactional decorator here.
-        A raise rolls every engine write back and re-raises as itself.
+        A raise rolls every engine write back and re-raises as itself. A term
+        instead follows the engine law: empty answers roll its writes back.
 
             await am.transaction(lambda m: m.add(S.fact(1)))
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(lambda m: m.transaction(lambda: fn(m)))
+        """
+        if isinstance(target, (Atom, str)):
+            return await self.call(lambda m: m.transaction(target))
+        function = target
+        return await self.call(lambda m: m.transaction(lambda: function(m)))
 
     @property
     def runtime(self) -> Runtime:
@@ -1359,6 +1368,12 @@ class AsyncMeTTa:
                 async for event in events:
                     ...
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return _AsyncSubscription(self, pattern, on, queue_max)
+
+    def watch(
+        self, pattern: Any, *, on: str = "add", queue_max: int = SUBSCRIPTION_QUEUE_MAX
+    ) -> _AsyncSubscription:
+        """Observe matching writes as the async-native event iterator."""
         return _AsyncSubscription(self, pattern, on, queue_max)
 
     def fn(self, name: str) -> _AsyncEngineFunction:

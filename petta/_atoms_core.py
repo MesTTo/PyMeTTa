@@ -1,5 +1,9 @@
 """Purpose: immutable atom values, Python value encoding, and bounded identity caches.
 Guarantees:
+  - standard callable mentions encode as their symbolic MeTTa heads and
+    Atom.__lt__ follows the engine order used by plain sorted [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names and
+    test_plain_sorted_uses_the_engines_elementwise_order; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
   - Grounded carries the engine's two relations, one per operand kind: against a
@@ -89,6 +93,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, Self, cast
 
+from ._callable_mentions import callable_mention
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
 
@@ -459,7 +464,7 @@ class Atom:
         def __invert__(self) -> Expression: ...
         def __neg__(self) -> Expression: ...
         def __abs__(self) -> Expression: ...
-        def __lt__(self, other: Any) -> Expression | bool: ...
+        def __lt__(self, other: Any) -> bool: ...
         def __le__(self, other: Any) -> Expression | bool: ...
         def __gt__(self, other: Any) -> Expression | bool: ...
         def __ge__(self, other: Any) -> Expression | bool: ...
@@ -926,6 +931,10 @@ class Grounded(Atom):
         return None
 
     def __lt__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            from .atoms import order_key  # noqa: PLC0415  -- atoms owns the order
+
+            return order_key(self) < order_key(other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
@@ -1341,6 +1350,21 @@ def _install_operator_lowerings() -> None:
 _install_operator_lowerings()
 
 
+def _standard_order_lt(self: Atom, other: Any) -> bool:
+    """Order atoms by the engine's term order; comparisons as terms use S['<']."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) < order_key(other)
+
+
+# Appendix stamp 6 rules plain sorting over the old ``<`` term-building
+# spelling. Compiled Python comparisons lower from the AST, while quoted code
+# spells the relation explicitly as ``S["<"](left, right)``.
+Atom.__lt__ = _standard_order_lt  # type: ignore[method-assign]
+
+
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expression)
 
@@ -1469,6 +1493,9 @@ def encode(value: Any) -> Atom:
     handler = _ENCODE_FAST.get(value.__class__)
     if handler is not None:
         return handler(value)
+    mentioned = callable_mention(value)
+    if mentioned is not None:
+        return Symbol(mentioned)
     return _encode_value(value)
 
 

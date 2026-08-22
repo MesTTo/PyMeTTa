@@ -18,6 +18,8 @@ Guarantees:
   - the `types` of every row equal LeaTTa's declaration for that name, which
     `phrasebook.py --gate` re-checks against the manifest whenever LeaTTa is
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
+  - get-type, class declaration, and state rows use the consolidated R5 Python
+    doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -789,18 +791,17 @@ ENTRIES: list[Entry] = [
     ),
     # ---------------------------------------------------------------- types
     Entry(
-        "get-type", ("(-> Atom %Undefined%)",), "Grounded", "types", "instruction",
-        "Section 9e's design is `space.type(atom)`, because declared types are "
-        "space-relative; the shipped `m.type` is the class decorator, so today the "
-        "type question goes through the term door.",
-        metta="!(get-type 1)", python="m.eval(S['get-type'](1))[0]",
+        "get-type", ("(-> Atom %Undefined%)",), "Grounded", "types", "method",
+        "Declared types are space-relative, so `space.type(atom)` asks the space. "
+        "Class declarations use the consolidated `@space.define` decorator.",
+        metta="!(get-type 1)", python="m.type(1)",
     ),
     Entry(
-        "get-type-space", ("(-> SpaceType Atom Atom)",), "Grounded", "types", "instruction",
-        "The same question asked of a named space, which is what makes "
-        "`space.type(a)` the right eventual shape.",
+        "get-type-space", ("(-> SpaceType Atom Atom)",), "Grounded", "types", "method",
+        "The same question asked of a named space through that handle's "
+        "`space.type(atom)` method.",
         metta="!(get-type-space &self 1)",
-        python="m.eval(S['get-type-space'](S['&self'], 1))[0]",
+        python="space.type(1)",
     ),
     Entry(
         "get-metatype", ("(-> Atom Atom)",), "Grounded", "types", "dissolves",
@@ -856,8 +857,8 @@ ENTRIES: list[Entry] = [
     Entry(
         "Pair", ("(-> $ta $tb (PairType $ta $tb))",), "Symbol", "types", "absent",
         "A constructor from LeaTTa's `skel` demonstration module. PeTTa has no "
-        "such module; `@petta.record` is how a Python program declares a "
-        "constructor.",
+        "such module; a class decorated with `@space.define` declares its "
+        "constructor in that space.",
         metta="!(get-type (Pair 1 2))", unrun="PeTTa does not declare the name",
     ),
     Entry(
@@ -887,26 +888,30 @@ ENTRIES: list[Entry] = [
     ),
     # ---------------------------------------------------------------- state
     Entry(
-        "new-state", ("(-> $t (StateMonad $t))",), "Symbol", "state", "instruction",
-        "The typed state cell stays instruction-tier until it has a Python handle. "
-        "The row reads the cell back rather than showing it, because the CELL "
-        "itself prints differently on each engine: `(State 1)` on LeaTTa and "
-        "`&state-#0` here [measured 2026-08-22].",
-        metta="!(get-state (new-state 1))", python="m.eval(S['get-state'](S['new-state'](1)))[0]",
+        "new-state", ("(-> $t (StateMonad $t))",), "Symbol", "state", "method",
+        "`petta.State[T](value, space=space)` creates the typed Python handle. "
+        "The row reads `.value` because the engine cell itself is deliberately "
+        "hidden behind that handle.",
+        metta="!(get-state (new-state 1))",
+        python="state = petta.State[int](1, space=m)\nstate.value",
     ),
     Entry(
-        "get-state", ("(-> (StateMonad $tgso) $tgso)",), "Grounded", "state", "instruction",
-        "Reading the cell, through the same door, after naming it.",
+        "get-state", ("(-> (StateMonad $tgso) $tgso)",), "Grounded", "state", "method",
+        "Reading the cell is the typed handle's `state.value` property.",
         metta="!(let $c (new-state 5) (get-state $c))",
-        python="m.eval(S.let(V.c, S['new-state'](5), S['get-state'](V.c)))[0]",
+        python="state = petta.State[int](5, space=m)\nstate.value",
     ),
     Entry(
         "change-state!", ("(-> (StateMonad $tcso) $tcso (StateMonad $tcso))",), "Grounded",
-        "state", "instruction",
-        "Writing the cell. A Python program usually reaches for a space instead, "
-        "which is queryable where a cell is not.",
+        "state", "method",
+        "Assigning `state.value` writes the same typed engine cell and reading it "
+        "back returns the replacement.",
         metta="!(let $c (new-state 1) (get-state (change-state! $c 2)))",
-        python="m.eval(S.let(V.c, S['new-state'](1), S['get-state'](S['change-state!'](V.c, 2))))[0]",
+        python=(
+            "state = petta.State[int](1, space=m)\n"
+            "state.value = 2\n"
+            "state.value"
+        ),
     ),
     Entry(
         "_new-state", ("(-> $t Expression (StateMonad $t))",), "Grounded", "state", "internal",

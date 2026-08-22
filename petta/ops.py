@@ -3,6 +3,10 @@ signature for arities (defaults yield several), auto-detects nondeterminism
 (a generator function is one), derives a MeTTa type declaration from the
 annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
+  - class declaration has no process-global ``record`` registry or second
+    decorator spelling [tested:
+    test_define_absorbs_class_declaration_and_frees_space_type;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - registration distinguishes a MeTTa function name from its declaration
     space [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -58,12 +62,10 @@ from __future__ import annotations
 import functools
 import importlib as _importlib
 import inspect
-import threading
 import typing
 from collections.abc import Callable, Iterable
 from typing import Any, Literal
 
-from . import _engine
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
 from ._documentation import documentation_atom
 from ._ops import REGISTRY, Operation
@@ -162,59 +164,6 @@ def _release_declaration(runtime, space: str, declaration: Expression) -> None:
         runtime.once("petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
     else:
         _DECLARATION_REFS[key] = count - 1
-
-
-_RECORDED: list[type] = []
-_RECORDED_LOCK = threading.Lock()
-
-
-def record(cls: type) -> type:
-    """The declarative-record wiring, attrs' and pydantic's shape: one
-    decorator over a dataclass, NamedTuple, or Enum and the class
-    converts both ways, its `(: ...)` declarations land in &self, and it
-    serves as a cast and query(into=) target.
-
-        @petta.record
-        @dataclass
-        class Edge:
-            a: str
-            b: str
-
-    Conversion registers immediately (an unregistrable class fails at
-    the decorator, not at first use). The declarations are engine-side
-    atoms, so they land the moment an engine exists: immediately when
-    one is already booted, or on the first MeTTa construction otherwise,
-    which is what lets the decorator run at import time without booting
-    anything. Every underlying registration call stays public for the
-    classes that need custom shapes.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    _importlib.import_module(f"{__package__}.convert").ensure_registered(cls)
-    with _RECORDED_LOCK:
-        _RECORDED.append(cls)
-    if _engine.booted():
-        declare_recorded()
-    return cls
-
-
-def declare_recorded() -> None:
-    """Land every pending recorded class's declarations in &self; a
-    no-op when nothing is pending, called by MeTTa construction so a
-    decorator that ran before any engine existed still declares.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    with _RECORDED_LOCK:
-        if not _RECORDED:
-            return
-        pending = list(_RECORDED)
-        _RECORDED.clear()
-    declarations = [atom for cls in pending for atom in class_declarations(cls)]
-    if not declarations:
-        return
-    runtime = _engine.runtime()
-    runtime.do_must(
-        "petta_py_add_many",
-        _DEFAULT_SPACE,
-        [declaration.to_wire() for declaration in declarations],
-    )
 
 
 def class_declarations(cls: type) -> list[Expression]:

@@ -1,5 +1,8 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
+  - the post-R5 narrow package surface has 69 names and keeps ``record`` and
+    ``order_key`` absent [tested: test_m7_narrow_core_surface;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - the published before/after counts are exact for ``MeTTa`` and ``petta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
@@ -16,9 +19,9 @@ Owns:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published M7 surface metrics
-    [measured: 90 to 20 MeTTa names and 152 to 61 petta names on 2026-08-22;
+    [measured: 90 to 20 MeTTa names and 152 to 69 petta names after R5;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and WORKTREE final; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    fixture=a142938d baseline and cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5 final; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,8 +45,9 @@ BASELINE_PETTA_EXPORTS = 152
 FINAL_METTA_METHODS = 20
 # 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
 # atoms TRUE, FALSE, UNIT and HERE to root values the twins can name; +1 when
-# R1 exported the static fn namespace at the root.
-FINAL_PETTA_EXPORTS = 66
+# R1 exported the static fn namespace at the root; +8 when R5 landed its
+# ruled doors (typed, arrow, the keyword builders, State and solve's kin).
+FINAL_PETTA_EXPORTS = 74
 
 SATELLITES = {
     "aio",
@@ -170,6 +174,7 @@ REMOVED_FROM_ROOT = {
     "logging",
     "map_atoms",
     "pretty",
+    "record",
     "register_object_repr_protocol",
     "sym",
     "sys",

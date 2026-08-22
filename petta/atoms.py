@@ -1,5 +1,10 @@
 """Purpose: expose PeTTa atoms, the S/V/G factories, parsing, and matching.
 Guarantees:
+  - type and keyword builders produce stored terms while ``order_key`` and
+    Atom.__lt__ agree on elementwise expression order [tested:
+    test_typed_and_arrow_retire_49_raw_type_symbols,
+    test_keyword_builders_retire_53_raw_if_mentions, and
+    test_plain_sorted_uses_the_engines_elementwise_order; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - public atom classes retain the petta.atoms pickle path after internal
     module cuts [tested test_atoms_pickle_by_value,
     test_atoms_cross_a_spawned_process_boundary]
@@ -89,11 +94,18 @@ __all__ = [
     "Undefined",
     "V",
     "Variable",
+    "and_",
+    "arrow",
     "ground",
+    "if_",
+    "in_",
+    "not_",
+    "or_",
     "order_key",
     "parse",
     "register_object_repr",
     "substitute",
+    "typed",
     "unify",
     "unregister_object_repr",
 ]
@@ -129,6 +141,50 @@ G = _GroundFactory()
 
 S = _Namespace(Symbol)
 V = _Namespace(Variable)
+
+
+def _type_atom(value: Any) -> Atom:
+    """Accept a type atom or project one Python annotation through one table."""
+    if isinstance(value, Atom):
+        return value
+    from ._type_annotations import type_atom_for  # noqa: PLC0415  -- it imports atoms
+
+    return type_atom_for(value)
+
+
+def arrow(*positions: Any) -> Expression:
+    """Build an arrow type as data, mapping Python types through annotations."""
+    return Expression([S["->"], *(_type_atom(position) for position in positions)])
+
+
+def typed(subject: Any, type_: Any) -> Expression:
+    """Build ``(: subject type)`` as data; annotations are accepted as types."""
+    return Expression([S[":"], _encode(subject), _type_atom(type_)])
+
+
+def if_(condition: Any, consequent: Any, alternative: Any) -> Expression:
+    """Build a quoted or stored ``if``; Python ``if`` lowers inside define."""
+    return S["if"](condition, consequent, alternative)
+
+
+def not_(value: Any) -> Expression:
+    """Build a quoted or stored ``not`` term."""
+    return S["not"](value)
+
+
+def and_(*values: Any) -> Expression:
+    """Build a quoted or stored ``and`` term."""
+    return S["and"](*values)
+
+
+def or_(*values: Any) -> Expression:
+    """Build a quoted or stored ``or`` term."""
+    return S["or"](*values)
+
+
+def in_(member: Any, container: Any) -> Expression:
+    """Build a quoted or stored ``in`` term."""
+    return S["in"](member, container)
 
 
 def _expr(*children: Any) -> Expression:
@@ -222,13 +278,10 @@ def order_key(atom: Atom) -> tuple:
 
         sorted(atoms, key=order_key)
 
-    A KEY rather than `__lt__`, because `<` already means something here:
-    `S.a < S.b` builds the term `(< a b)`, which is what the operators are
-    for, so `sorted()` over atoms raised "(< a c) is a comparison TERM, not a
-    truth value". That message is right and the order it refuses to invent
-    exists anyway, in the language underneath: variables before numbers before
-    symbols before strings before compounds, and compounds by arity, then by
-    functor, then argument by argument
+    Atom.__lt__ delegates to this key, so explicit and plain sorting agree.
+    The language's list-shaped expressions compare child by child; length is
+    reached only when one expression is a prefix of the other. Variables come
+    before numbers, symbols, strings, objects, and expressions
     [source: SWI-Prolog 10.1 Reference Manual, Standard Order of Terms].
 
     Two atoms that compare equal here are not necessarily the same atom: a key
@@ -240,7 +293,7 @@ def order_key(atom: Atom) -> tuple:
         return (_ORDER_SYMBOL, atom.name)
     if isinstance(atom, Expression):
         children = tuple(order_key(child) for child in atom.children)
-        return (_ORDER_EXPR, len(children), children)
+        return (_ORDER_EXPR, children)
     value = getattr(atom, "value", atom)
     # bool before int: True is an int in Python and a symbol in MeTTa.
     if isinstance(value, bool):

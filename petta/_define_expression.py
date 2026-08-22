@@ -1,5 +1,11 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - calls through standard ``math`` and ``operator`` module attributes lower
+    through the shared callable mentions while adapters preserve Python call
+    order and result kinds [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names,
+    test_compiled_callable_mentions_preserve_python_call_semantics;
+    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]
@@ -18,8 +24,13 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import builtins
+import math
+import operator
+import types
 from collections.abc import Callable
 
+from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext
 from ._name_mapping import attribute_name, resolve_known_name
 from .atoms import Atom, Expression, Grounded, Symbol, Variable
@@ -450,6 +461,8 @@ class ExpressionCompilerMixin(CompilerContext):
         mentioned = self._mention(node.func)
         if mentioned is not None:
             return Expression([mentioned, *(self.expression(a) for a in node.args)])
+        if isinstance(node.func, ast.Attribute):
+            return self._mentioned_attribute_call(node)
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
@@ -466,6 +479,60 @@ class ExpressionCompilerMixin(CompilerContext):
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _mentioned_attribute_call(self, node: ast.Call) -> Atom:
+        """Lower a standard callable reached through its actual host module."""
+        if node.keywords:
+            msg = "a standard callable in a compiled body takes positional arguments"
+            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+        if not isinstance(node.func, ast.Attribute):
+            raise self._attribute_call_error(node)
+        owner_node = node.func.value
+        if not isinstance(owner_node, ast.Name):
+            raise self._attribute_call_error(node)
+        owner = self.host_value(owner_node.id)
+        if not isinstance(owner, types.ModuleType):
+            raise self._attribute_call_error(node)
+        value = vars(owner).get(node.func.attr)
+        mention = callable_mention(value)
+        if mention is None:
+            raise self._attribute_call_error(node)
+        arities = callable_arities(value)
+        if arities is None or len(node.args) not in arities:
+            expected = " or ".join(str(arity) for arity in arities or ())
+            msg = f"{owner_node.id}.{node.func.attr}() compiles with {expected} argument(s)"
+            raise CompileError(msg, construct="call", line=node.lineno)
+        arguments = [self.expression(argument) for argument in node.args]
+        return self._adapt_mentioned_call(value, mention, arguments)
+
+    def _adapt_mentioned_call(
+        self, value: object, mention: str, arguments: list[Atom]
+    ) -> Expression:
+        """Preserve Python semantics where an engine mention orders or types differently."""
+        if value is math.log:
+            arguments = (
+                [Grounded(math.e), arguments[0]]
+                if len(arguments) == 1
+                else [arguments[1], arguments[0]]
+            )
+        elif value is math.fabs:
+            arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
+        elif value is builtins.round:
+            self.runtime_ops.add("py-round")
+            mention = "py-round"
+        elif value is operator.truediv:
+            arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
+        return Expression([Symbol(mention), *arguments])
+
+    @staticmethod
+    def _attribute_call_error(node: ast.Call) -> CompileError:
+        return CompileError(
+            "an attribute call compiles only when it resolves to a standard "
+            "operator or math function with a MeTTa mention; register other "
+            "methods as operations and call them by name",
+            construct="call",
+            line=node.lineno,
+        )
 
     @staticmethod
     def _plain_call_name(node: ast.Call) -> ast.Name:

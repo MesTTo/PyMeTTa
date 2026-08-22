@@ -1,6 +1,11 @@
 """Purpose: implement the root equation and rules factories without a colliding submodule.
 
 Guarantees:
+  - ``Rules.lower`` stores equations, publishes lowering declarations, and
+    registers each symbolic head through the engine seam [tested:
+    test_rules_lower_emits_queryable_declaration_and_registers_the_head,
+    test_rules_lower_refuses_an_empty_rule_set_before_mutating;
+    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
@@ -28,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 from .atoms import Expression, Symbol, Variable, _encode
 
-__all__ = ["equation", "rules"]
+__all__ = ["Rules", "equation", "rules"]
 
 _STAGING_DEFINED_CALLS: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "petta_staging_defined_calls",
@@ -69,16 +74,61 @@ def _stage_defined_calls() -> Iterator[None]:
         _STAGING_DEFINED_CALLS.reset(token)
 
 
-class _RuleBundle(tuple[Expression, ...]):
-    """An immutable set of laws recognized by Space's one write door."""
+class Rules(tuple[Expression, ...]):
+    """An immutable named equation set recognized by Space's one write door.
 
-    __slots__ = ()
+    A tuple subtype cannot carry nonempty __slots__, so the name rides the
+    instance dict while the equations themselves stay immutable.
+    """
 
-    def __new__(cls, equations: Iterator[Expression] | list[Expression]):
-        return tuple.__new__(cls, equations)
+    name: str
+
+    def __new__(cls, name: str, equations: Iterator[Expression] | list[Expression]):
+        bundle = tuple.__new__(cls, equations)
+        bundle.name = name
+        return bundle
+
+    def lower(self, strategy: Any, *, requires: Any, space: Any = None) -> Any:
+        """Store the rules, declare their strategy, and register each head."""
+        if not self:
+            msg = f"cannot lower empty rule set {self.name!r}"
+            raise ValueError(msg)
+        if space is None:
+            from . import engine  # noqa: PLC0415  -- default context stays lazy
+
+            space = engine().self
+        heads: list[Symbol] = []
+        for equation_atom in self:
+            lhs = equation_atom.children[1]
+            if not isinstance(lhs, Expression) or not isinstance(lhs.head, Symbol):
+                msg = f"lowering equation has no symbolic function head: {equation_atom}"
+                raise TypeError(msg)
+            if lhs.head not in heads:
+                heads.append(lhs.head)
+        space.add(*self)
+        declarations = [
+            Expression(
+                [
+                    Symbol("lowering"),
+                    head,
+                    _encode(strategy),
+                    Expression([Symbol("requires"), _encode(requires)]),
+                ]
+            )
+            for head in heads
+        ]
+        catalog = space._at("&petta")
+        catalog.add(*declarations)
+        for head in heads:
+            answers = space.eval(Expression([Symbol("add-translator-rule!"), head]))
+            if answers != [True]:
+                msg = f"add-translator-rule! refused {head}, answering {answers!r}"
+                raise RuntimeError(msg)
+        return declarations[0] if len(declarations) == 1 else tuple(declarations)
 
 
-def rules(fn: Callable[..., Iterator[Expression]]) -> _RuleBundle:
+
+def rules(fn: Callable[..., Iterator[Expression]]) -> Rules:
     """Collect equations as an immutable bundle accepted by ``space += bundle``.
 
     A bare decorator builds but does not choose a destination. The receiving
@@ -112,7 +162,7 @@ def rules(fn: Callable[..., Iterator[Expression]]) -> _RuleBundle:
         ):
             msg = f"rules yield {index} is not equation(lhs).to(rhs): {atom!r}"
             raise TypeError(msg)
-    return _RuleBundle(yielded)
+    return Rules(fn.__name__, yielded)
 
 
 if TYPE_CHECKING:

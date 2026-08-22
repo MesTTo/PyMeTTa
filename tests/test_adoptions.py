@@ -5,6 +5,12 @@ classes as declared types), guarded and bounded queries, assumptions,
 prepared queries, general weighted relations, goal-directed soft proving with Proof objects, and
 the &petta reflection space the library describes itself into.
 Guarantees:
+  - plain ``<`` orders atoms while explicit ``S["<"]`` retains the
+    truthiness-refusing comparison term [tested:
+    test_less_than_orders_atoms_and_the_explicit_term_refuses_truthiness;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - Python classes declare through ``Space.define`` [tested:
+    test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
@@ -78,11 +84,11 @@ def test_grounded_values_keep_value_semantics():  # noqa: D103  -- pytest discov
     assert (Grounded(7) >= 5) is True  # a boolean, never a term
 
 
-def test_comparison_terms_refuse_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_less_than_orders_atoms_and_the_explicit_term_refuses_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert V.a < V.b
+    assert sorted([V.b, V.a]) == [V.a, V.b]
     with pytest.raises(TypeError):
-        bool(V.a < V.b)
-    with pytest.raises(TypeError):
-        sorted([V.a, V.b])
+        bool(S["<"](V.a, V.b))
     with pytest.raises(TypeError):
         bool((V.a >= 1) & (V.b >= 2))
 
@@ -186,8 +192,8 @@ def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discov
     assert m.eval(S.momentum(ground(Particle(2.0, 3.0)))) == [6.0]
 
 
-def test_type_decorator_declares_field_types(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.type
+def test_define_decorator_declares_field_types(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
     @dataclasses.dataclass
     class DeclaredPoint:
         x: float

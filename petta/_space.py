@@ -7,6 +7,15 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - solve, Linda verbs, class define, get-type, bang resolution, and both
+    transaction laws are observable through one Space handle [tested:
+    test_solve_retires_the_five_relational_let_workarounds,
+    test_solve_refuses_an_anonymous_only_subject,
+    test_take_peek_and_watch_retire_the_thread_linda_fn_strings,
+    test_watch_close_before_first_event_cancels_its_eager_subscription,
+    test_define_absorbs_class_declaration_and_frees_space_type,
+    test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
+    test_transaction_term_uses_empty_answer_rollback_law; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -49,7 +58,7 @@ import importlib as _importlib
 import os
 import sys
 from collections import abc as _abc
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
 from pathlib import Path
 from typing import (
@@ -66,7 +75,7 @@ from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
-from ._rules import _RuleBundle
+from ._rules import Rules as _Rules
 from ._rules import rules as _collect_rules
 from ._space_definitions import (
     clear_definitions,
@@ -98,6 +107,7 @@ from ._space_objects import (
     ScopedLimits,
     _Assuming,
     _Batch,
+    _column_names,
     _FunctionNamespace,
     _refuse_in_batch,
     _StatsBlock,
@@ -108,7 +118,7 @@ from ._space_persistence import (
     raise_unsafe_text_atom,
     save_space,
 )
-from ._space_query import query_rows
+from ._space_query import query_rows, solve_rows
 from ._version import __version__
 from .atoms import (
     Atom,
@@ -182,6 +192,38 @@ class _BoundValues:
     def __exit__(self, *_exception: object) -> None:
         _RUN_BINDINGS.reset(self._token)
 
+
+class _WatchIterator:
+    """Own one eager subscription and cancel it whenever the iterator closes."""
+
+    __slots__ = ("_events", "_subscription")
+
+    def __init__(self, subscription: Any) -> None:
+        self._subscription = subscription
+        self._events: Iterator[Any] = subscription.events()
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> Any:
+        try:
+            return next(self._events)
+        except StopIteration:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Close the event generator and cancel the eager subscription once."""
+        subscription = self._subscription
+        if subscription is None:
+            return
+        self._subscription = None
+        close = getattr(self._events, "close", None)
+        try:
+            if close is not None:
+                close()
+        finally:
+            subscription.cancel()
 
 def _require_source(source: Any, called: str) -> None:
     """Refuse non-text source here rather than at the engine's reader."""
@@ -382,8 +424,6 @@ class Space(Handle):
                 msg
             )
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
-        # Recorded classes declared before any engine existed land now.
-        _ops_module.declare_recorded()
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
         self._name = _SpaceId(name)
@@ -1066,7 +1106,7 @@ class Space(Handle):
         does, so the two spellings never read one operand two ways. The
         bulk spelling is |=, whose operand has no lifted reading.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(atom, _RuleBundle):
+        if isinstance(atom, _Rules):
             self.add(*atom)
         else:
             self.add(atom)
@@ -1267,18 +1307,26 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _Assuming(self, [_to_atom(f) for f in facts])
 
-    def transaction(self, callable_: Callable[[], _R], /) -> _R:
-        """Run a zero-argument callable inside one engine transaction,
-        now, answering its return value: the Python door of the MeTTa
-        (transaction ...) form, riding the same petta_transaction/1, so
-        foreign-space enlistment and nesting behave identically in both
-        languages.
+    @overload
+    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+
+    @overload
+    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+
+    def transaction(self, target: Callable[[], _R] | Any, /) -> Any:
+        """Run one callable or term inside a closed engine transaction.
+
+        The two inputs preserve their native failure laws. A zero-argument
+        Python callable commits its return value and rolls back on a Python
+        exception. A term returns its engine answers and rolls back when that
+        answer set is empty, exactly like ``(transaction ...)``.
 
             m.transaction(lambda: migrate(m))
+            m.transaction(S.progn(write, verify))
 
         Every engine write the callable makes, stored atoms, equations
         and their compiled clauses included, commits or rolls back
-        together. An exception is the one rollback trigger, because a
+        together. An exception is the callable's rollback trigger, because a
         Python callable cannot fail the Prolog way, and it re-raises AS
         ITSELF: your ValueError arrives as ValueError with the engine
         boundary in its chain. Only the engine's dynamic state rolls
@@ -1295,9 +1343,11 @@ class Space(Handle):
         to hold across a block, and pretending otherwise would lie about
         the isolation actually provided. transactional() is the
         decorator twin.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
+        if not callable(target):
+            return self.eval(Expression([Symbol("transaction"), _to_atom(target)]))
         try:
-            row = self._rt.once("petta_py_transaction(F, R)", F=callable_)
+            row = self._rt.once("petta_py_transaction(F, R)", F=target)
         except PettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
@@ -1317,6 +1367,33 @@ class Space(Handle):
                 msg
             )
         return cast("_R", row["R"])
+
+    def solve(self, pattern: Any, subject: Any) -> Any:
+        """Run relational ``let`` and return bindings keyed by its variables.
+
+        ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+        lets the arithmetic relation solve backwards, and projects ``x``.
+        The answer template is derived from the subject's variables, so the
+        third hand-written ``let`` argument disappears.
+        """
+        subject_atom = _to_atom(subject)
+        columns = tuple(_column_names([subject_atom]))
+        if not columns:
+            msg = "solve needs at least one variable in its subject"
+            raise ValueError(msg)
+        template: Atom = (
+            Variable(columns[0])
+            if len(columns) == 1
+            else Expression([Variable(name) for name in columns])
+        )
+        answers = self.eval(
+            Expression([Symbol("let"), _to_atom(pattern), subject_atom, template])
+        )
+        return solve_rows(columns, cast(list[Atom], answers))
+
+    def watch(self, pattern: Any, *, on: str = "add"):
+        """Yield matching change events until the iterator closes."""
+        return _WatchIterator(self.subscribe(pattern, on=on))
 
     def limits(
         self,
@@ -2383,6 +2460,16 @@ class Space(Handle):
     # ------------------------------------------------------------ definitions
 
     @overload
+    def define(  # type: ignore[overload-overlap]
+        self,
+        fn: _builtins.type,
+        /,
+        *,
+        accessors: bool = ...,
+        methods: bool = ...,
+    ) -> _builtins.type: ...
+
+    @overload
     def define(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
 
     @overload
@@ -2401,6 +2488,8 @@ class Space(Handle):
         *,
         prolog: str | os.PathLike[str] | None = None,
         name: str | None = None,
+        accessors: bool = True,
+        methods: bool = True,
     ) -> Any:
         """Compile a Python function into MeTTa equations, decorator-style.
 
@@ -2454,6 +2543,11 @@ class Space(Handle):
         the running space, lowercase free names in the pattern binding as
         variables.
         """
+        if isinstance(fn, type):
+            if prolog is not None or name is not None:
+                msg = "define on a class does not take name= or prolog="
+                raise TypeError(msg)
+            return install_type(self, fn, accessors=accessors, methods=methods)
         if prolog is not None:
             if fn is not None:
                 msg = (
@@ -2466,10 +2560,8 @@ class Space(Handle):
             return lambda function: install_prolog_define(self, function, prolog, name)
         if fn is None:
             if name is None:
-                msg = "define takes a function, or name= or prolog= and then one"
-                raise TypeError(
-                    msg
-                )
+                msg = "define takes a function or class, or name= or prolog= and then one"
+                raise TypeError(msg)
             return lambda function: install_define(self, function, name)
         # The annotation widened to Callable so the overloads can carry the
         # decorated signature through. install_definition still refuses
@@ -2478,7 +2570,7 @@ class Space(Handle):
         # [tested test_define_refuses_callable_objects].
         return install_define(self, fn, name)
 
-    def rules(self, fn: Callable[..., Any]) -> _RuleBundle:
+    def rules(self, fn: Callable[..., Any]) -> _Rules:
         """Collect and land a non-exclusive equation bundle in this space."""
         bundle = _collect_rules(fn)
         self += bundle
@@ -2566,40 +2658,13 @@ class Space(Handle):
         defined._uses_main_engine = True
         return defined
 
-    def type(
-        self,
-        cls: _builtins.type | None = None,
-        *,
-        accessors: bool = True,
-        methods: bool = True,
-    ):
-        """Declare a Python class INTO this space, decorator-style: the
-        (: ...) declarations land as atoms, an expression-image class
-        (a dataclass, a NamedTuple) gains one accessor equation per
-        field, and its own METHODS register as MeTTa functions, so the
-        class crosses with its behavior, not only its structure.
-
-            @m.type
-            @dataclass
-            class Point:
-                x: float
-                y: float
-                def norm(self) -> float:
-                    return (self.x ** 2 + self.y ** 2) ** 0.5
-
-            m.run("!(Point-x (Point 3.0 4.0))")        # [[3.0]]
-            m.run("!(Point-norm (Point 3.0 4.0))")     # [[5.0]]
-
-        A method receives the instance whether it arrives as a
-        constructor TERM (rebuilt through the translator) or as a live
-        handle, and a result the translator knows projects back as a
-        term, so a method answering the class answers something MeTTa
-        keeps matching and Python builds back. An equation over the
-        constructor is then a method written in MeTTa itself, on equal
-        footing. An Enum declares its members; get-type sees them all.
-        Returns the class, so it stacks under @dataclass.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return install_type(self, cls, accessors=accessors, methods=methods)
+    def type(self, atom: Any) -> Atom:
+        """Return this space's first ``get-type`` answer, including undefined."""
+        answers = self.eval(Expression([Symbol("get-type"), _to_atom(atom)]))
+        if not answers or not isinstance(answers[0], Atom):
+            msg = f"get-type returned no type for {atom!r}"
+            raise EngineError(msg)
+        return answers[0]
 
     @property
     def fn(self) -> _FunctionNamespace:
@@ -3260,7 +3325,6 @@ class MeTTa:
             if _runtime is None
             else _runtime
         )
-        _ops_module.declare_recorded()
         self._self = Space(_self_name, _runtime=self._rt)
 
     @property
@@ -3396,9 +3460,15 @@ class MeTTa:
         """Scope source execution to reject unreduced directives."""
         return self._self.strict()
 
-    def transaction(self, callable_: Callable[[], _R], /) -> _R:
-        """Run one callable in an engine transaction."""
-        return self._self.transaction(callable_)
+    @overload
+    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+
+    @overload
+    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+
+    def transaction(self, target: Any, /) -> Any:
+        """Run one callable or term in an engine transaction."""
+        return self._self.transaction(target)
 
     def stats(self) -> _StatsBlock:
         """Measure engine counters across a block."""

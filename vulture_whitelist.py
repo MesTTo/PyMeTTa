@@ -3,6 +3,9 @@ dispatch, generated tests, or external callers rather than Python name loads.
 Assumes:
   - this file is scanned by Vulture and is never imported or executed.
 Guarantees:
+  - R5's externally called watch and dynamically installed ordering methods
+    remain visible to the dead-code gate [tested: the GATE vulture lane;
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - each expression names one intentional dynamic use, so the 60 percent
     confidence floor remains actionable instead of globally suppressing a
     name pattern [tested: the GATE vulture lane;
@@ -57,6 +60,8 @@ _.to_pl
 _.transactional
 _.matching
 _.reachable
+_.watch
+_.__lt__
 # Subscription.drain is the queue spelling of Fold.take, documented as the
 # sugar it is; the general name is what the library calls internally now.
 _.drain
