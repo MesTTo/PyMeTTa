@@ -29,7 +29,7 @@ from petta import S
 #: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
 #: hazard and builds a RUNNABLE Python twin where it would otherwise build one
 #: that refuses. Measured by deleting only that binding line: 6257 against
-#: 6498, and with it `compile42.py((43,))` answers where without it the twin raises
+#: 6498, and with it `compile42.py((43,))` answers `(42 43)` where without it the twin raises
 #: "its body uses the engine function ..., which exist only in the engine".
 BUDGET = 6498
 

@@ -35,8 +35,10 @@ from petta import S, equation
 #: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
 #: hazard and builds a RUNNABLE Python twin where it would otherwise build one
 #: that refuses. Measured by deleting only that binding line: 13511 against
-#: 13558, and with it `reduce_fib.py()` answers where without it the twin raises
-#: "its body uses the engine function ..., which exist only in the engine".
+#: 13558. Without it `reduce_fib.py()` raises "reduce-fib.py cannot run this
+#: clause in Python: its body uses the engine function reduce, which exist
+#: only in the engine"; with it the twin runs and reaches `reduce`, which then
+#: has its own say about being handed an already-reduced 5.
 BUDGET = 13558
 
 

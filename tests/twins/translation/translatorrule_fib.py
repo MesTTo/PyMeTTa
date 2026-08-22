@@ -36,7 +36,7 @@ from petta import S, V, equation
 #: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
 #: hazard and builds a RUNNABLE Python twin where it would otherwise build one
 #: that refuses. Measured by deleting only that binding line: 8072 against
-#: 8119, and with it `compilefib.py(10)` answers where without it the twin raises
+#: 8119, and with it `compilefib.py(10)` answers `55` where without it the twin raises
 #: "its body uses the engine function ..., which exist only in the engine".
 BUDGET = 8119
 

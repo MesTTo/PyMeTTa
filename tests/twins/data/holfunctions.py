@@ -34,7 +34,7 @@ from petta import S, V, equation
 #: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
 #: hazard and builds a RUNNABLE Python twin where it would otherwise build one
 #: that refuses. Measured by deleting only that binding line: 16362 against
-#: 16462, and with it `foldfun2.py((1, 2), (3,))` answers where without it the twin raises
+#: 16462, and with it `foldfun2.py((1, 2), (3,))` answers `(1 2 3)` where without it the twin raises
 #: "its body uses the engine function ..., which exist only in the engine".
 BUDGET = 16462
 

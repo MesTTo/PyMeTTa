@@ -29,9 +29,9 @@ from petta import S, V, val
 #: reads as a Python flag, and these are answers.
 TRUE = val(value=True)
 
-#: The two lambdas the example passes around, named once because the forms
-#: below differ in how they are BOUND, not in what they are.
-#: `(|-> ($x $y) (+ $x $y))` aggregates and `(|-> ($z) ...)` generates.
+#: The aggregating lambda `(|-> ($x $y) (+ $x $y))`, named once because the
+#: seven forms that use it differ in how it is BOUND, not in what it is. The
+#: generating lambdas stay inline: each one wraps a different call.
 add2 = S["|->"]((V.x, V.y), V.x + V.y)
 
 #: Inferences this twin spends, its own tripwire.
