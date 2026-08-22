@@ -1191,6 +1191,28 @@ class AsyncMeTTa:
         source = prolog
         return await self.call(lambda m: m.define(prolog=source))
 
+    async def cache(
+        self,
+        fn: Callable | None = None,
+        /,
+        *,
+        name: str | None = None,
+        unchecked: bool = False,
+    ) -> Any:
+        """Define and TABLE on the worker, the sync door's cache decorator.
+
+        The answers come from SWI's answer trie, and the returned handle
+        carries cache_clear() and cache_info() as synchronous doors the way
+        define's handle carries its own.
+        """
+        if fn is None:
+            msg = "cache takes a function"
+            raise TypeError(msg)
+        function = fn
+        return await self.call(
+            lambda m: m.cache(name=name, unchecked=unchecked)(function)
+        )
+
     async def type(
         self,
         cls: _builtins.type,

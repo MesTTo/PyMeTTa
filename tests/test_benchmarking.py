@@ -405,6 +405,11 @@ def test_let_workload_checks_its_bignum_result():  # noqa: D103  -- pytest disco
     try:
         assert let_heavy(space, 10) == 10
     finally:
+        # The workload raises max-stack-depth in its setup, and a pragma is
+        # ONE engine-wide setting rather than a property of this space. Each
+        # bench.py case owns a process, so nothing there has to undo it; a
+        # test shares its process with every other test, so this one does.
+        space.run("!(pragma! max-stack-depth none)")
         space.drop()
 
 

@@ -299,6 +299,33 @@ class Defined(Generic[_P, _R]):
         """The equation as MeTTa source."""
         return f"(= {self.head} {self.body})"
 
+    def cache_clear(self) -> None:
+        """Drop this definition's table, functools.lru_cache's own name.
+
+        The table is the engine's, so this is `(table-clear <head>)` and
+        nothing more; calling it on a definition that was never cached is the
+        engine's answer to that, not an error invented here.
+        """
+        self.space.eval(Expr([Sym("table-clear"), self.head]))
+
+    def cache_info(self) -> dict[str, int]:
+        """The table's counters, functools.lru_cache's own name.
+
+        The keys are the engine's, not lru_cache's, because they are what a
+        TABLE has and a fixed-size cache does not: `tables`, `answers`,
+        `complete-call`, `invalidated` and `reevaluated`. Borrowing hits and
+        misses for them would be a translation nobody asked for
+        [source: lib/lib_tabling.pl, metta_table_statistics].
+        """
+        answers = self.space.eval(Expr([Sym("table-stats"), self.head]))
+        if not answers:
+            return {}
+        return {
+            str(row[0]): int(row[1])
+            for row in answers[0]
+            if isinstance(row, Expr) and len(row) == 2
+        }
+
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 

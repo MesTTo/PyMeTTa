@@ -74,7 +74,9 @@ def test_aio_keeps_the_loop_live_while_the_engine_spins(m):  # noqa: D103  -- py
                     ticks += 1
 
             beat = asyncio.ensure_future(ticker())
-            answers = await am.eval("(aio-spin 3000000)")
+            answers = await am.eval(
+                "(with-pragma! ((max-stack-depth 1000000000)) (aio-spin 3000000))"
+            )
             beat.cancel()
             return ticks, answers
 
@@ -137,7 +139,12 @@ def test_aio_interrupt_stops_the_running_evaluation(m):  # noqa: D103  -- pytest
             await am.run(
                 "(= (aio-spin-c $n) (if (== $n 0) done (aio-spin-c (- $n 1))))"
             )
-            spin = asyncio.ensure_future(am.eval("(aio-spin-c 2000000000)"))
+            spin = asyncio.ensure_future(
+                am.eval(
+                    "(with-pragma! ((max-stack-depth 1000000000)) "
+                    "(aio-spin-c 2000000000))"
+                )
+            )
             await asyncio.sleep(0.15)  # well inside the engine by now
             assert am.interrupt() is True
             with pytest.raises(Interrupted):
@@ -197,7 +204,13 @@ def test_aio_timeout_cancellation_stops_the_engine(m):  # noqa: D103  -- pytest 
                 "(= (aio-spin-d $n) (if (== $n 0) done (aio-spin-d (- $n 1))))"
             )
             with pytest.raises(TimeoutError):
-                await asyncio.wait_for(am.eval("(aio-spin-d 2000000000)"), timeout=0.2)
+                await asyncio.wait_for(
+                    am.eval(
+                        "(with-pragma! ((max-stack-depth 1000000000)) "
+                        "(aio-spin-d 2000000000))"
+                    ),
+                    timeout=0.2,
+                )
             # The cancellation interrupted the engine: were the spin still
             # holding the worker, this next call would wait minutes.
             t0 = time.perf_counter()
@@ -215,7 +228,12 @@ def test_aio_cancelled_while_queued_never_runs(m):  # noqa: D103  -- pytest disc
             await am.run(
                 "(= (aio-spin-e $n) (if (== $n 0) done (aio-spin-e (- $n 1))))"
             )
-            long = asyncio.ensure_future(am.eval("(aio-spin-e 30000000)"))
+            long = asyncio.ensure_future(
+                am.eval(
+                    "(with-pragma! ((max-stack-depth 1000000000)) "
+                    "(aio-spin-e 30000000))"
+                )
+            )
             queued = asyncio.ensure_future(am.add(S.never(1)))
             await asyncio.sleep(0.05)  # long is running; queued is waiting
             queued.cancel()
@@ -400,7 +418,12 @@ def test_aio_close_interrupts_work(m):  # noqa: D103  -- pytest discovers or inj
         await am.run(
             "(= (aio-close-spin $n) (if (== $n 0) done (aio-close-spin (- $n 1))))"
         )
-        running = asyncio.create_task(am.eval("(aio-close-spin 2000000000)"))
+        running = asyncio.create_task(
+            am.eval(
+                "(with-pragma! ((max-stack-depth 1000000000)) "
+                "(aio-close-spin 2000000000))"
+            )
+        )
         queued = asyncio.create_task(am.add(S.never_after_close(1)))
         await asyncio.sleep(0.1)
 

@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 
+import janus_swi
 import pytest
 
 # The legacy python.petta alias resolves through the repo root, whatever
@@ -25,6 +26,30 @@ else:
     settings.register_profile("petta", print_blob=True)
     settings.register_profile("ci", print_blob=True, derandomize=True)
     settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "petta"))
+
+
+@pytest.fixture(autouse=True)
+def _pragmas_are_not_left_set():
+    """Fail the test that leaves an interpreter pragma set for every later one.
+
+    `pragma!` writes ONE engine-wide setting. A bare
+    `(pragma! max-stack-depth 20)` therefore outlives the MeTTa object that
+    wrote it and silently bounds every evaluation that follows in the same
+    process, which surfaces as an unrelated `(Error <n> StackOverflow)` in
+    whichever test happens to run next on that xdist worker: the file order
+    decides which one, so it moves between runs and reproduces in neither
+    isolation nor a rerun. `with-pragma!` is the scoped form and restores on
+    every exit path, including an exception.
+    """
+    yield
+    try:
+        left = sorted({row["Key"] for row in janus_swi.query("metta_pragma(Key, _)")})
+    except janus_swi.PrologError:  # the engine was never started by this test
+        return
+    assert not left, (
+        f"this test left {left} set engine-wide; use "
+        "(with-pragma! ((<key> <value>)) <expr>) instead of a bare pragma!"
+    )
 
 
 @pytest.fixture(scope="session")

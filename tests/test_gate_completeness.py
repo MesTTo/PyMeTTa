@@ -68,7 +68,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # relation), on the atom-equality property law, on the pinned
     # integer-vs-float counterexample test, and on the MatchIndex unification
     # law that replaced the one-line numeric-equality claim.
-    "D": 2135,
+    # 2135 -> 2141 with P14.8's engine-stdlib prerequisites: eight new test
+    # modules, one per shipped package, each carrying the obligation-header
+    # D205 form, less two the same wave paid back by writing real docstrings
+    # where the older convention would have suppressed D103. The one that is
+    # NOT a header form is a D417 on test_doc_emission.py's fixture, where a
+    # parameter is undocumented ON PURPOSE: that is the case the positional
+    # (@param ...) list has to survive, so documenting it would delete the
+    # fixture.
+    "D": 2141,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,

@@ -36,6 +36,17 @@ from petta import Expr, MeTTa, S, V, expr
 
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
+#: The default evaluation fuel is 100,000 reductions, and the two recursive
+#: workloads below spend a million, so their spaces raise the bound the way the
+#: corpus raises it for (fib 30) in examples/basics/time_and_pragmas.metta. It
+#: is set in SETUP rather than inside the measured call, which leaves the
+#: measurement unchanged because the limit is read once per fuel scope, on its
+#: first step. It became load-bearing on 2026-08-22, when P14.8 gave m.eval the
+#: same fuel scope a runnable form already had: before that this door was
+#: unbounded and these workloads were relying on that, so they answered
+#: (Error ... StackOverflow) the moment the bound started applying.
+_UNBOUNDED_DEPTH = "!(pragma! max-stack-depth 100000000)"
+
 LET_ITERATIONS = 1_000_000
 LET_ROW_ELEMENTS = 64
 LET_SLOPE_SMALL = 100_000
@@ -63,6 +74,7 @@ def let_space() -> MeTTa:
     """Create a space containing the recursive let workload."""
     space = _space()
     try:
+        space.run(_UNBOUNDED_DEPTH)
         space.run(
             "(= (benchmark-let-heavy $n $acc $row) "
             "(if (> $n 0) "
@@ -221,6 +233,7 @@ def typed_space() -> MeTTa:
     """
     space = _space()
     try:
+        space.run(_UNBOUNDED_DEPTH)
         space.run(
             "(: benchmark-typed-abs (-> Number Number))\n"
             "(= (benchmark-typed-abs $x) (if (>= $x 0) $x (* -1 $x)))\n"

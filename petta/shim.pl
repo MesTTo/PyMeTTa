@@ -1544,8 +1544,38 @@ petta_py_call_goals(Module, [G|Gs]) :-
     call(Module:G),
     petta_py_call_goals(Module, Gs).
 
+%%%%%%%%%% Every evaluation door opens a fuel scope %%%%%%%%%%
+%
+%m.eval's own docstring says it is "what !(...) runs, minus the printing", and
+%a runnable form runs inside the fuel scope engine/translator.pl wraps its
+%conjunction in [source: engine/translator.pl, translate_runnable_expr/4's
+%petta_run_with_fuel/3 call]. This door opened none, so `max-stack-depth` did
+%not apply through it: the same two equations that answer
+%`[120, (Error -3 StackOverflow)]` through `!` instead ran until SWI's stack
+%gave out, 28.7 million inferences deep, and took the process with them
+%[measured 2026-08-22 on identical string-loaded equations, both doors in one
+%process each]. A bound the language offers has to hold at every door that
+%claims to run the same thing
+%[tested: test_the_same_source_answers_the_same_error_through_both_doors].
+%
+%The wrapper is petta_run_with_fuel/3's own contract: it answers the Value it
+%was given for each ordinary solution, and then replays each branch that ran
+%out of fuel as `(Error <culprit> StackOverflow)`. So an ordinary answer
+%arrives inside petta_py_answer/1 and is unwrapped, and anything else is a
+%fuel error atom that still has to cross as an encoded answer. Reentry is
+%free: petta_run_with_fuel/3 calls the goal directly when a scope is already
+%open, so m.eval from inside a runnable spends the runnable's fuel rather than
+%opening a second budget.
 petta_py_eval_all(Space, Tagged, Encoded) :-
-    findall(E, petta_py_eval(Space, Tagged, E), Encoded).
+    findall(E, petta_py_eval_bounded(Space, Tagged, E), Encoded).
+
+petta_py_eval_bounded(Space, Tagged, Encoded) :-
+    petta_run_with_fuel(petta_py_answer(Raw), Answer,
+                        petta_py_eval(Space, Tagged, Raw)),
+    petta_py_fuel_encoded(Answer, Encoded).
+
+petta_py_fuel_encoded(petta_py_answer(Encoded), Encoded) :- !.
+petta_py_fuel_encoded(Overflow, Encoded) :- petta_py_encode(Overflow, Encoded).
 
 %eval with named host values, the same door petta_py_run_using opens for
 %run: each Name-Value pair substitutes the bare symbol Name throughout the
@@ -1562,7 +1592,12 @@ petta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
     %wrong: a substituted host value is a boxed reference, and a round
     %trip through the encoder is exactly the copy `using` exists to
     %avoid.
-    findall(E, petta_py_eval_term(Space, Term, E), Encoded).
+    findall(E, petta_py_eval_term_bounded(Space, Term, E), Encoded).
+
+petta_py_eval_term_bounded(Space, Term, Encoded) :-
+    petta_run_with_fuel(petta_py_answer(Raw), Answer,
+                        petta_py_eval_term(Space, Term, Raw)),
+    petta_py_fuel_encoded(Answer, Encoded).
 
 petta_py_eval_term(Space, Term, Encoded) :-
     petta_py_module(Space, Module),
@@ -1601,7 +1636,7 @@ petta_py_eval_status_all(Space, Tagged, Results) :-
     petta_py_module(Space, Module),
     ( metta_reducible_head(Module, Term) -> Status = value
                                           ; Status = 'not-reducible' ),
-    findall([Status, E], petta_py_eval(Space, Tagged, E), Answers),
+    findall([Status, E], petta_py_eval_bounded(Space, Tagged, E), Answers),
     ( Answers == [] -> Results = [[empty, none]] ; Results = Answers ).
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
@@ -2208,6 +2243,30 @@ petta_py_solve_(M, (If -> Then), D, Tree, Status, Barrier) :- !,
          ; petta_py_solve_(M, Then, D, ThenTree, Status, Barrier),
            append(IfTree, ThenTree, Tree) )
     ; fail ).
+%The SOFT cut, which the engine writes wherever a call must keep every answer
+%and still have an else arm: the typed-dispatch fallback is
+%`( <branches> *-> true ; dispatch_mismatch_result(...) )` and the error
+%short circuit is `( <call> *-> true ; <recovery> )`. Without these two clauses
+%the pair below reads the whole construct as one opaque builtin, so a proof
+%stopped at the wrapper instead of descending into the call it wraps: the
+%recursive branch of a conditional equation showed one rule where three fired
+%[tested: test_conditional_derivation_exposes_the_recursive_branch]. They sit
+%ABOVE the plain disjunction because `( If *-> Then ; Else )` IS a disjunction
+%whose left side is the soft cut, and that reading loses the else arm's
+%condition.
+petta_py_solve_(M, (If *-> Then ; Else), D, Tree, Status, Barrier) :- !,
+    (   petta_py_solve_barrier(M, If, D, IfTree, IfStatus)
+    *-> ( IfStatus == truncated
+          -> Tree = IfTree, Status = truncated
+        ; petta_py_solve_(M, Then, D, ThenTree, Status, Barrier),
+          append(IfTree, ThenTree, Tree) )
+    ;   petta_py_solve_(M, Else, D, Tree, Status, Barrier) ).
+petta_py_solve_(M, (If *-> Then), D, Tree, Status, Barrier) :- !,
+    petta_py_solve_barrier(M, If, D, IfTree, IfStatus),
+    ( IfStatus == truncated
+      -> Tree = IfTree, Status = truncated
+    ; petta_py_solve_(M, Then, D, ThenTree, Status, Barrier),
+      append(IfTree, ThenTree, Tree) ).
 petta_py_solve_(M, (A ; B), D, Tree, Status, Barrier) :- !,
     ( petta_py_solve_(M, A, D, Tree, Status, Barrier)
     ; petta_py_solve_(M, B, D, Tree, Status, Barrier) ).

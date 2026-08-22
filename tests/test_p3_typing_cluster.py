@@ -294,15 +294,23 @@ def test_pragma_validates_values_and_refuses_only_unknown_keys():
         ):
             metta.run(f"!(pragma! {key} {bad_value})")
 
-    assert _answers(metta, "!(pragma! type-check auto)") == ["()"]
-    assert _answers(metta, "!(pragma! interpreter bare-minimal)") == ["()"]
-    assert _answers(metta, "!(pragma! max-stack-depth 100)") == ["()"]
-    assert _answers(metta, "!(pragma! max-stack-depth -3)") == [
-        "(Error (pragma! max-stack-depth -3) UnsignedIntegerIsExpected)"
-    ]
+    try:
+        assert _answers(metta, "!(pragma! type-check auto)") == ["()"]
+        assert _answers(metta, "!(pragma! interpreter bare-minimal)") == ["()"]
+        assert _answers(metta, "!(pragma! max-stack-depth 100)") == ["()"]
+        assert _answers(metta, "!(pragma! max-stack-depth -3)") == [
+            "(Error (pragma! max-stack-depth -3) UnsignedIntegerIsExpected)"
+        ]
 
-    with pytest.raises(Exception, match=r"metta_pragma_key.*unknown-policy"):
-        metta.run("!(pragma! unknown-policy on)")
+        with pytest.raises(Exception, match=r"metta_pragma_key.*unknown-policy"):
+            metta.run("!(pragma! unknown-policy on)")
+    finally:
+        # A pragma is ONE engine-wide setting rather than a property of this
+        # MeTTa object, so the three settings above outlive it and bound every
+        # later evaluation in the process. `max-stack-depth 100` left set is a
+        # StackOverflow in whichever test runs next.
+        for key in ("type-check", "interpreter", "max-stack-depth"):
+            metta.run(f"!(pragma! {key} none)")
 
 
 def test_an_underapplied_arrow_head_types_as_the_arbiter_does():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -58,6 +58,23 @@ class TwinDispatcher:
         with _TWIN_LOCK:
             return self._clauses[0].__doc__ if self._clauses else None
 
+    @property
+    def __signature__(self) -> inspect.Signature:
+        """The canonical first clause's parameters, not `__call__`'s `*args`.
+
+        inspect.signature/1 honours this attribute, and everything that asks a
+        dispatcher what its parameters are wants the definition's, in source
+        order: an Args section becomes one positional (@param ...) per
+        parameter, so reading `*args` here published one empty @param for every
+        definition however many arguments it took
+        [tested: test_a_docstring_emits_the_whole_doc_vocabulary].
+        """
+        with _TWIN_LOCK:
+            first = self._clauses[0] if self._clauses else None
+        if first is None:
+            return inspect.signature(self.__call__)
+        return inspect.signature(first)
+
     def __repr__(self) -> str:
         with _TWIN_LOCK:
             count = len(self._clauses)

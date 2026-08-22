@@ -2467,6 +2467,77 @@ class MeTTa:
         # [tested test_define_refuses_callable_objects].
         return install_define(self, fn, name)
 
+    @overload
+    def cache(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
+
+    @overload
+    def cache(
+        self, *, name: str | None = None, unchecked: bool = False
+    ) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
+
+    def cache(
+        self,
+        fn: Callable[..., Any] | None = None,
+        *,
+        name: str | None = None,
+        unchecked: bool = False,
+    ) -> Any:
+        """Define a function and TABLE it, in functools.lru_cache's shape.
+
+        The decorator is notation. What it lowers to is the engine's own
+        tabling declaration, `(tabled (<name> $a ...))`, so the answers come
+        from SWI's answer trie and stay correct across writes to the spaces
+        the body reads: a declared table is incremental, and a write that
+        invalidates it is re-evaluated rather than answered stale
+        [source: lib/lib_tabling.pl, metta_tabled_decl/2].
+
+            @m.cache
+            def fib(n):
+                return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+            m.eval(fib(25))       # linear, not exponential
+            fib.cache_info()      # {'tables': 26, 'answers': 26, ...}
+            fib.cache_clear()
+
+        `unchecked=True` is the declaration that ACCEPTS STALENESS: the
+        purity walk is skipped and the table is plain, which is the only way
+        to table a body whose reads the engine cannot resolve. It is the
+        engine's `(cache <name> unchecked)`, not a size, and there is no
+        maxsize here because a table is not a fixed-size cache: it holds the
+        answers for the calls that were made.
+
+        The counters are the table's, so `cache_info()` answers `tables`,
+        `answers`, `complete-call`, `invalidated` and `reevaluated` rather
+        than lru_cache's hits and misses
+        [tested: test_a_cached_definition_tables_and_answers_from_its_trie].
+        """
+        if fn is None:
+            return lambda function: self._cache_define(function, name, unchecked=unchecked)
+        return self._cache_define(fn, name, unchecked=unchecked)
+
+    def _cache_define(
+        self, fn: Callable[..., Any], name: str | None, *, unchecked: bool
+    ) -> Any:
+        """define, then the tabling declaration for what it defined."""
+        defined = install_define(self, fn, name)
+        # The declaration lives in lib_tabling, which is an ordinary library
+        # import rather than a load: import! skips a file already in the space,
+        # so a second @m.cache in the same space costs one lookup.
+        self.eval(Expr([Sym("import!"), Sym("&self"),
+                        Expr([Sym("library"), Sym("lib_tabling")])]))
+        if unchecked:
+            self.add(Expr([Sym("cache"), Sym(defined.name), Sym("unchecked")]))
+        declared = self.eval(Expr([Sym("tabled"), defined.head]))
+        if declared != [True]:
+            msg = (
+                f"{defined.name}: the engine refused the tabling declaration, "
+                f"answering {declared!r}. A body whose reads it cannot resolve "
+                f"is refused rather than tabled without the invalidation "
+                f"guarantee; cache(unchecked=True) accepts that staleness."
+            )
+            raise EngineError(msg)
+        return defined
+
     def type(
         self,
         cls: _builtins.type | None = None,

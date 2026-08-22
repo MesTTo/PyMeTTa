@@ -3,15 +3,6 @@
   "note": "What the twins could not say, and what they could only say the long way round. A `declined` entry names a FORM the twin yields None for, and its example loses that form's coverage; a `friction` entry names a form the twin does reach, through a spelling the surface should not have needed. Both derive backlog, which is why they are one table. `row` is the ai-spec-execution.md row the fix lands on and `section` is the ai-python-first-revamp-discussion.md section that predicted it, or the correction where it did not.",
   "entries": [
     {
-      "kind": "declined",
-      "example": "examples/basics/time_and_pragmas.metta",
-      "form": 15,
-      "missing": "an evaluation door that opens a fuel scope",
-      "row": "P14.8",
-      "section": "§4 engine-stdlib gaps",
-      "detail": "!(bounded-factorial 5) answers (120 (Error -3 StackOverflow)) because the two equations are non-exclusive and max-stack-depth stops the runaway branch. Writing the equations is NOT the gap: m += S[\"=\"](head, body) writes both, non-exclusively, with no string. The gap is that petta_py_eval_all/3 (bindings/python/petta/shim.pl:1544) never opens the fuel scope engine/translator.pl:1070 wraps a runnable form in, so max-stack-depth does not apply to m.eval and the runaway branch overflows Prolog's stack instead of answering the error atom. m.eval's own docstring says it is 'what !(...) runs, minus the printing', so this is a seam defect as much as a missing spelling."
-    },
-    {
       "kind": "friction",
       "example": "examples/basics/xor.metta",
       "form": null,
@@ -55,6 +46,17 @@
       "row": "P14.13",
       "section": "§4 surface gaps: directives",
       "detail": "import! has no dedicated Python door, which the term builder covers: m.eval(S[\"import!\"](S[\"&self\"], S.fibsmart)) is a legal zero-string spelling. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
+    }
+  ],
+  "retired": [
+    {
+      "kind": "declined",
+      "example": "examples/basics/time_and_pragmas.metta",
+      "form": 15,
+      "missing": "an evaluation door that opens a fuel scope",
+      "row": "P14.8",
+      "retired": "2026-08-22",
+      "detail": "CLOSED by P14.8. petta_py_eval_all/3 now wraps its findall in petta_run_with_fuel/3, the same fuel scope engine/translator.pl's translate_runnable_expr/4 wraps a runnable form in, so max-stack-depth applies through m.eval and a runaway branch answers (Error <culprit> StackOverflow) instead of exhausting SWI's stack. petta_py_eval_term_bounded/3 and petta_py_eval_status_all/3 take the same scope, so eval_using and eval_status agree with eval. The twin yields m.eval(S[\"bounded-factorial\"](5)) and the lane reads 148/148 forms alpha-equal where it read 147/148. The differential is test_the_same_source_answers_the_same_error_through_both_doors, which runs the identical source through both doors in separate interpreters and requires the same answers. CONSEQUENCE, recorded because it is user-visible: m.eval is now BOUNDED by default at the same 100,000 reductions a runnable form is bounded at, so a workload above that answers StackOverflow through m.eval exactly as it always did through `!`, and declares (pragma! max-stack-depth ...) to raise it. Two benchmark workloads were relying on the unbounded door and now declare it, as examples/basics/time_and_pragmas.metta already does for (fib 30)."
     }
   ]
 }

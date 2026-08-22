@@ -13,6 +13,9 @@ Guarantees:
     [tested test_the_reference_pages_are_up_to_date]
   - only public module-level classes and functions, and public methods of
     those classes, are documented, which is the set the pages already carried
+    [source: bindings/python/tools/reference.py:entries, the three
+    `startswith("_")` refusals at module level, class level and method level;
+    commit=WORKTREE]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing

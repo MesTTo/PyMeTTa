@@ -30,7 +30,15 @@ def test_control_signals_pass_through_recovery_catches(m):
     with pytest.raises(InferenceLimitError):
         m.eval("(== (deep-spin 3000000) done)", inferences=1_000)
     with pytest.raises(TimeLimitError):
-        m.eval("(progn (deep-spin 100000000))", timeout=0.05)
+        # The depth bound is raised for this one probe so WALL CLOCK is what
+        # ends it. Since P14.8 gave m.eval the fuel scope a runnable form has,
+        # a hundred-million-step recursion answers (Error ... StackOverflow)
+        # after the default 100,000 reductions, which is far inside 0.05s, and
+        # the timeout this line exists to observe would never arrive.
+        m.eval(
+            "(with-pragma! ((max-stack-depth 100000000)) (progn (deep-spin 100000000)))",
+            timeout=0.05,
+        )
     with pytest.raises(InferenceLimitError):
         # A program's own (catch ...) cannot eat the signal either, the
         # KeyboardInterrupt-outside-Exception design.
