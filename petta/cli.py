@@ -14,11 +14,41 @@ from pathlib import Path
 from ._config import config
 from ._engine import _resolve_petta_path
 
+#: The two flags the launcher answers itself. Everything else is forwarded,
+#: because this command keeps UPSTREAM'S LAUNCHER CONTRACT: it runs a file
+#: through swipl directly, and the subcommand surface is `python -m petta`
+#: (website/guide/getting-started.md states the split deliberately). These two
+#: are answered here only because forwarding them produced
+#: `source_sink '--version' does not exist`, an engine error about a missing
+#: FILE, which is not an answer a released command may give to the one flag
+#: every installed tool is asked first. They are answered ONLY as the whole
+#: command line, so a program taking its own `--help` still receives it
+#: [tested: test_the_launcher_answers_version_and_help_without_booting].
+SELF_ANSWERED = ("--version", "-V", "--help", "-h")
+
+USAGE = """usage: petta [FILE ...]
+
+Run a MeTTa program on the bundled PeTTa engine, through swipl.
+Every other argument is passed to the program.
+
+  petta program.metta     run a program
+  petta --version         print the version
+
+The subcommand surface is `python -m petta` (run, repl, serve, boot, lint,
+doc). The Python surface is `import petta`."""
+
 
 def main(argv=None):
     """Run PeTTa's SWI-Prolog entry point and return its exit status."""
     if argv is None:
         argv = sys.argv[1:]
+
+    if len(argv) == 1 and argv[0] in SELF_ANSWERED:
+        # Deferred, so answering a flag boots nothing.
+        from ._version import __version__  # noqa: PLC0415
+
+        print(f"petta {__version__}" if argv[0] in ("--version", "-V") else USAGE)
+        return 0
 
     runtime_root = Path(_resolve_petta_path())
     main_file = runtime_root / "engine" / "main.pl"

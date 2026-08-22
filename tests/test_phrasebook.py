@@ -147,3 +147,29 @@ def test_an_answer_line_splits_on_top_level_commas_only():
     assert book.split_answers("[a, (f 1)]") == ("a", "(f 1)")
     assert book.split_answers("[]") == ()
     assert book.split_answers("[(f 1, 2)]") == ("(f 1, 2)",)
+
+
+def test_alpha_text_canonicalizes_by_first_appearance():
+    """One canonical text form, so a transcript records the answer not the counter.
+
+    Two lanes need it, which is why it is one function: the differential oracle
+    compares two CLI runs whose allocation histories differ by consult order,
+    and the phrasebook froze `($_98110 $_98518)` and went red on a merge that
+    changed no semantics, because the engine reached that point having invented
+    ten fewer variables.
+    """
+    import alpha
+
+    # The same answer under two allocation histories canonicalizes identically.
+    assert alpha.canonical("($_98110 $_98518)") == alpha.canonical("($_98120 $_98528)")
+
+    # Two variables never collapse into one, which is the distinction
+    # alpha-equivalence makes and a blanket substitution would lose.
+    assert alpha.canonical("($_1 $_2)") != alpha.canonical("($_1 $_1)")
+
+    # Renaming is by FIRST APPEARANCE, not by the original numbering's order.
+    assert alpha.canonical("($_900 $_100 $_900)") == "($_v0 $_v1 $_v0)"
+
+    # A text with no machine variable is untouched, so an ordinary answer
+    # round-trips exactly.
+    assert alpha.canonical("(edge a b)") == "(edge a b)"

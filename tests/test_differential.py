@@ -11,35 +11,21 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+
+import alpha
+
 REPO = Path(__file__).resolve().parents[3]
 
-_MACHINE_VAR = re.compile(r"\$_\d+")
-
-
-def _normalize(text: str) -> str:
-    """Rename machine variable names canonically, in appearance order.
-
-    A variable's `$_122288` spelling encodes the engine's allocation history,
-    which differs between any two processes; the CLI is deterministic against
-    itself but not against another consult order. Structure is the semantics,
-    so both outputs get the same order-preserving renaming before comparison.
-    """
-    mapping: dict[str, str] = {}
-
-    def rename(match: re.Match) -> str:
-        name = match.group(0)
-        if name not in mapping:
-            mapping[name] = f"$_v{len(mapping)}"
-        return mapping[name]
-
-    return _MACHINE_VAR.sub(rename, text)
+#: The canonical text form lives in one place, because two lanes need it and a
+#: third spelling of the law's own relation would be a third thing to drift.
+_normalize = alpha.canonical
 
 # Fast, deterministic examples covering the semantic surface: arithmetic,
 # matching, nondeterminism, control, types, states, strings, lambdas,

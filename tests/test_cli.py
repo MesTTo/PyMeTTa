@@ -131,3 +131,38 @@ def test_the_bare_demo_runs_the_interop_example_and_backend_selftests():
         assert "mettafunc(30) = 31" in done.stdout, (extra, done.stdout)
         if extra and mork_built:
             assert "MORK query result:" in done.stdout, done.stdout
+
+
+def test_the_launcher_answers_version_and_help_without_booting(capsys):
+    """A released command answers `--version`; it does not report a missing file.
+
+    The bare `petta` command keeps upstream's launcher contract and forwards
+    everything to the engine, which is deliberate and documented. Forwarding
+    these two produced `source_sink '--version' does not exist`, an engine error
+    about a missing FILE in answer to the one flag every installed tool is asked
+    first. They are answered ONLY as the whole command line, so a MeTTa program
+    taking its own `--help` still receives it, and answering them boots nothing.
+    """
+    from petta._version import __version__
+    from petta.cli import main
+
+    assert main(["--version"]) == 0
+    assert capsys.readouterr().out.strip() == f"petta {__version__}"
+
+    assert main(["-V"]) == 0
+    assert capsys.readouterr().out.strip() == f"petta {__version__}"
+
+    assert main(["--help"]) == 0
+    printed = capsys.readouterr().out
+    assert "usage: petta" in printed
+    assert "python -m petta" in printed, "the help names the subcommand surface"
+
+    # Not the whole command line, so it belongs to the program being run.
+    assert "--help" not in petta_cli_self_answered_for(["program.metta", "--help"])
+
+
+def petta_cli_self_answered_for(argv):
+    """Which of argv the launcher would answer itself, as a set."""
+    from petta.cli import SELF_ANSWERED
+
+    return {flag for flag in argv if len(argv) == 1 and flag in SELF_ANSWERED}
