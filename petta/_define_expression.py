@@ -8,7 +8,7 @@ Guarantees:
   - statically bound S, V, and fn builders lower as mentions while bare
     callees ask for exact, hyphenated, then banged catalog spellings [tested:
     test_compiled_bodies_reach_all_four_mention_families,
-    test_banged_catalog_names_take_the_mechanical_fallback; commit=WORKTREE]
+    test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -139,7 +139,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # SQLAlchemy's expression-object precedent without copying its open
         # ended func namespace. [source:
         # https://docs.python.org/3/reference/executionmodel.html#binding-of-names;
-        # commit=WORKTREE]
+        # commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
         resolved = resolve_known_name(
             identifier,
             self.known,
@@ -158,7 +158,7 @@ class ExpressionCompilerMixin(CompilerContext):
         quasiquote and MetaOCaml quotation, the builder marks a staged term;
         only an explicit variable identity or catalog name enters the IR.
         [source: https://www.lispworks.com/documentation/HyperSpec/Body/02_df.htm;
-        commit=WORKTREE]
+        commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
         """
         root: ast.Name
         exact = False

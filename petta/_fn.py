@@ -7,7 +7,7 @@ never edit this file directly.
 Guarantees:
   - attribute access is closed over the generated catalog and exact bracket
     access never applies the Python spelling map [tested:
-    test_the_fn_namespace_is_generated; commit=WORKTREE]
+    test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None

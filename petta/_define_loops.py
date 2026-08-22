@@ -6,7 +6,7 @@ Guarantees:
     [tested test_loops_run_in_constant_stack]
   - mechanically mapped generator calls remain nondeterministic loop sources
     [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None

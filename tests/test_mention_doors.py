@@ -2,14 +2,14 @@
 Guarantees:
   - builders retain their outside-body meanings when the compiler reads them
     [tested: test_compiled_bodies_reach_all_four_mention_families;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - exact catalog names win before the underscore-to-hyphen fallback and
     unknown or shadowed host calls refuse without execution [tested:
     test_bare_callees_ask_exact_then_mapped,
-    test_rejected_attributes_never_execute_host_objects; commit=WORKTREE]
+    test_rejected_attributes_never_execute_host_objects; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the runtime fn namespace and its typed stub come from one deterministic
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None

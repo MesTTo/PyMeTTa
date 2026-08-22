@@ -11,7 +11,7 @@ Guarantees:
     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
   - purity checks resolve compiled callees under the same catalog spelling
     rule as expression lowering [tested:
-    test_mapped_nondeterministic_calls_keep_their_call_role; commit=WORKTREE]
+    test_mapped_nondeterministic_calls_keep_their_call_role; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None

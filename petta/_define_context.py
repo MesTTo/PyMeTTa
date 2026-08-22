@@ -9,7 +9,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - namespace-builder roles are explicit compiler state and survive every
     nested compiler fork [tested:
-    test_compiled_bodies_reach_all_four_mention_families; commit=WORKTREE]
+    test_compiled_bodies_reach_all_four_mention_families; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]

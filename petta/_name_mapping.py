@@ -2,9 +2,9 @@
 Guarantees:
   - exact catalog names win before the underscore-to-hyphen and trailing-bang
     candidates [tested: test_bare_callees_ask_exact_then_mapped,
-    test_banged_catalog_names_take_the_mechanical_fallback; commit=WORKTREE]
+    test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated aliases are identifiers, non-keywords, NFKC-stable, and unique
-    [tested: test_the_fn_namespace_is_generated; commit=WORKTREE]
+    [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,7 +53,7 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
     spellings keeps the generated attribute bound to the text a reader sees;
     the exact bracket door remains available for every omitted catalog name.
     [source: https://docs.python.org/3/reference/lexical_analysis.html#identifiers;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
     """
     catalog = set(names)
     candidates: dict[str, list[str]] = {}

@@ -2,15 +2,15 @@
 Assumes:
   - the project interpreter can import the local petta package and start the
     provisioned engine [tested: test_the_fn_namespace_is_generated;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarantees:
   - runtime names and explicit stub members come from the same fresh catalog
     snapshot and generation is deterministic [tested:
-    test_the_fn_namespace_is_generated; commit=WORKTREE]
+    test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - exact-only catalog spellings stay off the attribute surface instead of
     weakening static checks [tested:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -70,7 +70,7 @@ never edit this file directly.
 Guarantees:
   - attribute access is closed over the generated catalog and exact bracket
     access never applies the Python spelling map [tested:
-    test_the_fn_namespace_is_generated; commit=WORKTREE]
+    test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -107,7 +107,7 @@ def stub_text(names: list[str]) -> str:
 
     PEP 484 makes the colocated .pyi authoritative to type checkers, so the
     generated class lists every safe alias instead of advertising dynamic Any.
-    [source: https://peps.python.org/pep-0484/#stub-files; commit=WORKTREE]
+    [source: https://peps.python.org/pep-0484/#stub-files; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
     """
     aliases = generated_aliases(names)
     members = "\n".join(
@@ -118,7 +118,7 @@ def stub_text(names: list[str]) -> str:
     return f"""# Purpose: declare every generated fn attribute to static type checkers.
 # Guarantees:
 #   - every safe runtime alias is explicit and no dynamic Any fallback exists
-#     [tested: test_the_fn_namespace_is_generated; commit=WORKTREE]
+#     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

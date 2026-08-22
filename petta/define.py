@@ -27,7 +27,7 @@ Guarantees:
   - namespace builders are recognized by lexical identity and mapped catalog
     callees keep their nondeterministic role [tested:
     test_rejected_attributes_never_execute_host_objects,
-    test_mapped_nondeterministic_calls_keep_their_call_role; commit=WORKTREE]
+    test_mapped_nondeterministic_calls_keep_their_call_role; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - calling a Defined object evaluates its application except in a rules
     builder's scope-local staging context [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,

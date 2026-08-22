@@ -17,10 +17,10 @@ Guarantees:
   - attributes use the total underscore-to-hyphen map while item access
     preserves exact target spelling [tested:
     test_attribute_factories_apply_the_total_map_and_brackets_stay_exact;
-    commit=WORKTREE]
+    commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - hot attribute spellings reuse a separate bounded cache, so the name map
-    stays within the established term-building budget [measured: 660315203
-    instructions; date=2026-08-23; command=cd /home/user/Dev/PyPeTTa1/ai-wt-r1-mention/bindings/python && /home/user/Dev/.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=WORKTREE]
+    stays within the established term-building budget [measured: 659673847
+    instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarded by:
   - each namespace lock protects its target and attribute cache tiers; each
     fast-tier hit path reads one dict and takes no lock [tested

@@ -1,7 +1,7 @@
 # Purpose: declare every generated fn attribute to static type checkers.
 # Guarantees:
 #   - every safe runtime alias is explicit and no dynamic Any fallback exists
-#     [tested: test_the_fn_namespace_is_generated; commit=WORKTREE]
+#     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
