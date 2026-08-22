@@ -9,7 +9,7 @@ Guarantees:
     [tested test_serve_and_boot_expose_spaces_until_interrupted]
   - doc reports an unknown function as a normal missing-documentation result
     after bound function access became fail-fast [tested:
-    test_doc_answers_and_refuses; commit=WORKTREE]
+    test_doc_answers_and_refuses; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None

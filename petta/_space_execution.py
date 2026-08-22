@@ -16,7 +16,7 @@ Guarantees:
     accounting across progressive pulls [tested:
     test_answers_project_caller_variables_and_slices_stay_answers,
     test_a_cached_definition_tables_and_answers_from_its_trie;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -412,7 +412,7 @@ def evaluate_answers(
     every resume, while the wall limit wraps each individual resume, matching
     the established query-cursor economics [tested:
     test_function_calls_pull_engine_answers_only_as_demanded;
-    commit=WORKTREE].
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
     """
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))

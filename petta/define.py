@@ -32,7 +32,7 @@ Guarantees:
   - flat independent yield statements compile to separate equation bodies,
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,
-    test_loop_yields_remain_one_superpose_equation; commit=WORKTREE]
+    test_loop_yields_remain_one_superpose_equation; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -296,7 +296,7 @@ class Defined[**P, R]:
             # but a cached definition must populate the table cache_info()
             # subsequently reads [tested:
             # test_a_cached_definition_tables_and_answers_from_its_trie;
-            # commit=WORKTREE].
+            # commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
             return Answers(
                 _deferred_main_engine_answers(self.space, term),
                 space=self.space.name,

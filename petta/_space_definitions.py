@@ -23,7 +23,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every flat-yield equation is stored and replaced as one atomic clause
     unit [tested: test_same_head_redefinition_replaces_the_whole_yield_unit;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]

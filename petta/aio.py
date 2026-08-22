@@ -45,7 +45,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async function handles consume the synchronous Answers surface on their
     owning worker [tested: test_aio_structural_surface_behaves;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;

@@ -7,7 +7,7 @@ Guarantees:
   - the bound function namespace transliterates attributes, preserves exact
     bracket names, resolves a trailing bang, and rejects unknown names at
     access [tested: test_bound_function_namespace_validates_at_access;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -298,7 +298,7 @@ class _StatsBlock:
         # AsyncMeTTa enters and exits the same block in distinct copied
         # request contexts. The entry context has already ended, so its token
         # cannot leak and cannot be reset from the exit request [tested:
-        # test_aio_structural_surface_behaves; commit=WORKTREE].
+        # test_aio_structural_surface_behaves; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
         with contextlib.suppress(ValueError):
             _ACTIVE_STATS.reset(self._token)
         self.inferences = int(inferences) + self._engine_inferences

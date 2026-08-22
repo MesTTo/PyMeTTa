@@ -11,7 +11,7 @@ Guarantees:
     projections, and back bound function calls [tested:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_bound_function_namespace_validates_at_access;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None

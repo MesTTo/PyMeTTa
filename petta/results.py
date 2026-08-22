@@ -31,7 +31,7 @@ Guarantees:
     projections and slices stay Answers [tested:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_answers_project_caller_variables_and_slices_stay_answers;
-    commit=WORKTREE]
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None

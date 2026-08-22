@@ -10,7 +10,7 @@ Guarantees:
   - bare rules are immutable bundles accepted by Space.__iadd__, while
     Space.rules lands the same bundle immediately [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE].
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
 Open Obligations:
   To Do: None
   Hacks: None
