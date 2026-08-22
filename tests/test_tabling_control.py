@@ -191,3 +191,29 @@ def test_dropped_space_leaves_shared_tabling_alone(metta):
         ) == 1
     finally:
         assert metta.run("!(untabled (shared-keeper $n))") == [[True]]
+
+
+def test_a_drop_untables_before_it_removes_any_clause(metta):
+    """Dropping a space that tabled something removes clauses of a predicate
+    that was tabled a moment earlier, and SWI does not allow the clauses of a
+    tabled predicate to be modified while its tables stand. With the untabling
+    ordered after the removal, sixty cycles of table-drop-recycle-redefine
+    terminated the process abnormally inside libswipl in 3 runs of 3; with it
+    ordered first, 0 of 4. The count is what makes this a gate: one cycle
+    never showed it, which is why the symptom read as a flake for weeks.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    metta.run("!(import! &self (library lib_tabling))")
+    metta.run("(= (cycle-warm $n) (+ $n 1))")
+    metta.run("!(tabled (cycle-warm $n))")
+    metta.run("!(cycle-warm 1)")
+    for _ in range(60):
+        with metta.new_space() as first_life:
+            first_life.run("!(import! (context-space) (library lib_tabling))")
+            first_life.run("(= (cycle-fn $n) (+ $n 1))")
+            first_life.run("!(tabled (cycle-fn $n))")
+            assert first_life.run("!(cycle-fn 5)") == [[6]]
+            first_life.run("(cycle-edge a b)")
+            first_life.run("!(match (context-space) (cycle-edge $x $y) $x)")
+        with metta.new_space() as second_life:
+            second_life.run("(= (cycle-fn $n) (* $n 10))")
+            assert second_life.run("!(cycle-fn 5)") == [[50]]
