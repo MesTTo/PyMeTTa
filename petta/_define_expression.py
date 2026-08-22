@@ -3,7 +3,7 @@ Guarantees:
   - calls through standard ``math`` and ``operator`` module attributes lower
     to the shared callable-mention head [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]

@@ -11,7 +11,7 @@ Guarantees:
   - the compiler resolves exact standard-module attribute callables from a
     function's globals and populated closure cells [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;

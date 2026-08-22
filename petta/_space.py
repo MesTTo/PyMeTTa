@@ -13,7 +13,7 @@ Guarantees:
     test_take_peek_and_watch_retire_the_thread_linda_fn_strings,
     test_define_absorbs_class_declaration_and_frees_space_type,
     test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
-    test_transaction_term_uses_empty_answer_rollback_law; commit=WORKTREE]
+    test_transaction_term_uses_empty_answer_rollback_law; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]

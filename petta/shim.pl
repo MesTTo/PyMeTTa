@@ -6,7 +6,7 @@
 % Guarantees:
 %   - an empty direct eval preserves a guarded head with no matching clause
 %     as a not-reducible answer while a matched empty body stays empty [tested:
-%     test_eval_keeps_unreduced_guarded_head_and_status; commit=WORKTREE]
+%     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
 %     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]

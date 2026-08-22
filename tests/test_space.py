@@ -4,7 +4,7 @@ Guarantees:
   - a guarded defined head with no matching clause is an unreduced value, not
     an empty answer [tested:
     test_eval_status_reports_the_four_outcomes;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - run(), run_status() and load() register a source's whole signature set
     before processing any of its forms, as the engine's file reader does, so a
     metadata operation may name a function the same source defines lower down

@@ -6,7 +6,7 @@ Guarantees:
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
     test_define_wires_the_declarative_dance and
-    test_define_refuses_an_unregistrable_class; commit=WORKTREE]
+    test_define_refuses_an_unregistrable_class; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
   - query(into=) and Rows.build rebuild a complete constructor expression,

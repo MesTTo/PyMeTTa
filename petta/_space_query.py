@@ -2,7 +2,7 @@
 Guarantees:
   - relational solve answers retain variable columns and expose one-answer
     attribute projection [tested:
-    test_solve_retires_the_five_relational_let_workarounds; commit=WORKTREE]
+    test_solve_retires_the_five_relational_let_workarounds; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - conjunctive patterns preserve first-appearance column order [tested
     test_query_surfaces_share_column_order]
   - guards and limits are sent to the engine rather than applied after

@@ -5,7 +5,7 @@ Assumes:
 Guarantees:
   - R5's externally called watch and dynamically installed ordering methods
     remain visible to the dead-code gate [tested: the GATE vulture lane;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - each expression names one intentional dynamic use, so the 60 percent
     confidence floor remains actionable instead of globally suppressing a
     name pattern [tested: the GATE vulture lane;

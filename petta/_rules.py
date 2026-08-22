@@ -4,7 +4,7 @@ Guarantees:
   - ``Rules.lower`` stores equations, publishes lowering declarations, and
     registers each symbolic head through the engine seam [tested:
     test_rules_lower_emits_queryable_declaration_and_registers_the_head;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;

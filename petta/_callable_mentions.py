@@ -3,11 +3,11 @@
 Guarantees:
   - encoding and compiled attribute calls consult this one identity table
     [tested: test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Decides:
   - the fourteen math names are the declarations in
     ``lib/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
-    [source: lib/lib_builtin_types.metta:45; commit=WORKTREE]
+    [source: lib/lib_builtin_types.metta:45; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 """
 
 from __future__ import annotations

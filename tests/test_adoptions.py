@@ -8,9 +8,9 @@ Guarantees:
   - plain ``<`` orders atoms while explicit ``S["<"]`` retains the
     truthiness-refusing comparison term [tested:
     test_less_than_orders_atoms_and_the_explicit_term_refuses_truthiness;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - Python classes declare through ``Space.define`` [tested:
-    test_define_decorator_declares_field_types; commit=WORKTREE]
+    test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:

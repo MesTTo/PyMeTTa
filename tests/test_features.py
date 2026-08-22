@@ -7,7 +7,7 @@ Guarantees:
   - class and enum declarations use the consolidated ``Space.define`` door
     [tested: test_define_declares_class_with_accessors,
     test_define_declares_enum_members, test_define_methods_run_on_terms_and_handles,
-    and test_enum_members_match_in_metta; commit=WORKTREE]
+    and test_enum_members_match_in_metta; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

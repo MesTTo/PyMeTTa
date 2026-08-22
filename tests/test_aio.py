@@ -4,7 +4,7 @@ thread, and spaces borrow the owner's engine thread.
 Guarantees:
   - async solve, Linda verbs, watch, class/type dispatch, and both transaction
     laws execute on the owning worker [tested:
-    test_aio_structural_surface_behaves; commit=WORKTREE]
+    test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
     no residuals parameter [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;

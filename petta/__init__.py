@@ -10,7 +10,7 @@ Guarantees:
     [tested: test_m7_narrow_core_surface,
     test_solve_retires_the_five_relational_let_workarounds,
     test_keyword_builders_retire_53_raw_if_mentions, and
-    test_state_retires_three_state_function_strings; commit=WORKTREE]
+    test_state_retires_three_state_function_strings; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - ``dir(petta)`` is exactly the curated public surface and loads no
     satellites [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - satellite modules are imported only by attribute access, following PEP

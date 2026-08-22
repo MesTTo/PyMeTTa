@@ -6,7 +6,7 @@ Guarantees:
   - class declaration has no process-global ``record`` registry or second
     decorator spelling [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - registration distinguishes a MeTTa function name from its declaration
     space [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

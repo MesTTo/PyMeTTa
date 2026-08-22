@@ -4,7 +4,7 @@ Guarantees:
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,
     test_keyword_builders_retire_53_raw_if_mentions, and
-    test_plain_sorted_uses_the_engines_elementwise_order; commit=WORKTREE]
+    test_plain_sorted_uses_the_engines_elementwise_order; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - public atom classes retain the petta.atoms pickle path after internal
     module cuts [tested test_atoms_pickle_by_value,
     test_atoms_cross_a_spawned_process_boundary]

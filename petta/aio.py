@@ -11,7 +11,7 @@ the engine instead of abandoning it.
 Guarantees:
   - async solve, Linda verbs, watch, class/type dispatch, and the two
     transaction laws execute on the owning worker [tested:
-    test_aio_structural_surface_behaves; commit=WORKTREE]
+    test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - interrupt_if_running throws the same reserved structured exception as
     shim resource guards [tested test_aio_interrupt_stops_the_running_evaluation]
   - close refuses new work, interrupts a running request, rejects queued

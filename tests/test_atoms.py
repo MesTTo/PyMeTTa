@@ -2,7 +2,7 @@
 Guarantees:
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]

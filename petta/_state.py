@@ -3,11 +3,11 @@
 Assumes:
   - ``new-state``, ``get-state``, and ``change-state!`` preserve the cell
     symbol and its declared ``StateMonad`` parameter [source:
-    lib/lib_builtin_types.metta:315; commit=WORKTREE]
+    lib/lib_builtin_types.metta:315; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Guarantees:
   - ``State.value`` reads and writes the same engine cell, and ``__metta__``
     lets every ordinary atom boundary carry that cell [tested:
-    test_state_retires_three_state_function_strings; commit=WORKTREE]
+    test_state_retires_three_state_function_strings; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Owns resources:
   - the engine owns the state cell; this handle owns no independent resource.
 """

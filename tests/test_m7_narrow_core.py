@@ -2,7 +2,7 @@
 Guarantees:
   - the post-R5 narrow package surface has 69 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - the published before/after counts are exact for ``MeTTa`` and ``petta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
@@ -21,7 +21,7 @@ Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published M7 surface metrics
     [measured: 90 to 20 MeTTa names and 152 to 69 petta names after R5;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and WORKTREE final; commit=WORKTREE]
+    fixture=a142938d baseline and cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5 final; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Open Obligations:
   To Do: None
   Hacks: None

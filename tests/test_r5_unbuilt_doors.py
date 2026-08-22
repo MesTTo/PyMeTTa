@@ -6,7 +6,7 @@ Assumes:
 Guarantees:
   - each numbered R5 item has a direct behavioral regression [tested:
     python -m pytest bindings/python/tests/test_r5_unbuilt_doors.py -q;
-    commit=WORKTREE]
+    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
 Open Obligations:
   To Do: None
   Hacks: None
