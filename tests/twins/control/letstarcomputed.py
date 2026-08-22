@@ -18,7 +18,7 @@ list, a refusal crosses the seam as a Python exception so `catch` is `except`,
 and `repr` of an atom is Python's own `str`.
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

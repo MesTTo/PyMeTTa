@@ -6,7 +6,7 @@ Weak unification and attention run in the shipped ``lib_soft`` and
 Guarantees:
   - all seventeen source claims cover symmetric symbol similarity, recursive
     soft scoring, variable binding, space matching, best-match selection, and
-    normalized attention [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/soft.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=WORKTREE]
+    normalized attention [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/soft.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +26,7 @@ ZOO = S["&zoo"]
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 186644..186685 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 186644..186685 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 186644,
     "maximum": 186685,

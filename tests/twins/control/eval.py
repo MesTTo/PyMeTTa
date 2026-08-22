@@ -13,7 +13,7 @@ enclosing match minted, so its BUDGET is an empirical envelope rather than a
 point. The form still runs and proves its answer.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +24,7 @@ from petta import Expression, S, V, equation
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 12114..12162 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 12114..12162 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 12114,
     "maximum": 12162,

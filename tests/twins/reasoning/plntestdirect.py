@@ -18,7 +18,7 @@ answers VALUES and `$TV` is a BINDING, so the variable leaves through the term.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -2,10 +2,10 @@
 
 Assumes:
   - the rule metadata and six claims mirror the direction example
-    [source: examples/translation/translatorrule_direction.metta lines 8-46; commit=WORKTREE]
+    [source: examples/translation/translatorrule_direction.metta lines 8-46; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - the inverse fires only while its bidirectional declaration is installed
-    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/translatorrule_direction.metta; fixture=fresh isolated process; commit=WORKTREE]
+    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/translatorrule_direction.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,7 +16,7 @@ from petta import Expression, S, V, equation
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 8926..8978 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 8926..8978 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 8926,
     "maximum": 8978,

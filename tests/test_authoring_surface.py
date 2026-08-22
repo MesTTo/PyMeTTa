@@ -16,7 +16,7 @@ Guarantees:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=88d2e764c999d89e8919172e5c1455be804b293d].
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

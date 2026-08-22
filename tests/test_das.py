@@ -13,7 +13,7 @@ Guarantees:
   - a symbol cannot be emitted with the router's variable sigil [tested:
     test_a_symbol_never_renders_as_a_variable_to_the_router; commit=d3b584fad0c081cca59287b70a4bda3c4f5a985b]
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -18,12 +18,12 @@ assignments, and taking the number out of a `(job N)` atom is `atom[1]`.
 Assumes:
   - every engine-owned future is awaited before the isolated twin process exits
     [tested: bindings/python/tools/twin_coverage.py --measure --rounds 1
-    examples/libraries/thread_linda.metta; commit=WORKTREE]
+    examples/libraries/thread_linda.metta; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - the empirical budget applies only to the complete concurrent lane named in
     its declaration [tested:
     test_an_empirical_envelope_cannot_license_another_protocol;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,10 +35,10 @@ from petta import S, V
 #: Successful costs from two complete concurrent ten-round observations and
 #: eight subsequent complete gate-protocol observations. One original attempt
 #: failed to rendezvous and is not a cost observation
-#: [measured: 154894..154908 over 27 observations and 1 twin failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 154894..154908 over 27 observations and 1 twin failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 #: A separate ten-process serial probe observed 154894..154908; it is a
 #: separate population and does not license this concurrent declaration
-#: [measured: 154894..154908 over 10 observations; command=PYTHONPATH=bindings/python python -c "import sys; from pathlib import Path; sys.path.insert(0, 'bindings/python/tools'); import twin_coverage as c; e=Path('examples/libraries/thread_linda.metta').resolve(); print([c.run_twin(c.twin_for(e)).cost for _ in range(10)])"; fixture=serial fresh processes; commit=WORKTREE].
+#: [measured: 154894..154908 over 10 observations; command=PYTHONPATH=bindings/python python -c "import sys; from pathlib import Path; sys.path.insert(0, 'bindings/python/tools'); import twin_coverage as c; e=Path('examples/libraries/thread_linda.metta').resolve(); print([c.run_twin(c.twin_for(e)).cost for _ in range(10)])"; fixture=serial fresh processes; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 154894,
     "maximum": 154908,

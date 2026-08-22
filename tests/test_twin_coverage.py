@@ -6,22 +6,22 @@ and an undeclared skip, and require the lane to answer correctly about each.
 
 Guarantees:
   - point budgets remain two-sided with the deterministic tolerance stated
-    separately [tested: test_a_budget_is_two_sided; commit=WORKTREE]
+    separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by
     the first observation outside their measured bounds [tested:
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread,
     test_an_empirical_envelope_cannot_license_another_protocol;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - malformed or legacy spread declarations cannot silently widen a budget
     [tested: test_an_empirical_envelope_requires_complete_measurement_metadata,
-    test_spread_is_not_a_budget_door; commit=WORKTREE]
+    test_spread_is_not_a_budget_door; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - expected printing text is written as Python text while strings carried as
     MeTTa data still require val() [tested:
     test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 
 Open Obligations:
   To Do: None

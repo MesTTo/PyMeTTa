@@ -4,11 +4,11 @@ The twin covers every instruction-set claim in examples/libraries/minimal_metta.
 Assumes:
   - minimal_metta_lib publishes the function, binding, switch, reducer, and
     Turing-machine operations used below
-    [source: lib/minimal_metta_lib.metta:mm-tm; commit=WORKTREE]
+    [source: lib/minimal_metta_lib.metta:mm-tm; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - twin imports the library and asserts all twenty-eight source claims while
     keeping collapse-bind's fresh variable comparison alpha-invariant
-    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/minimal_metta.metta; fixture=fresh isolated process; commit=WORKTREE]
+    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/minimal_metta.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +19,7 @@ from petta import FALSE, TRUE, S, V, alpha_eq, encode, equation
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 193216..193420 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 193216..193420 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 193216,
     "maximum": 193420,

@@ -19,7 +19,7 @@ Guarantees:
   - the caller's bound reaches a provider that claimed exact and no other
     [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing]
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

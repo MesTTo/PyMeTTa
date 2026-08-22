@@ -40,7 +40,7 @@ Decides:
     because a Prolog cut, a resource guard and an exception all abandon it
     from outside Python and only the code holding it can say when it is done
   - operation documentation names UNIT as the empty-expression value
-    [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

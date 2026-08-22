@@ -12,7 +12,7 @@ Guarantees:
     which is the property a check-then-act did not have
     [tested: test_a_dual_is_built_once_under_concurrency; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

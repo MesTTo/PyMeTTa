@@ -8,7 +8,7 @@ Guarantees:
     test_a_generator_op_answers_bindings,
     test_a_det_op_answers_bindings_with_a_value; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

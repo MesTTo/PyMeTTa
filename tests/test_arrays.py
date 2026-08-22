@@ -15,7 +15,7 @@ Guarantees:
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
     commit=f6b5a40f74e386e7cd779c3925da7e4c02000fdb]
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

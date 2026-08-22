@@ -5,7 +5,7 @@ The weighted-superposition algebra stays in the shipped ``lib_measure`` library.
 Guarantees:
   - all sixteen source claims run against the imported library, including the
     three probabilistic membership claims and the nondeterministic ``ws-choose``
-    reading [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/measure.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=WORKTREE]
+    reading [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/measure.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +24,7 @@ SELF = S["&self"]
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 94568..94700 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 94568..94700 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 94568,
     "maximum": 94700,

@@ -2,10 +2,10 @@
 
 Assumes:
   - the custom judge, pool setup, and seven claims mirror the source example
-    [source: examples/spaces/admission_pools.metta lines 9-72; commit=WORKTREE]
+    [source: examples/spaces/admission_pools.metta lines 9-72; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - the custom and builtin judges agree before, at, and after the declared
-    capacity boundary [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/spaces/admission_pools.metta; fixture=fresh isolated process; commit=WORKTREE]
+    capacity boundary [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/spaces/admission_pools.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,7 +16,7 @@ from petta import REFLECTION_SPACE, Expression, S, V, equation
 
 #: Successful costs from two complete concurrent ten-round observations plus
 #: eight subsequent complete gate-protocol observations
-#: [measured: 57709..57789 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 57709..57789 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 57709,
     "maximum": 57789,

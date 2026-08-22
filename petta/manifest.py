@@ -24,7 +24,7 @@ Decides: a manifest that fails mid-way keeps the writes its performed
   prefix made, the same law the engine's own guards follow; the error
   names the failing form and how many stood.
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -35,7 +35,7 @@ Assumes:
     declares an empirical minimum, maximum, observation count, and protocol
     instead [tested: test_a_budget_is_two_sided,
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - an assert-family head states one claim, and Python's `assert` is its image
     [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
@@ -57,7 +57,7 @@ Guarantees:
   - empirical budgets license only the protocol that measured them, and the
     deterministic point tolerance never widens their observed extrema
     [tested: test_an_empirical_envelope_cannot_license_another_protocol;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Decides:
   - twins live under `bindings/python/tests/twins/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -73,11 +73,11 @@ Decides:
     envelope with exactly minimum, maximum, observations, and protocol, so a
     reviewer can falsify both its bounds and the conditions that produced it
     [tested: test_an_empirical_envelope_requires_complete_measurement_metadata;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - a full-lane protocol fixes both corpus width and executor width; empirical
     observations can be reproduced with --observe [tested:
     test_the_full_lane_protocol_names_every_scheduling_input;
-    commit=WORKTREE]
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Fails when:
   - an example's answers are nondeterministically ordered, which the same
     comparison in example_parity already documents: groups are compared in
@@ -138,21 +138,21 @@ BAND_PERCENT = 10.0
 #: examples/control/if.metta costs 2092 with a ceiling of 2301, so one
 #: decorated definition could not fit and six control twins had to stay at the
 #: container door [found 2026-08-22 by the control agent, which said the rule
-#: was wrong and was right; commit=WORKTREE].
+#: was wrong and was right; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 DEFINITION_WARMUP = 1456
 DEFINITION_COST = 765
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
 #: [source: bindings/python/petta/benchmarking.py _COUNTER_TOLERANCE;
-#: commit=WORKTREE].
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
 
 #: A direct check is serial. The shipped lane fixes and names both its executor
 #: width and corpus size, so either scheduling change invalidates an old
 #: empirical claim visibly instead of changing the scheduler under one label
 #: [tested: test_an_empirical_envelope_cannot_license_another_protocol;
-#: commit=WORKTREE].
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 SERIAL_PROTOCOL = "serial"
 FULL_LANE_PROTOCOL = "full-lane"
 FULL_LANE_WORKERS = 32
@@ -188,7 +188,7 @@ DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
 #: than asking the twin to call them [source: engine/prelude.metta lines
-#: 56-103, the assert family; commit=WORKTREE].
+#: 56-103, the assert family; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ASSERT_HEADS = frozenset({
     "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",
     "assertEqualToResult", "assertAlphaEqualToResult", "assertIncludes",
@@ -201,7 +201,7 @@ ASSERT_HEADS = frozenset({
 #: 1 of the terminology law takes Python's spelling where it does
 #: [source: ai-python-first-revamp-discussion.md section 9e, the
 #: dissolves-into-Python-protocols bucket, and section 9d rule 1;
-#: commit=WORKTREE]. A twin whose SUBJECT is one of these functions says so
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. A twin whose SUBJECT is one of these functions says so
 #: on the line, `# rung: <reason>`, which is how the ladder keeps the rung
 #: while making the drop visible.
 DISSOLVED = {
@@ -395,7 +395,7 @@ def _printing_strings(tree: ast.Module) -> set[int]:
     such as ``PRINTED = ((atom, "text"), ...)``. It does not exempt an
     unrelated string merely because the same function also prints something
     [source: ai-python-first-revamp-discussion.md section 9q.2;
-    commit=WORKTREE].
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
     """  # noqa: D205 -- the second paragraph states the dataflow boundary
     printed_names = {
         target.id
@@ -475,7 +475,7 @@ def _named_strings(tree: ast.Module) -> set[int]:
                 # literal mapping. It is declaration metadata, just as a
                 # scalar RUNG reason is, and never program source [tested:
                 # test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
-                # commit=WORKTREE].
+                # commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
                 permitted.update(
                     id(inner)
                     for inner in ast.walk(statement.value)
@@ -840,14 +840,14 @@ def _launch(source: str, root: Path) -> Run:
 #: inferences, 3 cost 46435 and 6 cost 46570, exactly 45 per entry, so
 #: something walks PATH inside a counted path and the same twin read a
 #: different figure under `sh check.sh` than run directly. `git` and `swipl`
-#: both live in /usr/bin here [commit=WORKTREE].
+#: both live in /usr/bin here [commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 #:
 #: It is PASSED to the child, never written into this process. Writing it into
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
 #: tests failed to find `lake` [source: bindings/python/petta/benchmarking.py
-#: builds its child environment the same way and says why; commit=WORKTREE].
+#: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
 #: What the child keeps from this process, beside the pinned PATH. HOME and the
@@ -915,7 +915,7 @@ class EmpiricalBudget:
     therefore records absolute extrema and observations, never mean +/-
     standard deviation [source:
     https://github.com/google/benchmark/blob/192ef10025eb2c4cdd392bc502f0c852196baa48/docs/user_guide.md#L1145-L1196;
-    commit=WORKTREE].
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     minimum: int
@@ -1121,7 +1121,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     the space answers a `(= $head $body)` match with, never as Python-side
     state [source: ai-python-first-revamp-discussion.md section 1b point 2,
     "any revamp design that would make a Python-defined function invisible
-    to match is wrong by this test"; commit=WORKTREE].
+    to match is wrong by this test"; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     missing = set(left.heads) - set(right.heads)
     if not missing:
@@ -1141,7 +1141,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
 #: inferences, and the cheapest twin that still queries a space cost 449
 #: [measured 2026-08-22: examples/control/caseconstrain.metta and
 #: examples/spaces/spaces3.metta, `twin_coverage.py --measure`;
-#: commit=WORKTREE].
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ENGINE_FLOOR = 100
 
 

@@ -2,10 +2,10 @@
 
 Assumes:
   - f is stored before g while h is stored after it
-    [source: examples/translation/twostage.metta lines 1-9; commit=WORKTREE]
+    [source: examples/translation/twostage.metta lines 1-9; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - both early and late references reduce through g to 42
-    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/twostage.metta; fixture=fresh isolated process; commit=WORKTREE]
+    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/twostage.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +18,7 @@ from petta import S, equation
 #: The next complete lane falsified the first envelope at 3118, so this pin was
 #: explicitly widened only after that finding; seven later complete lanes stayed
 #: inside it
-#: [measured: 3118..3158 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 3118..3158 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 3118,
     "maximum": 3158,

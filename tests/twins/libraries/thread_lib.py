@@ -3,15 +3,15 @@
 The twin covers every concurrency claim in examples/libraries/thread_lib.metta.
 Assumes:
   - lib_thread publishes futures as space names accepted by await, get-atoms,
-    settled?, and cancel [source: lib/lib_thread.metta:spawn; commit=WORKTREE]
+    settled?, and cancel [source: lib/lib_thread.metta:spawn; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - twin asserts all twenty-seven source claims across parallel collections,
     races, futures, timers, channels, pools, locks, and time bounds
-    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/thread_lib.metta; fixture=fresh isolated process; commit=WORKTREE]
+    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/thread_lib.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Owns resources:
   - every future and timer is awaited or cancelled; the process-scoped pool
     and channel are released when the isolated twin process exits
-    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/thread_lib.metta; fixture=fresh isolated process; commit=WORKTREE]
+    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/thread_lib.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,7 +23,7 @@ from petta import S, V, equation
 #: Successful costs from two complete concurrent ten-round observations and
 #: eight subsequent complete gate-protocol observations. One original attempt
 #: failed in the example before producing a twin cost and is not counted
-#: [measured: 3796865..5045134 over 27 observations and 1 example failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+#: [measured: 3796865..5045134 over 27 observations and 1 example failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 BUDGET = {
     "minimum": 3796865,
     "maximum": 5045134,

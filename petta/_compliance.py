@@ -63,7 +63,7 @@ Decides: which of the engine's expectations are general enough to hold of ANY
   provider's data; the rest skip rather than inventing atoms a backend may not
   be able to store
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
