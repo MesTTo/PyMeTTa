@@ -61,7 +61,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
             return n if n < 2 else cachedec_plain(n - 1) + cachedec_plain(n - 2)
 
         with plain.stats() as untabled:
-            overrun = cachedec_plain(_N)
+            overrun = list(cachedec_plain(_N))
 
         assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
         assert untabled.inferences > 100 * tabled.inferences

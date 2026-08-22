@@ -66,11 +66,15 @@ _ROWS = 2_000
 # removal clauses replace the shared guarded handler, shifting the refused
 # function's compiled runtime floor by -15/-30/-45 while n=12 and every
 # automatic sample stay identical; re-measured min-of-three fresh-process.
+# RE-PINNED 2026-08-23, every sample +20 exactly, plain and automatic alike,
+# by the helper's port to the handle surface at the narrow-core integration:
+# MeTTa().space() costs a constant 20 inferences over the old MeTTa()
+# construction in each fresh sample, and the growth ratios are untouched.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 86_892, "automatic": 5_458},
-    15: {"plain": 689_040, "automatic": 6_529},
-    18: {"plain": 5_506_143, "automatic": 7_600},
-    20: {"plain": 22_021_892, "automatic": 8_314},
+    12: {"plain": 86_912, "automatic": 5_478},
+    15: {"plain": 689_060, "automatic": 6_549},
+    18: {"plain": 5_506_163, "automatic": 7_620},
+    20: {"plain": 22_021_912, "automatic": 8_334},
 }
 
 

@@ -29,6 +29,10 @@ Guarantees:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - flat independent yield statements compile to separate equation bodies,
+    while control-flow yields retain one superpose body [tested:
+    test_flat_generator_emits_one_equation_per_yield,
+    test_loop_yields_remain_one_superpose_equation; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -52,9 +56,11 @@ from ._define_twins import (
     _python_twin,
 )
 from ._rules import _defined_calls_are_staged
+from ._space_objects import _stats_active
 from ._type_annotations import type_atoms_for
-from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _encode, _map_atoms
+from .atoms import Atom, Expression, Grounded, Symbol, Variable, _encode, _map_atoms
 from .errors import CompileError
+from .results import Answers
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
@@ -66,6 +72,11 @@ def _provided[T](value: T | None, default: T) -> T:
 
 def _never(_name: str) -> bool:
     return False
+
+
+def _deferred_main_engine_answers(space: Any, term: Expression):
+    """Delay one eager main-engine evaluation until the first answer pull."""
+    yield from space.eval(term)
 
 
 def _builtins_namespace() -> dict[str, Any]:
@@ -225,6 +236,8 @@ class Defined[**P, R]:
         "__name__",
         "__wrapped__",
         "_py",
+        "_uses_main_engine",
+        "bodies",
         "body",
         "doc",
         "facts",
@@ -249,12 +262,15 @@ class Defined[**P, R]:
         patterns: dict[str, Atom] | None = None,
         runtime_ops: frozenset[str] = frozenset(),
         facts: DefinitionFacts | None = None,
+        bodies: tuple[Atom, ...] | None = None,
     ):
         self.name = name
         self.params = params
         self.patterns = dict(patterns or {})
         self.body = body
+        self.bodies = () if body is None else (bodies or (body,))
         self._py = py
+        self._uses_main_engine = False
         self.space = space
         self.doc = inspect.getdoc(py)
         # The prelude operations the equations lean on: empty means the
@@ -265,7 +281,7 @@ class Defined[**P, R]:
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Expression | list[Atom | Undefined]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def __call__(self, *args: Any) -> Expression | Answers[Any]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(
@@ -274,7 +290,19 @@ class Defined[**P, R]:
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             return term
-        return self.space.eval(term)
+        if self._uses_main_engine or _stats_active():
+            # SWI answer tables belong to the main engine. A child engine is
+            # the right suspension mechanism for ordinary lazy evaluation,
+            # but a cached definition must populate the table cache_info()
+            # subsequently reads [tested:
+            # test_a_cached_definition_tables_and_answers_from_its_trie;
+            # commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+            return Answers(
+                _deferred_main_engine_answers(self.space, term),
+                space=self.space.name,
+                target=term,
+            )
+        return self.space.answers(term)
 
     @property
     def py(self) -> Callable[P, R]:
@@ -308,8 +336,8 @@ class Defined[**P, R]:
         )
 
     def source(self) -> str:
-        """The equation as MeTTa source."""
-        return f"(= {self.head} {self.body})"
+        """Every equation in this clause unit as MeTTa source."""
+        return "\n".join(f"(= {self.head} {body})" for body in self.bodies)
 
     def cache_clear(self) -> None:
         """Drop this definition's table, functools.lru_cache's own name.
@@ -385,12 +413,30 @@ class Compiled(NamedTuple):
     params: list[str]
     patterns: dict[str, Atom]
     body: Atom
+    equation_bodies: tuple[Atom, ...]
     twin: Callable
     generator: bool
     aux: list[Expression]
     runtime_ops: frozenset[str]
     hazards: frozenset[str]
     facts: DefinitionFacts
+
+
+def _is_flat_yield_sequence(statements: list[ast.stmt]) -> bool:
+    """Whether each non-docstring top-level statement is one yield site."""
+    body = statements
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    return bool(body) and all(
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, (ast.Yield, ast.YieldFrom))
+        for statement in body
+    )
 
 
 def compile_function(
@@ -475,8 +521,10 @@ def compile_function(
         # superpositions and evaluation flattens them.
         answers = compiler.yield_answers(definition.body)
         body = _superpose(answers)
+        equation_bodies = tuple(answers) if _is_flat_yield_sequence(definition.body) else (body,)
     else:
         body = compiler.block(definition.body)
+        equation_bodies = (body,)
     facts = derive_definition_facts(
         fn,
         definition,
@@ -492,6 +540,7 @@ def compile_function(
         params,
         patterns,
         body,
+        equation_bodies,
         twin,
         generator,
         compiler.aux,

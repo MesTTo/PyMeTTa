@@ -7,18 +7,26 @@ Guarantees:
     through `(arguments name atoms)` declarations [tested:
     test_a_generator_op_answers_bindings,
     test_a_det_op_answers_bindings_with_a_value; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - lazy Answers cache one source, enforce cardinality, preserve caller
+    projections, and back bound function calls [tested:
+    test_answers_are_lazy_cached_and_cardinality_aware,
+    test_bound_function_namespace_validates_at_access;
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import gc
+
 import pytest
 
-from petta import Answer, Bindings, Expression, S, parse
+from petta import Answer, Bindings, Expression, S, V, parse
 from petta.atoms import Grounded, Symbol, Variable
-from petta.errors import EngineError, PettaError, TransportFailure
+from petta.errors import EngineError, MettaResultError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
+from petta.results import Answers
 
 
 def test_answer_wire_form_is_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -1111,15 +1119,15 @@ def test_hyperpose_is_parallel_under_the_languages_name(metta):  # noqa: D103  -
 def test_fn_decodes_exactly_as_value(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-seven) 7)")
     assert metta._one("(ic-seven)") == 7
-    assert metta.fn("ic-seven")() == 7
-    assert type(metta.fn("ic-seven")()) is type(metta._one("(ic-seven)"))
+    assert metta.fn.ic_seven() == [7]
+    assert type(metta.fn.ic_seven().one()) is type(metta._one("(ic-seven)"))
 
 
 def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-many) (superpose (1 2 3)))")
     # first(): the first answer decoded, or None.
     assert metta._first("(ic-many)") == 1
-    assert metta.fn("ic-many").first() == 1
+    assert metta.fn.ic_many().first() == 1
     rows = metta.query(parse("(ic-no-such-fact $x)"))
     assert rows.first() is None
 
@@ -1130,3 +1138,113 @@ def test_rows_one_raises_the_family_exception(metta):  # noqa: D103  -- pytest d
     rows = metta.query(parse("(ic-fact $x)"))
     with pytest.raises(EngineError, match="exactly one row"):
         rows.one()
+
+
+# ------------------------------------------------ lazy evaluation answers (R3)
+
+
+def test_answers_are_lazy_cached_and_cardinality_aware():  # noqa: D103 -- the test name states the contract
+    pulled = []
+    closed = []
+
+    def source():
+        try:
+            for value in range(4):
+                pulled.append(value)
+                yield value
+        finally:
+            closed.append(True)
+
+    answers = Answers(source())
+    assert pulled == []
+    assert bool(answers) is True
+    assert pulled == [0]
+    assert answers.first() == 0
+    assert pulled == [0]
+    assert list(answers) == [0, 1, 2, 3]
+    assert list(answers) == [0, 1, 2, 3]
+    assert pulled == [0, 1, 2, 3]
+    assert hash(answers) == hash((0, 1, 2, 3))
+
+    demanded = []
+
+    def endless():
+        value = 0
+        while True:
+            demanded.append(value)
+            yield value
+            value += 1
+
+    with pytest.raises(EngineError, match="more than 1"):
+        Answers(endless()).one()
+    assert demanded == [0, 1]
+
+    with pytest.raises(EngineError, match="pass default"):
+        Answers(()).first()
+    marker = object()
+    assert Answers(()).first(default=marker) is marker
+
+    abandoned = Answers(source())
+    del abandoned
+    gc.collect()
+    assert closed
+
+
+def test_bound_function_namespace_validates_at_access(metta):  # noqa: D103 -- the test name states the contract
+    space = metta._new_space()
+    assert space.fn.car_atom(Expression(1, 2)) == [1]
+    assert space.fn["=="](1, 1).one() is True
+    assert space.fn.pragma.__name__ == "pragma!"
+    with pytest.raises(AttributeError, match="no function"):
+        _ = space.fn.r3_typo_that_does_not_exist
+
+
+def test_answers_project_caller_variables_and_slices_stay_answers(metta):  # noqa: D103 -- the test name states the contract
+    space = metta._new_space()
+    space.run("(= (r3-rel a) True) (= (r3-rel b) True)")
+    answers = space.fn.r3_rel(V.who)
+    assert answers.columns == ("who",)
+    prefix = answers[:1]
+    assert isinstance(prefix, Answers)
+    assert list(prefix.who) == [S.a]
+    assert list(answers[V.who]) == [S.a, S.b]
+    assert list(answers) == [(S.a,), (S.b,)]
+
+    colliding = space.fn.r3_rel(V.first)
+    assert callable(colliding.first)
+    assert list(colliding[V.first]) == [S.a, S.b]
+    with pytest.raises(AttributeError, match="no answer variable"):
+        _ = answers.typo
+
+
+def test_answers_scalar_doors_raise_error_atoms_but_iteration_retains_them(metta):  # noqa: D103 -- the test name states the contract
+    space = metta._new_space()
+    answers = space.answers(S["/"](1, 0))
+    assert len(list(answers)) == 1
+    assert str(answers[0]).startswith("(Error ")
+    with pytest.raises(MettaResultError):
+        answers.one()
+    with pytest.raises(MettaResultError):
+        answers.first()
+
+
+def test_function_calls_pull_engine_answers_only_as_demanded(metta):  # noqa: D103 -- the test name states the contract
+    space = metta._new_space()
+    pulled = []
+
+    @space.op(name="r3-demand")
+    def demand():
+        for value in (1, 2, 3):
+            pulled.append(value)
+            yield value
+
+    answers = space.fn.r3_demand()
+    assert pulled == []
+    assert bool(answers)
+    # The operation bridge keeps one host-generator lookahead, while Answers
+    # itself has requested and cached exactly one engine answer.
+    assert pulled == [1, 2]
+    assert answers[0] == 1
+    assert pulled == [1, 2]
+    assert list(answers) == [1, 2, 3]
+    assert pulled == [1, 2, 3]

@@ -1,8 +1,8 @@
-"""Purpose: query results as rows. A Rows is a mutable sequence of Row tuples, one per
-answer, with the query's variable names as columns and attribute access per
-column, so rows drop into unpacking, DataFrame constructors and pattern
-matching without a helper in between. Eager query results retain their
-patterns so an empty result can explain itself on demand.
+"""Purpose: expose eager query rows and lazy immutable evaluation answers.
+
+A Rows is a mutable sequence of Row tuples, one per query answer, while
+Answers progressively caches one evaluation source for replay, projections,
+and exact-cardinality reads.
 Guarantees:
   - Rows with the same columns share one bounded cached Row subclass [tested
     test_row_classes_are_reused_and_bounded]
@@ -27,33 +27,42 @@ Guarantees:
   - error_answer recognizes (Error ...) by head symbol alone, so quoted and
     nested errors stay data, and raise_for_errors chains when clean [tested
     test_raise_for_errors_chains_when_clean_and_raises_one_plainly]
+  - every Answers iterator replays one shared prefix, and caller-variable
+    projections and slices stay Answers [tested:
+    test_answers_are_lazy_cached_and_cardinality_aware,
+    test_answers_project_caller_variables_and_slices_stay_answers;
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
 import dataclasses
 import html
 import importlib as _importlib
+import itertools
 import reprlib
+import threading
 import typing
 from collections import UserList
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import Any, NamedTuple, Self, SupportsIndex, overload
+from typing import Any, Final, NamedTuple, Self, SupportsIndex, overload
 
 from ._config import config
 from ._optional import require_module
-from .atoms import Atom, Expression, Grounded, Symbol, _decode
+from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode
 from .errors import EngineError, MettaResultError
 
-__all__ = ["Row", "Rows"]
+__all__ = ["Answers", "Row", "Rows"]
 
 _ERROR_HEAD = Symbol("Error")
+_MISSING: Final = object()
+_REPR_ITEMS = 4
 
 
 def error_answer(answer: object, *, space: str | None = None) -> MettaResultError | None:
@@ -638,3 +647,220 @@ def _constructor_rows[BuildT](rows: Rows, cls: type[BuildT]) -> list[BuildT] | N
     if not all(isinstance(value, Expression) and value.head == expected for value in values):
         return None
     return rows.build(cls)
+
+
+class Answers[T](Sequence[T]):
+    """A replayable view over an answer source whose size is not yet known.
+
+    Pulling is progressive. Each iterator starts at answer zero, reads the
+    shared prefix already computed, and advances the single source only when
+    it reaches the frontier. The sequence has no mutation methods.
+    """
+
+    __slots__ = (
+        "_cache",
+        "_columns",
+        "_done",
+        "_error",
+        "_lock",
+        "_source",
+        "_space",
+        "_target",
+    )
+
+    def __init__(  # noqa: D107 -- the enclosing type documents construction
+        self,
+        source: Iterable[T],
+        *,
+        columns: Iterable[str] = (),
+        space: str | None = None,
+        target: object = None,
+    ) -> None:
+        self._source = iter(source)
+        self._columns = tuple(columns)
+        self._space = space
+        self._target = target
+        self._cache: list[T] = []
+        self._done = False
+        self._error: Exception | None = None
+        self._lock = threading.RLock()
+
+    @property
+    def columns(self) -> tuple[str, ...]:
+        """Caller-variable names available for projection."""
+        return self._columns
+
+    def _pull(self, index: int) -> bool:
+        """Ensure cache[index] exists, or report ordinary exhaustion."""
+        with self._lock:
+            while len(self._cache) <= index and not self._done:
+                try:
+                    self._cache.append(next(self._source))
+                except StopIteration:
+                    self._done = True
+                except Exception as exc:  # noqa: BLE001 -- replay requires caching the source's terminal failure unchanged
+                    self._done = True
+                    self._error = exc
+            if len(self._cache) > index:
+                return True
+            if self._error is not None:
+                raise self._error
+            return False
+
+    def _at(self, index: int) -> T:
+        if index < 0:
+            self._materialize()
+            index += len(self._cache)
+        if index < 0 or not self._pull(index):
+            msg = "Answers index out of range"
+            raise IndexError(msg)
+        return self._cache[index]
+
+    def _materialize(self) -> tuple[T, ...]:
+        position = len(self._cache)
+        while self._pull(position):
+            position += 1
+        return tuple(self._cache)
+
+    def __iter__(self) -> Iterator[T]:  # noqa: D105 -- Python's iteration protocol names the contract
+        position = 0
+        while self._pull(position):
+            yield self._cache[position]
+            position += 1
+
+    def __bool__(self) -> bool:  # noqa: D105 -- Python's truth protocol names the contract
+        return self._pull(0)
+
+    def __len__(self) -> int:  # noqa: D105 -- Python's sequence protocol names the contract
+        return len(self._materialize())
+
+    @overload
+    def __getitem__(self, key: int) -> T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Answers[T]: ...
+
+    @overload
+    def __getitem__(self, key: Variable) -> Answers[Any]: ...
+
+    def __getitem__(  # noqa: D105 -- Python's sequence protocol names the contract
+        self, key: int | slice | Variable
+    ) -> T | Answers[T] | Answers[Any]:
+        if isinstance(key, Variable):
+            return self._project(key.name)
+        if isinstance(key, slice):
+            return self._slice(key)
+        if not isinstance(key, int):
+            msg = f"Answers indices are integers, slices, or Variables, not {type(key).__name__}"
+            raise TypeError(msg)
+        return self._at(key)
+
+    def _slice(self, window: slice) -> Answers[T]:
+        if window.step == 0:
+            msg = "slice step cannot be zero"
+            raise ValueError(msg)
+
+        def selected() -> Iterator[T]:
+            if any(
+                value is not None and value < 0
+                for value in (window.start, window.stop, window.step)
+            ):
+                yield from self._materialize()[window]
+                return
+            yield from itertools.islice(
+                self,
+                window.start or 0,
+                window.stop,
+                window.step or 1,
+            )
+
+        return Answers(
+            selected(), columns=self._columns, space=self._space, target=self._target
+        )
+
+    def _project(self, name: str) -> Answers[Any]:
+        if name not in self._columns:
+            msg = f"no answer variable {name!r}; variables are {list(self._columns)}"
+            raise AttributeError(msg)
+        index = self._columns.index(name)
+
+        def values() -> Iterator[Any]:
+            for answer in self:
+                if not isinstance(answer, Row):
+                    msg = f"answer {answer!r} carries no variable row for {name!r}"
+                    raise TypeError(msg)
+                yield answer[index]
+
+        return Answers(values(), space=self._space, target=self._target)
+
+    def __getattr__(self, name: str) -> Answers[Any]:  # noqa: D105 -- projection is documented by the type
+        return self._project(name)
+
+    def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
+        return sorted(set(super().__dir__()) | set(self._columns))
+
+    @staticmethod
+    def _scalar(answer: Any) -> Any:
+        if isinstance(answer, Undefined):
+            msg = (
+                "one answer was undefined; a scalar cardinality call asserts "
+                "that a definite value exists"
+            )
+            raise EngineError(msg)
+        return _decode(answer) if isinstance(answer, Grounded) else answer
+
+    def one(self) -> Any:
+        """Return exactly one decoded value, rejecting zero or multiplicity."""
+        if not self._pull(0):
+            msg = "one() expected exactly one answer, got 0"
+            raise EngineError(msg)
+        first = self._cache[0]
+        raise_error_answers((first,), space=self._space, target=self._target)
+        if self._pull(1):
+            msg = "one() expected exactly one answer, got more than 1"
+            raise EngineError(msg)
+        return self._scalar(first)
+
+    def first(self, *, default: Any = _MISSING) -> Any:
+        """Return the first decoded value, or the caller's explicit default."""
+        if not self._pull(0):
+            if default is _MISSING:
+                msg = "first() found no answers; pass default= for absence"
+                raise EngineError(msg)
+            return default
+        first = self._cache[0]
+        raise_error_answers((first,), space=self._space, target=self._target)
+        return self._scalar(first)
+
+    def __eq__(self, other: object) -> bool:  # noqa: D105 -- Python's equality protocol names the contract
+        if isinstance(other, Answers):
+            return self._materialize() == other._materialize()
+        if isinstance(other, Sequence):
+            return self._materialize() == tuple(other)
+        return NotImplemented
+
+    def __hash__(self) -> int:  # noqa: D105 -- Python's hash protocol names the contract
+        return hash(self._materialize())
+
+    def __repr__(self) -> str:  # noqa: D105 -- Python's representation protocol names the contract
+        shown: list[Any] = []
+        for index in range(_REPR_ITEMS + 1):
+            if not self._pull(index):
+                break
+            shown.append(self._cache[index])
+        if len(shown) > _REPR_ITEMS:
+            inner = ", ".join(repr(value) for value in shown[:_REPR_ITEMS])
+            return f"[{inner}, ...]"
+        return repr(shown)
+
+    def __copy__(self) -> Self:  # noqa: D105 -- immutable instances copy as themselves
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:  # noqa: D105 -- immutable instances copy as themselves
+        del memo
+        return self
+
+    def __del__(self) -> None:  # noqa: D105 -- finalization releases the owned source
+        close = getattr(self._source, "close", None)
+        if callable(close):
+            close()

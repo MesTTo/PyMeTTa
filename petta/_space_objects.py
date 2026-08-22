@@ -4,6 +4,10 @@ Guarantees:
     test_stream_agrees_with_query_and_closes_on_exhaustion]
   - Prepared preserves first-appearance query columns [tested
     test_query_surfaces_share_column_order]
+  - the bound function namespace transliterates attributes, preserves exact
+    bracket names, resolves a trailing bang, and rejects unknown names at
+    access [tested: test_bound_function_namespace_validates_at_access;
+    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -16,6 +20,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import time
@@ -39,7 +44,7 @@ from .atoms import (
     _variables,
 )
 from .errors import EngineError, PettaError
-from .results import Rows, _row_class, raise_error_answers
+from .results import Rows, _row_class
 
 if TYPE_CHECKING:
     from ._space import Space as MeTTa
@@ -224,7 +229,9 @@ class _StatsBlock:
     __slots__ = (
         "_before",
         "_counted",
+        "_engine_inferences",
         "_rt",
+        "_token",
         "_wall",
         "cputime",
         "gc_count",
@@ -249,7 +256,9 @@ class _StatsBlock:
     def __init__(self, rt: Runtime) -> None:
         self._rt = rt
         self._counted = False
+        self._engine_inferences = 0
         self._before: tuple[int | float, ...] | None = None
+        self._token: Any = None
         self._wall: float | None = None
 
     def __getattr__(self, name: str) -> Any:
@@ -270,6 +279,7 @@ class _StatsBlock:
     def __enter__(self) -> Self:
         self._before = _stats_snapshot(self._rt)
         self._wall = time.perf_counter()
+        self._token = _ACTIVE_STATS.set((*_ACTIVE_STATS.get(), self))
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -285,7 +295,13 @@ class _StatsBlock:
         )
         # The two petta_py_stats crossings themselves sit inside the
         # window; their cost is a few hundred inferences, the noise floor.
-        self.inferences = int(inferences)
+        # AsyncMeTTa enters and exits the same block in distinct copied
+        # request contexts. The entry context has already ended, so its token
+        # cannot leak and cannot be reset from the exit request [tested:
+        # test_aio_structural_surface_behaves; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+        with contextlib.suppress(ValueError):
+            _ACTIVE_STATS.reset(self._token)
+        self.inferences = int(inferences) + self._engine_inferences
         self.cputime = float(cputime)
         self.walltime = wall
         self.gc_count = int(gc_count)
@@ -301,6 +317,22 @@ class _StatsBlock:
             f"<stats: {self.inferences} inferences, "
             f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
         )
+
+
+_ACTIVE_STATS: ContextVar[tuple[_StatsBlock, ...]] = ContextVar(
+    "petta_active_stats", default=()
+)
+
+
+def _record_engine_inferences(count: int) -> None:
+    """Add held-engine work to every enclosing stats measurement."""
+    for block in _ACTIVE_STATS.get():
+        block._engine_inferences += count
+
+
+def _stats_active() -> bool:
+    """Whether this context is measuring engine work."""
+    return bool(_ACTIVE_STATS.get())
 
 
 def _forward_window(window: slice) -> tuple[int, int | None]:
@@ -815,43 +847,8 @@ class _EngineFunction:
         return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 
     def __call__(self, *args: Any) -> Any:
-        """Sugar for one(): a Python call means exactly one answer."""
-        return self.one(*args)
-
-    def one(self, *args: Any) -> Any:
-        # one()'s own contract, through one()'s own decoder: exactly
-        # one answer, no Undefined, a Grounded decoded to its Python value.
-        # The two surfaces answered differently on the same call (one
-        # gave True where fn gave Grounded(True)) because this re-implemented
-        # only the first of value_one's three checks. Imported here
-        # because _space_execution imports this module at load.
-        from ._space_execution import value_one  # noqa: PLC0415
-
-        term = self._term(args)
-        answers = self._space.eval(term)
-        raise_error_answers(answers, space=self._space.name, target=term)
-        return value_one(term, answers)
-
-    def all(self, *args: Any) -> list:
-        """Every answer as data, `(Error ...)` atoms included: the
-        aggregation reading, where the multiset is the return shape.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._space.eval(self._term(args))
-
-    def first(self, *args: Any) -> Any:
-        """The first answer decoded, or None for no answers: the same
-        tolerant member one()'s family has. An `(Error ...)` first
-        answer raises as one() raises; tolerance covers absence, not
-        errors.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        from ._space_execution import value_one  # noqa: PLC0415  cycle
-
-        term = self._term(args)
-        answers = self._space.eval(term)
-        if not answers:
-            return None
-        raise_error_answers(answers[:1], space=self._space.name, target=term)
-        return value_one(term, answers[:1])
+        """Evaluate this call and return its lazy, replayable Answers."""
+        return self._space.answers(self._term(args))
 
     # ------------------------------------------------------- introspection
 
@@ -937,6 +934,52 @@ class _EngineFunction:
 
     def __repr__(self) -> str:
         return f"<engine function {self._name} on {self._space.name}>"
+
+
+class _FunctionNamespace:
+    """Functions visible to one space, resolved when an attribute is read."""
+
+    __slots__ = ("_space",)
+
+    def __init__(self, space: MeTTa) -> None:
+        self._space = space
+
+    def _known(self, name: str) -> bool:
+        return name in self._space.builtins() or self._space.is_function_here(name)
+
+    def _resolve(self, name: str, *, attribute: str | None = None) -> _EngineFunction:
+        resolved = name
+        if not self._known(resolved):
+            bang = f"{resolved}!"
+            if attribute is not None and self._known(bang):
+                resolved = bang
+            else:
+                asked = attribute if attribute is not None else name
+                msg = f"{self._space.name}.fn has no function {asked!r}"
+                raise AttributeError(msg)
+        return _EngineFunction(self._space, resolved)
+
+    def __getattr__(self, name: str) -> _EngineFunction:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return self._resolve(name.replace("_", "-"), attribute=name)
+
+    def __getitem__(self, name: str) -> _EngineFunction:
+        if not isinstance(name, str) or not name:
+            msg = f"a function name must be a nonempty str, got {name!r}"
+            raise TypeError(msg)
+        return self._resolve(name)
+
+    def __dir__(self) -> list[str]:
+        names = {
+            name.removesuffix("!").replace("-", "_")
+            for name in self._space.builtins()
+            if name and name.replace("-", "_").removesuffix("!").isidentifier()
+        }
+        return sorted(set(super().__dir__()) | names)
+
+    def __repr__(self) -> str:
+        return f"<function namespace for {self._space.name}>"
 
 
 #: Active batch collectors by space name; a contextvar mapping, so a

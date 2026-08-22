@@ -82,10 +82,17 @@ def test_a_rules_generator_scopes_its_variables_to_its_parameters(metta):
         S["p14-surface-via-rule"](V.value),
         S["p14-surface-double"](V.value),
     )
-    assert arithmetic == [longhand]
-    space.add(*arithmetic)
+    assert arithmetic == (longhand,)
+    space += arithmetic
     assert arithmetic[0] in space
     assert space.eval(S["p14-surface-via-rule"](6)) == [12]
+
+    @space.rules
+    def bound(value):
+        yield equation(S["p14-surface-bound-rule"](value)).to(double(value))
+
+    assert bound[0] in space
+    assert space.eval(S["p14-surface-bound-rule"](7)) == [14]
 
 
 def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):

@@ -277,6 +277,12 @@ def test_aio_covers_the_whole_synchronous_surface():
         # transaction/1 takes one); transaction() is the async spelling
         # and there is no decorator because decoration cannot await.
         "transactional",
+        # Answers is a synchronous replayable iterator. AsyncMeTTa's stream
+        # is the awaitable pull protocol rather than a cross-thread iterator.
+        "answers",
+        # A decorator cannot await the worker-side landing; async callers add
+        # a bare rules bundle through the existing await m.add(*bundle) door.
+        "rules",
     }
     sync = {name for name in dir(Space) if not name.startswith("_")}
     missing = sync - set(dir(aio.AsyncMeTTa)) - excluded
