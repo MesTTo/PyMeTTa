@@ -1,26 +1,40 @@
-"""The Python twin of examples/spaces/spaces_find.metta.
+"""The Python twin of examples/spaces/spaces_find.metta: find as a branch filter.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+`find` from lib_spaces succeeds once per matching row, so the nested ifs answer
+one `(FoundChain a b c)` for the chain that continues and one
+`(MissedSecondPiece)` for the row that does not.
+
+`import!` stays a term because it is a directive rather than a value door: there
+is no Python spelling for it yet, and the residue names the gap (P14.13). The two
+facts are plain tuples, which is what the knowledge front reads.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
+#: HELD 2026-08-22 at 20742 across the P14 twin-style rewrite: the two facts
+#: now enter as tuples and every term is built from named symbols, and both
+#: store and evaluate exactly what the nested expr() spellings did. Measured
+#: 20742 before and after, which also says the import! directive is where this
+#: file's cost lives rather than in any of its own forms.
+#: Prior: ADDED 2026-08-22 at 20742 by the wave-3 spaces baseline.
 BUDGET = 20742
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    every other form says its own answer in the comment above it.
+    """
+    here = S[m.space_name]
+
     # !(import! &self (library lib_spaces))
-    yield m.eval(expr(S["import!"], S["&self"], expr(S["library"], S["lib_spaces"])))
+    yield m.eval(S["import!"](here, S.library(S.lib_spaces)))
 
-    # (friend a b)
-    m += expr(S["friend"], S["a"], S["b"])
-
-    # (friend b c)
-    m += expr(S["friend"], S["b"], S["c"])
+    # (friend a b) (friend b c)
+    m += (S.friend, S.a, S.b)
+    m += (S.friend, S.b, S.c)
 
     # !(test (collapse (if (find &self (friend $a $b))
     #                      (if (find &self (friend $b $c))
@@ -29,24 +43,18 @@ def twin(m):
     #                      (MissedAllPieces)))
     #        ((FoundChain a b c) (MissedSecondPiece)))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["collapse"],
-                expr(
-                    S["if"],
-                    expr(S["find"], S["&self"], expr(S["friend"], V["a"], V["b"])),
-                    expr(
-                        S["if"],
-                        expr(S["find"], S["&self"], expr(S["friend"], V["b"], V["c"])),
-                        expr(S["FoundChain"], V["a"], V["b"], V["c"]),
-                        expr(S["MissedSecondPiece"]),
+        S.test(
+            S.collapse(
+                S["if"](
+                    S.find(here, S.friend(V.a, V.b)),
+                    S["if"](
+                        S.find(here, S.friend(V.b, V.c)),
+                        S.FoundChain(V.a, V.b, V.c),
+                        S.MissedSecondPiece(),
                     ),
-                    expr(S["MissedAllPieces"]),
-                ),
+                    S.MissedAllPieces(),
+                )
             ),
-            expr(expr(S["FoundChain"], S["a"], S["b"], S["c"]), expr(S["MissedSecondPiece"])),
+            (S.FoundChain(S.a, S.b, S.c), S.MissedSecondPiece()),
         )
     )
-
-    yield from ()
