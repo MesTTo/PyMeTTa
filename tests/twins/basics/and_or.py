@@ -1,14 +1,19 @@
-"""The Python twin of examples/basics/and_or.metta: boolean connectives.
+"""examples/basics/and_or.metta in Python: the boolean connectives.
 
-`&` and `|` on a built term are MeTTa's `and` and `or`: the operator table
-lowers them, so `expr | TRUE` writes the `(or ...)` the example writes by
-hand.
+`(and true false)` is False, so `(or ... true)` is True and the original's
+`if` takes its first branch. The connectives are the engine's here and Python
+cannot spell them in a compiled body three ways over: `and` and `or` are
+Python KEYWORDS, so no body can name them the way `basics/xor` names `xor`;
+`&` and `|` build the terms at the term door but are refused inside a body;
+and Python's own `and` in a body lowers to `py-truthy` short-circuits rather
+than to MeTTa's connectives. So the engine reduces the connectives and
+Python's conditional expression picks the branch, which is what a conditional
+expression is for.
 
-The inner `(and true false)` is the exception, because both its operands are
-GROUND: a Python operator over two ground atoms is that value's own arithmetic,
-so `TRUE & FALSE` answers Python's `False` instead of building the term `if` is
-handed here. Only the outer `|`, whose left operand is the built `(and ...)`,
-is an operator.
+One operator does reach here. `|` builds `(or ... True)` because its left
+operand is a built term; `TRUE & FALSE` would not, because two GROUND
+operands make a Python operator that value's own arithmetic, and it answers
+Python's `False` before the engine sees anything.
 """
 
 from petta import S, val
@@ -19,32 +24,18 @@ from petta import S, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 991 to 989, -2, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 946 to 991, +45 (+4.76%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 989
+#: RE-PINNED 2026-08-22, 989 to 738, -251 (-25.4%), by the twin contract
+#: change: the `test` wrapper and the `m.eval` around it left the engine
+#: for Python's own `assert` and conditional expression, so all that is
+#: left in the engine is reducing `(or (and True False) True)`. Against the
+#: example's 2113 the ratio is 0.3493 [measured 2026-08-22 min-of-3,
+#: `twin_coverage.py --measure`]. The old figure priced a different
+#: program.
+BUDGET = 738
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(test (if (or (and true false) true) 1 2) 1)
-    yield m.eval(S.test(S["if"](S["and"](TRUE, FALSE) | TRUE, 1, 2), 1))
+    """Reduce the connectives in the engine, then choose in Python."""
+    # (or (and true false) true)
+    holds = m.one(S["and"](TRUE, FALSE) | TRUE)
+    assert (1 if holds else 2) == 1

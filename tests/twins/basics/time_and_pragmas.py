@@ -1,143 +1,120 @@
-"""The Python twin of examples/basics/time_and_pragmas.metta: bounds and time.
+"""examples/basics/time_and_pragmas.metta in Python: bounds, time and pragmas.
 
-`timeout`, `elapsed`, `inferences` and `with-pragma!` are special forms: their
-expression must reach them UNEVALUATED. A built term is unevaluated by
-construction, so the term door is the natural Python spelling for all four
-and there is nothing to quote.
+Three of the four bounding forms have a Python door and take it. `timeout` and
+`inferences` are per-call keywords, so `(timeout 30 (spin 100))` is
+`m.eval(spin(100), timeout=30)`; `with-pragma!` scopes settings to a region,
+so it is `with m.limits(...)`, which is the same shape and the same undo. The
+fourth, `pragma!`, sets a process-wide interpreter setting and has no Python
+door at all, so it is built as the atom it is. `car-atom` dissolves as well:
+`elapsed` answers `(Value Seconds)` and Python reads the value as `[0]`.
 
-`!(bounded-factorial 5)` answers `(120 (Error -3 StackOverflow))` because the
-two equations are NON-EXCLUSIVE and `max-stack-depth` stops the runaway
-branch. That form used to be declined, on the ground that no zero-string
-evaluation door opened a fuel scope; P14.8 closed it, `m.eval` opens the same
-scope a runnable form opens, and the retired residue entry records the
-correction. What the form still needs is a definitional door that derives no
-first-match guard, since `@m.define` would emit `(if (== $n 0) (empty) ...)`
-and prune the branch the example is about: `@rules` is that door.
+Two rungs are dropped here and both are named on the line. `metta/3` takes the
+space by NAME, and handing it the space handle fails inside the engine's own
+writer, so `&self` is written as the symbol it wants; the same wall is why
+`evalc`, which does have a handle door, is spelled `m.space("&self").eval`
+right beside it, and the two doors sitting next to each other is the point of
+those two forms. And `spin`'s equation answers the lowercase symbol `done`,
+which a compiled body cannot name, so it is written at the container door.
+
+`bounded-factorial` needs the definitional door that derives NO first-match
+guard: its two clauses are non-exclusive and both apply at 0, which is what
+makes the runaway branch reachable at all. `@m.define` would emit
+`(if (== $n 0) (empty) ...)` and prune it, so `@rules` is the door.
 """
 
-from petta import S, V, equation, rules, val
+from petta import S, V, equation, expr, rules, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
+#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: reads as a Python flag, and this is an answer.
+TRUE = val(value=True)
+
+#: The unit value, which is what a pragma answers, the way add-atom does.
+UNIT = expr()
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 43530 to 43549, +19, by lifting the 2-clause equation set from
-#: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the
-#: increase is the multi-atom add path, not the decorator: `rules` builds its equations in
-#: Python and spends nothing on the engine, and one `m.add` of n atoms costs 13 + 3n inferences
-#: more than n separate `m +=` calls (measured over three fresh processes each: 673 against 692
-#: at two atoms, 1042 against 1064 at three, 0.0000% spread). Prior: #: RE-PINNED 2026-08-22, 48356 to 43530, -4826 (-9.98%), by
-#: INLINING the fuel charge into the compiled clause instead of calling a
-#: shared petta_fuel_step/2. The cost of a charged reduction is a
-#: compile-time constant, so the charge is BUILT where the call used to be
-#: emitted and the constant lands as a literal in the subtraction: six
-#: inferences per charged reduction become four, and the drop tracks each
-#: twin's charged-reduction count rather than its size. Prior: #: RE-PINNED 2026-08-22, 48348 to 48356, +8, and this one is
-#: UNATTRIBUTED: it reproduces byte-stably across three runs and survives an
-#: A/B of both candidate causes (the lib_json/lib_file/lib_thread counter
-#: change and this file's own comment block each measure identically either
-#: way), and engine/metta.pl is byte-identical to the tree the earlier figure
-#: was taken on. Ten of the eighteen twins moved by exactly eight and
-#: constraint_domains by forty-eight, which is the shape of the +/-8
-#: instruction-layout floor this tree records elsewhere rather than a cost.
-#: Pinned at the reproducible reading. Prior: #: RE-PINNED 2026-08-22, 48376 to 48348, -28, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 39521 to 48376, +8855 (+22.41%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 43549
+#: RE-PINNED 2026-08-22, 43549 to 33675, -9874 (-22.7%), by the twin
+#: contract change: twenty-four `test` wrappers left the engine for
+#: `assert`, two `collapse` calls and one `car-atom` left it for the answer
+#: list and `[0]`, and four bounding forms left it for keywords and a
+#: with-block: `timeout`, `inferences` and both `with-pragma!` scopes are
+#: now `m.eval(..., timeout=)`, `inferences=` and `with m.limits(...)`. The
+#: seven `pragma!` forms and the runaway factorial stayed. Against the
+#: example's 64046 the ratio is 0.5258 [measured 2026-08-22 min-of-3,
+#: `twin_coverage.py --measure`]. The old figure priced a different
+#: program.
+BUDGET = 33675
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Bound four evaluations, set seven pragmas, then invert arithmetic."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-    # Written at the container door because `done` is a lowercase SYMBOL: a
-    # compiled body resolves a lowercase free name as a function and reads a
-    # capitalised one as a constructor, so it has no spelling for this atom.
+    def solve(pattern, subject, answer):
+        """Unify `pattern` with what `subject` produces, then answer `answer`.
+
+        Either side may be the call, which is what makes it run BACKWARDS: the
+        call's own variables come out bound. This is MeTTa's `let`, which
+        dissolves into Python's assignment when the subject is a call and the
+        pattern is a fresh name; the direction used here, a pattern the call
+        has to reach, has no Python spelling at all. The design's name for the
+        door it wants is `solve` (ai-python-first-revamp-discussion.md section
+        9g, idea 1), and the residue table records it against P14.4.
+        """
+        return S.let(pattern, subject, answer)  # rung: relational let
+
+    # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done)). The body answers the
+    # lowercase symbol `done`, which a compiled body cannot name: a free
+    # lowercase name there is a call it cannot resolve.
     spin = S.spin
-    m += equation(spin(V.n)).to(S["if"](V.n > 0, spin(V.n - 1), S.done))
+    body = S["if"](V.n > 0, spin(V.n - 1), S.done)  # rung: `done` unnameable in a body
+    m += equation(spin(V.n)).to(body)
 
     # A bound that is not reached is invisible.
-    # !(test (timeout 30 (spin 100)) done)
-    yield m.eval(S.test(S.timeout(30, spin(100)), S.done))
-    # !(test (timeout 30 (+ 1 2)) 3)
-    yield m.eval(S.test(S.timeout(30, S["+"](1, 2)), 3))
+    assert m.eval(spin(100), timeout=30) == [S.done]
+    assert m.eval(S["+"](1, 2), timeout=30) == [3]
 
-    # Bounding an expression does NOT collapse it to one answer.
-    # !(test (collapse (timeout 30 (superpose (1 2 3)))) (1 2 3))
-    yield m.eval(
-        S.test(
-            S.collapse(S.timeout(30, S.superpose((1, 2, 3)))),
-            (1, 2, 3),
-        )
-    )
+    # Bounding an expression does NOT collapse it to one answer: the whole
+    # answer set computes under the bound.
+    assert m.eval(S.superpose((1, 2, 3)), timeout=30) == [1, 2, 3]
 
-    # elapsed answers (Value Seconds); only the value is asserted.
-    # !(test (car-atom (elapsed (spin 100))) done)
-    yield m.eval(S.test(S["car-atom"](S.elapsed(spin(100))), S.done))
-    # !(test (sleep 0.01) True)
-    yield m.eval(S.test(S.sleep(0.01), TRUE))
+    # elapsed answers (Value Seconds), so timing a call does not mean writing
+    # the clock by hand. Only the value is asserted; the duration is real but
+    # not reproducible enough to assert on.
+    assert m.one(S.elapsed(spin(100)))[0] == S.done
 
-    # metta/3 interprets an atom in a named space; evalc already is that.
-    # !(test (metta (+ 1 2) %Undefined% &self) 3)
-    yield m.eval(S.test(S.metta(S["+"](1, 2), S["%Undefined%"], S["&self"]), 3))
-    # !(test (evalc (+ 1 2) &self) 3)
-    yield m.eval(S.test(S.evalc(S["+"](1, 2), S["&self"]), 3))
+    # sleep answers True, so it sequences with anything else.
+    assert m.fn("sleep")(0.01) is True
 
-    # Pragmas. Each answers the unit value ().
-    # !(test (pragma! max-time 30) ())
-    yield m.eval(S.test(S["pragma!"](S["max-time"], 30), ()))
-    # !(test (pragma! max-inferences 100000000) ())
-    yield m.eval(S.test(S["pragma!"](S["max-inferences"], 100000000), ()))
-    # !(test (pragma! max-time none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-time"], S.none), ()))
-    # !(test (pragma! max-inferences none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-inferences"], S.none), ()))
+    # metta/3 interprets an atom in a NAMED space; PeTTa's evalc already is
+    # that, since PeTTa's eval is full evaluation rather than one rewriting
+    # step, so the two agree.
+    interpreted = S.metta(S["+"](1, 2), S["%Undefined%"], S["&self"])  # rung: space by name
+    assert m.eval(interpreted) == [3]
+    assert m.space("&self").eval(S["+"](1, 2)) == [3]
 
-    # max-stack-depth answers its own error rather than raising.
-    # !(test (pragma! max-stack-depth 0) ())
-    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], 0), ()))
-    # !(test (pragma! max-stack-depth -1)
-    #        (Error (pragma! max-stack-depth -1) UnsignedIntegerIsExpected))
-    yield m.eval(
-        S.test(
-            S["pragma!"](S["max-stack-depth"], -1),
-            S.Error(
-                S["pragma!"](S["max-stack-depth"], -1),
-                S.UnsignedIntegerIsExpected,
-            ),
-        )
-    )
-    # !(test (pragma! max-stack-depth none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], S.none), ()))
+    # Pragmas. Each answers the unit value, the way add-atom and print do.
+    # Every key must be in the interpreter registry, and a bound's value is
+    # checked before it replaces a working setting.
+    pragma = S["pragma!"]
+    assert m.eval(pragma(S["max-time"], 30)) == [UNIT]
+    assert m.eval(pragma(S["max-inferences"], 100000000)) == [UNIT]
+    # Passing none clears a bound again.
+    assert m.eval(pragma(S["max-time"], S.none)) == [UNIT]
+    assert m.eval(pragma(S["max-inferences"], S.none)) == [UNIT]
 
-    # !(pragma! max-stack-depth 20) answers (())
-    yield m.eval(S["pragma!"](S["max-stack-depth"], 20))
+    # max-stack-depth answers its own error rather than raising: the count it
+    # requires is checked in the answer, so the program that wrote it runs on.
+    assert m.eval(pragma(S["max-stack-depth"], 0)) == [UNIT]
+    assert m.eval(pragma(S["max-stack-depth"], -1)) == [
+        S.Error(pragma(S["max-stack-depth"], -1), S.UnsignedIntegerIsExpected)
+    ]
+    assert m.eval(pragma(S["max-stack-depth"], S.none)) == [UNIT]
 
-    # The two equations are NON-EXCLUSIVE: both apply at 0, which is what
-    # makes the runaway branch reachable. `@m.define` would derive a
-    # first-match guard, `(if (== $n 0) (empty) ...)`, and prune it; `@rules`
-    # writes the clauses without one, which is the whole difference between
-    # the two definitional doors and exactly what this example needs.
+    # A positive stack-depth setting caps the evaluator's branch-local fuel,
+    # and a finite sibling survives when an overlapping recursive branch runs
+    # out.
+    m.eval(pragma(S["max-stack-depth"], 20))
+
     @rules
     def bounded_factorial(n):
         # (= (bounded-factorial 0) 1)
@@ -146,58 +123,28 @@ def twin(m):
         yield equation(S["bounded-factorial"](n)).to(n * S["bounded-factorial"](n - 1))
 
     m.add(*bounded_factorial)
-    # !(bounded-factorial 5) answers (120 (Error -3 StackOverflow)).
-    # Twinnable since P14.8: m.eval opens the same fuel scope a runnable form
-    # opens, so max-stack-depth bounds the runaway branch here too and the
-    # base case keeps its answer.
-    yield m.eval(S["bounded-factorial"](5))
+    assert m.eval(S["bounded-factorial"](5)) == [120, S.Error(-3, S.StackOverflow)]
 
-    # !(pragma! max-stack-depth none) answers (())
-    yield m.eval(S["pragma!"](S["max-stack-depth"], S.none))
+    m.eval(pragma(S["max-stack-depth"], S.none))
 
-    # (inferences $n $expr) is timeout's deterministic twin.
-    # !(test (inferences 100000 (spin 100)) done)
-    yield m.eval(S.test(S.inferences(100000, spin(100)), S.done))
-    # !(test (collapse (inferences 100000 (superpose (1 2 3)))) (1 2 3))
-    yield m.eval(
-        S.test(
-            S.collapse(S.inferences(100000, S.superpose((1, 2, 3)))),
-            (1, 2, 3),
-        )
-    )
+    # (inferences $n $expr) is timeout's deterministic twin: the bound stops
+    # at the same step on every machine, and it is the same keyword.
+    assert m.eval(spin(100), inferences=100000) == [S.done]
+    assert m.eval(S.superpose((1, 2, 3)), inferences=100000) == [1, 2, 3]
 
-    # with-pragma! scopes settings to ONE expression.
-    # !(test (with-pragma! ((max-inferences 100000)) (+ 20 22)) 42)
-    yield m.eval(
-        S.test(
-            S["with-pragma!"](((S["max-inferences"], 100000),), S["+"](20, 22)),
-            42,
-        )
-    )
-    # !(test (with-pragma! ((max-time 30) (max-inferences 100000)) (spin 100)) done)
-    yield m.eval(
-        S.test(
-            S["with-pragma!"](
-                (
-                    (S["max-time"], 30),
-                    (S["max-inferences"], 100000),
-                ),
-                spin(100),
-            ),
-            S.done,
-        )
-    )
-    # !(test (spin 2000) done)
-    yield m.eval(S.test(spin(2000), S.done))
+    # with-pragma! scopes settings to ONE expression; a with-block scopes them
+    # to a region, and the previous values come back on every exit path.
+    with m.limits(inferences=100000):
+        assert m.eval(S["+"](20, 22)) == [42]
+    with m.limits(timeout=30, inferences=100000):
+        assert m.eval(spin(100)) == [S.done]
+    assert m.eval(spin(2000)) == [S.done]
 
-    # Relational integer arithmetic: one unbound argument solves for itself.
-    # !(test (let 4 (- $x 1) $x) 5)
-    yield m.eval(S.test(S.let(4, V.x - 1, V.x), 5))
-    # !(test (let 10 (+ $x 3) $x) 7)
-    yield m.eval(S.test(S.let(10, V.x + 3, V.x), 7))
-    # !(test (let 6 (* $x 2) $x) 3)
-    yield m.eval(S.test(S.let(6, V.x * 2, V.x), 3))
-    # !(test (let 3 (/ $x 2) $x) 6)
-    yield m.eval(S.test(S.let(3, V.x / 2, V.x), 6))
-    # !(test (collapse (let 7 (* $x 2) $x)) ())
-    yield m.eval(S.test(S.collapse(S.let(7, V.x * 2, V.x)), ()))
+    # Relational integer arithmetic: one unbound argument among integers
+    # solves for it. Exactness is honest, so a branch with no integer answer
+    # answers nothing rather than something approximate.
+    assert m.one(solve(4, V.x - 1, V.x)) == 5
+    assert m.one(solve(10, V.x + 3, V.x)) == 7
+    assert m.one(solve(6, V.x * 2, V.x)) == 3
+    assert m.one(solve(3, V.x / 2, V.x)) == 6
+    assert m.eval(solve(7, V.x * 2, V.x)) == []

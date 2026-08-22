@@ -1,10 +1,18 @@
-"""The Python twin of examples/basics/booleansolver.metta: solving for a bool.
+"""examples/basics/booleansolver.metta in Python: solving for a boolean.
 
-`and` and `or` run backwards, so an unbound variable is SOLVED FOR rather
-than read.
+`and` and `or` are generate-and-test over two values, so an unbound variable
+in one is SOLVED FOR rather than read, and one form answers twice. `|` and `&`
+build those connectives at the term door, and `V.x` is the variable `$x`.
 
-`V.x` is the variable `$x`. Both answers come back from one form, which is
-what a nondeterministic answer set is.
+Two walls, and both are why this is a term rather than a decorated function.
+Python's `and` and `or` are keywords, so a compiled body cannot name MeTTa's;
+and Python's own `and` in a body lowers to a `py-truthy` short circuit, which
+tests a value and never generates one, so a compiled `if x and y: yield ...`
+answers once with both variables still unbound instead of enumerating the
+solutions. Measured on this engine 2026-08-22.
+
+The answers are pairs, so Python reads them as pairs: an expression is a
+sequence and `tuple(pair)` is the unpacking.
 """
 
 from petta import S, V, val
@@ -12,40 +20,22 @@ from petta import S, V, val
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1233 to 1231, -2, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 1182 to 1233, +51 (+4.31%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 1231
+#: RE-PINNED 2026-08-22, 1231 to 880, -351 (-28.5%), by the twin contract
+#: change: the `test` wrapper left the engine for `assert`, and reading the
+#: two answers as pairs is Python's own unpacking; the solving itself is
+#: untouched. Against the example's 2538 the ratio is 0.3467 [measured
+#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
+#: priced a different program.
+BUDGET = 880
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(test (if (and (or $x True) $y) ($x $y)) ((True True) (False True)))
-    yield m.eval(
-        S.test(
-            S["if"]((V.x | TRUE) & V.y, (V.x, V.y)),
-            ((TRUE, TRUE), (FALSE, TRUE)),
-        )
-    )
+    """Ask which pairs of booleans satisfy the condition."""
+    # (if (and (or $x True) $y) ($x $y)): the two-argument `if` is the FILTER
+    # that turns a solved condition into the pair that solved it, and nothing
+    # where it does not hold.
+    solutions = m.eval(S["if"]((V.x | TRUE) & V.y, (V.x, V.y)))  # rung: two-argument if
+    assert [tuple(pair) for pair in solutions] == [(True, True), (False, True)]

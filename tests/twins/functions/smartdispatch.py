@@ -1,10 +1,11 @@
-"""The Python twin of examples/functions/smartdispatch.metta: which heads run.
+"""examples/functions/smartdispatch.metta in Python: which heads run.
 
-One form asks five questions at once. `(f 21)` reduces, `(g f 2)` keeps `f` as
-DATA inside `(justdata f 2)`, `(h f 2)` applies it, `((notjustdata 42) 21)`
-computes the head first and then applies it, and
+Five questions about the same two symbols. `(f 21)` reduces; `(g f 2)` keeps
+`f` as DATA inside `(justdata f 2)`; `(h f 2)` applies it; `((notjustdata 42)
+21)` computes the head first and then applies it; and
 `(datawithnondatacomponent)` answers data with a call nested inside it, which
-reduces where it sits.
+reduces where it sits. The original asks all five in one expression; here they
+are five claims, which is the same reading with the answers named.
 
 Three definitions are ordinary Python functions, including the two that make
 the point: `h` applies its parameter (`f(x)` compiles to `($f $x)`) and
@@ -12,47 +13,39 @@ the point: `h` applies its parameter (`f(x)` compiles to `($f $x)`) and
 symbol, so `return f` writes `f`).
 
 The other two are equations, because their bodies are lowercase symbols used
-as DATA: `justdata` and `lol` name nothing the engine defines, and a compiled
-body reads a lowercase free name as a call it cannot resolve, since
-capitalisation is what marks a data constructor there. `g` has a variable in
-its head, so it takes the `@rules` shape of the definitional decorator, where the
-generator's parameters ARE the equation's variables;
+as DATA: `justdata` and `lol` name nothing the engine defines, a compiled body
+reads a lowercase free name as a call it cannot resolve, and the explicit
+`S.justdata` spelling is refused there as well ("Attribute has no MeTTa
+equivalent in the compiled subset"). `g` has variables in its head, so it
+takes the `@rules` shape of the definitional decorator;
 `datawithnondatacomponent` has none, so it is one `equation(...).to(...)` and
 a generator around it would say nothing. The residue table records the gap
 against P14.4.
 """
 
-from petta import S, equation, rules
+from petta import S, equation, expr, rules
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6852 to 9049, +2197 (+32.06%), and ALL of it is
-#: definition installation: the five definitions cost 2620 as equation atoms
-#: and 4817 with `f`, `h` and `notjustdata` decorated, +2197, which is the
-#: whole move. The one runnable form is unchanged, because both doors land
-#: the same five equations. Nearly all of the +2197 is per-definition rather
-#: than one-time: three decorated bodies here, where the FIRST decorated
-#: definition in a process costs 2244 against the atom door's 600 for one
-#: equation and every later one costs 793 against 600. The lane's parity
-#: reads 0.80 of the original. Prior: ADDED 2026-08-22 at 6852 by 7f15dc1's
-#: wave-3 baseline.
-BUDGET = 9049
+#: RE-PINNED 2026-08-22, 9049 to 7964, -1085 (-12.0%), by the twin contract
+#: change: the one `test` wrapper left the engine for `assert`, and the
+#: original's single five-element question became five claims, each
+#: evaluated on its own, which is the same reading with the answers named.
+#: Against the example's 11293 the ratio is 0.7052 [measured 2026-08-22
+#: min-of-3, `twin_coverage.py --measure`]. The old figure priced a
+#: different program.
+BUDGET = 7964
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Ask five heads what they do with a function as an argument."""
 
     @m.define
     def f(x):
         # (= (f $x) (* $x 2))
         return x * 2
 
-    # rung: below the function shape: the body names `justdata`, a lowercase symbol
-    #   used as DATA, which a compiled body reads as a call it cannot resolve
-    #   (residue, P14.4)
+    # rung: the body names `justdata`, a lowercase symbol used as DATA, which a
+    #   compiled body reads as a call it cannot resolve (residue, P14.4)
     @rules
     def data_heads(f, x):
         # (= (g $f $x) (justdata $f $x))
@@ -71,22 +64,11 @@ def twin(m):
         return f
 
     # (= (datawithnondatacomponent) ((lol (f 42))))
-    # rung: below the function shape: the body names `lol`, a lowercase symbol used as
-    #   DATA, which a compiled body reads as a call it cannot resolve (residue,
-    #   P14.4)
+    # rung: the body names `lol`, a lowercase symbol used as DATA (residue, P14.4)
     m += equation(S.datawithnondatacomponent()).to((S.lol(S.f(42)),))
 
-    # !(test ((f 21) (g f 2) (h f 2) ((notjustdata 42) 21) (datawithnondatacomponent))
-    #        (42 (justdata f 2) 4 42 ((lol 84))))
-    yield m.eval(
-        S.test(
-            (
-                S.f(21),
-                S.g(S.f, 2),
-                S.h(S.f, 2),
-                (S.notjustdata(42), 21),
-                S.datawithnondatacomponent(),
-            ),
-            (42, S.justdata(S.f, 2), 4, 42, (S.lol(84),)),
-        )
-    )
+    assert f(21) == [42]
+    assert m.eval(S.g(S.f, 2)) == [S.justdata(S.f, 2)]
+    assert h(S.f, 2) == [4]
+    assert m.eval((S.notjustdata(42), 21)) == [42]
+    assert m.eval(S.datawithnondatacomponent()) == [expr(S.lol(84))]

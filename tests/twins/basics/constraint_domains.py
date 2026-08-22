@@ -1,4 +1,4 @@
-"""The Python twin of examples/basics/constraint_domains.metta: CLP(Q), CLP(B).
+"""examples/basics/constraint_domains.metta in Python: CLP(Q) and CLP(B).
 
 Both solvers take their constraint AS WRITTEN, unevaluated, which is exactly
 what a built term is: `S.clpq(equation(2 * V.x).to(1))` hands over
@@ -6,15 +6,18 @@ what a built term is: `S.clpq(equation(2 * V.x).to(1))` hands over
 the original writes it inside `clpq` rather than letting it evaluate, so the
 Python spelling and the MeTTa spelling agree about why.
 
-A constraint is written with the ordinary term builders, because a constraint
-IS an ordinary term: `equation(lhs).to(rhs)` builds `(= lhs rhs)` and
-`V.a >= 0` builds `(>= $a 0)`, the same atoms `@m.rules` and a query build.
-What decides that they are constraints is `clpq` holding them, which is the
-example's own point. `=<` and the disequation stay at the naming door because they are
-CLP(Q) relation names Python has no operator for.
+A constraint is written with the ordinary builders, because a constraint IS an
+ordinary term: `equation(lhs).to(rhs)` builds `(= lhs rhs)` and `V.a >= 0`
+builds `(>= $a 0)`, the same atoms a rule or a query is made of. `=<` and the
+disequation stay at the naming door, being CLP(Q) relation names Python has no
+operator for.
 
-The two expected values that are strings are `repr` output, compared as
-text; `val(...)` says they are data.
+One rung is dropped, once, and named: `where`. A constraint has to be POSTED
+and then asked about inside ONE derivation, because the store is undone on the
+way out; two separate calls from Python would ask a question with nothing
+standing. That scope is MeTTa's `(let True <constraint> <question>)`, the same
+guard form examples/functions/functionhead3.metta's twin names, and Python has
+no spelling for it.
 """
 
 from petta import S, V, equation, val
@@ -25,170 +28,84 @@ from petta import S, V, equation, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 94599 to 94647, +48, and this one is
-#: UNATTRIBUTED: it reproduces byte-stably across three runs and survives an
-#: A/B of both candidate causes (the lib_json/lib_file/lib_thread counter
-#: change and this file's own comment block each measure identically either
-#: way), and engine/metta.pl is byte-identical to the tree the earlier figure
-#: was taken on. Ten of the eighteen twins moved by exactly eight and
-#: constraint_domains by forty-eight, which is the shape of the +/-8
-#: instruction-layout floor this tree records elsewhere rather than a cost.
-#: Pinned at the reproducible reading. Prior: #: RE-PINNED 2026-08-22, 94607 to 94599, -8, by reading the fuel
-#: balance with the deterministic b_getval/2 instead of the nondeterministic
-#: nb_current/2. The saving is TWO INFERENCES PER RUNNABLE FORM, not per
-#: reduction, which is what the spread says: this lane's one-form twins move by
-#: two and fib moves by two as well across 2.69 million charged reductions,
-#: while math moves by 32 over its sixteen forms. A step costs six inferences
-#: either way, measured against a loop with the step removed; the change is
-#: worth 2.71% of let-heavy's instructions:u, which the inference counter
-#: cannot see. Prior: #: RE-PINNED 2026-08-22, 94115 to 94607, +492 (+0.52%), by P14.8, and the
-#: larger part is that m.eval now opens the FUEL SCOPE a runnable form opens,
-#: so max-stack-depth applies through it and petta_fuel_step/2 charges every
-#: reduction here exactly as it charges one under `!`. The lane's earlier
-#: 0.6558x parity was measuring a bound the Python door was not paying, which
-#: is why fib now reads a ratio of 1.00 against its original. Three smaller
-#: parts are already in this figure: merging the fuel scope's two globals into
-#: one took a step inside a scope from seven inferences to six, the error
-#: short circuit tests a call's computed operands for an error atom, and the
-#: prelude gained throw beside if-error.
-BUDGET = 94647
+#: RE-PINNED 2026-08-22, 94647 to 92108, -2539 (-2.7%), by the twin
+#: contract change: the `test` wrapper and five `collapse` calls left the
+#: engine for `assert` and the answer list; every constraint post,
+#: entailment check and labelling stayed, which is why the saving is 2.8%
+#: rather than the folder's usual half. Against the example's 108447 the
+#: ratio is 0.8493 [measured 2026-08-22 min-of-3, `twin_coverage.py
+#: --measure`]. The old figure priced a different program.
+BUDGET = 92108
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Post rational and boolean constraints, and ask what they decide."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_constraints)) answers (())
-    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_constraints)))
+    def where(condition, answer):
+        """Answer `answer` only where `condition` reduces to True.
 
-    # ---------------------------------------------------------- CLP(Q)
-    # Exact rationals. The reader has no rational literal, so 1r2 is
-    # asserted through repr.
-    # !(test (let True (clpq (= (* 2 $x) 1)) (repr $x)) "1r2")
-    yield m.eval(
-        S.test(
-            S.let(TRUE, S.clpq(equation(2 * V.x).to(1)), S.repr(V.x)),
-            val("1r2"),
-        )
-    )
-    # !(test (let True (clpq (= (* 2 $x) 1)) (* 2 $x)) 1)
-    yield m.eval(
-        S.test(
-            S.let(TRUE, S.clpq(equation(2 * V.x).to(1)), 2 * V.x),
-            1,
-        )
-    )
+        MeTTa's `(let True <condition> <answer>)`, the guard reading of `let`.
+        Everything it guards is evaluated in ONE derivation, which is what a
+        posted constraint needs, since the store is undone on the way out.
+        Python's `where=` says this on a query, but a guard over a CALL has no
+        Python spelling; the residue table records it against P14.4.
+        """
+        return S.let(TRUE, condition, answer)  # rung: let as a guard
 
-    # Entailment: is this constraint already implied by what was posted?
-    # !(test (collapse (let True (clpq (>= $a 0)) (clpq-entailed (>= $a 0)))) (True))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.let(
-                    TRUE,
-                    S.clpq(V.a >= 0),
-                    S["clpq-entailed"](V.a >= 0),
-                )
-            ),
-            (TRUE,),
-        )
-    )
-    # !(test (collapse (let True (clpq (>= $b 0)) (clpq-entailed (>= $b 5)))) (False))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.let(
-                    TRUE,
-                    S.clpq(V.b >= 0),
-                    S["clpq-entailed"](V.b >= 5),
-                )
-            ),
-            (FALSE,),
-        )
-    )
+    m.eval(S["import!"](S["&self"], (S.library, S.lib_constraints)))  # rung: space as a symbol
+
+    # ---------------------------------------------------------------- CLP(Q)
+    # Exact rationals: clpfd has no answer to this at all, because 1/2 is not
+    # an integer, and ordinary arithmetic cannot solve backwards. Asserted
+    # through repr, because the reader has no rational literal to write 1r2
+    # as: it would read back as a symbol and compare unequal to the number.
+    half = S.clpq(equation(2 * V.x).to(1))
+    assert m.one(where(half, S.repr(V.x))) == val("1r2")
+    assert m.one(where(half, 2 * V.x)) == 1
+
+    # Entailment: is this constraint already implied by what has been posted?
+    # That is the question a plain post cannot ask.
+    assert m.eval(where(S.clpq(V.a >= 0), S["clpq-entailed"](V.a >= 0))) == [True]
+    assert m.eval(where(S.clpq(V.b >= 0), S["clpq-entailed"](V.b >= 5))) == [False]
 
     # A contradiction fails rather than answering, which is how a constraint
-    # says no.
-    # !(test (collapse (let True (clpq (= $c 1)) (clpq (= $c 2)))) ())
-    yield m.eval(
-        S.test(
-            S.collapse(S.let(TRUE, S.clpq(equation(V.c).to(1)), S.clpq(equation(V.c).to(2)))),
-            (),
-        )
-    )
+    # says no: no answers at all.
+    assert m.eval(where(S.clpq(equation(V.c).to(1)), S.clpq(equation(V.c).to(2)))) == []
 
     # Disequations over the rationals, dif's numeric analogue.
-    # !(test (collapse (let True (clpq (= $d 1))
-    #                    (let True (clpq (= $e 2)) (clpq (=\= $d $e))))) (True))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.let(
-                    TRUE,
-                    S.clpq(equation(V.d).to(1)),
-                    S.let(
-                        TRUE,
-                        S.clpq(equation(V.e).to(2)),
-                        S.clpq(S[r"=\="](V.d, V.e)),
-                    ),
-                )
-            ),
-            (TRUE,),
+    assert m.eval(
+        where(
+            S.clpq(equation(V.d).to(1)),
+            where(S.clpq(equation(V.e).to(2)), S.clpq(S[r"=\="](V.d, V.e))),
         )
-    )
+    ) == [True]
 
-    # The constraints an answer still carries read back through
-    # residual-goals, rendered with repr because a test's expected value is
-    # EVALUATED and `(>= $g 0)` inside it would run as arithmetic.
-    # !(test (let True (clpq (>= $f 0))
-    #          (let True (clpq (=< $f 3)) (repr (residual-goals $f))))
-    #        "(({} (, (>= $_0 0) (=< $_0 3))))")
-    yield m.eval(
-        S.test(
-            S.let(
-                TRUE,
-                S.clpq(V.f >= 0),
-                S.let(
-                    TRUE,
-                    S.clpq(S["=<"](V.f, 3)),
-                    S.repr(S["residual-goals"](V.f)),
-                ),
-            ),
-            val("(({} (, (>= $_0 0) (=< $_0 3))))"),
-        )
+    # The constraints an answer still CARRIES read back through
+    # residual-goals, rendered with repr rather than compared as a term,
+    # because a term holding `(>= $g 0)` would run as arithmetic on an
+    # unbound variable.
+    residuals = where(
+        S.clpq(V.f >= 0),
+        where(S.clpq(S["=<"](V.f, 3)), S.repr(S["residual-goals"](V.f))),
     )
+    assert m.one(residuals) == val("(({} (, (>= $_0 0) (=< $_0 3))))")
 
-    # ---------------------------------------------------------- CLP(B)
-    # `(card (1) ($p $q))` is "exactly one of these is true", so a list here
-    # stays a list rather than becoming an operator.
-    # !(test (collapse (let True (clpb (card (1) ($m $n))) (clpb-labeling ($m $n))))
-    #        ((0 1) (1 0)))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.let(
-                    TRUE,
-                    S.clpb(S.card((1,), (V.m, V.n))),
-                    S["clpb-labeling"]((V.m, V.n)),
-                )
-            ),
-            ((0, 1), (1, 0)),
-        )
+    # ---------------------------------------------------------------- CLP(B)
+    # `(card (1) ($p $q))` is "exactly one of these is true": a list of
+    # admissible counts and a list of variables, so a list here stays a list
+    # rather than becoming an operator.
+    exactly_one = where(
+        S.clpb(S.card((1,), (V.m, V.n))), S["clpb-labeling"]((V.m, V.n))
     )
+    assert [tuple(pair) for pair in m.eval(exactly_one)] == [(0, 1), (1, 0)]
 
     # Tautology and contradiction, decided without enumerating anything.
-    # !(test (clpb-taut (+ $t (~ $t))) True)
-    yield m.eval(S.test(S["clpb-taut"](V.t + S["~"](V.t)), TRUE))
-    # !(test (clpb-taut (* $u (~ $u))) False)
-    yield m.eval(S.test(S["clpb-taut"](V.u * S["~"](V.u)), FALSE))
+    taut = m.fn("clpb-taut")
+    assert taut(V.t + S["~"](V.t)) is True
+    assert taut(V.u * S["~"](V.u)) is False
 
-    # The engine's own and/or/not are NOT replaced by this and should not be.
-    # !(test (if (and (or $x True) $y) ($x $y)) ((True True) (False True)))
-    yield m.eval(
-        S.test(
-            S["if"]((V.x | TRUE) & V.y, (V.x, V.y)),
-            ((TRUE, TRUE), (FALSE, TRUE)),
-        )
-    )
+    # The engine's own and/or/not are NOT replaced by this and should not be:
+    # they are generate-and-test over two values, which is cheaper than
+    # building a BDD until the formula constrains every variable at once.
+    solutions = m.eval(S["if"]((V.x | TRUE) & V.y, (V.x, V.y)))  # rung: two-argument if
+    assert [tuple(pair) for pair in solutions] == [(True, True), (False, True)]
