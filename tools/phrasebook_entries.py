@@ -19,7 +19,7 @@ Guarantees:
     `phrasebook.py --gate` re-checks against the manifest whenever LeaTTa is
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
-    doors [tested: test_the_phrasebook_page_is_up_to_date; commit=WORKTREE]
+    doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

@@ -5,7 +5,7 @@ Guarantees:
     order and result kinds [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names,
     test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=WORKTREE]
+    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]

@@ -3,7 +3,7 @@ Guarantees:
   - standard callable mentions encode as their symbolic MeTTa heads and
     Atom.__lt__ follows the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
-    test_plain_sorted_uses_the_engines_elementwise_order; commit=WORKTREE]
+    test_plain_sorted_uses_the_engines_elementwise_order; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
   - Grounded carries the engine's two relations, one per operand kind: against a

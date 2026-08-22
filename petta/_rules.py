@@ -5,7 +5,7 @@ Guarantees:
     registers each symbolic head through the engine seam [tested:
     test_rules_lower_emits_queryable_declaration_and_registers_the_head,
     test_rules_lower_refuses_an_empty_rule_set_before_mutating;
-    commit=WORKTREE]
+    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;

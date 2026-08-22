@@ -8,7 +8,7 @@ Guarantees:
     - ``Atom.__lt__`` is the standard-order sorting exception and the ``<``
       term remains explicitly buildable [tested:
       test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=WORKTREE]
+      commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
