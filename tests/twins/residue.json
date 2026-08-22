@@ -3100,15 +3100,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/basics/identity.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "`@m.define` pays a fixed registration cost that a one-form example cannot absorb. Re-measured 2026-08-22, min of three fresh processes each: examples/basics/identity.metta costs 2577 and its decorated twin 2878, past the band ceiling of 2835 by 43, so the twin stays at the container door; examples/control/empty.metta costs 2508 and its decorated twin 2745, a ratio of 1.0945, so that twin was LIFTED to the decorator in this wave. The two files differ by 43 inferences rather than by kind, which is a band question and not a surface one: the band prices authoring and running together, and a definition's registration is authoring. Both twins now carry the current numbers rather than the +1,561 rule of thumb wave one wrote, which no longer decides either case."
-    },
-    {
-      "kind": "friction",
       "example": "examples/basics/factorial.metta",
       "form": null,
       "missing": "a compiled body that stores the equation the example stores, rather than one that only answers alike",
@@ -3397,15 +3388,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/basics/ifsimple.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The Python spelling of MeTTa's two-argument `if` EXISTS and works: a compiled generator that yields nothing prunes its branch, so `def keep(c, v): if c: yield v` answers [42] and [] for the two cases, which is more than the original says. It is priced out rather than missing. Measured 2026-08-22, this twin written both ways: the original defines nothing and costs 1308 inferences for its one form, while the generator twin costs 3289, 2.5x and far outside the band ceiling of 1439, because `@m.define` pays a per-name admission before the first call. So the twin builds `(if True 42)` at the term door and declares the rung. Same family as the identity.metta entry: the band prices authoring and running together, and an example that defines nothing cannot afford a definition."
-    },
-    {
-      "kind": "friction",
       "example": "examples/basics/fib.metta",
       "form": null,
       "missing": "a Python door for the max-stack-depth bound",
@@ -3619,60 +3601,6 @@
       "row": "P14.10",
       "section": "\u00a79b: control and modes, modes are with-blocks",
       "detail": "m.limits() is the modes door and carries inferences= and timeout= only, so `(with-pragma! ((max-stack-depth 100000000)) (fib 30))` is built as a term. The mode family is the natural home for the pragma vocabulary, and this example is the one that needs it: fib(30) exceeds the default stack bound."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/if.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The sharpest case in the folder, and the one that generalises the identity.metta entry into a rule. `@m.define` costs 1,922 inferences for a one-line body as the FIRST decoration in a process and 2,769 for a two-arm conditional, while a later decoration of a larger two-statement body costs 1,200, so the first one carries roughly 1,400 of one-time cost; the container door costs 281 per equation. So the floor under any compiled twin is about 2,000 inferences, and the band's ceiling for an example is 1.10 times the WHOLE example. examples/control/if.metta costs 2,092 and its ceiling is 2,301, so the Python spelling of its subject, `(3, 4) if 1 > 2 else (5, 6)`, cannot fit at 2,769 plus the call. The band therefore selects FOR transliteration on exactly the small examples where Python's spelling is clearest, and it does so by pricing AUTHORING against an example that has no definition to author. Two shapes of fix, both cheap: give the ceiling a fixed authoring allowance (left.cost * 1.10 + one measured `@m.define`), or exempt a twin's first decoration. Six control files are blocked by it today [measured 2026-08-22, min of three fresh processes each with the MORK backend linked in: `twin_coverage.py --measure`; commit=WORKTREE]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/if2.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The same band question if.metta states in full. The example costs 2365 and its ceiling is 2601; `@m.define` costs 3324 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/if3.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The same band question if.metta states in full. The example costs 2317 and its ceiling is 2548; `@m.define` costs 3197 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/if4.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The same band question if.metta states in full. The example costs 2667 and its ceiling is 2933; `@m.define` costs 3197 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/letstar.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The same band question if.metta states in full. The example costs 1824 and its ceiling is 2006; `@m.define` costs 2442 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/chain.metta",
-      "form": null,
-      "missing": "a definition door a one-form example can afford inside the 10% band",
-      "row": "P14.14",
-      "section": "correction to the band's treatment of registration cost",
-      "detail": "The band's half-way case: the twin compiles ONE of the two forms and states the other. Two `@m.define`s cost 4,393 against a ceiling of 4,284, over by 108; one costs 3,908. The second decoration is 1,591 inferences, so the marginal cost of a definition, not the warm-up, is what puts it over. Both forms are Python assignments and both would be compiled under an authoring allowance [measured 2026-08-22, min of three fresh processes; commit=WORKTREE]."
     },
     {
       "kind": "friction",
@@ -4321,6 +4249,24 @@
       "row": "P14.14",
       "section": "\u00a79b control and modes are with-blocks",
       "detail": "Same wall as superpose_primes.metta: all four million-step kernels state the allowance above the evaluator's 100000 default and `m.limits` cannot."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if3.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "A NEW instance of the family case2.metta states in full, created by lifting this twin to the definitional door under the authoring allowance: the then arm's `(if True 42 lol)` answers `lol`, written `Lol`, because a compiled body resolves a lowercase free name as a FUNCTION and a capitalised one as data. At the term door the twin wrote `S.lol` and the exact symbol; compiled, it writes `Lol` and carries a `# noqa: F821`. The gap did not grow, it moved into one more file, which is what closing the band exposes."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if4.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "A NEW instance of the family case2.metta states in full, created by lifting this twin to the definitional door under the authoring allowance: the inner `(if True 42 lol)` answers `lol`, written `Lol`, because a compiled body resolves a lowercase free name as a FUNCTION and a capitalised one as data. At the term door the twin wrote `S.lol` and the exact symbol; compiled, it writes `Lol` and carries a `# noqa: F821`. The gap did not grow, it moved into one more file, which is what closing the band exposes."
     }
   ],
   "retired": [
@@ -4410,6 +4356,86 @@
       "section": "\u00a74 surface gaps",
       "detail": "Same as matchnested: (= (hide $1) (empty)) compiles through the magic name `empty` and pays an F821 suppression for it.",
       "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/identity.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "`@m.define` pays a fixed registration cost that a one-form example cannot absorb. Re-measured 2026-08-22, min of three fresh processes each: examples/basics/identity.metta costs 2577 and its decorated twin 2878, past the band ceiling of 2835 by 43, so the twin stays at the container door; examples/control/empty.metta costs 2508 and its decorated twin 2745, a ratio of 1.0945, so that twin was LIFTED to the decorator in this wave. The two files differ by 43 inferences rather than by kind, which is a band question and not a surface one: the band prices authoring and running together, and a definition's registration is authoring. Both twins now carry the current numbers rather than the +1,561 rule of thumb wave one wrote, which no longer decides either case.",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The sharpest case in the folder, and the one that generalises the identity.metta entry into a rule. `@m.define` costs 1,922 inferences for a one-line body as the FIRST decoration in a process and 2,769 for a two-arm conditional, while a later decoration of a larger two-statement body costs 1,200, so the first one carries roughly 1,400 of one-time cost; the container door costs 281 per equation. So the floor under any compiled twin is about 2,000 inferences, and the band's ceiling for an example is 1.10 times the WHOLE example. examples/control/if.metta costs 2,092 and its ceiling is 2,301, so the Python spelling of its subject, `(3, 4) if 1 > 2 else (5, 6)`, cannot fit at 2,769 plus the call. The band therefore selects FOR transliteration on exactly the small examples where Python's spelling is clearest, and it does so by pricing AUTHORING against an example that has no definition to author. Two shapes of fix, both cheap: give the ceiling a fixed authoring allowance (left.cost * 1.10 + one measured `@m.define`), or exempt a twin's first decoration. Six control files are blocked by it today [measured 2026-08-22, min of three fresh processes each with the MORK backend linked in: `twin_coverage.py --measure`; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if2.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The same band question if.metta states in full. The example costs 2365 and its ceiling is 2601; `@m.define` costs 3324 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if3.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The same band question if.metta states in full. The example costs 2317 and its ceiling is 2548; `@m.define` costs 3197 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/if4.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The same band question if.metta states in full. The example costs 2667 and its ceiling is 2933; `@m.define` costs 3197 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/letstar.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The same band question if.metta states in full. The example costs 1824 and its ceiling is 2006; `@m.define` costs 2442 for this file's body before the call is made, so the compiled Python spelling of the form cannot fit and the twin states the term instead [measured 2026-08-22, min of three fresh processes; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/chain.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The band's half-way case: the twin compiles ONE of the two forms and states the other. Two `@m.define`s cost 4,393 against a ceiling of 4,284, over by 108; one costs 3,908. The second decoration is 1,591 inferences, so the marginal cost of a definition, not the warm-up, is what puts it over. Both forms are Python assignments and both would be compiled under an authoring allowance [measured 2026-08-22, min of three fresh processes; commit=WORKTREE].",
+      "retired": "2026-08-22: the band's measured authoring allowance made the definitional door affordable; see the lift's merge"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/ifsimple.metta",
+      "form": null,
+      "missing": "a definition door a one-form example can afford inside the 10% band",
+      "row": "P14.14",
+      "section": "correction to the band's treatment of registration cost",
+      "detail": "The Python spelling of MeTTa's two-argument `if` EXISTS and works: a compiled generator that yields nothing prunes its branch, so `def keep(c, v): if c: yield v` answers [42] and [] for the two cases, which is more than the original says. It is priced out rather than missing. Measured 2026-08-22, this twin written both ways: the original defines nothing and costs 1308 inferences for its one form, while the generator twin costs 3289, 2.5x and far outside the band ceiling of 1439, because `@m.define` pays a per-name admission before the first call. So the twin builds `(if True 42)` at the term door and declares the rung. Same family as the identity.metta entry: the band prices authoring and running together, and an example that defines nothing cannot afford a definition.",
+      "retired": "2026-08-22: lifted with the band's authoring allowance; the generator spelling measures 3289 against a ceiling of 3660"
     }
   ]
 }
