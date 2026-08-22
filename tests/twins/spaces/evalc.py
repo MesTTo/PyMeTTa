@@ -10,15 +10,13 @@ own name binding, and the space exists from its first write. Both definitions
 arrive through `@<space>.define`, so the twin shows the same name meaning two
 different functions in two spaces, and the removal is `-=` on the equation atom.
 
-One rung is dropped and it is named here rather than hidden: three of this
-file's terms are arithmetic over two GROUND operands, `(+ 5 5)` twice and
-`(+ 1 1)` once, and on a grounded number Python's operators are that number's
-own arithmetic, so `val(5) + 5` is 10 rather than the term `(+ 5 5)`. A term
-over ground operands therefore has to be NAMED, which the `plus` local below
-does once; basics/math.py records the same rule for the same reason and the
-residue files the missing spelling against P14.4. Nothing else here drops a
-rung: every other head is either a symbol whose name is not a Python identifier
-or is built by calling the symbol.
+Three of this file's terms are arithmetic over two GROUND operands, `(+ 5 5)`
+twice and `(+ 1 1)` once, and those name their head at the `S["+"]` door rather
+than using Python's `+`. That is the deliberate spelling and not a dropped rung:
+on a grounded number Python's operators are that number's own arithmetic, so
+`val(5) + 5` is 10 rather than the term `(+ 5 5)`, and only inside a compiled
+body does `+` BUILD one. basics/math.py records the same rule for the same
+reason.
 """
 
 from petta import S, V, equation, expr, val
@@ -48,9 +46,7 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     every other form says its own answer in the comment above it.
     """
-    # `plus` is the `+` SYMBOL, named because both of its operands below are
-    # ground and Python's own `+` would add them instead of building the term.
-    plus, evalc, context = S["+"], S.evalc, S["context-space"]
+    evalc, context = S.evalc, S["context-space"]
     here = S[m.space_name]
 
     # !(bind! &metric (new-space))
@@ -78,14 +74,14 @@ def twin(m):
 
     # &self names the ambient space, so evalc there is eval.
     # !(test (evalc (+ 5 5) &self) 10)
-    yield m.eval(S.test(evalc(plus(5, 5), here), 10))
+    yield m.eval(S.test(evalc(S["+"](5, 5), here), 10))
     # !(test (eval (+ 5 5)) 10)
-    yield m.eval(S.test(S.eval(plus(5, 5)), 10))
+    yield m.eval(S.test(S.eval(S["+"](5, 5)), 10))
 
     # The expression is handed over unevaluated: were it not, it would already
     # have been reduced here before the space argument could select another one.
     # !(test (evalc (distance (+ 1 1)) &metric) 2000)
-    yield m.eval(S.test(evalc(S.distance(plus(1, 1)), at_metric), 2000))
+    yield m.eval(S.test(evalc(S.distance(S["+"](1, 1)), at_metric), 2000))
 
     # context-space, read inside evalc, reports the space evalc selected.
     # !(test (context-space) &self)
