@@ -1,125 +1,125 @@
-"""The Python twin of examples/spaces/match_snapshot.metta.
+"""The Python twin of examples/spaces/match_snapshot.metta: match finds every row first.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+`match` finds all the rows BEFORE any output template runs, so a template that
+writes to the space cannot change what the match still has to answer. Three of
+the four links form a loop, all three rows are found before the first reversal
+breaks the cycle, and all three are reverted. The single-pattern case is the same
+property reduced to its detector: two rows, each template removing the OTHER, and
+a lazy query would lose the row it had not reached yet.
+
+The facts and the two snapshot items go in through the container protocol. The
+two `visit` equations stay at the container door because their heads carry a
+literal ARGUMENT, `(visit alpha)`, which the compiled subset spells only as a
+literal default, and their bodies call `remove-atom` and answer bare lowercase
+symbols, neither of which a compiled body can spell (residue, P14.4).
 """
 
-from petta import S, V, expr
+from petta import S, V, equation, expr
+
+#: The answer group a write form contributes: `bind!` and `add-atom` each
+#: answer the unit, which is what Python's own None means at this seam (§9d).
+WROTE = (expr(),)
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 7027
+#: RE-PINNED 2026-08-22, 7027 to 6003, -1024 (-14.6%), by the P14 twin-style
+#: rewrite, and the whole delta is the three write forms: the `bind!` became
+#: `m.space("&snapshot")` and the two item adds became `snapshot += item`, 341
+#: a form averaged, with the two plain writes inside this folder's 239-to-311
+#: band and the space binding the rest. The four link facts already entered at
+#: the container door, and the four assertions are unchanged terms.
+#: Prior: ADDED 2026-08-22 at 7027 by the wave-3 spaces baseline.
+BUDGET = 6003
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
-    # (link A B)
-    m += expr(S["link"], S["A"], S["B"])
+    """One answer group per runnable form of the original, in source order.
 
-    # (link B C)
-    m += expr(S["link"], S["B"], S["C"])
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    every other form says its own answer in the comment above it.
+    """
+    add, remove, here = S["add-atom"], S["remove-atom"], S[m.space_name]
 
-    # (link C A)
-    m += expr(S["link"], S["C"], S["A"])
+    # Three links form a loop and the fourth does not.
+    # (link A B) (link B C) (link C A) (link C E)
+    m += (S.link, S.A, S.B)
+    m += (S.link, S.B, S.C)
+    m += (S.link, S.C, S.A)
+    m += (S.link, S.C, S.E)
 
-    # (link C E)
-    m += expr(S["link"], S["C"], S["E"])
-
-    # !(test (collapse (match &self (, (link $x $y)
-    #                                 (link $y $z)
-    #                                 (link $z $x))
+    # The template reverses each loop link it is given, and all three rows were
+    # found before the first reversal broke the cycle.
+    # !(test (collapse (match &self (, (link $x $y) (link $y $z) (link $z $x))
     #                              (let () (remove-atom &self (link $x $y))
     #                                      (add-atom &self (link $y $x)))))
     #        (() () ()))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["collapse"],
-                expr(
-                    S["match"],
-                    S["&self"],
-                    expr(
-                        S[","],
-                        expr(S["link"], V["x"], V["y"]),
-                        expr(S["link"], V["y"], V["z"]),
-                        expr(S["link"], V["z"], V["x"]),
+        S.test(
+            S.collapse(
+                S.match(
+                    here,
+                    S[","](
+                        S.link(V.x, V.y),
+                        S.link(V.y, V.z),
+                        S.link(V.z, V.x),
                     ),
-                    expr(
-                        S["let"],
-                        expr(),
-                        expr(S["remove-atom"], S["&self"], expr(S["link"], V["x"], V["y"])),
-                        expr(S["add-atom"], S["&self"], expr(S["link"], V["y"], V["x"])),
+                    S.let(
+                        (),
+                        remove(here, S.link(V.x, V.y)),
+                        add(here, S.link(V.y, V.x)),
                     ),
-                ),
+                )
             ),
-            expr(expr(), expr(), expr()),
+            ((), (), ()),
         )
     )
 
+    # The four atoms upstream prints, as a set.
     # !(test (collapse (match &self (link $x $y) ($x $y))) ((C E) (B A) (C B) (A C)))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["collapse"],
-                expr(S["match"], S["&self"], expr(S["link"], V["x"], V["y"]), expr(V["x"], V["y"])),
-            ),
-            expr(
-                expr(S["C"], S["E"]),
-                expr(S["B"], S["A"]),
-                expr(S["C"], S["B"]),
-                expr(S["A"], S["C"]),
+        S.test(
+            S.collapse(S.match(here, S.link(V.x, V.y), (V.x, V.y))),
+            (
+                (S.C, S.E),
+                (S.B, S.A),
+                (S.C, S.B),
+                (S.A, S.C),
             ),
         )
     )
 
+    # The single-pattern detector: two rows, each template removing the OTHER.
     # !(bind! &snapshot (new-space))
-    yield m.eval(expr(S["bind!"], S["&snapshot"], expr(S["new-space"])))
+    snapshot = m.space("&snapshot")
+    at_snapshot = S[snapshot.space_name]
+    yield WROTE
 
     # !(add-atom &snapshot (item alpha))
-    yield m.eval(expr(S["add-atom"], S["&snapshot"], expr(S["item"], S["alpha"])))
-
+    snapshot += S.item(S.alpha)
+    yield WROTE
     # !(add-atom &snapshot (item beta))
-    yield m.eval(expr(S["add-atom"], S["&snapshot"], expr(S["item"], S["beta"])))
+    snapshot += S.item(S.beta)
+    yield WROTE
 
     # (= (visit alpha) (let () (remove-atom &snapshot (item beta)) alpha))
-    m += expr(
-        S["="],
-        expr(S["visit"], S["alpha"]),
-        expr(
-            S["let"],
-            expr(),
-            expr(S["remove-atom"], S["&snapshot"], expr(S["item"], S["beta"])),
-            S["alpha"],
-        ),
+    m += equation(S.visit(S.alpha)).to(
+        S.let((), remove(at_snapshot, S.item(S.beta)), S.alpha)
     )
-
     # (= (visit beta) (let () (remove-atom &snapshot (item alpha)) beta))
-    m += expr(
-        S["="],
-        expr(S["visit"], S["beta"]),
-        expr(
-            S["let"],
-            expr(),
-            expr(S["remove-atom"], S["&snapshot"], expr(S["item"], S["alpha"])),
-            S["beta"],
-        ),
+    m += equation(S.visit(S.beta)).to(
+        S.let((), remove(at_snapshot, S.item(S.alpha)), S.beta)
     )
 
+    # A lazy query would lose the row it had not reached yet and answer once.
     # !(test (collapse (match &snapshot (item $x) (visit $x))) (alpha beta))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["collapse"],
-                expr(S["match"], S["&snapshot"], expr(S["item"], V["x"]), expr(S["visit"], V["x"])),
-            ),
-            expr(S["alpha"], S["beta"]),
+        S.test(
+            S.collapse(S.match(at_snapshot, S.item(V.x), S.visit(V.x))),
+            (S.alpha, S.beta),
         )
     )
 
+    # Both removals happened, so the space is empty.
     # !(test (collapse (get-atoms &snapshot)) ())
-    yield m.eval(expr(S["test"], expr(S["collapse"], expr(S["get-atoms"], S["&snapshot"])), expr()))
-
-    yield from ()
+    yield m.eval(
+        S.test(S.collapse(S["get-atoms"](at_snapshot)), ())
+    )
