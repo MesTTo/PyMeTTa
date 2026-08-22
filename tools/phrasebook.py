@@ -19,7 +19,7 @@ about the translation, and one nobody runs rots within a week. Running the
 MeTTa form beside its Python spelling makes each row a DIFFERENTIAL, the same
 instrument the twins lane and `example_parity` use one level up
 [source: bindings/python/tools/twin_coverage.py, the count-against-count
-contract; commit=WORKTREE].
+contract; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
 
 The five buckets, and what each CLAIMS:
   - `dissolves`: Python already has the concept, so there is no petta name at
@@ -43,23 +43,23 @@ Assumes:
   - a fresh space isolates equations, so 377 rows share one engine instead of
     377 processes [measured 2026-08-22: a definition made in `m.new_space()`
     is invisible to `&self` and to a sibling space, and fifty fresh spaces
-    with a definition and a call cost 0.007s; commit=WORKTREE]
+    with a definition and a call cost 0.007s; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
   - a second `MeTTa()` in one process is the SAME engine, which is why
     isolation is per space and never per engine [measured 2026-08-22: a
     definition made through a second `MeTTa()` is visible to the first;
-    commit=WORKTREE]
+    commit=c6abaad21ab41b32b815b7481edff822b236e69a]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
     keeps the old contents when a bound name is re-bound; on LeaTTa each row
     is its own process, so the written name is used as written [measured
     2026-08-22: re-binding a bound name leaves `(f 1)` in place here, while
     LeaTTa refuses the second `bind!` with
-    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=WORKTREE]
+    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
   - LeaTTa lives outside this repository and CI never clones it, so its column
     is frozen into `phrasebook_answers.json` and re-measured only under
     `--learn`, exactly as the upstream parity baseline freezes its numbers
     [source: tests/check_upstream_parity.py; tests/conformance/leatta.py, its
-    Assumes block; commit=WORKTREE]
+    Assumes block; commit=c6abaad21ab41b32b815b7481edff822b236e69a]
 Guarantees:
   - every LeaTTa stdlib name has exactly one row, so the coverage denominator
     cannot quietly shrink [tested: test_the_phrasebook_covers_every_leatta_name]
@@ -123,6 +123,13 @@ from phrasebook_entries import (  # noqa: E402
     Entry,
 )
 
+#: The tree state every measurement recorded in this lane was taken
+#: against. A row's own note carries the date without it, because a row's
+#: evidence is the row: the lane re-runs both sides on every invocation and
+#: `phrasebook_answers.json` records what they answered, so a commit id there
+#: would age the page's prose without making anything checkable.
+EVIDENCE = "c6abaad21ab41b32b815b7481edff822b236e69a"
+
 #: The placeholder a row writes for "a space of my own".
 SPACE = "&pb"
 
@@ -176,7 +183,7 @@ def leatta_answers(entry: Entry, scratch: Path) -> tuple[str, ...]:
     the oracle reads the directory its file sits in, so a crowded `/tmp`
     makes every row 875 times slower [measured 2026-08-22: `!(+ 1 2)` costs
     0.008s from an empty directory and 7.0s from a `/tmp` holding 829
-    entries, on this box; commit=WORKTREE].
+    entries, on this box; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
     """
     path = scratch / "row.metta"
     path.write_text(entry.metta if entry.metta.endswith("\n") else entry.metta + "\n")
@@ -251,7 +258,7 @@ def quiet() -> Any:
     `redirect_stdout` would catch only one of the two. Swapping the descriptor
     catches both, and both streams are flushed inside the swap so nothing
     buffered arrives after it [measured 2026-08-22: without the flush the
-    engine's `hello` reappears under the report].
+    engine's `hello` reappears under the report; commit=c6abaad21ab41b32b815b7481edff822b236e69a].
     """
     sys.stdout.flush()
     saved = os.dup(1)
@@ -546,7 +553,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "paragraphs above disagree by tens of inferences on the same form; the zero on the",
         "Python side does not move. Within one run the counts are exact: three fresh",
         "`--learn` processes wrote byte-identical files, cost numbers included",
-        "[measured 2026-08-22].",
+        f"[measured 2026-08-22; commit={EVIDENCE}].",
         "",
     ]
     for section, heading in SECTIONS.items():
@@ -648,7 +655,8 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
     # Reading the counter costs a few inferences of its own, and each side
     # needs a space it did not pay for, so both are made outside the block and
     # the floor is subtracted [measured 2026-08-22: an empty `with
-    # m.stats()` block reads 5 inferences and `m.new_space()` costs 35].
+    # m.stats()` block reads 5 inferences and `m.new_space()` costs 35;
+    # commit=c6abaad21ab41b32b815b7481edff822b236e69a].
     with engine.stats() as empty:
         pass
     floor = empty.inferences
