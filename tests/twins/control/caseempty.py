@@ -11,7 +11,13 @@ The two `case` equations are written at the container door, since Python's
 `match` statement has no lowering yet (P14.4).
 """
 
-from petta import S, expr
+from petta import S, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the two `case` equations are written at the container door, because a `case` is what
+#: Python's `match` statement would spell and the compiled subset has no lowering for one. `f` is a
+#: computation and is written as one.
+RUNG = "container door for the two case equations, which Python's match statement would spell"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4710 to 4784, +74, by P14.8's
@@ -29,12 +35,11 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (wu) (case (empty) ((1 2) (Empty 42))))
-    m += S["="](
-        S.wu(),
-        S["case"](
-            S["empty"](),
-            expr(expr(1, 2), expr(S.Empty, 42)),
-        ),
+    m += equation(S.wu()).to(
+        S.case(
+            S.empty(),
+            ((1, 2), (S.Empty, 42)),
+        )
     )
 
     @m.define
@@ -43,10 +48,7 @@ def twin(m):
         return 42
 
     # (= (wu2) (case (f) ((42 ok) (Empty nok))))
-    m += S["="](
-        S.wu2(),
-        S["case"](S.f(), expr(expr(42, S.ok), expr(S.Empty, S.nok))),
-    )
+    m += equation(S.wu2()).to(S.case(S.f(), ((42, S.ok), (S.Empty, S.nok))))
 
     # !(test (wu) 42)
     yield m.eval(S.test(S.wu(), 42))

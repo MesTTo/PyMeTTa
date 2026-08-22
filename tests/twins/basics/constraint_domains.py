@@ -1,16 +1,23 @@
 """The Python twin of examples/basics/constraint_domains.metta: CLP(Q), CLP(B).
 
 Both solvers take their constraint AS WRITTEN, unevaluated, which is exactly
-what a built term is: `S["clpq"](S["="](S["*"](2, V.x), 1))` hands over
+what a built term is: `S.clpq(equation(2 * V.x).to(1))` hands over
 `(= (* 2 $x) 1)` without running the multiplication. That is the same reason
 the original writes it inside `clpq` rather than letting it evaluate, so the
 Python spelling and the MeTTa spelling agree about why.
+
+A constraint is written with the ordinary term builders, because a constraint
+IS an ordinary term: `equation(lhs).to(rhs)` builds `(= lhs rhs)` and
+`V.a >= 0` builds `(>= $a 0)`, the same atoms `@m.rules` and a query build.
+What decides that they are constraints is `clpq` holding them, which is the
+example's own point. `=<` and the disequation stay at the naming door because they are
+CLP(Q) relation names Python has no operator for.
 
 The two expected values that are strings are `repr` output, compared as
 text; `val(...)` says they are data.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -54,7 +61,7 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # !(import! &self (library lib_constraints)) answers (())
-    yield m.eval(S["import!"](S["&self"], expr(S.library, S.lib_constraints)))
+    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_constraints)))
 
     # ---------------------------------------------------------- CLP(Q)
     # Exact rationals. The reader has no rational literal, so 1r2 is
@@ -62,14 +69,14 @@ def twin(m):
     # !(test (let True (clpq (= (* 2 $x) 1)) (repr $x)) "1r2")
     yield m.eval(
         S.test(
-            S["let"](TRUE, S["clpq"](S["="](S["*"](2, V.x), 1)), S["repr"](V.x)),
+            S.let(TRUE, S.clpq(equation(2 * V.x).to(1)), S.repr(V.x)),
             val("1r2"),
         )
     )
     # !(test (let True (clpq (= (* 2 $x) 1)) (* 2 $x)) 1)
     yield m.eval(
         S.test(
-            S["let"](TRUE, S["clpq"](S["="](S["*"](2, V.x), 1)), S["*"](2, V.x)),
+            S.let(TRUE, S.clpq(equation(2 * V.x).to(1)), 2 * V.x),
             1,
         )
     )
@@ -78,27 +85,27 @@ def twin(m):
     # !(test (collapse (let True (clpq (>= $a 0)) (clpq-entailed (>= $a 0)))) (True))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     TRUE,
-                    S["clpq"](S[">="](V.a, 0)),
-                    S["clpq-entailed"](S[">="](V.a, 0)),
+                    S.clpq(V.a >= 0),
+                    S["clpq-entailed"](V.a >= 0),
                 )
             ),
-            expr(TRUE),
+            (TRUE,),
         )
     )
     # !(test (collapse (let True (clpq (>= $b 0)) (clpq-entailed (>= $b 5)))) (False))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     TRUE,
-                    S["clpq"](S[">="](V.b, 0)),
-                    S["clpq-entailed"](S[">="](V.b, 5)),
+                    S.clpq(V.b >= 0),
+                    S["clpq-entailed"](V.b >= 5),
                 )
             ),
-            expr(FALSE),
+            (FALSE,),
         )
     )
 
@@ -107,12 +114,8 @@ def twin(m):
     # !(test (collapse (let True (clpq (= $c 1)) (clpq (= $c 2)))) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
-                    TRUE, S["clpq"](S["="](V.c, 1)), S["clpq"](S["="](V.c, 2))
-                )
-            ),
-            expr(),
+            S.collapse(S.let(TRUE, S.clpq(equation(V.c).to(1)), S.clpq(equation(V.c).to(2)))),
+            (),
         )
     )
 
@@ -121,18 +124,18 @@ def twin(m):
     #                    (let True (clpq (= $e 2)) (clpq (=\= $d $e))))) (True))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     TRUE,
-                    S["clpq"](S["="](V.d, 1)),
-                    S["let"](
+                    S.clpq(equation(V.d).to(1)),
+                    S.let(
                         TRUE,
-                        S["clpq"](S["="](V.e, 2)),
-                        S["clpq"](S[r"=\="](V.d, V.e)),
+                        S.clpq(equation(V.e).to(2)),
+                        S.clpq(S[r"=\="](V.d, V.e)),
                     ),
                 )
             ),
-            expr(TRUE),
+            (TRUE,),
         )
     )
 
@@ -144,13 +147,13 @@ def twin(m):
     #        "(({} (, (>= $_0 0) (=< $_0 3))))")
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 TRUE,
-                S["clpq"](S[">="](V.f, 0)),
-                S["let"](
+                S.clpq(V.f >= 0),
+                S.let(
                     TRUE,
-                    S["clpq"](S["=<"](V.f, 3)),
-                    S["repr"](S["residual-goals"](V.f)),
+                    S.clpq(S["=<"](V.f, 3)),
+                    S.repr(S["residual-goals"](V.f)),
                 ),
             ),
             val("(({} (, (>= $_0 0) (=< $_0 3))))"),
@@ -164,32 +167,28 @@ def twin(m):
     #        ((0 1) (1 0)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     TRUE,
-                    S["clpb"](S.card(expr(1), expr(V.m, V.n))),
-                    S["clpb-labeling"](expr(V.m, V.n)),
+                    S.clpb(S.card((1,), (V.m, V.n))),
+                    S["clpb-labeling"]((V.m, V.n)),
                 )
             ),
-            expr(expr(0, 1), expr(1, 0)),
+            ((0, 1), (1, 0)),
         )
     )
 
     # Tautology and contradiction, decided without enumerating anything.
     # !(test (clpb-taut (+ $t (~ $t))) True)
-    yield m.eval(
-        S.test(S["clpb-taut"](S["+"](V.t, S["~"](V.t))), TRUE)
-    )
+    yield m.eval(S.test(S["clpb-taut"](V.t + S["~"](V.t)), TRUE))
     # !(test (clpb-taut (* $u (~ $u))) False)
-    yield m.eval(
-        S.test(S["clpb-taut"](S["*"](V.u, S["~"](V.u))), FALSE)
-    )
+    yield m.eval(S.test(S["clpb-taut"](V.u * S["~"](V.u)), FALSE))
 
     # The engine's own and/or/not are NOT replaced by this and should not be.
     # !(test (if (and (or $x True) $y) ($x $y)) ((True True) (False True)))
     yield m.eval(
         S.test(
-            S["if"]((V.x | TRUE) & V.y, expr(V.x, V.y)),
-            expr(expr(TRUE, TRUE), expr(FALSE, TRUE)),
+            S["if"]((V.x | TRUE) & V.y, (V.x, V.y)),
+            ((TRUE, TRUE), (FALSE, TRUE)),
         )
     )

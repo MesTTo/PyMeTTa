@@ -19,7 +19,15 @@ constructor, which wave one recorded against P14.4 for `time_and_pragmas`.
 
 from typing import Any
 
-from petta import Atom, S, V, expr
+from petta import Atom, S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: two drops. `wu3`'s second branch answers `(a list not a number)`, four lowercase
+#: SYMBOLS a compiled body has no spelling for. And the `(+ 2 4)` arguments have two GROUND operands
+#: each, where Python's `+` computes the sum instead of building the term `wu1` receives unrun.
+RUNG = (
+    "container door for wu3's four lowercase symbols, plus ground operands in the (+ 2 4) arguments"
+)
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10035 to 9738, -297, by P14.9's declaration-order
@@ -30,7 +38,7 @@ from petta import Atom, S, V, expr
 BUDGET = 9738
 
 #: (a list not a number), the answer that is data rather than arithmetic.
-NOT_A_NUMBER = expr(S.a, S["list"], S["not"], S.a, S.number)
+NOT_A_NUMBER = (S.a, S.list, S["not"], S.a, S.number)
 
 
 def twin(m):
@@ -53,16 +61,9 @@ def twin(m):
         return a + b
 
     # (: wu3 (-> Number Number %Undefined%))
-    m += S[":"](
-        S.wu3, S["->"](S.Number, S.Number, S["%Undefined%"])
-    )
+    m += S[":"](S.wu3, S["->"](S.Number, S.Number, S["%Undefined%"]))
     # (= (wu3 $a $b) (if (< $a 10) (+ $a $b) (a list not a number)))
-    m += S["="](
-        S.wu3(V.a, V.b),
-        S["if"](
-            S["<"](V.a, 10), S["+"](V.a, V.b), NOT_A_NUMBER
-        ),
-    )
+    m += equation(S.wu3(V.a, V.b)).to(S["if"](V.a < 10, V.a + V.b, NOT_A_NUMBER))
 
     # quote retains its wrapper in LeaTTa; noeval is the payload-preserving
     # form this expected syntax requires.
@@ -70,7 +71,7 @@ def twin(m):
     yield m.eval(
         S.test(
             S.wu1(S["+"](2, 4), S["+"](4, 2)),
-            S.noeval(expr(42, 6, S["+"](4, 2))),
+            S.noeval((42, 6, S["+"](4, 2))),
         )
     )
 

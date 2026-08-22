@@ -12,7 +12,13 @@ operation is a term like `(Error (/ 7 0) DivisionByZero)`, built the same way
 as any other.
 """
 
-from petta import S, expr, val
+from petta import S, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: every arithmetic and comparison term here has GROUND operands: a Python operator over two of
+#: them is that value's own arithmetic, `val(7) / 0` raises ZeroDivisionError, and the taken `!=`
+#: has no method form that builds this atom either, since `ne` builds `(not (== a b))`.
+RUNG = "ground operands: every term here has two, and != has no method form that builds it"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -69,8 +75,8 @@ def twin(m):
     # !(test (collapse (/ 7 0)) (noeval ((Error (/ 7 0) DivisionByZero))))
     yield m.eval(
         S.test(
-            S["collapse"](S["/"](7, 0)),
-            S.noeval(expr(S.Error(S["/"](7, 0), S.DivisionByZero))),
+            S.collapse(S["/"](7, 0)),
+            S.noeval((S.Error(S["/"](7, 0), S.DivisionByZero),)),
         )
     )
 
@@ -141,9 +147,9 @@ def twin(m):
     # !(test (isinf-math 0.0) False)
     yield m.eval(S.test(S["isinf-math"](0.0), FALSE))
     # !(test (min-atom (2 6 7 4 9 3)) 2)
-    yield m.eval(S.test(S["min-atom"](expr(2, 6, 7, 4, 9, 3)), 2))
+    yield m.eval(S.test(S["min-atom"]((2, 6, 7, 4, 9, 3)), 2))
     # !(test (max-atom (2 6 7 4 9 3)) 9)
-    yield m.eval(S.test(S["max-atom"](expr(2, 6, 7, 4, 9, 3)), 9))
+    yield m.eval(S.test(S["max-atom"]((2, 6, 7, 4, 9, 3)), 9))
     # !(test (isinf-math inf) True)
     yield m.eval(S.test(S["isinf-math"](S.inf), TRUE))
     # !(test (isnan-math nan) True)

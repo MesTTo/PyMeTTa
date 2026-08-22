@@ -19,7 +19,13 @@ defect lives in. `case-else` is the same shape through `case`, which Python's
 (P14.4), so that one equation is written at the container door.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: `case-else` is written at the container door: a `case` is what Python's `match`
+#: statement would spell and the compiled subset has no lowering for one. The other three equations
+#: are compiled functions.
+RUNG = "container door for case-else, which Python's match statement would spell"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -65,15 +71,14 @@ def twin(m):
     yield m.eval(S.test(S["pick-then"](1, 2), 1))
 
     # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-    m += S["="](
-        S["case-else"](V.a, V.b),
-        S["case"](
-            S["<"](V.a, V.a),
-            expr(
-                expr(TRUE, S["let*"](expr(expr(V.c, V.a)), V.a)),
-                expr(FALSE, V.b),
+    m += equation(S["case-else"](V.a, V.b)).to(
+        S.case(
+            V.a < V.a,
+            (
+                (TRUE, S["let*"](((V.c, V.a),), V.a)),
+                (FALSE, V.b),
             ),
-        ),
+        )
     )
 
     # !(test (case-else 3 4) 4)

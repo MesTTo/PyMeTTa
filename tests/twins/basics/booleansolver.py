@@ -7,7 +7,7 @@ than read.
 what a nondeterministic answer set is.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -45,7 +45,7 @@ def twin(m):
     # !(test (if (and (or $x True) $y) ($x $y)) ((True True) (False True)))
     yield m.eval(
         S.test(
-            S["if"]((V.x | TRUE) & V.y, expr(V.x, V.y)),
-            expr(expr(TRUE, TRUE), expr(FALSE, TRUE)),
+            S["if"]((V.x | TRUE) & V.y, (V.x, V.y)),
+            ((TRUE, TRUE), (FALSE, TRUE)),
         )
     )

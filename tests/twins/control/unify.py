@@ -12,7 +12,12 @@ a free name EXACTLY, so a hyphenated engine function cannot be reached from one
 (wave one recorded that against P14.4 for `fibsmart`).
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the two probe equations name `chain` with a variable of its own and `add-atom`, and a
+#: compiled body resolves a free name EXACTLY, so neither is reachable from one.
+RUNG = "container door for the two probe equations, whose bodies name chain and add-atom"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9027 to 9314, +287, by P14.8's
@@ -31,27 +36,17 @@ def twin(m):
     """
     # Ground decisions, including numeric promotion: 1 matches 1.0.
     # !(test (unify 1 1 same different) same)
-    yield m.eval(
-        S.test(S["unify"](1, 1, S.same, S.different), S.same)
-    )
+    yield m.eval(S.test(S.unify(1, 1, S.same, S.different), S.same))
     # !(test (unify 1 2 same different) different)
-    yield m.eval(
-        S.test(S["unify"](1, 2, S.same, S.different), S.different)
-    )
+    yield m.eval(S.test(S.unify(1, 2, S.same, S.different), S.different))
     # !(test (unify 1 1.0 same different) same)
-    yield m.eval(
-        S.test(S["unify"](1, 1.0, S.same, S.different), S.same)
-    )
+    yield m.eval(S.test(S.unify(1, 1.0, S.same, S.different), S.same))
     # !(test (unify "x" "x" same different) same)
-    yield m.eval(
-        S.test(
-            S["unify"](val("x"), val("x"), S.same, S.different), S.same
-        )
-    )
+    yield m.eval(S.test(S.unify(val("x"), val("x"), S.same, S.different), S.same))
     # !(test (unify "x" "y" same different) different)
     yield m.eval(
         S.test(
-            S["unify"](val("x"), val("y"), S.same, S.different),
+            S.unify(val("x"), val("y"), S.same, S.different),
             S.different,
         )
     )
@@ -60,7 +55,7 @@ def twin(m):
     # !(test (unify (f $x b) (f a $y) (pair $x $y) nope) (pair a b))
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S.f(V.x, S.b),
                 S.f(S.a, V.y),
                 S.pair(V.x, V.y),
@@ -72,63 +67,45 @@ def twin(m):
 
     # The occurs check rejects a cyclic binding.
     # !(test (unify $x (f $x) cyclic sound) sound)
-    yield m.eval(
-        S.test(
-            S["unify"](V.x, S.f(V.x), S.cyclic, S.sound), S.sound
-        )
-    )
+    yield m.eval(S.test(S.unify(V.x, S.f(V.x), S.cyclic, S.sound), S.sound))
 
     # Only the selected branch evaluates: each probe leaves a marker, and
     # exactly one marker lands per query.
     # (= (then-probe) (chain (add-atom &self then-ran) $_ 3))
-    m += S["="](
-        S["then-probe"](),
-        S["chain"](
-            S["add-atom"](S["&self"], S["then-ran"]), V.ignored, 3
-        ),
+    m += equation(S["then-probe"]()).to(
+        S.chain(S["add-atom"](S["&self"], S["then-ran"]), V.ignored, 3)
     )
     # (= (else-probe) (chain (add-atom &self else-ran) $_ 4))
-    m += S["="](
-        S["else-probe"](),
-        S["chain"](
-            S["add-atom"](S["&self"], S["else-ran"]), V.ignored, 4
-        ),
+    m += equation(S["else-probe"]()).to(
+        S.chain(S["add-atom"](S["&self"], S["else-ran"]), V.ignored, 4)
     )
 
     # !(test (unify A A (then-probe) (else-probe)) 3)
     yield m.eval(
         S.test(
-            S["unify"](
-                S.A, S.A, S["then-probe"](), S["else-probe"]()
-            ),
+            S.unify(S.A, S.A, S["then-probe"](), S["else-probe"]()),
             3,
         )
     )
     # !(test (collapse (match &self else-ran hit)) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S["else-ran"], S.hit)
-            ),
-            expr(),
+            S.collapse(S.match(S["&self"], S["else-ran"], S.hit)),
+            (),
         )
     )
     # !(test (unify A B (then-probe) (else-probe)) 4)
     yield m.eval(
         S.test(
-            S["unify"](
-                S.A, S.B, S["then-probe"](), S["else-probe"]()
-            ),
+            S.unify(S.A, S.B, S["then-probe"](), S["else-probe"]()),
             4,
         )
     )
     # !(test (collapse (match &self then-ran hit)) (hit))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S["then-ran"], S.hit)
-            ),
-            expr(S.hit),
+            S.collapse(S.match(S["&self"], S["then-ran"], S.hit)),
+            (S.hit,),
         )
     )
 
@@ -144,21 +121,21 @@ def twin(m):
     #        (Bob Sam))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["unify"](
+            S.collapse(
+                S.unify(
                     S["&self"],
                     S.friend(V.who, S.Alice),
                     V.who,
                     S["no-friends"],
                 )
             ),
-            expr(S.Bob, S.Sam),
+            (S.Bob, S.Sam),
         )
     )
     # !(test (unify &self (friend Pol $who) $who no-friends) no-friends)
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.friend(S.Pol, V.who),
                 V.who,
@@ -170,20 +147,14 @@ def twin(m):
 
     # A variable operand binds the space whole without querying it.
     # !(test (unify $s &self bound queried) bound)
-    yield m.eval(
-        S.test(
-            S["unify"](V.s, S["&self"], S.bound, S.queried), S.bound
-        )
-    )
+    yield m.eval(S.test(S.unify(V.s, S["&self"], S.bound, S.queried), S.bound))
 
     # Empty in a branch is the branch remover: the else here answers nothing
     # at all, so collapse answers the empty list.
     # !(test (collapse (unify a b then Empty)) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["unify"](S.a, S.b, S.then, S.Empty)
-            ),
-            expr(),
+            S.collapse(S.unify(S.a, S.b, S.then, S.Empty)),
+            (),
         )
     )

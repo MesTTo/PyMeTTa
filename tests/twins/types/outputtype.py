@@ -16,6 +16,11 @@ from typing import Any
 
 from petta import Atom, S
 
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the `(+ 1 1)` arguments are DATA whose evaluation three declarations decide, and they
+#: have two GROUND operands, where Python's `+` computes the sum instead of building the term.
+RUNG = "ground operands: the (+ 1 1) arguments have two, where Python's + computes the sum"
+
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 6895 to 7006, +111, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
@@ -31,6 +36,7 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     every other form says its own answer in the comment above it.
     """
+
     @m.define
     def f(x: int) -> Any:
         # (= (f $x) (+ $x 42))
@@ -51,13 +57,11 @@ def twin(m):
     # quote retains its wrapper in LeaTTa; noeval is the payload-preserving
     # form these expected expressions require.
     # !(test (g (+ 1 1)) (noeval (+ 2 42)))
-    yield m.eval(
-        S.test(S.g(S["+"](1, 1)), S.noeval(S["+"](2, 42)))
-    )
+    yield m.eval(S.test(S.g(S["+"](1, 1)), S.noeval(S["+"](2, 42))))
     # !(test (h (+ 1 1)) (noeval (+ (+ 1 1) 42)))
     yield m.eval(
         S.test(
             S.h(S["+"](1, 1)),
-            S.noeval(S["+"](S["+"](1, 1), 42)),
+            S.noeval(S["+"](1, 1) + 42),
         )
     )

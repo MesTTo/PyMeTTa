@@ -15,7 +15,12 @@ capitalised one as a constructor, so it has no spelling for this one (wave one
 recorded that against P14.4 for `time_and_pragmas`).
 """
 
-from petta import S, V
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the body `(seen $value)` applies a lowercase CONSTRUCTOR, and a compiled body resolves
+#: a lowercase free name as a function and reads a capitalised one as a constructor.
+RUNG = "container door: the body (seen $value) applies a lowercase constructor"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5174 to 5359, +185, by P14.8's
@@ -33,13 +38,9 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (: typing-rule-demo (-> DemoPayload Atom))
-    m += S[":"](
-        S["typing-rule-demo"], S["->"](S.DemoPayload, S.Atom)
-    )
+    m += S[":"](S["typing-rule-demo"], S["->"](S.DemoPayload, S.Atom))
     # (= (typing-rule-demo $value) (seen $value))
-    m += S["="](
-        S["typing-rule-demo"](V.value), S.seen(V.value)
-    )
+    m += equation(S["typing-rule-demo"](V.value)).to(S.seen(V.value))
 
     # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
     yield m.eval(
@@ -86,9 +87,7 @@ def twin(m):
     )
 
     # !(remove-typing-rule! deny-unknown-demo) answers (True)
-    yield m.eval(
-        S["remove-typing-rule!"](S["deny-unknown-demo"])
-    )
+    yield m.eval(S["remove-typing-rule!"](S["deny-unknown-demo"]))
 
     # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
     yield m.eval(

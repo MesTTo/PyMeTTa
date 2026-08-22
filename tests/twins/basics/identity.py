@@ -1,14 +1,22 @@
 """The Python twin of examples/basics/identity.metta: one equation, one call.
 
-The equation is written at the container door, `m += S["="](head, body)`,
-the cheapest of the two pure-Python spellings: `@m.define` reads a body as
-syntax and pays a fixed registration cost (measured +1,561 inferences per
-definition) that dominates an example this small, while the bare equation
-lands the identical atom for the identical compiled clauses. The ladder
-documents both rungs; a twin picks the one the original's size calls for.
+The equation is written at the container door, `equation(head).to(body)`,
+and the reason is a measurement rather than a preference. `@m.define` reads
+the body as syntax and pays a fixed registration cost; re-measured 2026-08-22
+the decorated twin costs 2,878 inferences against the original's 2,577, past
+the lane's 10% ceiling of 2,835 by 43. The bare equation lands the identical
+atom for the identical compiled clauses and costs 1,249. `control/empty.metta`
+is the same shape and now DOES fit, at 1.0945, so this is a 43-inference call
+rather than a rule about small examples; both files re-measure it rather than
+citing the other.
 """
 
-from petta import S, V
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check
+#: reads. `@m.define` is the top rung for a definition; here it costs 2,878
+#: against a ceiling of 2,835.
+RUNG = "@m.define costs 2878 against the band ceiling of 2835 on this one-form example"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1251 to 1249, -2, by reading the fuel
@@ -39,7 +47,7 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (f $x) (* $x $x))
-    m += S["="](S.f(V.x), V.x * V.x)
+    m += equation(S.f(V.x)).to(V.x * V.x)
 
     # !(test (f 1) 1)
     yield m.eval(S.test(S.f(1), 1))

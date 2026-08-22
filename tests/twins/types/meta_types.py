@@ -2,7 +2,7 @@
 
 Every atom is one of four kinds, and `get-metatype` says which: `Expression`,
 `Grounded`, `Variable`, `Symbol`. The Python surface has one builder per kind
-and they line up exactly, which is what this file is: `expr(...)` builds an
+and they line up exactly, which is what this file is: a Python tuple builds an
 Expression, `val(...)` a Grounded, `V.x` a Variable and `S.a` a Symbol.
 
 A grounded number written as a bare `1` in an argument list encodes to the
@@ -10,7 +10,7 @@ same `Gnd(1)`, so `S["get-metatype"](1)` is the Grounded case without any
 marking.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1936 to 2046, +110, by P14.8's
@@ -32,7 +32,7 @@ def twin(m):
     # !(test (get-metatype (foo 1 2)) Expression)
     yield m.eval(S.test(metatype(S.foo(1, 2)), S.Expression))
     # !(test (get-metatype (a b)) Expression)
-    yield m.eval(S.test(metatype(expr(S.a, S.b)), S.Expression))
+    yield m.eval(S.test(metatype((S.a, S.b)), S.Expression))
     # !(test (get-metatype 1) Grounded)
     yield m.eval(S.test(metatype(1), S.Grounded))
     # !(test (get-metatype +) Grounded)

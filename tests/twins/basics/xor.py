@@ -11,6 +11,12 @@ promises.
 
 from petta import S
 
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the body names `xor` where `^` is the operator: `^` builds `(xor ...)` at the term door
+#: and is REFUSED inside a compiled body, so the two doors disagree and the body takes the named
+#: call. The residue table records the hole against P14.4.
+RUNG = "named call for a refused operator: ^ builds (xor ...) at the term door and is refused in a compiled body"
+
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5492 to 5500, +8, and this one is
 #: UNATTRIBUTED: it reproduces byte-stably across three runs and survives an

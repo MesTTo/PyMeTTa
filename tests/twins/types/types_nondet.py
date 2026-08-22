@@ -14,7 +14,13 @@ no compiled body can name it, and no alias reaches it either, since a body
 resolves a free name EXACTLY and an alias would store the alias.
 """
 
-from petta import S, V
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: `f`'s body names `=alpha`, which is not a Python identifier, and a compiled body
+#: resolves a free name EXACTLY so no alias reaches it; the `(: ...)` declarations have no
+#: `typed(x, T)` builder.
+RUNG = "container door for f, whose body names =alpha, which is not a Python identifier"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8674 to 9449, +775, by P14.8's
@@ -44,15 +50,12 @@ def twin(m):
     #        (if (=alpha $a T2in)
     #            T2out
     #            Tdefault)))
-    m += S["="](
-        S.f(V.a),
+    m += equation(S.f(V.a)).to(
         S["if"](
             alpha(V.a, S.T1in),
             S.T1out,
-            S["if"](
-                alpha(V.a, S.T2in), S.T2out, S.Tdefault
-            ),
-        ),
+            S["if"](alpha(V.a, S.T2in), S.T2out, S.Tdefault),
+        )
     )
 
     # (: T1in Type1)

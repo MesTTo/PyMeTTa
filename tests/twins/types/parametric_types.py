@@ -54,17 +54,18 @@ def twin(m):
         return (f, x)
 
     # !(apply not False) answers (True)
-    yield m.eval(S.apply(S["not"], FALSE))
+    # Calling the Defined object EVALUATES its application, which is what a bare
+    # `!` form does, so the call is the form: `m.eval(S.apply(...))` builds the
+    # same term and hands it to the same door.
+    yield apply(S["not"], FALSE)
     # !(get-type (apply not False)) answers (Bool)
     yield m.eval(S["get-type"](S.apply(S["not"], FALSE)))
     # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 S["get-type"](S.apply),
-                S["->"](
-                    S["->"](S.Bool, S.Bool), S.Bool, V.result
-                ),
+                S["->"](S["->"](S.Bool, S.Bool), S.Bool, V.result),
                 V.result,
             ),
             S.Bool,

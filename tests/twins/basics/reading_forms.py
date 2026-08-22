@@ -10,7 +10,7 @@ the twin says which strings are data and which would have been programs.
 Nothing here reaches the engine through source text: every form is a term.
 """
 
-from petta import S, expr, val
+from petta import S, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 14319 to 14305, -14, by reading the fuel
@@ -79,11 +79,11 @@ def twin(m):
 
     # One bracket too many is not incomplete: no further typing repairs it.
     # !(import! &self (library lib_he)) answers (())
-    yield m.eval(S["import!"](S["&self"], expr(S.library, S.lib_he)))
+    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_he)))
     # !(test (if-error (catch (sread-command "(f a))")) Error NoError) Error)
     yield m.eval(
         S.test(
-            S["if-error"](S["catch"](READ(val("(f a))"))), S.Error, S.NoError),
+            S["if-error"](S.catch(READ(val("(f a))"))), S.Error, S.NoError),
             S.Error,
         )
     )

@@ -6,7 +6,7 @@ the original scopes a larger `max-stack-depth` to the one expression with
 built at the term door rather than called.
 """
 
-from petta import S, expr
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 33664261 to 28278972, -5385289 (-16.00%), by
@@ -59,9 +59,7 @@ def twin(m):
     # !(test (with-pragma! ((max-stack-depth 100000000)) (fib 30)) 832040)
     yield m.eval(
         S.test(
-            S["with-pragma!"](
-                expr(expr(S["max-stack-depth"], 100000000)), S.fib(30)
-            ),
+            S["with-pragma!"](((S["max-stack-depth"], 100000000),), S.fib(30)),
             832040,
         )
     )

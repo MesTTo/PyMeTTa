@@ -19,7 +19,12 @@ declarations now publish before their equations; outputtype.py exercises that
 door directly.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the `(:< ...)` edges and the `(: ...)` claims are about bare SYMBOLS and dynamic MeTTa
+#: types, so no Python annotation carries one and the surface has no `typed(x, T)` builder either.
+RUNG = "declarations as atoms: (:< ...) edges and (: ...) claims with no typed(x, T) builder"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9315 to 9506, +191, by P14.8's
@@ -47,11 +52,7 @@ def twin(m):
     # One value, two types now, in declaration order and then supertype
     # order.
     # !(test (collapse (get-type Rex)) (Dog Animal))
-    yield m.eval(
-        S.test(
-            S["collapse"](kind(S.Rex)), expr(S.Dog, S.Animal)
-        )
-    )
+    yield m.eval(S.test(S.collapse(kind(S.Rex)), (S.Dog, S.Animal)))
 
     # Which is what makes an argument acceptable: `speak` asks for an Animal
     # and Rex is a Dog, and the check passes because Animal is in Rex's
@@ -76,8 +77,8 @@ def twin(m):
     # !(test (collapse (get-type Rex)) (Dog Animal LivingThing))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.Rex)),
-            expr(S.Dog, S.Animal, S.LivingThing),
+            S.collapse(kind(S.Rex)),
+            (S.Dog, S.Animal, S.LivingThing),
         )
     )
 
@@ -86,20 +87,14 @@ def twin(m):
     # (:< Number Countable)
     m += below(S.Number, S.Countable)
     # !(test (collapse (get-type 1)) (Number))
-    yield m.eval(
-        S.test(S["collapse"](kind(1)), expr(S.Number))
-    )
+    yield m.eval(S.test(S.collapse(kind(1)), (S.Number,)))
 
     # (: half (-> Number Fraction))
     m += S[":"](S.half, S["->"](S.Number, S.Fraction))
     # (:< Fraction Rational)
     m += below(S.Fraction, S.Rational)
     # !(test (collapse (get-type (half 3))) (Fraction))
-    yield m.eval(
-        S.test(
-            S["collapse"](kind(S.half(3))), expr(S.Fraction)
-        )
-    )
+    yield m.eval(S.test(S.collapse(kind(S.half(3))), (S.Fraction,)))
 
     # A diamond answers its join TWICE, and that is not a bug to report:
     # widening checks what is already present against the list as it stood
@@ -117,10 +112,8 @@ def twin(m):
     # !(test (collapse (get-type Stellaluna)) (Bat Bird Mammal Animal2 Animal2))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.Stellaluna)),
-            expr(
-                S.Bat, S.Bird, S.Mammal, S.Animal2, S.Animal2
-            ),
+            S.collapse(kind(S.Stellaluna)),
+            (S.Bat, S.Bird, S.Mammal, S.Animal2, S.Animal2),
         )
     )
 
@@ -134,7 +127,7 @@ def twin(m):
     # !(test (collapse (get-type crate)) ((Boxed Apple) Container))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.crate)),
-            expr(S.Boxed(S.Apple), S.Container),
+            S.collapse(kind(S.crate)),
+            (S.Boxed(S.Apple), S.Container),
         )
     )

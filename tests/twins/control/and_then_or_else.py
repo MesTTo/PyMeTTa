@@ -18,7 +18,13 @@ engine function cannot be reached from one (wave one recorded that against
 P14.4 for `fibsmart`).
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: two drops. `note` and `note2` are written at the container door because their bodies
+#: name `add-atom`, and a compiled body resolves a free name EXACTLY. And the four `(> 2 1)`-shaped
+#: conditions have two GROUND operands each, where Python's `>` computes the comparison.
+RUNG = "container door for note and note2, whose bodies name add-atom, plus ground operands in the comparisons"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -51,15 +57,9 @@ def twin(m):
 
     # They take expressions, not just literals.
     # !(test (and-then (> 2 1) (> 3 2)) True)
-    yield m.eval(
-        S.test(
-            S["and-then"](S[">"](2, 1), S[">"](3, 2)), TRUE
-        )
-    )
+    yield m.eval(S.test(S["and-then"](S[">"](2, 1), S[">"](3, 2)), TRUE))
     # !(test (or-else (> 1 2) (> 3 2)) True)
-    yield m.eval(
-        S.test(S["or-else"](S[">"](1, 2), S[">"](3, 2)), TRUE)
-    )
+    yield m.eval(S.test(S["or-else"](S[">"](1, 2), S[">"](3, 2)), TRUE))
 
     # The skipping itself, which is the reason they are special forms. A
     # branch that is skipped must leave no trace, so this records what
@@ -68,38 +68,29 @@ def twin(m):
     yield m.eval(S["bind!"](S["&ran"], S["new-space"]()))
 
     # (= (note $tag) (let $_ (add-atom &ran (ran $tag)) True))
-    m += S["="](
-        S.note(V.tag),
-        S["let"](
+    m += equation(S.note(V.tag)).to(
+        S.let(
             V.ignored,
             S["add-atom"](S["&ran"], S.ran(V.tag)),
             TRUE,
-        ),
+        )
     )
 
     # !(and-then False (note skipped-by-and-then)) answers (False)
-    yield m.eval(
-        S["and-then"](FALSE, S.note(S["skipped-by-and-then"]))
-    )
+    yield m.eval(S["and-then"](FALSE, S.note(S["skipped-by-and-then"])))
     # !(or-else True (note skipped-by-or-else)) answers (True)
-    yield m.eval(
-        S["or-else"](TRUE, S.note(S["skipped-by-or-else"]))
-    )
+    yield m.eval(S["or-else"](TRUE, S.note(S["skipped-by-or-else"])))
     # !(and-then True (note taken-by-and-then)) answers (True)
-    yield m.eval(
-        S["and-then"](TRUE, S.note(S["taken-by-and-then"]))
-    )
+    yield m.eval(S["and-then"](TRUE, S.note(S["taken-by-and-then"])))
     # !(or-else False (note taken-by-or-else)) answers (True)
-    yield m.eval(
-        S["or-else"](FALSE, S.note(S["taken-by-or-else"]))
-    )
+    yield m.eval(S["or-else"](FALSE, S.note(S["taken-by-or-else"])))
 
     # !(test (collapse (get-atoms &ran))
     #        ((ran taken-by-and-then) (ran taken-by-or-else)))
     yield m.eval(
         S.test(
-            S["collapse"](S["get-atoms"](S["&ran"])),
-            expr(
+            S.collapse(S["get-atoms"](S["&ran"])),
+            (
                 S.ran(S["taken-by-and-then"]),
                 S.ran(S["taken-by-or-else"]),
             ),
@@ -112,26 +103,23 @@ def twin(m):
     yield m.eval(S["bind!"](S["&ran2"], S["new-space"]()))
 
     # (= (note2 $tag) (let $_ (add-atom &ran2 (ran $tag)) True))
-    m += S["="](
-        S.note2(V.tag),
-        S["let"](
+    m += equation(S.note2(V.tag)).to(
+        S.let(
             V.ignored,
             S["add-atom"](S["&ran2"], S.ran(V.tag)),
             TRUE,
-        ),
+        )
     )
 
     # !(and False (note2 and-runs-it)) answers (False)
-    yield m.eval(S["and"](FALSE, S.note2(S["and-runs-it"])))
+    yield m.eval(FALSE & S.note2(S["and-runs-it"]))
     # !(and-then False (note2 and-then-skips-it)) answers (False)
-    yield m.eval(
-        S["and-then"](FALSE, S.note2(S["and-then-skips-it"]))
-    )
+    yield m.eval(S["and-then"](FALSE, S.note2(S["and-then-skips-it"])))
     # !(test (collapse (get-atoms &ran2)) ((ran and-runs-it)))
     yield m.eval(
         S.test(
-            S["collapse"](S["get-atoms"](S["&ran2"])),
-            expr(S.ran(S["and-runs-it"])),
+            S.collapse(S["get-atoms"](S["&ran2"])),
+            (S.ran(S["and-runs-it"]),),
         )
     )
 
@@ -140,14 +128,12 @@ def twin(m):
     # !(test (collapse (if (and-then (or-else $p True) $q) ($p $q))) ())
     yield m.eval(
         S.test(
-            S["collapse"](
+            S.collapse(
                 S["if"](
-                    S["and-then"](
-                        S["or-else"](V.p, TRUE), V.q
-                    ),
-                    expr(V.p, V.q),
+                    S["and-then"](S["or-else"](V.p, TRUE), V.q),
+                    (V.p, V.q),
                 )
             ),
-            expr(),
+            (),
         )
     )

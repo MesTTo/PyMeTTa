@@ -6,18 +6,26 @@ nobody would notice breaking, which is why the file exists; every one of them
 takes its argument UNEVALUATED, and a built term is unevaluated by
 construction, so the term door is what the whole file is written with.
 
-Two equations are written at the container door for reasons wave one already
-recorded against P14.4. `tx-three` has three clauses that fix nothing, which
-stacked Python clauses read as first-match while the file's whole point is
-that all three answer. `spin` answers the lowercase SYMBOL `done`, and a
+Two definitions sit below `@m.define`, for reasons wave one already recorded
+against P14.4. `tx-three` has three clauses that fix nothing, so no literal
+default stacks them and `@rules` writes the set instead, which is what keeps
+all three answering. `spin` answers the lowercase SYMBOL `done`, and a
 compiled body resolves a lowercase free name as a function and reads a
-capitalised one as a constructor, so it has no spelling for that atom.
+capitalised one as a constructor, so it has no spelling for that atom and
+stays at the container door.
 `tx-body` is a computation and is written as one: `noeval` is an ordinary
 engine name a body can call, and `superpose(a, b)` spells alternatives written
 out.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, rules, val
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: two drops. `tx-three`'s three clauses have identical heads, so no literal default
+#: stacks them and `@rules` writes them instead; `spin` answers the lowercase SYMBOL `done` and
+#: stays at the container door. And the `(+ 1 1)`-shaped arguments reach their special forms as
+#: unevaluated DATA with two GROUND operands, where Python's `+` computes the sum.
+RUNG = "@rules for tx-three's identical heads, container door for spin's lowercase `done`, plus ground operands in the sums"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -25,12 +33,17 @@ from petta import S, V, expr, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 32760 to 33994, +1234, by P14.8's
+#: RE-PINNED 2026-08-22, 33994 to 34016, +22, by lifting the 3-clause equation set from
+#: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the
+#: increase is the multi-atom add path, not the decorator: `rules` builds its equations in
+#: Python and spends nothing on the engine, and one `m.add` of n atoms costs 13 + 3n inferences
+#: more than n separate `m +=` calls (measured over three fresh processes each: 673 against 692
+#: at two atoms, 1042 against 1064 at three, 0.0000% spread). Prior: #: RE-PINNED 2026-08-22, 32760 to 33994, +1234, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
 #: reduction as it does under `!`, less the two-inference-per-runnable-form
 #: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
 #: 2026-08-22 at 32760 by 47554fc's control/types twin baseline.
-BUDGET = 33994
+BUDGET = 34016
 
 
 def twin(m):
@@ -45,28 +58,18 @@ def twin(m):
     # It distinguishes NO ANSWER from ONE ANSWER THAT IS THE EMPTY
     # EXPRESSION, which is the whole reason it is not just (== x ()).
     # !(test-no-answer (superpose ())) answers (True)
-    yield m.eval(S["test-no-answer"](S["superpose"](expr())))
+    yield m.eval(S["test-no-answer"](S.superpose(())))
     # !(test (collapse (superpose ())) ())
-    yield m.eval(
-        S.test(S["collapse"](S["superpose"](expr())), expr())
-    )
+    yield m.eval(S.test(S.collapse(S.superpose(())), ()))
     # !(test (collapse ()) (()))
-    yield m.eval(S.test(S["collapse"](expr()), expr(expr())))
+    yield m.eval(S.test(S.collapse(()), ((),)))
 
     # ------------------------------------------------- prog1 and progn
     # Both run every form; they differ in which one they answer.
     # !(test (prog1 (+ 1 1) (+ 2 2) (+ 3 3)) 2)
-    yield m.eval(
-        S.test(
-            S["prog1"](S["+"](1, 1), S["+"](2, 2), S["+"](3, 3)), 2
-        )
-    )
+    yield m.eval(S.test(S.prog1(S["+"](1, 1), S["+"](2, 2), S["+"](3, 3)), 2))
     # !(test (progn (+ 1 1) (+ 2 2) (+ 3 3)) 6)
-    yield m.eval(
-        S.test(
-            S["progn"](S["+"](1, 1), S["+"](2, 2), S["+"](3, 3)), 6
-        )
-    )
+    yield m.eval(S.test(S.progn(S["+"](1, 1), S["+"](2, 2), S["+"](3, 3)), 6))
 
     # ------------------------------------------------- transaction
     # Every write inside is undone when the body fails, which is what a
@@ -76,28 +79,22 @@ def twin(m):
     #        ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["transaction"](
-                    S["progn"](
-                        S["add-atom"](
-                            S["&self"], S["tx-rolled"](S.a)
-                        ),
-                        S["superpose"](expr()),
+            S.collapse(
+                S.transaction(
+                    S.progn(
+                        S["add-atom"](S["&self"], S["tx-rolled"](S.a)),
+                        S.superpose(()),
                     )
                 )
             ),
-            expr(),
+            (),
         )
     )
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](
-                    S["&self"], S["tx-rolled"](V.x), V.x
-                )
-            ),
-            expr(),
+            S.collapse(S.match(S["&self"], S["tx-rolled"](V.x), V.x)),
+            (),
         )
     )
 
@@ -106,37 +103,35 @@ def twin(m):
     # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (()))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["transaction"](
-                    S["add-atom"](S["&self"], S["tx-kept"](S.a))
-                )
-            ),
-            expr(expr()),
+            S.collapse(S.transaction(S["add-atom"](S["&self"], S["tx-kept"](S.a)))),
+            ((),),
         )
     )
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S["tx-kept"](V.x), V.x)
-            ),
-            expr(S.a),
+            S.collapse(S.match(S["&self"], S["tx-kept"](V.x), V.x)),
+            (S.a,),
         )
     )
 
     # "whatever its body did" means EVERY answer, not the first one.
     # (= (tx-three) 1)
-    m += S["="](S["tx-three"](), 1)
+    @rules
+    def tx_three():
+        yield equation(S["tx-three"]()).to(1)
+        yield equation(S["tx-three"]()).to(2)
+        yield equation(S["tx-three"]()).to(3)
+
+    m.add(*tx_three)
     # (= (tx-three) 2)
-    m += S["="](S["tx-three"](), 2)
     # (= (tx-three) 3)
-    m += S["="](S["tx-three"](), 3)
 
     # !(test (collapse (transaction (tx-three))) (1 2 3))
     yield m.eval(
         S.test(
-            S["collapse"](S["transaction"](S["tx-three"]())),
-            expr(1, 2, 3),
+            S.collapse(S.transaction(S["tx-three"]())),
+            (1, 2, 3),
         )
     )
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
@@ -144,30 +139,24 @@ def twin(m):
     #        (() ()))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["transaction"](
-                    S["superpose"](
-                        expr(
-                            S["add-atom"](
-                                S["&self"], S["tx-each"](1)
-                            ),
-                            S["add-atom"](
-                                S["&self"], S["tx-each"](2)
-                            ),
+            S.collapse(
+                S.transaction(
+                    S.superpose(
+                        (
+                            S["add-atom"](S["&self"], S["tx-each"](1)),
+                            S["add-atom"](S["&self"], S["tx-each"](2)),
                         )
                     )
                 )
             ),
-            expr(expr(), expr()),
+            ((), ()),
         )
     )
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S["tx-each"](V.x), V.x)
-            ),
-            expr(1, 2),
+            S.collapse(S.match(S["&self"], S["tx-each"](V.x), V.x)),
+            (1, 2),
         )
     )
 
@@ -176,8 +165,8 @@ def twin(m):
     # !(test (collapse (atomically (tx-three))) (1 2 3))
     yield m.eval(
         S.test(
-            S["collapse"](S["atomically"](S["tx-three"]())),
-            expr(1, 2, 3),
+            S.collapse(S.atomically(S["tx-three"]())),
+            (1, 2, 3),
         )
     )
 
@@ -193,37 +182,21 @@ def twin(m):
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
-                    V.b, S["tx-body"](), S["atomically"](V.b)
-                )
-            ),
-            expr(2, 4),
+            S.collapse(S.let(V.b, S["tx-body"](), S.atomically(V.b))),
+            (2, 4),
         )
     )
     # !(test (size-atom (collapse (let $b (tx-body) (atomically $b)))) 2)
     yield m.eval(
         S.test(
-            S["size-atom"](
-                S["collapse"](
-                    S["let"](
-                        V.b, S["tx-body"](), S["atomically"](V.b)
-                    )
-                )
-            ),
+            S["size-atom"](S.collapse(S.let(V.b, S["tx-body"](), S.atomically(V.b)))),
             2,
         )
     )
     # !(test (size-atom (collapse (let $b (tx-body) (transaction $b)))) 1)
     yield m.eval(
         S.test(
-            S["size-atom"](
-                S["collapse"](
-                    S["let"](
-                        V.b, S["tx-body"](), S["transaction"](V.b)
-                    )
-                )
-            ),
+            S["size-atom"](S.collapse(S.let(V.b, S["tx-body"](), S.transaction(V.b)))),
             1,
         )
     )
@@ -234,19 +207,17 @@ def twin(m):
     # !(test (let ($v $s) (elapsed (+ 1 2)) $v) 3)
     yield m.eval(
         S.test(
-            S["let"](
-                expr(V.v, V.s), S["elapsed"](S["+"](1, 2)), V.v
-            ),
+            S.let((V.v, V.s), S.elapsed(S["+"](1, 2)), V.v),
             3,
         )
     )
     # !(test (let ($v $s) (elapsed (+ 1 2)) (< $s 60)) True)
     yield m.eval(
         S.test(
-            S["let"](
-                expr(V.v, V.s),
-                S["elapsed"](S["+"](1, 2)),
-                S["<"](V.s, 60),
+            S.let(
+                (V.v, V.s),
+                S.elapsed(S["+"](1, 2)),
+                V.s < 60,
             ),
             TRUE,
         )
@@ -255,29 +226,16 @@ def twin(m):
     # ------------------------------------------------- timeout
     # A bound that does not fire leaves the answer alone.
     # (= (spin $n) (if (== $n 0) done (spin (- $n 1))))
-    m += S["="](
-        S.spin(V.n),
-        S["if"](
-            S["=="](V.n, 0), S.done, S.spin(S["-"](V.n, 1))
-        ),
-    )
+    m += equation(S.spin(V.n)).to(S["if"](V.n.eq(0), S.done, S.spin(V.n - 1)))
     # !(test (timeout 5 (spin 10)) done)
-    yield m.eval(S.test(S["timeout"](5, S.spin(10)), S.done))
+    yield m.eval(S.test(S.timeout(5, S.spin(10)), S.done))
 
     # ------------------------------------------------- with_mutex
     # Named, so two different names do not serialise against each other.
     # !(test (with_mutex thin-lock-a (+ 1 2)) 3)
-    yield m.eval(
-        S.test(
-            S["with_mutex"](S["thin-lock-a"], S["+"](1, 2)), 3
-        )
-    )
+    yield m.eval(S.test(S.with_mutex(S["thin-lock-a"], S["+"](1, 2)), 3))
     # !(test (with_mutex thin-lock-b (+ 2 2)) 4)
-    yield m.eval(
-        S.test(
-            S["with_mutex"](S["thin-lock-b"], S["+"](2, 2)), 4
-        )
-    )
+    yield m.eval(S.test(S.with_mutex(S["thin-lock-b"], S["+"](2, 2)), 4))
 
     # ------------------------------------------------- hyperpose
     # Runs its branches concurrently, so `once` over an expensive branch and
@@ -295,14 +253,8 @@ def twin(m):
     # !(test (msort (collapse (hyperpose ((+ 1 1) (+ 2 2))))) (2 4))
     yield m.eval(
         S.test(
-            S["msort"](
-                S["collapse"](
-                    S["hyperpose"](
-                        expr(S["+"](1, 1), S["+"](2, 2))
-                    )
-                )
-            ),
-            expr(2, 4),
+            S.msort(S.collapse(S.hyperpose((S["+"](1, 1), S["+"](2, 2))))),
+            (2, 4),
         )
     )
 
@@ -310,11 +262,7 @@ def twin(m):
     # Reaches a Prolog predicate with no registration at all, which is the
     # point: msort/2 is SWI's and nothing here imported it.
     # !(test (call (msort (3 1 2))) (1 2 3))
-    yield m.eval(
-        S.test(
-            S["call"](S.msort(expr(3, 1, 2))), expr(1, 2, 3)
-        )
-    )
+    yield m.eval(S.test(S.call(S.msort((3, 1, 2))), (1, 2, 3)))
 
     # ------------------------------------------------- translatePredicate
     # Compiles ONE goal inline. It is a statement rather than a value, so it
@@ -323,12 +271,10 @@ def twin(m):
     # !(test (progn (translatePredicate (msort (3 1 2) $s)) $s) (1 2 3))
     yield m.eval(
         S.test(
-            S["progn"](
-                S["translatePredicate"](
-                    S.msort(expr(3, 1, 2), V.s)
-                ),
+            S.progn(
+                S.translatePredicate(S.msort((3, 1, 2), V.s)),
                 V.s,
             ),
-            expr(1, 2, 3),
+            (1, 2, 3),
         )
     )

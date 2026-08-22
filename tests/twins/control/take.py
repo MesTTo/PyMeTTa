@@ -15,7 +15,7 @@ Other call-shaped uses whose cardinality is unknown are refused with the two
 explicit spellings, which closes the old silent-splice residue.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8650 to 9052, +402, by P14.8's
@@ -35,10 +35,8 @@ def twin(m):
     # !(test (collapse (take 3 (superpose (a b c d e)))) (a b c))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["take"](3, S["superpose"](expr(S.a, S.b, S.c, S.d, S.e)))
-            ),
-            expr(S.a, S.b, S.c),
+            S.collapse(S.take(3, S.superpose((S.a, S.b, S.c, S.d, S.e)))),
+            (S.a, S.b, S.c),
         )
     )
 
@@ -47,15 +45,15 @@ def twin(m):
     # !(test (collapse (take 9 (superpose (a b)))) (a b))
     yield m.eval(
         S.test(
-            S["collapse"](S["take"](9, S["superpose"](expr(S.a, S.b)))),
-            expr(S.a, S.b),
+            S.collapse(S.take(9, S.superpose((S.a, S.b)))),
+            (S.a, S.b),
         )
     )
     # !(test (collapse (take 0 (superpose (a b)))) ())
     yield m.eval(
         S.test(
-            S["collapse"](S["take"](0, S["superpose"](expr(S.a, S.b)))),
-            expr(),
+            S.collapse(S.take(0, S.superpose((S.a, S.b)))),
+            (),
         )
     )
 
@@ -67,9 +65,7 @@ def twin(m):
 
     # This counts up forever and take ends it.
     # !(test (collapse (take 4 (from 0))) (0 1 2 3))
-    yield m.eval(
-        S.test(S["collapse"](S["take"](4, S["from"](0))), expr(0, 1, 2, 3))
-    )
+    yield m.eval(S.test(S.collapse(S.take(4, S["from"](0))), (0, 1, 2, 3)))
 
     # A count that is not a whole number is a mistake rather than an empty
     # answer, because failing into "there is nothing there" sends you
@@ -77,9 +73,7 @@ def twin(m):
     # !(test (car-atom (catch (take foo (superpose (a b))))) Error)
     yield m.eval(
         S.test(
-            S["car-atom"](
-                S["catch"](S["take"](S.foo, S["superpose"](expr(S.a, S.b))))
-            ),
+            S["car-atom"](S.catch(S.take(S.foo, S.superpose((S.a, S.b))))),
             S.Error,
         )
     )
@@ -97,33 +91,33 @@ def twin(m):
     #        ((edge a b) (edge b c)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["take"](
+            S.collapse(
+                S.take(
                     2,
-                    S["match"](
+                    S.match(
                         S["&self"],
                         S.edge(V.x, V.y),
                         S.edge(V.x, V.y),
                     ),
                 )
             ),
-            expr(S.edge(S.a, S.b), S.edge(S.b, S.c)),
+            (S.edge(S.a, S.b), S.edge(S.b, S.c)),
         )
     )
     # !(test (collapse (take 2 (match &self (, (edge $x $y) (edge $y $z)) ($x $z))))
     #        ((a c) (b d)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["take"](
+            S.collapse(
+                S.take(
                     2,
-                    S["match"](
+                    S.match(
                         S["&self"],
                         S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)),
-                        expr(V.x, V.z),
+                        (V.x, V.z),
                     ),
                 )
             ),
-            expr(expr(S.a, S.c), expr(S.b, S.d)),
+            ((S.a, S.c), (S.b, S.d)),
         )
     )

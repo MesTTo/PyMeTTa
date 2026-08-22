@@ -5,11 +5,16 @@ the third, so a function written forwards reads backwards for free. Past one
 unknown the rearrangement runs out and a constraint begins, which is what the
 `#` family is for.
 
-Nothing here needs a new door. `@m.define` writes the two equations, `let`
-and `collapse` are ordinary terms, and the expected values are terms too.
+Nothing here needs a new door, and nothing is spelled with a function that
+Python spells with punctuation. `@m.define` writes the two equations; the
+backward queries are ordinary operators, because an operator over an atom
+BUILDS the term (`V.p + 2` is `(+ $p 2)`) and every backward query has an
+unbound variable in it; and an expected answer is a Python tuple, which
+encodes to the expression the original writes, `(5,)` for `(5)` and
+`((-25, -1), ...)` for a list of pairs.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -61,22 +66,22 @@ def twin(m):
     # !(test (double 5) 10)
     yield m.eval(S.test(S.double(5), 10))
     # !(test (let 10 (double $x) $x) 5)
-    yield m.eval(S.test(S["let"](10, S.double(V.x), V.x), 5))
+    yield m.eval(S.test(S.let(10, S.double(V.x), V.x), 5))
 
     # Each operator solves for its one unbound slot.
     # !(test (let 5 (+ $p 2) $p) 3)
-    yield m.eval(S.test(S["let"](5, S["+"](V.p, 2), V.p), 3))
+    yield m.eval(S.test(S.let(5, V.p + 2, V.p), 3))
     # !(test (let 12 (* $q 4) $q) 3)
-    yield m.eval(S.test(S["let"](12, S["*"](V.q, 4), V.q), 3))
+    yield m.eval(S.test(S.let(12, V.q * 4, V.q), 3))
     # !(test (let 6 (- $r 4) $r) 10)
-    yield m.eval(S.test(S["let"](6, S["-"](V.r, 4), V.r), 10))
+    yield m.eval(S.test(S.let(6, V.r - 4, V.r), 10))
     # !(test (let 3 (/ $s 4) $s) 12)
-    yield m.eval(S.test(S["let"](3, S["/"](V.s, 4), V.s), 12))
+    yield m.eval(S.test(S.let(3, V.s / 4, V.s), 12))
 
     # No integer answers it, so it FAILS rather than erroring: the empty
     # collapse IS the answer.
     # !(test (collapse (let 7 (double $x) $x)) ())
-    yield m.eval(S.test(S["collapse"](S["let"](7, S.double(V.x), V.x)), expr()))
+    yield m.eval(S.test(S.collapse(S.let(7, S.double(V.x), V.x)), ()))
 
     @m.define
     def square(x):
@@ -88,22 +93,22 @@ def twin(m):
     # !(test (collapse (let 25 (square $x) $x)) (noeval (-5 5)))
     yield m.eval(
         S.test(
-            S["collapse"](S["let"](25, S.square(V.x), V.x)),
-            S.noeval(expr(-5, 5)),
+            S.collapse(S.let(25, S.square(V.x), V.x)),
+            S.noeval((-5, 5)),
         )
     )
     # !(test (collapse (let 25 (* $x $y) ($x $y))) (noeval ((-25 -1) ...)))
     yield m.eval(
         S.test(
-            S["collapse"](S["let"](25, S["*"](V.x, V.y), expr(V.x, V.y))),
+            S.collapse(S.let(25, V.x * V.y, (V.x, V.y))),
             S.noeval(
-                expr(
-                    expr(-25, -1),
-                    expr(-5, -5),
-                    expr(-1, -25),
-                    expr(1, 25),
-                    expr(5, 5),
-                    expr(25, 1),
+                (
+                    (-25, -1),
+                    (-5, -5),
+                    (-1, -25),
+                    (1, 25),
+                    (5, 5),
+                    (25, 1),
                 )
             ),
         )
@@ -114,10 +119,8 @@ def twin(m):
     # !(test (collapse (let True (#>= $x 0) (let 25 (square $x) $x))) (5))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](TRUE, S["#>="](V.x, 0), S["let"](25, S.square(V.x), V.x))
-            ),
-            expr(5),
+            S.collapse(S.let(TRUE, S["#>="](V.x, 0), S.let(25, S.square(V.x), V.x))),
+            (5,),
         )
     )
 
@@ -125,7 +128,7 @@ def twin(m):
     # query reaches the inner operation with two unknowns. The `#` operators
     # POST rather than solve, so the inner constraint waits.
     # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S["let"](20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
 
     # Integer division, remainder, and the two extremes.
     # !(test (#div 13 4) 3)
@@ -159,4 +162,4 @@ def twin(m):
 
     # Composed, and still solvable backwards through two constraints.
     # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S["let"](20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))

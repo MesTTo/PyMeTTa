@@ -4,11 +4,17 @@ Two equations by two doors, and the reason is a real hole. `fib-tr` compiles
 from Python because a body may name ITSELF in either spelling. `fib` cannot,
 because a compiled body resolves a free name EXACTLY and the engine knows
 `fib-tr`, not `fib_tr`; so the second equation is added as the atom it is,
-`m += S["="](head, body)`, which is the container protocol writing a bare
+`m += equation(head).to(body)`, which is the container protocol writing a bare
 equation with no string anywhere.
 """
 
-from petta import S, V
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: `fib`'s equation is written at the container door: its body names `fib-tr`, and a
+#: compiled body resolves a free name EXACTLY, so a hyphenated engine function cannot be reached
+#: from one.
+RUNG = "container door for fib, whose body names fib-tr and a compiled body resolves a free name exactly"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8880 to 8679, -201 (-2.26%), by
@@ -59,7 +65,7 @@ def twin(m):
         return a if n == 0 else fib_tr(n - 1, b, a + b)
 
     # (= (fib $n) (fib-tr $n 0 1))
-    m += S["="](S.fib(V.n), S["fib-tr"](V.n, 0, 1))
+    m += equation(S.fib(V.n)).to(S["fib-tr"](V.n, 0, 1))
 
     # !(test (fib 100) 354224848179261915075)
     yield m.eval(S.test(S.fib(100), 354224848179261915075))

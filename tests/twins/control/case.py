@@ -9,7 +9,12 @@ residue table records that against P14.4, which owns the growth. A `case`'s
 branches are matched, never evaluated, so they are terms either way.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: a `case` is what Python's `match` statement would spell and the compiled subset has no
+#: lowering for one, so the equation is written at the container door. P14.4 owns the growth.
+RUNG = "container door: a case is Python's match statement, which the compiled subset has no lowering for"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1501 to 1529, +28, by P14.8's
@@ -30,16 +35,15 @@ def twin(m):
     #    (case $x ((4 42)
     #              ($otherpattern 44)
     #              ($otherother $45))))
-    m += S["="](
-        S.casetest(V.x),
-        S["case"](
+    m += equation(S.casetest(V.x)).to(
+        S.case(
             V.x,
-            expr(
-                expr(4, 42),
-                expr(V.otherpattern, 44),
-                expr(V.otherother, V["45"]),
+            (
+                (4, 42),
+                (V.otherpattern, 44),
+                (V.otherother, V["45"]),
             ),
-        ),
+        )
     )
 
     # !(test (casetest 5) 44)

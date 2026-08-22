@@ -15,7 +15,13 @@ parameter, which no Python binding names. Wave one recorded the first half
 against P14.4 for `time_and_pragmas`.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: two drops. `mk-tagger`'s lambda mints `(tagged $item $fresh)` from a lowercase free
+#: name and a variable no parameter names, neither of which a compiled body spells. And `(+ 1 2)`
+#: reaches `sealed` as DATA with two GROUND operands, where Python's `+` computes the sum.
+RUNG = "container door for mk-tagger's lambda, plus ground operands in the (+ 1 2) sealed is handed"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9491 to 9793, +302, by P14.8's
@@ -37,10 +43,10 @@ def twin(m):
     # !(test (let $atom (sealed () (let $x 2 $x)) (eval $atom)) 2)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.atom,
-                S["sealed"](expr(), S["let"](V.x, 2, V.x)),
-                S["eval"](V.atom),
+                S.sealed((), S.let(V.x, 2, V.x)),
+                S.eval(V.atom),
             ),
             2,
         )
@@ -50,10 +56,10 @@ def twin(m):
     # !(test (let $atom (sealed () (let $y 5 $y)) (eval $atom)) 5)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.atom,
-                S["sealed"](expr(), S["let"](V.y, 5, V.y)),
-                S["eval"](V.atom),
+                S.sealed((), S.let(V.y, 5, V.y)),
+                S.eval(V.atom),
             ),
             5,
         )
@@ -64,18 +70,14 @@ def twin(m):
     # !(test (collapse (let $z 7 (sealed ($z) ($z $w)))) ((7 $unbound)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
-                    V.z, 7, S["sealed"](expr(V.z), expr(V.z, V.w))
-                )
-            ),
-            expr(expr(7, V.unbound)),
+            S.collapse(S.let(V.z, 7, S.sealed((V.z,), (V.z, V.w)))),
+            ((7, V.unbound),),
         )
     )
 
     # A ground Atom has no variable to rename.
     # !(test (sealed () 42) 42)
-    yield m.eval(S.test(S["sealed"](expr(), 42), 42))
+    yield m.eval(S.test(S.sealed((), 42), 42))
 
     # Nested sealed forms produce nested data. Each eval consumes one
     # returned layer, and each layer owns a distinct fresh variable.
@@ -84,17 +86,17 @@ def twin(m):
     #        3)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.atom,
-                S["sealed"](
-                    expr(),
-                    S["let"](
+                S.sealed(
+                    (),
+                    S.let(
                         V.n,
                         2,
-                        S["sealed"](expr(), S["let"](V.n, 3, V.n)),
+                        S.sealed((), S.let(V.n, 3, V.n)),
                     ),
                 ),
-                S["let"](V.step, S["eval"](V.atom), S["eval"](V.step)),
+                S.let(V.step, S.eval(V.atom), S.eval(V.step)),
             ),
             3,
         )
@@ -103,30 +105,25 @@ def twin(m):
     # A lambda renames its binders on every application; sealed freshens the
     # other variables in its returned Atom.
     # (= (mk-tagger) (|-> ($item) (sealed ($item) (tagged $item $fresh))))
-    m += S["="](
-        S["mk-tagger"](),
+    m += equation(S["mk-tagger"]()).to(
         S["|->"](
-            expr(V.item),
-            S["sealed"](
-                expr(V.item), S.tagged(V.item, V.fresh)
-            ),
-        ),
+            (V.item,),
+            S.sealed((V.item,), S.tagged(V.item, V.fresh)),
+        )
     )
 
     # !(test (collapse (let $f (mk-tagger) (superpose (($f 1) ($f 2)))))
     #        ((tagged 1 $a) (tagged 2 $b)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     V.f,
                     S["mk-tagger"](),
-                    S["superpose"](
-                        expr(expr(V.f, 1), expr(V.f, 2))
-                    ),
+                    S.superpose(((V.f, 1), (V.f, 2))),
                 )
             ),
-            expr(S.tagged(1, V.a), S.tagged(2, V.b)),
+            (S.tagged(1, V.a), S.tagged(2, V.b)),
         )
     )
 
@@ -135,16 +132,14 @@ def twin(m):
     #        ((both 7 $c)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     V.outer,
                     7,
-                    S["sealed"](
-                        expr(V.outer), S.both(V.outer, V.local)
-                    ),
+                    S.sealed((V.outer,), S.both(V.outer, V.local)),
                 )
             ),
-            expr(S.both(7, V.c)),
+            (S.both(7, V.c),),
         )
     )
 
@@ -153,9 +148,9 @@ def twin(m):
     # under add-atom would store the sealed expression itself.
     # !(let $rule (sealed () (stored-rule $r ok)) (add-atom &self $rule))
     # answers (())
-    stored = S["let"](
+    stored = S.let(
         V.rule,
-        S["sealed"](expr(), S["stored-rule"](V.r, S.ok)),
+        S.sealed((), S["stored-rule"](V.r, S.ok)),
         S["add-atom"](S["&self"], V.rule),
     )
     yield m.eval(stored)
@@ -165,14 +160,14 @@ def twin(m):
     #        (($p ok) ($q ok)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](
+            S.collapse(
+                S.match(
                     S["&self"],
                     S["stored-rule"](V.x, V.y),
-                    expr(V.x, V.y),
+                    (V.x, V.y),
                 )
             ),
-            expr(expr(V.p, S.ok), expr(V.q, S.ok)),
+            ((V.p, S.ok), (V.q, S.ok)),
         )
     )
 
@@ -181,20 +176,18 @@ def twin(m):
     #        ((pair $fresh 2)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["let"](
+            S.collapse(
+                S.let(
                     V.x,
                     1,
-                    S["let"](
+                    S.let(
                         V.y,
                         2,
-                        S["sealed"](
-                            expr(V.y), S.pair(V.x, V.y)
-                        ),
+                        S.sealed((V.y,), S.pair(V.x, V.y)),
                     ),
                 )
             ),
-            expr(S.pair(V.fresh, 2)),
+            (S.pair(V.fresh, 2),),
         )
     )
 
@@ -202,10 +195,10 @@ def twin(m):
     # !(test (let $atom (sealed () (+ 1 2)) (eval $atom)) 3)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.atom,
-                S["sealed"](expr(), S["+"](1, 2)),
-                S["eval"](V.atom),
+                S.sealed((), S["+"](1, 2)),
+                S.eval(V.atom),
             ),
             3,
         )

@@ -12,6 +12,12 @@ records the hole against P14.4.
 
 from petta import S, val
 
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: `(* e e)` has two GROUND operands, so Python's `*` computes the product instead of
+#: building the term the original compares against. The two enclosing `<` and `-` terms do have an
+#: atom operand and are ordinary operators.
+RUNG = "ground operands: (* e e) has two, where Python's * computes the product"
+
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.
@@ -60,15 +66,8 @@ def twin(m):
     # !(test (< (abs-math (- (exp-math 2.0) (* e e))) 1.0e-12) true)
     yield m.eval(
         S.test(
-            S["<"](
-                S["abs-math"](
-                    S["-"](
-                        S["exp-math"](2.0),
-                        S["*"](2.718281828459045, 2.718281828459045),
-                    )
-                ),
-                1.0e-12,
-            ),
+            S["abs-math"](S["exp-math"](2.0) - S["*"](2.718281828459045, 2.718281828459045))
+            < 1.0e-12,
             TRUE,
         )
     )
@@ -76,15 +75,7 @@ def twin(m):
     # !(test (< (abs-math (- (log-math e (exp-math 3.0)) 3.0)) 1.0e-12) true)
     yield m.eval(
         S.test(
-            S["<"](
-                S["abs-math"](
-                    S["-"](
-                        S["log-math"](2.718281828459045, S["exp-math"](3.0)),
-                        3.0,
-                    )
-                ),
-                1.0e-12,
-            ),
+            S["abs-math"](S["log-math"](2.718281828459045, S["exp-math"](3.0)) - 3.0) < 1.0e-12,
             TRUE,
         )
     )
@@ -98,8 +89,6 @@ def twin(m):
     # !(test (in-range 1 6 (random-int 1 6)) true)
     yield m.eval(S.test(S["in-range"](1, 6, S["random-int"](1, 6)), TRUE))
     # !(test (in-range 0.0 1.0 (random-float 0.0 1.0)) true)
-    yield m.eval(
-        S.test(S["in-range"](0.0, 1.0, S["random-float"](0.0, 1.0)), TRUE)
-    )
+    yield m.eval(S.test(S["in-range"](0.0, 1.0, S["random-float"](0.0, 1.0)), TRUE))
     # !(test (in-range 5 5 (random-int 5 5)) true)
     yield m.eval(S.test(S["in-range"](5, 5, S["random-int"](5, 5)), TRUE))

@@ -8,6 +8,11 @@ weight.
 
 from petta import S, V, val
 
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the else arm `(+ 2 2)` is DATA with two GROUND operands, where Python's `+` computes
+#: the sum instead of building the term.
+RUNG = "ground operands: the else arm (+ 2 2) has two, where Python's + computes the sum"
+
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

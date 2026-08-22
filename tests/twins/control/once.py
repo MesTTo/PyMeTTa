@@ -9,7 +9,13 @@ pattern, so a definition parameterised over space, pattern and template has no
 compiled spelling (P14.4).
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: `match-single` applies `match` to a SPACE, a PATTERN and a TEMPLATE that are all
+#: parameters, and the compiled subset's own `match(...)` takes a literal space name and a
+#: structural pattern read as syntax.
+RUNG = "container door for match-single, whose space, pattern and template are all parameters"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 2331 to 2376, +45, by P14.8's
@@ -32,15 +38,14 @@ def twin(m):
     m += S.foo(2)
 
     # (= (match-single $space $pat $ret) (once (match $space $pat $ret)))
-    m += S["="](
-        S["match-single"](V.space, V.pat, V.ret),
-        S["once"](S["match"](V.space, V.pat, V.ret)),
+    m += equation(S["match-single"](V.space, V.pat, V.ret)).to(
+        S.once(S.match(V.space, V.pat, V.ret))
     )
 
     # !(let $x (match-single &self (foo $1) $1) (add-atom &self (bar $x)))
     # answers (())
     yield m.eval(
-        S["let"](
+        S.let(
             V.x,
             S["match-single"](S["&self"], S.foo(V.one), V.one),
             S["add-atom"](S["&self"], S.bar(V.x)),
@@ -50,9 +55,7 @@ def twin(m):
     # !(test (collapse (match &self (bar $1) (bar $1))) ((bar 1)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S.bar(V.one), S.bar(V.one))
-            ),
-            expr(S.bar(1)),
+            S.collapse(S.match(S["&self"], S.bar(V.one), S.bar(V.one))),
+            (S.bar(1),),
         )
     )

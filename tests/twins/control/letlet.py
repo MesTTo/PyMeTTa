@@ -7,11 +7,16 @@ spells that `f1, c1, _ = 1, 2, d1`, and a compiled body refuses a tuple target
 ("a compiled body binds plain names; destructuring and attribute assignment
 have no let* form"). The residue table records that against P14.4.
 
-So the ladder's other rung carries it: `m += S["="](head, body)` lands exactly
+So the ladder's other rung carries it: `m += equation(head).to(body)` lands exactly
 the atom the file lands, with no string anywhere.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
+#: the `let*` binding is a destructuring PATTERN, and a compiled body binds plain names:
+#: "destructuring and attribute assignment have no let* form".
+RUNG = "container door for f, whose let* binding is a destructuring pattern"
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1681 to 1709, +28, by P14.8's
@@ -29,13 +34,12 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1)))
-    m += S["="](
-        S.f(),
+    m += equation(S.f()).to(
         S["let*"](
-            expr(expr(expr(V.f1, V.c1, 3), expr(1, 2, V.d1))),
-            expr(V.f1, V.c1, V.d1),
-        ),
+            (((V.f1, V.c1, 3), (1, 2, V.d1)),),
+            (V.f1, V.c1, V.d1),
+        )
     )
 
     # !(test (f) (1 2 3))
-    yield m.eval(S.test(S.f(), expr(1, 2, 3)))
+    yield m.eval(S.test(S.f(), (1, 2, 3)))
