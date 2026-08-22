@@ -1,100 +1,73 @@
-"""The Python twin of examples/spaces/mutex_and_transaction.metta: a mutex and a rollback.
+"""examples/spaces/mutex_and_transaction.metta in Python: a counter five threads share.
 
-Read-modify-write on `(cnt $x)` is a data race unless the readers and writers
-share a mutex, and a transaction undoes the removal when the branch inside it
-fails, so the count is unchanged after the rollback.
+Read-modify-write on a shared count is a race unless the readers and the
+writers agree on a lock, so the example writes the increment three ways: the
+sloppy one that would race, the mutex-protected one that does not, and one
+wrapped in a transaction whose branch fails, which rolls the removal back.
+Five protected increments run at once and 37 becomes 42.
 
-All three equations are written at the container door, and the reason is the same
-one three times over: a compiled body resolves a free name against the engine's
-function registry, and `with_mutex`, `transaction`, `add-atom` and `remove-atom`
-are out of reach there, the first two because they are not registry functions and
-the last two because Python cannot spell a hyphen (residue, P14.4). The shared
-increment body is built ONCE as a Python value and reused, which is composition
-by naming rather than by copying.
-
-Three forms are declined: the hyperpose race and the two assertions that observe
-its result have no point inference budget, which the residue records against
-P14.14 with the measurements that decided it.
+`m.hyperpose(*targets)` is the parallel door under the language's own name, so
+running the five branches is one Python call. The three definitions are terms:
+each body reads with `match`, writes with hyphenated heads, and the outer two
+name `with_mutex` and `transaction`, which are translator forms rather than
+registry functions (residue, P14.4). Reading the aftermath is the container
+door, `list(space)`.
 """
 
-from petta import S, V, equation, expr
-
-#: The answer group a write form contributes. `add-atom` answers the unit,
-#: which is what Python's own None means at this seam (§9d).
-WROTE = (expr(),)
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5311 to 5044, -267 (-5.0%), by the P14 twin-style
-#: rewrite, and the whole delta is the one live write: `!(add-atom &temp
-#: (cnt 37))` now goes through the container door, `temp += (S.cnt, 37)`,
-#: inside the 239-to-311 band this folder measures for a plain-atom write.
-#: The three
-#: equations still enter at the container door and measure identically; naming
-#: the shared increment body once stores the same three atoms.
-#: Prior: ADDED 2026-08-22 at 5311 by the wave-3 spaces baseline, which already
-#: declined forms 1, 2 and 4 for want of a point budget over a hyperpose race.
-BUDGET = 5044
+#: RE-PINNED 2026-08-22, 5044 to 15511, +10467 (+207.5%), and the whole
+#: increase is WORK THAT NOW HAPPENS: the previous twin declined the hyperpose
+#: form and both claims after it, so it never ran the five mutex-protected
+#: increments at all, and this one does. What moved the other way is small by
+#: comparison, two `(test (collapse (get-atoms &temp)) ...)` terms becoming two
+#: `assert`s over `list(space)`. Against the example's 28092 the ratio is
+#: 0.5521, so performing the declined forms still costs about half of what the
+#: original costs.
+#: THE ONLY FILE IN THIS FOLDER WHOSE COUNTER IS NOT POINT-DETERMINISTIC:
+#: hyperpose schedules five OS threads, so seven fresh processes measured
+#: 15510, 15511, 15512 and 15513, a spread of 3 against the lane's own
+#: allowance of 4, and the example itself spread 2 over five runs
+#: (28092-28094). So the pin is the MIDDLE of the observed range rather than
+#: the min, which keeps every observed value inside the allowance from either
+#: side [measured 2026-08-22].
+#: Prior: 5044, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 15511
+
+
+def increment(at_temp, *tail):
+    """The read-modify-write all three definitions share.
+
+    `(match &temp (cnt $x) ((remove-atom &temp (cnt $x))
+                            (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))`,
+    with anything in `tail` appended to the template.
+    """
+    take = S["remove-atom"](at_temp, S.cnt(V.x))  # rung: an equation body is one term, where the container doors are Python statements
+    put = S.let(V.inc, V.x + 1, S["add-atom"](at_temp, S.cnt(V.inc)))  # rung: as above
+    return S.match(at_temp, S.cnt(V.x), (take, put, *tail))  # rung: as above
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it. A form the
-    twin declines yields None and carries a residue entry.
-    """
+    """Increment a shared counter five times at once, then roll one back."""
     temp = m.space("&temp")
-    add, remove = S["add-atom"], S["remove-atom"]
-    here = S[temp.space_name]
-
-    # !(add-atom &temp (cnt 37))
+    at_temp = S[temp.space_name]
     temp += (S.cnt, 37)
-    yield WROTE
 
-    # The read-modify-write every definition below shares.
-    #    (match &temp (cnt $x)
-    #           ((remove-atom &temp (cnt $x))
-    #            (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))
-    increment = S.match(
-        here,
-        S.cnt(V.x),
-        (
-            remove(here, S.cnt(V.x)),
-            S.let(V.inc, V.x + 1, add(here, S.cnt(V.inc))),
-        ),
-    )
-
-    # (= (sloppyinc) <increment>)
-    m += equation(S.sloppyinc()).to(increment)
-
-    # (= (mutexinc) (with_mutex testmutex <increment>))
-    m += equation(S.mutexinc()).to(S.with_mutex(S.testmutex, increment))
-
-    # The transaction's branch ends in (empty), so it fails and the removal is
-    # undone.
-    # (= (Transaction_rollback_fail_to_inc) (transaction <increment + (empty)>))
+    # This only works predictably single-threaded, else there is a data race.
+    m += equation(S.sloppyinc()).to(increment(at_temp))
+    # The mutex is what makes concurrent increments safe: every place that
+    # modifies (cnt $n) takes the same one.
+    m += equation(S.mutexinc()).to(S.with_mutex(S.testmutex, increment(at_temp)))
+    # A transaction undoes the removal when the branch inside it fails.
     m += equation(S.Transaction_rollback_fail_to_inc()).to(
-        S.transaction(
-            S.match(
-                here,
-                S.cnt(V.x),
-                (
-                    remove(here, S.cnt(V.x)),
-                    S.let(V.inc, V.x + 1, add(here, S.cnt(V.inc))),
-                    S.empty(),
-                ),
-            )
-        )
+        S.transaction(increment(at_temp, S.empty()))
     )
 
-    # !(hyperpose ((mutexinc) (mutexinc) (mutexinc) (mutexinc) (mutexinc)))
-    yield None
+    m.hyperpose(*(S.mutexinc() for _ in range(5)))
+    assert list(temp) == [S.cnt(42)]
 
-    # !(test (collapse (get-atoms &temp)) ((cnt 42)))
-    yield None
-
-    # !(Transaction_rollback_fail_to_inc)
-    yield m.eval(S.Transaction_rollback_fail_to_inc())
-
-    # !(test (collapse (get-atoms &temp)) ((cnt 42)))
-    yield None
+    m.eval(S.Transaction_rollback_fail_to_inc())
+    assert list(temp) == [S.cnt(42)]

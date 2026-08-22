@@ -1,43 +1,32 @@
-"""The Python twin of examples/translation/translatepredicate.metta.
+"""examples/translation/translatepredicate.metta in Python: a Prolog goal inline.
 
-`translatePredicate` compiles a Prolog goal into the running program, so the
-two goals here are `is(X, 2)` and `+(X, 40, Z)`, and `progn` runs them in
-order and answers `$z`.
+`translatePredicate` compiles its argument straight into the clause the
+translator is building, so `(is $x 2)` and `(+ $x 40 $z)` are Prolog goals that
+run where the equation runs, and `progn` sequences them so the second sees what
+the first bound.
 
-The form is the term door because it is a runnable form and not a definition.
-`+` is named rather than reached through Python's operator because it appears
-here as a THREE-PLACE RELATION: Python's `+` is binary and left-associating,
-so `V.x + 40 + V.z` would build `(+ (+ $x 40) $z)`, a different term. The
-residue table records the missing spelling against P14.4.
+That sequencing has to happen in one engine call, which is why this file is one
+term rather than three Python statements: the first goal binds `$x` and the
+second reads it, and a Python variable cannot hold a binding the engine has not
+finished making (residue, P14.10). Everything else is ordinary: the term is
+built at the `S.` door and asked once.
 """
 
 from petta import S, V
 
-#: `+` as the three-place Prolog relation this goal names, not as arithmetic.
-plus = S["+"]
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 685 to 685, +0, by the wave-4 idiom rewrite: the form
-#: is the same term built at the same door, so the rewrite is a SPELLING
-#: change and the counter says so.
-BUDGET = 685
+#: RE-PINNED 2026-08-22, 685 to 535, -150 (-21.9%), by the twin contract
+#: change: `(test (progn ...) 42)` became one `assert`, so only the `test`
+#: wrapper left the engine and the two translated goals stayed in it. Against
+#: the example's 2261 the ratio is 0.2366.
+#: Prior: 685, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 535
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(test (progn (translatePredicate (is $x 2))
-    #               (translatePredicate (+ $x 40 $z)) $z)
-    #        42)
-    yield m.eval(
-        S.test(
-            S.progn(
-                S.translatePredicate(S["is"](V.x, 2)),
-                S.translatePredicate(plus(V.x, 40, V.z)),
-                V.z,
-            ),
-            42,
-        )
-    )
+    """Run two Prolog goals in sequence, and read what the second bound."""
+    translate = S.translatePredicate
+    goals = S.progn(translate(S["is"](V.x, 2)), translate(S["+"](V.x, 40, V.z)), V.z)
+    assert m.one(goals) == 42

@@ -1,70 +1,53 @@
-"""The Python twin of examples/translation/myinterpreter.metta.
+"""examples/translation/myinterpreter.metta in Python: an interpreter in three lines.
 
-A three-line interpreter written in MeTTa: because `myinterpreter`'s parameter
-is typed `Atom`, the argument arrives UNREDUCED, and the body runs it with
-`eval` after printing it. Laziness is callee-declared, which is why the
-declaration is the whole mechanism.
+A parameter typed `Atom` receives its argument UNREDUCED, so `myinterpreter`
+gets the `(if ...)` term itself and decides when to evaluate it. That is the
+whole of MeTTa's quoting story: laziness is declared by the callee, not spelled
+at the call site.
 
-`w` and `v` are computations and are written as ones. `myinterpreter` stays at
-the container door, and its declaration with it: the body names `println!`,
-which is not a Python identifier and therefore not a name a compiled body can
-resolve, and the residue table records that against P14.4. Its type would have
-come from a `code: Atom` annotation had the body compiled.
+Which is why the two `if` terms below are DATA. They are built at the `S.` door
+and handed over as arguments, never run as control flow, so Python's own `if`
+is not the spelling for them even though it is the spelling everywhere else.
 
-The two runnable forms build `(== 1 1)` with `val(1).eq(1)`, the atom method,
-because Python's `==` on atoms is structural equality and answers a bool.
+The interpreter itself is at the container door: its body calls `println!`,
+which a compiled body has no way to spell, and binds the result of that call
+with a `let` whose only purpose is sequencing (residue, P14.4). `w` and `v` are
+ordinary compiled definitions, which is what makes the point that the code
+being interpreted is the same code anything else would call.
 """
 
 from petta import S, V, equation, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5361 to 7183, +1822 (+33.99%), by the wave-4 idiom
-#: rewrite moving `w` and `v` onto @m.define. COMPILING a definition costs
-#: more than STORING one, and the difference is paid once per process plus a
-#: little per definition, never per call: four trivial one-parameter
-#: definitions in a fresh process measured 2221 / 2986 / 3751 / 4516
-#: inferences through @m.define against 592 / 1164 / 1736 / 2308 through
-#: `m += equation(...).to(...)`, so the first compiled definition costs 1,629
-#: more and each one after it 193 more. Two nullary definitions here measured
-#: exactly 1,822 over the same file with both stored, which is that first
-#: charge plus one more definition, 1629 + 193.
-BUDGET = 7183
+#: RE-PINNED 2026-08-22, 7183 to 6900, -283 (-3.9%), by the twin contract
+#: change: two `(test (myinterpreter ...) ...)` terms became two Python
+#: `assert`s, so the `test` wrapper left the engine twice while both
+#: interpretations, both printed lines and all three definitions stayed in it.
+#: Against the example's 9344 the ratio is 0.7384.
+#: Prior: 7183, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 6900
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # (: myinterpreter (-> Atom %Undefined%))
+    """Define an interpreter, then hand it two branches to interpret."""
+    # (: myinterpreter (-> Atom %Undefined%)): the Atom parameter is what makes
+    # the argument arrive unreduced.
     m += S[":"](S.myinterpreter, S["->"](S.Atom, S["%Undefined%"]))
 
     # (= (myinterpreter $code)
-    #    (let $temp (println! ("Runtime-interpreting code" $code))
-    #         (eval $code)))
-    m += equation(S.myinterpreter(V.code)).to(
-        S.let(
-            V.temp,
-            S["println!"]((val("Runtime-interpreting code"), V.code)),
-            S.eval(V.code),
-        )
-    )
+    #    (let $temp (println! ("Runtime-interpreting code" $code)) (eval $code)))
+    announce = S["println!"]((val("Runtime-interpreting code"), V.code))  # rung: a compiled body has no spelling for println!
+    m += equation(S.myinterpreter(V.code)).to(S.let(V.said, announce, S.eval(V.code)))  # rung: a let whose only job is sequencing a call it then ignores
 
     @m.define
     def w():
-        # (= (w) 42)
         return 42
 
     @m.define
     def v():
-        # (= (v) 43)
         return 43
 
-    # !(test (myinterpreter (if (== 1 1) (w) (v))) 42)
-    yield m.eval(
-        S.test(S.myinterpreter(S["if"](val(1).eq(1), S.w(), S.v())), 42)
-    )
-    # !(test (myinterpreter (if (== 1 2) (w) (v))) 43)
-    yield m.eval(
-        S.test(S.myinterpreter(S["if"](val(1).eq(2), S.w(), S.v())), 43)
-    )
+    assert m.one(S.myinterpreter(S["if"](S["=="](1, 1), S.w(), S.v()))) == 42  # rung: this `if` is DATA, the unreduced argument of an Atom-typed parameter
+    assert m.one(S.myinterpreter(S["if"](S["=="](1, 2), S.w(), S.v()))) == 43  # rung: as above

@@ -1,33 +1,36 @@
-"""The Python twin of examples/translation/translatorrule_guard.metta.
+"""examples/translation/translatorrule_guard.metta in Python: rules that decline.
 
 A translator rule's head is a PATTERN, so a rule can carry a guard: it names
-the shape it rewrites and a call of another shape falls through to ordinary
-dispatch. The example walks that from both sides, and adds the other half a
-head shape cannot say, which is that a rule's BODY is its condition too: a
-clause whose body has no answer declines and the next clause is tried.
+the shape it rewrites, and a call of another shape falls through to ordinary
+dispatch rather than bringing the translation down. The example walks that from
+both sides, then adds the half a head shape cannot say, which is that a rule's
+BODY is its condition too: a clause whose body has no answer declines, and the
+next clause is tried.
 
-Every definition here stays at the container door, and the reasons are the
-compiled subset's own. `add-pairs`, `hold-pairs`, `pick` and `only-a` select
-on head PATTERNS, `(pair $a $b)` and the symbol `a`, where a compiled head
-pattern is a literal default and reaches neither a structure nor a symbol.
-`holds-a-miss` names the hyphenated `add-pairs`, which a compiled body cannot
-resolve because it resolves a free name exactly. `pick` and `both-ways` answer
-LOWERCASE SYMBOLS as data, `(picked $x)` and `bw-one`, and a lowercase free
-name in a compiled body is looked up as a function while a capitalised one
-would be a different atom. All three are recorded against P14.4.
+Every definition here is a term, and the compiled subset's own rules say why.
+`add-pairs`, `hold-pairs`, `pick` and `only-a` select on head PATTERNS,
+`(pair $a $b)` and the symbol `a`, where a compiled head pattern is a literal
+default and reaches neither a structure nor a symbol. `holds-a-miss` names the
+hyphenated `add-pairs`, which a body resolves exactly as written. And `pick`
+and `both-ways` answer LOWERCASE symbols as data (residue, P14.4).
 
-What the rewrite does reach is the term door, where every form below is one
-call over data: a symbol calls to build, and a plain Python tuple is the
-expression its arguments are.
+What is ordinary is the asking. A rule that declines has no answer, and
+`m.fn(name).all(...)` is what an answer set with nothing in it looks like from
+Python: the empty list, not an error.
 """
 
-from petta import S, V, equation
+from petta import REFLECTION_SPACE, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 17296 to 17296, +0, by the wave-4 idiom rewrite:
-#: every form is the same term built at the same door, so the rewrite is a
-#: SPELLING change and the counter says so.
-BUDGET = 17296
+#: RE-PINNED 2026-08-22, 17296 to 11052, -6244 (-36.1%), by the twin contract
+#: change: eleven `(test ...)` terms became eleven Python `assert`s, so `test`
+#: left the engine eleven times and five `collapse`s went with it, replaced by
+#: `.all()`. The four rules, their registrations and every call over them
+#: stayed. Against the example's 36588 the ratio is 0.3021.
+#: Prior: 17296, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 11052
 
 
 def pair_sum(head):
@@ -41,120 +44,70 @@ def pair_sum(head):
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Register four guarded rules, and ask each of them a hit and a miss."""
+    reflection = m.space(REFLECTION_SPACE)
+    reflection += (S["dispatch-policy"], S["add-pairs"], S.NoMatchEnum, S.NoMatchFail)
+    add_rule = m.fn("add-translator-rule!")
+    atom_pair = S["->"](S.Atom, S.Atom, S["%Undefined%"])
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    an `add-atom` or `add-translator-rule!` form answers what it added.
-    """
-    # !(add-atom &petta (dispatch-policy add-pairs NoMatchEnum NoMatchFail))
-    yield m.eval(
-        S["add-atom"](
-            S["&petta"],
-            S["dispatch-policy"](
-                S["add-pairs"], S.NoMatchEnum, S.NoMatchFail
-            ),
-        )
-    )
-
-    # This one rewrites a pair addition only when both arguments are pairs.
-    # (: add-pairs (-> Atom Atom %Undefined%))
-    m += S[":"](S["add-pairs"], S["->"](S.Atom, S.Atom, S["%Undefined%"]))
-    # (= (add-pairs (pair $a $b) (pair $c $d))
-    #    (noeval (pair (+ $a $c) (+ $b $d))))
+    # This rule rewrites a pair addition only when both arguments are pairs,
+    # which is the shape the rewrite knows how to add.
+    m += S[":"](S["add-pairs"], atom_pair)
     m += pair_sum(S["add-pairs"])
-    # !(add-translator-rule! add-pairs)
-    yield m.eval(S["add-translator-rule!"](S["add-pairs"]))
+    add_rule(S["add-pairs"])
 
-    # !(test (add-pairs (pair 1 2) (pair 10 20)) (pair 11 22))
-    yield m.eval(
-        S.test(
-            S["add-pairs"](S.pair(1, 2), S.pair(10, 20)), S.pair(11, 22)
-        )
-    )
+    assert m.one(S["add-pairs"](S.pair(1, 2), S.pair(10, 20))) == S.pair(11, 22)
 
-    # A call the rule does not match carries on to ordinary dispatch, so a
-    # miss has no answer rather than bringing the translation down.
-    # !(test (collapse (add-pairs 1 2)) ())
-    yield m.eval(S.test(S.collapse(S["add-pairs"](1, 2)), ()))
+    # A call the rule does not match is not an error: it carries on to ordinary
+    # dispatch, so a miss has no answer.
+    assert m.fn("add-pairs").all(1, 2) == []
 
-    # (= (holds-a-miss) (add-pairs 1 2))
+    # That is what lets a guarded rule live inside a definition at all.
     m += equation(S["holds-a-miss"]()).to(S["add-pairs"](1, 2))
-    # !(test (collapse (holds-a-miss)) ())
-    yield m.eval(S.test(S.collapse(S["holds-a-miss"]()), ()))
+    assert m.fn("holds-a-miss").all() == []
 
     # To hand a miss back as DATA instead, write the identity as a second
-    # equation; noeval stops the expansion from going round again.
-    # (: hold-pairs (-> Atom Atom %Undefined%))
-    m += S[":"](S["hold-pairs"], S["->"](S.Atom, S.Atom, S["%Undefined%"]))
-    # (= (hold-pairs (pair $a $b) (pair $c $d))
-    #    (noeval (pair (+ $a $c) (+ $b $d))))
+    # equation; `noeval` stops the expansion from going round again.
+    m += S[":"](S["hold-pairs"], atom_pair)
     m += pair_sum(S["hold-pairs"])
-    # (= (hold-pairs $a $b) (noeval (noeval (hold-pairs $a $b))))
     m += equation(S["hold-pairs"](V.a, V.b)).to(
         S.noeval(S.noeval(S["hold-pairs"](V.a, V.b)))
     )
-    # !(add-translator-rule! hold-pairs)
-    yield m.eval(S["add-translator-rule!"](S["hold-pairs"]))
+    add_rule(S["hold-pairs"])
 
-    # !(test (hold-pairs (pair 1 2) (pair 10 20)) (pair 11 22))
-    yield m.eval(
-        S.test(
-            S["hold-pairs"](S.pair(1, 2), S.pair(10, 20)), S.pair(11, 22)
-        )
-    )
-    # !(test (hold-pairs 1 2) (hold-pairs 1 2))
-    yield m.eval(
-        S.test(S["hold-pairs"](1, 2), S["hold-pairs"](1, 2))
-    )
+    assert m.one(S["hold-pairs"](S.pair(1, 2), S.pair(10, 20))) == S.pair(11, 22)
+    # The original writes this claim as `(test (hold-pairs 1 2) (hold-pairs 1 2))`,
+    # and `test` evaluates BOTH sides, so its expected value goes through the
+    # same rule and the wrapper cancels out of the comparison. An `assert`
+    # compares an evaluated left against a LITERAL right, so the wrapper that
+    # stops the expansion going round again is visible here.
+    assert m.one(S["hold-pairs"](1, 2)) == S.noeval(S["hold-pairs"](1, 2))
 
-    # The engine's own stream operations are written that way.
-    # !(test (collapse (union (superpose (1 2)) (superpose (2 3)))) (1 2 2 3))
-    yield m.eval(
-        S.test(
-            S.collapse(S.union(S.superpose((1, 2)), S.superpose((2, 3)))),
-            (1, 2, 2, 3),
-        )
-    )
-    # !(test (union foo bar) (union foo bar))
-    yield m.eval(S.test(S.union(S.foo, S.bar), S.union(S.foo, S.bar)))
+    # The engine's own stream operations are written that way: `union` rewrites
+    # two superpositions and hands anything else back as it was written.
+    assert m.fn("union").all(S.superpose((1, 2)), S.superpose((2, 3))) == [1, 2, 2, 3]
+    assert m.one(S.union(S.foo, S.bar)) == S.union(S.foo, S.bar)
 
     # A RULE'S BODY IS ITS CONDITION: a body with no answer declines, and the
-    # next clause is tried.
-    # (: pick (-> Atom %Undefined%))
+    # next clause is tried, so `(pick a)` is rewritten by the SECOND equation.
     m += S[":"](S.pick, S["->"](S.Atom, S["%Undefined%"]))
-    # (= (pick a) (empty))
     m += equation(S.pick(S.a)).to(S.empty())
-    # (= (pick $x) (noeval (picked $x)))
     m += equation(S.pick(V.x)).to(S.noeval(S.picked(V.x)))
-    # !(add-translator-rule! pick)
-    yield m.eval(S["add-translator-rule!"](S.pick))
+    add_rule(S.pick)
 
-    # !(test (pick a) (picked a))
-    yield m.eval(S.test(S.pick(S.a), S.picked(S.a)))
-    # !(test (pick b) (picked b))
-    yield m.eval(S.test(S.pick(S.b), S.picked(S.b)))
+    assert m.one(S.pick(S.a)) == S.picked(S.a)
+    assert m.one(S.pick(S.b)) == S.picked(S.b)
 
-    # And when NO clause applies, the whole rule declines and the call carries
-    # on to ordinary dispatch.
-    # (: only-a (-> Atom %Undefined%))
+    # When NO clause applies, the whole rule declines and the call carries on
+    # to ordinary dispatch, which here has no answer either.
     m += S[":"](S["only-a"], S["->"](S.Atom, S["%Undefined%"]))
-    # (= (only-a a) (empty))
     m += equation(S["only-a"](S.a)).to(S.empty())
-    # !(add-translator-rule! only-a)
-    yield m.eval(S["add-translator-rule!"](S["only-a"]))
+    add_rule(S["only-a"])
 
-    # !(test (collapse (only-a a)) ())
-    yield m.eval(S.test(S.collapse(S["only-a"](S.a)), ()))
+    assert m.fn("only-a").all(S.a) == []
 
     # A rule is DETERMINISTIC in a way the function of the same equations is
-    # not: written as a plain function the same two equations answer twice.
-    # (= (both-ways $x) bw-one)
+    # not: written as a plain function, the same two equations answer twice.
     m += equation(S["both-ways"](V.x)).to(S["bw-one"])
-    # (= (both-ways $x) bw-two)
     m += equation(S["both-ways"](V.x)).to(S["bw-two"])
-    # !(test (collapse (both-ways q)) (bw-one bw-two))
-    yield m.eval(
-        S.test(
-            S.collapse(S["both-ways"](S.q)), (S["bw-one"], S["bw-two"])
-        )
-    )
+    assert m.fn("both-ways").all(S.q) == [S["bw-one"], S["bw-two"]]

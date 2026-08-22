@@ -1,76 +1,57 @@
-"""The Python twin of examples/syntax/test_string_comments.metta: `;` in a string.
+"""examples/syntax/test_string_comments.metta in Python: `;` inside a string.
 
-The original is a reader test: a semicolon inside a string starts no comment,
-a lone `(` or `)` is a string and not a paren, and a backslash escape survives.
-A Python twin cannot re-run the reader, because it never hands the engine any
-text to read; what it CAN prove is the other half, that the string VALUES the
-reader is supposed to produce are the ones the engine compares equal, and that
-is what these forms assert. Each string crosses through `val`, the door for a
-Python value that travels whole.
+The original is a READER test: a semicolon inside a string starts no comment, a
+lone `(` or `)` is a string rather than a paren, and a backslash escape
+survives. No Python program can re-run that reader, because it never hands the
+engine any text to read, and the residue table records the gap against P14.1
+where syntax/parse.metta records it.
 
-`(= (test-func) result)` is written at the container door, ONE RUNG BELOW the
-decorator, and the reason is the subset's data convention: a compiled body
-reads a lowercase free name as a call it cannot resolve, and capitalisation is
-what marks data, so `result` has no `@m.define` spelling. The residue table
-records that against P14.4, which owns the subset's growth. The drop would be
-declared as `RUNG = "<reason>"` if that declaration were usable; the lane's own
-source scan reads the reason string as MeTTa text, which the residue records
-too.
+What a Python program CAN say is the other half, and it is the half the reader
+exists to protect: each of these values crosses into the engine and comes back
+as itself. `m.one(val(text))` is that crossing, one answer out, and it is the
+same round trip the original's `!(test "x" "x")` forms make.
+
+The last form is an ordinary definition, written at the container door one rung
+below `@m.define`: its body is the lowercase symbol `result`, and a compiled
+body reads a lowercase free name as a CALL, so the symbol has no decorator
+spelling (residue, P14.4).
 """
 
 from petta import S, equation, val
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 3883 across the rewrite into the authority's idiom:
-#: `expr(S["test"], val(";"), val(";"))` became `S.test(val(";"), val(";"))`
-#: and the equation became `equation(...).to(...)`. Both are Python-side
-#: spellings of the same atoms, so the engine's twelve forms cost what they
-#: cost before. Prior: ADDED 2026-08-22 at 3883 by 7f15dc1's wave-3 baseline.
-BUDGET = 3883
+#: RE-PINNED 2026-08-22, 3883 to 1680, -2203 (-56.7%), by the twin contract
+#: change: eleven `(test X X)` terms became eleven Python `assert`s, so the
+#: `test` wrapper left the engine and the ten crossings plus one definition are
+#: what remains. Against the example's 8232 the ratio is 0.2041.
+#: Prior: 3883, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 1680
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Send nine awkward strings through the engine, then define a function."""
+    # A lone paren is a string, not punctuation.
+    assert m.one(val(")")) == val(")")
+    assert m.one(val("(")) == val("(")
+    # A lone semicolon is a string, not the start of a comment.
+    assert m.one(val(";")) == val(";")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # Test 0: comment separator and parentheses in strings.
-    # !(test ")" ")")
-    yield m.eval(S.test(val(")"), val(")")))
-    # !(test "(" "(")
-    yield m.eval(S.test(val("("), val("(")))
-    # !(test ";" ";")
-    yield m.eval(S.test(val(";"), val(";")))
+    # `quote` holds its argument rather than reducing it, so the semicolon
+    # survives one level in as well.
+    assert m.one(S.quote(val(";"))) == S.quote(val(";"))
 
-    # Test 1: a semicolon constant, held by quote as a wrapper value.
-    # !(test (quote ";") (quote ";"))
-    yield m.eval(S.test(S.quote(val(";")), S.quote(val(";"))))
+    # A semicolon in the middle, three of them, one at each end.
+    assert m.one(val("foo;bar")) == val("foo;bar")
+    assert m.one(val(";;;")) == val(";;;")
+    assert m.one(val(";start")) == val(";start")
+    assert m.one(val("end;")) == val("end;")
 
-    # Test 2: a semicolon in the middle.
-    # !(test "foo;bar" "foo;bar")
-    yield m.eval(S.test(val("foo;bar"), val("foo;bar")))
-    # Test 3: several of them.
-    # !(test ";;;" ";;;")
-    yield m.eval(S.test(val(";;;"), val(";;;")))
-    # Test 4: one at the start.
-    # !(test ";start" ";start")
-    yield m.eval(S.test(val(";start"), val(";start")))
-    # Test 5: one at the end.
-    # !(test "end;" "end;")
-    yield m.eval(S.test(val("end;"), val("end;")))
+    # An escaped quote, and a backslash.
+    assert m.one(val('quote: "')) == val('quote: "')
+    assert m.one(val("path\\file")) == val("path\\file")
 
-    # Test 6: an escaped quote inside the string.
-    # !(test "quote: \"" "quote: \"")
-    yield m.eval(S.test(val('quote: "'), val('quote: "')))
-    # Test 7: a backslash escape.
-    # !(test "path\\file" "path\\file")
-    yield m.eval(S.test(val("path\\file"), val("path\\file")))
-
-    # Test 8: an ordinary definition, with a comment after it.
     # (= (test-func) result)
-    # rung: below the function shape: the body is the lowercase symbol `result`, which
-    #   a compiled body reads as a call it cannot resolve (residue, P14.4)
     m += equation(S["test-func"]()).to(S.result)
-    # !(test (test-func) result)
-    yield m.eval(S.test(S["test-func"](), S.result))
+    assert m.one(S["test-func"]()) == S.result

@@ -1,119 +1,65 @@
-"""The Python twin of examples/spaces/inherited_spaces.metta: child-first reads, front-only writes.
+"""examples/spaces/inherited_spaces.metta in Python: child-first reads, front-only writes.
 
-A child space reads through to its parent, so one conjunction joins a parent fact
-to a child fact and same-shaped facts answer child first. Writes never reach an
-ancestor, and the count sees only the writable front store.
+A child space reads through its parent and writes only into itself. One
+conjunction joins a parent fact to a child fact, because each conjunct is
+matched through the whole read chain; same-shaped facts come back child first;
+and neither write reached the parent.
 
-Every write is the container protocol, `space += fact`, and both handles are
-ordinary Python variables. The CREATION stays a term, because `new-space` answers
-the NAME it created, `&family-child`, while `m.new_space(inherits=parent)`
-answers a handle over a name the engine picked: a symbol is not a variable, so
-those two answers are not alpha-equal. The residue files the missing door, a
-NAMED inheriting space, against P14.10.
+The original names the child `&family-child` so its later forms can address it.
+Nothing here needs the name: `m.new_space(inherits=parent)` answers the HANDLE,
+and every door the example uses hangs off that handle, so the anonymous space
+is not a compromise but the point (the named form has no Python door, residue
+P14.10).
+
+One claim keeps the engine's own function. `len(space)` and iterating it both
+answer the whole READ CHAIN, six atoms here, where `(space-atom-count ...)`
+answers the writable FRONT STORE, three, which is the boundary this example
+exists to draw [measured 2026-08-22; filed as residue against P14.10 and
+reported to the integrator]. The Python container protocol is self-consistent,
+len and iteration agreeing, so the gap is a missing front-store door rather
+than a wrong count.
 """
 
-from petta import S, V, expr
-
-#: The answer group a write form contributes: `add-atom` answers the unit,
-#: which is what Python's own None means at this seam (§9d).
-WROTE = (expr(),)
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6327 to 4780, -1547 (-24.5%), by the P14 twin-style
-#: rewrite, and the whole delta is the six writes: each moved from evaluating an
-#: (add-atom ...) term to `space += fact`, 258 a write, inside the 239-to-311
-#: band this folder measures across six files. The creation is
-#: an unchanged term and the six assertions are the same terms spelled with
-#: named symbols and tuples.
-#: Prior: ADDED 2026-08-22 at 6327 by the wave-3 spaces baseline.
-BUDGET = 4780
+#: RE-PINNED 2026-08-22, 4780 to 1528, -3252 (-68.0%), by the twin contract
+#: change: six `(test (collapse (match ...)) ...)` terms became six Python
+#: `assert`s over the subscript door, so `test` and `collapse` left the engine
+#: six times while the five matches they wrapped and the one count stayed in
+#: it, along with the six writes and the space creation. Against the example's
+#: 14263 the ratio is 0.1071.
+#: Prior: 4780, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 1528
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Fill a parent and a child, then read the chain from both ends."""
     parent = m.space("&family-parent")
-    at_parent = S[parent.space_name]
+    parent += S.edge(S.a, S.b)
+    parent += S["parent-only"](S.kept)
+    parent += S.layer(S.parent)
 
-    # !(add-atom &family-parent (edge a b))
-    parent += (S.edge, S.a, S.b)
-    yield WROTE
-    # !(add-atom &family-parent (parent-only kept))
-    parent += (S["parent-only"], S.kept)
-    yield WROTE
-    # !(add-atom &family-parent (layer parent))
-    parent += (S.layer, S.parent)
-    yield WROTE
+    child = m.new_space(inherits=parent)
+    child += S.edge(S.b, S.c)
+    child += S["child-only"](S.local)
+    child += S.layer(S.child)
 
-    # !(new-space &family-child (inherits &family-parent))
-    yield m.eval(
-        S["new-space"](S["&family-child"], S.inherits(at_parent))
-    )
-    child = m.space("&family-child")
-    at_child = S[child.space_name]
+    # One conjunction joins a parent fact to a child fact, because each
+    # conjunct is matched through the whole read chain.
+    assert [(row.x, row.z) for row in child[S.edge(V.x, V.y), S.edge(V.y, V.z)]] == [
+        (S.a, S.c)
+    ]
 
-    # !(add-atom &family-child (edge b c))
-    child += (S.edge, S.b, S.c)
-    yield WROTE
-    # !(add-atom &family-child (child-only local))
-    child += (S["child-only"], S.local)
-    yield WROTE
-    # !(add-atom &family-child (layer child))
-    child += (S.layer, S.child)
-    yield WROTE
+    # Same-shaped facts pin child-first reads without relying on clause order
+    # across different arities.
+    assert [row.x for row in child[S.layer(V.x)]] == [S.child, S.parent]
+    assert m.fn("space-atom-count")(S[child.space_name]) == 3
 
-    # One conjunction joins a parent fact to a child fact, because each link is
-    # matched through the whole read chain.
-    # !(test (collapse (match &family-child (, (edge $x $y) (edge $y $z)) ($x $z)))
-    #        ((a c)))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.match(
-                    at_child,
-                    S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)),
-                    (V.x, V.z),
-                )
-            ),
-            ((S.a, S.c),),
-        )
-    )
-
-    # Same-shaped facts pin child-first reads.
-    # !(test (collapse (match &family-child (layer $x) $x)) (child parent))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(at_child, S.layer(V.x), V.x)),
-            (S.child, S.parent),
-        )
-    )
-
-    # The capacity/count boundary sees only the writable front store, which is
-    # also what len(child) answers through the protocol door.
-    # !(test (space-atom-count &family-child) 3)
-    yield m.eval(S.test(S["space-atom-count"](at_child), 3))
-
-    # Writes never mutate an ancestor.
-    # !(test (collapse (match &family-parent (parent-only $x) $x)) (kept))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(at_parent, S["parent-only"](V.x), V.x)),
-            (S.kept,),
-        )
-    )
-    # !(test (collapse (match &family-child (parent-only $x) $x)) (kept))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(at_child, S["parent-only"](V.x), V.x)),
-            (S.kept,),
-        )
-    )
-    # !(test (collapse (match &family-parent (child-only $x) $x)) ())
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(at_parent, S["child-only"](V.x), V.x)), ()
-        )
-    )
+    # Writes never mutate an ancestor: the parent keeps what it had, the child
+    # can read it, and the parent cannot read the child.
+    assert [row.x for row in parent[S["parent-only"](V.x)]] == [S.kept]
+    assert [row.x for row in child[S["parent-only"](V.x)]] == [S.kept]
+    assert not parent[S["child-only"](V.x)]

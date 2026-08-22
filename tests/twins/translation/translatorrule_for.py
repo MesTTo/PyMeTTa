@@ -1,66 +1,47 @@
-"""The Python twin of examples/translation/translatorrule_for.metta.
+"""examples/translation/translatorrule_for.metta in Python: adding a form to the language.
 
-A user-defined `for` as a translator rule: the rule rewrites `(for $var $coll
-$body)` into `(let $var (superpose $coll) $body)` at compile time, so `myfun`
-compiles to a superposition and its answers come back as a collapse.
+`for` is not a builtin here; it is three lines of MeTTa registered as a
+translator rule, after which `(for $x $L body)` expands at compile time into a
+`let` over a superposition. So the example is about writing a binding form, and
+the form it writes is the one Python spells with `for ... in`.
 
-Both definitions stay at the container door, each for a reason the compiled
-subset states itself. `for`'s body binds the variable HELD IN a parameter,
-`(let $var ...)`, and assignment in a compiled body binds a plain Python NAME,
-so there is no position to spell that in; `for` is a Python keyword besides.
-`myfun`'s body passes `$x`, a variable that is not one of its parameters, and
-names `even` and `odd`, which are lowercase symbols the engine knows no
-function for, so a compiled body refuses both. The residue table records them
-against P14.4.
+Both equations are terms. The rule's own body binds a variable the CALLER
+supplies, `(let $var (superpose $collection) $body)`, where the bound name is
+held in a parameter and Python's assignment binds a name it can see; and
+`myfun`'s body carries `even` and `odd` as lowercase data constructors, which a
+compiled body reads as calls (residue, P14.4).
 
-The runnable form is the term door, and its condition builds through the
-operators: `(V.x % 2).eq(0)` is `(== (% $x 2) 0)`, with `eq` the method
-because Python's `==` on atoms is structural equality.
+Calling is ordinary: `m.fn(name).all(...)` is the door for a function that
+answers once per element, which is what a `for` form is for.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4111 to 4111, +0, by the wave-4 idiom rewrite: every
-#: form is the same term built at the same door, so the rewrite is a SPELLING
-#: change and the counter says so.
-BUDGET = 4111
+#: RE-PINNED 2026-08-22, 4111 to 3628, -483 (-11.7%), by the twin contract
+#: change: `(test (collapse (myfun (3 4))) ...)` became one `assert` over
+#: `.all()`, so `test` and `collapse` left the engine while the rule, its
+#: registration, the expansion it drives and the two answers stayed in it.
+#: Against the example's 8639 the ratio is 0.4200.
+#: Prior: 4111, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 3628
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    the `add-translator-rule!` form answers the rule it registered.
-    """
+    """Register a `for` form, then write a definition that uses it."""
     # (: for (-> Atom Atom Atom %Undefined%))
-    m += S[":"](
-        S["for"], S["->"](S.Atom, S.Atom, S.Atom, S["%Undefined%"])
-    )
+    m += S[":"](S["for"], S["->"](S.Atom, S.Atom, S.Atom, S["%Undefined%"]))
 
-    # (= (for $var $collection $body)
-    #    (noeval (let $var (superpose $collection) $body)))
+    # (= (for $var $collection $body) (noeval (let $var (superpose $collection) $body)))
     m += equation(S["for"](V.var, V.collection, V.body)).to(
-        S.noeval(S.let(V.var, S.superpose(V.collection), V.body))
+        S.noeval(S.let(V.var, S.superpose(V.collection), V.body))  # rung: the bound NAME is a parameter here, where Python's assignment binds a name it can see
     )
+    m.fn("add-translator-rule!")(S["for"])
 
-    # !(add-translator-rule! for)
-    yield m.eval(S["add-translator-rule!"](S["for"]))
+    # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
+    parity = S["if"](S["=="](S["%"](V.x, 2), 0), S.even(V.x), S.odd(V.x))  # rung: this `if` is DATA, the third argument of an Atom-typed form
+    m += equation(S.myfun(V.items)).to(S["for"](V.x, V.items, parity))
 
-    # (= (myfun $L)
-    #    (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
-    m += equation(S.myfun(V.L)).to(
-        S["for"](
-            V.x,
-            V.L,
-            S["if"]((V.x % 2).eq(0), S.even(V.x), S.odd(V.x)),
-        )
-    )
-
-    # !(test (collapse (myfun (3 4))) ((odd 3) (even 4)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.myfun((3, 4))),
-            (S.odd(3), S.even(4)),
-        )
-    )
+    assert m.fn("myfun").all((3, 4)) == [S.odd(3), S.even(4)]

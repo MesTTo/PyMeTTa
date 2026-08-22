@@ -1,53 +1,41 @@
-"""The Python twin of examples/spaces/fibadd.metta: an added equation is a real one.
+"""examples/spaces/fibadd.metta in Python: an exponential call under a raised bound.
 
-The exponential fib(30) tree outruns the evaluator's default fuel, and the point
-of the example is that this is just as true of an equation that ARRIVED through
-`add-atom` at run time as of one written in the file.
+`fib(30)` on the naive two-call equation is a deliberately exponential tree,
+and it exceeds the evaluator's default fuel, so the claim runs under a pragma
+that raises the stack bound.
 
-`@m.define` is that arrival in Python: the decorator reads the body as syntax and
-writes the equation into the space, so the recursion below IS the equation, and
-`with-pragma!` raises the bound over the call exactly as it does in the original.
-The write form answers the unit; the assertion after it is what runs the tree.
+The original writes its equation with `add-atom` to show that route compiles
+the same as a top-level `(= ...)` does. In Python there is only one route:
+every definition arrives through a write, and `@m.define` is the definitional
+door for a computation, so the distinction the original draws has nothing to
+draw it against here.
+
+`with-pragma!` has no with-block spelling yet. `m.limits()` is the modes door
+and carries `inferences=` and `timeout=`, not the stack bound this needs, so
+the pragma is a term (residue, P14.10).
 """
 
-from petta import S, expr
-
-#: The answer group a write form contributes. `add-atom` answers the unit, and
-#: the unit is what Python's own None means at this seam (§9d).
-WROTE = (expr(),)
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 28277895 to 28278972, +1077 (+0.004%), by the P14
-#: twin-style rewrite: the equation now arrives through @m.define instead of
-#: through an evaluated (add-atom &self (= ...)) term, so the delta is the
-#: decorator door's definition-time price NET of the term it replaces. Against
-#: 28.3 million inferences of fib(30) that is four thousandths of a percent,
-#: which is this folder's cleanest statement of where the decorator's cost
-#: lives: all of it at definition, none of it per call. The ratio against the
-#: original is 0.9999.
-#: Prior: ADDED 2026-08-22 at 28277895 by the wave-3 spaces baseline.
-BUDGET = 28278972
+#: RE-PINNED 2026-08-22, 28278972 to 28278815, -157 (-0.0%), by the twin
+#: contract change: `(test (with-pragma! ...) 832040)` became one `assert`, so
+#: only the `test` wrapper left the engine. Everything that costs anything here
+#: is the 1.3-million-call fib tree itself, which is why the delta is three
+#: figures against twenty-eight million. Against the example's 28280836 the
+#: ratio is 0.9999.
+#: Prior: 28278972, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 28278815
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Define the naive fib, then ask for fib(30) with the fuel raised."""
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-
-    # !(add-atom &self (= (fib $N) (if (< $N 2) $N
-    #                                  (+ (fib (- $N 1)) (fib (- $N 2))))))
     @m.define
     def fib(n):
         return n if n < 2 else fib(n - 1) + fib(n - 2)
 
-    yield WROTE
-
-    # !(test (with-pragma! ((max-stack-depth 100000000)) (fib 30)) 832040)
-    yield m.eval(
-        S.test(
-            S["with-pragma!"]((S["max-stack-depth"](100000000),), S.fib(30)),
-            832040,
-        )
-    )
+    raised = ((S["max-stack-depth"], 100_000_000),)
+    assert m.one(S["with-pragma!"](raised, S.fib(30))) == 832040
